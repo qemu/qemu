@@ -12,7 +12,9 @@
  *
  */
 
-#include "qapi/qmp-core.h"
+#include <glib.h>
+#include <string.h>
+#include "qapi/qmp/dispatch.h"
 
 static QTAILQ_HEAD(QmpCommandList, QmpCommand) qmp_commands =
     QTAILQ_HEAD_INITIALIZER(qmp_commands);
@@ -90,7 +92,7 @@ char **qmp_get_command_list(void)
     list_head = list = g_malloc0(count * sizeof(char *));
 
     QTAILQ_FOREACH(cmd, &qmp_commands, node) {
-        *list = strdup(cmd->name);
+        *list = g_strdup(cmd->name);
         list++;
     }
 

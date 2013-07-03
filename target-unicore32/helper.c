@@ -10,10 +10,12 @@
  */
 
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "helper.h"
-#include "host-utils.h"
-#include "console.h"
+#include "qemu/host-utils.h"
+#ifndef CONFIG_USER_ONLY
+#include "ui/console.h"
+#endif
 
 #undef DEBUG_UC32
 
@@ -27,20 +29,18 @@ CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
 {
     UniCore32CPU *cpu;
     CPUUniCore32State *env;
-    static int inited = 1;
+    ObjectClass *oc;
 
-    if (object_class_by_name(cpu_model) == NULL) {
+    oc = cpu_class_by_name(TYPE_UNICORE32_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
-    cpu = UNICORE32_CPU(object_new(cpu_model));
+    cpu = UNICORE32_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
+    env->cpu_model_str = cpu_model;
 
-    if (inited) {
-        inited = 0;
-        uc32_translate_init();
-    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
-    qemu_init_vcpu(env);
     return env;
 }
 
@@ -242,8 +242,11 @@ void switch_mode(CPUUniCore32State *env, int mode)
     }
 }
 
-void do_interrupt(CPUUniCore32State *env)
+void uc32_cpu_do_interrupt(CPUState *cs)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
+
     cpu_abort(env, "NO interrupt in user mode\n");
 }
 

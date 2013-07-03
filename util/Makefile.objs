@@ -1,0 +1,13 @@
+util-obj-y = osdep.o cutils.o unicode.o qemu-timer-common.o
+util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o event_notifier-win32.o
+util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o event_notifier-posix.o qemu-openpty.o
+util-obj-y += envlist.o path.o host-utils.o cache-utils.o module.o
+util-obj-y += bitmap.o bitops.o hbitmap.o
+util-obj-y += fifo8.o
+util-obj-y += acl.o
+util-obj-y += error.o qemu-error.o
+util-obj-$(CONFIG_POSIX) += compatfd.o
+util-obj-y += iov.o aes.o qemu-config.o qemu-sockets.o uri.o notify.o
+util-obj-y += qemu-option.o qemu-progress.o
+util-obj-y += hexdump.o
+util-obj-y += crc32c.o

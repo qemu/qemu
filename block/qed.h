@@ -15,7 +15,7 @@
 #ifndef BLOCK_QED_H
 #define BLOCK_QED_H
 
-#include "block_int.h"
+#include "block/block_int.h"
 
 /* The layout of a QED file is as follows:
  *

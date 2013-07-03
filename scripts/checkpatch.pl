@@ -97,6 +97,9 @@ my $dbg_values = 0;
 my $dbg_possible = 0;
 my $dbg_type = 0;
 my $dbg_attr = 0;
+my $dbg_adv_dcs = 0;
+my $dbg_adv_checking = 0;
+my $dbg_adv_apw = 0;
 for my $key (keys %debug) {
 	## no critic
 	eval "\${dbg_$key} = '$debug{$key}';";
@@ -2486,8 +2489,11 @@ sub process {
 		if ($line =~ /(^.*)\bif\b/ && $line !~ /\#\s*if/) {
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, 1);
-			#print "chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
-			#print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n";
+                        if ($dbg_adv_apw) {
+                            print "APW: chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
+                            print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n"
+                                if $#chunks >= 1;
+                        }
 			if ($#chunks >= 0 && $level == 0) {
 				my $allowed = 0;
 				my $seen = 0;
@@ -2512,18 +2518,22 @@ sub process {
 
 					$seen++ if ($block =~ /^\s*{/);
 
-					#print "cond<$cond> block<$block> allowed<$allowed>\n";
+                                        print "APW: cond<$cond> block<$block> allowed<$allowed>\n"
+                                            if $dbg_adv_apw;
 					if (statement_lines($cond) > 1) {
-						#print "APW: ALLOWED: cond<$cond>\n";
-						$allowed = 1;
+                                            print "APW: ALLOWED: cond<$cond>\n"
+                                                if $dbg_adv_apw;
+                                            $allowed = 1;
 					}
 					if ($block =~/\b(?:if|for|while)\b/) {
-						#print "APW: ALLOWED: block<$block>\n";
-						$allowed = 1;
+                                            print "APW: ALLOWED: block<$block>\n"
+                                                if $dbg_adv_apw;
+                                            $allowed = 1;
 					}
 					if (statement_block_size($block) > 1) {
-						#print "APW: ALLOWED: lines block<$block>\n";
-						$allowed = 1;
+                                            print "APW: ALLOWED: lines block<$block>\n"
+                                                if $dbg_adv_apw;
+                                            $allowed = 1;
 					}
 				}
 				if ($seen != ($#chunks + 1)) {
@@ -2537,32 +2547,41 @@ sub process {
 					$line !~ /\#\s*else/) {
 			my $allowed = 0;
 
-			# Check the pre-context.
-			if (substr($line, 0, $-[0]) =~ /(\}\s*)$/) {
-				#print "APW: ALLOWED: pre<$1>\n";
-				$allowed = 1;
-			}
+                        # Check the pre-context.
+                        if (substr($line, 0, $-[0]) =~ /(\}\s*)$/) {
+                            my $pre = $1;
+
+                            if ($line !~ /else/) {
+                                print "APW: ALLOWED: pre<$pre> line<$line>\n"
+                                    if $dbg_adv_apw;
+                                $allowed = 1;
+                            }
+                        }
 
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, $-[0]);
 
 			# Check the condition.
 			my ($cond, $block) = @{$chunks[0]};
-			#print "CHECKING<$linenr> cond<$cond> block<$block>\n";
+                        print "CHECKING<$linenr> cond<$cond> block<$block>\n"
+                            if $dbg_adv_checking;
 			if (defined $cond) {
 				substr($block, 0, length($cond), '');
 			}
 			if (statement_lines($cond) > 1) {
-				#print "APW: ALLOWED: cond<$cond>\n";
-				$allowed = 1;
+                            print "APW: ALLOWED: cond<$cond>\n"
+                                if $dbg_adv_apw;
+                            $allowed = 1;
 			}
 			if ($block =~/\b(?:if|for|while)\b/) {
-				#print "APW: ALLOWED: block<$block>\n";
-				$allowed = 1;
+                            print "APW: ALLOWED: block<$block>\n"
+                                if $dbg_adv_apw;
+                            $allowed = 1;
 			}
 			if (statement_block_size($block) > 1) {
-				#print "APW: ALLOWED: lines block<$block>\n";
-				$allowed = 1;
+                            print "APW: ALLOWED: lines block<$block>\n"
+                                if $dbg_adv_apw;
+                            $allowed = 1;
 			}
 			# Check the post-context.
 			if (defined $chunks[1]) {
@@ -2571,10 +2590,13 @@ sub process {
 					substr($block, 0, length($cond), '');
 				}
 				if ($block =~ /^\s*\{/) {
-					#print "APW: ALLOWED: chunk-1 block<$block>\n";
-					$allowed = 1;
+                                    print "APW: ALLOWED: chunk-1 block<$block>\n"
+                                        if $dbg_adv_apw;
+                                    $allowed = 1;
 				}
 			}
+                        print "DCS: level=$level block<$block> allowed=$allowed\n"
+                            if $dbg_adv_dcs;
 			if ($level == 0 && $block !~ /^\s*\{/ && !$allowed) {
 				my $herectx = $here . "\n";;
 				my $cnt = statement_rawlines($block);

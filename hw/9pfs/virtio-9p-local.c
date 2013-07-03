@@ -11,7 +11,7 @@
  *
  */
 
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
 #include "virtio-9p-xattr.h"
 #include <arpa/inet.h>
@@ -19,7 +19,7 @@
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "qemu-xattr.h"
+#include "qemu/xattr.h"
 #include <libgen.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
@@ -46,7 +46,7 @@ static const char *local_mapped_attr_path(FsContext *ctx,
                                           const char *path, char *buffer)
 {
     char *dir_name;
-    char *tmp_path = strdup(path);
+    char *tmp_path = g_strdup(path);
     char *base_name = basename(tmp_path);
 
     /* NULL terminate the directory */
@@ -55,7 +55,7 @@ static const char *local_mapped_attr_path(FsContext *ctx,
 
     snprintf(buffer, PATH_MAX, "%s/%s/%s/%s",
              ctx->fs_root, dir_name, VIRTFS_META_DIR, base_name);
-    free(tmp_path);
+    g_free(tmp_path);
     return buffer;
 }
 
@@ -130,7 +130,7 @@ static int local_create_mapped_attr_dir(FsContext *ctx, const char *path)
 {
     int err;
     char attr_dir[PATH_MAX];
-    char *tmp_path = strdup(path);
+    char *tmp_path = g_strdup(path);
 
     snprintf(attr_dir, PATH_MAX, "%s/%s/%s",
              ctx->fs_root, dirname(tmp_path), VIRTFS_META_DIR);
@@ -139,7 +139,7 @@ static int local_create_mapped_attr_dir(FsContext *ctx, const char *path)
     if (err < 0 && errno == EEXIST) {
         err = 0;
     }
-    free(tmp_path);
+    g_free(tmp_path);
     return err;
 }
 
@@ -284,7 +284,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
         (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE)) {
         int fd;
-        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY);
+        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY | O_NOFOLLOW);
         if (fd == -1) {
             return -1;
         }
@@ -878,7 +878,7 @@ static int local_remove(FsContext *ctx, const char *path)
          * Now remove the name from parent directory
          * .virtfs_metadata directory
          */
-        err = remove(local_mapped_attr_path(ctx, path, buffer));;
+        err = remove(local_mapped_attr_path(ctx, path, buffer));
         if (err < 0 && errno != ENOENT) {
             /*
              * We didn't had the .virtfs_metadata file. May be file created

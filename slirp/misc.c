@@ -8,7 +8,7 @@
 #include <slirp.h>
 #include <libslirp.h>
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 #ifdef DEBUG
 int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
@@ -212,10 +212,10 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
                 } while (so->s < 0 && errno == EINTR);
                 closesocket(s);
                 opt = 1;
-                setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+                qemu_setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
                 opt = 1;
-                setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
-		socket_set_nonblock(so->s);
+                qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+		qemu_set_nonblock(so->s);
 
 		/* Append the telnet options now */
                 if (so->so_m != NULL && do_pty == 1)  {
@@ -242,7 +242,7 @@ strdup(str)
 }
 #endif
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 void lprint(const char *format, ...)
 {
@@ -251,20 +251,6 @@ void lprint(const char *format, ...)
     va_start(args, format);
     monitor_vprintf(default_mon, format, args);
     va_end(args);
-}
-
-void
-u_sleep(int usec)
-{
-	struct timeval t;
-	fd_set fdset;
-
-	FD_ZERO(&fdset);
-
-	t.tv_sec = 0;
-	t.tv_usec = usec * 1000;
-
-	select(0, &fdset, &fdset, &fdset, &t);
 }
 
 void slirp_connection_info(Slirp *slirp, Monitor *mon)

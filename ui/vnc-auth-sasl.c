@@ -432,9 +432,7 @@ static int protocol_client_auth_sasl_start_len(VncState *vs, uint8_t *data, size
 
 static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_t len)
 {
-    char *mechname = g_malloc(len + 1);
-    strncpy(mechname, (char*)data, len);
-    mechname[len] = '\0';
+    char *mechname = g_strndup((const char *) data, len);
     VNC_DEBUG("Got client mechname '%s' check against '%s'\n",
               mechname, vs->sasl.mechlist);
 
@@ -619,7 +617,6 @@ void start_auth_sasl(VncState *vs)
 
  authabort:
     vnc_client_error(vs);
-    return;
 }
 
 

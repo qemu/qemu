@@ -39,7 +39,7 @@
 #include <linux/if_bridge.h>
 #endif
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 #include "net/tap-linux.h"
 
@@ -363,6 +363,24 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCSIFMTU, &ifr) == -1) {
         fprintf(stderr, "failed to set mtu of device `%s' to %d: %s\n",
                 iface, mtu, strerror(errno));
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    /* Linux uses the lowest enslaved MAC address as the MAC address of
+     * the bridge.  Set MAC address to a high value so that it doesn't
+     * affect the MAC address of the bridge.
+     */
+    if (ioctl(ctlfd, SIOCGIFHWADDR, &ifr) < 0) {
+        fprintf(stderr, "failed to get MAC address of device `%s': %s\n",
+                iface, strerror(errno));
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+    ifr.ifr_hwaddr.sa_data[0] = 0xFE;
+    if (ioctl(ctlfd, SIOCSIFHWADDR, &ifr) < 0) {
+        fprintf(stderr, "failed to set MAC address of device `%s': %s\n",
+                iface, strerror(errno));
         ret = EXIT_FAILURE;
         goto cleanup;
     }

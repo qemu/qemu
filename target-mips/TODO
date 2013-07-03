@@ -6,8 +6,7 @@ General
 - Unimplemented ASEs:
   - MDMX
   - SmartMIPS
-  - DSP r1
-  - DSP r2
+  - microMIPS DSP r1 & r2 encodings
 - MT ASE only partially implemented and not functional
 - Shadow register support only partially implemented,
   lacks set switching on interrupt/exception.

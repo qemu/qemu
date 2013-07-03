@@ -16,7 +16,7 @@ struct target_pt_regs {
     target_psw_t psw;
     abi_ulong gprs[TARGET_NUM_GPRS];
     abi_ulong orig_gpr2;
-    unsigned short ilc;
+    unsigned short ilen;
     unsigned short trap;
 };
 

@@ -17,13 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
 
 #include "helper_regs.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 //#define DEBUG_OP
@@ -136,18 +136,21 @@ static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size)
     }
 }
 
-void helper_dcbz(CPUPPCState *env, target_ulong addr)
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t is_dcbzl)
 {
-    do_dcbz(env, addr, env->dcache_line_size);
-}
+    int dcbz_size = env->dcache_line_size;
 
-void helper_dcbz_970(CPUPPCState *env, target_ulong addr)
-{
-    if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
-        do_dcbz(env, addr, 32);
-    } else {
-        do_dcbz(env, addr, env->dcache_line_size);
+#if defined(TARGET_PPC64)
+    if (!is_dcbzl &&
+        (env->excp_model == POWERPC_EXCP_970) &&
+        ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
+        dcbz_size = 32;
     }
+#endif
+
+    /* XXX add e500mc support */
+
+    do_dcbz(env, addr, dcbz_size);
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
@@ -249,47 +252,3 @@ STVE(stvewx, cpu_stl_data, bswap32, u32)
 
 #undef HI_IDX
 #undef LO_IDX
-
-/*****************************************************************************/
-/* Softmmu support */
-#if !defined(CONFIG_USER_ONLY)
-
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
-{
-    TranslationBlock *tb;
-    int ret;
-
-    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
-    if (unlikely(ret != 0)) {
-        if (likely(retaddr)) {
-            /* now we have a real cpu fault */
-            tb = tb_find_pc(retaddr);
-            if (likely(tb)) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, retaddr);
-            }
-        }
-        helper_raise_exception_err(env, env->exception_index, env->error_code);
-    }
-}
-#endif /* !CONFIG_USER_ONLY */

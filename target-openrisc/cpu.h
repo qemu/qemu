@@ -30,10 +30,9 @@ struct OpenRISCCPU;
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
-#include "softfloat.h"
-#include "qemu/cpu.h"
-#include "error.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
+#include "qom/cpu.h"
 
 #define TYPE_OPENRISC_CPU "or32-cpu"
 
@@ -46,6 +45,7 @@ struct OpenRISCCPU;
 
 /**
  * OpenRISCCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * A OpenRISC CPU model.
@@ -55,6 +55,7 @@ typedef struct OpenRISCCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } OpenRISCCPUClass;
 
@@ -88,24 +89,6 @@ enum {
 
 /* Interrupt */
 #define NR_IRQS  32
-
-/* Registers */
-enum {
-    R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
-    R11, R12, R13, R14, R15, R16, R17, R18, R19, R20,
-    R21, R22, R23, R24, R25, R26, R27, R28, R29, R30,
-    R31
-};
-
-/* Register aliases */
-enum {
-    R_ZERO = R0,
-    R_SP = R1,
-    R_FP = R2,
-    R_LR = R9,
-    R_RV = R11,
-    R_RVH = R12
-};
 
 /* Unit presece register */
 enum {
@@ -279,11 +262,11 @@ typedef struct CPUOpenRISCTLBContext {
     OpenRISCTLBEntry dtlb[DTLB_WAYS][DTLB_SIZE];
 
     int (*cpu_openrisc_map_address_code)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
     int (*cpu_openrisc_map_address_data)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
 } CPUOpenRISCTLBContext;
@@ -357,12 +340,13 @@ static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(OpenRISCCPU, env)
+
 OpenRISCCPU *cpu_openrisc_init(const char *cpu_model);
-void openrisc_cpu_realize(Object *obj, Error **errp);
 
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_openrisc_exec(CPUOpenRISCState *s);
-void do_interrupt(CPUOpenRISCState *env);
+void openrisc_cpu_do_interrupt(CPUState *cpu);
 void openrisc_translate_init(void);
 int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address,
@@ -387,13 +371,13 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                target_phys_addr_t *physical,
+                                hwaddr *physical,
                                 int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 #endif
 
@@ -416,7 +400,7 @@ static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
                                         target_ulong *pc,
@@ -437,13 +421,13 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUOpenRISCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
-    return env->interrupt_request & (CPU_INTERRUPT_HARD |
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD |
                                      CPU_INTERRUPT_TIMER);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
 {

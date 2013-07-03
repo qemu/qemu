@@ -336,6 +336,17 @@ DEF_HELPER_3(crc32, tl, i32, tl, i32)
 DEF_HELPER_3(popcnt, tl, env, tl, i32)
 #endif
 
+/* AES-NI op helpers */
+#if SHIFT == 1
+DEF_HELPER_3(glue(aesdec, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_3(glue(aesdeclast, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_3(glue(aesenc, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_3(glue(aesenclast, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_3(glue(aesimc, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(aeskeygenassist, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_4(glue(pclmulqdq, SUFFIX), void, env, Reg, Reg, i32)
+#endif
+
 #undef SHIFT
 #undef Reg
 #undef SUFFIX

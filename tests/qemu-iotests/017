@@ -46,6 +46,8 @@ _supported_os Linux
 
 TEST_OFFSETS="0 4294967296"
 
+TEST_IMG_SAVE=$TEST_IMG
+TEST_IMG=$TEST_IMG.base
 _make_test_img 6G
 
 echo "Filling base image"
@@ -63,7 +65,7 @@ _check_test_img
 echo "Creating test image with backing file"
 echo
 
-mv $TEST_IMG $TEST_IMG.base
+TEST_IMG=$TEST_IMG_SAVE
 _make_test_img -b $TEST_IMG.base 6G
 
 echo "Filling test image"

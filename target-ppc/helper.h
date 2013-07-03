@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_3(raise_exception_err, void, env, i32, i32)
 DEF_HELPER_2(raise_exception, void, env, i32)
@@ -25,30 +25,28 @@ DEF_HELPER_3(stmw, void, env, tl, i32)
 DEF_HELPER_4(lsw, void, env, tl, i32, i32)
 DEF_HELPER_5(lswx, void, env, tl, i32, i32, i32)
 DEF_HELPER_4(stsw, void, env, tl, i32, i32)
-DEF_HELPER_2(dcbz, void, env, tl)
-DEF_HELPER_2(dcbz_970, void, env, tl)
+DEF_HELPER_3(dcbz, void, env, tl, i32)
 DEF_HELPER_2(icbi, void, env, tl)
 DEF_HELPER_5(lscbx, tl, env, tl, i32, i32, i32)
 
 #if defined(TARGET_PPC64)
-DEF_HELPER_FLAGS_2(mulhd, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
-DEF_HELPER_FLAGS_2(mulhdu, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_3(mulldo, i64, env, i64, i64)
 #endif
 
-DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
-DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
-DEF_HELPER_FLAGS_1(popcntw, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntw, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_2(cmpb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 DEF_HELPER_3(sraw, tl, env, tl, tl)
 #if defined(TARGET_PPC64)
-DEF_HELPER_FLAGS_1(cntlzd, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
-DEF_HELPER_FLAGS_1(popcntd, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(cntlzd, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntd, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_3(srad, tl, env, tl, tl)
 #endif
 
-DEF_HELPER_FLAGS_1(cntlsw32, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
-DEF_HELPER_FLAGS_1(cntlzw32, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
-DEF_HELPER_FLAGS_2(brinc, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl, tl)
+DEF_HELPER_FLAGS_1(cntlsw32, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(cntlzw32, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_2(brinc, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 
 DEF_HELPER_1(float_check_status, void, env)
 DEF_HELPER_1(reset_fpstatus, void, env)
@@ -83,9 +81,6 @@ DEF_HELPER_4(fmadd, i64, env, i64, i64, i64)
 DEF_HELPER_4(fmsub, i64, env, i64, i64, i64)
 DEF_HELPER_4(fnmadd, i64, env, i64, i64, i64)
 DEF_HELPER_4(fnmsub, i64, env, i64, i64, i64)
-DEF_HELPER_2(fabs, i64, env, i64)
-DEF_HELPER_2(fnabs, i64, env, i64)
-DEF_HELPER_2(fneg, i64, env, i64)
 DEF_HELPER_2(fsqrt, i64, env, i64)
 DEF_HELPER_2(fre, i64, env, i64)
 DEF_HELPER_2(fres, i64, env, i64)
@@ -345,25 +340,25 @@ DEF_HELPER_2(6xx_tlbd, void, env, tl)
 DEF_HELPER_2(6xx_tlbi, void, env, tl)
 DEF_HELPER_2(74xx_tlbd, void, env, tl)
 DEF_HELPER_2(74xx_tlbi, void, env, tl)
-DEF_HELPER_FLAGS_1(tlbia, TCG_CALL_CONST, void, env)
-DEF_HELPER_FLAGS_2(tlbie, TCG_CALL_CONST, void, env, tl)
+DEF_HELPER_FLAGS_1(tlbia, TCG_CALL_NO_RWG, void, env)
+DEF_HELPER_FLAGS_2(tlbie, TCG_CALL_NO_RWG, void, env, tl)
 #if defined(TARGET_PPC64)
-DEF_HELPER_FLAGS_3(store_slb, TCG_CALL_CONST, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(store_slb, TCG_CALL_NO_RWG, void, env, tl, tl)
 DEF_HELPER_2(load_slb_esid, tl, env, tl)
 DEF_HELPER_2(load_slb_vsid, tl, env, tl)
-DEF_HELPER_FLAGS_1(slbia, TCG_CALL_CONST, void, env)
-DEF_HELPER_FLAGS_2(slbie, TCG_CALL_CONST, void, env, tl)
+DEF_HELPER_FLAGS_1(slbia, TCG_CALL_NO_RWG, void, env)
+DEF_HELPER_FLAGS_2(slbie, TCG_CALL_NO_RWG, void, env, tl)
 #endif
-DEF_HELPER_FLAGS_2(load_sr, TCG_CALL_CONST, tl, env, tl);
-DEF_HELPER_FLAGS_3(store_sr, TCG_CALL_CONST, void, env, tl, tl)
+DEF_HELPER_FLAGS_2(load_sr, TCG_CALL_NO_RWG, tl, env, tl);
+DEF_HELPER_FLAGS_3(store_sr, TCG_CALL_NO_RWG, void, env, tl, tl)
 
-DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_1(msgsnd, void, tl)
 DEF_HELPER_2(msgclr, void, env, tl)
 #endif
 
 DEF_HELPER_4(dlmzb, tl, env, tl, tl, i32)
-DEF_HELPER_FLAGS_2(clcs, TCG_CALL_CONST | TCG_CALL_PURE, tl, env, i32)
+DEF_HELPER_FLAGS_2(clcs, TCG_CALL_NO_RWG_SE, tl, env, i32)
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(rac, tl, env, tl)
 #endif
@@ -385,7 +380,6 @@ DEF_HELPER_1(load_601_rtcl, tl, env)
 DEF_HELPER_1(load_601_rtcu, tl, env)
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
-DEF_HELPER_2(store_asr, void, env, tl)
 DEF_HELPER_1(load_purr, tl, env)
 #endif
 DEF_HELPER_2(store_sdr1, void, env, tl)
@@ -405,7 +399,6 @@ DEF_HELPER_2(store_40x_dbcr0, void, env, tl)
 DEF_HELPER_2(store_40x_sler, void, env, tl)
 DEF_HELPER_2(store_booke_tcr, void, env, tl)
 DEF_HELPER_2(store_booke_tsr, void, env, tl)
-DEF_HELPER_1(load_epr, tl, env)
 DEF_HELPER_3(store_ibatl, void, env, i32, tl)
 DEF_HELPER_3(store_ibatu, void, env, i32, tl)
 DEF_HELPER_3(store_dbatl, void, env, i32, tl)
@@ -414,4 +407,4 @@ DEF_HELPER_3(store_601_batl, void, env, i32, tl)
 DEF_HELPER_3(store_601_batu, void, env, i32, tl)
 #endif
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

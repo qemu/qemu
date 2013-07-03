@@ -21,12 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "readline.h"
-#include "monitor.h"
+#include "monitor/readline.h"
+#include "monitor/monitor.h"
 
 #define IS_NORM 0
 #define IS_ESC  1
 #define IS_CSI  2
+#define IS_SS3  3
 
 #undef printf
 #define printf do_not_use_printf
@@ -247,14 +248,14 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     }
     if (idx == READLINE_MAX_CMDS) {
 	/* Need to get one free slot */
-	free(rs->history[0]);
-	memcpy(rs->history, &rs->history[1],
-	       (READLINE_MAX_CMDS - 1) * sizeof(char *));
+        g_free(rs->history[0]);
+	memmove(rs->history, &rs->history[1],
+	        (READLINE_MAX_CMDS - 1) * sizeof(char *));
 	rs->history[READLINE_MAX_CMDS - 1] = NULL;
 	idx = READLINE_MAX_CMDS - 1;
     }
     if (new_entry == NULL)
-	new_entry = strdup(cmdline);
+        new_entry = g_strdup(cmdline);
     rs->history[idx] = new_entry;
     rs->hist_entry = -1;
 }
@@ -397,6 +398,9 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         if (ch == '[') {
             rs->esc_state = IS_CSI;
             rs->esc_param = 0;
+        } else if (ch == 'O') {
+            rs->esc_state = IS_SS3;
+            rs->esc_param = 0;
         } else {
             rs->esc_state = IS_NORM;
         }
@@ -438,6 +442,17 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         }
         rs->esc_state = IS_NORM;
     the_end:
+        break;
+    case IS_SS3:
+        switch(ch) {
+        case 'F':
+            readline_eol(rs);
+            break;
+        case 'H':
+            readline_bol(rs);
+            break;
+        }
+        rs->esc_state = IS_NORM;
         break;
     }
     readline_update(rs);

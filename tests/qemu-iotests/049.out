@@ -1,0 +1,212 @@
+QA output created by 049
+=== Check correct interpretation of suffixes for image size ===
+
+== 1. Traditional size parameter ==
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1024
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1024b
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1k
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1K
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1048576 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1073741824 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1T
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1099511627776 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1024.0
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1024.0b
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1.5k
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1536 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1.5K
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1536 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1.5M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1572864 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1.5G
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1610612736 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 1.5T
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1649267441664 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+== 2. Specifying size via -o ==
+
+qemu-img create -f qcow2 -o size=1024 TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1024b TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1k TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1K TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1M TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1048576 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1G TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1073741824 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1T TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1099511627776 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1024.0 TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1024.0b TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1.5k TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1536 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1.5K TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1536 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1.5M TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1572864 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1.5G TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1610612736 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o size=1.5T TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1649267441664 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+== 3. Invalid sizes ==
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1024
+qemu-img: Image size must be less than 8 EiB!
+
+qemu-img create -f qcow2 -o size=-1024 TEST_DIR/t.qcow2
+qemu-img: qcow2 doesn't support shrinking images yet
+qemu-img: Formatting or formatting option not supported for file format 'qcow2'
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=-1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1k
+qemu-img: Image size must be less than 8 EiB!
+
+qemu-img create -f qcow2 -o size=-1k TEST_DIR/t.qcow2
+qemu-img: qcow2 doesn't support shrinking images yet
+qemu-img: Formatting or formatting option not supported for file format 'qcow2'
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=-1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- 1kilobyte
+qemu-img: Invalid image size specified! You may use k, M, G or T suffixes for 
+qemu-img: kilobytes, megabytes, gigabytes and terabytes.
+
+qemu-img create -f qcow2 -o size=1kilobyte TEST_DIR/t.qcow2
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- foobar
+qemu-img: Invalid image size specified! You may use k, M, G or T suffixes for 
+qemu-img: kilobytes, megabytes, gigabytes and terabytes.
+
+qemu-img create -f qcow2 -o size=foobar TEST_DIR/t.qcow2
+qemu-img: Parameter 'size' expects a size
+qemu-img: Invalid options for file format 'qcow2'.
+
+== Check correct interpretation of suffixes for cluster size ==
+
+qemu-img create -f qcow2 -o cluster_size=1024 TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1024b TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1k TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1K TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1M TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1048576 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1024.0 TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=1024.0b TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=1024 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=0.5k TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=512 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=0.5K TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=512 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o cluster_size=0.5M TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=524288 lazy_refcounts=off 
+
+== Check compat level option ==
+
+qemu-img create -f qcow2 -o compat=0.10 TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.10' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o compat=1.1 TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='1.1' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o compat=0.42 TEST_DIR/t.qcow2 64M
+Invalid compatibility level: '0.42'
+qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.42' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o compat=foobar TEST_DIR/t.qcow2 64M
+Invalid compatibility level: 'foobar'
+qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='foobar' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+== Check preallocation option ==
+
+qemu-img create -f qcow2 -o preallocation=off TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 preallocation='off' lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o preallocation=metadata TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 preallocation='metadata' lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o preallocation=1234 TEST_DIR/t.qcow2 64M
+Invalid preallocation mode: '1234'
+qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 preallocation='1234' lazy_refcounts=off 
+
+== Check encryption option ==
+
+qemu-img create -f qcow2 -o encryption=off TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o encryption=on TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=on cluster_size=65536 lazy_refcounts=off 
+
+== Check lazy_refcounts option (only with v3) ==
+
+qemu-img create -f qcow2 -o compat=1.1,lazy_refcounts=off TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='1.1' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o compat=1.1,lazy_refcounts=on TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='1.1' encryption=off cluster_size=65536 lazy_refcounts=on 
+
+qemu-img create -f qcow2 -o compat=0.10,lazy_refcounts=off TEST_DIR/t.qcow2 64M
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.10' encryption=off cluster_size=65536 lazy_refcounts=off 
+
+qemu-img create -f qcow2 -o compat=0.10,lazy_refcounts=on TEST_DIR/t.qcow2 64M
+Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
+qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.10' encryption=off cluster_size=65536 lazy_refcounts=on 
+
+*** done

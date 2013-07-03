@@ -9,19 +9,18 @@
  * later version. See the COPYING file in the top-level directory.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-void HELPER(exception)(uint32_t excp)
+void HELPER(exception)(CPUUniCore32State *env, uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit(env);
 }
 
-static target_ulong asr_read(void)
+static target_ulong asr_read(CPUUniCore32State *env)
 {
     int ZF;
     ZF = (env->ZF == 0);
@@ -29,24 +28,18 @@ static target_ulong asr_read(void)
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3);
 }
 
-target_ulong cpu_asr_read(CPUUniCore32State *env1)
+target_ulong cpu_asr_read(CPUUniCore32State *env)
 {
-    CPUUniCore32State *saved_env;
-    target_ulong ret;
-
-    saved_env = env;
-    env = env1;
-    ret = asr_read();
-    env = saved_env;
-    return ret;
+    return asr_read(env);
 }
 
-target_ulong HELPER(asr_read)(void)
+target_ulong HELPER(asr_read)(CPUUniCore32State *env)
 {
-    return asr_read();
+    return asr_read(env);
 }
 
-static void asr_write(target_ulong val, target_ulong mask)
+static void asr_write(CPUUniCore32State *env, target_ulong val,
+                      target_ulong mask)
 {
     if (mask & ASR_NZCV) {
         env->ZF = (~val) & ASR_Z;
@@ -62,23 +55,19 @@ static void asr_write(target_ulong val, target_ulong mask)
     env->uncached_asr = (env->uncached_asr & ~mask) | (val & mask);
 }
 
-void cpu_asr_write(CPUUniCore32State *env1, target_ulong val, target_ulong mask)
+void cpu_asr_write(CPUUniCore32State *env, target_ulong val, target_ulong mask)
 {
-    CPUUniCore32State *saved_env;
-
-    saved_env = env;
-    env = env1;
-    asr_write(val, mask);
-    env = saved_env;
+    asr_write(env, val, mask);
 }
 
-void HELPER(asr_write)(target_ulong val, target_ulong mask)
+void HELPER(asr_write)(CPUUniCore32State *env, target_ulong val,
+                       target_ulong mask)
 {
-    asr_write(val, mask);
+    asr_write(env, val, mask);
 }
 
 /* Access to user mode registers from privileged modes.  */
-uint32_t HELPER(get_user_reg)(uint32_t regno)
+uint32_t HELPER(get_user_reg)(CPUUniCore32State *env, uint32_t regno)
 {
     uint32_t val;
 
@@ -92,7 +81,7 @@ uint32_t HELPER(get_user_reg)(uint32_t regno)
     return val;
 }
 
-void HELPER(set_user_reg)(uint32_t regno, uint32_t val)
+void HELPER(set_user_reg)(CPUUniCore32State *env, uint32_t regno, uint32_t val)
 {
     if (regno == 29) {
         env->banked_r29[0] = val;
@@ -107,7 +96,7 @@ void HELPER(set_user_reg)(uint32_t regno, uint32_t val)
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
 
-uint32_t HELPER(add_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(add_cc)(CPUUniCore32State *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = a + b;
@@ -117,7 +106,7 @@ uint32_t HELPER(add_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(adc_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(adc_cc)(CPUUniCore32State *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     if (!env->CF) {
@@ -132,7 +121,7 @@ uint32_t HELPER(adc_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(sub_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(sub_cc)(CPUUniCore32State *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = a - b;
@@ -142,7 +131,7 @@ uint32_t HELPER(sub_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(sbc_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(sbc_cc)(CPUUniCore32State *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     if (!env->CF) {
@@ -186,7 +175,7 @@ uint32_t HELPER(sar)(uint32_t x, uint32_t i)
     return (int32_t)x >> shift;
 }
 
-uint32_t HELPER(shl_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(shl_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -203,7 +192,7 @@ uint32_t HELPER(shl_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(shr_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(shr_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -220,7 +209,7 @@ uint32_t HELPER(shr_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(sar_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(sar_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -233,7 +222,7 @@ uint32_t HELPER(sar_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(ror_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(ror_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 {
     int shift1, shift;
     shift1 = i & 0xff;
@@ -253,40 +242,29 @@ uint32_t HELPER(ror_cc)(uint32_t x, uint32_t i)
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
-void tlb_fill(CPUUniCore32State *env1, target_ulong addr, int is_write,
-        int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUUniCore32State *env, target_ulong addr, int is_write,
+              int mmu_idx, uintptr_t retaddr)
 {
-    TranslationBlock *tb;
-    CPUUniCore32State *saved_env;
-    unsigned long pc;
     int ret;
 
-    saved_env = env;
-    env = env1;
     ret = uc32_cpu_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {/* the PC is inside the translated code.
-                        It means that we have a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
-            }
+            cpu_restore_state(env, retaddr);
         }
         cpu_loop_exit(env);
     }
-    env = saved_env;
 }
 #endif

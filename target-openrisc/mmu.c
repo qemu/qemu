@@ -20,15 +20,15 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
-#include "gdbstub.h"
-#include "host-utils.h"
+#include "exec/gdbstub.h"
+#include "qemu/host-utils.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/loader.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                target_phys_addr_t *physical,
+                                hwaddr *physical,
                                 int *prot, target_ulong address, int rw)
 {
     *physical = address;
@@ -37,7 +37,7 @@ int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
 }
 
 int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw)
 {
     int vpn = address >> TARGET_PAGE_BITS;
@@ -72,7 +72,7 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
 }
 
 int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw)
 {
     int vpn = address >> TARGET_PAGE_BITS;
@@ -116,7 +116,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
 }
 
 static int cpu_openrisc_get_phys_addr(OpenRISCCPU *cpu,
-                                      target_phys_addr_t *physical,
+                                      hwaddr *physical,
                                       int *prot, target_ulong address,
                                       int rw)
 {
@@ -185,9 +185,9 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address, int rw, int mmu_idx)
 {
     int ret = 0;
-    target_phys_addr_t physical = 0;
+    hwaddr physical = 0;
     int prot = 0;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     ret = cpu_openrisc_get_phys_addr(cpu, &physical, &prot,
                                      address, rw);
@@ -209,7 +209,7 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address, int rw, int mmu_idx)
 {
     int ret = 0;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     cpu_openrisc_raise_mmu_exception(cpu, address, rw, ret);
     ret = 1;
@@ -219,12 +219,12 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
 #endif
 
 #ifndef CONFIG_USER_ONLY
-target_phys_addr_t cpu_get_phys_page_debug(CPUOpenRISCState *env,
+hwaddr cpu_get_phys_page_debug(CPUOpenRISCState *env,
                                            target_ulong addr)
 {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     int prot;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     if (cpu_openrisc_get_phys_addr(cpu, &phys_addr, &prot, addr, 0)) {
         return -1;

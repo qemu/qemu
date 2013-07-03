@@ -23,7 +23,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
@@ -64,7 +64,7 @@ static void arm_cpu_reset(CPUState *s)
     CPUARMState *env = &cpu->env;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 
@@ -134,11 +134,19 @@ static inline void set_feature(CPUARMState *env, int feature)
 
 static void arm_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
+    static bool inited;
 
+    cs->env_ptr = &cpu->env;
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+    if (tcg_enabled() && !inited) {
+        inited = true;
+        arm_translate_init();
+    }
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -147,15 +155,12 @@ static void arm_cpu_finalizefn(Object *obj)
     g_hash_table_destroy(cpu->cp_regs);
 }
 
-void arm_cpu_realize(ARMCPU *cpu)
+static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    /* This function is called by cpu_arm_init() because it
-     * needs to do common actions based on feature bits, etc
-     * that have been set by the subclass init functions.
-     * When we have QOM realize support it should become
-     * a true realize function instead.
-     */
+    ARMCPU *cpu = ARM_CPU(dev);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
+
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
@@ -197,9 +202,34 @@ void arm_cpu_realize(ARMCPU *cpu)
     }
 
     register_cp_regs_for_features(cpu);
+    arm_cpu_register_gdb_regs_for_features(cpu);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(env);
+
+    acc->parent_realize(dev, errp);
 }
 
 /* CPU models */
+
+static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+    char *typename;
+
+    if (!cpu_model) {
+        return NULL;
+    }
+
+    typename = g_strdup_printf("%s-" TYPE_ARM_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU) ||
+        object_class_is_abstract(oc)) {
+        return NULL;
+    }
+    return oc;
+}
 
 static void arm926_initfn(Object *obj)
 {
@@ -380,6 +410,15 @@ static void cortex_m3_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_M);
     cpu->midr = 0x410fc231;
+}
+
+static void arm_v7m_class_init(ObjectClass *oc, void *data)
+{
+#ifndef CONFIG_USER_ONLY
+    CPUClass *cc = CPU_CLASS(oc);
+
+    cc->do_interrupt = arm_v7m_cpu_do_interrupt;
+#endif
 }
 
 static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
@@ -722,6 +761,7 @@ static void arm_any_initfn(Object *obj)
 typedef struct ARMCPUInfo {
     const char *name;
     void (*initfn)(Object *obj);
+    void (*class_init)(ObjectClass *oc, void *data);
 } ARMCPUInfo;
 
 static const ARMCPUInfo arm_cpus[] = {
@@ -736,7 +776,8 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "arm1136",     .initfn = arm1136_initfn },
     { .name = "arm1176",     .initfn = arm1176_initfn },
     { .name = "arm11mpcore", .initfn = arm11mpcore_initfn },
-    { .name = "cortex-m3",   .initfn = cortex_m3_initfn },
+    { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
+                             .class_init = arm_v7m_class_init },
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },
@@ -763,22 +804,32 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(acc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    acc->parent_realize = dc->realize;
+    dc->realize = arm_cpu_realizefn;
 
     acc->parent_reset = cc->reset;
     cc->reset = arm_cpu_reset;
+
+    cc->class_by_name = arm_cpu_class_by_name;
+    cc->do_interrupt = arm_cpu_do_interrupt;
+    cpu_class_set_vmsd(cc, &vmstate_arm_cpu);
 }
 
 static void cpu_register(const ARMCPUInfo *info)
 {
     TypeInfo type_info = {
-        .name = info->name,
         .parent = TYPE_ARM_CPU,
         .instance_size = sizeof(ARMCPU),
         .instance_init = info->initfn,
         .class_size = sizeof(ARMCPUClass),
+        .class_init = info->class_init,
     };
 
-    type_register_static(&type_info);
+    type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
+    type_register(&type_info);
+    g_free((void *)type_info.name);
 }
 
 static const TypeInfo arm_cpu_type_info = {

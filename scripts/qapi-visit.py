@@ -157,7 +157,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     if (!error_is_set(errp)) {
         visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
         if (!err) {
-            if (!obj || *obj) {
+            if (obj && *obj) {
                 visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
                 if (!err) {
                     switch ((*obj)->kind) {
@@ -173,7 +173,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
                 break;
 ''',
                 abbrev = de_camel_case(name).upper(),
-                enum = c_fun(de_camel_case(key)).upper(),
+                enum = c_fun(de_camel_case(key),False).upper(),
                 c_type=members[key],
                 c_name=c_fun(key))
 
@@ -214,6 +214,16 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp);
 ''',
                  name=name)
+
+    return ret
+
+def generate_enum_declaration(name, members, genlist=True):
+    ret = ""
+    if genlist:
+        ret += mcgen('''
+void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp);
+''',
+                     name=name)
 
     return ret
 
@@ -288,6 +298,7 @@ fdef.write(mcgen('''
  *
  */
 
+#include "qemu-common.h"
 #include "%(header)s"
 ''',
                  header=basename(h_file)))
@@ -311,7 +322,7 @@ fdecl.write(mcgen('''
 #ifndef %(guard)s
 #define %(guard)s
 
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
 ''',
                   prefix=prefix, guard=guardname(h_file)))
@@ -335,10 +346,12 @@ for expr in exprs:
         ret += generate_declaration(expr['union'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('enum'):
-        ret = generate_visit_enum(expr['enum'], expr['data'])
+        ret = generate_visit_list(expr['enum'], expr['data'])
+        ret += generate_visit_enum(expr['enum'], expr['data'])
         fdef.write(ret)
 
         ret = generate_decl_enum(expr['enum'], expr['data'])
+        ret += generate_enum_declaration(expr['enum'], expr['data'])
         fdecl.write(ret)
 
 fdecl.write('''

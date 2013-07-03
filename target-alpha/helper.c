@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 #include "helper.h"
 
 uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
@@ -315,7 +315,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     return ret;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
 {
     target_ulong phys;
     int prot, fail;
@@ -345,8 +345,10 @@ int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong addr, int rw,
 }
 #endif /* USER_ONLY */
 
-void do_interrupt (CPUAlphaState *env)
+void alpha_cpu_do_interrupt(CPUState *cs)
 {
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     int i = env->exception_index;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
@@ -494,16 +496,6 @@ void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n");
 }
 
-void do_restore_state(CPUAlphaState *env, uintptr_t retaddr)
-{
-    if (retaddr) {
-        TranslationBlock *tb = tb_find_pc(retaddr);
-        if (tb) {
-            cpu_restore_state(tb, env, retaddr);
-        }
-    }
-}
-
 /* This should only be called from translate, via gen_excp.
    We expect that ENV->PC has already been updated.  */
 void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
@@ -519,7 +511,9 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
 {
     env->exception_index = excp;
     env->error_code = error;
-    do_restore_state(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
     cpu_loop_exit(env);
 }
 

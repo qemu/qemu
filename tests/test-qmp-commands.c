@@ -1,8 +1,9 @@
 #include <glib.h>
-#include "qemu-objects.h"
+#include "qemu-common.h"
+#include "qapi/qmp/types.h"
 #include "test-qmp-commands.h"
-#include "qapi/qmp-core.h"
-#include "module.h"
+#include "qapi/qmp/dispatch.h"
+#include "qemu/module.h"
 #include "qapi/qmp-input-visitor.h"
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"

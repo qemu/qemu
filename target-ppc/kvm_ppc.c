@@ -12,9 +12,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "kvm_ppc.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 
 #define PROC_DEVTREE_PATH "/proc/device-tree"
 

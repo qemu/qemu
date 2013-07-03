@@ -1,0 +1,155 @@
+#!/bin/bash
+#
+# Test command line configuration of block devices and driver-specific options
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    echo quit | $QEMU -nographic -monitor stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu
+}
+
+size=128M
+
+_make_test_img $size
+
+echo
+echo === Unknown option ===
+echo
+
+run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=
+run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=on
+run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=1234
+run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=foo
+
+
+echo
+echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
+echo
+
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=42
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=foo
+
+
+echo
+echo === With version 2 images enabling lazy refcounts must fail ===
+echo
+
+_make_test_img -ocompat=0.10 $size
+
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
+
+echo
+echo === No medium ===
+echo
+
+run_qemu -drive if=floppy
+run_qemu -drive if=ide,media=cdrom
+run_qemu -drive if=scsi,media=cdrom
+
+run_qemu -drive if=ide
+run_qemu -drive if=virtio
+run_qemu -drive if=scsi
+
+run_qemu -drive if=none,id=disk -device ide-cd,drive=disk
+run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
+
+run_qemu -drive if=none,id=disk -device ide-drive,drive=disk
+run_qemu -drive if=none,id=disk -device ide-hd,drive=disk
+run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
+run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
+
+echo
+echo === Read-only ===
+echo
+
+run_qemu -drive file=$TEST_IMG,if=floppy,readonly=on
+run_qemu -drive file=$TEST_IMG,if=ide,media=cdrom,readonly=on
+run_qemu -drive file=$TEST_IMG,if=scsi,media=cdrom,readonly=on
+
+run_qemu -drive file=$TEST_IMG,if=ide,readonly=on
+run_qemu -drive file=$TEST_IMG,if=virtio,readonly=on
+run_qemu -drive file=$TEST_IMG,if=scsi,readonly=on
+
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-cd,drive=disk
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
+
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-drive,drive=disk
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-hd,drive=disk
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
+run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+
+echo
+echo === Cache modes ===
+echo
+
+# Cannot use the test image because cache=none might not work on the host FS
+# Use cdrom so that we won't get errors about missing media
+
+run_qemu -drive media=cdrom,cache=none
+run_qemu -drive media=cdrom,cache=directsync
+run_qemu -drive media=cdrom,cache=writeback
+run_qemu -drive media=cdrom,cache=writethrough
+run_qemu -drive media=cdrom,cache=unsafe
+run_qemu -drive media=cdrom,cache=invalid_value
+
+echo
+echo === Specifying the protocol layer ===
+echo
+
+run_qemu -drive file=$TEST_IMG,file.driver=file
+run_qemu -drive file=$TEST_IMG,file.driver=qcow2
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

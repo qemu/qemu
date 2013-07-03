@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 #include "qemu-fsdev.h"
-#include "qemu-queue.h"
-#include "osdep.h"
+#include "qemu/queue.h"
+#include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qemu-config.h"
+#include "qemu/config-file.h"
 
 static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
     QTAILQ_HEAD_INITIALIZER(fsdriver_entries);
@@ -97,11 +97,3 @@ FsDriverEntry *get_fsdev_fsentry(char *id)
     }
     return NULL;
 }
-
-static void fsdev_register_config(void)
-{
-    qemu_add_opts(&qemu_fsdev_opts);
-    qemu_add_opts(&qemu_virtfs_opts);
-}
-machine_init(fsdev_register_config);
-

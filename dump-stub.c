@@ -12,8 +12,8 @@
  */
 
 #include "qemu-common.h"
-#include "dump.h"
-#include "qerror.h"
+#include "sysemu/dump.h"
+#include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 
 /* we need this function in hmp.c */
@@ -22,34 +22,6 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
                            Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
-}
-
-int cpu_write_elf64_note(write_core_dump_function f,
-                                       CPUArchState *env, int cpuid,
-                                       void *opaque)
-{
-    return -1;
-}
-
-int cpu_write_elf32_note(write_core_dump_function f,
-                                       CPUArchState *env, int cpuid,
-                                       void *opaque)
-{
-    return -1;
-}
-
-int cpu_write_elf64_qemunote(write_core_dump_function f,
-                                           CPUArchState *env,
-                                           void *opaque)
-{
-    return -1;
-}
-
-int cpu_write_elf32_qemunote(write_core_dump_function f,
-                                           CPUArchState *env,
-                                           void *opaque)
-{
-    return -1;
 }
 
 int cpu_get_dump_info(ArchDumpInfo *info)

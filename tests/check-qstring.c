@@ -11,7 +11,7 @@
  */
 #include <glib.h>
 
-#include "qstring.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
 /*

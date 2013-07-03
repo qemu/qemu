@@ -9,6 +9,8 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
+#ifndef D3DES_H
+#define D3DES_H 1
 
 /* d3des.h -
  *
@@ -49,3 +51,5 @@ void des(unsigned char *, unsigned char *);
 
 /* d3des.h V5.09 rwo 9208.04 15:06 Graven Imagery
  ********************************************************************/
+
+#endif

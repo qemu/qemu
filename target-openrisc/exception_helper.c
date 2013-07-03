@@ -23,7 +23,7 @@
 
 void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
 {
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     raise_exception(cpu, excp);
 }

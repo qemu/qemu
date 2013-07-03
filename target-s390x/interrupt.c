@@ -8,7 +8,7 @@
  */
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #if !defined(CONFIG_USER_ONLY)
 /* service interrupts are floating therefore we must not pass an cpustate */
@@ -19,11 +19,12 @@ void s390_sclp_extint(uint32_t parm)
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt_internal(env, KVM_S390_INT_SERVICE, parm, 0, 1);
+        kvm_s390_interrupt_internal(dummy_cpu, KVM_S390_INT_SERVICE, parm,
+                                    0, 1);
 #endif
     } else {
         env->psw.addr += 4;
-        cpu_inject_ext(env, EXT_SERVICE, parm, 0);
+        cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
     }
 }
 #endif

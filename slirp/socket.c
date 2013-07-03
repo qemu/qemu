@@ -51,6 +51,7 @@ socreate(Slirp *slirp)
     so->so_state = SS_NOFDREF;
     so->s = -1;
     so->slirp = slirp;
+    so->pollfds_idx = -1;
   }
   return(so);
 }
@@ -626,7 +627,7 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	addr.sin_port = hport;
 
 	if (((s = qemu_socket(AF_INET,SOCK_STREAM,0)) < 0) ||
-	    (setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int)) < 0) ||
+	    (qemu_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {
 		int tmperrno = errno; /* Don't clobber the real reason we failed */
@@ -641,7 +642,7 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 #endif
 		return NULL;
 	}
-	setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
+	qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;
@@ -680,9 +681,6 @@ sofcantrcvmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
 		shutdown(so->s,0);
-		if(global_writefds) {
-		  FD_CLR(so->s,global_writefds);
-		}
 	}
 	so->so_state &= ~(SS_ISFCONNECTING);
 	if (so->so_state & SS_FCANTSENDMORE) {
@@ -698,12 +696,6 @@ sofcantsendmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
             shutdown(so->s,1);           /* send FIN to fhost */
-            if (global_readfds) {
-                FD_CLR(so->s,global_readfds);
-            }
-            if (global_xfds) {
-                FD_CLR(so->s,global_xfds);
-            }
 	}
 	so->so_state &= ~(SS_ISFCONNECTING);
 	if (so->so_state & SS_FCANTRCVMORE) {

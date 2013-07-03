@@ -33,6 +33,9 @@
 #include "vreader.h"
 #include "vevent.h"
 
+#include "libcacard/vcardt_internal.h"
+
+
 typedef enum {
     VCardEmulUnknown = -1,
     VCardEmulFalse = 0,
@@ -168,7 +171,6 @@ vcard_emul_delete_key(VCardKey *key)
     if (key->slot) {
         PK11_FreeSlot(key->slot);
     }
-    return;
 }
 
 /*
@@ -418,7 +420,6 @@ vcard_emul_reset(VCard *card, VCardPower power)
     /* TODO: we may also need to send insertion/removal events? */
     slot = vcard_emul_card_get_slot(card);
     PK11_Logout(slot); /* NOTE: ignoring SECStatus return value */
-    return;
 }
 
 
@@ -456,7 +457,7 @@ vreader_emul_new(PK11SlotInfo *slot, VCardEmulType type, const char *params)
 
     new_reader_emul->slot = PK11_ReferenceSlot(slot);
     new_reader_emul->default_type = type;
-    new_reader_emul->type_params = strdup(params);
+    new_reader_emul->type_params = g_strdup(params);
     new_reader_emul->present = PR_FALSE;
     new_reader_emul->series = 0;
     new_reader_emul->saved_vcard = NULL;
@@ -521,21 +522,25 @@ vcard_emul_reader_get_slot(VReader *vreader)
 }
 
 /*
- *  Card ATR's map to physical cards. VCARD_ATR_PREFIX will set appropriate
+ *  Card ATR's map to physical cards. vcard_alloc_atr will set appropriate
  *  historical bytes for any software emulated card. The remaining bytes can be
  *  used to indicate the actual emulator
  */
-static const unsigned char nss_atr[] = { VCARD_ATR_PREFIX(3), 'N', 'S', 'S' };
+static unsigned char *nss_atr;
+static int nss_atr_len;
 
 void
 vcard_emul_get_atr(VCard *card, unsigned char *atr, int *atr_len)
 {
-    int len = MIN(sizeof(nss_atr), *atr_len);
+    int len;
     assert(atr != NULL);
 
+    if (nss_atr == NULL) {
+        nss_atr = vcard_alloc_atr("NSS", &nss_atr_len);
+    }
+    len = MIN(nss_atr_len, *atr_len);
     memcpy(atr, nss_atr, len);
     *atr_len = len;
-    return;
 }
 
 /*
@@ -873,7 +878,7 @@ VCardEmulError
 vcard_emul_init(const VCardEmulOptions *options)
 {
     SECStatus rv;
-    PRBool ret, has_readers = PR_FALSE, need_coolkey_module;
+    PRBool ret, has_readers = PR_FALSE;
     VReader *vreader;
     VReaderEmul *vreader_emul;
     SECMODListLock *module_lock;
@@ -896,7 +901,21 @@ vcard_emul_init(const VCardEmulOptions *options)
     if (options->nss_db) {
         rv = NSS_Init(options->nss_db);
     } else {
-        rv = NSS_Init("sql:/etc/pki/nssdb");
+        gchar *path;
+#ifndef _WIN32
+        path = g_strdup("/etc/pki/nssdb");
+#else
+        if (g_get_system_config_dirs() == NULL ||
+            g_get_system_config_dirs()[0] == NULL) {
+            return VCARD_EMUL_FAIL;
+        }
+
+        path = g_build_filename(
+            g_get_system_config_dirs()[0], "pki", "nssdb", NULL);
+#endif
+
+        rv = NSS_Init(path);
+        g_free(path);
     }
     if (rv != SECSuccess) {
         return VCARD_EMUL_FAIL;
@@ -972,35 +991,20 @@ vcard_emul_init(const VCardEmulOptions *options)
     /* make sure we have some PKCS #11 module loaded */
     module_lock = SECMOD_GetDefaultModuleListLock();
     module_list = SECMOD_GetDefaultModuleList();
-    need_coolkey_module = !has_readers;
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
         SECMODModule *module = mlp->module;
         if (module_has_removable_hw_slots(module)) {
-            need_coolkey_module = PR_FALSE;
             break;
         }
     }
     SECMOD_ReleaseReadLock(module_lock);
 
-    if (need_coolkey_module) {
-        SECMODModule *module;
-        module = SECMOD_LoadUserModule(
-                    (char *)"library=libcoolkeypk11.so name=Coolkey",
-                    NULL, PR_FALSE);
-        if (module == NULL) {
-            return VCARD_EMUL_FAIL;
-        }
-        SECMOD_DestroyModule(module); /* free our reference, Module will still
-                                       * be on the list.
-                                       * until we destroy it */
-    }
-
     /* now examine all the slots, finding which should be readers */
     /* We should control this with options. For now we mirror out any
      * removable hardware slot */
     default_card_type = options->hw_card_type;
-    default_type_params = strdup(options->hw_type_params);
+    default_type_params = g_strdup(options->hw_type_params);
 
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
@@ -1169,8 +1173,7 @@ vcard_emul_options(const char *args)
             NEXT_TOKEN(vname)
             NEXT_TOKEN(type_params)
             type_params_length = MIN(type_params_length, sizeof(type_str)-1);
-            strncpy(type_str, type_params, type_params_length);
-            type_str[type_params_length] = 0;
+            pstrcpy(type_str, type_params_length, type_params);
             type = vcard_emul_type_from_string(type_str);
 
             NEXT_TOKEN(type_params)

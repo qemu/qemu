@@ -24,8 +24,8 @@
 #include <getopt.h>
 
 #include "cmd.h"
-#include "qemu-aio.h"
-#include "main-loop.h"
+#include "block/aio.h"
+#include "qemu/main-loop.h"
 
 #define _(x)	x	/* not gettext support yet */
 

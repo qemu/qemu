@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define FP_STATUS (env->fp_status)
 

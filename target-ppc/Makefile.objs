@@ -1,12 +1,14 @@
-obj-y += translate.o helper.o
-obj-$(CONFIG_SOFTMMU) += machine.o
+obj-y += cpu-models.o
+obj-y += translate.o
+ifeq ($(CONFIG_SOFTMMU),y)
+obj-y += machine.o mmu_helper.o mmu-hash32.o
+obj-$(TARGET_PPC64) += mmu-hash64.o
+endif
 obj-$(CONFIG_KVM) += kvm.o kvm_ppc.o
-obj-y += helper.o
 obj-y += excp_helper.o
 obj-y += fpu_helper.o
 obj-y += int_helper.o
-obj-y += mmu_helper.o
 obj-y += timebase_helper.o
 obj-y += misc_helper.o
 obj-y += mem_helper.o
-obj-y += mpic_helper.o
+obj-$(CONFIG_USER_ONLY) += user_only_helper.o

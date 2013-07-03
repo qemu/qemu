@@ -20,10 +20,10 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "hw/loader.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 
 #include <libfdt.h>
 
@@ -303,4 +303,19 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
 
     g_free(dupname);
     return retval;
+}
+
+void qemu_devtree_dumpdtb(void *fdt, int size)
+{
+    QemuOpts *machine_opts;
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        const char *dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
+        if (dumpdtb) {
+            /* Dump the dtb to a file and quit */
+            exit(g_file_set_contents(dumpdtb, fdt, size, NULL) ? 0 : 1);
+        }
+    }
+
 }

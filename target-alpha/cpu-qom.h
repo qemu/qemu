@@ -20,7 +20,7 @@
 #ifndef QEMU_ALPHA_CPU_QOM_H
 #define QEMU_ALPHA_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "cpu.h"
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
@@ -34,6 +34,7 @@
 
 /**
  * AlphaCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * An Alpha CPU model.
@@ -43,6 +44,7 @@ typedef struct AlphaCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } AlphaCPUClass;
 
@@ -58,6 +60,9 @@ typedef struct AlphaCPU {
     /*< public >*/
 
     CPUAlphaState env;
+
+    /* This alarm doesn't exist in real hardware; we wish it did.  */
+    struct QEMUTimer *alarm_timer;
 } AlphaCPU;
 
 static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
@@ -67,5 +72,8 @@ static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
 
 #define ENV_GET_CPU(e) CPU(alpha_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(AlphaCPU, env)
+
+void alpha_cpu_do_interrupt(CPUState *cpu);
 
 #endif

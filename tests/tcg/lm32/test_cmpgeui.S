@@ -52,4 +52,19 @@ mvi r3, 0
 cmpgeui r3, r3, 0
 check_r3 1
 
+test_name CMPGEUI_11
+mvi r1, 0
+cmpgeui r3, r1, 0x8000
+check_r3 0
+
+test_name CMPGEUI_12
+mvi r1, -1
+cmpgeui r3, r1, 0x8000
+check_r3 1
+
+test_name CMPGEUI_13
+ori r1, r0, 0x8000
+cmpgeui r3, r1, 0x8000
+check_r3 1
+
 end

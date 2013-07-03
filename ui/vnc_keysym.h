@@ -215,10 +215,14 @@ static const name2keysym_t name2keysym[]={
 { "Zabovedot",            0x1af},
 { "zacute",               0x1bc},
 { "Zacute",               0x1ac},
+{ "Odoubleacute",         0x1d5},
+{ "Udoubleacute",         0x1db},
 { "cacute",               0x1e6},
 { "Cacute",               0x1c6},
 { "nacute",               0x1f1},
 { "Nacute",               0x1d1},
+{ "odoubleacute",         0x1f5},
+{ "udoubleacute",         0x1fb},
 
     /* modifiers */
 {"ISO_Level3_Shift", 0xfe03}, /* XK_ISO_Level3_Shift */

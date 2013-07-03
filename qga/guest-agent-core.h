@@ -10,7 +10,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#include "qapi/qmp-core.h"
+#include "qapi/qmp/dispatch.h"
 #include "qemu-common.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096
@@ -34,6 +34,8 @@ void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);
 void ga_unset_frozen(GAState *s);
+const char *ga_fsfreeze_hook(GAState *s);
+int64_t ga_get_fd_handle(GAState *s, Error **errp);
 
 #ifndef _WIN32
 void reopen_fd_to_null(int fd);

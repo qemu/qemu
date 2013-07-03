@@ -26,8 +26,8 @@
 #include <crt_externs.h>
 
 #include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
 
 #ifndef MAC_OS_X_VERSION_10_4
 #define MAC_OS_X_VERSION_10_4 1040
@@ -264,7 +264,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     BOOL isAbsoluteEnabled;
     BOOL isTabletEnabled;
 }
-- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds;
+- (void) switchSurface:(DisplaySurface *)surface;
 - (void) grabMouse;
 - (void) ungrabMouse;
 - (void) toggleFullScreen:(id)sender;
@@ -399,19 +399,22 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds
+- (void) switchSurface:(DisplaySurface *)surface
 {
-    COCOA_DEBUG("QemuCocoaView: resizeContent\n");
+    COCOA_DEBUG("QemuCocoaView: switchSurface\n");
+
+    int w = surface_width(surface);
+    int h = surface_height(surface);
 
     // update screenBuffer
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
 
     //sync host window color space with guests
-	screen.bitsPerPixel = ds_get_bits_per_pixel(ds);
-	screen.bitsPerComponent = ds_get_bytes_per_pixel(ds) * 2;
+	screen.bitsPerPixel = surface_bits_per_pixel(surface);
+	screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
 
-    dataProviderRef = CGDataProviderCreateWithData(NULL, ds_get_data(ds), w * 4 * h, NULL);
+    dataProviderRef = CGDataProviderCreateWithData(NULL, surface_data(surface), w * 4 * h, NULL);
 
     // update windows
     if (isFullscreen) {
@@ -492,7 +495,7 @@ QemuCocoaView *cocoaView;
                 if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
                     kbd_put_keycode(keycode);
                     kbd_put_keycode(keycode | 0x80);
-                } else if (is_graphic_console()) {
+                } else if (qemu_console_is_graphic(NULL)) {
                     if (keycode & 0x80)
                         kbd_put_keycode(0xe0);
                     if (modifiers_state[keycode] == 0) { // keydown
@@ -532,7 +535,7 @@ QemuCocoaView *cocoaView;
                 }
 
             // handle keys for graphic console
-            } else if (is_graphic_console()) {
+            } else if (qemu_console_is_graphic(NULL)) {
                 if (keycode & 0x80) //check bit for e0 in front
                     kbd_put_keycode(0xe0);
                 kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
@@ -575,7 +578,7 @@ QemuCocoaView *cocoaView;
             break;
         case NSKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
-            if (is_graphic_console()) {
+            if (qemu_console_is_graphic(NULL)) {
                 if (keycode & 0x80)
                     kbd_put_keycode(0xe0);
                 kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key
@@ -813,9 +816,9 @@ QemuCocoaView *cocoaView;
 
         [sheet close];
 
-        asprintf(&argv[0], "%s", bin);
-        asprintf(&argv[1], "-hda");
-        asprintf(&argv[2], "%s", img);
+        argv[0] = g_strdup_printf("%s", bin);
+        argv[1] = g_strdup_printf("-hda");
+        argv[2] = g_strdup_printf("%s", img);
 
         printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
 
@@ -954,7 +957,8 @@ int main (int argc, const char * argv[]) {
 
 
 #pragma mark qemu
-static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
+static void cocoa_update(DisplayChangeListener *dcl,
+                         int x, int y, int w, int h)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
@@ -971,14 +975,15 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
     [cocoaView setNeedsDisplayInRect:rect];
 }
 
-static void cocoa_resize(DisplayState *ds)
+static void cocoa_switch(DisplayChangeListener *dcl,
+                         DisplaySurface *surface)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
 
-    [cocoaView resizeContentToWidth:(int)(ds_get_width(ds)) height:(int)(ds_get_height(ds)) displayState:ds];
+    [cocoaView switchSurface:surface];
 }
 
-static void cocoa_refresh(DisplayState *ds)
+static void cocoa_refresh(DisplayChangeListener *dcl)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
@@ -1001,7 +1006,7 @@ static void cocoa_refresh(DisplayState *ds)
             [cocoaView handleEvent:event];
         }
     } while(event != nil);
-    vga_hw_update();
+    graphic_hw_update(NULL);
 }
 
 static void cocoa_cleanup(void)
@@ -1010,6 +1015,13 @@ static void cocoa_cleanup(void)
     g_free(dcl);
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "cocoa",
+    .dpy_gfx_update = cocoa_update,
+    .dpy_gfx_switch = cocoa_switch,
+    .dpy_refresh = cocoa_refresh,
+};
+
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
@@ -1017,11 +1029,8 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     // register vga output callbacks
-    dcl->dpy_update = cocoa_update;
-    dcl->dpy_resize = cocoa_resize;
-    dcl->dpy_refresh = cocoa_refresh;
-
-	register_displaychangelistener(ds, dcl);
+    dcl->ops = &dcl_ops;
+    register_displaychangelistener(dcl);
 
     // register cleanup function
     atexit(cocoa_cleanup);

@@ -11,8 +11,8 @@
  */
 #include <glib.h>
 
-#include "qint.h"
-#include "qlist.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qlist.h"
 
 /*
  * Public Interface test-cases

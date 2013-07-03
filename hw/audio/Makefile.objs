@@ -1,0 +1,18 @@
+# Sound
+common-obj-$(CONFIG_SB16) += sb16.o
+common-obj-$(CONFIG_ES1370) += es1370.o
+common-obj-$(CONFIG_AC97) += ac97.o
+common-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
+common-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
+common-obj-$(CONFIG_CS4231A) += cs4231a.o
+common-obj-$(CONFIG_HDA) += intel-hda.o hda-codec.o
+
+common-obj-$(CONFIG_PCSPK) += pcspk.o
+common-obj-$(CONFIG_WM8750) += wm8750.o
+common-obj-$(CONFIG_PL041) += pl041.o lm4549.o
+
+common-obj-$(CONFIG_CS4231) += cs4231.o
+common-obj-$(CONFIG_MARVELL_88W8618) += marvell_88w8618.o
+common-obj-$(CONFIG_MILKYMIST) += milkymist-ac97.o
+
+$(obj)/adlib.o $(obj)/fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0

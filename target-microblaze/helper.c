@@ -19,15 +19,18 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define D(x)
 #define DMMU(x)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUMBState *env)
+void mb_cpu_do_interrupt(CPUState *cs)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
+
     env->exception_index = -1;
     env->res_addr = RES_ADDR_NONE;
     env->regs[14] = env->sregs[SR_PC];
@@ -109,8 +112,10 @@ int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
     return r;
 }
 
-void do_interrupt(CPUMBState *env)
+void mb_cpu_do_interrupt(CPUState *cs)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     uint32_t t;
 
     /* IMM flag cannot propagate across a branch and into the dslot.  */
@@ -147,7 +152,7 @@ void do_interrupt(CPUMBState *env)
                           env->sregs[SR_ESR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, env, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_MMU:
@@ -187,7 +192,7 @@ void do_interrupt(CPUMBState *env)
                           env->sregs[SR_PC], env->sregs[SR_EAR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, env, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_IRQ:
@@ -198,7 +203,7 @@ void do_interrupt(CPUMBState *env)
             t = (env->sregs[SR_MSR] & (MSR_VM | MSR_UM)) << 1;
 
 #if 0
-#include "disas.h"
+#include "disas/disas.h"
 
 /* Useful instrumentation when debugging interrupt issues in either
    the models or in sw.  */
@@ -228,7 +233,7 @@ void do_interrupt(CPUMBState *env)
             env->sregs[SR_MSR] |= t;
 
             env->regs[14] = env->sregs[SR_PC];
-            env->sregs[SR_PC] = 0x10;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x10;
             //log_cpu_state_mask(CPU_LOG_INT, env, 0);
             break;
 
@@ -247,7 +252,7 @@ void do_interrupt(CPUMBState *env)
             if (env->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->sregs[SR_PC];
                 env->sregs[SR_MSR] |= MSR_BIP;
-                env->sregs[SR_PC] = 0x18;
+                env->sregs[SR_PC] = cpu->base_vectors + 0x18;
             } else
                 env->sregs[SR_PC] = env->btarget;
             break;
@@ -258,7 +263,7 @@ void do_interrupt(CPUMBState *env)
     }
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
 {
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;

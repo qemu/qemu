@@ -114,7 +114,7 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
             tlb_ex = d & TLB_EX;
             tlb_wr = d & TLB_WR;
 
-            /* Now lets see if there is a zone that overrides the protbits.  */
+            /* Now let's see if there is a zone that overrides the protbits.  */
             tlb_zsel = (d >> 4) & 0xf;
             t0 = mmu->regs[MMU_R_ZPR] >> (30 - (tlb_zsel * 2));
             t0 &= 0x3;

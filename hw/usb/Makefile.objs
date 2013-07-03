@@ -1,14 +1,36 @@
-hw-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
-hw-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
-hw-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o
-hw-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
-hw-obj-y += libhw.o
+# usb subsystem core
+common-obj-y += core.o combined-packet.o bus.o desc.o
+common-obj-y += libhw.o
 
-hw-obj-$(CONFIG_SMARTCARD) += dev-smartcard-reader.o
-hw-obj-$(CONFIG_USB_REDIR) += redirect.o
+# usb host adapters
+common-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
+common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
+common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
+common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
+common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
-common-obj-y += core.o bus.o desc.o dev-hub.o
-common-obj-y += host-$(HOST_USB).o dev-bluetooth.o
-common-obj-y += dev-hid.o dev-storage.o dev-wacom.o
-common-obj-y += dev-serial.o dev-network.o dev-audio.o
-common-obj-y += dev-uas.o
+# emulated usb devices
+common-obj-y += dev-hub.o
+common-obj-y += dev-hid.o
+common-obj-$(CONFIG_USB_TABLET_WACOM) += dev-wacom.o
+common-obj-$(CONFIG_USB_STORAGE_BOT)  += dev-storage.o
+common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o
+common-obj-$(CONFIG_USB_AUDIO)        += dev-audio.o
+common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
+common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
+
+# FIXME: make configurable too
+CONFIG_USB_BLUETOOTH := y
+common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
+
+ifeq ($(CONFIG_USB_SMARTCARD),y)
+common-obj-y                          += dev-smartcard-reader.o
+common-obj-y                          += ccid-card-passthru.o
+common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
+endif
+
+# usb redirection
+common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
+
+# usb pass-through
+common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))

@@ -1,0 +1,13 @@
+# core qdev-related obj files, also used by *-user:
+common-obj-y += qdev.o qdev-properties.o
+# irq.o needed for qdev GPIO handling:
+common-obj-y += irq.o
+
+common-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
+common-obj-$(CONFIG_XILINX_AXI) += stream.o
+common-obj-$(CONFIG_PTIMER) += ptimer.o
+common-obj-$(CONFIG_SOFTMMU) += sysbus.o
+common-obj-$(CONFIG_SOFTMMU) += null-machine.o
+common-obj-$(CONFIG_SOFTMMU) += loader.o
+common-obj-$(CONFIG_SOFTMMU) += qdev-properties-system.o
+

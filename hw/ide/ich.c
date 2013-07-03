@@ -61,12 +61,12 @@
  */
 
 #include <hw/hw.h>
-#include <hw/msi.h>
-#include <hw/pc.h>
-#include <hw/pci.h>
-#include <hw/isa.h>
-#include "block.h"
-#include "dma.h"
+#include <hw/pci/msi.h>
+#include <hw/i386/pc.h>
+#include <hw/pci/pci.h>
+#include <hw/isa/isa.h>
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
@@ -79,9 +79,15 @@
 #define ICH9_IDP_INDEX          0x10
 #define ICH9_IDP_INDEX_LOG2     0x04
 
-static const VMStateDescription vmstate_ahci = {
-    .name = "ahci",
-    .unmigratable = 1,
+static const VMStateDescription vmstate_ich9_ahci = {
+    .name = "ich9_ahci",
+    .unmigratable = 1, /* Still buggy under I/O load */
+    .version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(card, AHCIPCIState),
+        VMSTATE_AHCI(ahci, AHCIPCIState),
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static void pci_ich9_reset(DeviceState *dev)
@@ -152,11 +158,11 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;
     k->class_id = PCI_CLASS_STORAGE_SATA;
-    dc->vmsd = &vmstate_ahci;
+    dc->vmsd = &vmstate_ich9_ahci;
     dc->reset = pci_ich9_reset;
 }
 
-static TypeInfo ich_ahci_info = {
+static const TypeInfo ich_ahci_info = {
     .name          = "ich9-ahci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AHCIPCIState),

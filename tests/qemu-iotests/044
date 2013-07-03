@@ -1,0 +1,117 @@
+#!/usr/bin/env python
+#
+# Tests growing a large refcount table.
+#
+# Copyright (C) 2012 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+import os
+import qcow2
+from qcow2 import QcowHeader
+import iotests
+from iotests import qemu_img, qemu_img_verbose, qemu_io
+import struct
+import subprocess
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+
+class TestRefcountTableGrowth(iotests.QMPTestCase):
+    '''Abstract base class for image mirroring test cases'''
+
+    def preallocate(self, name):
+        fd = open(name, "r+b")
+        try:
+            off_reftable = 512
+            off_refblock = off_reftable + (512 * 512)
+            off_l1       = off_refblock + (512 * 512 * 64)
+            off_l2       = off_l1 + (512 * 512 * 4 * 8)
+            off_data     = off_l2 + (512 * 512 * 4 * 512)
+
+            # Write a new header
+            h = QcowHeader(fd)
+            h.refcount_table_offset = off_reftable
+            h.refcount_table_clusters = 512
+            h.l1_table_offset = off_l1
+            h.l1_size = 512 * 512 * 4
+            h.update(fd)
+
+            # Write a refcount table
+            fd.seek(off_reftable)
+
+            for i in xrange(0, h.refcount_table_clusters):
+                sector = ''.join(struct.pack('>Q',
+                    off_refblock + i * 64 * 512 + j * 512)
+                    for j in xrange(0, 64))
+                fd.write(sector)
+
+            # Write the refcount blocks
+            assert(fd.tell() == off_refblock)
+            sector = ''.join(struct.pack('>H', 1) for j in xrange(0, 64 * 256))
+            for block in xrange(0, h.refcount_table_clusters):
+                fd.write(sector)
+
+            # Write the L1 table
+            assert(fd.tell() == off_l1)
+            assert(off_l2 + 512 * h.l1_size == off_data)
+            table = ''.join(struct.pack('>Q', (1 << 63) | off_l2 + 512 * j)
+                for j in xrange(0, h.l1_size))
+            fd.write(table)
+
+            # Write the L2 tables
+            assert(fd.tell() == off_l2)
+            img_file_size = h.refcount_table_clusters * 64 * 256 * 512
+            remaining = img_file_size - off_data
+
+            off = off_data
+            while remaining > 1024 * 512:
+                pytable = list((1 << 63) | off + 512 * j
+                    for j in xrange(0, 1024))
+                table = struct.pack('>1024Q', *pytable)
+                fd.write(table)
+                remaining = remaining - 1024 * 512
+                off = off + 1024 * 512
+
+            table = ''.join(struct.pack('>Q', (1 << 63) | off + 512 * j)
+                for j in xrange(0, remaining / 512))
+            fd.write(table)
+
+
+            # Data
+            fd.truncate(img_file_size)
+
+
+        finally:
+            fd.close()
+
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=512', test_img, '16G')
+        self.preallocate(test_img)
+        pass
+
+
+    def tearDown(self):
+        os.remove(test_img)
+        pass
+
+    def test_grow_refcount_table(self):
+        qemu_io('-c', 'write 3800M 1M', test_img)
+        qemu_img_verbose('check' , test_img)
+        pass
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])

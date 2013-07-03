@@ -19,8 +19,8 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
 
 
 uint64_t helper_load_pcc(CPUAlphaState *env)
@@ -77,11 +77,13 @@ uint64_t helper_get_time(void)
 
 void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
 {
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+
     if (expire) {
         env->alarm_expire = expire;
-        qemu_mod_timer(env->alarm_timer, expire);
+        qemu_mod_timer(cpu->alarm_timer, expire);
     } else {
-        qemu_del_timer(env->alarm_timer);
+        qemu_del_timer(cpu->alarm_timer);
     }
 }
 #endif /* CONFIG_USER_ONLY */

@@ -1,0 +1,13 @@
+common-obj-y += scsi-disk.o
+common-obj-y += scsi-generic.o scsi-bus.o
+common-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
+common-obj-$(CONFIG_MEGASAS_SCSI_PCI) += megasas.o
+common-obj-$(CONFIG_VMW_PVSCSI_SCSI_PCI) += vmw_pvscsi.o
+common-obj-$(CONFIG_ESP) += esp.o
+common-obj-$(CONFIG_ESP_PCI) += esp-pci.o
+obj-$(CONFIG_PSERIES) += spapr_vscsi.o
+
+ifeq ($(CONFIG_VIRTIO),y)
+obj-y += virtio-scsi.o
+obj-$(CONFIG_VHOST_SCSI) += vhost-scsi.o
+endif

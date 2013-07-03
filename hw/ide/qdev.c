@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <hw/hw.h>
-#include "dma.h"
-#include "qemu-error.h"
+#include "sysemu/dma.h"
+#include "qemu/error-report.h"
 #include <hw/ide/internal.h>
-#include "blockdev.h"
-#include "hw/block-common.h"
-#include "sysemu.h"
+#include "sysemu/blockdev.h"
+#include "hw/block/block.h"
+#include "sysemu/sysemu.h"
 
 /* --------------------------------- */
 
@@ -47,10 +47,11 @@ static const TypeInfo ide_bus_info = {
     .class_init = ide_bus_class_init,
 };
 
-void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id)
+void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id, int max_units)
 {
     qbus_create_inplace(&idebus->qbus, TYPE_IDE_BUS, dev, NULL);
     idebus->bus_id = bus_id;
+    idebus->max_units = max_units;
 }
 
 static char *idebus_get_fw_dev_path(DeviceState *dev)
@@ -60,7 +61,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
     snprintf(path, sizeof(path), "%s@%d", qdev_fw_name(dev),
              ((IDEBus*)dev->parent_bus)->bus_id);
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 static int ide_qdev_init(DeviceState *qdev)
@@ -76,6 +77,13 @@ static int ide_qdev_init(DeviceState *qdev)
     if (dev->unit == -1) {
         dev->unit = bus->master ? 1 : 0;
     }
+
+    if (dev->unit >= bus->max_units) {
+        error_report("Can't create IDE unit %d, bus supports only %d units",
+                     dev->unit, bus->max_units);
+        goto err;
+    }
+
     switch (dev->unit) {
     case 0:
         if (bus->master) {
@@ -143,7 +151,10 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
 
-    if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
+    if (dev->conf.discard_granularity == -1) {
+        dev->conf.discard_granularity = 512;
+    } else if (dev->conf.discard_granularity &&
+               dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
         return -1;
     }
@@ -216,7 +227,7 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_hd_properties;
 }
 
-static TypeInfo ide_hd_info = {
+static const TypeInfo ide_hd_info = {
     .name          = "ide-hd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -238,7 +249,7 @@ static void ide_cd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_cd_properties;
 }
 
-static TypeInfo ide_cd_info = {
+static const TypeInfo ide_cd_info = {
     .name          = "ide-cd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -260,7 +271,7 @@ static void ide_drive_class_init(ObjectClass *klass, void *data)
     dc->props = ide_drive_properties;
 }
 
-static TypeInfo ide_drive_info = {
+static const TypeInfo ide_drive_info = {
     .name          = "ide-drive",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -275,7 +286,7 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
     k->props = ide_props;
 }
 
-static TypeInfo ide_device_type_info = {
+static const TypeInfo ide_device_type_info = {
     .name = TYPE_IDE_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IDEDevice),

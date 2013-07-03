@@ -35,7 +35,7 @@ check_r3 1
 test_name CMPGUI_7
 mvi r1, -1
 cmpgui r3, r1, 0xffff
-check_r3 0
+check_r3 1
 
 test_name CMPGUI_8
 mvi r3, 0
@@ -50,6 +50,21 @@ check_r3 1
 test_name CMPGUI_10
 mvi r3, 0
 cmpgui r3, r3, 0
+check_r3 0
+
+test_name CMPGUI_11
+mvi r1, 0
+cmpgui r3, r1, 0x8000
+check_r3 0
+
+test_name CMPGUI_12
+mvi r1, -1
+cmpgui r3, r1, 0x8000
+check_r3 1
+
+test_name CMPGUI_13
+ori r1, r0, 0x8000
+cmpgui r3, r1, 0x8000
 check_r3 0
 
 end

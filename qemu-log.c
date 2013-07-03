@@ -18,13 +18,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
-#ifdef WIN32
-static const char *logfilename = "qemu.log";
-#else
-static const char *logfilename = "/tmp/qemu.log";
-#endif
+static char *logfilename;
 FILE *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
@@ -52,14 +48,19 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 }
 
 /* enable or disable low levels log */
-void qemu_set_log(int log_flags, bool use_own_buffers)
+void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {
     qemu_loglevel = log_flags;
     if (qemu_loglevel && !qemu_logfile) {
-        qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
-        if (!qemu_logfile) {
-            perror(logfilename);
-            _exit(1);
+        if (logfilename) {
+            qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
+            if (!qemu_logfile) {
+                perror(logfilename);
+                _exit(1);
+            }
+        } else {
+            /* Default to stderr if no log file specified */
+            qemu_logfile = stderr;
         }
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
         if (use_own_buffers) {
@@ -77,22 +78,19 @@ void qemu_set_log(int log_flags, bool use_own_buffers)
         }
     }
     if (!qemu_loglevel && qemu_logfile) {
-        fclose(qemu_logfile);
-        qemu_logfile = NULL;
+        qemu_log_close();
     }
 }
 
-void cpu_set_log_filename(const char *filename)
+void qemu_set_log_filename(const char *filename)
 {
-    logfilename = strdup(filename);
-    if (qemu_logfile) {
-        fclose(qemu_logfile);
-        qemu_logfile = NULL;
-    }
-    cpu_set_log(qemu_loglevel);
+    g_free(logfilename);
+    logfilename = g_strdup(filename);
+    qemu_log_close();
+    qemu_set_log(qemu_loglevel);
 }
 
-const CPULogItem cpu_log_items[] = {
+const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OUT_ASM, "out_asm",
       "show generated host assembly code for each compiled TB" },
     { CPU_LOG_TB_IN_ASM, "in_asm",
@@ -116,6 +114,9 @@ const CPULogItem cpu_log_items[] = {
       "show all i/o ports accesses" },
     { LOG_UNIMP, "unimp",
       "log unimplemented functionality" },
+    { LOG_GUEST_ERROR, "guest_errors",
+      "log when the guest OS does something invalid (eg accessing a\n"
+      "non-existent register)" },
     { 0, NULL, NULL },
 };
 
@@ -128,9 +129,9 @@ static int cmp1(const char *s1, int n, const char *s2)
 }
 
 /* takes a comma separated list of log masks. Return 0 if error. */
-int cpu_str_to_log_mask(const char *str)
+int qemu_str_to_log_mask(const char *str)
 {
-    const CPULogItem *item;
+    const QEMULogItem *item;
     int mask;
     const char *p, *p1;
 
@@ -142,11 +143,11 @@ int cpu_str_to_log_mask(const char *str)
             p1 = p + strlen(p);
         }
         if (cmp1(p,p1-p,"all")) {
-            for (item = cpu_log_items; item->mask != 0; item++) {
+            for (item = qemu_log_items; item->mask != 0; item++) {
                 mask |= item->mask;
             }
         } else {
-            for (item = cpu_log_items; item->mask != 0; item++) {
+            for (item = qemu_log_items; item->mask != 0; item++) {
                 if (cmp1(p, p1 - p, item->name)) {
                     goto found;
                 }
@@ -161,4 +162,13 @@ int cpu_str_to_log_mask(const char *str)
         p = p1 + 1;
     }
     return mask;
+}
+
+void qemu_print_log_usage(FILE *f)
+{
+    const QEMULogItem *item;
+    fprintf(f, "Log items (comma separated):\n");
+    for (item = qemu_log_items; item->mask != 0; item++) {
+        fprintf(f, "%-10s %s\n", item->name, item->help);
+    }
 }

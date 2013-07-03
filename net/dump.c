@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "dump.h"
+#include "clients.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-log.h"
-#include "qemu-timer.h"
+#include "qemu/error-report.h"
+#include "qemu/log.h"
+#include "qemu/timer.h"
 #include "hub.h"
 
 typedef struct DumpState {

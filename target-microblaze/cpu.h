@@ -26,8 +26,8 @@
 
 #define CPUArchState struct CPUMBState
 
-#include "cpu-defs.h"
-#include "softfloat.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
 struct CPUMBState;
 typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
@@ -272,10 +272,9 @@ struct CPUMBState {
 
 #include "cpu-qom.h"
 
+void mb_tcg_init(void);
 MicroBlazeCPU *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
-void cpu_mb_close(CPUMBState *s);
-void do_interrupt(CPUMBState *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -307,8 +306,6 @@ static inline CPUMBState *cpu_init(const char *cpu_model)
 #define cpu_exec cpu_mb_exec
 #define cpu_gen_code cpu_mb_gen_code
 #define cpu_signal_handler cpu_mb_signal_handler
-
-#define CPU_SAVE_VERSION 1
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _nommu
@@ -345,6 +342,7 @@ static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
 {
+    env->regs[21] = newtls;
 }
 
 static inline int cpu_interrupts_enabled(CPUMBState *env)
@@ -352,7 +350,7 @@ static inline int cpu_interrupts_enabled(CPUMBState *env)
     return env->sregs[SR_MSR] & MSR_IE;
 }
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline target_ulong cpu_get_pc(CPUMBState *env)
 {
@@ -369,16 +367,16 @@ static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUMBState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
                            int is_write, int is_exec, int is_asi, int size);
 #endif
 
-static inline bool cpu_has_work(CPUMBState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
-    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUMBState *env, TranslationBlock *tb)
 {

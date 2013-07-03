@@ -22,6 +22,8 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 
 /* CPUClass::reset() */
@@ -32,7 +34,7 @@ static void mb_cpu_reset(CPUState *s)
     CPUMBState *env = &cpu->env;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 
@@ -84,23 +86,61 @@ static void mb_cpu_reset(CPUState *s)
 #endif
 }
 
+static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(dev);
+    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    mcc->parent_realize(dev, errp);
+}
+
 static void mb_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
     CPUMBState *env = &cpu->env;
+    static bool tcg_initialized;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        mb_tcg_init();
+    }
 }
+
+static const VMStateDescription vmstate_mb_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
+static Property mb_properties[] = {
+    DEFINE_PROP_UINT32("xlnx.base-vectors", MicroBlazeCPU, base_vectors, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void mb_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_CLASS(oc);
 
+    mcc->parent_realize = dc->realize;
+    dc->realize = mb_cpu_realizefn;
+
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
+
+    cc->do_interrupt = mb_cpu_do_interrupt;
+    dc->vmsd = &vmstate_mb_cpu;
+
+    dc->props = mb_properties;
 }
 
 static const TypeInfo mb_cpu_type_info = {

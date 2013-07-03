@@ -20,9 +20,11 @@
 #include <math.h>
 #include "cpu.h"
 #include "helper.h"
+#include "qemu/aes.h"
+#include "qemu/host-utils.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #define FPU_RC_MASK         0xc00

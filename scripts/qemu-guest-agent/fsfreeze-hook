@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# This script is executed when a guest agent receives fsfreeze-freeze and
+# fsfreeze-thaw command, if it is specified in --fsfreeze-hook (-F)
+# option of qemu-ga or placed in default path (/etc/qemu/fsfreeze-hook).
+# When the agent receives fsfreeze-freeze request, this script is issued with
+# "freeze" argument before the filesystem is frozen. And for fsfreeze-thaw
+# request, it is issued with "thaw" argument after filesystem is thawed.
+
+LOGFILE=/var/log/qga-fsfreeze-hook.log
+FSFREEZE_D=$(dirname -- "$0")/fsfreeze-hook.d
+
+# Check whether file $1 is a backup or rpm-generated file and should be ignored
+is_ignored_file() {
+    case "$1" in
+        *~ | *.bak | *.orig | *.rpmnew | *.rpmorig | *.rpmsave | *.sample)
+            return 0 ;;
+    esac
+    return 1
+}
+
+# Iterate executables in directory "fsfreeze-hook.d" with the specified args
+[ ! -d "$FSFREEZE_D" ] && exit 0
+for file in "$FSFREEZE_D"/* ; do
+    is_ignored_file "$file" && continue
+    [ -x "$file" ] || continue
+    printf "$(date): execute $file $@\n" >>$LOGFILE
+    "$file" "$@" >>$LOGFILE 2>&1
+    STATUS=$?
+    printf "$(date): $file finished with status=$STATUS\n" >>$LOGFILE
+done
+
+exit 0

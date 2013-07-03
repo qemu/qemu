@@ -170,6 +170,12 @@ vendor_exit_reasons = {
     'IBM/S390': s390_exit_reasons,
 }
 
+syscall_numbers = {
+    'IBM/S390': 331,
+}
+
+sc_perf_evt_open = 298
+
 exit_reasons = None
 
 for line in file('/proc/cpuinfo').readlines():
@@ -177,7 +183,8 @@ for line in file('/proc/cpuinfo').readlines():
         for flag in line.split():
             if flag in vendor_exit_reasons:
                 exit_reasons = vendor_exit_reasons[flag]
-
+            if flag in syscall_numbers:
+                sc_perf_evt_open = syscall_numbers[flag]
 filters = {
     'kvm_exit': ('exit_reason', exit_reasons)
 }
@@ -206,7 +213,7 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_len', ctypes.c_uint64),
                 ]
 def _perf_event_open(attr, pid, cpu, group_fd, flags):
-    return syscall(298, ctypes.pointer(attr), ctypes.c_int(pid),
+    return syscall(sc_perf_evt_open, ctypes.pointer(attr), ctypes.c_int(pid),
                    ctypes.c_int(cpu), ctypes.c_int(group_fd),
                    ctypes.c_long(flags))
 

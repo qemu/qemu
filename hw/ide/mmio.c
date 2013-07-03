@@ -22,9 +22,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <hw/hw.h>
-#include "block.h"
-#include "dma.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
 
@@ -34,20 +35,29 @@
  * dedicated ide controller, which is often seen on embedded boards.
  */
 
-typedef struct {
+#define TYPE_MMIO_IDE "mmio-ide"
+#define MMIO_IDE(obj) OBJECT_CHECK(MMIOState, (obj), TYPE_MMIO_IDE)
+
+typedef struct MMIOIDEState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     IDEBus bus;
-    int shift;
+
+    uint32_t shift;
+    qemu_irq irq;
     MemoryRegion iomem1, iomem2;
 } MMIOState;
 
-static void mmio_ide_reset(void *opaque)
+static void mmio_ide_reset(DeviceState *dev)
 {
-    MMIOState *s = opaque;
+    MMIOState *s = MMIO_IDE(dev);
 
     ide_bus_reset(&s->bus);
 }
 
-static uint64_t mmio_ide_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     MMIOState *s = opaque;
@@ -58,7 +68,7 @@ static uint64_t mmio_ide_read(void *opaque, target_phys_addr_t addr,
         return ide_data_readw(&s->bus, 0);
 }
 
-static void mmio_ide_write(void *opaque, target_phys_addr_t addr,
+static void mmio_ide_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
@@ -75,14 +85,14 @@ static const MemoryRegionOps mmio_ide_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t mmio_ide_status_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     MMIOState *s= opaque;
     return ide_status_read(&s->bus, 0);
 }
 
-static void mmio_ide_cmd_write(void *opaque, target_phys_addr_t addr,
+static void mmio_ide_cmd_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
@@ -107,24 +117,68 @@ static const VMStateDescription vmstate_ide_mmio = {
     }
 };
 
-void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
-                    MemoryRegion *address_space,
-                    qemu_irq irq, int shift,
-                    DriveInfo *hd0, DriveInfo *hd1)
+static void mmio_ide_realizefn(DeviceState *dev, Error **errp)
 {
-    MMIOState *s = g_malloc0(sizeof(MMIOState));
+    SysBusDevice *d = SYS_BUS_DEVICE(dev);
+    MMIOState *s = MMIO_IDE(dev);
 
-    ide_init2_with_non_qdev_drives(&s->bus, hd0, hd1, irq);
-
-    s->shift = shift;
+    ide_init2(&s->bus, s->irq);
 
     memory_region_init_io(&s->iomem1, &mmio_ide_ops, s,
-                          "ide-mmio.1", 16 << shift);
+                          "ide-mmio.1", 16 << s->shift);
     memory_region_init_io(&s->iomem2, &mmio_ide_cs_ops, s,
-                          "ide-mmio.2", 2 << shift);
-    memory_region_add_subregion(address_space, membase, &s->iomem1);
-    memory_region_add_subregion(address_space, membase2, &s->iomem2);
-    vmstate_register(NULL, 0, &vmstate_ide_mmio, s);
-    qemu_register_reset(mmio_ide_reset, s);
+                          "ide-mmio.2", 2 << s->shift);
+    sysbus_init_mmio(d, &s->iomem1);
+    sysbus_init_mmio(d, &s->iomem2);
 }
 
+static void mmio_ide_initfn(Object *obj)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(obj);
+    MMIOState *s = MMIO_IDE(obj);
+
+    ide_bus_new(&s->bus, DEVICE(obj), 0, 2);
+    sysbus_init_irq(d, &s->irq);
+}
+
+static Property mmio_ide_properties[] = {
+    DEFINE_PROP_UINT32("shift", MMIOState, shift, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void mmio_ide_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = mmio_ide_realizefn;
+    dc->reset = mmio_ide_reset;
+    dc->props = mmio_ide_properties;
+    dc->vmsd = &vmstate_ide_mmio;
+}
+
+static const TypeInfo mmio_ide_type_info = {
+    .name = TYPE_MMIO_IDE,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MMIOState),
+    .instance_init = mmio_ide_initfn,
+    .class_init = mmio_ide_class_init,
+};
+
+static void mmio_ide_register_types(void)
+{
+    type_register_static(&mmio_ide_type_info);
+}
+
+void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1)
+{
+    MMIOState *s = MMIO_IDE(dev);
+
+    if (hd0 != NULL) {
+        ide_create_drive(&s->bus, 0, hd0);
+    }
+    if (hd1 != NULL) {
+        ide_create_drive(&s->bus, 1, hd1);
+    }
+}
+
+type_init(mmio_ide_register_types)

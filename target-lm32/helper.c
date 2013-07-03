@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
                               int mmu_idx)
@@ -37,13 +37,21 @@ int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
     return 0;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
 {
-    return addr & TARGET_PAGE_MASK;
+    addr &= TARGET_PAGE_MASK;
+    if (env->flags & LM32_FLAG_IGNORE_MSB) {
+        return addr & 0x7fffffff;
+    } else {
+        return addr;
+    }
 }
 
-void do_interrupt(CPULM32State *env)
+void lm32_cpu_do_interrupt(CPUState *cs)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
+
     qemu_log_mask(CPU_LOG_INT,
             "exception at pc=%x type=%x\n", env->pc, env->exception_index);
 
@@ -197,7 +205,6 @@ LM32CPU *cpu_lm32_init(const char *cpu_model)
     LM32CPU *cpu;
     CPULM32State *env;
     const LM32Def *def;
-    static int tcg_initialized;
 
     def = cpu_lm32_find_by_name(cpu_model);
     if (!def) {
@@ -212,12 +219,7 @@ LM32CPU *cpu_lm32_init(const char *cpu_model)
     env->num_wps = def->num_watchpoints;
     env->cfg = cfg_by_def(def);
 
-    qemu_init_vcpu(env);
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = 1;
-        lm32_translate_init();
-    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     return cpu;
 }

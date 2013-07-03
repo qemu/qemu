@@ -1,0 +1,640 @@
+# *-*- Mode: Python -*-*
+
+##
+#
+# General note concerning the use of guest agent interfaces:
+#
+# "unsupported" is a higher-level error than the errors that individual
+# commands might document. The caller should always be prepared to receive
+# QERR_UNSUPPORTED, even if the given command doesn't specify it, or doesn't
+# document any failure mode at all.
+#
+##
+
+##
+#
+# Echo back a unique integer value, and prepend to response a
+# leading sentinel byte (0xFF) the client can check scan for.
+#
+# This is used by clients talking to the guest agent over the
+# wire to ensure the stream is in sync and doesn't contain stale
+# data from previous client. It must be issued upon initial
+# connection, and after any client-side timeouts (including
+# timeouts on receiving a response to this command).
+#
+# After issuing this request, all guest agent responses should be
+# ignored until the response containing the unique integer value
+# the client passed in is returned. Receival of the 0xFF sentinel
+# byte must be handled as an indication that the client's
+# lexer/tokenizer/parser state should be flushed/reset in
+# preparation for reliably receiving the subsequent response. As
+# an optimization, clients may opt to ignore all data until a
+# sentinel value is receiving to avoid unnecessary processing of
+# stale data.
+#
+# Similarly, clients should also precede this *request*
+# with a 0xFF byte to make sure the guest agent flushes any
+# partially read JSON data from a previous client connection.
+#
+# @id: randomly generated 64-bit integer
+#
+# Returns: The unique integer id passed in by the client
+#
+# Since: 1.1
+# ##
+{ 'command': 'guest-sync-delimited',
+  'data':    { 'id': 'int' },
+  'returns': 'int' }
+
+##
+# @guest-sync:
+#
+# Echo back a unique integer value
+#
+# This is used by clients talking to the guest agent over the
+# wire to ensure the stream is in sync and doesn't contain stale
+# data from previous client. All guest agent responses should be
+# ignored until the provided unique integer value is returned,
+# and it is up to the client to handle stale whole or
+# partially-delivered JSON text in such a way that this response
+# can be obtained.
+#
+# In cases where a partial stale response was previously
+# received by the client, this cannot always be done reliably.
+# One particular scenario being if qemu-ga responses are fed
+# character-by-character into a JSON parser. In these situations,
+# using guest-sync-delimited may be optimal.
+#
+# For clients that fetch responses line by line and convert them
+# to JSON objects, guest-sync should be sufficient, but note that
+# in cases where the channel is dirty some attempts at parsing the
+# response may result in a parser error.
+#
+# Such clients should also precede this command
+# with a 0xFF byte to make sure the guest agent flushes any
+# partially read JSON data from a previous session.
+#
+# @id: randomly generated 64-bit integer
+#
+# Returns: The unique integer id passed in by the client
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-sync',
+  'data':    { 'id': 'int' },
+  'returns': 'int' }
+
+##
+# @guest-ping:
+#
+# Ping the guest agent, a non-error return implies success
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-ping' }
+
+##
+# @guest-get-time:
+#
+# Get the information about guest time relative to the Epoch
+# of 1970-01-01 in UTC.
+#
+# Returns: Time in nanoseconds.
+#
+# Since 1.5
+##
+{ 'command': 'guest-get-time',
+  'returns': 'int' }
+
+##
+# @guest-set-time:
+#
+# Set guest time.
+#
+# When a guest is paused or migrated to a file then loaded
+# from that file, the guest OS has no idea that there
+# was a big gap in the time. Depending on how long the
+# gap was, NTP might not be able to resynchronize the
+# guest.
+#
+# This command tries to set guest time to the given value,
+# then sets the Hardware Clock to the current System Time.
+# This will make it easier for a guest to resynchronize
+# without waiting for NTP.
+#
+# @time: time of nanoseconds, relative to the Epoch of
+#        1970-01-01 in UTC.
+#
+# Returns: Nothing on success.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-set-time',
+  'data': { 'time': 'int' } }
+
+##
+# @GuestAgentCommandInfo:
+#
+# Information about guest agent commands.
+#
+# @name: name of the command
+#
+# @enabled: whether command is currently enabled by guest admin
+#
+# Since 1.1.0
+##
+{ 'type': 'GuestAgentCommandInfo',
+  'data': { 'name': 'str', 'enabled': 'bool' } }
+
+##
+# @GuestAgentInfo
+#
+# Information about guest agent.
+#
+# @version: guest agent version
+#
+# @supported_commands: Information about guest agent commands
+#
+# Since 0.15.0
+##
+{ 'type': 'GuestAgentInfo',
+  'data': { 'version': 'str',
+            'supported_commands': ['GuestAgentCommandInfo'] } }
+##
+# @guest-info:
+#
+# Get some information about the guest agent.
+#
+# Returns: @GuestAgentInfo
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-info',
+  'returns': 'GuestAgentInfo' }
+
+##
+# @guest-shutdown:
+#
+# Initiate guest-activated shutdown. Note: this is an asynchronous
+# shutdown request, with no guarantee of successful shutdown.
+#
+# @mode: #optional "halt", "powerdown" (default), or "reboot"
+#
+# This command does NOT return a response on success. Success condition
+# is indicated by the VM exiting with a zero exit status or, when
+# running with --no-shutdown, by issuing the query-status QMP command
+# to confirm the VM status is "shutdown".
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-shutdown', 'data': { '*mode': 'str' },
+  'success-response': 'no' }
+
+##
+# @guest-file-open:
+#
+# Open a file in the guest and retrieve a file handle for it
+#
+# @filepath: Full path to the file in the guest to open.
+#
+# @mode: #optional open mode, as per fopen(), "r" is the default.
+#
+# Returns: Guest file handle on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-open',
+  'data':    { 'path': 'str', '*mode': 'str' },
+  'returns': 'int' }
+
+##
+# @guest-file-close:
+#
+# Close an open file in the guest
+#
+# @handle: filehandle returned by guest-file-open
+#
+# Returns: Nothing on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-close',
+  'data': { 'handle': 'int' } }
+
+##
+# @GuestFileRead
+#
+# Result of guest agent file-read operation
+#
+# @count: number of bytes read (note: count is *before*
+#         base64-encoding is applied)
+#
+# @buf-b64: base64-encoded bytes read
+#
+# @eof: whether EOF was encountered during read operation.
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileRead',
+  'data': { 'count': 'int', 'buf-b64': 'str', 'eof': 'bool' } }
+
+##
+# @guest-file-read:
+#
+# Read from an open file in the guest. Data will be base64-encoded
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @count: #optional maximum number of bytes to read (default is 4KB)
+#
+# Returns: @GuestFileRead on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-read',
+  'data':    { 'handle': 'int', '*count': 'int' },
+  'returns': 'GuestFileRead' }
+
+##
+# @GuestFileWrite
+#
+# Result of guest agent file-write operation
+#
+# @count: number of bytes written (note: count is actual bytes
+#         written, after base64-decoding of provided buffer)
+#
+# @eof: whether EOF was encountered during write operation.
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileWrite',
+  'data': { 'count': 'int', 'eof': 'bool' } }
+
+##
+# @guest-file-write:
+#
+# Write to an open file in the guest.
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @buf-b64: base64-encoded string representing data to be written
+#
+# @count: #optional bytes to write (actual bytes, after base64-decode),
+#         default is all content in buf-b64 buffer after base64 decoding
+#
+# Returns: @GuestFileWrite on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-write',
+  'data':    { 'handle': 'int', 'buf-b64': 'str', '*count': 'int' },
+  'returns': 'GuestFileWrite' }
+
+
+##
+# @GuestFileSeek
+#
+# Result of guest agent file-seek operation
+#
+# @position: current file position
+#
+# @eof: whether EOF was encountered during file seek
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileSeek',
+  'data': { 'position': 'int', 'eof': 'bool' } }
+
+##
+# @guest-file-seek:
+#
+# Seek to a position in the file, as with fseek(), and return the
+# current file position afterward. Also encapsulates ftell()'s
+# functionality, just Set offset=0, whence=SEEK_CUR.
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @offset: bytes to skip over in the file stream
+#
+# @whence: SEEK_SET, SEEK_CUR, or SEEK_END, as with fseek()
+#
+# Returns: @GuestFileSeek on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-seek',
+  'data':    { 'handle': 'int', 'offset': 'int', 'whence': 'int' },
+  'returns': 'GuestFileSeek' }
+
+##
+# @guest-file-flush:
+#
+# Write file changes bufferred in userspace to disk/kernel buffers
+#
+# @handle: filehandle returned by guest-file-open
+#
+# Returns: Nothing on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-flush',
+  'data': { 'handle': 'int' } }
+
+##
+# @GuestFsFreezeStatus
+#
+# An enumeration of filesystem freeze states
+#
+# @thawed: filesystems thawed/unfrozen
+#
+# @frozen: all non-network guest filesystems frozen
+#
+# Since: 0.15.0
+##
+{ 'enum': 'GuestFsfreezeStatus',
+  'data': [ 'thawed', 'frozen' ] }
+
+##
+# @guest-fsfreeze-status:
+#
+# Get guest fsfreeze state. error state indicates
+#
+# Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
+#
+# Note: This may fail to properly report the current state as a result of
+# some other guest processes having issued an fs freeze/thaw.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-fsfreeze-status',
+  'returns': 'GuestFsfreezeStatus' }
+
+##
+# @guest-fsfreeze-freeze:
+#
+# Sync and freeze all freezable, local guest filesystems
+#
+# Returns: Number of file systems currently frozen. On error, all filesystems
+# will be thawed.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-fsfreeze-freeze',
+  'returns': 'int' }
+
+##
+# @guest-fsfreeze-thaw:
+#
+# Unfreeze all frozen guest filesystems
+#
+# Returns: Number of file systems thawed by this call
+#
+# Note: if return value does not match the previous call to
+#       guest-fsfreeze-freeze, this likely means some freezable
+#       filesystems were unfrozen before this call, and that the
+#       filesystem state may have changed before issuing this
+#       command.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-fsfreeze-thaw',
+  'returns': 'int' }
+
+##
+# @guest-fstrim:
+#
+# Discard (or "trim") blocks which are not in use by the filesystem.
+#
+# @minimum:
+#       Minimum contiguous free range to discard, in bytes. Free ranges
+#       smaller than this may be ignored (this is a hint and the guest
+#       may not respect it).  By increasing this value, the fstrim
+#       operation will complete more quickly for filesystems with badly
+#       fragmented free space, although not all blocks will be discarded.
+#       The default value is zero, meaning "discard every free block".
+#
+# Returns: Nothing.
+#
+# Since: 1.2
+##
+{ 'command': 'guest-fstrim',
+  'data': { '*minimum': 'int' } }
+
+##
+# @guest-suspend-disk
+#
+# Suspend guest to disk.
+#
+# This command tries to execute the scripts provided by the pm-utils package.
+# If it's not available, the suspend operation will be performed by manually
+# writing to a sysfs file.
+#
+# For the best results it's strongly recommended to have the pm-utils
+# package installed in the guest.
+#
+# This command does NOT return a response on success. There is a high chance
+# the command succeeded if the VM exits with a zero exit status or, when
+# running with --no-shutdown, by issuing the query-status QMP command to
+# to confirm the VM status is "shutdown". However, the VM could also exit
+# (or set its status to "shutdown") due to other reasons.
+#
+# The following errors may be returned:
+#          If suspend to disk is not supported, Unsupported
+#
+# Notes: It's strongly recommended to issue the guest-sync command before
+#        sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-disk', 'success-response': 'no' }
+
+##
+# @guest-suspend-ram
+#
+# Suspend guest to ram.
+#
+# This command tries to execute the scripts provided by the pm-utils package.
+# If it's not available, the suspend operation will be performed by manually
+# writing to a sysfs file.
+#
+# For the best results it's strongly recommended to have the pm-utils
+# package installed in the guest.
+#
+# IMPORTANT: guest-suspend-ram requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-ram.
+#
+# This command does NOT return a response on success. There are two options
+# to check for success:
+#   1. Wait for the SUSPEND QMP event from QEMU
+#   2. Issue the query-status QMP command to confirm the VM status is
+#      "suspended"
+#
+# The following errors may be returned:
+#          If suspend to ram is not supported, Unsupported
+#
+# Notes: It's strongly recommended to issue the guest-sync command before
+#        sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-ram', 'success-response': 'no' }
+
+##
+# @guest-suspend-hybrid
+#
+# Save guest state to disk and suspend to ram.
+#
+# This command requires the pm-utils package to be installed in the guest.
+#
+# IMPORTANT: guest-suspend-hybrid requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-hybrid.
+#
+# This command does NOT return a response on success. There are two options
+# to check for success:
+#   1. Wait for the SUSPEND QMP event from QEMU
+#   2. Issue the query-status QMP command to confirm the VM status is
+#      "suspended"
+#
+# The following errors may be returned:
+#          If hybrid suspend is not supported, Unsupported
+#
+# Notes: It's strongly recommended to issue the guest-sync command before
+#        sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-hybrid', 'success-response': 'no' }
+
+##
+# @GuestIpAddressType:
+#
+# An enumeration of supported IP address types
+#
+# @ipv4: IP version 4
+#
+# @ipv6: IP version 6
+#
+# Since: 1.1
+##
+{ 'enum': 'GuestIpAddressType',
+  'data': [ 'ipv4', 'ipv6' ] }
+
+##
+# @GuestIpAddress:
+#
+# @ip-address: IP address
+#
+# @ip-address-type: Type of @ip-address (e.g. ipv4, ipv6)
+#
+# @prefix: Network prefix length of @ip-address
+#
+# Since: 1.1
+##
+{ 'type': 'GuestIpAddress',
+  'data': {'ip-address': 'str',
+           'ip-address-type': 'GuestIpAddressType',
+           'prefix': 'int'} }
+
+##
+# @GuestNetworkInterface:
+#
+# @name: The name of interface for which info are being delivered
+#
+# @hardware-address: Hardware address of @name
+#
+# @ip-addresses: List of addresses assigned to @name
+#
+# Since: 1.1
+##
+{ 'type': 'GuestNetworkInterface',
+  'data': {'name': 'str',
+           '*hardware-address': 'str',
+           '*ip-addresses': ['GuestIpAddress'] } }
+
+##
+# @guest-network-get-interfaces:
+#
+# Get list of guest IP addresses, MAC addresses
+# and netmasks.
+#
+# Returns: List of GuestNetworkInfo on success.
+#
+# Since: 1.1
+##
+{ 'command': 'guest-network-get-interfaces',
+  'returns': ['GuestNetworkInterface'] }
+
+##
+# @GuestLogicalProcessor:
+#
+# @logical-id: Arbitrary guest-specific unique identifier of the VCPU.
+#
+# @online: Whether the VCPU is enabled.
+#
+# @can-offline: #optional Whether offlining the VCPU is possible. This member
+#               is always filled in by the guest agent when the structure is
+#               returned, and always ignored on input (hence it can be omitted
+#               then).
+#
+# Since: 1.5
+##
+{ 'type': 'GuestLogicalProcessor',
+  'data': {'logical-id': 'int',
+           'online': 'bool',
+           '*can-offline': 'bool'} }
+
+##
+# @guest-get-vcpus:
+#
+# Retrieve the list of the guest's logical processors.
+#
+# This is a read-only operation.
+#
+# Returns: The list of all VCPUs the guest knows about. Each VCPU is put on the
+# list exactly once, but their order is unspecified.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-get-vcpus',
+  'returns': ['GuestLogicalProcessor'] }
+
+##
+# @guest-set-vcpus:
+#
+# Attempt to reconfigure (currently: enable/disable) logical processors inside
+# the guest.
+#
+# The input list is processed node by node in order. In each node @logical-id
+# is used to look up the guest VCPU, for which @online specifies the requested
+# state. The set of distinct @logical-id's is only required to be a subset of
+# the guest-supported identifiers. There's no restriction on list length or on
+# repeating the same @logical-id (with possibly different @online field).
+# Preferably the input list should describe a modified subset of
+# @guest-get-vcpus' return value.
+#
+# Returns: The length of the initial sublist that has been successfully
+#          processed. The guest agent maximizes this value. Possible cases:
+#
+#          0:                if the @vcpus list was empty on input. Guest state
+#                            has not been changed. Otherwise,
+#
+#          Error:            processing the first node of @vcpus failed for the
+#                            reason returned. Guest state has not been changed.
+#                            Otherwise,
+#
+#          < length(@vcpus): more than zero initial nodes have been processed,
+#                            but not the entire @vcpus list. Guest state has
+#                            changed accordingly. To retrieve the error
+#                            (assuming it persists), repeat the call with the
+#                            successfully processed initial sublist removed.
+#                            Otherwise,
+#
+#          length(@vcpus):   call successful.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-set-vcpus',
+  'data':    {'vcpus': ['GuestLogicalProcessor'] },
+  'returns': 'int' }

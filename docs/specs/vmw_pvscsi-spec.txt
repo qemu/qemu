@@ -1,0 +1,92 @@
+General Description
+===================
+
+This document describes VMWare PVSCSI device interface specification.
+Created by Dmitry Fleytman (dmitry@daynix.com), Daynix Computing LTD.
+Based on source code of PVSCSI Linux driver from kernel 3.0.4
+
+PVSCSI Device Interface Overview
+================================
+
+The interface is based on memory area shared between hypervisor and VM.
+Memory area is obtained by driver as device IO memory resource of
+PVSCSI_MEM_SPACE_SIZE length.
+The shared memory consists of registers area and rings area.
+The registers area is used to raise hypervisor interrupts and issue device
+commands. The rings area is used to transfer data descriptors and SCSI
+commands from VM to hypervisor and to transfer messages produced by
+hypervisor to VM. Data itself is transferred via virtual scatter-gather DMA.
+
+PVSCSI Device Registers
+=======================
+
+The length of the registers area is 1 page (PVSCSI_MEM_SPACE_COMMAND_NUM_PAGES).
+The structure of the registers area is described by the PVSCSIRegOffset enum.
+There are registers to issue device command (with optional short data),
+issue device interrupt, control interrupts masking.
+
+PVSCSI Device Rings
+===================
+
+There are three rings in shared memory:
+
+    1. Request ring (struct PVSCSIRingReqDesc *req_ring)
+        - ring for OS to device requests
+    2. Completion ring (struct PVSCSIRingCmpDesc *cmp_ring)
+        - ring for device request completions
+    3. Message ring (struct PVSCSIRingMsgDesc *msg_ring)
+        - ring for messages from device.
+       This ring is optional and the guest might not configure it.
+There is a control area (struct PVSCSIRingsState *rings_state) used to control
+rings operation.
+
+PVSCSI Device to Host Interrupts
+================================
+There are following interrupt types supported by PVSCSI device:
+    1. Completion interrupts (completion ring notifications):
+        PVSCSI_INTR_CMPL_0
+        PVSCSI_INTR_CMPL_1
+    2. Message interrupts (message ring notifications):
+        PVSCSI_INTR_MSG_0
+        PVSCSI_INTR_MSG_1
+
+Interrupts are controlled via PVSCSI_REG_OFFSET_INTR_MASK register
+Bit set means interrupt enabled, bit cleared - disabled
+
+Interrupt modes supported are legacy, MSI and MSI-X
+In case of legacy interrupts, register PVSCSI_REG_OFFSET_INTR_STATUS
+is used to check which interrupt has arrived.  Interrupts are
+acknowledged when the corresponding bit is written to the interrupt
+status register.
+
+PVSCSI Device Operation Sequences
+=================================
+
+1. Startup sequence:
+    a. Issue PVSCSI_CMD_ADAPTER_RESET command;
+    aa. Windows driver reads interrupt status register here;
+    b. Issue PVSCSI_CMD_SETUP_MSG_RING command with no additional data,
+       check status and disable device messages if error returned;
+       (Omitted if device messages disabled by driver configuration)
+    c. Issue PVSCSI_CMD_SETUP_RINGS command, provide rings configuration
+       as struct PVSCSICmdDescSetupRings;
+    d. Issue PVSCSI_CMD_SETUP_MSG_RING command again, provide
+       rings configuration as struct PVSCSICmdDescSetupMsgRing;
+    e. Unmask completion and message (if device messages enabled) interrupts.
+
+2. Shutdown sequences
+    a. Mask interrupts;
+    b. Flush request ring using PVSCSI_REG_OFFSET_KICK_NON_RW_IO;
+    c. Issue PVSCSI_CMD_ADAPTER_RESET command.
+
+3. Send request
+    a. Fill next free request ring descriptor;
+    b. Issue PVSCSI_REG_OFFSET_KICK_RW_IO for R/W operations;
+       or PVSCSI_REG_OFFSET_KICK_NON_RW_IO for other operations.
+
+4. Abort command
+    a. Issue PVSCSI_CMD_ABORT_CMD command;
+
+5. Request completion processing
+    a. Upon completion interrupt arrival process completion
+       and message (if enabled) rings.

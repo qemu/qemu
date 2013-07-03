@@ -31,7 +31,7 @@ static void sparc_cpu_reset(CPUState *s)
     CPUSPARCState *env = &cpu->env;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 
@@ -114,15 +114,12 @@ SPARCCPU *cpu_sparc_init(const char *cpu_model)
     cpu = SPARC_CPU(object_new(TYPE_SPARC_CPU));
     env = &cpu->env;
 
-    if (tcg_enabled()) {
-        gen_intermediate_code_init(env);
-    }
-
     if (cpu_sparc_register(env, cpu_model) < 0) {
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     return cpu;
 }
@@ -583,13 +580,13 @@ static const sparc_def_t sparc_defs[] = {
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf3000000,
         .mmu_bm = 0x00000000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
+        .mmu_ctpr_mask = 0xfffffffc,
+        .mmu_cxr_mask = 0x000000ff,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
         .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_TA0_SHUTDOWN |
-        CPU_FEATURE_ASR17 | CPU_FEATURE_CACHE_CTRL,
+        CPU_FEATURE_ASR17 | CPU_FEATURE_CACHE_CTRL | CPU_FEATURE_POWERDOWN,
     },
 #endif
 };
@@ -643,7 +640,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 {
     unsigned int i;
     const sparc_def_t *def = NULL;
-    char *s = strdup(cpu_model);
+    char *s = g_strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
     uint32_t plus_features = 0;
     uint32_t minus_features = 0;
@@ -735,7 +732,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 #ifdef DEBUG_FEATURES
     print_features(stderr, fprintf, cpu_def->features, NULL);
 #endif
-    free(s);
+    g_free(s);
     return 0;
 
  error:
@@ -792,7 +789,6 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
 
     cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
                 env->npc);
-    cpu_fprintf(f, "General Registers:\n");
 
     for (i = 0; i < 8; i++) {
         if (i % REGS_PER_LINE == 0) {
@@ -803,7 +799,6 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, "\n");
         }
     }
-    cpu_fprintf(f, "\nCurrent Register Window:\n");
     for (x = 0; x < 3; x++) {
         for (i = 0; i < 8; i++) {
             if (i % REGS_PER_LINE == 0) {
@@ -817,10 +812,10 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
             }
         }
     }
-    cpu_fprintf(f, "\nFloating Point Registers:\n");
+
     for (i = 0; i < TARGET_DPREGS; i++) {
         if ((i & 3) == 0) {
-            cpu_fprintf(f, "%%f%02d:", i * 2);
+            cpu_fprintf(f, "%%f%02d: ", i * 2);
         }
         cpu_fprintf(f, " %016" PRIx64, env->fpr[i].ll);
         if ((i & 3) == 3) {
@@ -850,14 +845,31 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
                 env->fsr, env->y);
 #endif
+    cpu_fprintf(f, "\n");
+}
+
+static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    SPARCCPU *cpu = SPARC_CPU(dev);
+    SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
+
+    qemu_init_vcpu(&cpu->env);
+
+    scc->parent_realize(dev, errp);
 }
 
 static void sparc_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     SPARCCPU *cpu = SPARC_CPU(obj);
     CPUSPARCState *env = &cpu->env;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
+
+    if (tcg_enabled()) {
+        gen_intermediate_code_init(env);
+    }
 }
 
 static void sparc_cpu_uninitfn(Object *obj)
@@ -872,9 +884,15 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 {
     SPARCCPUClass *scc = SPARC_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    scc->parent_realize = dc->realize;
+    dc->realize = sparc_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
+
+    cc->do_interrupt = sparc_cpu_do_interrupt;
 }
 
 static const TypeInfo sparc_cpu_type_info = {

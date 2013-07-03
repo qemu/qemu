@@ -1,0 +1,27 @@
+common-obj-$(CONFIG_IPACK) += tpci200.o ipoctal232.o ipack.o
+common-obj-$(CONFIG_ESCC) += escc.o
+common-obj-$(CONFIG_PARALLEL) += parallel.o
+common-obj-$(CONFIG_PL011) += pl011.o
+common-obj-$(CONFIG_SERIAL) += serial.o serial-isa.o
+common-obj-$(CONFIG_SERIAL_PCI) += serial-pci.o
+common-obj-$(CONFIG_VIRTIO) += virtio-console.o
+common-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o
+common-obj-$(CONFIG_CADENCE) += cadence_uart.o
+
+obj-$(CONFIG_EXYNOS4) += exynos4210_uart.o
+obj-$(CONFIG_COLDFIRE) += mcf_uart.o
+obj-$(CONFIG_OMAP) += omap_uart.o
+obj-$(CONFIG_SH4) += sh_serial.o
+obj-$(CONFIG_PSERIES) += spapr_vty.o
+
+common-obj-$(CONFIG_ETRAXFS) += etraxfs_ser.o
+common-obj-$(CONFIG_ISA_DEBUG) += debugcon.o
+common-obj-$(CONFIG_GRLIB) += grlib_apbuart.o
+common-obj-$(CONFIG_IMX) += imx_serial.o
+common-obj-$(CONFIG_LM32) += lm32_juart.o
+common-obj-$(CONFIG_LM32) += lm32_uart.o
+common-obj-$(CONFIG_MILKYMIST) += milkymist-uart.o
+common-obj-$(CONFIG_SCLPCONSOLE) += sclpconsole.o
+
+obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o

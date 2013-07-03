@@ -281,11 +281,9 @@ struct AHCIDevice {
     QEMUBH *check_bh;
     uint8_t *lst;
     uint8_t *res_fis;
-    int dma_status;
-    int done_atapi_packet;
-    int busy_slot;
-    int init_d2h_sent;
-    BlockDriverCompletionFunc *dma_cb;
+    bool done_atapi_packet;
+    int32_t busy_slot;
+    bool init_d2h_sent;
     AHCICmdHdr *cur_cmd;
     NCQTransferState ncq_tfs[AHCI_MAX_CMDS];
 };
@@ -297,7 +295,7 @@ typedef struct AHCIState {
     MemoryRegion idp;       /* Index-Data Pair I/O port space */
     unsigned idp_offset;    /* Offset of index in I/O port space */
     uint32_t idp_index;     /* Current IDP index */
-    int ports;
+    int32_t ports;
     qemu_irq irq;
     DMAContext *dma;
 } AHCIState;
@@ -306,6 +304,16 @@ typedef struct AHCIPCIState {
     PCIDevice card;
     AHCIState ahci;
 } AHCIPCIState;
+
+extern const VMStateDescription vmstate_ahci;
+
+#define VMSTATE_AHCI(_field, _state) {                               \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(AHCIState),                                 \
+    .vmsd       = &vmstate_ahci,                                     \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, AHCIState),   \
+}
 
 typedef struct NCQFrame {
     uint8_t fis_type;

@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
+#include "qemu/error-report.h"
 
 #define NUM_PORTS 8
 
@@ -32,6 +33,7 @@ typedef struct USBHubPort {
     USBPort port;
     uint16_t wPortStatus;
     uint16_t wPortChange;
+    uint16_t wPortChange_reported;
 } USBHubPort;
 
 typedef struct USBHubState {
@@ -164,7 +166,7 @@ static void usb_hub_attach(USBPort *port1)
     } else {
         port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
     }
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 }
 
 static void usb_hub_detach(USBPort *port1)
@@ -173,7 +175,7 @@ static void usb_hub_detach(USBPort *port1)
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_detach(s->dev.addr, port1->index + 1);
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
@@ -184,6 +186,7 @@ static void usb_hub_detach(USBPort *port1)
         port->wPortStatus &= ~PORT_STAT_ENABLE;
         port->wPortChange |= PORT_STAT_C_ENABLE;
     }
+    usb_wakeup(s->intr, 0);
 }
 
 static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
@@ -201,7 +204,7 @@ static void usb_hub_wakeup(USBPort *port1)
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
         port->wPortChange |= PORT_STAT_C_SUSPEND;
-        usb_wakeup(s->intr);
+        usb_wakeup(s->intr, 0);
     }
 }
 
@@ -288,7 +291,7 @@ static const char *feature_name(int feature)
     return name[feature] ?: "?";
 }
 
-static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBHubState *s = (USBHubState *)dev;
@@ -298,7 +301,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
     switch(request) {
@@ -306,7 +309,6 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
         if (value == 0 && index != 0x81) { /* clear ep halt */
             goto fail;
         }
-        ret = 0;
         break;
         /* usb specific requests */
     case GetHubStatus:
@@ -314,7 +316,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
         data[1] = 0;
         data[2] = 0;
         data[3] = 0;
-        ret = 4;
+        p->actual_length = 4;
         break;
     case GetPortStatus:
         {
@@ -331,16 +333,14 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             data[1] = port->wPortStatus >> 8;
             data[2] = port->wPortChange;
             data[3] = port->wPortChange >> 8;
-            ret = 4;
+            p->actual_length = 4;
         }
         break;
     case SetHubFeature:
     case ClearHubFeature:
-        if (value == 0 || value == 1) {
-        } else {
+        if (value != 0 && value != 1) {
             goto fail;
         }
-        ret = 0;
         break;
     case SetPortFeature:
         {
@@ -366,6 +366,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;
+                    usb_wakeup(s->intr, 0);
                 }
                 break;
             case PORT_POWER:
@@ -373,7 +374,6 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             default:
                 goto fail;
             }
-            ret = 0;
         }
         break;
     case ClearPortFeature:
@@ -413,7 +413,6 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             default:
                 goto fail;
             }
-            ret = 0;
         }
         break;
     case GetHubDescriptor:
@@ -437,22 +436,20 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 var_hub_size++;
             }
 
-            ret = sizeof(qemu_hub_hub_descriptor) + var_hub_size;
-            data[0] = ret;
+            p->actual_length = sizeof(qemu_hub_hub_descriptor) + var_hub_size;
+            data[0] = p->actual_length;
             break;
         }
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
-static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHubState *s = (USBHubState *)dev;
-    int ret;
 
     switch(p->pid) {
     case USB_TOKEN_IN:
@@ -465,22 +462,25 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
             if (p->iov.size == 1) { /* FreeBSD workaround */
                 n = 1;
             } else if (n > p->iov.size) {
-                return USB_RET_BABBLE;
+                p->status = USB_RET_BABBLE;
+                return;
             }
             status = 0;
             for(i = 0; i < NUM_PORTS; i++) {
                 port = &s->ports[i];
-                if (port->wPortChange)
+                if (port->wPortChange &&
+                    port->wPortChange_reported != port->wPortChange) {
                     status |= (1 << (i + 1));
+                }
+                port->wPortChange_reported = port->wPortChange;
             }
             if (status != 0) {
                 for(i = 0; i < n; i++) {
                     buf[i] = status >> (8 * i);
                 }
                 usb_packet_copy(p, buf, n);
-                ret = n;
             } else {
-                ret = USB_RET_NAK; /* usb11 11.13.1 */
+                p->status = USB_RET_NAK; /* usb11 11.13.1 */
             }
         } else {
             goto fail;
@@ -489,10 +489,9 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_OUT:
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static void usb_hub_handle_destroy(USBDevice *dev)
@@ -519,6 +518,11 @@ static int usb_hub_initfn(USBDevice *dev)
     USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
     USBHubPort *port;
     int i;
+
+    if (dev->port->hubcount == 5) {
+        error_report("usb hub chain too deep");
+        return -1;
+    }
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -574,7 +578,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_hub;
 }
 
-static TypeInfo hub_info = {
+static const TypeInfo hub_info = {
     .name          = "usb-hub",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHubState),

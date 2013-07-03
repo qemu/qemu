@@ -26,7 +26,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
@@ -189,8 +189,6 @@ struct CPULM32State {
 LM32CPU *cpu_lm32_init(const char *cpu_model);
 void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_lm32_exec(CPULM32State *s);
-void cpu_lm32_close(CPULM32State *s);
-void do_interrupt(CPULM32State *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -213,8 +211,6 @@ static inline CPULM32State *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_lm32_gen_code
 #define cpu_signal_handler cpu_lm32_signal_handler
 
-#define CPU_SAVE_VERSION 1
-
 int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_lm32_handle_mmu_fault
@@ -233,17 +229,7 @@ static inline void cpu_set_tls(CPULM32State *env, target_ulong newtls)
 {
 }
 
-static inline int cpu_interrupts_enabled(CPULM32State *env)
-{
-    return env->ie & IE_IE;
-}
-
-#include "cpu-all.h"
-
-static inline target_ulong cpu_get_pc(CPULM32State *env)
-{
-    return env->pc;
-}
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -253,12 +239,12 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline bool cpu_has_work(CPULM32State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
-    return env->interrupt_request & CPU_INTERRUPT_HARD;
+    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPULM32State *env, TranslationBlock *tb)
 {

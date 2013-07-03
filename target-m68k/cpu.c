@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 static void m68k_set_feature(CPUM68KState *env, int feature)
@@ -35,7 +36,7 @@ static void m68k_cpu_reset(CPUState *s)
     CPUM68KState *env = &cpu->env;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 
@@ -54,6 +55,25 @@ static void m68k_cpu_reset(CPUState *s)
 }
 
 /* CPU models */
+
+static ObjectClass *m68k_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+    char *typename;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    typename = g_strdup_printf("%s-" TYPE_M68K_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    if (oc != NULL && (object_class_dynamic_cast(oc, TYPE_M68K_CPU) == NULL ||
+                       object_class_is_abstract(oc))) {
+        return NULL;
+    }
+    return oc;
+}
 
 static void m5206_cpu_initfn(Object *obj)
 {
@@ -119,32 +139,67 @@ static const M68kCPUInfo m68k_cpus[] = {
     { .name = "any",   .instance_init = any_cpu_initfn },
 };
 
+static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    M68kCPU *cpu = M68K_CPU(dev);
+    M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
+
+    m68k_cpu_init_gdb(cpu);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    mcc->parent_realize(dev, errp);
+}
+
 static void m68k_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
+    static bool inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
+
+    if (tcg_enabled() && !inited) {
+        inited = true;
+        m68k_tcg_init();
+    }
 }
+
+static const VMStateDescription vmstate_m68k_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
 
 static void m68k_cpu_class_init(ObjectClass *c, void *data)
 {
     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);
+    DeviceClass *dc = DEVICE_CLASS(c);
+
+    mcc->parent_realize = dc->realize;
+    dc->realize = m68k_cpu_realizefn;
 
     mcc->parent_reset = cc->reset;
     cc->reset = m68k_cpu_reset;
+
+    cc->class_by_name = m68k_cpu_class_by_name;
+    cc->do_interrupt = m68k_cpu_do_interrupt;
+    dc->vmsd = &vmstate_m68k_cpu;
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)
 {
     TypeInfo type_info = {
-        .name = info->name,
         .parent = TYPE_M68K_CPU,
         .instance_init = info->instance_init,
     };
 
-    type_register_static(&type_info);
+    type_info.name = g_strdup_printf("%s-" TYPE_M68K_CPU, info->name);
+    type_register(&type_info);
+    g_free((void *)type_info.name);
 }
 
 static const TypeInfo m68k_cpu_type_info = {

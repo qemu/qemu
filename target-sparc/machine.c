@@ -1,6 +1,6 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 #include "cpu.h"
 

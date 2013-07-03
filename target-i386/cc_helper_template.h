@@ -18,256 +18,221 @@
  */
 
 #define DATA_BITS (1 << (3 + SHIFT))
-#define SIGN_MASK (((target_ulong)1) << (DATA_BITS - 1))
 
 #if DATA_BITS == 8
 #define SUFFIX b
 #define DATA_TYPE uint8_t
-#define DATA_MASK 0xff
 #elif DATA_BITS == 16
 #define SUFFIX w
 #define DATA_TYPE uint16_t
-#define DATA_MASK 0xffff
 #elif DATA_BITS == 32
 #define SUFFIX l
 #define DATA_TYPE uint32_t
-#define DATA_MASK 0xffffffff
 #elif DATA_BITS == 64
 #define SUFFIX q
 #define DATA_TYPE uint64_t
-#define DATA_MASK 0xffffffffffffffffULL
 #else
 #error unhandled operand size
 #endif
 
+#define SIGN_MASK (((DATA_TYPE)1) << (DATA_BITS - 1))
+
 /* dynamic flags computation */
 
-static int glue(compute_all_add, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src2 = dst - src1;
 
-    src1 = CC_SRC;
-    src2 = CC_DST - CC_SRC;
-    cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    cf = dst < src1;
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & CC_A;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ dst), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_add, SUFFIX)(CPUX86State *env)
+static int glue(compute_c_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf;
-    target_long src1;
-
-    src1 = CC_SRC;
-    cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
-    return cf;
+    return dst < src1;
 }
 
-static int glue(compute_all_adc, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+                                         DATA_TYPE src3)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src2 = dst - src1 - src3;
 
-    src1 = CC_SRC;
-    src2 = CC_DST - CC_SRC - 1;
-    cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    cf = (src3 ? dst <= src1 : dst < src1);
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & 0x10;
+    zf = (dst == 0) << 6;
+    sf = lshift(dst, 8 - DATA_BITS) & 0x80;
+    of = lshift((src1 ^ src2 ^ -1) & (src1 ^ dst), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_adc, SUFFIX)(CPUX86State *env)
+static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+                                       DATA_TYPE src3)
 {
-    int cf;
-    target_long src1;
-
-    src1 = CC_SRC;
-    cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
-    return cf;
+    return src3 ? dst <= src1 : dst < src1;
 }
 
-static int glue(compute_all_sub, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src1 = dst + src2;
 
-    src1 = CC_DST + CC_SRC;
-    src2 = CC_SRC;
-    cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    cf = src1 < src2;
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & CC_A;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = lshift((src1 ^ src2) & (src1 ^ dst), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_sub, SUFFIX)(CPUX86State *env)
+static int glue(compute_c_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
 {
-    int cf;
-    target_long src1, src2;
+    DATA_TYPE src1 = dst + src2;
 
-    src1 = CC_DST + CC_SRC;
-    src2 = CC_SRC;
-    cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
-    return cf;
+    return src1 < src2;
 }
 
-static int glue(compute_all_sbb, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+                                         DATA_TYPE src3)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src1 = dst + src2 + src3;
 
-    src1 = CC_DST + CC_SRC + 1;
-    src2 = CC_SRC;
-    cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = lshift((src1 ^ src2) & (src1 ^ CC_DST), 12 - DATA_BITS) & CC_O;
+    cf = (src3 ? src1 <= src2 : src1 < src2);
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & 0x10;
+    zf = (dst == 0) << 6;
+    sf = lshift(dst, 8 - DATA_BITS) & 0x80;
+    of = lshift((src1 ^ src2) & (src1 ^ dst), 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_sbb, SUFFIX)(CPUX86State *env)
+static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+                                       DATA_TYPE src3)
 {
-    int cf;
-    target_long src1, src2;
+    DATA_TYPE src1 = dst + src2 + src3;
 
-    src1 = CC_DST + CC_SRC + 1;
-    src2 = CC_SRC;
-    cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
-    return cf;
+    return (src3 ? src1 <= src2 : src1 < src2);
 }
 
-static int glue(compute_all_logic, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
 
     cf = 0;
-    pf = parity_table[(uint8_t)CC_DST];
+    pf = parity_table[(uint8_t)dst];
     af = 0;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = 0;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_logic, SUFFIX)(void)
-{
-    return 0;
-}
-
-static int glue(compute_all_inc, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src2;
 
-    src1 = CC_DST - 1;
+    cf = src1;
+    src1 = dst - 1;
     src2 = 1;
-    cf = CC_SRC;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = ((CC_DST & DATA_MASK) == SIGN_MASK) << 11;
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & CC_A;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = (dst == SIGN_MASK) * CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-#if DATA_BITS == 32
-static int glue(compute_c_inc, SUFFIX)(CPUX86State *env)
-{
-    return CC_SRC;
-}
-#endif
-
-static int glue(compute_all_dec, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
-    target_long src1, src2;
+    DATA_TYPE src2;
 
-    src1 = CC_DST + 1;
+    cf = src1;
+    src1 = dst + 1;
     src2 = 1;
-    cf = CC_SRC;
-    pf = parity_table[(uint8_t)CC_DST];
-    af = (CC_DST ^ src1 ^ src2) & 0x10;
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = ((CC_DST & DATA_MASK) == ((target_ulong)SIGN_MASK - 1)) << 11;
+    pf = parity_table[(uint8_t)dst];
+    af = (dst ^ src1 ^ src2) & CC_A;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = (dst == SIGN_MASK - 1) * CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_all_shl, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
 
-    cf = (CC_SRC >> (DATA_BITS - 1)) & CC_C;
-    pf = parity_table[(uint8_t)CC_DST];
+    cf = (src1 >> (DATA_BITS - 1)) & CC_C;
+    pf = parity_table[(uint8_t)dst];
     af = 0; /* undefined */
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    /* of is defined if shift count == 1 */
-    of = lshift(CC_SRC ^ CC_DST, 12 - DATA_BITS) & CC_O;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    /* of is defined iff shift count == 1 */
+    of = lshift(src1 ^ dst, 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_shl, SUFFIX)(CPUX86State *env)
+static int glue(compute_c_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    return (CC_SRC >> (DATA_BITS - 1)) & CC_C;
+    return (src1 >> (DATA_BITS - 1)) & CC_C;
 }
 
-#if DATA_BITS == 32
-static int glue(compute_c_sar, SUFFIX)(CPUX86State *env)
-{
-    return CC_SRC & 1;
-}
-#endif
-
-static int glue(compute_all_sar, SUFFIX)(CPUX86State *env)
+static int glue(compute_all_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     int cf, pf, af, zf, sf, of;
 
-    cf = CC_SRC & 1;
-    pf = parity_table[(uint8_t)CC_DST];
+    cf = src1 & 1;
+    pf = parity_table[(uint8_t)dst];
     af = 0; /* undefined */
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    /* of is defined if shift count == 1 */
-    of = lshift(CC_SRC ^ CC_DST, 12 - DATA_BITS) & CC_O;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    /* of is defined iff shift count == 1 */
+    of = lshift(src1 ^ dst, 12 - DATA_BITS) & CC_O;
     return cf | pf | af | zf | sf | of;
 }
-
-#if DATA_BITS == 32
-static int glue(compute_c_mul, SUFFIX)(CPUX86State *env)
-{
-    int cf;
-
-    cf = (CC_SRC != 0);
-    return cf;
-}
-#endif
 
 /* NOTE: we compute the flags like the P4. On olders CPUs, only OF and
-   CF are modified and it is slower to do that. */
-static int glue(compute_all_mul, SUFFIX)(CPUX86State *env)
+   CF are modified and it is slower to do that.  Note as well that we
+   don't truncate SRC1 for computing carry to DATA_TYPE.  */
+static int glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
 {
     int cf, pf, af, zf, sf, of;
 
-    cf = (CC_SRC != 0);
-    pf = parity_table[(uint8_t)CC_DST];
+    cf = (src1 != 0);
+    pf = parity_table[(uint8_t)dst];
     af = 0; /* undefined */
-    zf = ((DATA_TYPE)CC_DST == 0) << 6;
-    sf = lshift(CC_DST, 8 - DATA_BITS) & 0x80;
-    of = cf << 11;
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = cf * CC_O;
     return cf | pf | af | zf | sf | of;
+}
+
+static int glue(compute_all_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+{
+    int cf, pf, af, zf, sf, of;
+
+    cf = (src1 == 0);
+    pf = 0; /* undefined */
+    af = 0; /* undefined */
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = 0;
+    return cf | pf | af | zf | sf | of;
+}
+
+static int glue(compute_c_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+{
+    return src1 == 0;
 }
 
 #undef DATA_BITS

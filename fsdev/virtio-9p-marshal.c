@@ -22,9 +22,9 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include "compiler.h"
+#include "qemu/compiler.h"
 #include "virtio-9p-marshal.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 
 void v9fs_string_free(V9fsString *str)
 {

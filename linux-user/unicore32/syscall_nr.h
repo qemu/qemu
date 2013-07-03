@@ -187,8 +187,8 @@
 #define TARGET_NR_rt_sigtimedwait               177
 #define TARGET_NR_rt_sigqueueinfo               178
 #define TARGET_NR_rt_sigsuspend                 179
-#define TARGET_NR_pread                         180
-#define TARGET_NR_pwrite                        181
+#define TARGET_NR_pread64                       180
+#define TARGET_NR_pwrite64                      181
 #define TARGET_NR_chown                         182
 #define TARGET_NR_getcwd                        183
 #define TARGET_NR_capget                        184

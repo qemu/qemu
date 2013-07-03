@@ -11,10 +11,11 @@
  *
  */
 
-#include "qapi-dealloc-visitor.h"
-#include "qemu-queue.h"
+#include "qapi/dealloc-visitor.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
+#include "qapi/visitor-impl.h"
 
 typedef struct StackEntry
 {
@@ -132,6 +133,11 @@ static void qapi_dealloc_type_number(Visitor *v, double *obj, const char *name,
 {
 }
 
+static void qapi_dealloc_type_size(Visitor *v, uint64_t *obj, const char *name,
+                                   Error **errp)
+{
+}
+
 static void qapi_dealloc_type_enum(Visitor *v, int *obj, const char *strings[],
                                    const char *kind, const char *name,
                                    Error **errp)
@@ -164,6 +170,7 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.type_bool = qapi_dealloc_type_bool;
     v->visitor.type_str = qapi_dealloc_type_str;
     v->visitor.type_number = qapi_dealloc_type_number;
+    v->visitor.type_size = qapi_dealloc_type_size;
 
     QTAILQ_INIT(&v->stack);
 

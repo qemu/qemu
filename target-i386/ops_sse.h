@@ -1933,8 +1933,7 @@ void glue(helper_mpsadbw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 }
 
 /* SSE4.2 op helpers */
-/* it's unclear whether signed or unsigned */
-#define FCMPGTQ(d, s) (d > s ? -1 : 0)
+#define FCMPGTQ(d, s) ((int64_t)d > (int64_t)s ? -1 : 0)
 SSE_HELPER_Q(helper_pcmpgtq, FCMPGTQ)
 
 static inline int pcmp_elen(CPUX86State *env, int reg, uint32_t ctrl)
@@ -2020,13 +2019,13 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
             res <<= 1;
             v = pcmp_val(s, ctrl, j);
             for (i = ((validd - 1) | 1); i >= 0; i -= 2) {
-                res |= (pcmp_val(d, ctrl, i - 0) <= v &&
-                        pcmp_val(d, ctrl, i - 1) >= v);
+                res |= (pcmp_val(d, ctrl, i - 0) >= v &&
+                        pcmp_val(d, ctrl, i - 1) <= v);
             }
         }
         break;
     case 2:
-        res = (2 << (upper - MAX(valids, validd))) - 1;
+        res = (1 << (upper - MAX(valids, validd))) - 1;
         res <<= MAX(valids, validd) - MIN(valids, validd);
         for (i = MIN(valids, validd); i >= 0; i--) {
             res <<= 1;
@@ -2037,10 +2036,11 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
     case 3:
         for (j = valids - validd; j >= 0; j--) {
             res <<= 1;
-            res |= 1;
+            v = 1;
             for (i = MIN(upper - j, validd); i >= 0; i--) {
-                res &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
+                v &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
             }
+            res |= v;
         }
         break;
     }
@@ -2050,7 +2050,7 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
         res ^= (2 << upper) - 1;
         break;
     case 3:
-        res ^= (2 << valids) - 1;
+        res ^= (1 << (valids + 1)) - 1;
         break;
     }
 
@@ -2064,34 +2064,6 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
     return res;
 }
 
-static inline int rffs1(unsigned int val)
-{
-    int ret = 1, hi;
-
-    for (hi = sizeof(val) * 4; hi; hi /= 2) {
-        if (val >> hi) {
-            val >>= hi;
-            ret += hi;
-        }
-    }
-
-    return ret;
-}
-
-static inline int ffs1(unsigned int val)
-{
-    int ret = 1, hi;
-
-    for (hi = sizeof(val) * 4; hi; hi /= 2) {
-        if (val << hi) {
-            val <<= hi;
-            ret += hi;
-        }
-    }
-
-    return ret;
-}
-
 void glue(helper_pcmpestri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                     uint32_t ctrl)
 {
@@ -2100,7 +2072,7 @@ void glue(helper_pcmpestri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_elen(env, R_EAX, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? 31 - clz32(res) : ctz32(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
@@ -2117,16 +2089,16 @@ void glue(helper_pcmpestrm, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     if ((ctrl >> 6) & 1) {
         if (ctrl & 1) {
             for (i = 0; i < 8; i++, res >>= 1) {
-                d->W(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].W(i) = (res & 1) ? ~0 : 0;
             }
         } else {
             for (i = 0; i < 16; i++, res >>= 1) {
-                d->B(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].B(i) = (res & 1) ? ~0 : 0;
             }
         }
     } else {
-        d->Q(1) = 0;
-        d->Q(0) = res;
+        env->xmm_regs[0].Q(1) = 0;
+        env->xmm_regs[0].Q(0) = res;
     }
 }
 
@@ -2138,7 +2110,7 @@ void glue(helper_pcmpistri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_ilen(d, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? 31 - clz32(res) : ctz32(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
@@ -2155,16 +2127,16 @@ void glue(helper_pcmpistrm, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     if ((ctrl >> 6) & 1) {
         if (ctrl & 1) {
             for (i = 0; i < 8; i++, res >>= 1) {
-                d->W(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].W(i) = (res & 1) ? ~0 : 0;
             }
         } else {
             for (i = 0; i < 16; i++, res >>= 1) {
-                d->B(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].B(i) = (res & 1) ? ~0 : 0;
             }
         }
     } else {
-        d->Q(1) = 0;
-        d->Q(0) = res;
+        env->xmm_regs[0].Q(1) = 0;
+        env->xmm_regs[0].Q(0) = res;
     }
 }
 
@@ -2206,6 +2178,117 @@ target_ulong helper_popcnt(CPUX86State *env, target_ulong n, uint32_t type)
 
     return POPCOUNT(n, 5);
 #endif
+}
+
+void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
+                                    uint32_t ctrl)
+{
+    uint64_t ah, al, b, resh, resl;
+
+    ah = 0;
+    al = d->Q((ctrl & 1) != 0);
+    b = s->Q((ctrl & 16) != 0);
+    resh = resl = 0;
+
+    while (b) {
+        if (b & 1) {
+            resl ^= al;
+            resh ^= ah;
+        }
+        ah = (ah << 1) | (al >> 63);
+        al <<= 1;
+        b >>= 1;
+    }
+
+    d->Q(0) = resl;
+    d->Q(1) = resh;
+}
+
+/* AES-NI op helpers */
+static const uint8_t aes_shifts[16] = {
+    0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11
+};
+
+static const uint8_t aes_ishifts[16] = {
+    0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3
+};
+
+void glue(helper_aesdec, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = rk.L(i) ^ bswap32(AES_Td0[st.B(aes_ishifts[4*i+0])] ^
+                                    AES_Td1[st.B(aes_ishifts[4*i+1])] ^
+                                    AES_Td2[st.B(aes_ishifts[4*i+2])] ^
+                                    AES_Td3[st.B(aes_ishifts[4*i+3])]);
+    }
+}
+
+void glue(helper_aesdeclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0; i < 16; i++) {
+        d->B(i) = rk.B(i) ^ (AES_Td4[st.B(aes_ishifts[i])] & 0xff);
+    }
+}
+
+void glue(helper_aesenc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = rk.L(i) ^ bswap32(AES_Te0[st.B(aes_shifts[4*i+0])] ^
+                                    AES_Te1[st.B(aes_shifts[4*i+1])] ^
+                                    AES_Te2[st.B(aes_shifts[4*i+2])] ^
+                                    AES_Te3[st.B(aes_shifts[4*i+3])]);
+    }
+}
+
+void glue(helper_aesenclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0; i < 16; i++) {
+        d->B(i) = rk.B(i) ^ (AES_Te4[st.B(aes_shifts[i])] & 0xff);
+    }
+
+}
+
+void glue(helper_aesimc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg tmp = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = bswap32(AES_Td0[AES_Te4[tmp.B(4*i+0)] & 0xff] ^
+                          AES_Td1[AES_Te4[tmp.B(4*i+1)] & 0xff] ^
+                          AES_Td2[AES_Te4[tmp.B(4*i+2)] & 0xff] ^
+                          AES_Td3[AES_Te4[tmp.B(4*i+3)] & 0xff]);
+    }
+}
+
+void glue(helper_aeskeygenassist, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
+                                          uint32_t ctrl)
+{
+    int i;
+    Reg tmp = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->B(i) = AES_Te4[tmp.B(i + 4)] & 0xff;
+        d->B(i + 8) = AES_Te4[tmp.B(i + 12)] & 0xff;
+    }
+    d->L(1) = (d->L(0) << 24 | d->L(0) >> 8) ^ ctrl;
+    d->L(3) = (d->L(2) << 24 | d->L(2) >> 8) ^ ctrl;
 }
 #endif
 

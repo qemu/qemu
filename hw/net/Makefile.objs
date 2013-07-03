@@ -1,0 +1,33 @@
+common-obj-$(CONFIG_DP8393X) += dp8393x.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_nic.o
+
+# PCI network cards
+common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
+common-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
+common-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
+common-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
+common-obj-$(CONFIG_E1000_PCI) += e1000.o
+common-obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
+common-obj-$(CONFIG_VMXNET3_PCI) += vmxnet_tx_pkt.o vmxnet_rx_pkt.o
+common-obj-$(CONFIG_VMXNET3_PCI) += vmxnet3.o
+
+common-obj-$(CONFIG_SMC91C111) += smc91c111.o
+common-obj-$(CONFIG_LAN9118) += lan9118.o
+common-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
+common-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
+common-obj-$(CONFIG_XGMAC) += xgmac.o
+common-obj-$(CONFIG_MIPSNET) += mipsnet.o
+common-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
+
+common-obj-$(CONFIG_CADENCE) += cadence_gem.o
+common-obj-$(CONFIG_STELLARIS_ENET) += stellaris_enet.o
+common-obj-$(CONFIG_LANCE) += lance.o
+
+obj-$(CONFIG_ETRAXFS) += etraxfs_eth.o
+obj-$(CONFIG_COLDFIRE) += mcf_fec.o
+obj-$(CONFIG_MILKYMIST) += milkymist-minimac2.o
+obj-$(CONFIG_PSERIES) += spapr_llan.o
+obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
+
+obj-$(CONFIG_VIRTIO) += virtio-net.o
+obj-y += vhost_net.o

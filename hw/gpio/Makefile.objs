@@ -1,0 +1,6 @@
+common-obj-$(CONFIG_MAX7310) += max7310.o
+common-obj-$(CONFIG_PL061) += pl061.o
+common-obj-$(CONFIG_PUV3) += puv3_gpio.o
+common-obj-$(CONFIG_ZAURUS) += zaurus.o
+
+obj-$(CONFIG_OMAP) += omap_gpio.o

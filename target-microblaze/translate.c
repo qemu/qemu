@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "helper.h"
 #include "microblaze-decode.h"
@@ -50,7 +50,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -126,7 +126,7 @@ static inline void t_gen_raise_exception(DisasContext *dc, uint32_t index)
 
     t_sync_flags(dc);
     tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
-    gen_helper_raise_exception(tmp);
+    gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->is_jmp = DISAS_UPDATE;
 }
@@ -503,9 +503,9 @@ static void dec_msr(DisasContext *dc)
         sr &= 7;
         LOG_DIS("m%ss sr%d r%d imm=%x\n", to ? "t" : "f", sr, dc->ra, dc->imm);
         if (to)
-            gen_helper_mmu_write(tcg_const_tl(sr), cpu_R[dc->ra]);
+            gen_helper_mmu_write(cpu_env, tcg_const_tl(sr), cpu_R[dc->ra]);
         else
-            gen_helper_mmu_read(cpu_R[dc->rd], tcg_const_tl(sr));
+            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tcg_const_tl(sr));
         return;
     }
 #endif
@@ -704,9 +704,11 @@ static void dec_div(DisasContext *dc)
     }
 
     if (u)
-        gen_helper_divu(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+        gen_helper_divu(cpu_R[dc->rd], cpu_env, *(dec_alu_op_b(dc)),
+                        cpu_R[dc->ra]);
     else
-        gen_helper_divs(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+        gen_helper_divs(cpu_R[dc->rd], cpu_env, *(dec_alu_op_b(dc)),
+                        cpu_R[dc->ra]);
     if (!dc->rd)
         tcg_gen_movi_tl(cpu_R[dc->rd], 0);
 }
@@ -838,7 +840,7 @@ static void dec_bit(DisasContext *dc)
             LOG_DIS("swapb r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_bswap32_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
             break;
-        case 0x1e1:
+        case 0x1e2:
             /*swaph */
             LOG_DIS("swaph r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
@@ -912,7 +914,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
         tcg_gen_add_tl(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
 
         if (stackprot) {
-            gen_helper_stackprot(*t);
+            gen_helper_stackprot(cpu_env, *t);
         }
         return t;
     }
@@ -930,7 +932,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
     }
 
     if (stackprot) {
-        gen_helper_stackprot(*t);
+        gen_helper_stackprot(cpu_env, *t);
     }
     return t;
 }
@@ -1056,7 +1058,7 @@ static void dec_load(DisasContext *dc)
         gen_load(dc, v, *addr, size);
 
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
-        gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
+        gen_helper_memalign(cpu_env, *addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(0), tcg_const_tl(size - 1));
         if (dc->rd) {
             if (rev) {
@@ -1218,7 +1220,7 @@ static void dec_store(DisasContext *dc)
          *        the alignment checks in between the probe and the mem
          *        access.
          */
-        gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
+        gen_helper_memalign(cpu_env, *addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
     }
 
@@ -1315,6 +1317,23 @@ static void dec_br(DisasContext *dc)
     /* Memory barrier.  */
     mbar = (dc->ir >> 16) & 31;
     if (mbar == 2 && dc->imm == 4) {
+        /* mbar IMM & 16 decodes to sleep.  */
+        if (dc->rd & 16) {
+            TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
+            TCGv_i32 tmp_1 = tcg_const_i32(1);
+
+            LOG_DIS("sleep\n");
+
+            t_sync_flags(dc);
+            tcg_gen_st_i32(tmp_1, cpu_env,
+                           -offsetof(MicroBlazeCPU, env)
+                           +offsetof(CPUState, halted));
+            tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc + 4);
+            gen_helper_raise_exception(cpu_env, tmp_hlt);
+            tcg_temp_free_i32(tmp_hlt);
+            tcg_temp_free_i32(tmp_1);
+            return;
+        }
         LOG_DIS("mbar %d\n", dc->rd);
         /* Break the TB.  */
         dc->cpustate_changed = 1;
@@ -1493,49 +1512,53 @@ static void dec_fpu(DisasContext *dc)
 
     switch (fpu_insn) {
         case 0:
-            gen_helper_fadd(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            gen_helper_fadd(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
+                            cpu_R[dc->rb]);
             break;
 
         case 1:
-            gen_helper_frsub(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            gen_helper_frsub(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
+                             cpu_R[dc->rb]);
             break;
 
         case 2:
-            gen_helper_fmul(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            gen_helper_fmul(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
+                            cpu_R[dc->rb]);
             break;
 
         case 3:
-            gen_helper_fdiv(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            gen_helper_fdiv(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra],
+                            cpu_R[dc->rb]);
             break;
 
         case 4:
             switch ((dc->ir >> 4) & 7) {
                 case 0:
-                    gen_helper_fcmp_un(cpu_R[dc->rd],
+                    gen_helper_fcmp_un(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 1:
-                    gen_helper_fcmp_lt(cpu_R[dc->rd],
+                    gen_helper_fcmp_lt(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 2:
-                    gen_helper_fcmp_eq(cpu_R[dc->rd],
+                    gen_helper_fcmp_eq(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 3:
-                    gen_helper_fcmp_le(cpu_R[dc->rd],
+                    gen_helper_fcmp_le(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 4:
-                    gen_helper_fcmp_gt(cpu_R[dc->rd],
+                    gen_helper_fcmp_gt(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 5:
-                    gen_helper_fcmp_ne(cpu_R[dc->rd],
+                    gen_helper_fcmp_ne(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 case 6:
-                    gen_helper_fcmp_ge(cpu_R[dc->rd],
+                    gen_helper_fcmp_ge(cpu_R[dc->rd], cpu_env,
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 default:
@@ -1552,21 +1575,21 @@ static void dec_fpu(DisasContext *dc)
             if (!dec_check_fpuv2(dc)) {
                 return;
             }
-            gen_helper_flt(cpu_R[dc->rd], cpu_R[dc->ra]);
+            gen_helper_flt(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
             break;
 
         case 6:
             if (!dec_check_fpuv2(dc)) {
                 return;
             }
-            gen_helper_fint(cpu_R[dc->rd], cpu_R[dc->ra]);
+            gen_helper_fint(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
             break;
 
         case 7:
             if (!dec_check_fpuv2(dc)) {
                 return;
             }
-            gen_helper_fsqrt(cpu_R[dc->rd], cpu_R[dc->ra]);
+            gen_helper_fsqrt(cpu_R[dc->rd], cpu_env, cpu_R[dc->ra]);
             break;
 
         default:
@@ -1654,15 +1677,15 @@ static struct decoder_info {
     {{0, 0}, dec_null}
 };
 
-static inline void decode(DisasContext *dc)
+static inline void decode(DisasContext *dc, uint32_t ir)
 {
-    uint32_t ir;
     int i;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
         tcg_gen_debug_insn_start(dc->pc);
+    }
 
-    dc->ir = ir = ldl_code(dc->pc);
+    dc->ir = ir;
     LOG_DIS("%8.8x\t", dc->ir);
 
     if (dc->ir)
@@ -1728,14 +1751,12 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     pc_start = tb->pc;
     dc->env = env;
     dc->tb = tb;
     org_flags = dc->synced_flags = dc->tb_flags = tb->flags;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
@@ -1766,7 +1787,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
     do
     {
 #if SIM_COMPAT
@@ -1778,15 +1799,15 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         check_breakpoint(env, dc);
 
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = dc->pc;
-            gen_opc_instr_start[lj] = 1;
-                        gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+                        tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         /* Pretty disas.  */
@@ -1796,7 +1817,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
             gen_io_start();
 
         dc->clear_imm = 1;
-	decode(dc);
+        decode(dc, cpu_ldl_code(env, dc->pc));
         if (dc->clear_imm)
             dc->tb_flags &= ~IMM_FLAG;
         dc->pc += 4;
@@ -1840,7 +1861,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         if (env->singlestep_enabled)
             break;
     } while (!dc->is_jmp && !dc->cpustate_changed
-         && gen_opc_ptr < gen_opc_end
+         && tcg_ctx.gen_opc_ptr < gen_opc_end
                  && !singlestep
          && (dc->pc < next_page_start)
                  && num_insns < max_insns);
@@ -1871,7 +1892,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         if (dc->is_jmp != DISAS_JUMP) {
             tcg_gen_movi_tl(cpu_SR[SR_PC], npc);
         }
-        gen_helper_raise_exception(tmp);
+        gen_helper_raise_exception(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
     } else {
         switch(dc->is_jmp) {
@@ -1890,13 +1911,13 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
                 break;
         }
     }
-    gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    gen_tb_end(tb, num_insns);
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = dc->pc - pc_start;
                 tb->icount = num_insns;
@@ -1907,10 +1928,11 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
 #if DISAS_GNU
-        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
+            dc->pc - pc_start, tcg_ctx.gen_opc_ptr -
+            tcg_ctx.gen_opc_buf);
     }
 #endif
 #endif
@@ -1958,19 +1980,17 @@ void cpu_dump_state (CPUMBState *env, FILE *f, fprintf_function cpu_fprintf,
 MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 {
     MicroBlazeCPU *cpu;
-    static int tcg_initialized = 0;
-    int i;
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
-    if (tcg_initialized) {
-        return cpu;
-    }
+    return cpu;
+}
 
-    tcg_initialized = 1;
+void mb_tcg_init(void)
+{
+    int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
@@ -2001,11 +2021,9 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
     }
 #define GEN_HELPER 2
 #include "helper.h"
-
-    return cpu;
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->sregs[SR_PC] = gen_opc_pc[pc_pos];
+    env->sregs[SR_PC] = tcg_ctx.gen_opc_pc[pc_pos];
 }

@@ -35,17 +35,14 @@ static bool use_mmio;
 
 static uint8_t cmos_read_mmio(uint8_t reg)
 {
-    uint8_t data;
-
-    memread(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
-    return data;
+    return readb(base + (uint32_t)reg_base + (uint32_t)reg);
 }
 
 static void cmos_write_mmio(uint8_t reg, uint8_t val)
 {
     uint8_t data = val;
 
-    memwrite(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
+    writeb(base + (uint32_t)reg_base + (uint32_t)reg, data);
 }
 
 static uint8_t cmos_read_ioio(uint8_t reg)
@@ -142,7 +139,9 @@ static void cmos_get_date_time(struct tm *date)
     date->tm_mday = mday;
     date->tm_mon = mon - 1;
     date->tm_year = base_year + year - 1900;
+#ifndef __sun__
     date->tm_gmtoff = 0;
+#endif
 
     ts = mktime(date);
 }
@@ -232,6 +231,11 @@ static void fuzz_registers(void)
 
         reg = (uint8_t)g_test_rand_int_range(0, 16);
         val = (uint8_t)g_test_rand_int_range(0, 256);
+
+        if (reg == 7) {
+            /* watchdog setup register, may trigger system reset, skip */
+            continue;
+        }
 
         cmos_write(reg, val);
         cmos_read(reg);

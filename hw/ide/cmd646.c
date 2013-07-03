@@ -23,12 +23,12 @@
  * THE SOFTWARE.
  */
 #include <hw/hw.h>
-#include <hw/pc.h>
-#include <hw/pci.h>
-#include <hw/isa.h>
-#include "block.h"
-#include "sysemu.h"
-#include "dma.h"
+#include <hw/i386/pc.h>
+#include <hw/pci/pci.h>
+#include <hw/isa/isa.h>
+#include "block/block.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 
@@ -43,7 +43,7 @@
 
 static void cmd646_update_irq(PCIIDEState *d);
 
-static uint64_t cmd646_cmd_read(void *opaque, target_phys_addr_t addr,
+static uint64_t cmd646_cmd_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     CMD646BAR *cmd646bar = opaque;
@@ -54,7 +54,7 @@ static uint64_t cmd646_cmd_read(void *opaque, target_phys_addr_t addr,
     return ide_status_read(cmd646bar->bus, addr + 2);
 }
 
-static void cmd646_cmd_write(void *opaque, target_phys_addr_t addr,
+static void cmd646_cmd_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned size)
 {
     CMD646BAR *cmd646bar = opaque;
@@ -71,7 +71,7 @@ static const MemoryRegionOps cmd646_cmd_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t cmd646_data_read(void *opaque, target_phys_addr_t addr,
+static uint64_t cmd646_data_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     CMD646BAR *cmd646bar = opaque;
@@ -88,7 +88,7 @@ static uint64_t cmd646_data_read(void *opaque, target_phys_addr_t addr,
     return ((uint64_t)1 << (size * 8)) - 1;
 }
 
-static void cmd646_data_write(void *opaque, target_phys_addr_t addr,
+static void cmd646_data_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned size)
 {
     CMD646BAR *cmd646bar = opaque;
@@ -121,7 +121,7 @@ static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
     memory_region_init_io(&bar->data, &cmd646_data_ops, bar, "cmd646-data", 8);
 }
 
-static uint64_t bmdma_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     BMDMAState *bm = opaque;
@@ -159,7 +159,7 @@ static uint64_t bmdma_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void bmdma_write(void *opaque, target_phys_addr_t addr,
+static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     BMDMAState *bm = opaque;
@@ -281,7 +281,7 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], &d->dev.qdev, i);
+        ide_bus_new(&d->bus[i], &d->dev.qdev, i, 2);
         ide_init2(&d->bus[i], irq[i]);
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
@@ -342,7 +342,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     dc->props = cmd646_ide_properties;
 }
 
-static TypeInfo cmd646_ide_info = {
+static const TypeInfo cmd646_ide_info = {
     .name          = "cmd646-ide",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIDEState),

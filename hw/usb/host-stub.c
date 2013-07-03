@@ -31,11 +31,11 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "hw/usb.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
-void usb_host_info(Monitor *mon)
+void usb_host_info(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "USB host devices not supported\n");
 }
@@ -44,9 +44,4 @@ void usb_host_info(Monitor *mon)
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
 {
     return NULL;
-}
-
-int usb_host_device_close(const char *devname)
-{
-    return 0;
 }

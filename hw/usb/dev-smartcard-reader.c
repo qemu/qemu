@@ -35,12 +35,12 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
-#include "hw/ccid.h"
+#include "ccid.h"
 
 #define DPRINTF(s, lvl, fmt, ...) \
 do { \
@@ -67,12 +67,6 @@ do { \
 
 #define BULK_IN_BUF_SIZE 384
 #define BULK_IN_PENDING_NUM 8
-
-#define InterfaceOutClass \
-    ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE)<<8)
-
-#define InterfaceInClass  \
-    ((USB_DIR_IN  | USB_TYPE_CLASS | USB_RECIP_INTERFACE)<<8)
 
 #define CCID_MAX_PACKET_SIZE                64
 
@@ -195,10 +189,34 @@ typedef struct QEMU_PACKED CCID_SlotStatus {
     uint8_t     bClockStatus;
 } CCID_SlotStatus;
 
+typedef struct QEMU_PACKED CCID_T0ProtocolDataStructure {
+    uint8_t     bmFindexDindex;
+    uint8_t     bmTCCKST0;
+    uint8_t     bGuardTimeT0;
+    uint8_t     bWaitingIntegerT0;
+    uint8_t     bClockStop;
+} CCID_T0ProtocolDataStructure;
+
+typedef struct QEMU_PACKED CCID_T1ProtocolDataStructure {
+    uint8_t     bmFindexDindex;
+    uint8_t     bmTCCKST1;
+    uint8_t     bGuardTimeT1;
+    uint8_t     bWaitingIntegerT1;
+    uint8_t     bClockStop;
+    uint8_t     bIFSC;
+    uint8_t     bNadValue;
+} CCID_T1ProtocolDataStructure;
+
+typedef union CCID_ProtocolDataStructure {
+    CCID_T0ProtocolDataStructure t0;
+    CCID_T1ProtocolDataStructure t1;
+    uint8_t data[7]; /* must be = max(sizeof(t0), sizeof(t1)) */
+} CCID_ProtocolDataStructure;
+
 typedef struct QEMU_PACKED CCID_Parameter {
     CCID_BULK_IN b;
     uint8_t     bProtocolNum;
-    uint8_t     abProtocolDataStructure[0];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
 } CCID_Parameter;
 
 typedef struct QEMU_PACKED CCID_DataBlock {
@@ -230,7 +248,7 @@ typedef struct QEMU_PACKED CCID_SetParameters {
     CCID_Header hdr;
     uint8_t     bProtocolNum;
     uint16_t   abRFU;
-    uint8_t    abProtocolDataStructure[0];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
 } CCID_SetParameters;
 
 typedef struct CCID_Notify_Slot_Change {
@@ -260,8 +278,6 @@ typedef struct CCIDBus {
     BusState qbus;
 } CCIDBus;
 
-#define MAX_PROTOCOL_SIZE   7
-
 /*
  * powered - defaults to true, changed by PowerOn/PowerOff messages
  */
@@ -285,7 +301,7 @@ typedef struct USBCCIDState {
     uint8_t  bError;
     uint8_t  bmCommandStatus;
     uint8_t  bProtocolNum;
-    uint8_t  abProtocolDataStructure[MAX_PROTOCOL_SIZE];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
     uint32_t ulProtocolDataStructureSize;
     uint32_t state_vmstate;
     uint32_t migration_target_ip;
@@ -319,8 +335,8 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      */
         0x07,       /* u8  bVoltageSupport; 01h - 5.0v, 02h - 3.0, 03 - 1.8 */
 
-        0x03, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
-        0x00, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
+        0x00, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
+        0x01, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
                     /* u32 dwDefaultClock; in kHZ (0x0fa0 is 4 MHz) */
         0xa0, 0x0f, 0x00, 0x00,
                     /* u32 dwMaximumClock; */
@@ -359,11 +375,11 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      * 20000 Short APDU level exchange with CCID
                      * 40000 Short and Extended APDU level exchange with CCID
                      *
-                     * + 100000 USB Wake up signaling supported on card
+                     * 100000 USB Wake up signaling supported on card
                      * insertion and removal. Must set bit 5 in bmAttributes
                      * in Configuration descriptor if 100000 is set.
                      */
-        0xfe, 0x04, 0x11, 0x00,
+        0xfe, 0x04, 0x01, 0x00,
                     /*
                      * u32 dwMaxCCIDMessageLength; For extended APDU in
                      * [261 + 10 , 65544 + 10]. Otherwise the minimum is
@@ -410,8 +426,8 @@ static const USBDescStrings desc_strings = {
 static const USBDescIface desc_iface0 = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 3,
-    .bInterfaceClass               = 0x0b,
-    .bInterfaceSubClass            = 0x00,
+    .bInterfaceClass               = USB_CLASS_CSCID,
+    .bInterfaceSubClass            = USB_SUBCLASS_UNDEFINED,
     .bInterfaceProtocol            = 0x00,
     .iInterface                    = STR_INTERFACE,
     .ndesc                         = 1,
@@ -471,6 +487,7 @@ static const USBDesc desc_ccid = {
 static const uint8_t *ccid_card_get_atr(CCIDCardState *card, uint32_t *len)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->get_atr) {
         return cc->get_atr(card, len);
     }
@@ -482,6 +499,7 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
                                       uint32_t len)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->apdu_from_guest) {
         cc->apdu_from_guest(card, apdu, len);
     }
@@ -490,6 +508,7 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
 static int ccid_card_exitfn(CCIDCardState *card)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->exitfn) {
         return cc->exitfn(card);
     }
@@ -499,6 +518,7 @@ static int ccid_card_exitfn(CCIDCardState *card)
 static int ccid_card_initfn(CCIDCardState *card)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->initfn) {
         return cc->initfn(card);
     }
@@ -635,39 +655,72 @@ static void ccid_handle_reset(USBDevice *dev)
     ccid_reset(s);
 }
 
-static int ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
+static const char *ccid_control_to_str(USBCCIDState *s, int request)
+{
+    switch (request) {
+        /* generic - should be factored out if there are other debugees */
+    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
+        return "(generic) set address";
+    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+        return "(generic) get descriptor";
+    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
+        return "(generic) get configuration";
+    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+        return "(generic) set configuration";
+    case DeviceRequest | USB_REQ_GET_STATUS:
+        return "(generic) get status";
+    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
+        return "(generic) clear feature";
+    case DeviceOutRequest | USB_REQ_SET_FEATURE:
+        return "(generic) set_feature";
+    case InterfaceRequest | USB_REQ_GET_INTERFACE:
+        return "(generic) get interface";
+    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
+        return "(generic) set interface";
+        /* class requests */
+    case ClassInterfaceOutRequest | CCID_CONTROL_ABORT:
+        return "ABORT";
+    case ClassInterfaceRequest | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
+        return "GET_CLOCK_FREQUENCIES";
+    case ClassInterfaceRequest | CCID_CONTROL_GET_DATA_RATES:
+        return "GET_DATA_RATES";
+    }
+    return "unknown";
+}
+
+static void ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
                                int value, int index, int length, uint8_t *data)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
-    int ret = 0;
+    int ret;
 
-    DPRINTF(s, 1, "got control %x, value %x\n", request, value);
+    DPRINTF(s, 1, "%s: got control %s (%x), value %x\n", __func__,
+            ccid_control_to_str(s, request), request, value);
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
     switch (request) {
         /* Class specific requests.  */
-    case InterfaceOutClass | CCID_CONTROL_ABORT:
+    case ClassInterfaceOutRequest | CCID_CONTROL_ABORT:
         DPRINTF(s, 1, "ccid_control abort UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
-    case InterfaceInClass | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
+    case ClassInterfaceRequest | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
         DPRINTF(s, 1, "ccid_control get clock frequencies UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
-    case InterfaceInClass | CCID_CONTROL_GET_DATA_RATES:
+    case ClassInterfaceRequest | CCID_CONTROL_GET_DATA_RATES:
         DPRINTF(s, 1, "ccid_control get data rates UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     default:
         DPRINTF(s, 1, "got unsupported/bogus control %x, value %x\n",
                 request, value);
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static bool ccid_card_inserted(USBCCIDState *s)
@@ -692,7 +745,7 @@ static uint8_t ccid_calc_status(USBCCIDState *s)
      * bmCommandStatus
      */
     uint8_t ret = ccid_card_status(s) | (s->bmCommandStatus << 6);
-    DPRINTF(s, D_VERBOSE, "status = %d\n", ret);
+    DPRINTF(s, D_VERBOSE, "%s: status = %d\n", __func__, ret);
     return ret;
 }
 
@@ -734,7 +787,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     h->b.bStatus = ccid_calc_status(s);
     h->b.bError = s->bError;
     h->bProtocolNum = s->bProtocolNum;
-    memcpy(h->abProtocolDataStructure, s->abProtocolDataStructure, len);
+    h->abProtocolDataStructure = s->abProtocolDataStructure;
     ccid_reset_error_status(s);
 }
 
@@ -753,10 +806,16 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     p->b.bStatus = ccid_calc_status(s);
     p->b.bError = s->bError;
     if (p->b.bError) {
-        DPRINTF(s, D_VERBOSE, "error %d", p->b.bError);
+        DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
     memcpy(p->abData, data, len);
     ccid_reset_error_status(s);
+}
+
+static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
+{
+    s->bmCommandStatus = COMMAND_STATUS_FAILED;
+    s->bError = error;
 }
 
 static void ccid_write_data_block_answer(USBCCIDState *s,
@@ -766,19 +825,66 @@ static void ccid_write_data_block_answer(USBCCIDState *s,
     uint8_t slot;
 
     if (!ccid_has_pending_answers(s)) {
-        abort();
+        DPRINTF(s, D_WARN, "error: no pending answer to return to guest\n");
+        ccid_report_error_failed(s, ERROR_ICC_MUTE);
+        return;
     }
     ccid_remove_pending_answer(s, &slot, &seq);
     ccid_write_data_block(s, slot, seq, data, len);
+}
+
+static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
+{
+    int i;
+
+    if (len < 2 || !(atr[1] & 0x80)) {
+        /* too short or TD1 not included */
+        return 0; /* T=0, default */
+    }
+    i = 1 + !!(atr[1] & 0x10) + !!(atr[1] & 0x20) + !!(atr[1] & 0x40);
+    i += !!(atr[1] & 0x80);
+    return atr[i] & 0x0f;
 }
 
 static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
 {
     const uint8_t *atr = NULL;
     uint32_t len = 0;
+    uint8_t atr_protocol_num;
+    CCID_T0ProtocolDataStructure *t0 = &s->abProtocolDataStructure.t0;
+    CCID_T1ProtocolDataStructure *t1 = &s->abProtocolDataStructure.t1;
 
     if (s->card) {
         atr = ccid_card_get_atr(s->card, &len);
+    }
+    atr_protocol_num = atr_get_protocol_num(atr, len);
+    DPRINTF(s, D_VERBOSE, "%s: atr contains protocol=%d\n", __func__,
+            atr_protocol_num);
+    /* set parameters from ATR - see spec page 109 */
+    s->bProtocolNum = (atr_protocol_num <= 1 ? atr_protocol_num
+                                             : s->bProtocolNum);
+    switch (atr_protocol_num) {
+    case 0:
+        /* TODO: unimplemented ATR T0 parameters */
+        t0->bmFindexDindex = 0;
+        t0->bmTCCKST0 = 0;
+        t0->bGuardTimeT0 = 0;
+        t0->bWaitingIntegerT0 = 0;
+        t0->bClockStop = 0;
+        break;
+    case 1:
+        /* TODO: unimplemented ATR T1 parameters */
+        t1->bmFindexDindex = 0;
+        t1->bmTCCKST1 = 0;
+        t1->bGuardTimeT1 = 0;
+        t1->bWaitingIntegerT1 = 0;
+        t1->bClockStop = 0;
+        t1->bIFSC = 0;
+        t1->bNadValue = 0;
+        break;
+    default:
+        DPRINTF(s, D_WARN, "%s: error: unsupported ATR protocol %d\n",
+                __func__, atr_protocol_num);
     }
     ccid_write_data_block(s, recv->bSlot, recv->bSeq, atr, len);
 }
@@ -786,44 +892,36 @@ static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
 static void ccid_set_parameters(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_SetParameters *ph = (CCID_SetParameters *) recv;
-    uint32_t len = 0;
-    if ((ph->bProtocolNum & 3) == 0) {
-        len = 5;
-    }
-    if ((ph->bProtocolNum & 3) == 1) {
-        len = 7;
-    }
-    if (len == 0) {
-        s->bmCommandStatus = COMMAND_STATUS_FAILED;
-        s->bError = 7; /* Protocol invalid or not supported */
+    uint32_t protocol_num = ph->bProtocolNum & 3;
+
+    if (protocol_num != 0 && protocol_num != 1) {
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
         return;
     }
-    s->bProtocolNum = ph->bProtocolNum;
-    memcpy(s->abProtocolDataStructure, ph->abProtocolDataStructure, len);
-    s->ulProtocolDataStructureSize = len;
-    DPRINTF(s, 1, "%s: using len %d\n", __func__, len);
+    s->bProtocolNum = protocol_num;
+    s->abProtocolDataStructure = ph->abProtocolDataStructure;
 }
 
 /*
  * must be 5 bytes for T=0, 7 bytes for T=1
  * See page 52
  */
-static const uint8_t abDefaultProtocolDataStructure[7] = {
-    0x77, 0x00, 0x00, 0x00, 0x00, 0xfe /*IFSC*/, 0x00 /*NAD*/ };
+static const CCID_ProtocolDataStructure defaultProtocolDataStructure = {
+    .t1 = {
+        .bmFindexDindex = 0x77,
+        .bmTCCKST1 = 0x00,
+        .bGuardTimeT1 = 0x00,
+        .bWaitingIntegerT1 = 0x00,
+        .bClockStop = 0x00,
+        .bIFSC = 0xfe,
+        .bNadValue = 0x00,
+    }
+};
 
 static void ccid_reset_parameters(USBCCIDState *s)
 {
-   uint32_t len = sizeof(abDefaultProtocolDataStructure);
-
-   s->bProtocolNum = 1; /* T=1 */
-   s->ulProtocolDataStructureSize = len;
-   memcpy(s->abProtocolDataStructure, abDefaultProtocolDataStructure, len);
-}
-
-static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
-{
-    s->bmCommandStatus = COMMAND_STATUS_FAILED;
-    s->bError = error;
+   s->bProtocolNum = 0; /* T=0 */
+   s->abProtocolDataStructure = defaultProtocolDataStructure;
 }
 
 /* NOTE: only a single slot is supported (SLOT_0) */
@@ -840,7 +938,7 @@ static void ccid_on_slot_change(USBCCIDState *s, bool full)
         s->bmSlotICCState |= SLOT_0_CHANGED_MASK;
     }
     s->notify_slot_change = true;
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 }
 
 static void ccid_write_data_block_error(
@@ -870,18 +968,35 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     }
 }
 
-/*
- * Handle a single USB_TOKEN_OUT, return value returned to guest.
- * Return value:
- *  0             - all ok
- *  USB_RET_STALL - failed to handle packet
- */
-static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
+static const char *ccid_message_type_to_str(uint8_t type)
+{
+    switch (type) {
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn: return "IccPowerOn";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff: return "IccPowerOff";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus: return "GetSlotStatus";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock: return "XfrBlock";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters: return "GetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters: return "ResetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters: return "SetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape: return "Escape";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccClock: return "IccClock";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_T0APDU: return "T0APDU";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure: return "Secure";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical: return "Mechanical";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Abort: return "Abort";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        return "SetDataRateAndClockFrequency";
+    }
+    return "unknown";
+}
+
+static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
 
     if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
-        return USB_RET_STALL;
+        p->status = USB_RET_STALL;
+        return;
     }
     ccid_header = (CCID_Header *)s->bulk_out_data;
     usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
@@ -890,20 +1005,22 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         DPRINTF(s, D_VERBOSE,
             "usb-ccid: bulk_in: expecting more packets (%zd/%d)\n",
             p->iov.size, ccid_header->dwLength);
-        return 0;
+        return;
     }
     if (s->bulk_out_pos < 10) {
         DPRINTF(s, 1,
                 "%s: bad USB_TOKEN_OUT length, should be at least 10 bytes\n",
                 __func__);
     } else {
-        DPRINTF(s, D_MORE_INFO, "%s %x\n", __func__, ccid_header->bMessageType);
+        DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
+                ccid_header->bMessageType,
+                ccid_message_type_to_str(ccid_header->bMessageType));
         switch (ccid_header->bMessageType) {
         case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus:
             ccid_write_slot_status(s, ccid_header);
             break;
         case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
-            DPRINTF(s, 1, "PowerOn: %d\n",
+            DPRINTF(s, 1, "%s: PowerOn: %d\n", __func__,
                 ((CCID_IccPowerOn *)(ccid_header))->bPowerSelect);
             s->powered = true;
             if (!ccid_card_inserted(s)) {
@@ -913,7 +1030,6 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_write_data_block_atr(s, ccid_header);
             break;
         case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff:
-            DPRINTF(s, 1, "PowerOff\n");
             ccid_reset_error_status(s);
             s->powered = false;
             ccid_write_slot_status(s, ccid_header);
@@ -935,6 +1051,10 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_reset_error_status(s);
             ccid_write_parameters(s, ccid_header);
             break;
+        case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical:
+            ccid_report_error_failed(s, 0);
+            ccid_write_slot_status(s, ccid_header);
+            break;
         default:
             DPRINTF(s, 1,
                 "handle_data: ERROR: unhandled message type %Xh\n",
@@ -949,60 +1069,52 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         }
     }
     s->bulk_out_pos = 0;
-    return 0;
 }
 
-static int ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
+static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
-    int ret = 0;
+    int len = 0;
 
-    assert(p->iov.size > 0);
     ccid_bulk_in_get(s);
     if (s->current_bulk_in != NULL) {
-        ret = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
+        len = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
                   p->iov.size);
         usb_packet_copy(p, s->current_bulk_in->data +
-                        s->current_bulk_in->pos, ret);
-        s->current_bulk_in->pos += ret;
+                        s->current_bulk_in->pos, len);
+        s->current_bulk_in->pos += len;
         if (s->current_bulk_in->pos == s->current_bulk_in->len) {
             ccid_bulk_in_release(s);
         }
     } else {
         /* return when device has no data - usb 2.0 spec Table 8-4 */
-        ret = USB_RET_NAK;
+        p->status = USB_RET_NAK;
     }
-    if (ret > 0) {
+    if (len) {
         DPRINTF(s, D_MORE_INFO,
                 "%s: %zd/%d req/act to guest (BULK_IN)\n",
-                __func__, p->iov.size, ret);
+                __func__, p->iov.size, len);
     }
-    if (ret != USB_RET_NAK && ret < p->iov.size) {
+    if (len < p->iov.size) {
         DPRINTF(s, 1,
                 "%s: returning short (EREMOTEIO) %d < %zd\n",
-                __func__, ret, p->iov.size);
+                __func__, len, p->iov.size);
     }
-    return ret;
 }
 
-static int ccid_handle_data(USBDevice *dev, USBPacket *p)
+static void ccid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
-    int ret = 0;
     uint8_t buf[2];
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
-        ret = ccid_handle_bulk_out(s, p);
+        ccid_handle_bulk_out(s, p);
         break;
 
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
-            if (!p->iov.size) {
-                ret = USB_RET_NAK;
-            } else {
-                ret = ccid_bulk_in_copy_to_guest(s, p);
-            }
+            ccid_bulk_in_copy_to_guest(s, p);
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
@@ -1010,28 +1122,27 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
                 buf[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
                 buf[1] = s->bmSlotICCState;
                 usb_packet_copy(p, buf, 2);
-                ret = 2;
                 s->notify_slot_change = false;
                 s->bmSlotICCState &= ~SLOT_0_CHANGED_MASK;
                 DPRINTF(s, D_INFO,
                         "handle_data: int_in: notify_slot_change %X, "
                         "requested len %zd\n",
                         s->bmSlotICCState, p->iov.size);
+            } else {
+                p->status = USB_RET_NAK;
             }
             break;
         default:
             DPRINTF(s, 1, "Bad endpoint\n");
-            ret = USB_RET_STALL;
+            p->status = USB_RET_STALL;
             break;
         }
         break;
     default:
         DPRINTF(s, 1, "Bad token\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-
-    return ret;
 }
 
 static void ccid_handle_destroy(USBDevice *dev)
@@ -1083,7 +1194,9 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
     answer = ccid_peek_next_answer(s);
     if (answer == NULL) {
-        abort();
+        DPRINTF(s, D_WARN, "%s: error: unexpected lack of answer\n", __func__);
+        ccid_report_error_failed(s, ERROR_HW_ERROR);
+        return;
     }
     DPRINTF(s, 1, "APDU returned to guest %d (answer seq %d, slot %d)\n",
         len, answer->seq, answer->slot);
@@ -1216,6 +1329,7 @@ static int ccid_initfn(USBDevice *dev)
     s->bulk_out_pos = 0;
     ccid_reset_parameters(s);
     ccid_reset(s);
+    s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
     return 0;
 }
 
@@ -1300,7 +1414,7 @@ static VMStateDescription ccid_vmstate = {
         VMSTATE_UINT8(bError, USBCCIDState),
         VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
         VMSTATE_UINT8(bProtocolNum, USBCCIDState),
-        VMSTATE_BUFFER(abProtocolDataStructure, USBCCIDState),
+        VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
         VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
         VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
                        BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
@@ -1337,7 +1451,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     dc->props = ccid_properties;
 }
 
-static TypeInfo ccid_info = {
+static const TypeInfo ccid_info = {
     .name          = CCID_DEV_NAME,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
@@ -1353,7 +1467,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
     k->props = ccid_props;
 }
 
-static TypeInfo ccid_card_type_info = {
+static const TypeInfo ccid_card_type_info = {
     .name = TYPE_CCID_CARD,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CCIDCardState),

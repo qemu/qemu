@@ -12,7 +12,7 @@
  */
 
 #include <sys/types.h>
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"
@@ -61,7 +61,8 @@ static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
         return -1;
     }
 
-    strncpy(value, name, name_size);
+    /* name_size includes the trailing NUL. */
+    memcpy(value, name, name_size);
     return name_size;
 }
 

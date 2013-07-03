@@ -23,7 +23,7 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
+#include "exec/exec-all.h"
 #include "helper.h"
 
 /* iwMMXt macros extracted from GNU gdb.  */

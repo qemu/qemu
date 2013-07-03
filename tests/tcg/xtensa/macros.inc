@@ -1,7 +1,7 @@
 .macro test_suite name
 .data
 status: .word result
-result: .space 20
+result: .space 256
 .text
 .global main
 .align 4

@@ -1,0 +1,109 @@
+; qemupciserial.inf for QEMU, based on MSPORTS.INF
+
+; The driver itself is shipped with Windows (serial.sys).  This is
+; just a inf file to tell windows which pci id the serial pci card
+; emulated by qemu has, and to apply a name tag to it which windows
+; will show in the device manager.
+
+; Installing the driver: Go to device manager.  You should find a "pci
+; serial card" tagged with a yellow question mark.  Open properties.
+; Pick "update driver".  Then "select driver manually".  Pick "Ports
+; (Com+Lpt)" from the list.  Click "Have a disk".  Select this file.
+; Procedure may vary a bit depending on the windows version.
+
+; FIXME: This file covers the single port version only.
+
+[Version]
+Signature="$CHICAGO$"
+Class=Ports
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider=%QEMU%
+DriverVer=09/24/2012,1.3.0
+
+[SourceDisksNames]
+3426=windows cd
+
+[SourceDisksFiles]
+serial.sys 		= 3426
+serenum.sys 		= 3426
+
+[DestinationDirs]
+DefaultDestDir  = 11        ;LDID_SYS
+ComPort.NT.Copy = 12        ;DIRID_DRIVERS
+SerialEnumerator.NT.Copy=12 ;DIRID_DRIVERS
+
+; Drivers
+;----------------------------------------------------------
+[Manufacturer]
+%QEMU%=QEMU,NTx86
+
+[QEMU.NTx86]
+%QEMU-PCI_SERIAL.DeviceDesc% = ComPort, "PCI\VEN_1b36&DEV_0002&CC_0700"
+
+; COM sections
+;----------------------------------------------------------
+[ComPort.AddReg]
+HKR,,PortSubClass,1,01
+
+[ComPort.NT]
+AddReg=ComPort.AddReg, ComPort.NT.AddReg
+LogConfig=caa
+SyssetupPnPFlags = 1
+
+[ComPort.NT.HW]
+AddReg=ComPort.NT.HW.AddReg
+
+[ComPort.NT.AddReg]
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[ComPort.NT.HW.AddReg]
+HKR,,"UpperFilters",0x00010000,"serenum"
+
+;-------------- Service installation
+; Port Driver (function driver for this device)
+[ComPort.NT.Services]
+AddService = Serial, 0x00000002, Serial_Service_Inst, Serial_EventLog_Inst
+AddService = Serenum,,Serenum_Service_Inst
+
+; -------------- Serial Port Driver install sections
+[Serial_Service_Inst]
+DisplayName    = %Serial.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 1               ; SERVICE_SYSTEM_START (this driver may do detection)
+ErrorControl   = 0               ; SERVICE_ERROR_IGNORE
+ServiceBinary  = %12%\serial.sys
+LoadOrderGroup = Extended base
+
+; -------------- Serenum Driver install section
+[Serenum_Service_Inst]
+DisplayName    = %Serenum.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\serenum.sys
+LoadOrderGroup = PNP Filter
+
+[Serial_EventLog_Inst]
+AddReg = Serial_EventLog_AddReg
+
+[Serial_EventLog_AddReg]
+HKR,,EventMessageFile,0x00020000,"%%SystemRoot%%\System32\IoLogMsg.dll;%%SystemRoot%%\System32\drivers\serial.sys"
+HKR,,TypesSupported,0x00010001,7
+
+; The following sections are COM port resource configs.
+; Section name format means:
+; Char 1 = c (COM port)
+; Char 2 = I/O config: 1 (3f8), 2 (2f8), 3 (3e8), 4 (2e8), a (any)
+; Char 3 = IRQ config: #, a (any)
+
+[caa]                   ; Any base, any IRQ
+ConfigPriority=HARDRECONFIG
+IOConfig=8@100-ffff%fff8(3ff::)
+IRQConfig=S:3,4,5,7,9,10,11,12,14,15
+
+[Strings]
+QEMU="QEMU"
+QEMU-PCI_SERIAL.DeviceDesc="QEMU Serial PCI Card"
+
+Serial.SVCDESC   = "Serial port driver"
+Serenum.SVCDESC = "Serenum Filter Driver"

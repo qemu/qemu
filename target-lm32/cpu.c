@@ -30,37 +30,62 @@ static void lm32_cpu_reset(CPUState *s)
     CPULM32State *env = &cpu->env;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 
     lcc->parent_reset(s);
 
-    tlb_flush(env, 1);
-
     /* reset cpu state */
     memset(env, 0, offsetof(CPULM32State, breakpoints));
+
+    tlb_flush(env, 1);
+}
+
+static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    LM32CPU *cpu = LM32_CPU(dev);
+    LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+
+    qemu_init_vcpu(&cpu->env);
+
+    lcc->parent_realize(dev, errp);
 }
 
 static void lm32_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     LM32CPU *cpu = LM32_CPU(obj);
     CPULM32State *env = &cpu->env;
+    static bool tcg_initialized;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->flags = 0;
 
-    cpu_reset(CPU(cpu));
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        lm32_translate_init();
+    }
 }
 
 static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 {
     LM32CPUClass *lcc = LM32_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    lcc->parent_realize = dc->realize;
+    dc->realize = lm32_cpu_realizefn;
 
     lcc->parent_reset = cc->reset;
     cc->reset = lm32_cpu_reset;
+
+    cc->do_interrupt = lm32_cpu_do_interrupt;
+    cpu_class_set_vmsd(cc, &vmstate_lm32_cpu);
 }
 
 static const TypeInfo lm32_cpu_type_info = {

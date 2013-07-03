@@ -22,15 +22,36 @@
 # @KVMMissingCap: the requested operation can't be fulfilled because a
 #                 required KVM capability is missing
 #
-# @MigrationExpected: the requested operation can't be fulfilled because a
-#                     migration process is expected
-#
 # Since: 1.2
 ##
 { 'enum': 'ErrorClass',
   'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
-            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap',
-            'MigrationExpected' ] }
+            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
+
+##
+# @add_client
+#
+# Allow client connections for VNC, Spice and socket based
+# character devices to be passed in to QEMU via SCM_RIGHTS.
+#
+# @protocol: protocol name. Valid names are "vnc", "spice" or the
+#            name of a character device (eg. from -chardev id=XXXX)
+#
+# @fdname: file descriptor name previously passed via 'getfd' command
+#
+# @skipauth: #optional whether to skip authentication. Only applies
+#            to "vnc" and "spice" protocols
+#
+# @tls: #optional whether to perform TLS. Only applies to the "spice"
+#       protocol
+#
+# Returns: nothing on success.
+#
+# Since: 0.14.0
+##
+{ 'command': 'add_client',
+  'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
+            '*tls': 'bool' } }
 
 ##
 # @NameInfo:
@@ -118,13 +139,17 @@
 ##
 # @RunState
 #
-# An enumation of VM run states.
+# An enumeration of VM run states.
 #
 # @debug: QEMU is running on a debugger
 #
 # @finish-migrate: guest is paused to finish the migration process
 #
-# @inmigrate: guest is paused waiting for an incoming migration
+# @inmigrate: guest is paused waiting for an incoming migration.  Note
+# that this state does not tell whether the machine will start at the
+# end of the migration.  This depends on the command-line -S option and
+# any invocation of 'stop' or 'cont' that has happened since QEMU was
+# started.
 #
 # @internal-error: An internal error that prevents further guest execution
 # has occurred
@@ -149,11 +174,128 @@
 # @suspended: guest is suspended (ACPI S3)
 #
 # @watchdog: the watchdog action is configured to pause and has been triggered
+#
+# @guest-panicked: guest has been panicked as a result of guest OS panic
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog' ] }
+            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+            'guest-panicked' ] }
+
+##
+# @SnapshotInfo
+#
+# @id: unique snapshot id
+#
+# @name: user chosen name
+#
+# @vm-state-size: size of the VM state
+#
+# @date-sec: UTC date of the snapshot in seconds
+#
+# @date-nsec: fractional part in nano seconds to be used with date-sec
+#
+# @vm-clock-sec: VM clock relative to boot in seconds
+#
+# @vm-clock-nsec: fractional part in nano seconds to be used with vm-clock-sec
+#
+# Since: 1.3
+#
+##
+
+{ 'type': 'SnapshotInfo',
+  'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
+            'date-sec': 'int', 'date-nsec': 'int',
+            'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
+
+##
+# @ImageInfo:
+#
+# Information about a QEMU image file
+#
+# @filename: name of the image file
+#
+# @format: format of the image file
+#
+# @virtual-size: maximum capacity in bytes of the image
+#
+# @actual-size: #optional actual size on disk in bytes of the image
+#
+# @dirty-flag: #optional true if image is not cleanly closed
+#
+# @cluster-size: #optional size of a cluster in bytes
+#
+# @encrypted: #optional true if the image is encrypted
+#
+# @backing-filename: #optional name of the backing file
+#
+# @full-backing-filename: #optional full path of the backing file
+#
+# @backing-filename-format: #optional the format of the backing file
+#
+# @snapshots: #optional list of VM snapshots
+#
+# Since: 1.3
+#
+##
+
+{ 'type': 'ImageInfo',
+  'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
+           '*actual-size': 'int', 'virtual-size': 'int',
+           '*cluster-size': 'int', '*encrypted': 'bool',
+           '*backing-filename': 'str', '*full-backing-filename': 'str',
+           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
+
+##
+# @ImageCheck:
+#
+# Information about a QEMU image file check
+#
+# @filename: name of the image file checked
+#
+# @format: format of the image file checked
+#
+# @check-errors: number of unexpected errors occurred during check
+#
+# @image-end-offset: #optional offset (in bytes) where the image ends, this
+#                    field is present if the driver for the image format
+#                    supports it
+#
+# @corruptions: #optional number of corruptions found during the check if any
+#
+# @leaks: #optional number of leaks found during the check if any
+#
+# @corruptions-fixed: #optional number of corruptions fixed during the check
+#                     if any
+#
+# @leaks-fixed: #optional number of leaks fixed during the check if any
+#
+# @total-clusters: #optional total number of clusters, this field is present
+#                  if the driver for the image format supports it
+#
+# @allocated-clusters: #optional total number of allocated clusters, this
+#                      field is present if the driver for the image format
+#                      supports it
+#
+# @fragmented-clusters: #optional total number of fragmented clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
+# @compressed-clusters: #optional total number of compressed clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
+# Since: 1.4
+#
+##
+
+{ 'type': 'ImageCheck',
+  'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
+           '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
+           '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
+           '*total-clusters': 'int', '*allocated-clusters': 'int',
+           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
 
 ##
 # @StatusInfo:
@@ -236,6 +378,73 @@
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 
 ##
+# @DataFormat:
+#
+# An enumeration of data format.
+#
+# @utf8: Data is a UTF-8 string (RFC 3629)
+#
+# @base64: Data is Base64 encoded binary (RFC 3548)
+#
+# Since: 1.4
+##
+{ 'enum': 'DataFormat'
+  'data': [ 'utf8', 'base64' ] }
+
+##
+# @ringbuf-write:
+#
+# Write to a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @data: data to write
+#
+# @format: #optional data encoding (default 'utf8').
+#          - base64: data must be base64 encoded text.  Its binary
+#            decoding gets written.
+#            Bug: invalid base64 is currently not rejected.
+#            Whitespace *is* invalid.
+#          - utf8: data's UTF-8 encoding is written
+#          - data itself is always Unicode regardless of format, like
+#            any other string.
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'ringbuf-write',
+  'data': {'device': 'str', 'data': 'str',
+           '*format': 'DataFormat'} }
+
+##
+# @ringbuf-read:
+#
+# Read from a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @size: how many bytes to read at most
+#
+# @format: #optional data encoding (default 'utf8').
+#          - base64: the data read is returned in base64 encoding.
+#          - utf8: the data read is interpreted as UTF-8.
+#            Bug: can screw up when the buffer contains invalid UTF-8
+#            sequences, NUL characters, after the ring buffer lost
+#            data, and when reading stops because the size limit is
+#            reached.
+#          - The return value is always Unicode regardless of format,
+#            like any other string.
+#
+# Returns: data read from the device
+#
+# Since: 1.4
+##
+{ 'command': 'ringbuf-read',
+  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
+  'returns': 'str' }
+
+##
 # @CommandInfo:
 #
 # Information about a QMP command
@@ -290,17 +499,23 @@
 #
 # @total: total amount of bytes involved in the migration process
 #
-# @duplicate: number of duplicate pages (since 1.2)
+# @duplicate: number of duplicate (zero) pages (since 1.2)
+#
+# @skipped: number of skipped zero pages (since 1.5)
 #
 # @normal : number of normal pages (since 1.2)
 #
-# @normal-bytes : number of normal bytes sent (since 1.2)
+# @normal-bytes: number of normal bytes sent (since 1.2)
+#
+# @dirty-pages-rate: number of pages dirtied by second by the
+#        guest (since 1.3)
 #
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'duplicate': 'int', 'normal': 'int', 'normal-bytes': 'int' } }
+           'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
+           'normal-bytes': 'int', 'dirty-pages-rate' : 'int' } }
 
 ##
 # @XBZRLECacheStats
@@ -349,13 +564,23 @@
 #        If migration has ended, it returns the total migration
 #        time. (since 1.2)
 #
+# @downtime: #optional only present when migration finishes correctly
+#        total downtime in milliseconds for the guest.
+#        (since 1.3)
+#
+# @expected-downtime: #optional only present while migration is active
+#        expected downtime in milliseconds for the guest in last walk
+#        of the dirty bitmap. (since 1.3)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
   'data': {'*status': 'str', '*ram': 'MigrationStats',
            '*disk': 'MigrationStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
-           '*total-time': 'int'} }
+           '*total-time': 'int',
+           '*expected-downtime': 'int',
+           '*downtime': 'int'} }
 
 ##
 # @query-migrate
@@ -558,6 +783,20 @@
 { 'enum': 'BlockDeviceIoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
 
 ##
+# @BlockDirtyInfo:
+#
+# Block dirty bitmap information.
+#
+# @count: number of dirty bytes according to the dirty bitmap
+#
+# @granularity: granularity of the dirty bitmap in bytes (since 1.4)
+#
+# Since: 1.3
+##
+{ 'type': 'BlockDirtyInfo',
+  'data': {'count': 'int', 'granularity': 'int'} }
+
+##
 # @BlockInfo:
 #
 # Block device information.  This structure describes a virtual device and
@@ -576,6 +815,9 @@
 # @tray_open: #optional True if the device has a tray and it is open
 #             (only present if removable is true)
 #
+# @dirty: #optional dirty bitmap information (only present if the dirty
+#         bitmap is enabled)
+#
 # @io-status: #optional @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
 #
@@ -587,7 +829,8 @@
 { 'type': 'BlockInfo',
   'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
-           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus'} }
+           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
+           '*dirty': 'BlockDirtyInfo' } }
 
 ##
 # @query-block:
@@ -785,7 +1028,7 @@
 ##
 # @SpiceQueryMouseMode
 #
-# An enumation of Spice mouse states.
+# An enumeration of Spice mouse states.
 #
 # @client: Mouse cursor position is determined by the client.
 #
@@ -807,6 +1050,9 @@
 # Information about the SPICE session.
 #
 # @enabled: true if the SPICE server is enabled, false otherwise
+#
+# @migrated: true if the last guest migration completed and spice
+#            migration had completed as well. false otherwise.
 #
 # @host: #optional The hostname the SPICE server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
@@ -833,7 +1079,7 @@
 # Since: 0.14.0
 ##
 { 'type': 'SpiceInfo',
-  'data': {'enabled': 'bool', '*host': 'str', '*port': 'int',
+  'data': {'enabled': 'bool', 'migrated': 'bool', '*host': 'str', '*port': 'int',
            '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
            'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
 
@@ -855,28 +1101,10 @@
 #
 # @actual: the number of bytes the balloon currently contains
 #
-# @mem_swapped_in: #optional number of pages swapped in within the guest
-#
-# @mem_swapped_out: #optional number of pages swapped out within the guest
-#
-# @major_page_faults: #optional number of major page faults within the guest
-#
-# @minor_page_faults: #optional number of minor page faults within the guest
-#
-# @free_mem: #optional amount of memory (in bytes) free in the guest
-#
-# @total_mem: #optional amount of memory (in bytes) visible to the guest
-#
 # Since: 0.14.0
 #
-# Notes: all current versions of QEMU do not fill out optional information in
-#        this structure.
 ##
-{ 'type': 'BalloonInfo',
-  'data': {'actual': 'int', '*mem_swapped_in': 'int',
-           '*mem_swapped_out': 'int', '*major_page_faults': 'int',
-           '*minor_page_faults': 'int', '*free_mem': 'int',
-           '*total_mem': 'int'} }
+{ 'type': 'BalloonInfo', 'data': {'actual': 'int' } }
 
 ##
 # @query-balloon:
@@ -1021,6 +1249,46 @@
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
 ##
+# @BlockdevOnError:
+#
+# An enumeration of possible behaviors for errors on I/O operations.
+# The exact meaning depends on whether the I/O was initiated by a guest
+# or by a block job
+#
+# @report: for guest operations, report the error to the guest;
+#          for jobs, cancel the job
+#
+# @ignore: ignore the error, only report a QMP event (BLOCK_IO_ERROR
+#          or BLOCK_JOB_ERROR)
+#
+# @enospc: same as @stop on ENOSPC, same as @report otherwise.
+#
+# @stop: for guest operations, stop the virtual machine;
+#        for jobs, pause the job
+#
+# Since: 1.3
+##
+{ 'enum': 'BlockdevOnError',
+  'data': ['report', 'ignore', 'enospc', 'stop'] }
+
+##
+# @MirrorSyncMode:
+#
+# An enumeration of possible behaviors for the initial synchronization
+# phase of storage mirroring.
+#
+# @top: copies data in the topmost image to the destination
+#
+# @full: copies data from all images to the destination
+#
+# @none: only copy data written from now on
+#
+# Since: 1.3
+##
+{ 'enum': 'MirrorSyncMode',
+  'data': ['top', 'full', 'none'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -1031,15 +1299,24 @@
 #
 # @len: the maximum progress value
 #
+# @busy: false if the job is known to be in a quiescent state, with
+#        no pending I/O.  Since 1.3.
+#
+# @paused: whether the job is paused or, if @busy is true, will
+#          pause itself as soon as possible.  Since 1.3.
+#
 # @offset: the current progress value
 #
 # @speed: the rate limit, bytes per second
+#
+# @io-status: the status of the job (since 1.3)
 #
 # Since: 1.1
 ##
 { 'type': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'speed': 'int'} }
+           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
+           'io-status': 'BlockDeviceIoStatus'} }
 
 ##
 # @query-block-jobs:
@@ -1072,7 +1349,9 @@
 # Since:  0.14.0
 #
 # Notes:  This function will succeed even if the guest is already in the stopped
-#         state
+#         state.  In "inmigrate" state, it will ensure that the guest
+#         remains paused once migration finishes, as if the -S option was
+#         passed on the command line.
 ##
 { 'command': 'stop' }
 
@@ -1109,6 +1388,19 @@
 # Notes: Do not use this command.
 ##
 { 'command': 'cpu', 'data': {'index': 'int'} }
+
+##
+# @cpu-add
+#
+# Adds CPU with specified ID
+#
+# @id: ID of CPU to be created, valid values [0..max_cpus)
+#
+# Returns: Nothing on success
+#
+# Since 1.5
+##
+{ 'command': 'cpu-add', 'data': {'id': 'int'} }
 
 ##
 # @memsave:
@@ -1161,11 +1453,14 @@
 # Since:  0.14.0
 #
 # Returns:  If successful, nothing
-#           If the QEMU is waiting for an incoming migration, MigrationExpected
 #           If QEMU was started with an encrypted block device and a key has
 #              not yet been set, DeviceEncrypted.
 #
-# Notes:  This command will succeed if the guest is currently running.
+# Notes:  This command will succeed if the guest is currently running.  It
+#         will also succeed if the guest is in the "inmigrate" state; in
+#         this case, the effect of the command is to make sure the guest
+#         starts once migration finishes, removing the effect of the -S
+#         command line option if it was passed.
 ##
 { 'command': 'cont' }
 
@@ -1307,7 +1602,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 ##
 { 'type': 'BlockdevSnapshot',
   'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
@@ -1321,7 +1616,7 @@
 ##
 { 'union': 'BlockdevAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'blockdev-snapshot-sync': 'BlockdevSnapshot'
    } }
 
 ##
@@ -1361,7 +1656,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1399,6 +1694,92 @@
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
   'returns': 'str' }
+
+##
+# @block-commit
+#
+# Live commit of data from overlay image nodes into backing nodes - i.e.,
+# writes data between 'top' and 'base' into 'base'.
+#
+# @device:  the name of the device
+#
+# @base:   #optional The file name of the backing image to write data into.
+#                    If not specified, this is the deepest backing image
+#
+# @top:              The file name of the backing image within the image chain,
+#                    which contains the topmost data to be committed down.
+#                    Note, the active layer as 'top' is currently unsupported.
+#
+#                    If top == base, that is an error.
+#
+#
+# @speed:  #optional the maximum speed, in bytes per second
+#
+# Returns: Nothing on success
+#          If commit or stream is already active on this device, DeviceInUse
+#          If @device does not exist, DeviceNotFound
+#          If image commit is not supported by this device, NotSupported
+#          If @base or @top is invalid, a generic error is returned
+#          If @top is the active layer, or omitted, a generic error is returned
+#          If @speed is invalid, InvalidParameter
+#
+# Since: 1.3
+#
+##
+{ 'command': 'block-commit',
+  'data': { 'device': 'str', '*base': 'str', 'top': 'str',
+            '*speed': 'int' } }
+
+##
+# @drive-mirror
+#
+# Start mirroring a block device's writes to a new destination.
+#
+# @device:  the name of the device whose writes should be mirrored.
+#
+# @target: the target of the new image. If the file exists, or if it
+#          is a device, the existing file/device will be used as the new
+#          destination.  If it does not exist, a new file will be created.
+#
+# @format: #optional the format of the new destination, default is to
+#          probe if @mode is 'existing', else the format of the source
+#
+# @mode: #optional whether and how QEMU should create a new image, default is
+#        'absolute-paths'.
+#
+# @speed:  #optional the maximum speed, in bytes per second
+#
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
+# @granularity: #optional granularity of the dirty bitmap, default is 64K
+#               if the image format doesn't have clusters, 4K if the clusters
+#               are smaller than that, else the cluster size.  Must be a
+#               power of 2 between 512 and 64M (since 1.4).
+#
+# @buf-size: #optional maximum amount of data in flight from source to
+#            target (since 1.4).
+#
+# @on-source-error: #optional the action to take on an error on the source,
+#                   default 'report'.  'stop' and 'enospc' can only be used
+#                   if the block device supports io-status (see BlockInfo).
+#
+# @on-target-error: #optional the action to take on an error on the target,
+#                   default 'report' (no limitations, since this applies to
+#                   a different block device than @device).
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since 1.3
+##
+{ 'command': 'drive-mirror',
+  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
+            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            '*speed': 'int', '*granularity': 'uint32',
+            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
+            '*on-target-error': 'BlockdevOnError' } }
 
 ##
 # @migrate_cancel
@@ -1736,13 +2117,18 @@
 #
 # @speed:  #optional the maximum speed, in bytes per second
 #
+# @on-error: #optional the action to take on an error (default report).
+#            'stop' and 'enospc' can only be used if the block device
+#            supports io-status (see BlockInfo).  Since 1.3.
+#
 # Returns: Nothing on success
 #          If @device does not exist, DeviceNotFound
 #
 # Since: 1.1
 ##
-{ 'command': 'block-stream', 'data': { 'device': 'str', '*base': 'str',
-                                       '*speed': 'int' } }
+{ 'command': 'block-stream',
+  'data': { 'device': 'str', '*base': 'str', '*speed': 'int',
+            '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:
@@ -1786,12 +2172,84 @@
 #
 # @device: the device name
 #
+# @force: #optional whether to allow cancellation of a paused job (default
+#         false).  Since 1.3.
+#
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
-{ 'command': 'block-job-cancel', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-cancel', 'data': { 'device': 'str', '*force': 'bool' } }
+
+##
+# @block-job-pause:
+#
+# Pause an active background block operation.
+#
+# This command returns immediately after marking the active background block
+# operation for pausing.  It is an error to call this command if no
+# operation is in progress.  Pausing an already paused job has no cumulative
+# effect; a single block-job-resume command will resume the job.
+#
+# The operation will pause as soon as possible.  No event is emitted when
+# the operation is actually paused.  Cancelling a paused job automatically
+# resumes it.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-pause', 'data': { 'device': 'str' } }
+
+##
+# @block-job-resume:
+#
+# Resume an active background block operation.
+#
+# This command returns immediately after resuming a paused background block
+# operation.  It is an error to call this command if no operation is in
+# progress.  Resuming an already running job is not an error.
+#
+# This command also clears the error status of the job.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-resume', 'data': { 'device': 'str' } }
+
+##
+# @block-job-complete:
+#
+# Manually trigger completion of an active background block operation.  This
+# is supported for drive mirroring, where it also switches the device to
+# write to the target path only.  The ability to complete is signaled with
+# a BLOCK_JOB_READY event.
+#
+# This command completes an active background block operation synchronously.
+# The ordering of this command's return with the BLOCK_JOB_COMPLETED event
+# is not defined.  Note that if an I/O error occurs during the processing of
+# this command: 1) the command itself will fail; 2) the error will be processed
+# according to the rerror/werror arguments that were specified when starting
+# the operation.
+#
+# A cancelled or paused job cannot be completed.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-complete', 'data': { 'device': 'str' } }
 
 ##
 # @ObjectTypeInfo:
@@ -1889,6 +2347,19 @@
 { 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
 
 ##
+# @xen-set-global-dirty-log
+#
+# Enable or disable the global dirty log mode.
+#
+# @enable: true to enable, false to disable.
+#
+# Returns: nothing
+#
+# Since: 1.3
+##
+{ 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
+
+##
 # @device_del:
 #
 # Remove a device from a guest
@@ -1901,7 +2372,9 @@
 # Notes: When this command completes, the device may not be removed from the
 #        guest.  Hot removal is an operation that requires guest cooperation.
 #        This command merely requests that the guest begin the hot removal
-#        process.
+#        process.  Completion of the device removal process is signaled with a
+#        DEVICE_DELETED event. Guest reset will automatically complete removal
+#        for all devices.
 #
 # Since: 0.14.0
 ##
@@ -1915,26 +2388,33 @@
 # supported on i386 and x86_64.
 #
 # @paging: if true, do paging to get guest's memory mapping. This allows
-# using gdb to process the core file. However, setting @paging to false
-# may be desirable because of two reasons:
+#          using gdb to process the core file.
 #
-#   1. The guest may be in a catastrophic state or can have corrupted
-#      memory, which cannot be trusted
-#   2. The guest can be in real-mode even if paging is enabled. For example,
-#      the guest uses ACPI to sleep, and ACPI sleep state goes in real-mode
+#          IMPORTANT: this option can make QEMU allocate several gigabytes
+#                     of RAM. This can happen for a large guest, or a
+#                     malicious guest pretending to be large.
+#
+#          Also, paging=true has the following limitations:
+#
+#             1. The guest may be in a catastrophic state or can have corrupted
+#                memory, which cannot be trusted
+#             2. The guest can be in real-mode even if paging is enabled. For
+#                example, the guest uses ACPI to sleep, and ACPI sleep state
+#                goes in real-mode
 #
 # @protocol: the filename or file descriptor of the vmcore. The supported
-# protocols are:
+#            protocols are:
 #
-#   1. file: the protocol starts with "file:", and the following string is
-#      the file's path.
-#   2. fd: the protocol starts with "fd:", and the following string is the
-#      fd's name.
+#            1. file: the protocol starts with "file:", and the following
+#               string is the file's path.
+#            2. fd: the protocol starts with "fd:", and the following string
+#               is the fd's name.
 #
 # @begin: #optional if specified, the starting physical address.
 #
 # @length: #optional if specified, the memory size, in bytes. If you don't
-# want to dump all guest's memory, please specify the start @begin and @length
+#          want to dump all guest's memory, please specify the start @begin
+#          and @length
 #
 # Returns: nothing on success
 #
@@ -1943,6 +2423,7 @@
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
             '*length': 'int' } }
+
 ##
 # @netdev_add:
 #
@@ -2053,6 +2534,9 @@
 #
 # @dns: #optional guest-visible address of the virtual nameserver
 #
+# @dnssearch: #optional list of DNS suffixes to search, passed as DHCP option
+#             to the guest
+#
 # @smb: #optional root directory of the built-in SMB server
 #
 # @smbserver: #optional IP address of the built-in SMB server
@@ -2075,6 +2559,7 @@
     '*bootfile':  'str',
     '*dhcpstart': 'str',
     '*dns':       'str',
+    '*dnssearch': ['String'],
     '*smb':       'str',
     '*smbserver': 'str',
     '*hostfwd':   ['String'],
@@ -2088,6 +2573,9 @@
 # @ifname: #optional interface name
 #
 # @fd: #optional file descriptor of an already opened tap
+#
+# @fds: #optional multiple file descriptors of already opened multiqueue capable
+# tap
 #
 # @script: #optional script to initialize the interface
 #
@@ -2103,7 +2591,12 @@
 #
 # @vhostfd: #optional file descriptor of an already opened vhost net device
 #
+# @vhostfds: #optional file descriptors of multiple already opened vhost net
+# devices
+#
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
+#
+# @queues: #optional number of queues to be created for multiqueue capable tap
 #
 # Since 1.2
 ##
@@ -2111,6 +2604,7 @@
   'data': {
     '*ifname':     'str',
     '*fd':         'str',
+    '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
     '*helper':     'str',
@@ -2118,7 +2612,9 @@
     '*vnet_hdr':   'bool',
     '*vhost':      'bool',
     '*vhostfd':    'str',
-    '*vhostforce': 'bool' } }
+    '*vhostfds':   'str',
+    '*vhostforce': 'bool',
+    '*queues':     'uint32'} }
 
 ##
 # @NetdevSocketOptions
@@ -2275,6 +2771,59 @@
     'opts': 'NetClientOptions' } }
 
 ##
+# @InetSocketAddress
+#
+# Captures a socket address or address range in the Internet namespace.
+#
+# @host: host part of the address
+#
+# @port: port part of the address, or lowest port if @to is present
+#
+# @to: highest port to try
+#
+# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
+#        #optional
+#
+# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
+#        #optional
+#
+# Since 1.3
+##
+{ 'type': 'InetSocketAddress',
+  'data': {
+    'host': 'str',
+    'port': 'str',
+    '*to': 'uint16',
+    '*ipv4': 'bool',
+    '*ipv6': 'bool' } }
+
+##
+# @UnixSocketAddress
+#
+# Captures a socket address in the local ("Unix socket") namespace.
+#
+# @path: filesystem path to use
+#
+# Since 1.3
+##
+{ 'type': 'UnixSocketAddress',
+  'data': {
+    'path': 'str' } }
+
+##
+# @SocketAddress
+#
+# Captures the address of a socket, which could also be a named file descriptor
+#
+# Since 1.3
+##
+{ 'union': 'SocketAddress',
+  'data': {
+    'inet': 'InetSocketAddress',
+    'unix': 'UnixSocketAddress',
+    'fd': 'String' } }
+
+##
 # @getfd:
 #
 # Receive a file descriptor via SCM rights and assign it a name
@@ -2317,11 +2866,14 @@
 #
 # @default: #optional whether the machine is default
 #
+# @cpu-max: maximum number of CPUs supported by the machine type
+#           (since 1.5.0)
+#
 # Since: 1.2.0
 ##
 { 'type': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
-            '*is-default': 'bool' } }
+            '*is-default': 'bool', 'cpu-max': 'int' } }
 
 ##
 # @query-machines:
@@ -2381,7 +2933,7 @@
 #
 # Returns: @AddfdInfo on success
 #          If file descriptor was not received, FdNotSupplied
-#          If @fdset-id does not exist, InvalidParameterValue
+#          If @fdset-id is a negative value, InvalidParameterValue
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
@@ -2467,9 +3019,9 @@
 ##
 { 'enum': 'TargetType',
   'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'or32',
-            'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4', 'sparc64',
-            'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
+            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'moxie',
+            'or32', 'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4',
+            'sparc64', 'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
 
 ##
 # @TargetInfo:
@@ -2493,3 +3045,577 @@
 # Since: 1.2.0
 ##
 { 'command': 'query-target', 'returns': 'TargetInfo' }
+
+##
+# @QKeyCode:
+#
+# An enumeration of key name.
+#
+# This is used by the send-key command.
+#
+# Since: 1.3.0
+##
+{ 'enum': 'QKeyCode',
+  'data': [ 'shift', 'shift_r', 'alt', 'alt_r', 'altgr', 'altgr_r', 'ctrl',
+            'ctrl_r', 'menu', 'esc', '1', '2', '3', '4', '5', '6', '7', '8',
+            '9', '0', 'minus', 'equal', 'backspace', 'tab', 'q', 'w', 'e',
+            'r', 't', 'y', 'u', 'i', 'o', 'p', 'bracket_left', 'bracket_right',
+            'ret', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'semicolon',
+            'apostrophe', 'grave_accent', 'backslash', 'z', 'x', 'c', 'v', 'b',
+            'n', 'm', 'comma', 'dot', 'slash', 'asterisk', 'spc', 'caps_lock',
+            'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10',
+            'num_lock', 'scroll_lock', 'kp_divide', 'kp_multiply',
+            'kp_subtract', 'kp_add', 'kp_enter', 'kp_decimal', 'sysrq', 'kp_0',
+            'kp_1', 'kp_2', 'kp_3', 'kp_4', 'kp_5', 'kp_6', 'kp_7', 'kp_8',
+            'kp_9', 'less', 'f11', 'f12', 'print', 'home', 'pgup', 'pgdn', 'end',
+            'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
+            'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
+             'lf', 'help', 'meta_l', 'meta_r', 'compose' ] }
+
+##
+# @KeyValue
+#
+# Represents a keyboard key.
+#
+# Since: 1.3.0
+##
+{ 'union': 'KeyValue',
+  'data': {
+    'number': 'int',
+    'qcode': 'QKeyCode' } }
+
+##
+# @send-key:
+#
+# Send keys to guest.
+#
+# @keys: An array of @KeyValue elements. All @KeyValues in this array are
+#        simultaneously sent to the guest. A @KeyValue.number value is sent
+#        directly to the guest, while @KeyValue.qcode must be a valid
+#        @QKeyCode value
+#
+# @hold-time: #optional time to delay key up events, milliseconds. Defaults
+#             to 100
+#
+# Returns: Nothing on success
+#          If key is unknown or redundant, InvalidParameter
+#
+# Since: 1.3.0
+#
+##
+{ 'command': 'send-key',
+  'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
+
+##
+# @screendump:
+#
+# Write a PPM of the VGA screen to a file.
+#
+# @filename: the path of a new PPM file to store the image
+#
+# Returns: Nothing on success
+#
+# Since: 0.14.0
+##
+{ 'command': 'screendump', 'data': {'filename': 'str'} }
+
+##
+# @nbd-server-start:
+#
+# Start an NBD server listening on the given host and port.  Block
+# devices can then be exported using @nbd-server-add.  The NBD
+# server will present them as named exports; for example, another
+# QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
+#
+# @addr: Address on which to listen.
+#
+# Returns: error if the server is already running.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-start',
+  'data': { 'addr': 'SocketAddress' } }
+
+##
+# @nbd-server-add:
+#
+# Export a device to QEMU's embedded NBD server.
+#
+# @device: Block device to be exported
+#
+# @writable: Whether clients should be able to write to the device via the
+#     NBD connection (default false). #optional
+#
+# Returns: error if the device is already marked for export.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-add', 'data': {'device': 'str', '*writable': 'bool'} }
+
+##
+# @nbd-server-stop:
+#
+# Stop QEMU's embedded NBD server, and unregister all devices previously
+# added via @nbd-server-add.
+#
+# Since: 1.3.0
+##
+{ 'command': 'nbd-server-stop' }
+
+##
+# @ChardevFile:
+#
+# Configuration info for file chardevs.
+#
+# @in:  #optional The name of the input file
+# @out: The name of the output file
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevFile', 'data': { '*in' : 'str',
+                                   'out' : 'str' } }
+
+##
+# @ChardevHostdev:
+#
+# Configuration info for device and pipe chardevs.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+# @type: What kind of device this is.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevHostdev', 'data': { 'device' : 'str' } }
+
+##
+# @ChardevSocket:
+#
+# Configuration info for (stream) socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @server: #optional create server socket (default: true)
+# @wait: #optional wait for connect (not used for server
+#        sockets, default: false)
+# @nodelay: #optional set TCP_NODELAY socket option (default: false)
+# @telnet: #optional enable telnet protocol (default: false)
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevSocket', 'data': { 'addr'     : 'SocketAddress',
+                                     '*server'  : 'bool',
+                                     '*wait'    : 'bool',
+                                     '*nodelay' : 'bool',
+                                     '*telnet'  : 'bool' } }
+
+##
+# @ChardevUdp:
+#
+# Configuration info for datagram socket chardevs.
+#
+# @remote: remote address
+# @local: #optional local address
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
+                                  '*local' : 'SocketAddress' } }
+
+##
+# @ChardevMux:
+#
+# Configuration info for mux chardevs.
+#
+# @chardev: name of the base chardev.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
+
+##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+
+##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+
+##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' } }
+
+##
+# @ChardevRingbuf:
+#
+# Configuration info for memory chardevs
+#
+# @size: #optional Ringbuffer size, must be power of two, default is 65536
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+
+##
+# @ChardevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevDummy', 'data': { } }
+
+{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
+                                       'serial' : 'ChardevHostdev',
+                                       'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
+                                       'socket' : 'ChardevSocket',
+                                       'udp'    : 'ChardevUdp',
+                                       'pty'    : 'ChardevDummy',
+                                       'null'   : 'ChardevDummy',
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevDummy',
+                                       'braille': 'ChardevDummy',
+                                       'stdio'  : 'ChardevStdio',
+                                       'console': 'ChardevDummy',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC',
+                                       'memory' : 'ChardevRingbuf' } }
+
+##
+# @ChardevReturn:
+#
+# Return info about the chardev backend just created.
+#
+# @pty: #optional name of the slave pseudoterminal device, present if
+#       and only if a chardev of type 'pty' was created
+#
+# Since: 1.4
+##
+{ 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+
+##
+# @chardev-add:
+#
+# Add a character device backend
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Returns: ChardevReturn.
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-add', 'data': {'id'      : 'str',
+                                     'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-remove:
+#
+# Remove a character device backend
+#
+# @id: the chardev's ID, must exist and not be in use
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
+
+##
+# @TpmModel:
+#
+# An enumeration of TPM models
+#
+# @tpm-tis: TPM TIS model
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+
+##
+# @query-tpm-models:
+#
+# Return a list of supported TPM models
+#
+# Returns: a list of TpmModel
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+
+##
+# @TpmType:
+#
+# An enumeration of TPM types
+#
+# @passthrough: TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+
+##
+# @query-tpm-types:
+#
+# Return a list of supported TPM types
+#
+# Returns: a list of TpmType
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
+
+##
+# @TPMPassthroughOptions:
+#
+# Information about the TPM passthrough type
+#
+# @path: #optional string describing the path used for accessing the TPM device
+#
+# @cancel-path: #optional string showing the TPM's sysfs cancel file
+#               for cancellation of TPM commands while they are executing
+#
+# Since: 1.5
+##
+{ 'type': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+                                             '*cancel-path' : 'str'} }
+
+##
+# @TpmTypeOptions:
+#
+# A union referencing different TPM backend types' configuration options
+#
+# @passthrough: The configuration options for the TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'union': 'TpmTypeOptions',
+   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
+
+##
+# @TpmInfo:
+#
+# Information about the TPM
+#
+# @id: The Id of the TPM
+#
+# @model: The TPM frontend model
+#
+# @options: The TPM (backend) type configuration options
+#
+# Since: 1.5
+##
+{ 'type': 'TPMInfo',
+  'data': {'id': 'str',
+           'model': 'TpmModel',
+           'options': 'TpmTypeOptions' } }
+
+##
+# @query-tpm:
+#
+# Return information about the TPM device
+#
+# Returns: @TPMInfo on success
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }
+
+##
+# @AcpiTableOptions
+#
+# Specify an ACPI table on the command line to load.
+#
+# At most one of @file and @data can be specified. The list of files specified
+# by any one of them is loaded and concatenated in order. If both are omitted,
+# @data is implied.
+#
+# Other fields / optargs can be used to override fields of the generic ACPI
+# table header; refer to the ACPI specification 5.0, section 5.2.6 System
+# Description Table Header. If a header field is not overridden, then the
+# corresponding value from the concatenated blob is used (in case of @file), or
+# it is filled in with a hard-coded value (in case of @data).
+#
+# String fields are copied into the matching ACPI member from lowest address
+# upwards, and silently truncated / NUL-padded to length.
+#
+# @sig: #optional table signature / identifier (4 bytes)
+#
+# @rev: #optional table revision number (dependent on signature, 1 byte)
+#
+# @oem_id: #optional OEM identifier (6 bytes)
+#
+# @oem_table_id: #optional OEM table identifier (8 bytes)
+#
+# @oem_rev: #optional OEM-supplied revision number (4 bytes)
+#
+# @asl_compiler_id: #optional identifier of the utility that created the table
+#                   (4 bytes)
+#
+# @asl_compiler_rev: #optional revision number of the utility that created the
+#                    table (4 bytes)
+#
+# @file: #optional colon (:) separated list of pathnames to load and
+#        concatenate as table data. The resultant binary blob is expected to
+#        have an ACPI table header. At least one file is required. This field
+#        excludes @data.
+#
+# @data: #optional colon (:) separated list of pathnames to load and
+#        concatenate as table data. The resultant binary blob must not have an
+#        ACPI table header. At least one file is required. This field excludes
+#        @file.
+#
+# Since 1.5
+##
+{ 'type': 'AcpiTableOptions',
+  'data': {
+    '*sig':               'str',
+    '*rev':               'uint8',
+    '*oem_id':            'str',
+    '*oem_table_id':      'str',
+    '*oem_rev':           'uint32',
+    '*asl_compiler_id':   'str',
+    '*asl_compiler_rev':  'uint32',
+    '*file':              'str',
+    '*data':              'str' }}
+
+##
+# @CommandLineParameterType:
+#
+# Possible types for an option parameter.
+#
+# @string: accepts a character string
+#
+# @boolean: accepts "on" or "off"
+#
+# @number: accepts a number
+#
+# @size: accepts a number followed by an optional suffix (K)ilo,
+#        (M)ega, (G)iga, (T)era
+#
+# Since 1.5
+##
+{ 'enum': 'CommandLineParameterType',
+  'data': ['string', 'boolean', 'number', 'size'] }
+
+##
+# @CommandLineParameterInfo:
+#
+# Details about a single parameter of a command line option.
+#
+# @name: parameter name
+#
+# @type: parameter @CommandLineParameterType
+#
+# @help: #optional human readable text string, not suitable for parsing.
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineParameterInfo',
+  'data': { 'name': 'str',
+            'type': 'CommandLineParameterType',
+            '*help': 'str' } }
+
+##
+# @CommandLineOptionInfo:
+#
+# Details about a command line option, including its list of parameter details
+#
+# @option: option name
+#
+# @parameters: an array of @CommandLineParameterInfo
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineOptionInfo',
+  'data': { 'option': 'str', 'parameters': ['CommandLineParameterInfo'] } }
+
+##
+# @query-command-line-options:
+#
+# Query command line option schema.
+#
+# @option: #optional option name
+#
+# Returns: list of @CommandLineOptionInfo for all options (or for the given
+#          @option).  Returns an error if the given @option doesn't exist.
+#
+# Since 1.5
+##
+{'command': 'query-command-line-options', 'data': { '*option': 'str' },
+ 'returns': ['CommandLineOptionInfo'] }
+
+##
+# @X86CPURegister32
+#
+# A X86 32-bit register
+#
+# Since: 1.5
+##
+{ 'enum': 'X86CPURegister32',
+  'data': [ 'EAX', 'EBX', 'ECX', 'EDX', 'ESP', 'EBP', 'ESI', 'EDI' ] }
+
+##
+# @X86CPUFeatureWordInfo
+#
+# Information about a X86 CPU feature word
+#
+# @cpuid-input-eax: Input EAX value for CPUID instruction for that feature word
+#
+# @cpuid-input-ecx: #optional Input ECX value for CPUID instruction for that
+#                   feature word
+#
+# @cpuid-register: Output register containing the feature bits
+#
+# @features: value of output register, containing the feature bits
+#
+# Since: 1.5
+##
+{ 'type': 'X86CPUFeatureWordInfo',
+  'data': { 'cpuid-input-eax': 'int',
+            '*cpuid-input-ecx': 'int',
+            'cpuid-register': 'X86CPURegister32',
+            'features': 'int' } }

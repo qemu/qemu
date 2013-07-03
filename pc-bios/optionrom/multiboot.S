@@ -75,6 +75,13 @@ run_multiboot:
 	shr		$4, %eax
 	mov		%ax, %fs
 
+	/* Account for the EBDA in the multiboot structure's e801
+	 * map.
+	 */
+	int		$0x12
+	cwtl
+	movl		%eax, %fs:4
+
 	/* ES = mmap_addr */
 	mov 		%fs:48, %eax
 	shr		$4, %eax

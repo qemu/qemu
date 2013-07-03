@@ -28,23 +28,21 @@
 #include <termios.h>
 #endif
 
-#ifdef __OpenBSD__
-#define resize_term resizeterm
-#endif
-
 #include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
 
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 
+static DisplayChangeListener *dcl;
 static console_ch_t screen[160 * 100];
 static WINDOW *screenpad = NULL;
 static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
 
-static void curses_update(DisplayState *ds, int x, int y, int w, int h)
+static void curses_update(DisplayChangeListener *dcl,
+                          int x, int y, int w, int h)
 {
     chtype *line;
 
@@ -58,7 +56,7 @@ static void curses_update(DisplayState *ds, int x, int y, int w, int h)
 
 static void curses_calc_pad(void)
 {
-    if (is_fixedsize_console()) {
+    if (qemu_console_is_fixedsize(NULL)) {
         width = gwidth;
         height = gheight;
     } else {
@@ -95,17 +93,17 @@ static void curses_calc_pad(void)
     }
 }
 
-static void curses_resize(DisplayState *ds)
+static void curses_resize(DisplayChangeListener *dcl,
+                          int width, int height)
 {
-    if (ds_get_width(ds) == gwidth && ds_get_height(ds) == gheight)
+    if (width == gwidth && height == gheight) {
         return;
+    }
 
-    gwidth = ds_get_width(ds);
-    gheight = ds_get_height(ds);
+    gwidth = width;
+    gheight = height;
 
     curses_calc_pad();
-    ds->surface->width = width * FONT_WIDTH;
-    ds->surface->height = height * FONT_HEIGHT;
 }
 
 #ifndef _WIN32
@@ -133,7 +131,8 @@ static void curses_winch_handler(int signum)
 #endif
 #endif
 
-static void curses_cursor_position(DisplayState *ds, int x, int y)
+static void curses_cursor_position(DisplayChangeListener *dcl,
+                                   int x, int y)
 {
     if (x >= 0) {
         x = sminx + x - px;
@@ -144,8 +143,9 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
             curs_set(1);
             /* it seems that curs_set(1) must always be called before
              * curs_set(2) for the latter to have effect */
-            if (!is_graphic_console())
+            if (!qemu_console_is_graphic(NULL)) {
                 curs_set(2);
+            }
             return;
         }
     }
@@ -159,7 +159,7 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 
 static kbd_layout_t *kbd_layout = NULL;
 
-static void curses_refresh(DisplayState *ds)
+static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, nextchr, keysym, keycode, keycode_alt;
 
@@ -167,13 +167,11 @@ static void curses_refresh(DisplayState *ds)
         clear();
         refresh();
         curses_calc_pad();
-        ds->surface->width = FONT_WIDTH * width;
-        ds->surface->height = FONT_HEIGHT * height;
-        vga_hw_invalidate();
+        graphic_hw_invalidate(NULL);
         invalidate = 0;
     }
 
-    vga_hw_text_update(screen);
+    graphic_hw_text_update(NULL, screen);
 
     nextchr = ERR;
     while (1) {
@@ -194,9 +192,7 @@ static void curses_refresh(DisplayState *ds)
             clear();
             refresh();
             curses_calc_pad();
-            curses_update(ds, 0, 0, width, height);
-            ds->surface->width = FONT_WIDTH * width;
-            ds->surface->height = FONT_HEIGHT * height;
+            curses_update(dcl, 0, 0, width, height);
             continue;
         }
 #endif
@@ -257,7 +253,7 @@ static void curses_refresh(DisplayState *ds)
         if (keycode == -1)
             continue;
 
-        if (is_graphic_console()) {
+        if (qemu_console_is_graphic(NULL)) {
             /* since terminals don't know about key press and release
              * events, we need to emit both for each key received */
             if (keycode & SHIFT)
@@ -332,9 +328,16 @@ static void curses_keyboard_setup(void)
     }
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name        = "curses",
+    .dpy_text_update = curses_update,
+    .dpy_text_resize = curses_resize,
+    .dpy_refresh     = curses_refresh,
+    .dpy_text_cursor = curses_cursor_position,
+};
+
 void curses_display_init(DisplayState *ds, int full_screen)
 {
-    DisplayChangeListener *dcl;
 #ifndef _WIN32
     if (!isatty(1)) {
         fprintf(stderr, "We need a terminal output\n");
@@ -355,13 +358,8 @@ void curses_display_init(DisplayState *ds, int full_screen)
 #endif
 
     dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_update = curses_update;
-    dcl->dpy_resize = curses_resize;
-    dcl->dpy_refresh = curses_refresh;
-    dcl->dpy_text_cursor = curses_cursor_position;
-    register_displaychangelistener(ds, dcl);
-    qemu_free_displaysurface(ds);
-    ds->surface = qemu_create_displaysurface_from(640, 400, 0, 0, (uint8_t*) screen);
+    dcl->ops = &dcl_ops;
+    register_displaychangelistener(dcl);
 
     invalidate = 1;
 }

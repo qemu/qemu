@@ -14,9 +14,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <float.h>
+
+#include "qemu-common.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/string-input-visitor.h"
@@ -256,6 +258,7 @@ static void test_primitives(gconstpointer opaque)
     g_assert(pt_copy != NULL);
     if (pt->type == PTYPE_STRING) {
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
+        g_free((char *)pt_copy->value.string);
     } else if (pt->type == PTYPE_NUMBER) {
         /* we serialize with %f for our reference visitors, so rather than fuzzy
          * floating math to test "equality", just compare the formatted values
@@ -273,6 +276,7 @@ static void test_primitives(gconstpointer opaque)
 
     ops->cleanup(serialize_data);
     g_free(args);
+    g_free(pt_copy);
 }
 
 static void test_struct(gconstpointer opaque)
@@ -653,11 +657,17 @@ static void qmp_deserialize(void **native_out, void *datap,
                             VisitorFunc visit, Error **errp)
 {
     QmpSerializeData *d = datap;
-    QString *output_json = qobject_to_json(qmp_output_get_qobject(d->qov));
-    QObject *obj = qobject_from_json(qstring_get_str(output_json));
+    QString *output_json;
+    QObject *obj_orig, *obj;
+
+    obj_orig = qmp_output_get_qobject(d->qov);
+    output_json = qobject_to_json(obj_orig);
+    obj = qobject_from_json(qstring_get_str(output_json));
 
     QDECREF(output_json);
     d->qiv = qmp_input_visitor_new(obj);
+    qobject_decref(obj_orig);
+    qobject_decref(obj);
     visit(qmp_input_get_visitor(d->qiv), native_out, errp);
 }
 
@@ -666,9 +676,12 @@ static void qmp_cleanup(void *datap)
     QmpSerializeData *d = datap;
     qmp_output_visitor_cleanup(d->qov);
     qmp_input_visitor_cleanup(d->qiv);
+
+    g_free(d);
 }
 
 typedef struct StringSerializeData {
+    char *string;
     StringOutputVisitor *sov;
     StringInputVisitor *siv;
 } StringSerializeData;
@@ -688,15 +701,19 @@ static void string_deserialize(void **native_out, void *datap,
 {
     StringSerializeData *d = datap;
 
-    d->siv = string_input_visitor_new(string_output_get_string(d->sov));
+    d->string = string_output_get_string(d->sov);
+    d->siv = string_input_visitor_new(d->string);
     visit(string_input_get_visitor(d->siv), native_out, errp);
 }
 
 static void string_cleanup(void *datap)
 {
     StringSerializeData *d = datap;
+
     string_output_visitor_cleanup(d->sov);
     string_input_visitor_cleanup(d->siv);
+    g_free(d->string);
+    g_free(d);
 }
 
 /* visitor registration, test harness */

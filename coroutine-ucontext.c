@@ -28,25 +28,16 @@
 #include <pthread.h>
 #include <ucontext.h>
 #include "qemu-common.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine_int.h"
 
 #ifdef CONFIG_VALGRIND_H
 #include <valgrind/valgrind.h>
 #endif
 
-enum {
-    /* Maximum free pool size prevents holding too many freed coroutines */
-    POOL_MAX_SIZE = 64,
-};
-
-/** Free list to speed up creation */
-static QSLIST_HEAD(, Coroutine) pool = QSLIST_HEAD_INITIALIZER(pool);
-static unsigned int pool_size;
-
 typedef struct {
     Coroutine base;
     void *stack;
-    jmp_buf env;
+    sigjmp_buf env;
 
 #ifdef CONFIG_VALGRIND_H
     unsigned int valgrind_stack_id;
@@ -96,17 +87,6 @@ static void qemu_coroutine_thread_cleanup(void *opaque)
     g_free(s);
 }
 
-static void __attribute__((destructor)) coroutine_cleanup(void)
-{
-    Coroutine *co;
-    Coroutine *tmp;
-
-    QSLIST_FOREACH_SAFE(co, &pool, pool_next, tmp) {
-        g_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
-        g_free(co);
-    }
-}
-
 static void __attribute__((constructor)) coroutine_init(void)
 {
     int ret;
@@ -130,8 +110,8 @@ static void coroutine_trampoline(int i0, int i1)
     co = &self->base;
 
     /* Initialize longjmp environment and switch back the caller */
-    if (!setjmp(self->env)) {
-        longjmp(*(jmp_buf *)co->entry_arg, 1);
+    if (!sigsetjmp(self->env, 0)) {
+        siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
     }
 
     while (true) {
@@ -140,19 +120,20 @@ static void coroutine_trampoline(int i0, int i1)
     }
 }
 
-static Coroutine *coroutine_new(void)
+Coroutine *qemu_coroutine_new(void)
 {
     const size_t stack_size = 1 << 20;
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
-    jmp_buf old_env;
+    sigjmp_buf old_env;
     union cc_arg arg = {0};
 
-    /* The ucontext functions preserve signal masks which incurs a system call
-     * overhead.  setjmp()/longjmp() does not preserve signal masks but only
-     * works on the current stack.  Since we need a way to create and switch to
-     * a new stack, use the ucontext functions for that but setjmp()/longjmp()
-     * for everything else.
+    /* The ucontext functions preserve signal masks which incurs a
+     * system call overhead.  sigsetjmp(buf, 0)/siglongjmp() does not
+     * preserve signal masks but only works on the current stack.
+     * Since we need a way to create and switch to a new stack, use
+     * the ucontext functions for that but sigsetjmp()/siglongjmp() for
+     * everything else.
      */
 
     if (getcontext(&uc) == -1) {
@@ -178,51 +159,31 @@ static Coroutine *coroutine_new(void)
     makecontext(&uc, (void (*)(void))coroutine_trampoline,
                 2, arg.i[0], arg.i[1]);
 
-    /* swapcontext() in, longjmp() back out */
-    if (!setjmp(old_env)) {
+    /* swapcontext() in, siglongjmp() back out */
+    if (!sigsetjmp(old_env, 0)) {
         swapcontext(&old_uc, &uc);
     }
     return &co->base;
 }
 
-Coroutine *qemu_coroutine_new(void)
-{
-    Coroutine *co;
-
-    co = QSLIST_FIRST(&pool);
-    if (co) {
-        QSLIST_REMOVE_HEAD(&pool, pool_next);
-        pool_size--;
-    } else {
-        co = coroutine_new();
-    }
-    return co;
-}
-
 #ifdef CONFIG_VALGRIND_H
-#ifdef CONFIG_PRAGMA_DISABLE_UNUSED_BUT_SET
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 /* Work around an unused variable in the valgrind.h macro... */
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 static inline void valgrind_stack_deregister(CoroutineUContext *co)
 {
     VALGRIND_STACK_DEREGISTER(co->valgrind_stack_id);
 }
-#ifdef CONFIG_PRAGMA_DISABLE_UNUSED_BUT_SET
-#pragma GCC diagnostic error "-Wunused-but-set-variable"
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic pop
 #endif
 #endif
 
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
-
-    if (pool_size < POOL_MAX_SIZE) {
-        QSLIST_INSERT_HEAD(&pool, &co->base, pool_next);
-        co->base.caller = NULL;
-        pool_size++;
-        return;
-    }
 
 #ifdef CONFIG_VALGRIND_H
     valgrind_stack_deregister(co);
@@ -242,9 +203,9 @@ CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
     s->current = to_;
 
-    ret = setjmp(from->env);
+    ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
-        longjmp(to->env, action);
+        siglongjmp(to->env, action);
     }
     return ret;
 }

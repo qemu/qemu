@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 #include <zlib.h>
-#include "aes.h"
-#include "migration.h"
+#include "qemu/aes.h"
+#include "migration/migration.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */
@@ -92,7 +92,7 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int qcow_open(BlockDriverState *bs, int flags)
+static int qcow_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, shift, ret;
@@ -112,7 +112,7 @@ static int qcow_open(BlockDriverState *bs, int flags)
     be64_to_cpus(&header.l1_table_offset);
 
     if (header.magic != QCOW_MAGIC) {
-        ret = -EINVAL;
+        ret = -EMEDIUMTYPE;
         goto fail;
     }
     if (header.version != QCOW_VERSION) {
@@ -195,6 +195,15 @@ static int qcow_open(BlockDriverState *bs, int flags)
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
     return ret;
+}
+
+
+/* We have nothing to do for QCOW reopen, stubs just return
+ * success */
+static int qcow_reopen_prepare(BDRVReopenState *state,
+                               BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
 }
 
 static int qcow_set_key(BlockDriverState *bs, const char *key)
@@ -670,7 +679,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
         return ret;
     }
 
-    ret = bdrv_file_open(&qcow_bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&qcow_bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         return ret;
     }
@@ -778,8 +787,21 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
     uint8_t *out_buf;
     uint64_t cluster_offset;
 
-    if (nb_sectors != s->cluster_sectors)
-        return -EINVAL;
+    if (nb_sectors != s->cluster_sectors) {
+        ret = -EINVAL;
+
+        /* Zero-pad last write if image size is not cluster aligned */
+        if (sector_num + nb_sectors == bs->total_sectors &&
+            nb_sectors < s->cluster_sectors) {
+            uint8_t *pad_buf = qemu_blockalign(bs, s->cluster_size);
+            memset(pad_buf, 0, s->cluster_size);
+            memcpy(pad_buf, buf, nb_sectors * BDRV_SECTOR_SIZE);
+            ret = qcow_write_compressed(bs, sector_num,
+                                        pad_buf, s->cluster_sectors);
+            qemu_vfree(pad_buf);
+        }
+        return ret;
+    }
 
     out_buf = g_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
 
@@ -868,6 +890,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_probe		= qcow_probe,
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,
+    .bdrv_reopen_prepare = qcow_reopen_prepare,
     .bdrv_create	= qcow_create,
 
     .bdrv_co_readv          = qcow_co_readv,

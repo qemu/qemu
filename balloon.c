@@ -24,13 +24,13 @@
  * THE SOFTWARE.
  */
 
-#include "monitor.h"
-#include "cpu-common.h"
-#include "kvm.h"
-#include "balloon.h"
+#include "monitor/monitor.h"
+#include "exec/cpu-common.h"
+#include "sysemu/kvm.h"
+#include "sysemu/balloon.h"
 #include "trace.h"
 #include "qmp-commands.h"
-#include "qjson.h"
+#include "qapi/qmp/qjson.h"
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;

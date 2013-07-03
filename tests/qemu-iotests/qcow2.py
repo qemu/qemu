@@ -233,8 +233,9 @@ def usage():
     for name, handler, num_args, desc in cmds:
         print "    %-20s - %s" % (name, desc)
 
-if len(sys.argv) < 3:
-    usage()
-    sys.exit(1)
+if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        usage()
+        sys.exit(1)
 
-main(sys.argv[1], sys.argv[2], sys.argv[3:])
+    main(sys.argv[1], sys.argv[2], sys.argv[3:])

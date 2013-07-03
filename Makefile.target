@@ -1,12 +1,9 @@
 # -*- Mode: makefile -*-
 
 include ../config-host.mak
-include config-devices.mak
 include config-target.mak
+include config-devices.mak
 include $(SRC_PATH)/rules.mak
-ifneq ($(HWDIR),)
-include $(HWDIR)/config.mak
-endif
 
 $(call set-vpath, $(SRC_PATH))
 ifdef CONFIG_LINUX
@@ -21,7 +18,7 @@ ifdef CONFIG_USER_ONLY
 QEMU_PROG=qemu-$(TARGET_ARCH2)
 else
 # system emulator name
-ifneq (,$(findstring -mwindows,$(LIBS)))
+ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_ARCH2)w$(EXESUF)
 endif # windows executable
@@ -33,10 +30,6 @@ ifdef QEMU_PROGW
 PROGS+=$(QEMU_PROGW)
 endif
 STPFILES=
-
-ifndef CONFIG_HAIKU
-LIBS+=-lm
-endif
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
@@ -57,7 +50,7 @@ $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-arch=$(TARGET_ARCH) \
 		--target-type=$(TARGET_TYPE) \
-		< $< > $@,"  GEN   $(QEMU_PROG).stp")
+		< $< > $@,"  GEN   $(TARGET_DIR)$(QEMU_PROG).stp")
 else
 stap:
 endif
@@ -67,26 +60,23 @@ all: $(PROGS) stap
 # Dummy command so that make thinks it has done something
 	@true
 
+CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
+CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
+CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
+CONFIG_NO_GET_MEMORY_MAPPING = $(if $(subst n,,$(CONFIG_HAVE_GET_MEMORY_MAPPING)),n,y)
+CONFIG_NO_CORE_DUMP = $(if $(subst n,,$(CONFIG_HAVE_CORE_DUMP)),n,y)
+
 #########################################################
 # cpu emulator library
 obj-y = exec.o translate-all.o cpu-exec.o
 obj-y += tcg/tcg.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
+obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
-obj-y += disas.o
-obj-$(CONFIG_TCI_DIS) += tci-dis.o
 obj-y += target-$(TARGET_BASE_ARCH)/
+obj-y += disas.o
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
-
-tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
-
-# HELPER_CFLAGS is used for all the legacy code compiled with static register
-# variables
-user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in user-exec.c.
-%/signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+obj-$(CONFIG_NO_KVM) += kvm-stub.o
 
 #########################################################
 # Linux user emulator target
@@ -96,7 +86,7 @@ ifdef CONFIG_LINUX_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
-obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o thunk.o user-exec.o
 
 endif #CONFIG_LINUX_USER
 
@@ -108,34 +98,24 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
-obj-y += gdbstub.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o user-exec.o
 
 endif #CONFIG_BSD_USER
 
 #########################################################
 # System emulator target
 ifdef CONFIG_SOFTMMU
-CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
-CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
-CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
-CONFIG_NO_GET_MEMORY_MAPPING = $(if $(subst n,,$(CONFIG_HAVE_GET_MEMORY_MAPPING)),n,y)
-CONFIG_NO_CORE_DUMP = $(if $(subst n,,$(CONFIG_HAVE_CORE_DUMP)),n,y)
-
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
+obj-y += qtest.o
 obj-y += hw/
+obj-$(CONFIG_FDT) += device_tree.o
 obj-$(CONFIG_KVM) += kvm-all.o
-obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-y += memory.o savevm.o cputlb.o
 obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += memory_mapping.o
 obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o
 obj-$(CONFIG_NO_GET_MEMORY_MAPPING) += memory_mapping-stub.o
 obj-$(CONFIG_NO_CORE_DUMP) += dump-stub.o
-LIBS+=-lz
-
-QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
-QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
-QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
-QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
+LIBS+=$(libs_softmmu)
 
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen-mapcache.o
@@ -154,32 +134,29 @@ GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
 
 endif # CONFIG_SOFTMMU
 
+# Workaround for http://gcc.gnu.org/PR55489, see configure.
+%/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
+
 nested-vars += obj-y
 
 # This resolves all nested paths, so it must come last
 include $(SRC_PATH)/Makefile.objs
 
 all-obj-y = $(obj-y)
-all-obj-y += $(addprefix ../, $(universal-obj-y))
-
-ifdef CONFIG_SOFTMMU
 all-obj-y += $(addprefix ../, $(common-obj-y))
-all-obj-y += $(addprefix ../libdis/, $(libdis-y))
-all-obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
-all-obj-y += $(addprefix ../, $(trace-obj-y))
-else
-all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
-all-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
-endif #CONFIG_LINUX_USER
+
+ifndef CONFIG_HAIKU
+LIBS+=-lm
+endif
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y)
+$(QEMU_PROGW): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(all-obj-y)
+$(QEMU_PROG): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 endif
 

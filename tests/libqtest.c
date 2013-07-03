@@ -3,10 +3,12 @@
  *
  * Copyright IBM, Corp. 2012
  * Copyright Red Hat, Inc. 2012
+ * Copyright SUSE LINUX Products GmbH 2013
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
  *  Paolo Bonzini     <pbonzini@redhat.com>
+ *  Andreas Färber    <afaerber@suse.de>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -26,8 +28,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "compiler.h"
-#include "osdep.h"
+#include "qemu/compiler.h"
+#include "qemu/osdep.h"
 
 #define MAX_IRQ 256
 
@@ -39,7 +41,8 @@ struct QTestState
     int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    gchar *pid_file;
+    gchar *pid_file; /* QEMU PID file */
+    int child_pid;   /* Child process created to execute QEMU */
     char *socket_path, *qmp_socket_path;
 };
 
@@ -85,10 +88,26 @@ static int socket_accept(int sock)
     return ret;
 }
 
+static pid_t qtest_qemu_pid(QTestState *s)
+{
+    FILE *f;
+    char buffer[1024];
+    pid_t pid = -1;
+
+    f = fopen(s->pid_file, "r");
+    if (f) {
+        if (fgets(buffer, sizeof(buffer), f)) {
+            pid = atoi(buffer);
+        }
+        fclose(f);
+    }
+    return pid;
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
-    int sock, qmpsock, ret, i;
+    int sock, qmpsock, i;
     gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
@@ -117,10 +136,8 @@ QTestState *qtest_init(const char *extra_args)
                                   "%s", qemu_binary, s->socket_path,
                                   s->qmp_socket_path, pid_file,
                                   extra_args ?: "");
-
-        ret = system(command);
-        exit(ret);
-        g_free(command);
+        execlp("/bin/sh", "sh", "-c", command, NULL);
+        exit(1);
     }
 
     s->fd = socket_accept(sock);
@@ -128,6 +145,7 @@ QTestState *qtest_init(const char *extra_args)
 
     s->rx = g_string_new("");
     s->pid_file = pid_file;
+    s->child_pid = pid;
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
     }
@@ -136,25 +154,21 @@ QTestState *qtest_init(const char *extra_args)
     qtest_qmp(s, "");
     qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
 
+    if (getenv("QTEST_STOP")) {
+        kill(qtest_qemu_pid(s), SIGSTOP);
+    }
+
     return s;
 }
 
 void qtest_quit(QTestState *s)
 {
-    FILE *f;
-    char buffer[1024];
+    int status;
 
-    f = fopen(s->pid_file, "r");
-    if (f) {
-        if (fgets(buffer, sizeof(buffer), f)) {
-            pid_t pid = atoi(buffer);
-            int status = 0;
-
-            kill(pid, SIGTERM);
-            waitpid(pid, &status, 0);
-        }
-
-        fclose(f);
+    pid_t pid = qtest_qemu_pid(s);
+    if (pid != -1) {
+        kill(pid, SIGTERM);
+        waitpid(pid, &status, 0);
     }
 
     unlink(s->pid_file);
@@ -273,16 +287,13 @@ redo:
     return words;
 }
 
-void qtest_qmp(QTestState *s, const char *fmt, ...)
+void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
-    va_list ap;
     bool has_reply = false;
     int nesting = 0;
 
     /* Send QMP request */
-    va_start(ap, fmt);
     socket_sendf(s->qmp_fd, fmt, ap);
-    va_end(ap);
 
     /* Receive reply */
     while (!has_reply || nesting > 0) {
@@ -309,6 +320,15 @@ void qtest_qmp(QTestState *s, const char *fmt, ...)
             break;
         }
     }
+}
+
+void qtest_qmp(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_qmpv(s, fmt, ap);
+    va_end(ap);
 }
 
 const char *qtest_get_arch(void)
@@ -414,6 +434,66 @@ uint16_t qtest_inw(QTestState *s, uint16_t addr)
 uint32_t qtest_inl(QTestState *s, uint16_t addr)
 {
     return qtest_in(s, "inl", addr);
+}
+
+static void qtest_write(QTestState *s, const char *cmd, uint64_t addr,
+                        uint64_t value)
+{
+    qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 "\n", cmd, addr, value);
+    qtest_rsp(s, 0);
+}
+
+void qtest_writeb(QTestState *s, uint64_t addr, uint8_t value)
+{
+    qtest_write(s, "writeb", addr, value);
+}
+
+void qtest_writew(QTestState *s, uint64_t addr, uint16_t value)
+{
+    qtest_write(s, "writew", addr, value);
+}
+
+void qtest_writel(QTestState *s, uint64_t addr, uint32_t value)
+{
+    qtest_write(s, "writel", addr, value);
+}
+
+void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value)
+{
+    qtest_write(s, "writeq", addr, value);
+}
+
+static uint64_t qtest_read(QTestState *s, const char *cmd, uint64_t addr)
+{
+    gchar **args;
+    uint64_t value;
+
+    qtest_sendf(s, "%s 0x%" PRIx64 "\n", cmd, addr);
+    args = qtest_rsp(s, 2);
+    value = strtoull(args[1], NULL, 0);
+    g_strfreev(args);
+
+    return value;
+}
+
+uint8_t qtest_readb(QTestState *s, uint64_t addr)
+{
+    return qtest_read(s, "readb", addr);
+}
+
+uint16_t qtest_readw(QTestState *s, uint64_t addr)
+{
+    return qtest_read(s, "readw", addr);
+}
+
+uint32_t qtest_readl(QTestState *s, uint64_t addr)
+{
+    return qtest_read(s, "readl", addr);
+}
+
+uint64_t qtest_readq(QTestState *s, uint64_t addr)
+{
+    return qtest_read(s, "readq", addr);
 }
 
 static int hex2nib(char ch)

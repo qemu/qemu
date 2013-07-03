@@ -25,21 +25,21 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
-#include "monitor.h"
-#include "sysemu.h"
-#include "gdbstub.h"
-#include "dma.h"
-#include "kvm.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
+#include "exec/gdbstub.h"
+#include "sysemu/dma.h"
+#include "sysemu/kvm.h"
 #include "qmp-commands.h"
 
-#include "qemu-thread.h"
-#include "cpus.h"
-#include "qtest.h"
-#include "main-loop.h"
-#include "bitmap.h"
+#include "qemu/thread.h"
+#include "sysemu/cpus.h"
+#include "sysemu/qtest.h"
+#include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
 
 #ifndef _WIN32
-#include "compatfd.h"
+#include "qemu/compatfd.h"
 #endif
 
 #ifdef CONFIG_LINUX
@@ -64,13 +64,15 @@ static CPUArchState *next_cpu;
 
 static bool cpu_thread_is_idle(CPUArchState *env)
 {
-    if (env->stop || env->queued_work_first) {
+    CPUState *cpu = ENV_GET_CPU(env);
+
+    if (cpu->stop || cpu->queued_work_first) {
         return false;
     }
-    if (env->stopped || !runstate_is_running()) {
+    if (cpu->stopped || !runstate_is_running()) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(env) ||
+    if (!cpu->halted || qemu_cpu_has_work(cpu) ||
         kvm_async_interrupts_enabled()) {
         return false;
     }
@@ -388,18 +390,16 @@ void hw_error(const char *fmt, ...)
 {
     va_list ap;
     CPUArchState *env;
+    CPUState *cpu;
 
     va_start(ap, fmt);
     fprintf(stderr, "qemu: hardware error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        fprintf(stderr, "CPU #%d:\n", env->cpu_index);
-#ifdef TARGET_I386
-        cpu_dump_state(env, stderr, fprintf, X86_DUMP_FPU);
-#else
-        cpu_dump_state(env, stderr, fprintf, 0);
-#endif
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
+        fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
+        cpu_dump_state(env, stderr, fprintf, CPU_DUMP_FPU);
     }
     va_end(ap);
     abort();
@@ -419,7 +419,7 @@ void cpu_synchronize_all_post_reset(void)
     CPUArchState *cpu;
 
     for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
-        cpu_synchronize_post_reset(cpu);
+        cpu_synchronize_post_reset(ENV_GET_CPU(cpu));
     }
 }
 
@@ -428,13 +428,13 @@ void cpu_synchronize_all_post_init(void)
     CPUArchState *cpu;
 
     for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
-        cpu_synchronize_post_init(cpu);
+        cpu_synchronize_post_init(ENV_GET_CPU(cpu));
     }
 }
 
-int cpu_is_stopped(CPUArchState *env)
+bool cpu_is_stopped(CPUState *cpu)
 {
-    return !runstate_is_running() || env->stopped;
+    return !runstate_is_running() || cpu->stopped;
 }
 
 static void do_vm_stop(RunState state)
@@ -450,22 +450,24 @@ static void do_vm_stop(RunState state)
     }
 }
 
-static int cpu_can_run(CPUArchState *env)
+static bool cpu_can_run(CPUState *cpu)
 {
-    if (env->stop) {
-        return 0;
+    if (cpu->stop) {
+        return false;
     }
-    if (env->stopped || !runstate_is_running()) {
-        return 0;
+    if (cpu->stopped || !runstate_is_running()) {
+        return false;
     }
-    return 1;
+    return true;
 }
 
 static void cpu_handle_guest_debug(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     gdb_set_stop_cpu(env);
     qemu_system_debug_request();
-    env->stopped = 1;
+    cpu->stopped = true;
 }
 
 static void cpu_signal(int sig)
@@ -515,7 +517,7 @@ static void qemu_init_sigbus(void)
     prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
 }
 
-static void qemu_kvm_eat_signals(CPUArchState *env)
+static void qemu_kvm_eat_signals(CPUState *cpu)
 {
     struct timespec ts = { 0, 0 };
     siginfo_t siginfo;
@@ -536,7 +538,7 @@ static void qemu_kvm_eat_signals(CPUArchState *env)
 
         switch (r) {
         case SIGBUS:
-            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
+            if (kvm_on_sigbus_vcpu(cpu, siginfo.si_code, siginfo.si_addr)) {
                 sigbus_reraise();
             }
             break;
@@ -558,7 +560,7 @@ static void qemu_init_sigbus(void)
 {
 }
 
-static void qemu_kvm_eat_signals(CPUArchState *env)
+static void qemu_kvm_eat_signals(CPUState *cpu)
 {
 }
 #endif /* !CONFIG_LINUX */
@@ -613,7 +615,7 @@ static void qemu_tcg_init_cpu_signals(void)
 }
 #endif /* _WIN32 */
 
-QemuMutex qemu_global_mutex;
+static QemuMutex qemu_global_mutex;
 static QemuCond qemu_io_proceeded_cond;
 static bool iothread_requesting_mutex;
 
@@ -640,27 +642,27 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
-void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
+void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
 {
     struct qemu_work_item wi;
 
-    if (qemu_cpu_is_self(env)) {
+    if (qemu_cpu_is_self(cpu)) {
         func(data);
         return;
     }
 
     wi.func = func;
     wi.data = data;
-    if (!env->queued_work_first) {
-        env->queued_work_first = &wi;
+    if (cpu->queued_work_first == NULL) {
+        cpu->queued_work_first = &wi;
     } else {
-        env->queued_work_last->next = &wi;
+        cpu->queued_work_last->next = &wi;
     }
-    env->queued_work_last = &wi;
+    cpu->queued_work_last = &wi;
     wi.next = NULL;
     wi.done = false;
 
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(cpu);
     while (!wi.done) {
         CPUArchState *self_env = cpu_single_env;
 
@@ -669,33 +671,31 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
     }
 }
 
-static void flush_queued_work(CPUArchState *env)
+static void flush_queued_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
 
-    if (!env->queued_work_first) {
+    if (cpu->queued_work_first == NULL) {
         return;
     }
 
-    while ((wi = env->queued_work_first)) {
-        env->queued_work_first = wi->next;
+    while ((wi = cpu->queued_work_first)) {
+        cpu->queued_work_first = wi->next;
         wi->func(wi->data);
         wi->done = true;
     }
-    env->queued_work_last = NULL;
+    cpu->queued_work_last = NULL;
     qemu_cond_broadcast(&qemu_work_cond);
 }
 
-static void qemu_wait_io_event_common(CPUArchState *env)
+static void qemu_wait_io_event_common(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    if (env->stop) {
-        env->stop = 0;
-        env->stopped = 1;
+    if (cpu->stop) {
+        cpu->stop = false;
+        cpu->stopped = true;
         qemu_cond_signal(&qemu_pause_cond);
     }
-    flush_queued_work(env);
+    flush_queued_work(cpu);
     cpu->thread_kicked = false;
 }
 
@@ -715,18 +715,20 @@ static void qemu_tcg_wait_io_event(void)
     }
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        qemu_wait_io_event_common(env);
+        qemu_wait_io_event_common(ENV_GET_CPU(env));
     }
 }
 
 static void qemu_kvm_wait_io_event(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     while (cpu_thread_is_idle(env)) {
-        qemu_cond_wait(env->halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
-    qemu_kvm_eat_signals(env);
-    qemu_wait_io_event_common(env);
+    qemu_kvm_eat_signals(cpu);
+    qemu_wait_io_event_common(cpu);
 }
 
 static void *qemu_kvm_cpu_thread_fn(void *arg)
@@ -737,10 +739,10 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(cpu->thread);
-    env->thread_id = qemu_get_thread_id();
+    cpu->thread_id = qemu_get_thread_id();
     cpu_single_env = env;
 
-    r = kvm_init_vcpu(env);
+    r = kvm_init_vcpu(cpu);
     if (r < 0) {
         fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
         exit(1);
@@ -749,11 +751,11 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_kvm_init_cpu_signals(env);
 
     /* signal CPU creation */
-    env->created = 1;
+    cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
     while (1) {
-        if (cpu_can_run(env)) {
+        if (cpu_can_run(cpu)) {
             r = kvm_cpu_exec(env);
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(env);
@@ -778,13 +780,13 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
-    env->thread_id = qemu_get_thread_id();
+    cpu->thread_id = qemu_get_thread_id();
 
     sigemptyset(&waitset);
     sigaddset(&waitset, SIG_IPI);
 
     /* signal CPU creation */
-    env->created = 1;
+    cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
     cpu_single_env = env;
@@ -801,7 +803,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
         }
         qemu_mutex_lock_iothread();
         cpu_single_env = env;
-        qemu_wait_io_event_common(env);
+        qemu_wait_io_event_common(cpu);
     }
 
     return NULL;
@@ -810,29 +812,31 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 
 static void tcg_exec_all(void);
 
+static void tcg_signal_cpu_creation(CPUState *cpu, void *data)
+{
+    cpu->thread_id = qemu_get_thread_id();
+    cpu->created = true;
+}
+
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
-    CPUArchState *env = arg;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = arg;
+    CPUArchState *env;
 
     qemu_tcg_init_cpu_signals();
     qemu_thread_get_self(cpu->thread);
 
-    /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        env->thread_id = qemu_get_thread_id();
-        env->created = 1;
-    }
+    qemu_for_each_cpu(tcg_signal_cpu_creation, NULL);
     qemu_cond_signal(&qemu_cpu_cond);
 
     /* wait for initial kick-off after machine start */
-    while (first_cpu->stopped) {
+    while (ENV_GET_CPU(first_cpu)->stopped) {
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
 
         /* process any pending work */
         for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            qemu_wait_io_event_common(env);
+            qemu_wait_io_event_common(ENV_GET_CPU(env));
         }
     }
 
@@ -847,9 +851,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     return NULL;
 }
 
-static void qemu_cpu_kick_thread(CPUArchState *env)
+static void qemu_cpu_kick_thread(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
 #ifndef _WIN32
     int err;
 
@@ -859,22 +862,39 @@ static void qemu_cpu_kick_thread(CPUArchState *env)
         exit(1);
     }
 #else /* _WIN32 */
-    if (!qemu_cpu_is_self(env)) {
-        SuspendThread(cpu->hThread);
+    if (!qemu_cpu_is_self(cpu)) {
+        CONTEXT tcgContext;
+
+        if (SuspendThread(cpu->hThread) == (DWORD)-1) {
+            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
+                    GetLastError());
+            exit(1);
+        }
+
+        /* On multi-core systems, we are not sure that the thread is actually
+         * suspended until we can get the context.
+         */
+        tcgContext.ContextFlags = CONTEXT_CONTROL;
+        while (GetThreadContext(cpu->hThread, &tcgContext) != 0) {
+            continue;
+        }
+
         cpu_signal(0);
-        ResumeThread(cpu->hThread);
+
+        if (ResumeThread(cpu->hThread) == (DWORD)-1) {
+            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
+                    GetLastError());
+            exit(1);
+        }
     }
 #endif
 }
 
-void qemu_cpu_kick(void *_env)
+void qemu_cpu_kick(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    qemu_cond_broadcast(env->halt_cond);
+    qemu_cond_broadcast(cpu->halt_cond);
     if (!tcg_enabled() && !cpu->thread_kicked) {
-        qemu_cpu_kick_thread(env);
+        qemu_cpu_kick_thread(cpu);
         cpu->thread_kicked = true;
     }
 }
@@ -886,7 +906,7 @@ void qemu_cpu_kick_self(void)
     CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
 
     if (!cpu_single_cpu->thread_kicked) {
-        qemu_cpu_kick_thread(cpu_single_env);
+        qemu_cpu_kick_thread(cpu_single_cpu);
         cpu_single_cpu->thread_kicked = true;
     }
 #else
@@ -894,12 +914,14 @@ void qemu_cpu_kick_self(void)
 #endif
 }
 
-int qemu_cpu_is_self(void *_env)
+bool qemu_cpu_is_self(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     return qemu_thread_is_self(cpu->thread);
+}
+
+static bool qemu_in_vcpu_thread(void)
+{
+    return cpu_single_env && qemu_cpu_is_self(ENV_GET_CPU(cpu_single_env));
 }
 
 void qemu_mutex_lock_iothread(void)
@@ -909,7 +931,7 @@ void qemu_mutex_lock_iothread(void)
     } else {
         iothread_requesting_mutex = true;
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
-            qemu_cpu_kick_thread(first_cpu);
+            qemu_cpu_kick_thread(ENV_GET_CPU(first_cpu));
             qemu_mutex_lock(&qemu_global_mutex);
         }
         iothread_requesting_mutex = false;
@@ -927,7 +949,8 @@ static int all_vcpus_paused(void)
     CPUArchState *penv = first_cpu;
 
     while (penv) {
-        if (!penv->stopped) {
+        CPUState *pcpu = ENV_GET_CPU(penv);
+        if (!pcpu->stopped) {
             return 0;
         }
         penv = penv->next_cpu;
@@ -942,17 +965,20 @@ void pause_all_vcpus(void)
 
     qemu_clock_enable(vm_clock, false);
     while (penv) {
-        penv->stop = 1;
-        qemu_cpu_kick(penv);
+        CPUState *pcpu = ENV_GET_CPU(penv);
+        pcpu->stop = true;
+        qemu_cpu_kick(pcpu);
         penv = penv->next_cpu;
     }
 
-    if (!qemu_thread_is_self(&io_thread)) {
+    if (qemu_in_vcpu_thread()) {
         cpu_stop_current();
         if (!kvm_enabled()) {
+            penv = first_cpu;
             while (penv) {
-                penv->stop = 0;
-                penv->stopped = 1;
+                CPUState *pcpu = ENV_GET_CPU(penv);
+                pcpu->stop = false;
+                pcpu->stopped = true;
                 penv = penv->next_cpu;
             }
             return;
@@ -963,10 +989,17 @@ void pause_all_vcpus(void)
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         penv = first_cpu;
         while (penv) {
-            qemu_cpu_kick(penv);
+            qemu_cpu_kick(ENV_GET_CPU(penv));
             penv = penv->next_cpu;
         }
     }
+}
+
+void cpu_resume(CPUState *cpu)
+{
+    cpu->stop = false;
+    cpu->stopped = false;
+    qemu_cpu_kick(cpu);
 }
 
 void resume_all_vcpus(void)
@@ -975,36 +1008,32 @@ void resume_all_vcpus(void)
 
     qemu_clock_enable(vm_clock, true);
     while (penv) {
-        penv->stop = 0;
-        penv->stopped = 0;
-        qemu_cpu_kick(penv);
+        CPUState *pcpu = ENV_GET_CPU(penv);
+        cpu_resume(pcpu);
         penv = penv->next_cpu;
     }
 }
 
-static void qemu_tcg_init_vcpu(void *_env)
+static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));
-        env->halt_cond = g_malloc0(sizeof(QemuCond));
-        qemu_cond_init(env->halt_cond);
-        tcg_halt_cond = env->halt_cond;
-        qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, env,
+        cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+        qemu_cond_init(cpu->halt_cond);
+        tcg_halt_cond = cpu->halt_cond;
+        qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, cpu,
                            QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
         cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
-        while (env->created == 0) {
+        while (!cpu->created) {
             qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
         }
         tcg_cpu_thread = cpu->thread;
     } else {
         cpu->thread = tcg_cpu_thread;
-        env->halt_cond = tcg_halt_cond;
+        cpu->halt_cond = tcg_halt_cond;
     }
 }
 
@@ -1013,11 +1042,11 @@ static void qemu_kvm_start_vcpu(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
-    env->halt_cond = g_malloc0(sizeof(QemuCond));
-    qemu_cond_init(env->halt_cond);
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
     qemu_thread_create(cpu->thread, qemu_kvm_cpu_thread_fn, env,
                        QEMU_THREAD_JOINABLE);
-    while (env->created == 0) {
+    while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
 }
@@ -1027,11 +1056,11 @@ static void qemu_dummy_start_vcpu(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
-    env->halt_cond = g_malloc0(sizeof(QemuCond));
-    qemu_cond_init(env->halt_cond);
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
     qemu_thread_create(cpu->thread, qemu_dummy_cpu_thread_fn, env,
                        QEMU_THREAD_JOINABLE);
-    while (env->created == 0) {
+    while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
 }
@@ -1039,14 +1068,15 @@ static void qemu_dummy_start_vcpu(CPUArchState *env)
 void qemu_init_vcpu(void *_env)
 {
     CPUArchState *env = _env;
+    CPUState *cpu = ENV_GET_CPU(env);
 
-    env->nr_cores = smp_cores;
-    env->nr_threads = smp_threads;
-    env->stopped = 1;
+    cpu->nr_cores = smp_cores;
+    cpu->nr_threads = smp_threads;
+    cpu->stopped = true;
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(env);
     } else if (tcg_enabled()) {
-        qemu_tcg_init_vcpu(env);
+        qemu_tcg_init_vcpu(cpu);
     } else {
         qemu_dummy_start_vcpu(env);
     }
@@ -1055,8 +1085,9 @@ void qemu_init_vcpu(void *_env)
 void cpu_stop_current(void)
 {
     if (cpu_single_env) {
-        cpu_single_env->stop = 0;
-        cpu_single_env->stopped = 1;
+        CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
+        cpu_single_cpu->stop = false;
+        cpu_single_cpu->stopped = true;
         cpu_exit(cpu_single_env);
         qemu_cond_signal(&qemu_pause_cond);
     }
@@ -1064,7 +1095,7 @@ void cpu_stop_current(void)
 
 void vm_stop(RunState state)
 {
-    if (!qemu_thread_is_self(&io_thread)) {
+    if (qemu_in_vcpu_thread()) {
         qemu_system_vmstop_request(state);
         /*
          * FIXME: should not return to device code in case
@@ -1137,17 +1168,18 @@ static void tcg_exec_all(void)
     }
     for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
         CPUArchState *env = next_cpu;
+        CPUState *cpu = ENV_GET_CPU(env);
 
         qemu_clock_enable(vm_clock,
                           (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
-        if (cpu_can_run(env)) {
+        if (cpu_can_run(cpu)) {
             r = tcg_cpu_exec(env);
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(env);
                 break;
             }
-        } else if (env->stop || env->stopped) {
+        } else if (cpu->stop || cpu->stopped) {
             break;
         }
     }
@@ -1157,45 +1189,24 @@ static void tcg_exec_all(void)
 void set_numa_modes(void)
 {
     CPUArchState *env;
+    CPUState *cpu;
     int i;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (test_bit(env->cpu_index, node_cpumask[i])) {
-                env->numa_node = i;
+            if (test_bit(cpu->cpu_index, node_cpumask[i])) {
+                cpu->numa_node = i;
             }
         }
     }
 }
 
-void set_cpu_log(const char *optarg)
-{
-    int mask;
-    const CPULogItem *item;
-
-    mask = cpu_str_to_log_mask(optarg);
-    if (!mask) {
-        printf("Log items (comma separated):\n");
-        for (item = cpu_log_items; item->mask != 0; item++) {
-            printf("%-10s %s\n", item->name, item->help);
-        }
-        exit(1);
-    }
-    cpu_set_log(mask);
-}
-
-void set_cpu_log_filename(const char *optarg)
-{
-    cpu_set_log_filename(optarg);
-}
-
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */
-#if defined(cpu_list_id)
-    cpu_list_id(f, cpu_fprintf, optarg);
-#elif defined(cpu_list)
-    cpu_list(f, cpu_fprintf); /* deprecated */
+#if defined(cpu_list)
+    cpu_list(f, cpu_fprintf);
 #endif
 }
 
@@ -1204,17 +1215,18 @@ CpuInfoList *qmp_query_cpus(Error **errp)
     CpuInfoList *head = NULL, *cur_item = NULL;
     CPUArchState *env;
 
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        CPUState *cpu = ENV_GET_CPU(env);
         CpuInfoList *info;
 
         cpu_synchronize_state(env);
 
         info = g_malloc0(sizeof(*info));
         info->value = g_malloc0(sizeof(*info->value));
-        info->value->CPU = env->cpu_index;
+        info->value->CPU = cpu->cpu_index;
         info->value->current = (env == first_cpu);
-        info->value->halted = env->halted;
-        info->value->thread_id = env->thread_id;
+        info->value->halted = cpu->halted;
+        info->value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
         info->value->has_pc = true;
         info->value->pc = env->eip + env->segs[R_CS].base;
@@ -1249,23 +1261,20 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
     FILE *f;
     uint32_t l;
     CPUArchState *env;
+    CPUState *cpu;
     uint8_t buf[1024];
 
     if (!has_cpu) {
         cpu_index = 0;
     }
 
-    for (env = first_cpu; env; env = env->next_cpu) {
-        if (cpu_index == env->cpu_index) {
-            break;
-        }
-    }
-
-    if (env == NULL) {
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                   "a CPU number");
         return;
     }
+    env = cpu->env_ptr;
 
     f = fopen(filename, "wb");
     if (!f) {
@@ -1327,7 +1336,7 @@ void qmp_inject_nmi(Error **errp)
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         if (!env->apic_state) {
-            cpu_interrupt(env, CPU_INTERRUPT_NMI);
+            cpu_interrupt(CPU(x86_env_get_cpu(env)), CPU_INTERRUPT_NMI);
         } else {
             apic_deliver_nmi(env->apic_state);
         }

@@ -42,9 +42,11 @@ endif
 TESTCASES += test_quo.tst
 TESTCASES += test_rem.tst
 TESTCASES += test_rst0.tst
+TESTCASES += test_s32c1i.tst
 TESTCASES += test_sar.tst
 TESTCASES += test_sext.tst
 TESTCASES += test_shift.tst
+TESTCASES += test_sr.tst
 TESTCASES += test_timer.tst
 TESTCASES += test_windowed.tst
 

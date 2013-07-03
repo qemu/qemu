@@ -6,7 +6,7 @@
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_4(cp0_set, void, env, i32, i32, i32)
@@ -17,26 +17,26 @@ DEF_HELPER_1(cp1_putc, void, i32)
 DEF_HELPER_1(clz, i32, i32)
 DEF_HELPER_1(clo, i32, i32)
 
-DEF_HELPER_1(exception, void, i32)
+DEF_HELPER_2(exception, void, env, i32)
 
-DEF_HELPER_2(asr_write, void, i32, i32)
-DEF_HELPER_0(asr_read, i32)
+DEF_HELPER_3(asr_write, void, env, i32, i32)
+DEF_HELPER_1(asr_read, i32, env)
 
-DEF_HELPER_1(get_user_reg, i32, i32)
-DEF_HELPER_2(set_user_reg, void, i32, i32)
+DEF_HELPER_2(get_user_reg, i32, env, i32)
+DEF_HELPER_3(set_user_reg, void, env, i32, i32)
 
-DEF_HELPER_2(add_cc, i32, i32, i32)
-DEF_HELPER_2(adc_cc, i32, i32, i32)
-DEF_HELPER_2(sub_cc, i32, i32, i32)
-DEF_HELPER_2(sbc_cc, i32, i32, i32)
+DEF_HELPER_3(add_cc, i32, env, i32, i32)
+DEF_HELPER_3(adc_cc, i32, env, i32, i32)
+DEF_HELPER_3(sub_cc, i32, env, i32, i32)
+DEF_HELPER_3(sbc_cc, i32, env, i32, i32)
 
 DEF_HELPER_2(shl, i32, i32, i32)
 DEF_HELPER_2(shr, i32, i32, i32)
 DEF_HELPER_2(sar, i32, i32, i32)
-DEF_HELPER_2(shl_cc, i32, i32, i32)
-DEF_HELPER_2(shr_cc, i32, i32, i32)
-DEF_HELPER_2(sar_cc, i32, i32, i32)
-DEF_HELPER_2(ror_cc, i32, i32, i32)
+DEF_HELPER_3(shl_cc, i32, env, i32, i32)
+DEF_HELPER_3(shr_cc, i32, env, i32, i32)
+DEF_HELPER_3(sar_cc, i32, env, i32, i32)
+DEF_HELPER_3(ror_cc, i32, env, i32, i32)
 
 DEF_HELPER_1(ucf64_get_fpscr, i32, env)
 DEF_HELPER_2(ucf64_set_fpscr, void, env, i32)
@@ -65,4 +65,4 @@ DEF_HELPER_2(ucf64_si2df, f64, f32, env)
 DEF_HELPER_2(ucf64_sf2si, f32, f32, env)
 DEF_HELPER_2(ucf64_df2si, f32, f64, env)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

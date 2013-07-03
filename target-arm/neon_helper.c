@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
+#include "exec/exec-all.h"
 #include "helper.h"
 
 #define SIGNBIT (uint32_t)0x80000000
@@ -788,7 +788,6 @@ uint64_t HELPER(neon_qshlu_s64)(CPUARMState *env, uint64_t valop, uint64_t shift
     return helper_neon_qshl_u64(env, valop, shiftop);
 }
 
-/* FIXME: This is wrong.  */
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
     tmp = (int8_t)src2; \
@@ -1663,12 +1662,6 @@ uint64_t HELPER(neon_negl_u32)(uint64_t x)
     uint32_t low = -x;
     uint32_t high = -(x >> 32);
     return low | ((uint64_t)high << 32);
-}
-
-/* FIXME:  There should be a native op for this.  */
-uint64_t HELPER(neon_negl_u64)(uint64_t x)
-{
-    return -x;
 }
 
 /* Saturating sign manipulation.  */

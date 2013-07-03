@@ -152,5 +152,11 @@ _filter_qemu_io()
     _filter_win32 | sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.inf]* [EPTGMKiBbytes]*\/sec and [0-9/.inf]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/"
 }
 
+# replace occurrences of QEMU_PROG with "qemu"
+_filter_qemu()
+{
+    sed -e "s#^$(basename $QEMU_PROG):#QEMU_PROG:#"
+}
+
 # make sure this script returns success
 /bin/true

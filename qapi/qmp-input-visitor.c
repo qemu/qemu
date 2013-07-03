@@ -11,12 +11,12 @@
  *
  */
 
-#include "qmp-input-visitor.h"
-#include "qapi/qapi-visit-impl.h"
-#include "qemu-queue.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/visitor-impl.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
-#include "qemu-objects.h"
-#include "qerror.h"
+#include "qapi/qmp/types.h"
+#include "qapi/qmp/qerror.h"
 
 #define QIV_STACK_SIZE 1024
 

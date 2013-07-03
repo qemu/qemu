@@ -202,46 +202,67 @@ void target_to_host_old_sigset(sigset_t *sigset,
 static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
                                                  const siginfo_t *info)
 {
-    int sig;
-    sig = host_to_target_signal(info->si_signo);
+    int sig = host_to_target_signal(info->si_signo);
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
     tinfo->si_code = info->si_code;
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
-        sig == SIGBUS || sig == SIGTRAP) {
-        /* should never come here, but who knows. The information for
-           the target is irrelevant */
+
+    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
+        || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
+        /* Should never come here, but who knows. The information for
+           the target is irrelevant.  */
         tinfo->_sifields._sigfault._addr = 0;
-    } else if (sig == SIGIO) {
+    } else if (sig == TARGET_SIGIO) {
+        tinfo->_sifields._sigpoll._band = info->si_band;
 	tinfo->_sifields._sigpoll._fd = info->si_fd;
+    } else if (sig == TARGET_SIGCHLD) {
+        tinfo->_sifields._sigchld._pid = info->si_pid;
+        tinfo->_sifields._sigchld._uid = info->si_uid;
+        tinfo->_sifields._sigchld._status
+            = host_to_target_waitstatus(info->si_status);
+        tinfo->_sifields._sigchld._utime = info->si_utime;
+        tinfo->_sifields._sigchld._stime = info->si_stime;
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = info->si_pid;
         tinfo->_sifields._rt._uid = info->si_uid;
         /* XXX: potential problem if 64 bit */
-        tinfo->_sifields._rt._sigval.sival_ptr =
-            (abi_ulong)(unsigned long)info->si_value.sival_ptr;
+        tinfo->_sifields._rt._sigval.sival_ptr
+            = (abi_ulong)(unsigned long)info->si_value.sival_ptr;
     }
 }
 
 static void tswap_siginfo(target_siginfo_t *tinfo,
                           const target_siginfo_t *info)
 {
-    int sig;
-    sig = info->si_signo;
+    int sig = info->si_signo;
     tinfo->si_signo = tswap32(sig);
     tinfo->si_errno = tswap32(info->si_errno);
     tinfo->si_code = tswap32(info->si_code);
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
-        sig == SIGBUS || sig == SIGTRAP) {
-        tinfo->_sifields._sigfault._addr =
-            tswapal(info->_sifields._sigfault._addr);
-    } else if (sig == SIGIO) {
-	tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
+
+    if (sig == TARGET_SIGILL || sig == TARGET_SIGFPE || sig == TARGET_SIGSEGV
+        || sig == TARGET_SIGBUS || sig == TARGET_SIGTRAP) {
+        tinfo->_sifields._sigfault._addr
+            = tswapal(info->_sifields._sigfault._addr);
+    } else if (sig == TARGET_SIGIO) {
+        tinfo->_sifields._sigpoll._band
+            = tswap32(info->_sifields._sigpoll._band);
+        tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
+    } else if (sig == TARGET_SIGCHLD) {
+        tinfo->_sifields._sigchld._pid
+            = tswap32(info->_sifields._sigchld._pid);
+        tinfo->_sifields._sigchld._uid
+            = tswap32(info->_sifields._sigchld._uid);
+        tinfo->_sifields._sigchld._status
+            = tswap32(info->_sifields._sigchld._status);
+        tinfo->_sifields._sigchld._utime
+            = tswapal(info->_sifields._sigchld._utime);
+        tinfo->_sifields._sigchld._stime
+            = tswapal(info->_sifields._sigchld._stime);
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
         tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
-        tinfo->_sifields._rt._sigval.sival_ptr =
-            tswapal(info->_sifields._rt._sigval.sival_ptr);
+        tinfo->_sifields._rt._sigval.sival_ptr
+            = tswapal(info->_sifields._rt._sigval.sival_ptr);
     }
 }
 
@@ -586,28 +607,22 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             sig, act, oact);
 #endif
     if (oact) {
-        oact->_sa_handler = tswapal(k->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        oact->sa_flags = bswap32(k->sa_flags);
-#else
-        oact->sa_flags = tswapal(k->sa_flags);
-#endif
+        __put_user(k->_sa_handler, &oact->_sa_handler);
+        __put_user(k->sa_flags, &oact->sa_flags);
 #if !defined(TARGET_MIPS)
-        oact->sa_restorer = tswapal(k->sa_restorer);
+        __put_user(k->sa_restorer, &oact->sa_restorer);
 #endif
+        /* Not swapped.  */
         oact->sa_mask = k->sa_mask;
     }
     if (act) {
         /* FIXME: This is not threadsafe.  */
-        k->_sa_handler = tswapal(act->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        k->sa_flags = bswap32(act->sa_flags);
-#else
-        k->sa_flags = tswapal(act->sa_flags);
-#endif
+        __get_user(k->_sa_handler, &act->_sa_handler);
+        __get_user(k->sa_flags, &act->sa_flags);
 #if !defined(TARGET_MIPS)
-        k->sa_restorer = tswapal(act->sa_restorer);
+        __get_user(k->sa_restorer, &act->sa_restorer);
 #endif
+        /* To be swapped in target_to_host_sigset.  */
         k->sa_mask = act->sa_mask;
 
         /* we update the host linux signal state */
@@ -2423,66 +2438,9 @@ void sparc64_get_context(CPUSPARCState *env)
     force_sig(TARGET_SIGSEGV);
 }
 #endif
-#elif defined(TARGET_ABI_MIPSN64)
+#elif defined(TARGET_MIPS) || defined(TARGET_MIPS64)
 
-# warning signal handling not implemented
-
-static void setup_frame(int sig, struct target_sigaction *ka,
-                        target_sigset_t *set, CPUMIPSState *env)
-{
-    fprintf(stderr, "setup_frame: not implemented\n");
-}
-
-static void setup_rt_frame(int sig, struct target_sigaction *ka,
-                           target_siginfo_t *info,
-                           target_sigset_t *set, CPUMIPSState *env)
-{
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
-}
-
-long do_sigreturn(CPUMIPSState *env)
-{
-    fprintf(stderr, "do_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
-long do_rt_sigreturn(CPUMIPSState *env)
-{
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
-#elif defined(TARGET_ABI_MIPSN32)
-
-# warning signal handling not implemented
-
-static void setup_frame(int sig, struct target_sigaction *ka,
-                        target_sigset_t *set, CPUMIPSState *env)
-{
-    fprintf(stderr, "setup_frame: not implemented\n");
-}
-
-static void setup_rt_frame(int sig, struct target_sigaction *ka,
-                           target_siginfo_t *info,
-                           target_sigset_t *set, CPUMIPSState *env)
-{
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
-}
-
-long do_sigreturn(CPUMIPSState *env)
-{
-    fprintf(stderr, "do_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
-long do_rt_sigreturn(CPUMIPSState *env)
-{
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
-#elif defined(TARGET_ABI_MIPSO32)
-
+# if defined(TARGET_ABI_MIPSO32)
 struct target_sigcontext {
     uint32_t   sc_regmask;     /* Unused */
     uint32_t   sc_status;
@@ -2504,6 +2462,25 @@ struct target_sigcontext {
     target_ulong   sc_hi3;
     target_ulong   sc_lo3;
 };
+# else /* N32 || N64 */
+struct target_sigcontext {
+    uint64_t sc_regs[32];
+    uint64_t sc_fpregs[32];
+    uint64_t sc_mdhi;
+    uint64_t sc_hi1;
+    uint64_t sc_hi2;
+    uint64_t sc_hi3;
+    uint64_t sc_mdlo;
+    uint64_t sc_lo1;
+    uint64_t sc_lo2;
+    uint64_t sc_lo3;
+    uint64_t sc_pc;
+    uint32_t sc_fpc_csr;
+    uint32_t sc_used_math;
+    uint32_t sc_dsp;
+    uint32_t sc_reserved;
+};
+# endif /* O32 */
 
 struct sigframe {
     uint32_t sf_ass[4];			/* argument save space for o32 */
@@ -2531,18 +2508,17 @@ struct target_rt_sigframe {
 /* Install trampoline to jump back from signal handler */
 static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
 {
-    int err;
+    int err = 0;
 
     /*
-    * Set up the return code ...
-    *
-    *         li      v0, __NR__foo_sigreturn
-    *         syscall
-    */
+     * Set up the return code ...
+     *
+     *         li      v0, __NR__foo_sigreturn
+     *         syscall
+     */
 
-    err = __put_user(0x24020000 + syscall, tramp + 0);
+    err |= __put_user(0x24020000 + syscall, tramp + 0);
     err |= __put_user(0x0000000c          , tramp + 1);
-    /* flush_cache_sigtramp((unsigned long) tramp); */
     return err;
 }
 
@@ -2550,74 +2526,37 @@ static inline int
 setup_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
 {
     int err = 0;
+    int i;
 
     err |= __put_user(regs->active_tc.PC, &sc->sc_pc);
 
-#define save_gp_reg(i) do {   						\
-        err |= __put_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);	\
-    } while(0)
-    __put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
-    save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
-    save_gp_reg(7); save_gp_reg(8); save_gp_reg(9); save_gp_reg(10);
-    save_gp_reg(11); save_gp_reg(12); save_gp_reg(13); save_gp_reg(14);
-    save_gp_reg(15); save_gp_reg(16); save_gp_reg(17); save_gp_reg(18);
-    save_gp_reg(19); save_gp_reg(20); save_gp_reg(21); save_gp_reg(22);
-    save_gp_reg(23); save_gp_reg(24); save_gp_reg(25); save_gp_reg(26);
-    save_gp_reg(27); save_gp_reg(28); save_gp_reg(29); save_gp_reg(30);
-    save_gp_reg(31);
-#undef save_gp_reg
+    __put_user(0, &sc->sc_regs[0]);
+    for (i = 1; i < 32; ++i) {
+        err |= __put_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);
+    }
 
     err |= __put_user(regs->active_tc.HI[0], &sc->sc_mdhi);
     err |= __put_user(regs->active_tc.LO[0], &sc->sc_mdlo);
 
-    /* Not used yet, but might be useful if we ever have DSP suppport */
-#if 0
-    if (cpu_has_dsp) {
-	err |= __put_user(mfhi1(), &sc->sc_hi1);
-	err |= __put_user(mflo1(), &sc->sc_lo1);
-	err |= __put_user(mfhi2(), &sc->sc_hi2);
-	err |= __put_user(mflo2(), &sc->sc_lo2);
-	err |= __put_user(mfhi3(), &sc->sc_hi3);
-	err |= __put_user(mflo3(), &sc->sc_lo3);
-	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+    /* Rather than checking for dsp existence, always copy.  The storage
+       would just be garbage otherwise.  */
+    err |= __put_user(regs->active_tc.HI[1], &sc->sc_hi1);
+    err |= __put_user(regs->active_tc.HI[2], &sc->sc_hi2);
+    err |= __put_user(regs->active_tc.HI[3], &sc->sc_hi3);
+    err |= __put_user(regs->active_tc.LO[1], &sc->sc_lo1);
+    err |= __put_user(regs->active_tc.LO[2], &sc->sc_lo2);
+    err |= __put_user(regs->active_tc.LO[3], &sc->sc_lo3);
+    {
+        uint32_t dsp = cpu_rddsp(0x3ff, regs);
+        err |= __put_user(dsp, &sc->sc_dsp);
     }
-    /* same with 64 bit */
-#ifdef CONFIG_64BIT
-    err |= __put_user(regs->hi, &sc->sc_hi[0]);
-    err |= __put_user(regs->lo, &sc->sc_lo[0]);
-    if (cpu_has_dsp) {
-	err |= __put_user(mfhi1(), &sc->sc_hi[1]);
-	err |= __put_user(mflo1(), &sc->sc_lo[1]);
-	err |= __put_user(mfhi2(), &sc->sc_hi[2]);
-	err |= __put_user(mflo2(), &sc->sc_lo[2]);
-	err |= __put_user(mfhi3(), &sc->sc_hi[3]);
-	err |= __put_user(mflo3(), &sc->sc_lo[3]);
-	err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+
+    err |= __put_user(1, &sc->sc_used_math);
+
+    for (i = 0; i < 32; ++i) {
+        err |= __put_user(regs->active_fpu.fpr[i].d, &sc->sc_fpregs[i]);
     }
-#endif
-#endif
 
-#if 0
-    err |= __put_user(!!used_math(), &sc->sc_used_math);
-
-    if (!used_math())
-	goto out;
-
-    /*
-    * Save FPU state to signal context.  Signal handler will "inherit"
-    * current FPU state.
-    */
-    preempt_disable();
-
-    if (!is_fpu_owner()) {
-	own_fpu();
-	restore_fp(current);
-    }
-    err |= save_fp_context(sc);
-
-    preempt_enable();
-    out:
-#endif
     return err;
 }
 
@@ -2625,70 +2564,36 @@ static inline int
 restore_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
 {
     int err = 0;
+    int i;
 
     err |= __get_user(regs->CP0_EPC, &sc->sc_pc);
 
     err |= __get_user(regs->active_tc.HI[0], &sc->sc_mdhi);
     err |= __get_user(regs->active_tc.LO[0], &sc->sc_mdlo);
 
-#define restore_gp_reg(i) do {   							\
-        err |= __get_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);		\
-    } while(0)
-    restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
-    restore_gp_reg( 4); restore_gp_reg( 5); restore_gp_reg( 6);
-    restore_gp_reg( 7); restore_gp_reg( 8); restore_gp_reg( 9);
-    restore_gp_reg(10); restore_gp_reg(11); restore_gp_reg(12);
-    restore_gp_reg(13); restore_gp_reg(14); restore_gp_reg(15);
-    restore_gp_reg(16); restore_gp_reg(17); restore_gp_reg(18);
-    restore_gp_reg(19); restore_gp_reg(20); restore_gp_reg(21);
-    restore_gp_reg(22); restore_gp_reg(23); restore_gp_reg(24);
-    restore_gp_reg(25); restore_gp_reg(26); restore_gp_reg(27);
-    restore_gp_reg(28); restore_gp_reg(29); restore_gp_reg(30);
-    restore_gp_reg(31);
-#undef restore_gp_reg
-
-#if 0
-    if (cpu_has_dsp) {
-	err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
-	err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
-	err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
-	err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
-	err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
-	err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
-	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
-    }
-#ifdef CONFIG_64BIT
-    err |= __get_user(regs->hi, &sc->sc_hi[0]);
-    err |= __get_user(regs->lo, &sc->sc_lo[0]);
-    if (cpu_has_dsp) {
-	err |= __get_user(treg, &sc->sc_hi[1]); mthi1(treg);
-	err |= __get_user(treg, &sc->sc_lo[1]); mthi1(treg);
-	err |= __get_user(treg, &sc->sc_hi[2]); mthi2(treg);
-	err |= __get_user(treg, &sc->sc_lo[2]); mthi2(treg);
-	err |= __get_user(treg, &sc->sc_hi[3]); mthi3(treg);
-	err |= __get_user(treg, &sc->sc_lo[3]); mthi3(treg);
-	err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
-    }
-#endif
-
-    err |= __get_user(used_math, &sc->sc_used_math);
-    conditional_used_math(used_math);
-
-    preempt_disable();
-
-    if (used_math()) {
-	/* restore fpu context if we have used it before */
-	own_fpu();
-	err |= restore_fp_context(sc);
-    } else {
-	/* signal handler may have used FPU.  Give it up. */
-	lose_fpu();
+    for (i = 1; i < 32; ++i) {
+        err |= __get_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);
     }
 
-    preempt_enable();
-#endif
+    err |= __get_user(regs->active_tc.HI[1], &sc->sc_hi1);
+    err |= __get_user(regs->active_tc.HI[2], &sc->sc_hi2);
+    err |= __get_user(regs->active_tc.HI[3], &sc->sc_hi3);
+    err |= __get_user(regs->active_tc.LO[1], &sc->sc_lo1);
+    err |= __get_user(regs->active_tc.LO[2], &sc->sc_lo2);
+    err |= __get_user(regs->active_tc.LO[3], &sc->sc_lo3);
+    {
+        uint32_t dsp;
+        err |= __get_user(dsp, &sc->sc_dsp);
+        cpu_wrdsp(dsp, 0x3ff, regs);
+    }
+
+    for (i = 0; i < 32; ++i) {
+        err |= __get_user(regs->active_fpu.fpr[i].d, &sc->sc_fpregs[i]);
+    }
+
     return err;
 }
+
 /*
  * Determine which stack to use..
  */
@@ -2715,6 +2620,7 @@ get_sigframe(struct target_sigaction *ka, CPUMIPSState *regs, size_t frame_size)
     return (sp - frame_size) & ~7;
 }
 
+# if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
 static void setup_frame(int sig, struct target_sigaction * ka,
                         target_sigset_t *set, CPUMIPSState *regs)
@@ -2762,7 +2668,6 @@ static void setup_frame(int sig, struct target_sigaction * ka,
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     force_sig(TARGET_SIGSEGV/*, current*/);
-    return;
 }
 
 long do_sigreturn(CPUMIPSState *regs)
@@ -2813,6 +2718,7 @@ badframe:
     force_sig(TARGET_SIGSEGV/*, current*/);
     return 0;
 }
+# endif /* O32 */
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
@@ -2871,7 +2777,6 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     force_sig(TARGET_SIGSEGV/*, current*/);
-    return;
 }
 
 long do_rt_sigreturn(CPUMIPSState *env)
@@ -4565,7 +4470,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     signal = current_exec_domain_sig(sig);
 
-    err |= __put_user(h2g(ka->_sa_handler), &sc->handler);
+    err |= __put_user(ka->_sa_handler, &sc->handler);
     err |= __put_user(set->sig[0], &sc->oldmask);
 #if defined(TARGET_PPC64)
     err |= __put_user(set->sig[0] >> 32, &sc->_unused[3]);
@@ -4587,7 +4492,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     /* Create a stack frame for the caller of the handler.  */
     newsp = frame_addr - SIGNAL_FRAMESIZE;
-    err |= __put_user(env->gpr[1], (target_ulong *)(uintptr_t) newsp);
+    err |= put_user(env->gpr[1], newsp, target_ulong);
 
     if (err)
         goto sigsegv;
@@ -4595,7 +4500,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* Set up registers for signal handler.  */
     env->gpr[1] = newsp;
     env->gpr[3] = signal;
-    env->gpr[4] = (target_ulong) h2g(sc);
+    env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
     env->nip = (target_ulong) ka->_sa_handler;
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
@@ -5544,10 +5449,15 @@ void process_pending_signals(CPUArchState *cpu_env)
         }
 #endif
         /* prepare the stack frame of the virtual CPU */
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+        /* These targets do not have traditional signals.  */
+        setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
+#else
         if (sa->sa_flags & TARGET_SA_SIGINFO)
             setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
         else
             setup_frame(sig, sa, &target_old_set, cpu_env);
+#endif
 	if (sa->sa_flags & TARGET_SA_RESETHAND)
             sa->_sa_handler = TARGET_SIG_DFL;
     }

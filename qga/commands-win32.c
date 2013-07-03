@@ -16,11 +16,17 @@
 #include <powrprof.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
 #endif
+
+/* multiple of 100 nanoseconds elapsed between windows baseline
+ *    (1/1/1601) and Unix Epoch (1/1/1970), accounting for leap years */
+#define W32_FT_OFFSET (10000000ULL * 60 * 60 * 24 * \
+                       (365 * (1970 - 1601) +       \
+                        (1970 - 1601) / 4 - 3))
 
 static void acquire_privilege(const char *name, Error **err)
 {
@@ -180,8 +186,6 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
 {
     error_set(err, QERR_UNSUPPORTED);
-
-    return;
 }
 
 typedef enum {
@@ -278,6 +282,73 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **err)
 {
     error_set(err, QERR_UNSUPPORTED);
     return NULL;
+}
+
+int64_t qmp_guest_get_time(Error **errp)
+{
+    SYSTEMTIME ts = {0};
+    int64_t time_ns;
+    FILETIME tf;
+
+    GetSystemTime(&ts);
+    if (ts.wYear < 1601 || ts.wYear > 30827) {
+        error_setg(errp, "Failed to get time");
+        return -1;
+    }
+
+    if (!SystemTimeToFileTime(&ts, &tf)) {
+        error_setg(errp, "Failed to convert system time: %d", (int)GetLastError());
+        return -1;
+    }
+
+    time_ns = ((((int64_t)tf.dwHighDateTime << 32) | tf.dwLowDateTime)
+                - W32_FT_OFFSET) * 100;
+
+    return time_ns;
+}
+
+void qmp_guest_set_time(int64_t time_ns, Error **errp)
+{
+    SYSTEMTIME ts;
+    FILETIME tf;
+    LONGLONG time;
+
+    if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
+        error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
+        return;
+    }
+
+    time = time_ns / 100 + W32_FT_OFFSET;
+
+    tf.dwLowDateTime = (DWORD) time;
+    tf.dwHighDateTime = (DWORD) (time >> 32);
+
+    if (!FileTimeToSystemTime(&tf, &ts)) {
+        error_setg(errp, "Failed to convert system time %d", (int)GetLastError());
+        return;
+    }
+
+    acquire_privilege(SE_SYSTEMTIME_NAME, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+
+    if (!SetSystemTime(&ts)) {
+        error_setg(errp, "Failed to set time to guest: %d", (int)GetLastError());
+        return;
+    }
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return -1;
 }
 
 /* register init/cleanup routines for stateful command groups */

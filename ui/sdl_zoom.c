@@ -12,14 +12,15 @@
  */
 
 #include "sdl_zoom.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
+#include <glib.h>
 #include <stdint.h>
 #include <stdio.h>
 
-static int sdl_zoom_rgb16(SDL_Surface *src, SDL_Surface *dst, int smooth,
-                          SDL_Rect *dst_rect);
-static int sdl_zoom_rgb32(SDL_Surface *src, SDL_Surface *dst, int smooth,
-                          SDL_Rect *dst_rect);
+static void sdl_zoom_rgb16(SDL_Surface *src, SDL_Surface *dst, int smooth,
+                           SDL_Rect *dst_rect);
+static void sdl_zoom_rgb32(SDL_Surface *src, SDL_Surface *dst, int smooth,
+                           SDL_Rect *dst_rect);
 
 #define BPP 32
 #include  "sdl_zoom_template.h"

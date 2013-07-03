@@ -1,11 +1,12 @@
 /* Test path override code */
-#include "../config-host.h"
-#include "../qemu-malloc.c"
-#include "../cutils.c"
-#include "../path.c"
-#include "../trace.c"
+#define _GNU_SOURCE
+#include "config-host.h"
+#include "iov.c"
+#include "cutils.c"
+#include "path.c"
+#include "trace.c"
 #ifdef CONFIG_TRACE_SIMPLE
-#include "../simpletrace.c"
+#include "../trace/simple.c"
 #endif
 
 #include <stdarg.h>

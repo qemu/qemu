@@ -200,7 +200,6 @@ vcard_free(VCard *vcard)
     }
     vcard_buffer_response_delete(vcard->vcard_buffer_response);
     g_free(vcard);
-    return;
 }
 
 void

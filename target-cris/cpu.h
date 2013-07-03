@@ -27,7 +27,7 @@
 
 #define CPUArchState struct CPUCRISState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -175,13 +175,14 @@ typedef struct CPUCRISState {
 
 CRISCPU *cpu_cris_init(const char *cpu_model);
 int cpu_cris_exec(CPUCRISState *s);
-void cpu_cris_close(CPUCRISState *s);
-void do_interrupt(CPUCRISState *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_cris_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+
+void cris_initialize_tcg(void);
+void cris_initialize_crisv10_tcg(void);
 
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
@@ -270,7 +271,7 @@ static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
 #define SFR_RW_MM_TLB_LO   env->pregs[PR_SRS]][5
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -285,12 +286,12 @@ static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
 #define cpu_list cris_cpu_list
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
-static inline bool cpu_has_work(CPUCRISState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
-    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUCRISState *env, TranslationBlock *tb)
 {

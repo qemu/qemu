@@ -27,9 +27,9 @@
 
 #define CPUArchState struct CPUAlphaState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -277,15 +277,7 @@ struct CPUAlphaState {
 #endif
 
     /* This alarm doesn't exist in real hardware; we wish it did.  */
-    struct QEMUTimer *alarm_timer;
     uint64_t alarm_expire;
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    /* temporary fixed-point registers
-     * used to emulate 64 bits target on 32 bits hosts
-     */
-    target_ulong t0, t1;
-#endif
 
     /* Those resources are used only in QEMU core */
     CPU_COMMON
@@ -297,12 +289,12 @@ struct CPUAlphaState {
     int implver;
 };
 
-#define cpu_init cpu_alpha_init
+#define cpu_list alpha_cpu_list
 #define cpu_exec cpu_alpha_exec
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "cpu-qom.h"
 
 enum {
@@ -434,7 +426,20 @@ enum {
     IR_ZERO = 31,
 };
 
-CPUAlphaState * cpu_alpha_init (const char *cpu_model);
+void alpha_translate_init(void);
+
+AlphaCPU *cpu_alpha_init(const char *cpu_model);
+
+static inline CPUAlphaState *cpu_init(const char *cpu_model)
+{
+    AlphaCPU *cpu = cpu_alpha_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
+void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_alpha_exec(CPUAlphaState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -444,7 +449,6 @@ int cpu_alpha_signal_handler(int host_signum, void *pinfo,
 int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
                                 int mmu_idx);
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
-void do_interrupt (CPUAlphaState *env);
 void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
 void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);
@@ -454,7 +458,7 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 #ifndef CONFIG_USER_ONLY
 void swap_shadow_regs(CPUAlphaState *env);
 QEMU_NORETURN void cpu_unassigned_access(CPUAlphaState *env1,
-                                         target_phys_addr_t addr, int is_write,
+                                         hwaddr addr, int is_write,
                                          int is_exec, int unused, int size);
 #endif
 
@@ -510,7 +514,7 @@ static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
 }
 #endif
 
-static inline bool cpu_has_work(CPUAlphaState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
     /* Here we are checking to see if the CPU should wake up from HALT.
        We will have gotten into this state only for WTINT from PALmode.  */
@@ -519,13 +523,13 @@ static inline bool cpu_has_work(CPUAlphaState *env)
        assume that if a CPU really wants to stay asleep, it will mask
        interrupts at the chipset level, which will prevent these bits
        from being set in the first place.  */
-    return env->interrupt_request & (CPU_INTERRUPT_HARD
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
                                      | CPU_INTERRUPT_TIMER
                                      | CPU_INTERRUPT_SMP
                                      | CPU_INTERRUPT_MCHK);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUAlphaState *env, TranslationBlock *tb)
 {

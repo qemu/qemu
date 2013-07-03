@@ -22,22 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <hw/hw.h>
-#include <hw/ppc_mac.h>
-#include <hw/mac_dbdma.h>
-#include "block.h"
-#include "dma.h"
+#include "hw/hw.h"
+#include "hw/ppc/mac.h"
+#include "hw/ppc/mac_dbdma.h"
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
 
 /***********************************************************/
 /* MacIO based PowerPC IDE */
-
-typedef struct MACIOIDEState {
-    MemoryRegion mem;
-    IDEBus bus;
-    BlockDriverAIOCB *aiocb;
-} MACIOIDEState;
 
 #define MACIO_PAGE_SIZE 4096
 
@@ -76,7 +70,8 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 
     s->io_buffer_size = io->len;
 
-    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1, NULL);
+    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1,
+                     &dma_context_memory);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
@@ -89,7 +84,6 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 done:
     bdrv_acct_done(s->bs, &s->acct);
     io->dma_end(opaque);
-    return;
 }
 
 static void pmac_ide_transfer_cb(void *opaque, int ret)
@@ -133,7 +127,8 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     s->io_buffer_index = 0;
     s->io_buffer_size = io->len;
 
-    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1, NULL);
+    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1,
+                     &dma_context_memory);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
@@ -149,7 +144,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         break;
     case IDE_DMA_TRIM:
         m->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
-                               ide_issue_trim, pmac_ide_transfer_cb, s,
+                               ide_issue_trim, pmac_ide_transfer_cb, io,
                                DMA_DIRECTION_TO_DEVICE);
         break;
     }
@@ -199,7 +194,7 @@ static void pmac_ide_flush(DBDMA_io *io)
 
 /* PowerMac IDE memory IO */
 static void pmac_ide_writeb (void *opaque,
-                             target_phys_addr_t addr, uint32_t val)
+                             hwaddr addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -217,7 +212,7 @@ static void pmac_ide_writeb (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
+static uint32_t pmac_ide_readb (void *opaque,hwaddr addr)
 {
     uint8_t retval;
     MACIOIDEState *d = opaque;
@@ -239,7 +234,7 @@ static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
 }
 
 static void pmac_ide_writew (void *opaque,
-                             target_phys_addr_t addr, uint32_t val)
+                             hwaddr addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -250,7 +245,7 @@ static void pmac_ide_writew (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
+static uint32_t pmac_ide_readw (void *opaque,hwaddr addr)
 {
     uint16_t retval;
     MACIOIDEState *d = opaque;
@@ -266,7 +261,7 @@ static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
 }
 
 static void pmac_ide_writel (void *opaque,
-                             target_phys_addr_t addr, uint32_t val)
+                             hwaddr addr, uint32_t val)
 {
     MACIOIDEState *d = opaque;
 
@@ -277,7 +272,7 @@ static void pmac_ide_writel (void *opaque,
     }
 }
 
-static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
+static uint32_t pmac_ide_readl (void *opaque,hwaddr addr)
 {
     uint32_t retval;
     MACIOIDEState *d = opaque;
@@ -320,30 +315,70 @@ static const VMStateDescription vmstate_pmac = {
     }
 };
 
-static void pmac_ide_reset(void *opaque)
+static void macio_ide_reset(DeviceState *dev)
 {
-    MACIOIDEState *d = opaque;
+    MACIOIDEState *d = MACIO_IDE(dev);
 
     ide_bus_reset(&d->bus);
 }
 
-/* hd_table must contain 4 block drivers */
-/* PowerMac uses memory mapped registers, not I/O. Return the memory
-   I/O index to access the ide. */
-MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
-                             void *dbdma, int channel, qemu_irq dma_irq)
+static void macio_ide_realizefn(DeviceState *dev, Error **errp)
 {
-    MACIOIDEState *d;
+    MACIOIDEState *s = MACIO_IDE(dev);
 
-    d = g_malloc0(sizeof(MACIOIDEState));
-    ide_init2_with_non_qdev_drives(&d->bus, hd_table[0], hd_table[1], irq);
-
-    if (dbdma)
-        DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
-
-    memory_region_init_io(&d->mem, &pmac_ide_ops, d, "pmac-ide", 0x1000);
-    vmstate_register(NULL, 0, &vmstate_pmac, d);
-    qemu_register_reset(pmac_ide_reset, d);
-
-    return &d->mem;
+    ide_init2(&s->bus, s->irq);
 }
+
+static void macio_ide_initfn(Object *obj)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(obj);
+    MACIOIDEState *s = MACIO_IDE(obj);
+
+    ide_bus_new(&s->bus, DEVICE(obj), 0, 2);
+    memory_region_init_io(&s->mem, &pmac_ide_ops, s, "pmac-ide", 0x1000);
+    sysbus_init_mmio(d, &s->mem);
+    sysbus_init_irq(d, &s->irq);
+    sysbus_init_irq(d, &s->dma_irq);
+}
+
+static void macio_ide_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = macio_ide_realizefn;
+    dc->reset = macio_ide_reset;
+    dc->vmsd = &vmstate_pmac;
+}
+
+static const TypeInfo macio_ide_type_info = {
+    .name = TYPE_MACIO_IDE,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MACIOIDEState),
+    .instance_init = macio_ide_initfn,
+    .class_init = macio_ide_class_init,
+};
+
+static void macio_ide_register_types(void)
+{
+    type_register_static(&macio_ide_type_info);
+}
+
+/* hd_table must contain 4 block drivers */
+void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        if (hd_table[i]) {
+            ide_create_drive(&s->bus, i, hd_table[i]);
+        }
+    }
+}
+
+void macio_ide_register_dma(MACIOIDEState *s, void *dbdma, int channel)
+{
+    DBDMA_register_channel(dbdma, channel, s->dma_irq,
+                           pmac_ide_transfer, pmac_ide_flush, s);
+}
+
+type_init(macio_ide_register_types)

@@ -11,8 +11,9 @@
  */
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
+#include "qemu/error-report.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-proxy.h"
 
@@ -521,7 +522,7 @@ static int v9fs_request(V9fsProxy *proxy, int type,
         }
         break;
     default:
-        error_report("Invalid type %d\n", type);
+        error_report("Invalid type %d", type);
         retval = -EINVAL;
         break;
     }

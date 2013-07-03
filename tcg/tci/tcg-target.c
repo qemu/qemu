@@ -40,14 +40,6 @@
 /* Bitfield n...m (in 32 bit value). */
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
-/* Used for function call generation. */
-#define TCG_REG_CALL_STACK              TCG_REG_R4
-#define TCG_TARGET_STACK_ALIGN          16
-#define TCG_TARGET_CALL_STACK_OFFSET    0
-
-/* TODO: documentation. */
-static uint8_t *tb_ret_addr;
-
 /* Macros used in tcg_target_op_defs. */
 #define R       "r"
 #define RI      "ri"
@@ -69,7 +61,6 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_exit_tb, { NULL } },
     { INDEX_op_goto_tb, { NULL } },
     { INDEX_op_call, { RI } },
-    { INDEX_op_jmp, { RI } },
     { INDEX_op_br, { NULL } },
 
     { INDEX_op_mov_i32, { R, R } },
@@ -122,6 +113,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if TCG_TARGET_HAS_rot_i32
     { INDEX_op_rotl_i32, { R, RI, RI } },
     { INDEX_op_rotr_i32, { R, RI, RI } },
+#endif
+#if TCG_TARGET_HAS_deposit_i32
+    { INDEX_op_deposit_i32, { R, "0", R } },
 #endif
 
     { INDEX_op_brcond_i32, { R, RI } },
@@ -200,6 +194,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if TCG_TARGET_HAS_rot_i64
     { INDEX_op_rotl_i64, { R, RI, RI } },
     { INDEX_op_rotr_i64, { R, RI, RI } },
+#endif
+#if TCG_TARGET_HAS_deposit_i64
+    { INDEX_op_deposit_i64, { R, "0", R } },
 #endif
     { INDEX_op_brcond_i64, { R, RI } },
 
@@ -300,7 +297,7 @@ static const int tcg_target_reg_alloc_order[] = {
 #endif
 };
 
-#if MAX_OPC_PARAM_IARGS != 4
+#if MAX_OPC_PARAM_IARGS != 5
 # error Fix needed, number of supported input arguments changed!
 #endif
 
@@ -309,16 +306,18 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
-#if TCG_TARGET_REG_BITS == 32
-    /* 32 bit hosts need 2 * MAX_OPC_PARAM_IARGS registers. */
 #if 0 /* used for TCG_REG_CALL_STACK */
     TCG_REG_R4,
 #endif
     TCG_REG_R5,
+#if TCG_TARGET_REG_BITS == 32
+    /* 32 bit hosts need 2 * MAX_OPC_PARAM_IARGS registers. */
     TCG_REG_R6,
     TCG_REG_R7,
 #if TCG_TARGET_NB_REGS >= 16
     TCG_REG_R8,
+    TCG_REG_R9,
+    TCG_REG_R10,
 #else
 # error Too few input registers available
 #endif
@@ -506,7 +505,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
         tcg_out_op_t(s, INDEX_op_ld_i64);
         tcg_out_r(s, ret);
         tcg_out_r(s, arg1);
-        assert(arg2 == (uint32_t)arg2);
+        assert(arg2 == (int32_t)arg2);
         tcg_out32(s, arg2);
 #else
         TODO();
@@ -581,9 +580,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_call:
         tcg_out_ri(s, const_args[0], args[0]);
         break;
-    case INDEX_op_jmp:
-        TODO();
-        break;
     case INDEX_op_setcond_i32:
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
@@ -632,7 +628,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_st_i64:
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
-        assert(args[2] == (uint32_t)args[2]);
+        assert(args[2] == (int32_t)args[2]);
         tcg_out32(s, args[2]);
         break;
     case INDEX_op_add_i32:
@@ -654,6 +650,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
+        break;
+    case INDEX_op_deposit_i32:  /* Optional (TCG_TARGET_HAS_deposit_i32). */
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        assert(args[3] <= UINT8_MAX);
+        tcg_out8(s, args[3]);
+        assert(args[4] <= UINT8_MAX);
+        tcg_out8(s, args[4]);
         break;
 
 #if TCG_TARGET_REG_BITS == 64
@@ -681,6 +686,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out_ri64(s, const_args[2], args[2]);
+        break;
+    case INDEX_op_deposit_i64:  /* Optional (TCG_TARGET_HAS_deposit_i64). */
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        assert(args[3] <= UINT8_MAX);
+        tcg_out8(s, args[3]);
+        assert(args[4] <= UINT8_MAX);
+        tcg_out8(s, args[4]);
         break;
     case INDEX_op_div_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
     case INDEX_op_divu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
@@ -798,9 +812,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_qemu_st8:
     case INDEX_op_qemu_st16:
     case INDEX_op_qemu_st32:
-#ifdef CONFIG_TCG_PASS_AREG0
-        tcg_out_r(s, TCG_AREG0);
-#endif
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
@@ -811,9 +822,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 #endif
         break;
     case INDEX_op_qemu_st64:
-#ifdef CONFIG_TCG_PASS_AREG0
-        tcg_out_r(s, TCG_AREG0);
-#endif
         tcg_out_r(s, *args++);
 #if TCG_TARGET_REG_BITS == 32
         tcg_out_r(s, *args++);
@@ -867,18 +875,12 @@ static int tcg_target_const_match(tcg_target_long val,
     return arg_ct->ct & TCG_CT_CONST;
 }
 
-/* Maximum number of register used for input function arguments. */
-static int tcg_target_get_call_iarg_regs_count(int flags)
-{
-    return ARRAY_SIZE(tcg_target_call_iarg_regs);
-}
-
 static void tcg_target_init(TCGContext *s)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
     const char *envval = getenv("DEBUG_TCG");
     if (envval) {
-        cpu_set_log(strtol(envval, NULL, 0));
+        qemu_set_log(strtol(envval, NULL, 0));
     }
 #endif
 
@@ -894,15 +896,19 @@ static void tcg_target_init(TCGContext *s)
     /* TODO: Which registers should be set here? */
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      BIT(TCG_TARGET_NB_REGS) - 1);
+
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_add_target_add_op_defs(tcg_target_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
+
+    /* We use negative offsets from "sp" so that we can distinguish
+       stores that might pretend to be call arguments.  */
+    tcg_set_frame(s, TCG_REG_CALL_STACK,
+                  -CPU_TEMP_BUF_NLONGS * sizeof(long),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 /* Generate global QEMU prologue and epilogue code. */
-static void tcg_target_qemu_prologue(TCGContext *s)
+static inline void tcg_target_qemu_prologue(TCGContext *s)
 {
-    tb_ret_addr = s->code_ptr;
 }

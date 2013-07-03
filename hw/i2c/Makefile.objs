@@ -1,0 +1,7 @@
+common-obj-y += core.o smbus.o smbus_eeprom.o
+common-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
+common-obj-$(CONFIG_ACPI) += smbus_ich9.o
+common-obj-$(CONFIG_APM) += pm_smbus.o
+common-obj-$(CONFIG_BITBANG_I2C) += bitbang_i2c.o
+common-obj-$(CONFIG_EXYNOS4) += exynos4210_i2c.o
+obj-$(CONFIG_OMAP) += omap_i2c.o

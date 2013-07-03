@@ -9,6 +9,14 @@
 #define CAC_H 1
 #include "vcard.h"
 #include "vreader.h"
+
+#define CAC_GET_PROPERTIES  0x56
+#define CAC_GET_ACR         0x4c
+#define CAC_READ_BUFFER     0x52
+#define CAC_UPDATE_BUFFER   0x58
+#define CAC_SIGN_DECRYPT    0x42
+#define CAC_GET_CERTIFICATE 0x36
+
 /*
  * Initialize the cac card. This is the only public function in this file. All
  * the rest are connected through function pointers.

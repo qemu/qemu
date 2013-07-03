@@ -30,6 +30,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 /* CPUClass::reset() */
@@ -48,26 +49,60 @@ static void xtensa_cpu_reset(CPUState *s)
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
     env->sregs[VECBASE] = env->config->vecbase;
     env->sregs[IBREAKENABLE] = 0;
+    env->sregs[CACHEATTR] = 0x22222222;
+    env->sregs[ATOMCTL] = xtensa_option_enabled(env->config,
+            XTENSA_OPTION_ATOMCTL) ? 0x28 : 0x15;
 
     env->pending_irq_level = 0;
     reset_mmu(env);
 }
 
+static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    XtensaCPU *cpu = XTENSA_CPU(dev);
+    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
+
+    qemu_init_vcpu(&cpu->env);
+
+    xcc->parent_realize(dev, errp);
+}
+
 static void xtensa_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     XtensaCPU *cpu = XTENSA_CPU(obj);
     CPUXtensaState *env = &cpu->env;
+    static bool tcg_inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
+
+    if (tcg_enabled() && !tcg_inited) {
+        tcg_inited = true;
+        xtensa_translate_init();
+        cpu_set_debug_excp_handler(xtensa_breakpoint_handler);
+    }
 }
+
+static const VMStateDescription vmstate_xtensa_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
 
 static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     XtensaCPUClass *xcc = XTENSA_CPU_CLASS(cc);
 
+    xcc->parent_realize = dc->realize;
+    dc->realize = xtensa_cpu_realizefn;
+
     xcc->parent_reset = cc->reset;
     cc->reset = xtensa_cpu_reset;
+
+    cc->do_interrupt = xtensa_cpu_do_interrupt;
+    dc->vmsd = &vmstate_xtensa_cpu;
 }
 
 static const TypeInfo xtensa_cpu_type_info = {

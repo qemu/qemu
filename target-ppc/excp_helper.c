@@ -33,13 +33,16 @@
 /*****************************************************************************/
 /* PowerPC Hypercall emulation */
 
-void (*cpu_ppc_hypercall)(CPUPPCState *);
+void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 /*****************************************************************************/
 /* Exception processing */
 #if defined(CONFIG_USER_ONLY)
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
     env->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 }
@@ -63,8 +66,10 @@ static inline void dump_syscall(CPUPPCState *env)
 /* Note that this function should be greatly optimized
  * when called with a constant excp, from ppc_hw_interrupt
  */
-static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
+static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 {
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1;
     int lpes0, lpes1, lev;
@@ -83,7 +88,11 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
                   " => %08x (%02x)\n", env->nip, excp, env->error_code);
 
     /* new srr1 value excluding must-be-zero bits */
-    msr = env->msr & ~0x783f0000ULL;
+    if (excp_model == POWERPC_EXCP_BOOKE) {
+        msr = env->msr;
+    } else {
+        msr = env->msr & ~0x783f0000ULL;
+    }
 
     /* new interrupt handler msr */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
@@ -126,8 +135,9 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
                 fprintf(stderr, "Machine check while not allowed. "
                         "Entering checkstop state\n");
             }
-            env->halted = 1;
-            env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+            cs = CPU(cpu);
+            cs->halted = 1;
+            cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         }
         if (0) {
             /* XXX: find a suitable condition to enable the hypervisor mode */
@@ -144,6 +154,7 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
             srr1 = SPR_40x_SRR3;
             break;
         case POWERPC_EXCP_BOOKE:
+            /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_MCSRR0;
             srr1 = SPR_BOOKE_MCSRR1;
             asrr0 = SPR_BOOKE_CSRR0;
@@ -171,6 +182,10 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
     case POWERPC_EXCP_EXTERNAL:  /* External input                           */
         if (lpes0 == 1) {
             new_msr |= (target_ulong)MSR_HVB;
+        }
+        if (env->mpic_proxy) {
+            /* IACK the IRQ on delivery */
+            env->spr[SPR_BOOKE_EPR] = ldl_phys(env->mpic_iack);
         }
         goto store_next;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
@@ -238,7 +253,7 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
         dump_syscall(env);
         lev = env->error_code;
         if ((lev == 1) && cpu_ppc_hypercall) {
-            cpu_ppc_hypercall(env);
+            cpu_ppc_hypercall(cpu);
             return;
         }
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0)) {
@@ -274,6 +289,7 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
     case POWERPC_EXCP_DEBUG:     /* Debug interrupt                          */
         switch (excp_model) {
         case POWERPC_EXCP_BOOKE:
+            /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_DSRR0;
             srr1 = SPR_BOOKE_DSRR1;
             asrr0 = SPR_BOOKE_CSRR0;
@@ -641,37 +657,42 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
     }
 }
 
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
-    powerpc_excp(env, env->excp_model, env->exception_index);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    powerpc_excp(cpu, env->excp_model, env->exception_index);
 }
 
 void ppc_hw_interrupt(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int hdice;
-
 #if 0
+    CPUState *cs = CPU(cpu);
+
     qemu_log_mask(CPU_LOG_INT, "%s: %p pending %08x req %08x me %d ee %d\n",
-                __func__, env, env->pending_interrupts,
-                env->interrupt_request, (int)msr_me, (int)msr_ee);
+                  __func__, env, env->pending_interrupts,
+                  cs->interrupt_request, (int)msr_me, (int)msr_ee);
 #endif
     /* External reset */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_RESET)) {
         env->pending_interrupts &= ~(1 << PPC_INTERRUPT_RESET);
-        powerpc_excp(env, env->excp_model, POWERPC_EXCP_RESET);
+        powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_RESET);
         return;
     }
     /* Machine check exception */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_MCK)) {
         env->pending_interrupts &= ~(1 << PPC_INTERRUPT_MCK);
-        powerpc_excp(env, env->excp_model, POWERPC_EXCP_MCHECK);
+        powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_MCHECK);
         return;
     }
 #if 0 /* TODO */
     /* External debug exception */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_DEBUG)) {
         env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DEBUG);
-        powerpc_excp(env, env->excp_model, POWERPC_EXCP_DEBUG);
+        powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DEBUG);
         return;
     }
 #endif
@@ -685,7 +706,7 @@ void ppc_hw_interrupt(CPUPPCState *env)
         /* Hypervisor decrementer exception */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_HDECR);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_HDECR);
             return;
         }
     }
@@ -698,7 +719,7 @@ void ppc_hw_interrupt(CPUPPCState *env)
 #if 0
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_CEXT);
 #endif
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_CRITICAL);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_CRITICAL);
             return;
         }
     }
@@ -706,30 +727,30 @@ void ppc_hw_interrupt(CPUPPCState *env)
         /* Watchdog timer on embedded PowerPC */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_WDT)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_WDT);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_WDT);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_WDT);
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_CDOORBELL)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_CDOORBELL);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_DOORCI);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORCI);
             return;
         }
         /* Fixed interval timer on embedded PowerPC */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_FIT)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_FIT);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_FIT);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_FIT);
             return;
         }
         /* Programmable interval timer on embedded PowerPC */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PIT)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PIT);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_PIT);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_PIT);
             return;
         }
         /* Decrementer exception */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DECR)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DECR);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_DECR);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DECR);
             return;
         }
         /* External interrupt */
@@ -740,23 +761,23 @@ void ppc_hw_interrupt(CPUPPCState *env)
 #if 0
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EXT);
 #endif
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_EXTERNAL);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_DOORI);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORI);
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PERFM)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_PERFM);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_PERFM);
             return;
         }
         /* Thermal interrupt */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_THERM)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_THERM);
-            powerpc_excp(env, env->excp_model, POWERPC_EXCP_THERM);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_THERM);
             return;
         }
     }
@@ -793,9 +814,12 @@ void helper_raise_exception(CPUPPCState *env, uint32_t exception)
 #if !defined(CONFIG_USER_ONLY)
 void helper_store_msr(CPUPPCState *env, target_ulong val)
 {
+    CPUState *cs;
+
     val = hreg_store_msr(env, val, 0);
     if (val != 0) {
-        env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cs = CPU(ppc_env_get_cpu(env));
+        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         helper_raise_exception(env, val);
     }
 }
@@ -803,6 +827,8 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
 static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
                           target_ulong msrm, int keep_msrh)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
 #if defined(TARGET_PPC64)
     if (msr_is_64bit(env, msr)) {
         nip = (uint64_t)nip;
@@ -827,13 +853,18 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
     /* No need to raise an exception here,
      * as rfi is always the last insn of a TB
      */
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
 void helper_rfi(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-           ~((target_ulong)0x783F0000), 1);
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+               ~((target_ulong)0), 0);
+    } else {
+        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+               ~((target_ulong)0x783F0000), 1);
+    }
 }
 
 #if defined(TARGET_PPC64)
@@ -860,20 +891,22 @@ void helper_40x_rfci(CPUPPCState *env)
 
 void helper_rfci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
+           ~((target_ulong)0), 0);
 }
 
 void helper_rfdi(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    /* FIXME: choose CSRR1 or DSRR1 based on cpu type */
+    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], env->spr[SPR_BOOKE_DSRR1],
+           ~((target_ulong)0), 0);
 }
 
 void helper_rfmci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    /* FIXME: choose CSRR1 or MCSRR1 based on cpu type */
+    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1],
+           ~((target_ulong)0), 0);
 }
 #endif
 
@@ -962,7 +995,7 @@ void helper_msgsnd(target_ulong rb)
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
             cenv->pending_interrupts |= 1 << irq;
-            cpu_interrupt(cenv, CPU_INTERRUPT_HARD);
+            cpu_interrupt(CPU(ppc_env_get_cpu(cenv)), CPU_INTERRUPT_HARD);
         }
     }
 }

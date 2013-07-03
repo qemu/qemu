@@ -1,0 +1,19 @@
+common-obj-$(CONFIG_ALPHA_DIS) += alpha.o
+common-obj-$(CONFIG_ARM_DIS) += arm.o
+common-obj-$(CONFIG_CRIS_DIS) += cris.o
+common-obj-$(CONFIG_HPPA_DIS) += hppa.o
+common-obj-$(CONFIG_I386_DIS) += i386.o
+common-obj-$(CONFIG_IA64_DIS) += ia64.o
+common-obj-$(CONFIG_M68K_DIS) += m68k.o
+common-obj-$(CONFIG_MICROBLAZE_DIS) += microblaze.o
+common-obj-$(CONFIG_MIPS_DIS) += mips.o
+common-obj-$(CONFIG_MOXIE_DIS) += moxie.o
+common-obj-$(CONFIG_PPC_DIS) += ppc.o
+common-obj-$(CONFIG_S390_DIS) += s390.o
+common-obj-$(CONFIG_SH4_DIS) += sh4.o
+common-obj-$(CONFIG_SPARC_DIS) += sparc.o
+common-obj-$(CONFIG_LM32_DIS) += lm32.o
+
+# TODO: As long as the TCG interpreter and its generated code depend
+# on the QEMU target, we cannot compile the disassembler here.
+#common-obj-$(CONFIG_TCI_DIS) += tci.o

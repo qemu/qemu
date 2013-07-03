@@ -18,9 +18,8 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-char.h"
-#include "net.h"
-#include "bt-host.h"
+#include "sysemu/bt.h"
+#include "qemu/main-loop.h"
 
 #ifndef _WIN32
 # include <errno.h>
@@ -172,7 +171,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     hci_filter_all_ptypes(&flt);
     hci_filter_all_events(&flt);
 
-    if (setsockopt(fd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0) {
+    if (qemu_setsockopt(fd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0) {
         fprintf(stderr, "qemu: Can't set HCI filter on socket (%i)\n", errno);
         return 0;
     }

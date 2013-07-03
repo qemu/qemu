@@ -13,7 +13,7 @@
 #include <glib.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 /* Note: in some situations, like with the fsfreeze, logging may be
  * temporarilly disabled. if it is necessary that a command be able
@@ -61,7 +61,7 @@ struct GuestAgentInfo *qmp_guest_info(Error **err)
 
     while (*cmd_list) {
         cmd_info = g_malloc0(sizeof(GuestAgentCommandInfo));
-        cmd_info->name = strdup(*cmd_list);
+        cmd_info->name = g_strdup(*cmd_list);
         cmd_info->enabled = qmp_command_is_enabled(cmd_info->name);
 
         cmd_info_list = g_malloc0(sizeof(GuestAgentCommandInfoList));

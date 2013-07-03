@@ -21,26 +21,24 @@
 #include "cpu.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 void tlb_fill(CPUOpenRISCState *env, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
-    TranslationBlock *tb;
-    unsigned long pc;
     int ret;
 
     ret = cpu_openrisc_handle_mmu_fault(env, addr, is_write, mmu_idx);
@@ -48,13 +46,7 @@ void tlb_fill(CPUOpenRISCState *env, target_ulong addr, int is_write,
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault.  */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we
-                   have a virtual CPU fault.  */
-                cpu_restore_state(tb, env, pc);
-            }
+            cpu_restore_state(env, retaddr);
         }
         /* Raise Exception.  */
         cpu_loop_exit(env);

@@ -7,12 +7,11 @@
  * non-internal declarations are in hw/ide.h
  */
 #include <hw/ide.h>
-#include <hw/isa.h>
-#include "iorange.h"
-#include "dma.h"
-#include "sysemu.h"
-#include "hw/block-common.h"
-#include "hw/scsi-defs.h"
+#include <hw/isa/isa.h>
+#include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
+#include "hw/block/block.h"
+#include "block/scsi.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -451,6 +450,7 @@ struct IDEBus {
     IDEDevice *slave;
     IDEState ifs[2];
     int bus_id;
+    int max_units;
     IDEDMA *dma;
     uint8_t unit;
     uint8_t cmd;
@@ -575,7 +575,7 @@ void ide_atapi_cmd(IDEState *s);
 void ide_atapi_cmd_reply_end(IDEState *s);
 
 /* hw/ide/qdev.c */
-void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id);
+void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id, int max_units);
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
 
 #endif /* HW_IDE_INTERNAL_H */
