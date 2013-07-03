@@ -1160,9 +1160,11 @@ static void handle_even_inj(CPUX86State *env, int intno, int is_int,
  * the int instruction. next_eip is the env->eip value AFTER the interrupt
  * instruction. It is only relevant if is_int is TRUE.
  */
-static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
+static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
                              int error_code, target_ulong next_eip, int is_hw)
 {
+    CPUX86State *env = &cpu->env;
+
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
@@ -1252,7 +1254,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* simulate a real cpu exception. On i386, it can
        trigger new exceptions, but we do not handle
        double or triple faults yet. */
-    do_interrupt_all(env, env->exception_index,
+    do_interrupt_all(cpu, env->exception_index,
                      env->exception_is_int,
                      env->error_code,
                      env->exception_next_eip, 0);
@@ -1263,7 +1265,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
 
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw)
 {
-    do_interrupt_all(env, intno, 0, 0, 0, is_hw);
+    do_interrupt_all(x86_env_get_cpu(env), intno, 0, 0, 0, is_hw);
 }
 
 void helper_enter_level(CPUX86State *env, int level, int data32,
