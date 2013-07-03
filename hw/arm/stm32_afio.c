@@ -19,7 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32.h"
+#include "hw/arm/stm32.h"
 
 
 
@@ -123,7 +123,7 @@ static void stm32_afio_AFIO_EXTICR_write(Stm32Afio *s, unsigned index,
 }
 
 
-static uint64_t stm32_afio_readw(Stm32Afio *s, target_phys_addr_t offset)
+static uint64_t stm32_afio_readw(Stm32Afio *s, hwaddr offset)
 {
     switch (offset) {
         case AFIO_EVCR_OFFSET:
@@ -145,7 +145,7 @@ static uint64_t stm32_afio_readw(Stm32Afio *s, target_phys_addr_t offset)
     }
 }
 
-static void stm32_afio_writew(Stm32Afio *s, target_phys_addr_t offset,
+static void stm32_afio_writew(Stm32Afio *s, hwaddr offset,
                           uint64_t value)
 {
     switch (offset) {
@@ -173,7 +173,7 @@ static void stm32_afio_writew(Stm32Afio *s, target_phys_addr_t offset,
     }
 }
 
-static uint64_t stm32_afio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stm32_afio_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     Stm32Afio *s = (Stm32Afio *)opaque;
@@ -189,7 +189,7 @@ static uint64_t stm32_afio_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stm32_afio_write(void *opaque, target_phys_addr_t offset,
+static void stm32_afio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     Stm32Afio *s = (Stm32Afio *)opaque;
@@ -214,7 +214,7 @@ static const MemoryRegionOps stm32_afio_ops = {
 
 static void stm32_afio_reset(DeviceState *dev)
 {
-    Stm32Afio *s = FROM_SYSBUS(Stm32Afio, sysbus_from_qdev(dev));
+    Stm32Afio *s = FROM_SYSBUS(Stm32Afio, SYS_BUS_DEVICE(dev));
 
     stm32_afio_AFIO_MAPR_write(s, 0x00000000, true);
     stm32_afio_AFIO_EXTICR_write(s, 0, 0x00000000, true);

@@ -20,13 +20,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32.h"
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "devices.h"
-#include "console.h"
-#include "sysemu.h"
-#include "boards.h"
+#include "hw/arm/stm32.h"
+#include "hw/sysbus.h"
+#include "hw/arm/arm.h"
+#include "hw/devices.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
+#include "hw/boards.h"
 
 
 typedef struct {
@@ -92,11 +92,9 @@ static void stm32_p103_key_event(void *opaque, int keycode)
 }
 
 
-static void stm32_p103_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void stm32_p103_init(QEMUMachineInitArgs *args)
 {
+    const char* kernel_filename = args->kernel_filename;
     qemu_irq *led_irq;
     Stm32P103 *s;
     Stm32Gpio *stm32_gpio[STM32_GPIO_COUNT];
@@ -130,7 +128,8 @@ static void stm32_p103_init(ram_addr_t ram_size,
 static QEMUMachine stm32_p103_machine = {
     .name = "stm32-p103",
     .desc = "Olimex STM32 p103 Dev Board",
-    .init = stm32_p103_init
+    .init = stm32_p103_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 

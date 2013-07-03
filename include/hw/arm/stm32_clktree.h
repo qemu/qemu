@@ -19,8 +19,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CLKTREE_H
-#define CLKTREE_H
+#ifndef STM32_CLKTREE_H
+#define STM32_CLKTREE_H
 
 #include "qemu-common.h"
 
@@ -79,4 +79,4 @@ void clktree_set_enabled(Clk clk, bool enabled);
  * (i.e. input frequency will be 0). */
 void clktree_set_selected_input(Clk clk, int selected_input);
 
-#endif
+#endif /* STM32_CLKTREE_H */

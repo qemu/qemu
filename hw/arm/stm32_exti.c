@@ -19,7 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32.h"
+#include "hw/arm/stm32.h"
 
 
 
@@ -190,7 +190,7 @@ static void stm32_exti_change_EXTI_PR_bit(Stm32Exti *s, unsigned pos,
 }
 
 
-static uint64_t stm32_exti_readw(void *opaque, target_phys_addr_t offset)
+static uint64_t stm32_exti_readw(void *opaque, hwaddr offset)
 {
     Stm32Exti *s = (Stm32Exti *)opaque;
 
@@ -215,7 +215,7 @@ static uint64_t stm32_exti_readw(void *opaque, target_phys_addr_t offset)
 }
 
 
-static void stm32_exti_writew(void *opaque, target_phys_addr_t offset,
+static void stm32_exti_writew(void *opaque, hwaddr offset,
                           uint64_t value)
 {
     Stm32Exti *s = (Stm32Exti *)opaque;
@@ -276,7 +276,7 @@ static void stm32_exti_writew(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint64_t stm32_exti_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stm32_exti_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     switch(size) {
@@ -288,7 +288,7 @@ static uint64_t stm32_exti_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stm32_exti_write(void *opaque, target_phys_addr_t offset,
+static void stm32_exti_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     switch(size) {
@@ -309,7 +309,7 @@ static const MemoryRegionOps stm32_exti_ops = {
 
 static void stm32_exti_reset(DeviceState *dev)
 {
-    Stm32Exti *s = FROM_SYSBUS(Stm32Exti, sysbus_from_qdev(dev));
+    Stm32Exti *s = FROM_SYSBUS(Stm32Exti, SYS_BUS_DEVICE(dev));
 
     s->EXTI_IMR = 0x00000000;
     s->EXTI_RTSR = 0x00000000;

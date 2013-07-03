@@ -21,8 +21,8 @@
  */
 /* use PL061 for inspiration. */
 
-#include "sysbus.h"
-#include "stm32.h"
+#include "hw/sysbus.h"
+#include "hw/arm/stm32.h"
 
 
 
@@ -228,7 +228,7 @@ static void stm32_gpio_GPIOx_BRR_write(Stm32Gpio *s, uint32_t new_value)
 }
 
 
-static uint64_t stm32_gpio_readw(Stm32Gpio *s, target_phys_addr_t offset)
+static uint64_t stm32_gpio_readw(Stm32Gpio *s, hwaddr offset)
 {
     switch (offset) {
         case GPIOx_CRL_OFFSET: /* GPIOx_CRL */
@@ -256,7 +256,7 @@ static uint64_t stm32_gpio_readw(Stm32Gpio *s, target_phys_addr_t offset)
     }
 }
 
-static void stm32_gpio_writew(Stm32Gpio *s, target_phys_addr_t offset,
+static void stm32_gpio_writew(Stm32Gpio *s, hwaddr offset,
                           uint64_t value)
 {
 
@@ -292,7 +292,7 @@ static void stm32_gpio_writew(Stm32Gpio *s, target_phys_addr_t offset,
 
 
 
-static uint64_t stm32_gpio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     Stm32Gpio *s = (Stm32Gpio *)opaque;
@@ -306,7 +306,7 @@ static uint64_t stm32_gpio_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stm32_gpio_write(void *opaque, target_phys_addr_t offset,
+static void stm32_gpio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     Stm32Gpio *s = (Stm32Gpio *)opaque;
@@ -331,7 +331,7 @@ static const MemoryRegionOps stm32_gpio_ops = {
 
 static void stm32_gpio_reset(DeviceState *dev)
 {
-    Stm32Gpio *s = FROM_SYSBUS(Stm32Gpio, sysbus_from_qdev(dev));
+    Stm32Gpio *s = FROM_SYSBUS(Stm32Gpio, SYS_BUS_DEVICE(dev));
 
     stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRL_INDEX, 0x44444444, true);
     stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRH_INDEX, 0x44444444, true);

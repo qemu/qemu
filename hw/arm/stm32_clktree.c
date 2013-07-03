@@ -19,8 +19,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "clktree.h"
+#include "hw/hw.h"
+#include "hw/arm/stm32_clktree.h"
 
 
 /* DEFINITIONS*/
