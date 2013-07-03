@@ -29,7 +29,7 @@ static int printf_win_error(const char *text)
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         (char *)&message, 0,
         NULL);
-    n = printf("%s. (Error: %d) %s", text, (int)err, message);
+    n = fprintf(stderr, "%s. (Error: %d) %s", text, (int)err, message);
     LocalFree(message);
 
     return n;
@@ -78,7 +78,7 @@ int ga_install_service(const char *path, const char *logfile,
         SERVICE_DESCRIPTION desc = { (char *)QGA_SERVICE_DESCRIPTION };
         ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION, &desc);
 
-        printf("Service was installed successfully.\n");
+        fprintf(stderr, "Service was installed successfully.\n");
     } else {
         printf_win_error("Failed to install service");
     }
@@ -111,7 +111,7 @@ int ga_uninstall_service(void)
     if (DeleteService(service) == FALSE) {
         printf_win_error("Failed to delete service");
     } else {
-        printf("Service was deleted successfully.\n");
+        fprintf(stderr, "Service was deleted successfully.\n");
     }
 
     CloseServiceHandle(service);
