@@ -24,7 +24,7 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_smm_enter(CPUX86State *env)
+void do_smm_enter(X86CPU *cpu)
 {
 }
 
@@ -40,8 +40,9 @@ void helper_rsm(CPUX86State *env)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
-void do_smm_enter(CPUX86State *env)
+void do_smm_enter(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     target_ulong sm_state;
     SegmentCache *dt;
     int i, offset;

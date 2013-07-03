@@ -331,7 +331,7 @@ int cpu_exec(CPUArchState *env)
                             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
                                                           0);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter(env);
+                            do_smm_enter(x86_env_get_cpu(env));
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
