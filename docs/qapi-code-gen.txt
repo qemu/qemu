@@ -103,6 +103,28 @@ And it looks like this on the wire:
    "data" : { "backing-file": "/some/place/my-image",
               "lazy-refcounts": true } }
 
+
+Flat union types avoid the nesting on the wire. They are used whenever a
+specific field of the base type is declared as the discriminator ('type' is
+then no longer generated). The discriminator must always be a string field.
+The above example can then be modified as follows:
+
+ { 'type': 'BlockdevCommonOptions',
+   'data': { 'driver': 'str', 'readonly': 'bool' } }
+ { 'union': 'BlockdevOptions',
+   'base': 'BlockdevCommonOptions',
+   'discriminator': 'driver',
+   'data': { 'raw': 'RawOptions',
+             'qcow2': 'Qcow2Options' } }
+
+Resulting in this JSON object:
+
+ { "driver": "qcow2",
+   "readonly": false,
+   "backing-file": "/some/place/my-image",
+   "lazy-refcounts": true }
+
+
 === Commands ===
 
 Commands are defined by using a list containing three members.  The first

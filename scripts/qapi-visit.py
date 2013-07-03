@@ -17,8 +17,30 @@ import os
 import getopt
 import errno
 
-def generate_visit_struct_fields(field_prefix, members):
+def generate_visit_struct_fields(name, field_prefix, fn_prefix, members):
+    substructs = []
     ret = ''
+    full_name = name if not fn_prefix else "%s_%s" % (name, fn_prefix)
+
+    for argname, argentry, optional, structured in parse_args(members):
+        if structured:
+            if not fn_prefix:
+                nested_fn_prefix = argname
+            else:
+                nested_fn_prefix = "%s_%s" % (fn_prefix, argname)
+
+            nested_field_prefix = "%s%s." % (field_prefix, argname)
+            ret += generate_visit_struct_fields(name, nested_field_prefix,
+                                                nested_fn_prefix, argentry)
+
+    ret += mcgen('''
+
+static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error **errp)
+{
+    Error *err = NULL;
+''',
+        name=name, full_name=full_name)
+    push_indent()
 
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
@@ -31,7 +53,7 @@ if (obj && (*obj)->%(prefix)shas_%(c_name)s) {
             push_indent()
 
         if structured:
-            ret += generate_visit_struct_body(field_prefix + argname, argname, argentry)
+            ret += generate_visit_struct_body(full_name, argname, argentry)
         else:
             ret += mcgen('''
 visit_type_%(type)s(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s", &err);
@@ -47,6 +69,12 @@ visit_type_%(type)s(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s",
 visit_end_optional(m, &err);
 ''')
 
+    pop_indent()
+    ret += mcgen('''
+
+    error_propagate(errp, err);
+}
+''')
     return ret
 
 
@@ -56,8 +84,9 @@ if (!error_is_set(errp)) {
 ''')
     push_indent()
 
+    full_name = name if not field_prefix else "%s_%s" % (field_prefix, name)
+
     if len(field_prefix):
-        field_prefix = field_prefix + "."
         ret += mcgen('''
 Error **errp = &err; /* from outer scope */
 Error *err = NULL;
@@ -74,19 +103,13 @@ visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
     ret += mcgen('''
 if (!err) {
     if (!obj || *obj) {
-''')
-    push_indent()
-    push_indent()
+        visit_type_%(name)s_fields(m, obj, &err);
+        error_propagate(errp, err);
+        err = NULL;
+    }
+''',
+        name=full_name)
 
-    ret += generate_visit_struct_fields(field_prefix, members)
-    pop_indent()
-    ret += mcgen('''
-    error_propagate(errp, err);
-    err = NULL;
-}
-''')
-
-    pop_indent()
     pop_indent()
     ret += mcgen('''
         /* Always call end_struct if start_struct succeeded.  */
@@ -98,7 +121,9 @@ if (!err) {
     return ret
 
 def generate_visit_struct(name, members):
-    ret = mcgen('''
+    ret = generate_visit_struct_fields(name, "", "", members)
+
+    ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
 {
@@ -157,8 +182,16 @@ def generate_visit_union(expr):
     members = expr['data']
 
     base = expr.get('base')
+    discriminator = expr.get('discriminator')
 
     ret = generate_visit_enum('%sKind' % name, members.keys())
+
+    if base:
+        base_fields = find_struct(base)['data']
+        if discriminator:
+            base_fields = base_fields.copy()
+            del base_fields[discriminator]
+        ret += generate_visit_struct_fields(name, "", "", base_fields)
 
     ret += mcgen('''
 
@@ -179,23 +212,34 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     push_indent()
 
     if base:
-        struct = find_struct(base)
-        push_indent()
-        ret += generate_visit_struct_fields("", struct['data'])
-        pop_indent()
+        ret += mcgen('''
+    visit_type_%(name)s_fields(m, obj, &err);
+''',
+            name=name)
 
     pop_indent()
     ret += mcgen('''
-        visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
+        visit_type_%(name)sKind(m, &(*obj)->kind, "%(type)s", &err);
         if (!err) {
             switch ((*obj)->kind) {
 ''',
-                 name=name)
+                 name=name, type="type" if not discriminator else discriminator)
 
     for key in members:
+        if not discriminator:
+            fmt = 'visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);'
+        else:
+            fmt = '''visit_start_implicit_struct(m, (void**) &(*obj)->%(c_name)s, sizeof(%(c_type)s), &err);
+                if (!err) {
+                    visit_type_%(c_type)s_fields(m, &(*obj)->%(c_name)s, &err);
+                    error_propagate(errp, err);
+                    err = NULL;
+                    visit_end_implicit_struct(m, &err);
+                }'''
+
         ret += mcgen('''
             case %(abbrev)s_KIND_%(enum)s:
-                visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);
+                ''' + fmt + '''
                 break;
 ''',
                 abbrev = de_camel_case(name).upper(),

@@ -154,7 +154,9 @@ def generate_union(expr):
 
     name = expr['union']
     typeinfo = expr['data']
+
     base = expr.get('base')
+    discriminator = expr.get('discriminator')
 
     ret = mcgen('''
 struct %(name)s
@@ -177,8 +179,13 @@ struct %(name)s
 ''')
 
     if base:
-        struct = find_struct(base)
-        ret += generate_struct_fields(struct['data'])
+        base_fields = find_struct(base)['data']
+        if discriminator:
+            base_fields = base_fields.copy()
+            del base_fields[discriminator]
+        ret += generate_struct_fields(base_fields)
+    else:
+        assert not discriminator
 
     ret += mcgen('''
 };
