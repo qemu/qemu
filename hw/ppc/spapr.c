@@ -676,27 +676,19 @@ static void spapr_cpu_reset(void *opaque)
 
 static void spapr_create_nvram(sPAPREnvironment *spapr)
 {
-    QemuOpts *machine_opts;
-    DeviceState *dev;
+    DeviceState *dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
+    const char *drivename = qemu_opt_get(qemu_get_machine_opts(), "nvram");
 
-    dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
+    if (drivename) {
+        BlockDriverState *bs;
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        const char *drivename;
-
-        drivename = qemu_opt_get(machine_opts, "nvram");
-        if (drivename) {
-            BlockDriverState *bs;
-
-            bs = bdrv_find(drivename);
-            if (!bs) {
-                fprintf(stderr, "No such block device \"%s\" for nvram\n",
-                        drivename);
-                exit(1);
-            }
-            qdev_prop_set_drive_nofail(dev, "drive", bs);
+        bs = bdrv_find(drivename);
+        if (!bs) {
+            fprintf(stderr, "No such block device \"%s\" for nvram\n",
+                    drivename);
+            exit(1);
         }
+        qdev_prop_set_drive_nofail(dev, "drive", bs);
     }
 
     qdev_init_nofail(dev);

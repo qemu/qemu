@@ -1036,15 +1036,9 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-/*********QEMU USB setting******/
 bool usb_enabled(bool default_usb)
 {
-    QemuOpts *mach_opts;
-    mach_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (mach_opts) {
-        return qemu_opt_get_bool(mach_opts, "usb", default_usb);
-    }
-    return default_usb;
+    return qemu_opt_get_bool(qemu_get_machine_opts(), "usb", default_usb);
 }
 
 #ifndef _WIN32
@@ -4095,14 +4089,10 @@ int main(int argc, char **argv, char **envp)
         qtest_init();
     }
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        kernel_filename = qemu_opt_get(machine_opts, "kernel");
-        initrd_filename = qemu_opt_get(machine_opts, "initrd");
-        kernel_cmdline = qemu_opt_get(machine_opts, "append");
-    } else {
-        kernel_filename = initrd_filename = kernel_cmdline = NULL;
-    }
+    machine_opts = qemu_get_machine_opts();
+    kernel_filename = qemu_opt_get(machine_opts, "kernel");
+    initrd_filename = qemu_opt_get(machine_opts, "initrd");
+    kernel_cmdline = qemu_opt_get(machine_opts, "append");
 
     if (!boot_order) {
         boot_order = machine->boot_order;
@@ -4145,7 +4135,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (!linux_boot && machine_opts && qemu_opt_get(machine_opts, "dtb")) {
+    if (!linux_boot && qemu_opt_get(machine_opts, "dtb")) {
         fprintf(stderr, "-dtb only allowed with -kernel option\n");
         exit(1);
     }

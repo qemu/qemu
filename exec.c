@@ -31,6 +31,7 @@
 #include "hw/qdev.h"
 #include "qemu/osdep.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 #include "hw/xen/xen.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
@@ -1043,12 +1044,10 @@ ram_addr_t last_ram_offset(void)
 static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
 {
     int ret;
-    QemuOpts *machine_opts;
 
     /* Use MADV_DONTDUMP, if user doesn't want the guest memory in the core */
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts &&
-        !qemu_opt_get_bool(machine_opts, "dump-guest-core", true)) {
+    if (!qemu_opt_get_bool(qemu_get_machine_opts(),
+                           "dump-guest-core", true)) {
         ret = qemu_madvise(addr, size, QEMU_MADV_DONTDUMP);
         if (ret) {
             perror("qemu_madvise");
@@ -1095,10 +1094,7 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 
 static int memory_try_enable_merging(void *addr, size_t len)
 {
-    QemuOpts *opts;
-
-    opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (opts && !qemu_opt_get_bool(opts, "mem-merge", true)) {
+    if (!qemu_opt_get_bool(qemu_get_machine_opts(), "mem-merge", true)) {
         /* disabled by the user */
         return 0;
     }

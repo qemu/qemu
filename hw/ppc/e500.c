@@ -137,7 +137,6 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
     int i;
-    const char *toplevel_compat = NULL; /* user override */
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char soc[128];
     char mpic[128];
@@ -158,14 +157,9 @@ static int ppce500_load_device_tree(CPUPPCState *env,
             0x0, 0xe1000000,
             0x0, 0x10000,
         };
-    QemuOpts *machine_opts;
-    const char *dtb_file = NULL;
-
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        dtb_file = qemu_opt_get(machine_opts, "dtb");
-        toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
-    }
+    QemuOpts *machine_opts = qemu_get_machine_opts();
+    const char *dtb_file = qemu_opt_get(machine_opts, "dtb");
+    const char *toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
 
     if (dtb_file) {
         char *filename;

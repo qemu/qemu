@@ -359,7 +359,6 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     uint64_t elf_entry;
     hwaddr entry;
     int big_endian;
-    QemuOpts *machine_opts;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -367,12 +366,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         exit(1);
     }
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        info->dtb_filename = qemu_opt_get(machine_opts, "dtb");
-    } else {
-        info->dtb_filename = NULL;
-    }
+    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
 
     if (!info->secondary_cpu_reset_hook) {
         info->secondary_cpu_reset_hook = default_reset_secondary;
