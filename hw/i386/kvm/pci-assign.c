@@ -226,7 +226,7 @@ static uint32_t slow_bar_readb(void *opaque, hwaddr addr)
     uint32_t r;
 
     r = *in;
-    DEBUG("slow_bar_readl addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
 
     return r;
 }
@@ -238,7 +238,7 @@ static uint32_t slow_bar_readw(void *opaque, hwaddr addr)
     uint32_t r;
 
     r = *in;
-    DEBUG("slow_bar_readl addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
 
     return r;
 }
@@ -250,7 +250,7 @@ static uint32_t slow_bar_readl(void *opaque, hwaddr addr)
     uint32_t r;
 
     r = *in;
-    DEBUG("slow_bar_readl addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, r);
 
     return r;
 }
@@ -260,7 +260,7 @@ static void slow_bar_writeb(void *opaque, hwaddr addr, uint32_t val)
     AssignedDevRegion *d = opaque;
     uint8_t *out = d->u.r_virtbase + addr;
 
-    DEBUG("slow_bar_writeb addr=0x" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%02x\n", addr, val);
     *out = val;
 }
 
@@ -269,7 +269,7 @@ static void slow_bar_writew(void *opaque, hwaddr addr, uint32_t val)
     AssignedDevRegion *d = opaque;
     uint16_t *out = (uint16_t *)(d->u.r_virtbase + addr);
 
-    DEBUG("slow_bar_writew addr=0x" TARGET_FMT_plx " val=0x%04x\n", addr, val);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%04x\n", addr, val);
     *out = val;
 }
 
@@ -278,7 +278,7 @@ static void slow_bar_writel(void *opaque, hwaddr addr, uint32_t val)
     AssignedDevRegion *d = opaque;
     uint32_t *out = (uint32_t *)(d->u.r_virtbase + addr);
 
-    DEBUG("slow_bar_writel addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, val);
+    DEBUG("addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr, val);
     *out = val;
 }
 
