@@ -1143,6 +1143,8 @@
                 "POWER7 v2.1")
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
+    POWERPC_DEF("POWER8_v1.0",   CPU_POWERPC_POWER8_v10,             POWER8,
+                "POWER8 v1.0")
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970,
                 "PowerPC 970")
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970FX,
@@ -1388,6 +1390,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
     { "POWER7", "POWER7_v2.3" },
+    { "POWER8", "POWER8_v1.0" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
     { "Apache", "RS64" },
