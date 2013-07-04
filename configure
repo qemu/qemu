@@ -242,6 +242,7 @@ glusterfs=""
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
+vte=""
 tpm="no"
 libssh2=""
 
@@ -969,6 +970,10 @@ for opt do
   --enable-gtk) gtk="yes"
   ;;
   --with-gtkabi=*) gtkabi="$optarg"
+  ;;
+  --disable-vte) vte="no"
+  ;;
+  --enable-vte) vte="yes"
   ;;
   --enable-tpm) tpm="yes"
   ;;
@@ -1730,19 +1735,33 @@ if test "$gtk" != "no"; then
       vtepackage="vte"
       vteversion="0.24.0"
     fi
-    if $pkg_config --exists "$gtkpackage >= $gtkversion" && \
-       $pkg_config --exists "$vtepackage >= $vteversion"; then
-	gtk_cflags=`$pkg_config --cflags $gtkpackage 2>/dev/null`
-	gtk_libs=`$pkg_config --libs $gtkpackage 2>/dev/null`
-	vte_cflags=`$pkg_config --cflags $vtepackage 2>/dev/null`
-	vte_libs=`$pkg_config --libs $vtepackage 2>/dev/null`
-	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
+    if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
+	gtk_cflags=`$pkg_config --cflags $gtkpackage`
+	gtk_libs=`$pkg_config --libs $gtkpackage`
+        libs_softmmu="$gtk_libs $libs_softmmu"
 	gtk="yes"
     else
 	if test "$gtk" = "yes" ; then
 	    feature_not_found "gtk"
 	fi
 	gtk="no"
+    fi
+fi
+
+##########################################
+# VTE probe
+
+if test "$vte" != "no"; then
+    if $pkg_config --exists 'vte >= $vteversion'; then
+        vte_cflags=`$pkg_config --cflags vte`
+        vte_libs=`$pkg_config --libs vte`
+        libs_softmmu="$vte_libs $libs_softmmu"
+        vte="yes"
+    else
+        if test "$vte" = "yes"; then
+            feature_not_found "vte"
+        fi
+        vte="no"
     fi
 fi
 
@@ -3537,6 +3556,7 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
@@ -3847,6 +3867,9 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$vte" = "yes" ; then
+  echo "CONFIG_VTE=y" >> $config_host_mak
   echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
 fi
 if test "$xen" = "yes" ; then

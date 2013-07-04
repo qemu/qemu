@@ -50,11 +50,9 @@
 #include <gdk/gdkkeysyms.h>
 #include <glib/gi18n.h>
 #include <locale.h>
+#if defined(CONFIG_VTE)
 #include <vte/vte.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/wait.h>
+#endif
 #include <math.h>
 
 #include "ui/console.h"
@@ -66,10 +64,21 @@
 
 //#define DEBUG_GTK
 
+#define DPRINTF(fmt, ...) debug_printf(fmt, ## __VA_ARGS__)
+
+static inline GCC_FMT_ATTR(1, 2) void debug_printf(const char *fmt, ...)
+{
 #ifdef DEBUG_GTK
-#define DPRINTF(fmt, ...) printf(fmt, ## __VA_ARGS__)
+    va_list arg;
+    va_start(arg, fmt);
+    vprintf(fmt, arg);
+    va_end(arg);
 #else
-#define DPRINTF(fmt, ...) do { } while (0)
+#endif
+}
+
+#if !defined(CONFIG_VTE)
+# define VTE_CHECK_VERSION(a, b, c) 0
 #endif
 
 #define MAX_VCS 10
@@ -1075,6 +1084,7 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->vga_item), TRUE);
     } else {
         VirtualConsole *vc = &s->vc[arg2 - 1];
+#if defined(CONFIG_VTE)
         VteTerminal *term = VTE_TERMINAL(vc->terminal);
         int width, height;
 
@@ -1083,6 +1093,10 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
 
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
         gtk_widget_set_size_request(vc->terminal, width, height);
+#else
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+        gtk_widget_set_size_request(vc->terminal, 640, 480);
+#endif
     }
 
     gtk_widget_set_sensitive(s->grab_item, on_vga);
@@ -1179,9 +1193,11 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     VtePty *pty;
 #endif
     GIOChannel *chan;
+#if defined(CONFIG_VTE)
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
     int master_fd, slave_fd;
+#endif
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1199,8 +1215,13 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
     gtk_accel_map_add_entry(path, GDK_KEY_2 + index, GDK_CONTROL_MASK | GDK_MOD1_MASK);
 
+#if defined(CONFIG_VTE)
     vc->terminal = vte_terminal_new();
+#else
+    //~ vc->terminal = vte_terminal_new();
+#endif
 
+#if defined(CONFIG_VTE)
     master_fd = qemu_openpty_raw(&slave_fd, NULL);
     g_assert(master_fd != -1);
 
@@ -1221,13 +1242,16 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
     vc->fd = slave_fd;
+#endif
     vc->chr->opaque = vc;
+#if defined(CONFIG_VTE)
     vc->scrolled_window = scrolled_window;
 
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vc->scrolled_window),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
+#endif
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
