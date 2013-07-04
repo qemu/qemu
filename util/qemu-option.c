@@ -706,16 +706,12 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     QemuOpts *opts;
 
     QTAILQ_FOREACH(opts, &list->head, next) {
-        if (!opts->id) {
-            if (!id) {
-                return opts;
-            }
-            continue;
+        if (!opts->id && !id) {
+            return opts;
         }
-        if (strcmp(opts->id, id) != 0) {
-            continue;
+        if (opts->id && id && !strcmp(opts->id, id)) {
+            return opts;
         }
-        return opts;
     }
     return NULL;
 }
