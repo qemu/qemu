@@ -3100,6 +3100,17 @@ property must be set.  These objects are placed in the
 '/objects' path.
 ETEXI
 
+DEF("msg", HAS_ARG, QEMU_OPTION_msg,
+    "-msg timestamp[=on|off]\n"
+    "                change the format of messages\n"
+    "                on|off controls leading timestamps (default:on)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -msg timestamp[=on|off]
+@findex -msg
+prepend a timestamp to each log message.(default:on)
+ETEXI
+
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
 @end table
