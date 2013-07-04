@@ -1288,12 +1288,9 @@ int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 
 static int kvm_irqchip_create(KVMState *s)
 {
-    QemuOptsList *list = qemu_find_opts("machine");
     int ret;
 
-    if (QTAILQ_EMPTY(&list->head) ||
-        !qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
-                           "kernel_irqchip", true) ||
+    if (!qemu_opt_get_bool(qemu_get_machine_opts(), "kernel_irqchip", true) ||
         !kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
         return 0;
     }

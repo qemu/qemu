@@ -528,7 +528,6 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
 static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
                                    qemu_irq **irqs)
 {
-    QemuOptsList *list;
     qemu_irq *mpic;
     DeviceState *dev = NULL;
     SysBusDevice *s;
@@ -537,15 +536,11 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     mpic = g_new(qemu_irq, 256);
 
     if (kvm_enabled()) {
-        bool irqchip_allowed = true, irqchip_required = false;
-
-        list = qemu_find_opts("machine");
-        if (!QTAILQ_EMPTY(&list->head)) {
-            irqchip_allowed = qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
+        QemuOpts *machine_opts = qemu_get_machine_opts();
+        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
                                                 "kernel_irqchip", true);
-            irqchip_required = qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
-                                                 "kernel_irqchip", false);
-        }
+        bool irqchip_required = qemu_opt_get_bool(machine_opts,
+                                                  "kernel_irqchip", false);
 
         if (irqchip_allowed) {
             dev = ppce500_init_mpic_kvm(params, irqs);

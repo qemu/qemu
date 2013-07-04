@@ -741,7 +741,6 @@ static int kvm_get_supported_msrs(KVMState *s)
 
 int kvm_arch_init(KVMState *s)
 {
-    QemuOptsList *list = qemu_find_opts("machine");
     uint64_t identity_base = 0xfffbc000;
     uint64_t shadow_mem;
     int ret;
@@ -790,15 +789,13 @@ int kvm_arch_init(KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
-    if (!QTAILQ_EMPTY(&list->head)) {
-        shadow_mem = qemu_opt_get_size(QTAILQ_FIRST(&list->head),
-                                       "kvm_shadow_mem", -1);
-        if (shadow_mem != -1) {
-            shadow_mem /= 4096;
-            ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
-            if (ret < 0) {
-                return ret;
-            }
+    shadow_mem = qemu_opt_get_size(qemu_get_machine_opts(),
+                                   "kvm_shadow_mem", -1);
+    if (shadow_mem != -1) {
+        shadow_mem /= 4096;
+        ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
+        if (ret < 0) {
+            return ret;
         }
     }
     return 0;
