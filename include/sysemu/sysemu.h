@@ -185,6 +185,8 @@ char *get_boot_devices_list(size_t *size);
 
 DeviceState *get_boot_device(uint32_t position);
 
+QemuOpts *qemu_get_machine_opts(void);
+
 bool usb_enabled(bool default_usb);
 
 extern QemuOptsList qemu_drive_opts;

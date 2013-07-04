@@ -516,6 +516,25 @@ static QemuOptsList qemu_realtime_opts = {
     },
 };
 
+/**
+ * Get machine options
+ *
+ * Returns: machine options (never null).
+ */
+QemuOpts *qemu_get_machine_opts(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts("machine");
+    assert(list);
+    opts = qemu_opts_find(list, NULL);
+    if (!opts) {
+        opts = qemu_opts_create_nofail(list);
+    }
+    return opts;
+}
+
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;
