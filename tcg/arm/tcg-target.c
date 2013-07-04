@@ -43,13 +43,13 @@
     defined(__ARM_ARCH_5T__) || \
     defined(__ARM_ARCH_5TE__) || \
     defined(__ARM_ARCH_5TEJ__)
-#define USE_ARMV5_INSTRUCTIONS
+#define USE_ARMV5T_INSTRUCTIONS
 #endif
 
-#ifdef USE_ARMV5_INSTRUCTIONS
-static const int use_armv5_instructions = 1;
+#ifdef USE_ARMV5T_INSTRUCTIONS
+static const int use_armv5t_instructions = 1;
 #else
-static const int use_armv5_instructions = 0;
+static const int use_armv5t_instructions = 0;
 #endif
 #undef USE_ARMV5_INSTRUCTIONS
 
@@ -1030,7 +1030,7 @@ static inline void tcg_out_call(TCGContext *s, uint32_t addr)
     if (val - 8 < 0x02000000 && val - 8 >= -0x02000000) {
         if (addr & 1) {
             /* Use BLX if the target is in Thumb mode */
-            if (!use_armv5_instructions) {
+            if (!use_armv5t_instructions) {
                 tcg_abort();
             }
             tcg_out_blx_imm(s, val);
@@ -1049,7 +1049,7 @@ static inline void tcg_out_call(TCGContext *s, uint32_t addr)
 
 static inline void tcg_out_callr(TCGContext *s, int cond, int arg)
 {
-    if (use_armv5_instructions) {
+    if (use_armv5t_instructions) {
         tcg_out_blx(s, cond, arg);
     } else {
         tcg_out_dat_reg(s, cond, ARITH_MOV, TCG_REG_R14, 0,
