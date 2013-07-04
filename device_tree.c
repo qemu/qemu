@@ -240,11 +240,8 @@ uint32_t qemu_devtree_alloc_phandle(void *fdt)
      * which phandle id to start allocting phandles.
      */
     if (!phandle) {
-        const char *phandle_start = qemu_opt_get(qemu_get_machine_opts(),
-                                                 "phandle_start");
-        if (phandle_start) {
-            phandle = strtoul(phandle_start, NULL, 0);
-        }
+        phandle = qemu_opt_get_number(qemu_get_machine_opts(),
+                                      "phandle_start", 0);
     }
 
     if (!phandle) {
