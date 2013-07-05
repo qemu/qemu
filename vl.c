@@ -100,10 +100,10 @@
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
-int qemu_main(int argc, char **argv, char **envp);
+int qemu_main(int argc, char **argv);
 int main(int argc, char **argv)
 {
-    return qemu_main(argc, argv, NULL);
+    return qemu_main(argc, argv);
 }
 #undef main
 #define main qemu_main
@@ -2908,7 +2908,7 @@ static int object_create(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-int main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
     int i;
     int snapshot, linux_boot;
@@ -2982,7 +2982,7 @@ int main(int argc, char **argv, char **envp)
     init_clocks();
     rtc_clock = host_clock;
 
-    qemu_cache_utils_init(envp);
+    qemu_cache_utils_init();
 
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();

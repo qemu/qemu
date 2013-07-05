@@ -7,6 +7,7 @@ struct qemu_cache_conf qemu_cache_conf = {
 };
 
 #if defined _AIX
+
 #include <sys/systemcfg.h>
 
 static void ppc_init_cacheline_sizes(void)
@@ -21,8 +22,9 @@ static void ppc_init_cacheline_sizes(void)
 #define QEMU_AT_DCACHEBSIZE 19
 #define QEMU_AT_ICACHEBSIZE 20
 
-static void ppc_init_cacheline_sizes(char **envp)
+static void ppc_init_cacheline_sizes(void)
 {
+    char **envp = __environ;
     unsigned long *auxv;
 
     while (*envp++);
@@ -37,6 +39,7 @@ static void ppc_init_cacheline_sizes(char **envp)
 }
 
 #elif defined __APPLE__
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -55,9 +58,9 @@ static void ppc_init_cacheline_sizes(void)
         qemu_cache_conf.icache_bsize = cacheline;
     }
 }
-#endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,19 +82,12 @@ static void ppc_init_cacheline_sizes(void)
     qemu_cache_conf.dcache_bsize = cacheline;
     qemu_cache_conf.icache_bsize = cacheline;
 }
+
 #endif
 
-#ifdef __linux__
-void qemu_cache_utils_init(char **envp)
+void qemu_cache_utils_init(void)
 {
-    ppc_init_cacheline_sizes(envp);
-}
-#else
-void qemu_cache_utils_init(char **envp)
-{
-    (void) envp;
     ppc_init_cacheline_sizes();
 }
-#endif
 
 #endif /* _ARCH_PPC */
