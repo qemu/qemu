@@ -35,8 +35,8 @@ void vm_state_notify(int running, RunState state);
 #define VMRESET_REPORT   true
 
 void vm_start(void);
-void vm_stop(RunState state);
-void vm_stop_force_state(RunState state);
+int vm_stop(RunState state);
+int vm_stop_force_state(RunState state);
 
 typedef enum WakeupReason {
     QEMU_WAKEUP_REASON_OTHER = 0,
