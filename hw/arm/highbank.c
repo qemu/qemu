@@ -185,6 +185,7 @@ static struct arm_boot_info highbank_binfo;
 
 enum cxmachines {
     CALXEDA_HIGHBANK,
+    CALXEDA_MIDWAY,
 };
 
 /* ram_size must be set to match the upper bound of memory in the
@@ -215,6 +216,9 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
         switch (machine) {
         case CALXEDA_HIGHBANK:
             cpu_model = "cortex-a9";
+            break;
+        case CALXEDA_MIDWAY:
+            cpu_model = "cortex-a15";
             break;
         }
     }
@@ -256,7 +260,15 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
 
     switch (machine) {
     case CALXEDA_HIGHBANK:
+        dev = qdev_create(NULL, "l2x0");
+        qdev_init_nofail(dev);
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, 0xfff12000);
+
         dev = qdev_create(NULL, "a9mpcore_priv");
+        break;
+    case CALXEDA_MIDWAY:
+        dev = qdev_create(NULL, "a15mpcore_priv");
         break;
     }
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
@@ -271,11 +283,6 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
     for (n = 0; n < 128; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
-
-    dev = qdev_create(NULL, "l2x0");
-    qdev_init_nofail(dev);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0xfff12000);
 
     dev = qdev_create(NULL, "sp804");
     qdev_prop_set_uint32(dev, "freq0", 150000000);
@@ -341,6 +348,11 @@ static void highbank_init(QEMUMachineInitArgs *args)
     calxeda_init(args, CALXEDA_HIGHBANK);
 }
 
+static void midway_init(QEMUMachineInitArgs *args)
+{
+    calxeda_init(args, CALXEDA_MIDWAY);
+}
+
 static QEMUMachine highbank_machine = {
     .name = "highbank",
     .desc = "Calxeda Highbank (ECX-1000)",
@@ -350,9 +362,19 @@ static QEMUMachine highbank_machine = {
     DEFAULT_MACHINE_OPTIONS,
 };
 
+static QEMUMachine midway_machine = {
+    .name = "midway",
+    .desc = "Calxeda Midway (ECX-2000)",
+    .init = midway_init,
+    .block_default_type = IF_SCSI,
+    .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
+};
+
 static void calxeda_machines_init(void)
 {
     qemu_register_machine(&highbank_machine);
+    qemu_register_machine(&midway_machine);
 }
 
 machine_init(calxeda_machines_init);
