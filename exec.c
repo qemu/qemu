@@ -53,7 +53,6 @@
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
-int phys_ram_fd;
 static int in_migration;
 
 RAMList ram_list = { .blocks = QTAILQ_HEAD_INITIALIZER(ram_list.blocks) };
