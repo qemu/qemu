@@ -1242,6 +1242,8 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
     vc->fd = slave_fd;
+#else
+    vc->fd = -1;
 #endif
     vc->chr->opaque = vc;
 #if defined(CONFIG_VTE)
