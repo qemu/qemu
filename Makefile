@@ -491,6 +491,9 @@ $(INSTALLER): $(SRC_PATH)/qemu.nsi
 		-DOUTFILE="$(INSTALLER)" \
 		$(SRC_PATH)/qemu.nsi
 	rm -r ${INSTDIR}
+ifdef SIGNCODE
+	$(SIGNCODE) $(INSTALLER)
+endif
 
 endif # CONFIG_WIN
 endif # CONFIG_INSTALLER
