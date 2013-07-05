@@ -12,9 +12,8 @@ SRC_PATH=..
 vpath %.po $(SRC_PATH)/po
 
 all:
-	@echo Use 'make update' to update translation files
-	@echo or us 'make build' or 'make install' to build and install
-	@echo the translation files
+	@echo "Use 'make update' to update translation files or use 'make build'"
+	@echo "or 'make install' to build and install the translation files."
 
 update: $(SRCS)
 
