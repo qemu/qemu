@@ -1,15 +1,18 @@
 # This makefile is very special as it's meant to build as part of the build
 # process and also within the source tree to update the translation files.
 
-VERSION=$(shell cat ../VERSION)
-SRCS=$(filter-out messages.po,$(wildcard *.po))
-OBJS=$(patsubst %.po,%.mo,$(SRCS))
-
+# Set SRC_PATH for in-tree builds without configuration.
 SRC_PATH=..
 
 -include ../config-host.mak
 
-vpath %.po $(SRC_PATH)/po
+PO_PATH=$(SRC_PATH)/po
+
+VERSION=$(shell cat $(SRC_PATH)/VERSION)
+SRCS=$(filter-out $(PO_PATH)/messages.po,$(wildcard $(PO_PATH)/*.po))
+OBJS=$(patsubst $(PO_PATH)/%.po,%.mo,$(SRCS))
+
+vpath %.po $(PO_PATH)
 
 all:
 	@echo "Use 'make update' to update translation files or use 'make build'"
@@ -30,12 +33,12 @@ install: $(OBJS)
 	done
 
 %.mo: %.po
-	@msgfmt -o $@ $(SRC_PATH)/po/`basename $@ .mo`.po
+	@msgfmt -o $@ $<
 
-messages.po: $(SRC_PATH)/ui/gtk.c
+$(PO_PATH)/messages.po: $(SRC_PATH)/ui/gtk.c
 	@xgettext -o $@ --foreign-user --package-name=QEMU --package-version=$(VERSION) --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C $<
 
-%.po: messages.po
+$(PO_PATH)/%.po: $(PO_PATH)/messages.po
 	@msgmerge $@ $< > $@.bak && mv $@.bak $@
 
 .PHONY: clean all
