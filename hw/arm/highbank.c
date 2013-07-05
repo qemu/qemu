@@ -183,20 +183,24 @@ type_init(highbank_regs_register_types)
 
 static struct arm_boot_info highbank_binfo;
 
+enum cxmachines {
+    CALXEDA_HIGHBANK,
+};
+
 /* ram_size must be set to match the upper bound of memory in the
  * device tree (linux/arch/arm/boot/dts/highbank.dts), which is
  * normally 0xff900000 or -m 4089. When running this board on a
  * 32-bit host, set the reg value of memory to 0xf7ff00000 in the
  * device tree and pass -m 2047 to QEMU.
  */
-static void highbank_init(QEMUMachineInitArgs *args)
+static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
 {
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    DeviceState *dev;
+    DeviceState *dev = NULL;
     SysBusDevice *busdev;
     qemu_irq *irqp;
     qemu_irq pic[128];
@@ -208,7 +212,11 @@ static void highbank_init(QEMUMachineInitArgs *args)
     char *sysboot_filename;
 
     if (!cpu_model) {
-        cpu_model = "cortex-a9";
+        switch (machine) {
+        case CALXEDA_HIGHBANK:
+            cpu_model = "cortex-a9";
+            break;
+        }
     }
 
     for (n = 0; n < smp_cpus; n++) {
@@ -246,7 +254,11 @@ static void highbank_init(QEMUMachineInitArgs *args)
         }
     }
 
-    dev = qdev_create(NULL, "a9mpcore_priv");
+    switch (machine) {
+    case CALXEDA_HIGHBANK:
+        dev = qdev_create(NULL, "a9mpcore_priv");
+        break;
+    }
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", NIRQ_GIC);
     qdev_init_nofail(dev);
@@ -324,6 +336,11 @@ static void highbank_init(QEMUMachineInitArgs *args)
     arm_load_kernel(ARM_CPU(first_cpu), &highbank_binfo);
 }
 
+static void highbank_init(QEMUMachineInitArgs *args)
+{
+    calxeda_init(args, CALXEDA_HIGHBANK);
+}
+
 static QEMUMachine highbank_machine = {
     .name = "highbank",
     .desc = "Calxeda Highbank (ECX-1000)",
@@ -333,9 +350,9 @@ static QEMUMachine highbank_machine = {
     DEFAULT_MACHINE_OPTIONS,
 };
 
-static void highbank_machine_init(void)
+static void calxeda_machines_init(void)
 {
     qemu_register_machine(&highbank_machine);
 }
 
-machine_init(highbank_machine_init);
+machine_init(calxeda_machines_init);
