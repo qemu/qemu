@@ -36,7 +36,11 @@ install: $(OBJS)
 	@msgfmt -o $@ $<
 
 $(PO_PATH)/messages.po: $(SRC_PATH)/ui/gtk.c
-	@xgettext -o $@ --foreign-user --package-name=QEMU --package-version=$(VERSION) --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C $<
+	@cd $(SRC_PATH) && \
+	 (xgettext -o - --from-code=UTF-8 --foreign-user \
+	    --package-name=QEMU --package-version=$(VERSION) \
+	    --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C ui/gtk.c | \
+	  sed -e s/CHARSET/UTF-8/) >$@
 
 $(PO_PATH)/%.po: $(PO_PATH)/messages.po
 	@msgmerge $@ $< > $@.bak && mv $@.bak $@
