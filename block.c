@@ -2910,13 +2910,19 @@ int bdrv_get_flags(BlockDriverState *bs)
     return bs->open_flags;
 }
 
-void bdrv_flush_all(void)
+int bdrv_flush_all(void)
 {
     BlockDriverState *bs;
+    int result = 0;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        bdrv_flush(bs);
+        int ret = bdrv_flush(bs);
+        if (ret < 0 && !result) {
+            result = ret;
+        }
     }
+
+    return result;
 }
 
 int bdrv_has_zero_init_1(BlockDriverState *bs)

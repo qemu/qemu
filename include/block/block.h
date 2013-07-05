@@ -267,7 +267,7 @@ void bdrv_clear_incoming_migration_all(void);
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
-void bdrv_flush_all(void);
+int bdrv_flush_all(void);
 void bdrv_close_all(void);
 void bdrv_drain_all(void);
 
