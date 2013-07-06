@@ -30,6 +30,18 @@
 typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
 
 /**
+ * vaddr:
+ * Type wide enough to contain any #target_ulong virtual address.
+ */
+typedef uint64_t vaddr;
+#define VADDR_PRId PRId64
+#define VADDR_PRIu PRIu64
+#define VADDR_PRIo PRIo64
+#define VADDR_PRIx PRIx64
+#define VADDR_PRIX PRIX64
+#define VADDR_MAX UINT64_MAX
+
+/**
  * SECTION:cpu
  * @section_id: QEMU-cpu
  * @title: CPU Class
