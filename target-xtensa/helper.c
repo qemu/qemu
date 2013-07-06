@@ -35,10 +35,27 @@
 
 static struct XtensaConfigList *xtensa_cores;
 
+static void xtensa_core_class_init(ObjectClass *oc, void *data)
+{
+    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
+    const XtensaConfig *config = data;
+
+    xcc->config = config;
+}
+
 void xtensa_register_core(XtensaConfigList *node)
 {
+    TypeInfo type = {
+        .parent = TYPE_XTENSA_CPU,
+        .class_init = xtensa_core_class_init,
+        .class_data = (void *)node->config,
+    };
+
     node->next = xtensa_cores;
     xtensa_cores = node;
+    type.name = g_strdup_printf("%s-" TYPE_XTENSA_CPU, node->config->name);
+    type_register(&type);
+    g_free((gpointer)type.name);
 }
 
 static uint32_t check_hw_breakpoints(CPUXtensaState *env)
@@ -72,24 +89,17 @@ void xtensa_breakpoint_handler(CPUXtensaState *env)
 
 XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 {
+    ObjectClass *oc;
     XtensaCPU *cpu;
     CPUXtensaState *env;
-    const XtensaConfig *config = NULL;
-    XtensaConfigList *core = xtensa_cores;
 
-    for (; core; core = core->next)
-        if (strcmp(core->config->name, cpu_model) == 0) {
-            config = core->config;
-            break;
-        }
-
-    if (config == NULL) {
+    oc = cpu_class_by_name(TYPE_XTENSA_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
 
-    cpu = XTENSA_CPU(object_new(TYPE_XTENSA_CPU));
+    cpu = XTENSA_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-    env->config = config;
 
     xtensa_irq_init(env);
 

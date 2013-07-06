@@ -45,6 +45,7 @@
  * XtensaCPUClass:
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
+ * @config: The CPU core configuration.
  *
  * An Xtensa CPU model.
  */
@@ -55,6 +56,8 @@ typedef struct XtensaCPUClass {
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+
+    const XtensaConfig *config;
 } XtensaCPUClass;
 
 /**
