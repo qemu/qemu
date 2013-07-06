@@ -1,7 +1,7 @@
 # shared objects
 obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr.o xics.o spapr_vio.o spapr_events.o
+obj-$(CONFIG_PSERIES) += spapr.o spapr_vio.o spapr_events.o
 obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_iommu.o spapr_rtas.o
 obj-$(CONFIG_PSERIES) += spapr_pci.o
 # PowerPC 4xx boards
