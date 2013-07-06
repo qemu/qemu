@@ -2459,8 +2459,11 @@ typedef union target_epoll_data {
 
 struct target_epoll_event {
     uint32_t events;
+#ifdef TARGET_ARM
+    uint32_t __pad;
+#endif
     target_epoll_data_t data;
-};
+} QEMU_PACKED;
 #endif
 struct target_rlimit64 {
     uint64_t rlim_cur;
