@@ -104,11 +104,11 @@ static void macio_escc_legacy_setup(MacIOState *macio_state)
         0xF0, 0xE0,
     };
 
-    memory_region_init(escc_legacy, "escc-legacy", 256);
+    memory_region_init(escc_legacy, NULL, "escc-legacy", 256);
     for (i = 0; i < ARRAY_SIZE(maps); i += 2) {
         MemoryRegion *port = g_new(MemoryRegion, 1);
-        memory_region_init_alias(port, "escc-legacy-port", macio_state->escc_mem,
-                                 maps[i+1], 0x2);
+        memory_region_init_alias(port, NULL, "escc-legacy-port",
+                                 macio_state->escc_mem, maps[i+1], 0x2);
         memory_region_add_subregion(escc_legacy, maps[i], port);
     }
 
@@ -269,7 +269,7 @@ static void macio_instance_init(Object *obj)
     MacIOState *s = MACIO(obj);
     MemoryRegion *dbdma_mem;
 
-    memory_region_init(&s->bar, "macio", 0x80000);
+    memory_region_init(&s->bar, NULL, "macio", 0x80000);
 
     object_initialize(&s->cuda, TYPE_CUDA);
     qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());

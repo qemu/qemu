@@ -233,6 +233,7 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
                 abort();
             }
         }
+        memory_region_unref(kd->mr);
         g_free(kd);
     }
 }
@@ -258,6 +259,7 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
     kd->kda.id = devid;
     kd->kda.addr = -1;
     QSLIST_INSERT_HEAD(&kvm_devices_head, kd, entries);
+    memory_region_ref(kd->mr);
 }
 
 bool write_kvmstate_to_list(ARMCPU *cpu)

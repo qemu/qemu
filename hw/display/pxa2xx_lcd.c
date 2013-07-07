@@ -1009,7 +1009,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
 
     pxa2xx_lcdc_orientation(s, graphic_rotate);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_lcdc_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_lcdc_ops, s,
                           "pxa2xx-lcd-controller", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 

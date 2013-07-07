@@ -383,14 +383,15 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
+    MemoryRegion *io_as = pci_address_space_io(&s->dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_conf[0x5f] = (isa_is_ioport_assigned(0x378) ? 0x80 : 0) | 0x10;
+    pci_conf[0x5f] = 0x10 |
+        (memory_region_present(io_as, 0x378) ? 0x80 : 0);
     pci_conf[0x63] = 0x60;
-    pci_conf[0x67] = (isa_is_ioport_assigned(0x3f8) ? 0x08 : 0) |
-	(isa_is_ioport_assigned(0x2f8) ? 0x90 : 0);
-
+    pci_conf[0x67] = (memory_region_present(io_as, 0x3f8) ? 0x08 : 0) |
+        (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
 }
 
 static int piix4_pm_initfn(PCIDevice *dev)
@@ -423,7 +424,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(pci_address_space_io(dev),
                                 s->smb_io_base, &s->smb.io);
 
-    memory_region_init(&s->io, "piix4-pm", 64);
+    memory_region_init(&s->io, OBJECT(s), "piix4-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(pci_address_space_io(dev),
                                 0, &s->io);
@@ -670,19 +671,19 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s)
 {
-    memory_region_init_io(&s->io_gpe, &piix4_gpe_ops, s, "apci-gpe0",
-                          GPE_LEN);
+    memory_region_init_io(&s->io_gpe, OBJECT(s), &piix4_gpe_ops, s,
+                          "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
-    memory_region_init_io(&s->io_pci, &piix4_pci_ops, s, "apci-pci-hotplug",
-                          PCI_HOTPLUG_SIZE);
+    memory_region_init_io(&s->io_pci, OBJECT(s), &piix4_pci_ops, s,
+                          "acpi-pci-hotplug", PCI_HOTPLUG_SIZE);
     memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
                                 &s->io_pci);
     pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
 
     qemu_for_each_cpu(piix4_init_cpu_status, &s->gpe_cpu);
-    memory_region_init_io(&s->io_cpu, &cpu_hotplug_ops, s, "apci-cpu-hotplug",
-                          PIIX4_PROC_LEN);
+    memory_region_init_io(&s->io_cpu, OBJECT(s), &cpu_hotplug_ops, s,
+                          "acpi-cpu-hotplug", PIIX4_PROC_LEN);
     memory_region_add_subregion(parent, PIIX4_PROC_BASE, &s->io_cpu);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;
     qemu_register_cpu_added_notifier(&s->cpu_added_notifier);

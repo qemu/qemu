@@ -663,7 +663,8 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->cs_lines[i]);
     }
 
-    memory_region_init_io(&s->iomem, xsc->reg_ops, s, "spi", R_MAX*4);
+    memory_region_init_io(&s->iomem, OBJECT(s), xsc->reg_ops, s,
+                          "spi", R_MAX*4);
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->irqline = -1;
@@ -685,7 +686,7 @@ static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
     s->num_txrx_bytes = 4;
 
     xilinx_spips_realize(dev, errp);
-    memory_region_init_io(&s->mmlqspi, &lqspi_ops, s, "lqspi",
+    memory_region_init_io(&s->mmlqspi, OBJECT(s), &lqspi_ops, s, "lqspi",
                           (1 << LQSPI_ADDRESS_BITS) * 2);
     sysbus_init_mmio(sbd, &s->mmlqspi);
 

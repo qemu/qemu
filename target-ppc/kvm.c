@@ -1560,7 +1560,7 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
     };
 
     rma_region = g_new(MemoryRegion, 1);
-    memory_region_init_ram_ptr(rma_region, name, size, rma);
+    memory_region_init_ram_ptr(rma_region, NULL, name, size, rma);
     vmstate_register_ram_global(rma_region);
     memory_region_add_subregion(sysmem, 0, rma_region);
 

@@ -119,7 +119,8 @@ static void a9_scu_realize(DeviceState *dev, Error ** errp)
     A9SCUState *s = A9_SCU(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&s->iomem, &a9_scu_ops, s, "a9-scu", 0x100);
+    memory_region_init_io(&s->iomem, OBJECT(dev), &a9_scu_ops, s,
+                          "a9-scu", 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

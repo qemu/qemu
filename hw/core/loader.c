@@ -727,6 +727,7 @@ int rom_load_all(void)
         addr += rom->romsize;
         section = memory_region_find(get_system_memory(), rom->addr, 1);
         rom->isrom = int128_nz(section.size) && memory_region_is_rom(section.mr);
+        memory_region_unref(section.mr);
     }
     qemu_register_reset(rom_reset, NULL);
     roms_loaded = 1;

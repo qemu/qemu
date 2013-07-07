@@ -181,5 +181,6 @@ static const MemoryRegionOps pm_smbus_ops = {
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb)
 {
     smb->smbus = i2c_init_bus(parent, "i2c");
-    memory_region_init_io(&smb->io, &pm_smbus_ops, smb, "pm-smbus", 64);
+    memory_region_init_io(&smb->io, OBJECT(parent), &pm_smbus_ops, smb,
+                          "pm-smbus", 64);
 }

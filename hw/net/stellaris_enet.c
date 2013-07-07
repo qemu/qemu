@@ -405,8 +405,8 @@ static int stellaris_enet_init(SysBusDevice *dev)
 {
     stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
 
-    memory_region_init_io(&s->mmio, &stellaris_enet_ops, s, "stellaris_enet",
-                          0x1000);
+    memory_region_init_io(&s->mmio, OBJECT(s), &stellaris_enet_ops, s,
+                          "stellaris_enet", 0x1000);
     sysbus_init_mmio(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

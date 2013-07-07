@@ -352,7 +352,7 @@ static void pc87312_initfn(Object *obj)
 {
     PC87312State *s = PC87312(obj);
 
-    memory_region_init_io(&s->io, &pc87312_io_ops, s, "pc87312", 2);
+    memory_region_init_io(&s->io, obj, &pc87312_io_ops, s, "pc87312", 2);
 }
 
 static const VMStateDescription vmstate_pc87312 = {

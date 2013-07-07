@@ -544,7 +544,8 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
         msix->msix_entry[i].pirq = XEN_PT_UNASSIGNED_PIRQ;
     }
 
-    memory_region_init_io(&msix->mmio, &pci_msix_ops, s, "xen-pci-pt-msix",
+    memory_region_init_io(&msix->mmio, OBJECT(s), &pci_msix_ops,
+                          s, "xen-pci-pt-msix",
                           (total_entries * PCI_MSIX_ENTRY_SIZE
                            + XC_PAGE_SIZE - 1)
                           & XC_PAGE_MASK);

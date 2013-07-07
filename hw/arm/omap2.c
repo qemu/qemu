@@ -603,7 +603,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     AUD_register_card("OMAP EAC", &s->codec.card);
 
-    memory_region_init_io(&s->iomem, &omap_eac_ops, s, "omap.eac",
+    memory_region_init_io(&s->iomem, NULL, &omap_eac_ops, s, "omap.eac",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
@@ -791,11 +791,11 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     s->chr = chr ?: qemu_chr_new("null", "null", NULL);
 
-    memory_region_init_io(&s->iomem, &omap_sti_ops, s, "omap.sti",
+    memory_region_init_io(&s->iomem, NULL, &omap_sti_ops, s, "omap.sti",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
-    memory_region_init_io(&s->iomem_fifo, &omap_sti_fifo_ops, s,
+    memory_region_init_io(&s->iomem_fifo, NULL, &omap_sti_fifo_ops, s,
                           "omap.sti.fifo", 0x10000);
     memory_region_add_subregion(sysmem, channel_base, &s->iomem_fifo);
 
@@ -1809,9 +1809,9 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    memory_region_init_io(&s->iomem0, &omap_prcm_ops, s, "omap.pcrm0",
+    memory_region_init_io(&s->iomem0, NULL, &omap_prcm_ops, s, "omap.pcrm0",
                           omap_l4_region_size(ta, 0));
-    memory_region_init_io(&s->iomem1, &omap_prcm_ops, s, "omap.pcrm1",
+    memory_region_init_io(&s->iomem1, NULL, &omap_prcm_ops, s, "omap.pcrm1",
                           omap_l4_region_size(ta, 1));
     omap_l4_attach(ta, 0, &s->iomem0);
     omap_l4_attach(ta, 1, &s->iomem1);
@@ -2185,7 +2185,7 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    memory_region_init_io(&s->iomem, &omap_sysctl_ops, s, "omap.sysctl",
+    memory_region_init_io(&s->iomem, NULL, &omap_sysctl_ops, s, "omap.sysctl",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 
@@ -2267,10 +2267,10 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->sdram, "omap2.dram", s->sdram_size);
+    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
-    memory_region_init_ram(&s->sram, "omap2.sram", s->sram_size);
+    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size);
     vmstate_register_ram_global(&s->sram);
     memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 

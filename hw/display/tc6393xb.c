@@ -578,10 +578,10 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     nand = drive_get(IF_MTD, 0, 0);
     s->flash = nand_init(nand ? nand->bdrv : NULL, NAND_MFR_TOSHIBA, 0x76);
 
-    memory_region_init_io(&s->iomem, &tc6393xb_ops, s, "tc6393xb", 0x10000);
+    memory_region_init_io(&s->iomem, NULL, &tc6393xb_ops, s, "tc6393xb", 0x10000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    memory_region_init_ram(&s->vram, "tc6393xb.vram", 0x100000);
+    memory_region_init_ram(&s->vram, NULL, "tc6393xb.vram", 0x100000);
     vmstate_register_ram_global(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     memory_region_add_subregion(sysmem, base + 0x100000, &s->vram);

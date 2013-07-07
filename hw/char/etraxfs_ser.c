@@ -211,7 +211,8 @@ static int etraxfs_ser_init(SysBusDevice *dev)
     struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
 
     sysbus_init_irq(dev, &s->irq);
-    memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s), &ser_ops, s,
+                          "etraxfs-serial", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qemu_char_get_next_serial();

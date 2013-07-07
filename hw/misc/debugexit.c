@@ -40,7 +40,7 @@ static void debug_exit_realizefn(DeviceState *d, Error **errp)
     ISADevice *dev = ISA_DEVICE(d);
     ISADebugExitState *isa = ISA_DEBUG_EXIT_DEVICE(d);
 
-    memory_region_init_io(&isa->io, &debug_exit_ops, isa,
+    memory_region_init_io(&isa->io, OBJECT(dev), &debug_exit_ops, isa,
                           TYPE_ISA_DEBUG_EXIT_DEVICE, isa->iosize);
     memory_region_add_subregion(isa_address_space_io(dev),
                                 isa->iobase, &isa->io);

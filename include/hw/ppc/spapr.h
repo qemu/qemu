@@ -348,7 +348,8 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 void spapr_iommu_init(void);
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
-sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size);
+sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
+                                   size_t window_size);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 void spapr_tce_free(sPAPRTCETable *tcet);
 void spapr_tce_reset(sPAPRTCETable *tcet);

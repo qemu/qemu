@@ -112,7 +112,7 @@ static int puv3_gpio_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[PUV3_IRQS_GPIOLOW7]);
     sysbus_init_irq(dev, &s->irq[PUV3_IRQS_GPIOHIGH]);
 
-    memory_region_init_io(&s->iomem, &puv3_gpio_ops, s, "puv3_gpio",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_gpio_ops, s, "puv3_gpio",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 

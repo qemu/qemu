@@ -124,9 +124,9 @@ static void mmio_ide_realizefn(DeviceState *dev, Error **errp)
 
     ide_init2(&s->bus, s->irq);
 
-    memory_region_init_io(&s->iomem1, &mmio_ide_ops, s,
+    memory_region_init_io(&s->iomem1, OBJECT(s), &mmio_ide_ops, s,
                           "ide-mmio.1", 16 << s->shift);
-    memory_region_init_io(&s->iomem2, &mmio_ide_cs_ops, s,
+    memory_region_init_io(&s->iomem2, OBJECT(s), &mmio_ide_cs_ops, s,
                           "ide-mmio.2", 2 << s->shift);
     sysbus_init_mmio(d, &s->iomem1);
     sysbus_init_mmio(d, &s->iomem2);

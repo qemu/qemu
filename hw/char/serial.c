@@ -703,7 +703,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     vmstate_register(NULL, base, &vmstate_serial, s);
 
-    memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
+    memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
     memory_region_add_subregion(system_io, base, &s->io);
 
     return s;
@@ -766,7 +766,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     }
     vmstate_register(NULL, base, &vmstate_serial, s);
 
-    memory_region_init_io(&s->io, &serial_mm_ops[end], s,
+    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
                           "serial", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->io);
 

@@ -129,7 +129,7 @@ static void kvm_ioapic_set_irq(void *opaque, int irq, int level)
 
 static void kvm_ioapic_init(IOAPICCommonState *s, int instance_no)
 {
-    memory_region_init_reservation(&s->io_memory, "kvm-ioapic", 0x1000);
+    memory_region_init_reservation(&s->io_memory, NULL, "kvm-ioapic", 0x1000);
 
     qdev_init_gpio_in(&s->busdev.qdev, kvm_ioapic_set_irq, IOAPIC_NUM_PINS);
 }

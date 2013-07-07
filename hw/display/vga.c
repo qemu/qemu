@@ -198,7 +198,8 @@ static void vga_update_memory_access(VGACommonState *s)
         }
         base += isa_mem_base;
         region = g_malloc(sizeof(*region));
-        memory_region_init_alias(region, "vga.chain4", &s->vram, offset, size);
+        memory_region_init_alias(region, memory_region_owner(&s->vram),
+                                 "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
                                             region, 2);
         s->chain4_alias = region;
@@ -2256,7 +2257,7 @@ static const GraphicHwOps vga_ops = {
     .text_update = vga_update_text,
 };
 
-void vga_common_init(VGACommonState *s)
+void vga_common_init(VGACommonState *s, Object *obj)
 {
     int i, j, v, b;
 
@@ -2292,7 +2293,7 @@ void vga_common_init(VGACommonState *s)
     s->vram_size_mb = s->vram_size >> 20;
 
     s->is_vbe_vmstate = 1;
-    memory_region_init_ram(&s->vram, "vga.vram", s->vram_size);
+    memory_region_init_ram(&s->vram, obj, "vga.vram", s->vram_size);
     vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
@@ -2333,7 +2334,7 @@ static const MemoryRegionPortio vbe_portio_list[] = {
 };
 
 /* Used by both ISA and PCI */
-MemoryRegion *vga_init_io(VGACommonState *s,
+MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vga_ports,
                           const MemoryRegionPortio **vbe_ports)
 {
@@ -2343,14 +2344,14 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     *vbe_ports = vbe_portio_list;
 
     vga_mem = g_malloc(sizeof(*vga_mem));
-    memory_region_init_io(vga_mem, &vga_mem_ops, s,
+    memory_region_init_io(vga_mem, obj, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
     memory_region_set_flush_coalesced(vga_mem);
 
     return vga_mem;
 }
 
-void vga_init(VGACommonState *s, MemoryRegion *address_space,
+void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
               MemoryRegion *address_space_io, bool init_vga_ports)
 {
     MemoryRegion *vga_io_memory;
@@ -2364,28 +2365,28 @@ void vga_init(VGACommonState *s, MemoryRegion *address_space,
 
     s->legacy_address_space = address_space;
 
-    vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
+    vga_io_memory = vga_init_io(s, obj, &vga_ports, &vbe_ports);
     memory_region_add_subregion_overlap(address_space,
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
-        portio_list_init(vga_port_list, vga_ports, s, "vga");
+        portio_list_init(vga_port_list, obj, vga_ports, s, "vga");
         portio_list_add(vga_port_list, address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(vbe_port_list, vbe_ports, s, "vbe");
+        portio_list_init(vbe_port_list, obj, vbe_ports, s, "vbe");
         portio_list_add(vbe_port_list, address_space_io, 0x1ce);
     }
 }
 
-void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
+void vga_init_vbe(VGACommonState *s, Object *obj, MemoryRegion *system_memory)
 {
     /* With pc-0.12 and below we map both the PCI BAR and the fixed VBE region,
      * so use an alias to avoid double-mapping the same region.
      */
-    memory_region_init_alias(&s->vram_vbe, "vram.vbe",
+    memory_region_init_alias(&s->vram_vbe, obj, "vram.vbe",
                              &s->vram, 0, memory_region_size(&s->vram));
     /* XXX: use optimized standard vga accesses */
     memory_region_add_subregion(system_memory,

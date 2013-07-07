@@ -442,7 +442,7 @@ static int cadence_uart_init(SysBusDevice *dev)
 {
     UartState *s = FROM_SYSBUS(UartState, dev);
 
-    memory_region_init_io(&s->iomem, &uart_ops, s, "uart", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &uart_ops, s, "uart", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 

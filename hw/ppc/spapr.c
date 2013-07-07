@@ -835,7 +835,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         ram_addr_t nonrma_base = rma_alloc_size;
         ram_addr_t nonrma_size = spapr->ram_limit - rma_alloc_size;
 
-        memory_region_init_ram(ram, "ppc_spapr.ram", nonrma_size);
+        memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
         vmstate_register_ram_global(ram);
         memory_region_add_subregion(sysmem, nonrma_base, ram);
     }

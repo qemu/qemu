@@ -307,7 +307,7 @@ static int stellaris_gptm_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
 
-    memory_region_init_io(&s->iomem, &gptm_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &gptm_ops, s,
                           "gptm", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -669,7 +669,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
     s->user0 = macaddr[0] | (macaddr[1] << 8) | (macaddr[2] << 16);
     s->user1 = macaddr[3] | (macaddr[4] << 8) | (macaddr[5] << 16);
 
-    memory_region_init_io(&s->iomem, &ssys_ops, s, "ssys", 0x00001000);
+    memory_region_init_io(&s->iomem, NULL, &ssys_ops, s, "ssys", 0x00001000);
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
     ssys_reset(s);
     vmstate_register(NULL, -1, &vmstate_stellaris_sys, s);
@@ -862,7 +862,7 @@ static int stellaris_i2c_init(SysBusDevice * dev)
     bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bus = bus;
 
-    memory_region_init_io(&s->iomem, &stellaris_i2c_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_i2c_ops, s,
                           "i2c", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     /* ??? For now we only implement the master interface.  */
@@ -1145,7 +1145,7 @@ static int stellaris_adc_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->irq[n]);
     }
 
-    memory_region_init_io(&s->iomem, &stellaris_adc_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_adc_ops, s,
                           "adc", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     stellaris_adc_reset(s);

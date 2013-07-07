@@ -323,7 +323,8 @@ static int etraxfs_timer_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &t->irq);
     sysbus_init_irq(dev, &t->nmi);
 
-    memory_region_init_io(&t->mmio, &timer_ops, t, "etraxfs-timer", 0x5c);
+    memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t,
+                          "etraxfs-timer", 0x5c);
     sysbus_init_mmio(dev, &t->mmio);
     qemu_register_reset(etraxfs_timer_reset, t);
     return 0;

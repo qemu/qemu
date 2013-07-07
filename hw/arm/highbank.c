@@ -149,8 +149,8 @@ static int highbank_regs_init(SysBusDevice *dev)
     HighbankRegsState *s = FROM_SYSBUS(HighbankRegsState, dev);
 
     s->iomem = g_new(MemoryRegion, 1);
-    memory_region_init_io(s->iomem, &hb_mem_ops, s->regs, "highbank_regs",
-                          0x1000);
+    memory_region_init_io(s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
+                          "highbank_regs", 0x1000);
     sysbus_init_mmio(dev, s->iomem);
 
     return 0;
@@ -227,12 +227,12 @@ static void highbank_init(QEMUMachineInitArgs *args)
 
     sysmem = get_system_memory();
     dram = g_new(MemoryRegion, 1);
-    memory_region_init_ram(dram, "highbank.dram", ram_size);
+    memory_region_init_ram(dram, NULL, "highbank.dram", ram_size);
     /* SDRAM at address zero.  */
     memory_region_add_subregion(sysmem, 0, dram);
 
     sysram = g_new(MemoryRegion, 1);
-    memory_region_init_ram(sysram, "highbank.sysram", 0x8000);
+    memory_region_init_ram(sysram, NULL, "highbank.sysram", 0x8000);
     memory_region_add_subregion(sysmem, 0xfff88000, sysram);
     if (bios_name != NULL) {
         sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

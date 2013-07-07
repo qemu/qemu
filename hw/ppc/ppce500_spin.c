@@ -191,8 +191,8 @@ static int ppce500_spin_initfn(SysBusDevice *dev)
 
     s = FROM_SYSBUS(SpinState, SYS_BUS_DEVICE(dev));
 
-    memory_region_init_io(&s->iomem, &spin_rw_ops, s, "e500 spin pv device",
-                          sizeof(SpinInfo) * MAX_CPUS);
+    memory_region_init_io(&s->iomem, OBJECT(s), &spin_rw_ops, s,
+                          "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
     sysbus_init_mmio(dev, &s->iomem);
 
     qemu_register_reset(spin_reset, s);

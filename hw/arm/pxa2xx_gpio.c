@@ -283,7 +283,7 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
     qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);
 
-    memory_region_init_io(&s->iomem, &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq0);
     sysbus_init_irq(dev, &s->irq1);

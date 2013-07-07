@@ -196,7 +196,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
         exit(1);
     }
 
-    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
     vmstate_register_ram_global(ram);
     low_ram_size = ram_size;
     if (low_ram_size > 0x4000000) {
@@ -206,7 +206,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
      * address space should in theory be remappable to various
      * things including ROM or RAM; we always map the RAM there.
      */
-    memory_region_init_alias(lowram, "vexpress.lowmem", ram, 0, low_ram_size);
+    memory_region_init_alias(lowram, NULL, "vexpress.lowmem", ram, 0, low_ram_size);
     memory_region_add_subregion(sysmem, 0x0, lowram);
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
@@ -323,7 +323,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
         }
     }
 
-    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
     vmstate_register_ram_global(ram);
     /* RAM is from 0x80000000 upwards; there is no low-memory alias for it. */
     memory_region_add_subregion(sysmem, 0x80000000, ram);
@@ -357,7 +357,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     /* 0x2b060000: SP805 watchdog: not modelled */
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
-    memory_region_init_ram(sram, "vexpress.a15sram", 0x10000);
+    memory_region_init_ram(sram, NULL, "vexpress.a15sram", 0x10000);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0x2e000000, sram);
 
@@ -491,12 +491,12 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     }
 
     sram_size = 0x2000000;
-    memory_region_init_ram(sram, "vexpress.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
 
     vram_size = 0x800000;
-    memory_region_init_ram(vram, "vexpress.vram", vram_size);
+    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size);
     vmstate_register_ram_global(vram);
     memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
 

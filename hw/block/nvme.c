@@ -777,7 +777,8 @@ static int nvme_init(PCIDevice *pci_dev)
     n->sq = g_malloc0(sizeof(*n->sq)*n->num_queues);
     n->cq = g_malloc0(sizeof(*n->cq)*n->num_queues);
 
-    memory_region_init_io(&n->iomem, &nvme_mmio_ops, n, "nvme", n->reg_size);
+    memory_region_init_io(&n->iomem, OBJECT(n), &nvme_mmio_ops, n,
+                          "nvme", n->reg_size);
     pci_register_bar(&n->parent_obj, 0,
         PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64,
         &n->iomem);

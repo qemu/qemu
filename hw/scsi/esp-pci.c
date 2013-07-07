@@ -349,7 +349,8 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     s->dma_memory_write = esp_pci_dma_memory_write;
     s->dma_opaque = pci;
     s->chip_id = TCHI_AM53C974;
-    memory_region_init_io(&pci->io, &esp_pci_io_ops, pci, "esp-io", 0x80);
+    memory_region_init_io(&pci->io, OBJECT(pci), &esp_pci_io_ops, pci,
+                          "esp-io", 0x80);
 
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
     s->irq = pci->dev.irq[0];

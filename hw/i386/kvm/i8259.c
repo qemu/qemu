@@ -119,8 +119,8 @@ static void kvm_pic_realize(DeviceState *dev, Error **errp)
     PICCommonState *s = PIC_COMMON(dev);
     KVMPICClass *kpc = KVM_PIC_GET_CLASS(dev);
 
-    memory_region_init_reservation(&s->base_io, "kvm-pic", 2);
-    memory_region_init_reservation(&s->elcr_io, "kvm-elcr", 1);
+    memory_region_init_reservation(&s->base_io, NULL, "kvm-pic", 2);
+    memory_region_init_reservation(&s->elcr_io, NULL, "kvm-elcr", 1);
 
     kpc->parent_realize(dev, errp);
 }

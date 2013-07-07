@@ -147,7 +147,7 @@ static void pci_bridge_init_alias(PCIBridge *bridge, MemoryRegion *alias,
      * Apparently no way to do this with existing memory APIs. */
     pcibus_t size = enabled && limit >= base ? limit + 1 - base : 0;
 
-    memory_region_init_alias(alias, name, space, base, size);
+    memory_region_init_alias(alias, OBJECT(bridge), name, space, base, size);
     memory_region_add_subregion_overlap(parent_space, base, alias, 1);
 }
 
@@ -156,13 +156,13 @@ static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
 {
     uint16_t brctl = pci_get_word(br->dev.config + PCI_BRIDGE_CONTROL);
 
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO], OBJECT(br),
                              "pci_bridge_vga_io_lo", &br->address_space_io,
                              QEMU_PCI_VGA_IO_LO_BASE, QEMU_PCI_VGA_IO_LO_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI], OBJECT(br),
                              "pci_bridge_vga_io_hi", &br->address_space_io,
                              QEMU_PCI_VGA_IO_HI_BASE, QEMU_PCI_VGA_IO_HI_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM],
+    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM], OBJECT(br),
                              "pci_bridge_vga_mem", &br->address_space_mem,
                              QEMU_PCI_VGA_MEM_BASE, QEMU_PCI_VGA_MEM_SIZE);
 
@@ -367,9 +367,9 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;
     sec_bus->address_space_mem = &br->address_space_mem;
-    memory_region_init(&br->address_space_mem, "pci_bridge_pci", INT64_MAX);
+    memory_region_init(&br->address_space_mem, OBJECT(br), "pci_bridge_pci", INT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
-    memory_region_init(&br->address_space_io, "pci_bridge_io", 65536);
+    memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io", 65536);
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);

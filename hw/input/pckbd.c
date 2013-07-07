@@ -424,7 +424,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
-    memory_region_init_io(region, &i8042_mmio_ops, s, "i8042", size);
+    memory_region_init_io(region, NULL, &i8042_mmio_ops, s, "i8042", size);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
@@ -494,8 +494,10 @@ static void i8042_initfn(Object *obj)
     ISAKBDState *isa_s = I8042(obj);
     KBDState *s = &isa_s->kbd;
 
-    memory_region_init_io(isa_s->io + 0, &i8042_data_ops, s, "i8042-data", 1);
-    memory_region_init_io(isa_s->io + 1, &i8042_cmd_ops, s, "i8042-cmd", 1);
+    memory_region_init_io(isa_s->io + 0, obj, &i8042_data_ops, s,
+                          "i8042-data", 1);
+    memory_region_init_io(isa_s->io + 1, obj, &i8042_cmd_ops, s,
+                          "i8042-cmd", 1);
 }
 
 static void i8042_realizefn(DeviceState *dev, Error **errp)

@@ -863,7 +863,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     s->suspend_notifier.notify = rtc_notify_suspend;
     qemu_register_suspend_notifier(&s->suspend_notifier);
 
-    memory_region_init_io(&s->io, &cmos_ops, s, "rtc", 2);
+    memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 2);
     isa_register_ioport(isadev, &s->io, base);
 
     qdev_set_legacy_instance_id(dev, base, 3);

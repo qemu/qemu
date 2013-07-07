@@ -169,7 +169,7 @@ static int scoop_init(SysBusDevice *dev)
     s->status = 0x02;
     qdev_init_gpio_out(&s->busdev.qdev, s->handler, 16);
     qdev_init_gpio_in(&s->busdev.qdev, scoop_gpio_set, 16);
-    memory_region_init_io(&s->iomem, &scoop_ops, s, "scoop", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &scoop_ops, s, "scoop", 0x1000);
 
     sysbus_init_mmio(dev, &s->iomem);
 

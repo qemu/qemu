@@ -3342,14 +3342,14 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 
     xhci->irq = xhci->pci_dev.irq[0];
 
-    memory_region_init(&xhci->mem, "xhci", LEN_REGS);
-    memory_region_init_io(&xhci->mem_cap, &xhci_cap_ops, xhci,
+    memory_region_init(&xhci->mem, OBJECT(xhci), "xhci", LEN_REGS);
+    memory_region_init_io(&xhci->mem_cap, OBJECT(xhci), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
-    memory_region_init_io(&xhci->mem_oper, &xhci_oper_ops, xhci,
+    memory_region_init_io(&xhci->mem_oper, OBJECT(xhci), &xhci_oper_ops, xhci,
                           "operational", 0x400);
-    memory_region_init_io(&xhci->mem_runtime, &xhci_runtime_ops, xhci,
+    memory_region_init_io(&xhci->mem_runtime, OBJECT(xhci), &xhci_runtime_ops, xhci,
                           "runtime", LEN_RUNTIME);
-    memory_region_init_io(&xhci->mem_doorbell, &xhci_doorbell_ops, xhci,
+    memory_region_init_io(&xhci->mem_doorbell, OBJECT(xhci), &xhci_doorbell_ops, xhci,
                           "doorbell", LEN_DOORBELL);
 
     memory_region_add_subregion(&xhci->mem, 0,            &xhci->mem_cap);
@@ -3361,7 +3361,7 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
         XHCIPort *port = &xhci->ports[i];
         uint32_t offset = OFF_OPER + 0x400 + 0x10 * i;
         port->xhci = xhci;
-        memory_region_init_io(&port->mem, &xhci_port_ops, port,
+        memory_region_init_io(&port->mem, OBJECT(xhci), &xhci_port_ops, port,
                               port->name, 0x10);
         memory_region_add_subregion(&xhci->mem, offset, &port->mem);
     }

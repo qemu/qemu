@@ -152,14 +152,14 @@ static void mips_jazz_init(MemoryRegion *address_space,
     qemu_register_reset(main_cpu_reset, cpu);
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "mips_jazz.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "mips_jazz.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, 0, ram);
 
-    memory_region_init_ram(bios, "mips_jazz.bios", MAGNUM_BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
-    memory_region_init_alias(bios2, "mips_jazz.bios", bios,
+    memory_region_init_alias(bios2, NULL, "mips_jazz.bios", bios,
                              0, MAGNUM_BIOS_SIZE);
     memory_region_add_subregion(address_space, 0x1fc00000LL, bios);
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
@@ -188,7 +188,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     /* Chipset */
     rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas,
                                 address_space);
-    memory_region_init_io(dma_dummy, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
+    memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
     /* ISA devices */
@@ -216,7 +216,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
         {
             /* Simple ROM, so user doesn't have to provide one */
             MemoryRegion *rom_mr = g_new(MemoryRegion, 1);
-            memory_region_init_ram(rom_mr, "g364fb.rom", 0x80000);
+            memory_region_init_ram(rom_mr, NULL, "g364fb.rom", 0x80000);
             vmstate_register_ram_global(rom_mr);
             memory_region_set_readonly(rom_mr, true);
             uint8_t *rom = memory_region_get_ram_ptr(rom_mr);
@@ -266,7 +266,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Real time clock */
     rtc_init(isa_bus, 1980, NULL);
-    memory_region_init_io(rtc, &rtc_ops, NULL, "rtc", 0x1000);
+    memory_region_init_io(rtc, NULL, &rtc_ops, NULL, "rtc", 0x1000);
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */

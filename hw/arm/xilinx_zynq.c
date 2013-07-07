@@ -132,12 +132,12 @@ static void zynq_init(QEMUMachineInitArgs *args)
     }
 
     /* DDR remapped to address zero.  */
-    memory_region_init_ram(ext_ram, "zynq.ext_ram", ram_size);
+    memory_region_init_ram(ext_ram, NULL, "zynq.ext_ram", ram_size);
     vmstate_register_ram_global(ext_ram);
     memory_region_add_subregion(address_space_mem, 0, ext_ram);
 
     /* 256K of on-chip memory */
-    memory_region_init_ram(ocm_ram, "zynq.ocm_ram", 256 << 10);
+    memory_region_init_ram(ocm_ram, NULL, "zynq.ocm_ram", 256 << 10);
     vmstate_register_ram_global(ocm_ram);
     memory_region_add_subregion(address_space_mem, 0xFFFC0000, ocm_ram);
 

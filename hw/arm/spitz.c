@@ -169,7 +169,7 @@ static int sl_nand_init(SysBusDevice *dev) {
     nand = drive_get(IF_MTD, 0, 0);
     s->nand = nand_init(nand ? nand->bdrv : NULL, s->manf_id, s->chip_id);
 
-    memory_region_init_io(&s->iomem, &sl_ops, s, "sl", 0x40);
+    memory_region_init_io(&s->iomem, OBJECT(s), &sl_ops, s, "sl", 0x40);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
@@ -896,7 +896,7 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
-    memory_region_init_ram(rom, "spitz.rom", SPITZ_ROM);
+    memory_region_init_ram(rom, NULL, "spitz.rom", SPITZ_ROM);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);

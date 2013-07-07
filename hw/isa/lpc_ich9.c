@@ -477,22 +477,23 @@ static const MemoryRegionOps rbca_mmio_ops = {
 static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
 {
     ICH9LPCState *s = container_of(n, ICH9LPCState, machine_ready);
+    MemoryRegion *io_as = pci_address_space_io(&s->d);
     uint8_t *pci_conf;
 
     pci_conf = s->d.config;
-    if (isa_is_ioport_assigned(0x3f8)) {
+    if (memory_region_present(io_as, 0x3f8)) {
         /* com1 */
         pci_conf[0x82] |= 0x01;
     }
-    if (isa_is_ioport_assigned(0x2f8)) {
+    if (memory_region_present(io_as, 0x2f8)) {
         /* com2 */
         pci_conf[0x82] |= 0x02;
     }
-    if (isa_is_ioport_assigned(0x378)) {
+    if (memory_region_present(io_as, 0x378)) {
         /* lpt */
         pci_conf[0x82] |= 0x04;
     }
-    if (isa_is_ioport_assigned(0x3f0)) {
+    if (memory_region_present(io_as, 0x3f0)) {
         /* floppy */
         pci_conf[0x82] |= 0x08;
     }
@@ -534,7 +535,7 @@ static int ich9_lpc_initfn(PCIDevice *d)
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
 
-    memory_region_init_io(&lpc->rbca_mem, &rbca_mmio_ops, lpc,
+    memory_region_init_io(&lpc->rbca_mem, OBJECT(d), &rbca_mmio_ops, lpc,
                             "lpc-rbca-mmio", ICH9_CC_SIZE);
 
     lpc->isa_bus = isa_bus;
@@ -545,7 +546,7 @@ static int ich9_lpc_initfn(PCIDevice *d)
     lpc->machine_ready.notify = ich9_lpc_machine_ready;
     qemu_add_machine_init_done_notifier(&lpc->machine_ready);
 
-    memory_region_init_io(&lpc->rst_cnt_mem, &ich9_rst_cnt_ops, lpc,
+    memory_region_init_io(&lpc->rst_cnt_mem, OBJECT(d), &ich9_rst_cnt_ops, lpc,
                           "lpc-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,

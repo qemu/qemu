@@ -46,7 +46,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     if (err) {
         goto bridge_error;
     }
-    memory_region_init(&bridge_dev->bar, "shpc-bar", shpc_bar_size(dev));
+    memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar", shpc_bar_size(dev));
     err = shpc_init(dev, &br->sec_bus, &bridge_dev->bar, 0);
     if (err) {
         goto shpc_error;

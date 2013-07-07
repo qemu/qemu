@@ -417,8 +417,10 @@ static void pic_realize(DeviceState *dev, Error **err)
     PICCommonState *s = PIC_COMMON(dev);
     PICClass *pc = PIC_GET_CLASS(dev);
 
-    memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
-    memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
+    memory_region_init_io(&s->base_io, OBJECT(s), &pic_base_ioport_ops, s,
+                          "pic", 2);
+    memory_region_init_io(&s->elcr_io, OBJECT(s), &pic_elcr_ioport_ops, s,
+                          "elcr", 1);
 
     qdev_init_gpio_out(dev, s->int_out, ARRAY_SIZE(s->int_out));
     qdev_init_gpio_in(dev, pic_set_irq, 8);

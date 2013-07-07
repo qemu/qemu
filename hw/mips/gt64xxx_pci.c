@@ -1108,7 +1108,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                 get_system_memory(),
                                 get_system_io(),
                                 PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
-    memory_region_init_io(&d->ISD_mem, &isd_mem_ops, d, "isd-mem", 0x1000);
+    memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d, "isd-mem", 0x1000);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
     return phb->bus;

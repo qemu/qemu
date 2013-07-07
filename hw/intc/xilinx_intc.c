@@ -160,7 +160,8 @@ static int xilinx_intc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &p->parent_irq);
 
-    memory_region_init_io(&p->mmio, &pic_ops, p, "xlnx.xps-intc", R_MAX * 4);
+    memory_region_init_io(&p->mmio, OBJECT(p), &pic_ops, p, "xlnx.xps-intc",
+                          R_MAX * 4);
     sysbus_init_mmio(dev, &p->mmio);
     return 0;
 }

@@ -966,8 +966,8 @@ static void virtio_pci_device_plugged(DeviceState *d)
         size = 1 << qemu_fls(size);
     }
 
-    memory_region_init_io(&proxy->bar, &virtio_pci_config_ops, proxy,
-                          "virtio-pci", size);
+    memory_region_init_io(&proxy->bar, OBJECT(proxy), &virtio_pci_config_ops,
+                          proxy, "virtio-pci", size);
     pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
                      &proxy->bar);
 

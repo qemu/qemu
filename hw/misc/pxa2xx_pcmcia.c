@@ -128,7 +128,7 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
             g_malloc0(sizeof(PXA2xxPCMCIAState));
 
     /* Socket I/O Memory Space */
-    memory_region_init_io(&s->iomem, &pxa2xx_pcmcia_io_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_pcmcia_io_ops, s,
                           "pxa2xx-pcmcia-io", 0x04000000);
     memory_region_add_subregion(sysmem, base | 0x00000000,
                                 &s->iomem);
@@ -136,13 +136,13 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
     /* Then next 64 MB is reserved */
 
     /* Socket Attribute Memory Space */
-    memory_region_init_io(&s->attr_iomem, &pxa2xx_pcmcia_attr_ops, s,
+    memory_region_init_io(&s->attr_iomem, NULL, &pxa2xx_pcmcia_attr_ops, s,
                           "pxa2xx-pcmcia-attribute", 0x04000000);
     memory_region_add_subregion(sysmem, base | 0x08000000,
                                 &s->attr_iomem);
 
     /* Socket Common Memory Space */
-    memory_region_init_io(&s->common_iomem, &pxa2xx_pcmcia_common_ops, s,
+    memory_region_init_io(&s->common_iomem, NULL, &pxa2xx_pcmcia_common_ops, s,
                           "pxa2xx-pcmcia-common", 0x04000000);
     memory_region_add_subregion(sysmem, base | 0x0c000000,
                                 &s->common_iomem);

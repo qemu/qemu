@@ -236,9 +236,9 @@ static int pci_testdev_init(PCIDevice *pci_dev)
 
     pci_conf[PCI_INTERRUPT_PIN] = 0; /* no interrupt pin */
 
-    memory_region_init_io(&d->mmio, &pci_testdev_mmio_ops, d,
+    memory_region_init_io(&d->mmio, OBJECT(d), &pci_testdev_mmio_ops, d,
                           "pci-testdev-mmio", IOTEST_MEMSIZE * 2);
-    memory_region_init_io(&d->portio, &pci_testdev_pio_ops, d,
+    memory_region_init_io(&d->portio, OBJECT(d), &pci_testdev_pio_ops, d,
                           "pci-testdev-portio", IOTEST_IOSIZE * 2);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->portio);

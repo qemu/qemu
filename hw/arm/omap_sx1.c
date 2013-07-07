@@ -120,23 +120,23 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
     mpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, args->cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, "omap_sx1.flash0-0", flash_size);
+    memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
-    memory_region_init_io(&cs[0], &static_ops, &cs0val,
+    memory_region_init_io(&cs[0], NULL, &static_ops, &cs0val,
                           "sx1.cs0", OMAP_CS0_SIZE - flash_size);
     memory_region_add_subregion(address_space,
                                 OMAP_CS0_BASE + flash_size, &cs[0]);
 
 
-    memory_region_init_io(&cs[2], &static_ops, &cs2val,
+    memory_region_init_io(&cs[2], NULL, &static_ops, &cs2val,
                           "sx1.cs2", OMAP_CS2_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS2_BASE, &cs[2]);
 
-    memory_region_init_io(&cs[3], &static_ops, &cs3val,
+    memory_region_init_io(&cs[3], NULL, &static_ops, &cs3val,
                           "sx1.cs3", OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space,
                                 OMAP_CS2_BASE, &cs[3]);
@@ -162,12 +162,12 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
 
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        memory_region_init_ram(flash_1, "omap_sx1.flash1-0", flash1_size);
+        memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0", flash1_size);
         vmstate_register_ram_global(flash_1);
         memory_region_set_readonly(flash_1, true);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 
-        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE - flash1_size);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE + flash1_size, &cs[1]);
@@ -182,7 +182,7 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
         }
         fl_idx++;
     } else {
-        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+        memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
                               "sx1.cs1", OMAP_CS1_SIZE);
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE, &cs[1]);

@@ -680,7 +680,7 @@ static int prom_init1(SysBusDevice *dev)
 {
     PROMState *s = FROM_SYSBUS(PROMState, dev);
 
-    memory_region_init_ram(&s->prom, "sun4u.prom", PROM_SIZE_MAX);
+    memory_region_init_ram(&s->prom, OBJECT(s), "sun4u.prom", PROM_SIZE_MAX);
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
@@ -720,7 +720,7 @@ static int ram_init1(SysBusDevice *dev)
 {
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
-    memory_region_init_ram(&d->ram, "sun4u.ram", d->size);
+    memory_region_init_ram(&d->ram, OBJECT(d), "sun4u.ram", d->size);
     vmstate_register_ram_global(&d->ram);
     sysbus_init_mmio(dev, &d->ram);
     return 0;

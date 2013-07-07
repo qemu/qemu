@@ -396,7 +396,7 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
     DPRINTF("\n");
 
     sysbus_init_irq(sbd, &s->irq);
-    memory_region_init_io(&s->iomem, &imx_epit_ops, s, TYPE_IMX_EPIT,
+    memory_region_init_io(&s->iomem, OBJECT(s), &imx_epit_ops, s, TYPE_IMX_EPIT,
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 

@@ -71,7 +71,7 @@ static int a9mp_priv_init(SysBusDevice *dev)
      *
      * We should implement the global timer but don't currently do so.
      */
-    memory_region_init(&s->container, "a9mp-priv-container", 0x2000);
+    memory_region_init(&s->container, OBJECT(s), "a9mp-priv-container", 0x2000);
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interface */

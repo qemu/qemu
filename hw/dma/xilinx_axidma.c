@@ -590,7 +590,7 @@ static void xilinx_axidma_init(Object *obj)
     sysbus_init_irq(sbd, &s->streams[0].irq);
     sysbus_init_irq(sbd, &s->streams[1].irq);
 
-    memory_region_init_io(&s->iomem, &axidma_ops, s,
+    memory_region_init_io(&s->iomem, obj, &axidma_ops, s,
                           "xlnx.axi-dma", R_MAX * 4 * 2);
     sysbus_init_mmio(sbd, &s->iomem);
 }

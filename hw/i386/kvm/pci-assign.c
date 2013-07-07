@@ -298,8 +298,8 @@ static void assigned_dev_iomem_setup(PCIDevice *pci_dev, int region_num,
     PCIRegion *real_region = &r_dev->real_device.regions[region_num];
 
     if (e_size > 0) {
-        memory_region_init(&region->container, "assigned-dev-container",
-                           e_size);
+        memory_region_init(&region->container, OBJECT(pci_dev),
+                           "assigned-dev-container", e_size);
         memory_region_add_subregion(&region->container, 0, &region->real_iomem);
 
         /* deal with MSI-X MMIO page */
@@ -329,9 +329,10 @@ static void assigned_dev_ioport_setup(PCIDevice *pci_dev, int region_num,
     AssignedDevRegion *region = &r_dev->v_addrs[region_num];
 
     region->e_size = size;
-    memory_region_init(&region->container, "assigned-dev-container", size);
-    memory_region_init_io(&region->real_iomem, &assigned_dev_ioport_ops,
-                          r_dev->v_addrs + region_num,
+    memory_region_init(&region->container, OBJECT(pci_dev),
+                       "assigned-dev-container", size);
+    memory_region_init_io(&region->real_iomem, OBJECT(pci_dev),
+                          &assigned_dev_ioport_ops, r_dev->v_addrs + region_num,
                           "assigned-dev-iomem", size);
     memory_region_add_subregion(&region->container, 0, &region->real_iomem);
 }
@@ -479,7 +480,8 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
                              "due to that.",
                              i, cur_region->base_addr, cur_region->size);
                 memory_region_init_io(&pci_dev->v_addrs[i].real_iomem,
-                                      &slow_bar_ops, &pci_dev->v_addrs[i],
+                                      OBJECT(pci_dev), &slow_bar_ops,
+                                      &pci_dev->v_addrs[i],
                                       "assigned-dev-slow-bar",
                                       cur_region->size);
             } else {
@@ -488,8 +490,8 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
                 snprintf(name, sizeof(name), "%s.bar%d",
                          object_get_typename(OBJECT(pci_dev)), i);
                 memory_region_init_ram_ptr(&pci_dev->v_addrs[i].real_iomem,
-                                           name, cur_region->size,
-                                           virtbase);
+                                           OBJECT(pci_dev), name,
+                                           cur_region->size, virtbase);
                 vmstate_register_ram(&pci_dev->v_addrs[i].real_iomem,
                                      &pci_dev->dev.qdev);
             }
@@ -1650,8 +1652,8 @@ static int assigned_dev_register_msix_mmio(AssignedDevice *dev)
 
     assigned_dev_msix_reset(dev);
 
-    memory_region_init_io(&dev->mmio, &assigned_dev_msix_mmio_ops, dev,
-                          "assigned-dev-msix", MSIX_PAGE_SIZE);
+    memory_region_init_io(&dev->mmio, OBJECT(dev), &assigned_dev_msix_mmio_ops,
+                          dev, "assigned-dev-msix", MSIX_PAGE_SIZE);
     return 0;
 }
 
@@ -1916,7 +1918,7 @@ static void assigned_dev_load_option_rom(AssignedDevice *dev)
 
     snprintf(name, sizeof(name), "%s.rom",
             object_get_typename(OBJECT(dev)));
-    memory_region_init_ram(&dev->dev.rom, name, st.st_size);
+    memory_region_init_ram(&dev->dev.rom, OBJECT(dev), name, st.st_size);
     vmstate_register_ram(&dev->dev.rom, &dev->dev.qdev);
     ptr = memory_region_get_ram_ptr(&dev->dev.rom);
     memset(ptr, 0xff, st.st_size);

@@ -386,7 +386,8 @@ static int imx_serial_init(SysBusDevice *dev)
     IMXSerialState *s = FROM_SYSBUS(IMXSerialState, dev);
 
 
-    memory_region_init_io(&s->iomem, &imx_serial_ops, s, "imx-serial", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &imx_serial_ops, s,
+                          "imx-serial", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 

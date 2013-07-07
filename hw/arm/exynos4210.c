@@ -241,20 +241,20 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /*** Memory ***/
 
     /* Chip-ID and OMR */
-    memory_region_init_io(&s->chipid_mem, &exynos4210_chipid_and_omr_ops,
+    memory_region_init_io(&s->chipid_mem, NULL, &exynos4210_chipid_and_omr_ops,
         NULL, "exynos4210.chipid", sizeof(chipid_and_omr));
     memory_region_add_subregion(system_mem, EXYNOS4210_CHIPID_ADDR,
                                 &s->chipid_mem);
 
     /* Internal ROM */
-    memory_region_init_ram(&s->irom_mem, "exynos4210.irom",
+    memory_region_init_ram(&s->irom_mem, NULL, "exynos4210.irom",
                            EXYNOS4210_IROM_SIZE);
     vmstate_register_ram_global(&s->irom_mem);
     memory_region_set_readonly(&s->irom_mem, true);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_BASE_ADDR,
                                 &s->irom_mem);
     /* mirror of iROM */
-    memory_region_init_alias(&s->irom_alias_mem, "exynos4210.irom_alias",
+    memory_region_init_alias(&s->irom_alias_mem, NULL, "exynos4210.irom_alias",
                              &s->irom_mem,
                              0,
                              EXYNOS4210_IROM_SIZE);
@@ -263,7 +263,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
                                 &s->irom_alias_mem);
 
     /* Internal RAM */
-    memory_region_init_ram(&s->iram_mem, "exynos4210.iram",
+    memory_region_init_ram(&s->iram_mem, NULL, "exynos4210.iram",
                            EXYNOS4210_IRAM_SIZE);
     vmstate_register_ram_global(&s->iram_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_IRAM_BASE_ADDR,
@@ -272,14 +272,14 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /* DRAM */
     mem_size = ram_size;
     if (mem_size > EXYNOS4210_DRAM_MAX_SIZE) {
-        memory_region_init_ram(&s->dram1_mem, "exynos4210.dram1",
+        memory_region_init_ram(&s->dram1_mem, NULL, "exynos4210.dram1",
                 mem_size - EXYNOS4210_DRAM_MAX_SIZE);
         vmstate_register_ram_global(&s->dram1_mem);
         memory_region_add_subregion(system_mem, EXYNOS4210_DRAM1_BASE_ADDR,
                 &s->dram1_mem);
         mem_size = EXYNOS4210_DRAM_MAX_SIZE;
     }
-    memory_region_init_ram(&s->dram0_mem, "exynos4210.dram0", mem_size);
+    memory_region_init_ram(&s->dram0_mem, NULL, "exynos4210.dram0", mem_size);
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
             &s->dram0_mem);

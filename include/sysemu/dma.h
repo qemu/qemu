@@ -29,6 +29,7 @@ struct QEMUSGList {
     int nsg;
     int nalloc;
     size_t size;
+    DeviceState *dev;
     AddressSpace *as;
 };
 
@@ -189,7 +190,8 @@ struct ScatterGatherEntry {
     dma_addr_t len;
 };
 
-void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, AddressSpace *as);
+void qemu_sglist_init(QEMUSGList *qsg, DeviceState *dev, int alloc_hint,
+                      AddressSpace *as);
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif

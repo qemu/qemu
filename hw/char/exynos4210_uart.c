@@ -630,8 +630,8 @@ static int exynos4210_uart_init(SysBusDevice *dev)
     Exynos4210UartState *s = FROM_SYSBUS(Exynos4210UartState, dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, &exynos4210_uart_ops, s, "exynos4210.uart",
-                          EXYNOS4210_UART_REGS_MEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_uart_ops, s,
+                          "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
