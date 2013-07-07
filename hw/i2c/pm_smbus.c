@@ -32,6 +32,18 @@
 #define SMBHSTDAT1      0x06
 #define SMBBLKDAT       0x07
 
+#define STS_HOST_BUSY   (1)
+#define STS_INTR        (1<<1)
+#define STS_DEV_ERR     (1<<2)
+#define STS_BUS_ERR     (1<<3)
+#define STS_FAILED      (1<<4)
+#define STS_SMBALERT    (1<<5)
+#define STS_INUSE_STS   (1<<6)
+#define STS_BYTE_DONE   (1<<7)
+/* Signs of successfully transaction end :
+*  ByteDoneStatus = 1 (STS_BYTE_DONE) and INTR = 1 (STS_INTR )
+*/
+
 //#define DEBUG
 
 #ifdef DEBUG
@@ -50,9 +62,14 @@ static void smb_transaction(PMSMBus *s)
     i2c_bus *bus = s->smbus;
 
     SMBUS_DPRINTF("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
+    /* Transaction isn't exec if STS_DEV_ERR bit set */
+    if ((s->smb_stat & STS_DEV_ERR) != 0)  {
+            goto error;
+        }
     switch(prot) {
     case 0x0:
         smbus_quick_command(bus, addr, read);
+        s->smb_stat |= STS_BYTE_DONE | STS_INTR;
         break;
     case 0x1:
         if (read) {
@@ -60,6 +77,7 @@ static void smb_transaction(PMSMBus *s)
         } else {
             smbus_send_byte(bus, addr, cmd);
         }
+        s->smb_stat |= STS_BYTE_DONE | STS_INTR;
         break;
     case 0x2:
         if (read) {
@@ -67,6 +85,7 @@ static void smb_transaction(PMSMBus *s)
         } else {
             smbus_write_byte(bus, addr, cmd, s->smb_data0);
         }
+        s->smb_stat |= STS_BYTE_DONE | STS_INTR;
         break;
     case 0x3:
         if (read) {
@@ -77,6 +96,7 @@ static void smb_transaction(PMSMBus *s)
         } else {
             smbus_write_word(bus, addr, cmd, (s->smb_data1 << 8) | s->smb_data0);
         }
+        s->smb_stat |= STS_BYTE_DONE | STS_INTR;
         break;
     case 0x5:
         if (read) {
@@ -84,6 +104,7 @@ static void smb_transaction(PMSMBus *s)
         } else {
             smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0);
         }
+        s->smb_stat |= STS_BYTE_DONE | STS_INTR;
         break;
     default:
         goto error;
@@ -91,7 +112,7 @@ static void smb_transaction(PMSMBus *s)
     return;
 
   error:
-    s->smb_stat |= 0x04;
+    s->smb_stat |= STS_DEV_ERR;
 }
 
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
@@ -102,7 +123,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
     SMBUS_DPRINTF("SMB writeb port=0x%04x val=0x%02x\n", addr, val);
     switch(addr) {
     case SMBHSTSTS:
-        s->smb_stat = 0;
+        s->smb_stat = (~(val & 0xff)) & s->smb_stat;
         s->smb_index = 0;
         break;
     case SMBHSTCNT:
