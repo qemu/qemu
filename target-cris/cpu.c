@@ -175,6 +175,7 @@ static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->vr = 8;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
+    cc->gdb_read_register = crisv10_cpu_gdb_read_register;
 }
 
 static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
@@ -184,6 +185,7 @@ static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->vr = 9;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
+    cc->gdb_read_register = crisv10_cpu_gdb_read_register;
 }
 
 static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
@@ -193,6 +195,7 @@ static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->vr = 10;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
+    cc->gdb_read_register = crisv10_cpu_gdb_read_register;
 }
 
 static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
@@ -202,6 +205,7 @@ static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->vr = 11;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
+    cc->gdb_read_register = crisv10_cpu_gdb_read_register;
 }
 
 static void crisv32_cpu_class_init(ObjectClass *oc, void *data)

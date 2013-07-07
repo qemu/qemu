@@ -21,9 +21,11 @@
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
 
-static int
-read_register_crisv10(CPUCRISState *env, uint8_t *mem_buf, int n)
+int crisv10_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
+
     if (n < 15) {
         return gdb_get_reg32(mem_buf, env->regs[n]);
     }
@@ -56,10 +58,6 @@ int cris_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
     uint8_t srs;
-
-    if (env->pregs[PR_VR] < 32) {
-        return read_register_crisv10(env, mem_buf, n);
-    }
 
     srs = env->pregs[PR_SRS];
     if (n < 16) {
