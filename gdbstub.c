@@ -1295,15 +1295,12 @@ static int cpu_gdb_read_register(CPUOpenRISCState *env, uint8_t *mem_buf, int n)
         switch (n) {
         case 32:    /* PPC */
             GET_REG32(env->ppc);
-            break;
 
         case 33:    /* NPC */
             GET_REG32(env->npc);
-            break;
 
         case 34:    /* SR */
             GET_REG32(env->sr);
-            break;
 
         default:
             break;
@@ -1516,14 +1513,11 @@ read_register_crisv10(CPUCRISState *env, uint8_t *mem_buf, int n)
         switch (n) {
         case 16:
             GET_REG8(env->pregs[n - 16]);
-            break;
         case 17:
             GET_REG8(env->pregs[n - 16]);
-            break;
         case 20:
         case 21:
             GET_REG16(env->pregs[n - 16]);
-            break;
         default:
             if (n >= 23) {
                 GET_REG32(env->pregs[n - 16]);
@@ -1693,22 +1687,16 @@ static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
         cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
         val = deposit64(env->psw.mask, 44, 2, cc_op);
         GET_REGL(val);
-        break;
     case S390_PSWA_REGNUM:
         GET_REGL(env->psw.addr);
-        break;
     case S390_R0_REGNUM ... S390_R15_REGNUM:
         GET_REGL(env->regs[n-S390_R0_REGNUM]);
-        break;
     case S390_A0_REGNUM ... S390_A15_REGNUM:
         GET_REG32(env->aregs[n-S390_A0_REGNUM]);
-        break;
     case S390_FPC_REGNUM:
         GET_REG32(env->fpc);
-        break;
     case S390_F0_REGNUM ... S390_F15_REGNUM:
         GET_REG64(env->fregs[n-S390_F0_REGNUM].ll);
-        break;
     }
 
     return 0;
@@ -1762,26 +1750,19 @@ static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)
         switch (n) {
         case 32:
             GET_REG32(env->pc);
-            break;
         /* FIXME: put in right exception ID */
         case 33:
             GET_REG32(0);
-            break;
         case 34:
             GET_REG32(env->eba);
-            break;
         case 35:
             GET_REG32(env->deba);
-            break;
         case 36:
             GET_REG32(env->ie);
-            break;
         case 37:
             GET_REG32(lm32_pic_get_im(env->pic_state));
-            break;
         case 38:
             GET_REG32(lm32_pic_get_ip(env->pic_state));
-            break;
         }
     }
     return 0;
@@ -1844,28 +1825,22 @@ static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
     switch (reg->type) {
     case 9: /*pc*/
         GET_REG32(env->pc);
-        break;
 
     case 1: /*ar*/
         xtensa_sync_phys_from_window(env);
         GET_REG32(env->phys_regs[(reg->targno & 0xff) % env->config->nareg]);
-        break;
 
     case 2: /*SR*/
         GET_REG32(env->sregs[reg->targno & 0xff]);
-        break;
 
     case 3: /*UR*/
         GET_REG32(env->uregs[reg->targno & 0xff]);
-        break;
 
     case 4: /*f*/
         GET_REG32(float32_val(env->fregs[reg->targno & 0x0f]));
-        break;
 
     case 8: /*a*/
         GET_REG32(env->regs[reg->targno & 0x0f]);
-        break;
 
     default:
         qemu_log("%s from reg %d of unsupported type %d\n",
