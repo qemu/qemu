@@ -84,6 +84,7 @@ struct TranslationBlock;
  * @gdb_write_register: Callback for letting GDB write a register.
  * @vmsd: State description for migration.
  * @gdb_num_core_regs: Number of core registers accessible to GDB.
+ * @gdb_core_xml_file: File name for core registers GDB XML description.
  *
  * Represents a CPU family or model.
  */
@@ -125,6 +126,7 @@ typedef struct CPUClass {
 
     const struct VMStateDescription *vmsd;
     int gdb_num_core_regs;
+    const char *gdb_core_xml_file;
 } CPUClass;
 
 struct KVMState;

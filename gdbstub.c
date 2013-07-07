@@ -485,25 +485,6 @@ static int put_packet(GDBState *s, const char *buf)
     return put_packet_binary(s, buf, strlen(buf));
 }
 
-#if defined(TARGET_PPC)
-
-#if defined (TARGET_PPC64)
-#define GDB_CORE_XML "power64-core.xml"
-#else
-#define GDB_CORE_XML "power-core.xml"
-#endif
-
-#elif defined (TARGET_ARM)
-
-#define GDB_CORE_XML "arm-core.xml"
-
-#elif defined (TARGET_M68K)
-
-#define GDB_CORE_XML "cf-core.xml"
-
-#endif
-
-#ifdef GDB_CORE_XML
 /* Encode data using the encoding for 'x' packets.  */
 static int memtox(char *buf, const char *mem, int len)
 {
@@ -525,7 +506,8 @@ static int memtox(char *buf, const char *mem, int len)
     return p - buf;
 }
 
-static const char *get_feature_xml(const char *p, const char **newp)
+static const char *get_feature_xml(const char *p, const char **newp,
+                                   CPUClass *cc)
 {
     size_t len;
     int i;
@@ -549,7 +531,7 @@ static const char *get_feature_xml(const char *p, const char **newp)
                      "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
                      "<target>"
                      "<xi:include href=\"%s\"/>",
-                     GDB_CORE_XML);
+                     cc->gdb_core_xml_file);
 
             for (r = cpu->gdb_regs; r; r = r->next) {
                 pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
@@ -567,7 +549,6 @@ static const char *get_feature_xml(const char *p, const char **newp)
     }
     return name ? xml_builtin[i][1] : NULL;
 }
-#endif
 
 static int gdb_read_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 {
@@ -773,6 +754,7 @@ static CPUState *find_cpu(uint32_t thread_id)
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
     CPUState *cpu;
+    CPUClass *cc;
     const char *p;
     uint32_t thread;
     int ch, reg_size, type, res;
@@ -1135,20 +1117,25 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 #endif /* !CONFIG_USER_ONLY */
         if (strncmp(p, "Supported", 9) == 0) {
             snprintf(buf, sizeof(buf), "PacketSize=%x", MAX_PACKET_LENGTH);
-#ifdef GDB_CORE_XML
-            pstrcat(buf, sizeof(buf), ";qXfer:features:read+");
-#endif
+            cc = CPU_GET_CLASS(first_cpu);
+            if (cc->gdb_core_xml_file != NULL) {
+                pstrcat(buf, sizeof(buf), ";qXfer:features:read+");
+            }
             put_packet(s, buf);
             break;
         }
-#ifdef GDB_CORE_XML
         if (strncmp(p, "Xfer:features:read:", 19) == 0) {
             const char *xml;
             target_ulong total_len;
 
+            cc = CPU_GET_CLASS(first_cpu);
+            if (cc->gdb_core_xml_file == NULL) {
+                goto unknown_command;
+            }
+
             gdb_has_xml = true;
             p += 19;
-            xml = get_feature_xml(p, &p);
+            xml = get_feature_xml(p, &p, cc);
             if (!xml) {
                 snprintf(buf, sizeof(buf), "E00");
                 put_packet(s, buf);
@@ -1180,7 +1167,6 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet_binary(s, buf, len + 1);
             break;
         }
-#endif
         /* Unrecognised 'q' command.  */
         goto unknown_command;
 

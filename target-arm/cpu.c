@@ -831,6 +831,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_arm_cpu;
 #endif
     cc->gdb_num_core_regs = 26;
+    cc->gdb_core_xml_file = "arm-core.xml";
 }
 
 static void cpu_register(const ARMCPUInfo *info)

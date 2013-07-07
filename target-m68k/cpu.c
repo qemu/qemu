@@ -197,6 +197,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 #endif
     dc->vmsd = &vmstate_m68k_cpu;
     cc->gdb_num_core_regs = 18;
+    cc->gdb_core_xml_file = "cf-core.xml";
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)

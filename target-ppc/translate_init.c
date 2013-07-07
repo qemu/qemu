@@ -8465,6 +8465,11 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->gdb_num_core_regs = 71;
+#if defined(TARGET_PPC64)
+    cc->gdb_core_xml_file = "power64-core.xml";
+#else
+    cc->gdb_core_xml_file = "power-core.xml";
+#endif
 }
 
 static const TypeInfo ppc_cpu_type_info = {
