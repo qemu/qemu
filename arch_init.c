@@ -1196,15 +1196,14 @@ static void mig_sleep_cpu(void *opq)
    much time in the VM. The migration thread will try to catchup.
    Workload will experience a performance drop.
 */
-static void mig_throttle_cpu_down(CPUState *cpu, void *data)
-{
-    async_run_on_cpu(cpu, mig_sleep_cpu, NULL);
-}
-
 static void mig_throttle_guest_down(void)
 {
+    CPUState *cpu;
+
     qemu_mutex_lock_iothread();
-    qemu_for_each_cpu(mig_throttle_cpu_down, NULL);
+    CPU_FOREACH(cpu) {
+        async_run_on_cpu(cpu, mig_sleep_cpu, NULL);
+    }
     qemu_mutex_unlock_iothread();
 }
 

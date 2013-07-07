@@ -362,15 +362,6 @@ CPUState *qemu_get_cpu(int index)
     return NULL;
 }
 
-void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data)
-{
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        func(cpu, data);
-    }
-}
-
 void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
