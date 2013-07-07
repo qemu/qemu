@@ -1121,6 +1121,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (hyperv_vapic_recommended()) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL, env->msr_ia32_feature_control);
     }
     if (env->mcg_cap) {
         int i;
@@ -1345,6 +1346,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_misc_enable) {
         msrs[n++].index = MSR_IA32_MISC_ENABLE;
     }
+    msrs[n++].index = MSR_IA32_FEATURE_CONTROL;
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
@@ -1443,6 +1445,8 @@ static int kvm_get_msrs(X86CPU *cpu)
         case MSR_IA32_MISC_ENABLE:
             env->msr_ia32_misc_enable = msrs[i].data;
             break;
+        case MSR_IA32_FEATURE_CONTROL:
+            env->msr_ia32_feature_control = msrs[i].data;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&
                 msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {

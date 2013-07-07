@@ -301,6 +301,7 @@
 #define MSR_IA32_APICBASE_BSP           (1<<8)
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
 #define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
+#define MSR_IA32_FEATURE_CONTROL        0x0000003a
 #define MSR_TSC_ADJUST                  0x0000003b
 #define MSR_IA32_TSCDEADLINE            0x6e0
 
@@ -813,6 +814,7 @@ typedef struct CPUX86State {
 
     uint64_t mcg_status;
     uint64_t msr_ia32_misc_enable;
+    uint64_t msr_ia32_feature_control;
 
     /* exception/interrupt handling */
     int error_code;

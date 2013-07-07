@@ -435,6 +435,14 @@ static bool misc_enable_needed(void *opaque)
     return env->msr_ia32_misc_enable != MSR_IA32_MISC_ENABLE_DEFAULT;
 }
 
+static bool feature_control_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_ia32_feature_control != 0;
+}
+
 static const VMStateDescription vmstate_msr_ia32_misc_enable = {
     .name = "cpu/msr_ia32_misc_enable",
     .version_id = 1,
@@ -442,6 +450,17 @@ static const VMStateDescription vmstate_msr_ia32_misc_enable = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT64(env.msr_ia32_misc_enable, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_msr_ia32_feature_control = {
+    .name = "cpu/msr_ia32_feature_control",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_ia32_feature_control, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -571,6 +590,9 @@ const VMStateDescription vmstate_x86_cpu = {
         }, {
             .vmsd = &vmstate_msr_ia32_misc_enable,
             .needed = misc_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_ia32_feature_control,
+            .needed = feature_control_needed,
         } , {
             /* empty */
         }
