@@ -570,72 +570,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined (TARGET_ALPHA)
 
-static int cpu_gdb_read_register(CPUAlphaState *env, uint8_t *mem_buf, int n)
-{
-    uint64_t val;
-    CPU_DoubleU d;
+#include "target-alpha/gdbstub.c"
 
-    switch (n) {
-    case 0 ... 30:
-        val = env->ir[n];
-        break;
-    case 32 ... 62:
-        d.d = env->fir[n - 32];
-        val = d.ll;
-        break;
-    case 63:
-        val = cpu_alpha_load_fpcr(env);
-        break;
-    case 64:
-        val = env->pc;
-        break;
-    case 66:
-        val = env->unique;
-        break;
-    case 31:
-    case 65:
-        /* 31 really is the zero register; 65 is unassigned in the
-           gdb protocol, but is still required to occupy 8 bytes. */
-        val = 0;
-        break;
-    default:
-        return 0;
-    }
-    GET_REGL(val);
-}
-
-static int cpu_gdb_write_register(CPUAlphaState *env, uint8_t *mem_buf, int n)
-{
-    target_ulong tmp = ldtul_p(mem_buf);
-    CPU_DoubleU d;
-
-    switch (n) {
-    case 0 ... 30:
-        env->ir[n] = tmp;
-        break;
-    case 32 ... 62:
-        d.ll = tmp;
-        env->fir[n - 32] = d.d;
-        break;
-    case 63:
-        cpu_alpha_store_fpcr(env, tmp);
-        break;
-    case 64:
-        env->pc = tmp;
-        break;
-    case 66:
-        env->unique = tmp;
-        break;
-    case 31:
-    case 65:
-        /* 31 really is the zero register; 65 is unassigned in the
-           gdb protocol, but is still required to occupy 8 bytes. */
-        break;
-    default:
-        return 0;
-    }
-    return 8;
-}
 #elif defined (TARGET_S390X)
 
 static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
