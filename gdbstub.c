@@ -546,53 +546,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #define GDB_CORE_XML "cf-core.xml"
 
-static int cpu_gdb_read_register(CPUM68KState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 8) {
-        /* D0-D7 */
-        GET_REG32(env->dregs[n]);
-    } else if (n < 16) {
-        /* A0-A7 */
-        GET_REG32(env->aregs[n - 8]);
-    } else {
-        switch (n) {
-        case 16:
-            GET_REG32(env->sr);
-        case 17:
-            GET_REG32(env->pc);
-        }
-    }
-    /* FP registers not included here because they vary between
-       ColdFire and m68k.  Use XML bits for these.  */
-    return 0;
-}
+#include "target-m68k/gdbstub.c"
 
-static int cpu_gdb_write_register(CPUM68KState *env, uint8_t *mem_buf, int n)
-{
-    uint32_t tmp;
-
-    tmp = ldl_p(mem_buf);
-
-    if (n < 8) {
-        /* D0-D7 */
-        env->dregs[n] = tmp;
-    } else if (n < 16) {
-        /* A0-A7 */
-        env->aregs[n - 8] = tmp;
-    } else {
-        switch (n) {
-        case 16:
-            env->sr = tmp;
-            break;
-        case 17:
-            env->pc = tmp;
-            break;
-        default:
-            return 0;
-        }
-    }
-    return 4;
-}
 #elif defined (TARGET_MIPS)
 
 static int cpu_gdb_read_register(CPUMIPSState *env, uint8_t *mem_buf, int n)
