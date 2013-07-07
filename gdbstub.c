@@ -554,63 +554,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined(TARGET_OPENRISC)
 
-static int cpu_gdb_read_register(CPUOpenRISCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        GET_REG32(env->gpr[n]);
-    } else {
-        switch (n) {
-        case 32:    /* PPC */
-            GET_REG32(env->ppc);
+#include "target-openrisc/gdbstub.c"
 
-        case 33:    /* NPC */
-            GET_REG32(env->npc);
-
-        case 34:    /* SR */
-            GET_REG32(env->sr);
-
-        default:
-            break;
-        }
-    }
-    return 0;
-}
-
-static int cpu_gdb_write_register(CPUOpenRISCState *env,
-                                  uint8_t *mem_buf, int n)
-{
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    uint32_t tmp;
-
-    if (n > cc->gdb_num_core_regs) {
-        return 0;
-    }
-
-    tmp = ldl_p(mem_buf);
-
-    if (n < 32) {
-        env->gpr[n] = tmp;
-    } else {
-        switch (n) {
-        case 32: /* PPC */
-            env->ppc = tmp;
-            break;
-
-        case 33: /* NPC */
-            env->npc = tmp;
-            break;
-
-        case 34: /* SR */
-            env->sr = tmp;
-            break;
-
-        default:
-            break;
-        }
-    }
-    return 4;
-}
 #elif defined (TARGET_SH4)
 
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */
