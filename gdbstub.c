@@ -562,35 +562,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined (TARGET_MICROBLAZE)
 
-static int cpu_gdb_read_register(CPUMBState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        GET_REG32(env->regs[n]);
-    } else {
-        GET_REG32(env->sregs[n - 32]);
-    }
-    return 0;
-}
+#include "target-microblaze/gdbstub.c"
 
-static int cpu_gdb_write_register(CPUMBState *env, uint8_t *mem_buf, int n)
-{
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    uint32_t tmp;
-
-    if (n > cc->gdb_num_core_regs) {
-        return 0;
-    }
-
-    tmp = ldl_p(mem_buf);
-
-    if (n < 32) {
-        env->regs[n] = tmp;
-    } else {
-        env->sregs[n - 32] = tmp;
-    }
-    return 4;
-}
 #elif defined (TARGET_CRIS)
 
 static int
