@@ -524,112 +524,13 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined (TARGET_PPC)
 
-/* Old gdb always expects FP registers.  Newer (xml-aware) gdb only
-   expects whatever the target description contains.  Due to a
-   historical mishap the FP registers appear in between core integer
-   regs and PC, MSR, CR, and so forth.  We hack round this by giving the
-   FP regs zero size when talking to a newer gdb.  */
 #if defined (TARGET_PPC64)
 #define GDB_CORE_XML "power64-core.xml"
 #else
 #define GDB_CORE_XML "power-core.xml"
 #endif
 
-static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        /* gprs */
-        GET_REGL(env->gpr[n]);
-    } else if (n < 64) {
-        /* fprs */
-        if (gdb_has_xml) {
-            return 0;
-        }
-        stfq_p(mem_buf, env->fpr[n-32]);
-        return 8;
-    } else {
-        switch (n) {
-        case 64:
-            GET_REGL(env->nip);
-        case 65:
-            GET_REGL(env->msr);
-        case 66:
-            {
-                uint32_t cr = 0;
-                int i;
-                for (i = 0; i < 8; i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
-                }
-                GET_REG32(cr);
-            }
-        case 67:
-            GET_REGL(env->lr);
-        case 68:
-            GET_REGL(env->ctr);
-        case 69:
-            GET_REGL(env->xer);
-        case 70:
-            {
-                if (gdb_has_xml) {
-                    return 0;
-                }
-                GET_REG32(env->fpscr);
-            }
-        }
-    }
-    return 0;
-}
-
-static int cpu_gdb_write_register(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        /* gprs */
-        env->gpr[n] = ldtul_p(mem_buf);
-        return sizeof(target_ulong);
-    } else if (n < 64) {
-        /* fprs */
-        if (gdb_has_xml) {
-            return 0;
-        }
-        env->fpr[n-32] = ldfq_p(mem_buf);
-        return 8;
-    } else {
-        switch (n) {
-        case 64:
-            env->nip = ldtul_p(mem_buf);
-            return sizeof(target_ulong);
-        case 65:
-            ppc_store_msr(env, ldtul_p(mem_buf));
-            return sizeof(target_ulong);
-        case 66:
-            {
-                uint32_t cr = ldl_p(mem_buf);
-                int i;
-                for (i = 0; i < 8; i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
-                }
-                return 4;
-            }
-        case 67:
-            env->lr = ldtul_p(mem_buf);
-            return sizeof(target_ulong);
-        case 68:
-            env->ctr = ldtul_p(mem_buf);
-            return sizeof(target_ulong);
-        case 69:
-            env->xer = ldtul_p(mem_buf);
-            return sizeof(target_ulong);
-        case 70:
-            /* fpscr */
-            if (gdb_has_xml) {
-                return 0;
-            }
-            store_fpscr(env, ldtul_p(mem_buf), 0xffffffff);
-            return sizeof(target_ulong);
-        }
-    }
-    return 0;
-}
+#include "target-ppc/gdbstub.c"
 
 #elif defined (TARGET_SPARC)
 
