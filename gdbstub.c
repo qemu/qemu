@@ -574,66 +574,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined (TARGET_S390X)
 
-static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
-{
-    uint64_t val;
-    int cc_op;
+#include "target-s390x/gdbstub.c"
 
-    switch (n) {
-    case S390_PSWM_REGNUM:
-        cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
-        val = deposit64(env->psw.mask, 44, 2, cc_op);
-        GET_REGL(val);
-    case S390_PSWA_REGNUM:
-        GET_REGL(env->psw.addr);
-    case S390_R0_REGNUM ... S390_R15_REGNUM:
-        GET_REGL(env->regs[n-S390_R0_REGNUM]);
-    case S390_A0_REGNUM ... S390_A15_REGNUM:
-        GET_REG32(env->aregs[n-S390_A0_REGNUM]);
-    case S390_FPC_REGNUM:
-        GET_REG32(env->fpc);
-    case S390_F0_REGNUM ... S390_F15_REGNUM:
-        GET_REG64(env->fregs[n-S390_F0_REGNUM].ll);
-    }
-
-    return 0;
-}
-
-static int cpu_gdb_write_register(CPUS390XState *env, uint8_t *mem_buf, int n)
-{
-    target_ulong tmpl;
-    uint32_t tmp32;
-    int r = 8;
-    tmpl = ldtul_p(mem_buf);
-    tmp32 = ldl_p(mem_buf);
-
-    switch (n) {
-    case S390_PSWM_REGNUM:
-        env->psw.mask = tmpl;
-        env->cc_op = extract64(tmpl, 44, 2);
-        break;
-    case S390_PSWA_REGNUM:
-        env->psw.addr = tmpl;
-        break;
-    case S390_R0_REGNUM ... S390_R15_REGNUM:
-        env->regs[n-S390_R0_REGNUM] = tmpl;
-        break;
-    case S390_A0_REGNUM ... S390_A15_REGNUM:
-        env->aregs[n-S390_A0_REGNUM] = tmp32;
-        r = 4;
-        break;
-    case S390_FPC_REGNUM:
-        env->fpc = tmp32;
-        r = 4;
-        break;
-    case S390_F0_REGNUM ... S390_F15_REGNUM:
-        env->fregs[n-S390_F0_REGNUM].ll = tmpl;
-        break;
-    default:
-        return 0;
-    }
-    return r;
-}
 #elif defined (TARGET_LM32)
 
 #include "hw/lm32/lm32_pic.h"
