@@ -578,72 +578,8 @@ static int put_packet(GDBState *s, const char *buf)
 
 #elif defined (TARGET_LM32)
 
-#include "hw/lm32/lm32_pic.h"
+#include "target-lm32/gdbstub.c"
 
-static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        GET_REG32(env->regs[n]);
-    } else {
-        switch (n) {
-        case 32:
-            GET_REG32(env->pc);
-        /* FIXME: put in right exception ID */
-        case 33:
-            GET_REG32(0);
-        case 34:
-            GET_REG32(env->eba);
-        case 35:
-            GET_REG32(env->deba);
-        case 36:
-            GET_REG32(env->ie);
-        case 37:
-            GET_REG32(lm32_pic_get_im(env->pic_state));
-        case 38:
-            GET_REG32(lm32_pic_get_ip(env->pic_state));
-        }
-    }
-    return 0;
-}
-
-static int cpu_gdb_write_register(CPULM32State *env, uint8_t *mem_buf, int n)
-{
-    LM32CPU *cpu = lm32_env_get_cpu(env);
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    uint32_t tmp;
-
-    if (n > cc->gdb_num_core_regs) {
-        return 0;
-    }
-
-    tmp = ldl_p(mem_buf);
-
-    if (n < 32) {
-        env->regs[n] = tmp;
-    } else {
-        switch (n) {
-        case 32:
-            env->pc = tmp;
-            break;
-        case 34:
-            env->eba = tmp;
-            break;
-        case 35:
-            env->deba = tmp;
-            break;
-        case 36:
-            env->ie = tmp;
-            break;
-        case 37:
-            lm32_pic_set_im(env->pic_state, tmp);
-            break;
-        case 38:
-            lm32_pic_set_ip(env->pic_state, tmp);
-            break;
-        }
-    }
-    return 4;
-}
 #elif defined(TARGET_XTENSA)
 
 static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
