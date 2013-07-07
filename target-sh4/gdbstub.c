@@ -26,30 +26,30 @@ static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
     switch (n) {
     case 0 ... 7:
         if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
-            GET_REGL(env->gregs[n + 16]);
+            return gdb_get_regl(mem_buf, env->gregs[n + 16]);
         } else {
-            GET_REGL(env->gregs[n]);
+            return gdb_get_regl(mem_buf, env->gregs[n]);
         }
     case 8 ... 15:
-        GET_REGL(env->gregs[n]);
+        return gdb_get_regl(mem_buf, env->gregs[n]);
     case 16:
-        GET_REGL(env->pc);
+        return gdb_get_regl(mem_buf, env->pc);
     case 17:
-        GET_REGL(env->pr);
+        return gdb_get_regl(mem_buf, env->pr);
     case 18:
-        GET_REGL(env->gbr);
+        return gdb_get_regl(mem_buf, env->gbr);
     case 19:
-        GET_REGL(env->vbr);
+        return gdb_get_regl(mem_buf, env->vbr);
     case 20:
-        GET_REGL(env->mach);
+        return gdb_get_regl(mem_buf, env->mach);
     case 21:
-        GET_REGL(env->macl);
+        return gdb_get_regl(mem_buf, env->macl);
     case 22:
-        GET_REGL(env->sr);
+        return gdb_get_regl(mem_buf, env->sr);
     case 23:
-        GET_REGL(env->fpul);
+        return gdb_get_regl(mem_buf, env->fpul);
     case 24:
-        GET_REGL(env->fpscr);
+        return gdb_get_regl(mem_buf, env->fpscr);
     case 25 ... 40:
         if (env->fpscr & FPSCR_FR) {
             stfl_p(mem_buf, env->fregs[n - 9]);
@@ -58,13 +58,13 @@ static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
         }
         return 4;
     case 41:
-        GET_REGL(env->ssr);
+        return gdb_get_regl(mem_buf, env->ssr);
     case 42:
-        GET_REGL(env->spc);
+        return gdb_get_regl(mem_buf, env->spc);
     case 43 ... 50:
-        GET_REGL(env->gregs[n - 43]);
+        return gdb_get_regl(mem_buf, env->gregs[n - 43]);
     case 51 ... 58:
-        GET_REGL(env->gregs[n - (51 - 16)]);
+        return gdb_get_regl(mem_buf, env->gregs[n - (51 - 16)]);
     }
 
     return 0;

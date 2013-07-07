@@ -39,6 +39,43 @@ static inline int cpu_index(CPUState *cpu)
 #endif
 }
 
+/* The GDB remote protocol transfers values in target byte order.  This means
+ * we can use the raw memory access routines to access the value buffer.
+ * Conveniently, these also handle the case where the buffer is mis-aligned.
+ */
+
+static inline int gdb_get_reg8(uint8_t *mem_buf, uint8_t val)
+{
+    stb_p(mem_buf, val);
+    return 1;
+}
+
+static inline int gdb_get_reg16(uint8_t *mem_buf, uint16_t val)
+{
+    stw_p(mem_buf, val);
+    return 2;
+}
+
+static inline int gdb_get_reg32(uint8_t *mem_buf, uint32_t val)
+{
+    stl_p(mem_buf, val);
+    return 4;
+}
+
+static inline int gdb_get_reg64(uint8_t *mem_buf, uint64_t val)
+{
+    stq_p(mem_buf, val);
+    return 8;
+}
+
+#if TARGET_LONG_BITS == 64
+#define gdb_get_regl(buf, val) gdb_get_reg64(buf, val)
+#define ldtul_p(addr) ldq_p(addr)
+#else
+#define gdb_get_regl(buf, val) gdb_get_reg32(buf, val)
+#define ldtul_p(addr) ldl_p(addr)
+#endif
+
 #endif
 
 #ifdef CONFIG_USER_ONLY

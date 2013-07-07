@@ -28,7 +28,7 @@ static int cpu_gdb_read_register(CPUARMState *env, uint8_t *mem_buf, int n)
 {
     if (n < 16) {
         /* Core integer register.  */
-        GET_REG32(env->regs[n]);
+        return gdb_get_reg32(mem_buf, env->regs[n]);
     }
     if (n < 24) {
         /* FPA registers.  */
@@ -44,10 +44,10 @@ static int cpu_gdb_read_register(CPUARMState *env, uint8_t *mem_buf, int n)
         if (gdb_has_xml) {
             return 0;
         }
-        GET_REG32(0);
+        return gdb_get_reg32(mem_buf, 0);
     case 25:
         /* CPSR */
-        GET_REG32(cpsr_read(env));
+        return gdb_get_reg32(mem_buf, cpsr_read(env));
     }
     /* Unknown register.  */
     return 0;

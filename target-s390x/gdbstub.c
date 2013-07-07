@@ -27,17 +27,17 @@ static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
     case S390_PSWM_REGNUM:
         cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
         val = deposit64(env->psw.mask, 44, 2, cc_op);
-        GET_REGL(val);
+        return gdb_get_regl(mem_buf, val);
     case S390_PSWA_REGNUM:
-        GET_REGL(env->psw.addr);
+        return gdb_get_regl(mem_buf, env->psw.addr);
     case S390_R0_REGNUM ... S390_R15_REGNUM:
-        GET_REGL(env->regs[n-S390_R0_REGNUM]);
+        return gdb_get_regl(mem_buf, env->regs[n-S390_R0_REGNUM]);
     case S390_A0_REGNUM ... S390_A15_REGNUM:
-        GET_REG32(env->aregs[n-S390_A0_REGNUM]);
+        return gdb_get_reg32(mem_buf, env->aregs[n-S390_A0_REGNUM]);
     case S390_FPC_REGNUM:
-        GET_REG32(env->fpc);
+        return gdb_get_reg32(mem_buf, env->fpc);
     case S390_F0_REGNUM ... S390_F15_REGNUM:
-        GET_REG64(env->fregs[n-S390_F0_REGNUM].ll);
+        return gdb_get_reg64(mem_buf, env->fregs[n-S390_F0_REGNUM].ll);
     }
 
     return 0;

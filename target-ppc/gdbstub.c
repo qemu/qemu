@@ -29,7 +29,7 @@ static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
         /* gprs */
-        GET_REGL(env->gpr[n]);
+        return gdb_get_regl(mem_buf, env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
         if (gdb_has_xml) {
@@ -40,9 +40,9 @@ static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case 64:
-            GET_REGL(env->nip);
+            return gdb_get_regl(mem_buf, env->nip);
         case 65:
-            GET_REGL(env->msr);
+            return gdb_get_regl(mem_buf, env->msr);
         case 66:
             {
                 uint32_t cr = 0;
@@ -50,20 +50,20 @@ static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
                 for (i = 0; i < 8; i++) {
                     cr |= env->crf[i] << (32 - ((i + 1) * 4));
                 }
-                GET_REG32(cr);
+                return gdb_get_reg32(mem_buf, cr);
             }
         case 67:
-            GET_REGL(env->lr);
+            return gdb_get_regl(mem_buf, env->lr);
         case 68:
-            GET_REGL(env->ctr);
+            return gdb_get_regl(mem_buf, env->ctr);
         case 69:
-            GET_REGL(env->xer);
+            return gdb_get_regl(mem_buf, env->xer);
         case 70:
             {
                 if (gdb_has_xml) {
                     return 0;
                 }
-                GET_REG32(env->fpscr);
+                return gdb_get_reg32(mem_buf, env->fpscr);
             }
         }
     }

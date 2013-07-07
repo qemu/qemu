@@ -19,80 +19,80 @@
  */
 
 #ifdef TARGET_ABI32
-#define GET_REGA(val) GET_REG32(val)
+#define gdb_get_rega(buf, val) gdb_get_reg32(buf, val)
 #else
-#define GET_REGA(val) GET_REGL(val)
+#define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
 #endif
 
 static int cpu_gdb_read_register(CPUSPARCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 8) {
         /* g0..g7 */
-        GET_REGA(env->gregs[n]);
+        return gdb_get_rega(mem_buf, env->gregs[n]);
     }
     if (n < 32) {
         /* register window */
-        GET_REGA(env->regwptr[n - 8]);
+        return gdb_get_rega(mem_buf, env->regwptr[n - 8]);
     }
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     if (n < 64) {
         /* fprs */
         if (n & 1) {
-            GET_REG32(env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
         } else {
-            GET_REG32(env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
         }
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     switch (n) {
     case 64:
-        GET_REGA(env->y);
+        return gdb_get_rega(mem_buf, env->y);
     case 65:
-        GET_REGA(cpu_get_psr(env));
+        return gdb_get_rega(mem_buf, cpu_get_psr(env));
     case 66:
-        GET_REGA(env->wim);
+        return gdb_get_rega(mem_buf, env->wim);
     case 67:
-        GET_REGA(env->tbr);
+        return gdb_get_rega(mem_buf, env->tbr);
     case 68:
-        GET_REGA(env->pc);
+        return gdb_get_rega(mem_buf, env->pc);
     case 69:
-        GET_REGA(env->npc);
+        return gdb_get_rega(mem_buf, env->npc);
     case 70:
-        GET_REGA(env->fsr);
+        return gdb_get_rega(mem_buf, env->fsr);
     case 71:
-        GET_REGA(0); /* csr */
+        return gdb_get_rega(mem_buf, 0); /* csr */
     default:
-        GET_REGA(0);
+        return gdb_get_rega(mem_buf, 0);
     }
 #else
     if (n < 64) {
         /* f0-f31 */
         if (n & 1) {
-            GET_REG32(env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
         } else {
-            GET_REG32(env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
         }
     }
     if (n < 80) {
         /* f32-f62 (double width, even numbers only) */
-        GET_REG64(env->fpr[(n - 32) / 2].ll);
+        return gdb_get_reg64(mem_buf, env->fpr[(n - 32) / 2].ll);
     }
     switch (n) {
     case 80:
-        GET_REGL(env->pc);
+        return gdb_get_regl(mem_buf, env->pc);
     case 81:
-        GET_REGL(env->npc);
+        return gdb_get_regl(mem_buf, env->npc);
     case 82:
-        GET_REGL((cpu_get_ccr(env) << 32) |
-                 ((env->asi & 0xff) << 24) |
-                 ((env->pstate & 0xfff) << 8) |
-                 cpu_get_cwp64(env));
+        return gdb_get_regl(mem_buf, (cpu_get_ccr(env) << 32) |
+                                     ((env->asi & 0xff) << 24) |
+                                     ((env->pstate & 0xfff) << 8) |
+                                     cpu_get_cwp64(env));
     case 83:
-        GET_REGL(env->fsr);
+        return gdb_get_regl(mem_buf, env->fsr);
     case 84:
-        GET_REGL(env->fprs);
+        return gdb_get_regl(mem_buf, env->fprs);
     case 85:
-        GET_REGL(env->y);
+        return gdb_get_regl(mem_buf, env->y);
     }
 #endif
     return 0;

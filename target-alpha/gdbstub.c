@@ -49,7 +49,7 @@ static int cpu_gdb_read_register(CPUAlphaState *env, uint8_t *mem_buf, int n)
     default:
         return 0;
     }
-    GET_REGL(val);
+    return gdb_get_regl(mem_buf, val);
 }
 
 static int cpu_gdb_write_register(CPUAlphaState *env, uint8_t *mem_buf, int n)

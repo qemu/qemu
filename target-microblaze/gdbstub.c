@@ -21,9 +21,9 @@
 static int cpu_gdb_read_register(CPUMBState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-        GET_REG32(env->regs[n]);
+        return gdb_get_reg32(mem_buf, env->regs[n]);
     } else {
-        GET_REG32(env->sregs[n - 32]);
+        return gdb_get_reg32(mem_buf, env->sregs[n - 32]);
     }
     return 0;
 }

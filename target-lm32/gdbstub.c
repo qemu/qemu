@@ -22,24 +22,24 @@
 static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-        GET_REG32(env->regs[n]);
+        return gdb_get_reg32(mem_buf, env->regs[n]);
     } else {
         switch (n) {
         case 32:
-            GET_REG32(env->pc);
+            return gdb_get_reg32(mem_buf, env->pc);
         /* FIXME: put in right exception ID */
         case 33:
-            GET_REG32(0);
+            return gdb_get_reg32(mem_buf, 0);
         case 34:
-            GET_REG32(env->eba);
+            return gdb_get_reg32(mem_buf, env->eba);
         case 35:
-            GET_REG32(env->deba);
+            return gdb_get_reg32(mem_buf, env->deba);
         case 36:
-            GET_REG32(env->ie);
+            return gdb_get_reg32(mem_buf, env->ie);
         case 37:
-            GET_REG32(lm32_pic_get_im(env->pic_state));
+            return gdb_get_reg32(mem_buf, lm32_pic_get_im(env->pic_state));
         case 38:
-            GET_REG32(lm32_pic_get_ip(env->pic_state));
+            return gdb_get_reg32(mem_buf, lm32_pic_get_ip(env->pic_state));
         }
     }
     return 0;

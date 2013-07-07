@@ -21,17 +21,17 @@
 static int cpu_gdb_read_register(CPUOpenRISCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-        GET_REG32(env->gpr[n]);
+        return gdb_get_reg32(mem_buf, env->gpr[n]);
     } else {
         switch (n) {
         case 32:    /* PPC */
-            GET_REG32(env->ppc);
+            return gdb_get_reg32(mem_buf, env->ppc);
 
         case 33:    /* NPC */
-            GET_REG32(env->npc);
+            return gdb_get_reg32(mem_buf, env->npc);
 
         case 34:    /* SR */
-            GET_REG32(env->sr);
+            return gdb_get_reg32(mem_buf, env->sr);
 
         default:
             break;

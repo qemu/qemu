@@ -28,23 +28,25 @@ static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
 
     switch (reg->type) {
     case 9: /*pc*/
-        GET_REG32(env->pc);
+        return gdb_get_reg32(mem_buf, env->pc);
 
     case 1: /*ar*/
         xtensa_sync_phys_from_window(env);
-        GET_REG32(env->phys_regs[(reg->targno & 0xff) % env->config->nareg]);
+        return gdb_get_reg32(mem_buf, env->phys_regs[(reg->targno & 0xff)
+                                                     % env->config->nareg]);
 
     case 2: /*SR*/
-        GET_REG32(env->sregs[reg->targno & 0xff]);
+        return gdb_get_reg32(mem_buf, env->sregs[reg->targno & 0xff]);
 
     case 3: /*UR*/
-        GET_REG32(env->uregs[reg->targno & 0xff]);
+        return gdb_get_reg32(mem_buf, env->uregs[reg->targno & 0xff]);
 
     case 4: /*f*/
-        GET_REG32(float32_val(env->fregs[reg->targno & 0x0f]));
+        return gdb_get_reg32(mem_buf, float32_val(env->fregs[reg->targno
+                                                             & 0x0f]));
 
     case 8: /*a*/
-        GET_REG32(env->regs[reg->targno & 0x0f]);
+        return gdb_get_reg32(mem_buf, env->regs[reg->targno & 0x0f]);
 
     default:
         qemu_log("%s from reg %d of unsupported type %d\n",

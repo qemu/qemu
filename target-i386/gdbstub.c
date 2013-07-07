@@ -39,9 +39,9 @@ static int cpu_gdb_read_register(CPUX86State *env, uint8_t *mem_buf, int n)
 {
     if (n < CPU_NB_REGS) {
         if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-            GET_REG64(env->regs[gpr_map[n]]);
+            return gdb_get_reg64(mem_buf, env->regs[gpr_map[n]]);
         } else if (n < CPU_NB_REGS32) {
-            GET_REG32(env->regs[gpr_map32[n]]);
+            return gdb_get_reg32(mem_buf, env->regs[gpr_map32[n]]);
         }
     } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
 #ifdef USE_X86LDOUBLE
@@ -63,46 +63,46 @@ static int cpu_gdb_read_register(CPUX86State *env, uint8_t *mem_buf, int n)
         switch (n) {
         case IDX_IP_REG:
             if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
-                GET_REG64(env->eip);
+                return gdb_get_reg64(mem_buf, env->eip);
             } else {
-                GET_REG32(env->eip);
+                return gdb_get_reg32(mem_buf, env->eip);
             }
         case IDX_FLAGS_REG:
-            GET_REG32(env->eflags);
+            return gdb_get_reg32(mem_buf, env->eflags);
 
         case IDX_SEG_REGS:
-            GET_REG32(env->segs[R_CS].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_CS].selector);
         case IDX_SEG_REGS + 1:
-            GET_REG32(env->segs[R_SS].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_SS].selector);
         case IDX_SEG_REGS + 2:
-            GET_REG32(env->segs[R_DS].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_DS].selector);
         case IDX_SEG_REGS + 3:
-            GET_REG32(env->segs[R_ES].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_ES].selector);
         case IDX_SEG_REGS + 4:
-            GET_REG32(env->segs[R_FS].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_FS].selector);
         case IDX_SEG_REGS + 5:
-            GET_REG32(env->segs[R_GS].selector);
+            return gdb_get_reg32(mem_buf, env->segs[R_GS].selector);
 
         case IDX_FP_REGS + 8:
-            GET_REG32(env->fpuc);
+            return gdb_get_reg32(mem_buf, env->fpuc);
         case IDX_FP_REGS + 9:
-            GET_REG32((env->fpus & ~0x3800) |
-                      (env->fpstt & 0x7) << 11);
+            return gdb_get_reg32(mem_buf, (env->fpus & ~0x3800) |
+                                          (env->fpstt & 0x7) << 11);
         case IDX_FP_REGS + 10:
-            GET_REG32(0); /* ftag */
+            return gdb_get_reg32(mem_buf, 0); /* ftag */
         case IDX_FP_REGS + 11:
-            GET_REG32(0); /* fiseg */
+            return gdb_get_reg32(mem_buf, 0); /* fiseg */
         case IDX_FP_REGS + 12:
-            GET_REG32(0); /* fioff */
+            return gdb_get_reg32(mem_buf, 0); /* fioff */
         case IDX_FP_REGS + 13:
-            GET_REG32(0); /* foseg */
+            return gdb_get_reg32(mem_buf, 0); /* foseg */
         case IDX_FP_REGS + 14:
-            GET_REG32(0); /* fooff */
+            return gdb_get_reg32(mem_buf, 0); /* fooff */
         case IDX_FP_REGS + 15:
-            GET_REG32(0); /* fop */
+            return gdb_get_reg32(mem_buf, 0); /* fop */
 
         case IDX_MXCSR_REG:
-            GET_REG32(env->mxcsr);
+            return gdb_get_reg32(mem_buf, env->mxcsr);
         }
     }
     return 0;

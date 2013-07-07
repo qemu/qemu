@@ -22,16 +22,16 @@ static int cpu_gdb_read_register(CPUM68KState *env, uint8_t *mem_buf, int n)
 {
     if (n < 8) {
         /* D0-D7 */
-        GET_REG32(env->dregs[n]);
+        return gdb_get_reg32(mem_buf, env->dregs[n]);
     } else if (n < 16) {
         /* A0-A7 */
-        GET_REG32(env->aregs[n - 8]);
+        return gdb_get_reg32(mem_buf, env->aregs[n - 8]);
     } else {
         switch (n) {
         case 16:
-            GET_REG32(env->sr);
+            return gdb_get_reg32(mem_buf, env->sr);
         case 17:
-            GET_REG32(env->pc);
+            return gdb_get_reg32(mem_buf, env->pc);
         }
     }
     /* FP registers not included here because they vary between

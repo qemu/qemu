@@ -22,25 +22,25 @@ static int
 read_register_crisv10(CPUCRISState *env, uint8_t *mem_buf, int n)
 {
     if (n < 15) {
-        GET_REG32(env->regs[n]);
+        return gdb_get_reg32(mem_buf, env->regs[n]);
     }
 
     if (n == 15) {
-        GET_REG32(env->pc);
+        return gdb_get_reg32(mem_buf, env->pc);
     }
 
     if (n < 32) {
         switch (n) {
         case 16:
-            GET_REG8(env->pregs[n - 16]);
+            return gdb_get_reg8(mem_buf, env->pregs[n - 16]);
         case 17:
-            GET_REG8(env->pregs[n - 16]);
+            return gdb_get_reg8(mem_buf, env->pregs[n - 16]);
         case 20:
         case 21:
-            GET_REG16(env->pregs[n - 16]);
+            return gdb_get_reg16(mem_buf, env->pregs[n - 16]);
         default:
             if (n >= 23) {
-                GET_REG32(env->pregs[n - 16]);
+                return gdb_get_reg32(mem_buf, env->pregs[n - 16]);
             }
             break;
         }
@@ -58,28 +58,28 @@ static int cpu_gdb_read_register(CPUCRISState *env, uint8_t *mem_buf, int n)
 
     srs = env->pregs[PR_SRS];
     if (n < 16) {
-        GET_REG32(env->regs[n]);
+        return gdb_get_reg32(mem_buf, env->regs[n]);
     }
 
     if (n >= 21 && n < 32) {
-        GET_REG32(env->pregs[n - 16]);
+        return gdb_get_reg32(mem_buf, env->pregs[n - 16]);
     }
     if (n >= 33 && n < 49) {
-        GET_REG32(env->sregs[srs][n - 33]);
+        return gdb_get_reg32(mem_buf, env->sregs[srs][n - 33]);
     }
     switch (n) {
     case 16:
-        GET_REG8(env->pregs[0]);
+        return gdb_get_reg8(mem_buf, env->pregs[0]);
     case 17:
-        GET_REG8(env->pregs[1]);
+        return gdb_get_reg8(mem_buf, env->pregs[1]);
     case 18:
-        GET_REG32(env->pregs[2]);
+        return gdb_get_reg32(mem_buf, env->pregs[2]);
     case 19:
-        GET_REG8(srs);
+        return gdb_get_reg8(mem_buf, srs);
     case 20:
-        GET_REG16(env->pregs[4]);
+        return gdb_get_reg16(mem_buf, env->pregs[4]);
     case 32:
-        GET_REG32(env->pc);
+        return gdb_get_reg32(mem_buf, env->pc);
     }
 
     return 0;

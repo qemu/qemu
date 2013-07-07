@@ -21,44 +21,47 @@
 static int cpu_gdb_read_register(CPUMIPSState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-        GET_REGL(env->active_tc.gpr[n]);
+        return gdb_get_regl(mem_buf, env->active_tc.gpr[n]);
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
         if (n >= 38 && n < 70) {
             if (env->CP0_Status & (1 << CP0St_FR)) {
-                GET_REGL(env->active_fpu.fpr[n - 38].d);
+                return gdb_get_regl(mem_buf,
+                    env->active_fpu.fpr[n - 38].d);
             } else {
-                GET_REGL(env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX]);
+                return gdb_get_regl(mem_buf,
+                    env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX]);
             }
         }
         switch (n) {
         case 70:
-            GET_REGL((int32_t)env->active_fpu.fcr31);
+            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr31);
         case 71:
-            GET_REGL((int32_t)env->active_fpu.fcr0);
+            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr0);
         }
     }
     switch (n) {
     case 32:
-        GET_REGL((int32_t)env->CP0_Status);
+        return gdb_get_regl(mem_buf, (int32_t)env->CP0_Status);
     case 33:
-        GET_REGL(env->active_tc.LO[0]);
+        return gdb_get_regl(mem_buf, env->active_tc.LO[0]);
     case 34:
-        GET_REGL(env->active_tc.HI[0]);
+        return gdb_get_regl(mem_buf, env->active_tc.HI[0]);
     case 35:
-        GET_REGL(env->CP0_BadVAddr);
+        return gdb_get_regl(mem_buf, env->CP0_BadVAddr);
     case 36:
-        GET_REGL((int32_t)env->CP0_Cause);
+        return gdb_get_regl(mem_buf, (int32_t)env->CP0_Cause);
     case 37:
-        GET_REGL(env->active_tc.PC | !!(env->hflags & MIPS_HFLAG_M16));
+        return gdb_get_regl(mem_buf, env->active_tc.PC |
+                                     !!(env->hflags & MIPS_HFLAG_M16));
     case 72:
-        GET_REGL(0); /* fp */
+        return gdb_get_regl(mem_buf, 0); /* fp */
     case 89:
-        GET_REGL((int32_t)env->CP0_PRid);
+        return gdb_get_regl(mem_buf, (int32_t)env->CP0_PRid);
     }
     if (n >= 73 && n <= 88) {
         /* 16 embedded regs.  */
-        GET_REGL(0);
+        return gdb_get_regl(mem_buf, 0);
     }
 
     return 0;

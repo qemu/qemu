@@ -489,35 +489,6 @@ static int put_packet(GDBState *s, const char *buf)
     return put_packet_binary(s, buf, strlen(buf));
 }
 
-/* The GDB remote protocol transfers values in target byte order.  This means
-   we can use the raw memory access routines to access the value buffer.
-   Conveniently, these also handle the case where the buffer is mis-aligned.
- */
-#define GET_REG8(val) do { \
-    stb_p(mem_buf, val); \
-    return 1; \
-    } while(0)
-#define GET_REG16(val) do { \
-    stw_p(mem_buf, val); \
-    return 2; \
-    } while(0)
-#define GET_REG32(val) do { \
-    stl_p(mem_buf, val); \
-    return 4; \
-    } while(0)
-#define GET_REG64(val) do { \
-    stq_p(mem_buf, val); \
-    return 8; \
-    } while(0)
-
-#if TARGET_LONG_BITS == 64
-#define GET_REGL(val) GET_REG64(val)
-#define ldtul_p(addr) ldq_p(addr)
-#else
-#define GET_REGL(val) GET_REG32(val)
-#define ldtul_p(addr) ldl_p(addr)
-#endif
-
 #if defined(TARGET_I386)
 
 #include "target-i386/gdbstub.c"
