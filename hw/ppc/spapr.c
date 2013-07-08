@@ -887,7 +887,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         if (strcmp(nd->model, "ibmveth") == 0) {
             spapr_vlan_create(spapr->vio_bus, nd);
         } else {
-            pci_nic_init_nofail(&nd_table[i], nd->model, NULL);
+            pci_nic_init_nofail(&nd_table[i], phb->bus, nd->model, NULL);
         }
     }
 

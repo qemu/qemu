@@ -59,7 +59,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     qemu_irq *irqp;
     qemu_irq pic[64];
     qemu_irq mmc_irq[2];
-    PCIBus *pci_bus;
+    PCIBus *pci_bus = NULL;
     NICInfo *nd;
     i2c_bus *i2c;
     int n;
@@ -250,7 +250,9 @@ static void realview_init(QEMUMachineInitArgs *args,
             }
             done_nic = 1;
         } else {
-            pci_nic_init_nofail(nd, "rtl8139", NULL);
+            if (pci_bus) {
+                pci_nic_init_nofail(nd, pci_bus, "rtl8139", NULL);
+            }
         }
     }
 

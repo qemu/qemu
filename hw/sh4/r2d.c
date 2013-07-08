@@ -236,6 +236,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     DeviceState *dev;
     SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
+    PCIBus *pci_bus;
 
     if (cpu_model == NULL) {
         cpu_model = "SH7751R";
@@ -264,6 +265,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     dev = qdev_create(NULL, "sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
     sysbus_connect_irq(busdev, 0, irq[PCI_INTA]);
@@ -295,7 +297,8 @@ static void r2d_init(QEMUMachineInitArgs *args)
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus,
+                            "rtl8139", i==0 ? "2" : NULL);
 
     /* USB keyboard */
     usbdevice_create("keyboard");

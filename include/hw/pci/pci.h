@@ -378,9 +378,11 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
 void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
-PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
+PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
+                        const char *default_model,
                         const char *default_devaddr);
-PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
+                               const char *default_model,
                                const char *default_devaddr);
 
 PCIDevice *pci_vga_init(PCIBus *bus);
@@ -389,14 +391,15 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);
-PCIBus *pci_find_root_bus(int domain);
-int pci_find_domain(const PCIBus *bus);
+PCIBus *pci_find_primary_bus(void);
+PCIBus *pci_device_root_bus(const PCIDevice *d);
+const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
-PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
+PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr);
 
-int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
-                     unsigned *slotp);
+int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                      unsigned int *slotp, unsigned int *funcp);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 

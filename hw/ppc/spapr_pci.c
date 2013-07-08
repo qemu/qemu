@@ -699,11 +699,21 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
+                                           PCIBus *rootbus)
+{
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(host_bridge);
+
+    return sphb->dtbusname;
+}
+
 static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    hc->root_bus_path = spapr_phb_root_bus_path;
     sdc->init = spapr_phb_init;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
