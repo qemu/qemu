@@ -243,7 +243,7 @@ static void bamboo_init(QEMUMachineInitArgs *args)
         for (i = 0; i < nb_nics; i++) {
             /* There are no PCI NICs on the Bamboo board, but there are
              * PCI slots, so we can pick whatever default model we want. */
-            pci_nic_init_nofail(&nd_table[i], "e1000", NULL);
+            pci_nic_init_nofail(&nd_table[i], pcibus, "e1000", NULL);
         }
     }
 

@@ -639,7 +639,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
             isa_ne2000_init(isa_bus, ne2000_io[i], ne2000_irq[i],
                             &nd_table[i]);
         } else {
-            pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
         }
     }
 

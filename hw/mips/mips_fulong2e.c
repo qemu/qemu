@@ -231,7 +231,7 @@ static void audio_init (PCIBus *pci_bus)
 }
 
 /* Network support */
-static void network_init (void)
+static void network_init (PCIBus *pci_bus)
 {
     int i;
 
@@ -244,7 +244,7 @@ static void network_init (void)
             default_devaddr = "07";
         }
 
-        pci_nic_init_nofail(nd, "rtl8139", default_devaddr);
+        pci_nic_init_nofail(nd, pci_bus, "rtl8139", default_devaddr);
     }
 }
 
@@ -393,7 +393,7 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     /* Sound card */
     audio_init(pci_bus);
     /* Network card */
-    network_init();
+    network_init(pci_bus);
 }
 
 static QEMUMachine mips_fulong2e_machine = {

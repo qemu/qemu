@@ -161,7 +161,7 @@ Guest CPU Cores (KVM):
 
 Overall
 M: Gleb Natapov <gleb@redhat.com>
-M: Marcelo Tosatti <mtosatti@redhat.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
 F: kvm-*

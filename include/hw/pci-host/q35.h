@@ -55,6 +55,7 @@ typedef struct MCHPCIState {
     uint8_t smm_enabled;
     ram_addr_t below_4g_mem_size;
     ram_addr_t above_4g_mem_size;
+    PcGuestInfo *guest_info;
 } MCHPCIState;
 
 typedef struct Q35PCIHost {
@@ -81,6 +82,7 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_PCIEXBAR               0x60    /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_SIZE          8       /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT       0xb0000000
+#define MCH_HOST_BRIDGE_PCIEXBAR_MAX           (0x10000000) /* 256M */
 #define MCH_HOST_BRIDGE_PCIEXBAR_ADMSK         Q35_MASK(64, 35, 28)
 #define MCH_HOST_BRIDGE_PCIEXBAR_128ADMSK      ((uint64_t)(1 << 26))
 #define MCH_HOST_BRIDGE_PCIEXBAR_64ADMSK       ((uint64_t)(1 << 25))
