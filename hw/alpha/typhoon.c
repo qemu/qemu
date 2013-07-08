@@ -764,7 +764,8 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                                 &s->pchip.reg_mem);
 
     /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
-    memory_region_init(&s->pchip.reg_io, OBJECT(s), "pci0-io", 32*MB);
+    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_ignore_ops,
+                          NULL, "pci0-io", 32*MB);
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 

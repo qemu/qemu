@@ -12,6 +12,32 @@
 #include "sysemu/sysemu.h"
 
 
+/* Fallback for unassigned PCI I/O operations.  Avoids MCHK.  */
+
+static uint64_t ignore_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void ignore_write(void *opaque, hwaddr addr, uint64_t v, unsigned size)
+{
+}
+
+const MemoryRegionOps alpha_pci_ignore_ops = {
+    .read = ignore_read,
+    .write = ignore_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+
 /* PCI config space reads/writes, to byte-word addressable memory.  */
 static uint64_t bw_conf1_read(void *opaque, hwaddr addr,
                               unsigned size)
