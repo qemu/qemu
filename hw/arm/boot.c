@@ -411,10 +411,16 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     info->entry = entry;
     if (is_linux) {
         if (info->initrd_filename) {
-            initrd_size = load_image_targphys(info->initrd_filename,
-                                              info->initrd_start,
-                                              info->ram_size -
-                                              info->initrd_start);
+            initrd_size = load_ramdisk(info->initrd_filename,
+                                       info->initrd_start,
+                                       info->ram_size -
+                                       info->initrd_start);
+            if (initrd_size < 0) {
+                initrd_size = load_image_targphys(info->initrd_filename,
+                                                  info->initrd_start,
+                                                  info->ram_size -
+                                                  info->initrd_start);
+            }
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
                         info->initrd_filename);
