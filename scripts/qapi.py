@@ -17,6 +17,21 @@ builtin_types = [
     'uint8', 'uint16', 'uint32', 'uint64'
 ]
 
+builtin_type_qtypes = {
+    'str':      'QTYPE_QSTRING',
+    'int':      'QTYPE_QINT',
+    'number':   'QTYPE_QFLOAT',
+    'bool':     'QTYPE_QBOOL',
+    'int8':     'QTYPE_QINT',
+    'int16':    'QTYPE_QINT',
+    'int32':    'QTYPE_QINT',
+    'int64':    'QTYPE_QINT',
+    'uint8':    'QTYPE_QINT',
+    'uint16':   'QTYPE_QINT',
+    'uint32':   'QTYPE_QINT',
+    'uint64':   'QTYPE_QINT',
+}
+
 def tokenize(data):
     while len(data):
         ch = data[0]

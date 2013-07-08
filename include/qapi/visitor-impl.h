@@ -32,6 +32,8 @@ struct Visitor
 
     void (*type_enum)(Visitor *v, int *obj, const char *strings[],
                       const char *kind, const char *name, Error **errp);
+    void (*get_next_type)(Visitor *v, int *kind, const int *qobjects,
+                          const char *name, Error **errp);
 
     void (*type_int)(Visitor *v, int64_t *obj, const char *name, Error **errp);
     void (*type_bool)(Visitor *v, bool *obj, const char *name, Error **errp);

@@ -13,6 +13,7 @@
 #ifndef QAPI_VISITOR_CORE_H
 #define QAPI_VISITOR_CORE_H
 
+#include "qapi/qmp/qobject.h"
 #include "qapi/error.h"
 #include <stdlib.h>
 
@@ -42,6 +43,8 @@ void visit_end_list(Visitor *v, Error **errp);
 void visit_start_optional(Visitor *v, bool *present, const char *name,
                           Error **errp);
 void visit_end_optional(Visitor *v, Error **errp);
+void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
+                         const char *name, Error **errp);
 void visit_type_enum(Visitor *v, int *obj, const char *strings[],
                      const char *kind, const char *name, Error **errp);
 void visit_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp);

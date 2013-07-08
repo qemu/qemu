@@ -12,6 +12,7 @@
  */
 
 #include "qemu-common.h"
+#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
@@ -95,6 +96,14 @@ void visit_end_optional(Visitor *v, Error **errp)
 {
     if (!error_is_set(errp) && v->end_optional) {
         v->end_optional(v, errp);
+    }
+}
+
+void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
+                         const char *name, Error **errp)
+{
+    if (!error_is_set(errp) && v->get_next_type) {
+        v->get_next_type(v, obj, qtypes, name, errp);
     }
 }
 

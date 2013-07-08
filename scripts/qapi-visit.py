@@ -176,6 +176,49 @@ void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **e
 ''',
                  name=name)
 
+def generate_visit_anon_union(name, members):
+    ret = mcgen('''
+
+void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
+{
+    Error *err = NULL;
+
+    if (!error_is_set(errp)) {
+        visit_start_implicit_struct(m, (void**) obj, sizeof(%(name)s), &err);
+        visit_get_next_type(m, (int*) &(*obj)->kind, %(name)s_qtypes, name, &err);
+        switch ((*obj)->kind) {
+''',
+    name=name)
+
+    for key in members:
+        assert (members[key] in builtin_types
+            or find_struct(members[key])
+            or find_union(members[key])), "Invalid anonymous union member"
+
+        ret += mcgen('''
+        case %(abbrev)s_KIND_%(enum)s:
+            visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
+            break;
+''',
+                abbrev = de_camel_case(name).upper(),
+                enum = c_fun(de_camel_case(key),False).upper(),
+                c_type = type_name(members[key]),
+                c_name = c_fun(key))
+
+    ret += mcgen('''
+        default:
+            abort();
+        }
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_implicit_struct(m, &err);
+    }
+}
+''')
+
+    return ret
+
+
 def generate_visit_union(expr):
 
     name = expr['union']
@@ -183,6 +226,10 @@ def generate_visit_union(expr):
 
     base = expr.get('base')
     discriminator = expr.get('discriminator')
+
+    if discriminator == {}:
+        assert not base
+        return generate_visit_anon_union(name, members)
 
     ret = generate_visit_enum('%sKind' % name, members.keys())
 

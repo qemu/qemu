@@ -125,6 +125,31 @@ Resulting in this JSON object:
    "lazy-refcounts": true }
 
 
+A special type of unions are anonymous unions. They don't form a dictionary in
+the wire format but allow the direct use of different types in their place. As
+they aren't structured, they don't have any explicit discriminator but use
+the (QObject) data type of their value as an implicit discriminator. This means
+that they are restricted to using only one discriminator value per QObject
+type. For example, you cannot have two different complex types in an anonymous
+union, or two different integer types.
+
+Anonymous unions are declared using an empty dictionary as their discriminator.
+The discriminator values never appear on the wire, they are only used in the
+generated C code. Anonymous unions cannot have a base type.
+
+ { 'union': 'BlockRef',
+   'discriminator': {},
+   'data': { 'definition': 'BlockdevOptions',
+             'reference': 'str' } }
+
+This example allows using both of the following example objects:
+
+ { "file": "my_existing_block_device_id" }
+ { "file": { "driver": "file",
+             "readonly": false,
+             'filename': "/tmp/mydisk.qcow2" } }
+
+
 === Commands ===
 
 Commands are defined by using a list containing three members.  The first

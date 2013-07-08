@@ -150,6 +150,40 @@ typedef enum %(name)s
 
     return lookup_decl + enum_decl
 
+def generate_anon_union_qtypes(expr):
+
+    name = expr['union']
+    members = expr['data']
+
+    ret = mcgen('''
+const int %(name)s_qtypes[QTYPE_MAX] = {
+''',
+    name=name)
+
+    for key in members:
+        qapi_type = members[key]
+        if builtin_type_qtypes.has_key(qapi_type):
+            qtype = builtin_type_qtypes[qapi_type]
+        elif find_struct(qapi_type):
+            qtype = "QTYPE_QDICT"
+        elif find_union(qapi_type):
+            qtype = "QTYPE_QDICT"
+        else:
+            assert False, "Invalid anonymous union member"
+
+        ret += mcgen('''
+    [ %(qtype)s ] = %(abbrev)s_KIND_%(enum)s,
+''',
+        qtype = qtype,
+        abbrev = de_camel_case(name).upper(),
+        enum = c_fun(de_camel_case(key),False).upper())
+
+    ret += mcgen('''
+};
+''')
+    return ret
+
+
 def generate_union(expr):
 
     name = expr['union']
@@ -190,6 +224,12 @@ struct %(name)s
     ret += mcgen('''
 };
 ''')
+    if discriminator == {}:
+        ret += mcgen('''
+extern const int %(name)s_qtypes[];
+''',
+            name=name)
+
 
     return ret
 
@@ -342,6 +382,8 @@ for expr in exprs:
         ret += generate_fwd_struct(expr['union'], expr['data']) + "\n"
         ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
         fdef.write(generate_enum_lookup('%sKind' % expr['union'], expr['data'].keys()))
+        if expr.get('discriminator') == {}:
+            fdef.write(generate_anon_union_qtypes(expr))
     else:
         continue
     fdecl.write(ret)
