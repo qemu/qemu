@@ -12,50 +12,6 @@
 #include "sysemu/sysemu.h"
 
 
-/* PCI IO reads/writes, to byte-word addressable memory.  */
-/* ??? Doesn't handle multiple PCI busses.  */
-
-static uint64_t bw_io_read(void *opaque, hwaddr addr, unsigned size)
-{
-    switch (size) {
-    case 1:
-        return cpu_inb(addr);
-    case 2:
-        return cpu_inw(addr);
-    case 4:
-        return cpu_inl(addr);
-    }
-    abort();
-}
-
-static void bw_io_write(void *opaque, hwaddr addr,
-                        uint64_t val, unsigned size)
-{
-    switch (size) {
-    case 1:
-        cpu_outb(addr, val);
-        break;
-    case 2:
-        cpu_outw(addr, val);
-        break;
-    case 4:
-        cpu_outl(addr, val);
-        break;
-    default:
-        abort();
-    }
-}
-
-const MemoryRegionOps alpha_pci_bw_io_ops = {
-    .read = bw_io_read,
-    .write = bw_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-};
-
 /* PCI config space reads/writes, to byte-word addressable memory.  */
 static uint64_t bw_conf1_read(void *opaque, hwaddr addr,
                               unsigned size)
