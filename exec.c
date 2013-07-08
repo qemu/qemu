@@ -1896,15 +1896,37 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     return false;
 }
 
-static inline int memory_access_size(MemoryRegion *mr, int l, hwaddr addr)
+static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
 {
-    if (l >= 4 && (((addr & 3) == 0 || mr->ops->impl.unaligned))) {
-        return 4;
+    unsigned access_size_min = mr->ops->impl.min_access_size;
+    unsigned access_size_max = mr->ops->impl.max_access_size;
+
+    /* Regions are assumed to support 1-4 byte accesses unless
+       otherwise specified.  */
+    if (access_size_min == 0) {
+        access_size_min = 1;
     }
-    if (l >= 2 && (((addr & 1) == 0) || mr->ops->impl.unaligned)) {
-        return 2;
+    if (access_size_max == 0) {
+        access_size_max = 4;
     }
-    return 1;
+
+    /* Bound the maximum access by the alignment of the address.  */
+    if (!mr->ops->impl.unaligned) {
+        unsigned align_size_max = addr & -addr;
+        if (align_size_max != 0 && align_size_max < access_size_max) {
+            access_size_max = align_size_max;
+        }
+    }
+
+    /* Don't attempt accesses larger than the maximum.  */
+    if (l > access_size_max) {
+        l = access_size_max;
+    }
+    /* ??? The users of this function are wrong, not supporting minimums larger
+       than the remaining length.  C.f. memory.c:access_with_adjusted_size.  */
+    assert(l >= access_size_min);
+
+    return l;
 }
 
 bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
@@ -1926,18 +1948,29 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 l = memory_access_size(mr, l, addr1);
                 /* XXX: could force current_cpu to NULL to avoid
                    potential bugs */
-                if (l == 4) {
+                switch (l) {
+                case 8:
+                    /* 64 bit write access */
+                    val = ldq_p(buf);
+                    error |= io_mem_write(mr, addr1, val, 8);
+                    break;
+                case 4:
                     /* 32 bit write access */
                     val = ldl_p(buf);
                     error |= io_mem_write(mr, addr1, val, 4);
-                } else if (l == 2) {
+                    break;
+                case 2:
                     /* 16 bit write access */
                     val = lduw_p(buf);
                     error |= io_mem_write(mr, addr1, val, 2);
-                } else {
+                    break;
+                case 1:
                     /* 8 bit write access */
                     val = ldub_p(buf);
                     error |= io_mem_write(mr, addr1, val, 1);
+                    break;
+                default:
+                    abort();
                 }
             } else {
                 addr1 += memory_region_get_ram_addr(mr);
@@ -1950,18 +1983,29 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
             if (!memory_access_is_direct(mr, is_write)) {
                 /* I/O case */
                 l = memory_access_size(mr, l, addr1);
-                if (l == 4) {
+                switch (l) {
+                case 8:
+                    /* 64 bit read access */
+                    error |= io_mem_read(mr, addr1, &val, 8);
+                    stq_p(buf, val);
+                    break;
+                case 4:
                     /* 32 bit read access */
                     error |= io_mem_read(mr, addr1, &val, 4);
                     stl_p(buf, val);
-                } else if (l == 2) {
+                    break;
+                case 2:
                     /* 16 bit read access */
                     error |= io_mem_read(mr, addr1, &val, 2);
                     stw_p(buf, val);
-                } else {
+                    break;
+                case 1:
                     /* 8 bit read access */
                     error |= io_mem_read(mr, addr1, &val, 1);
                     stb_p(buf, val);
+                    break;
+                default:
+                    abort();
                 }
             } else {
                 /* RAM case */
