@@ -51,9 +51,6 @@ typedef struct TyphoonState {
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
     MemoryRegion ram_region;
-
-    /* QEMU emulation state.  */
-    uint32_t latch_tmp;
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
@@ -75,10 +72,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
     CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
     uint64_t ret = 0;
-
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
 
     switch (addr) {
     case 0x0000:
@@ -199,7 +192,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
@@ -213,10 +205,6 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     TyphoonState *s = opaque;
     uint64_t ret = 0;
-
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
 
     switch (addr) {
     case 0x0000:
@@ -302,23 +290,14 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
 static void cchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval, newval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval, newval;
 
     switch (addr) {
     case 0x0000:
@@ -471,18 +450,10 @@ static void dchip_write(void *opaque, hwaddr addr,
 }
 
 static void pchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval;
 
     switch (addr) {
     case 0x0000:
@@ -585,12 +556,12 @@ static const MemoryRegionOps cchip_ops = {
     .write = cchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
 
@@ -599,11 +570,11 @@ static const MemoryRegionOps dchip_ops = {
     .write = dchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
+        .min_access_size = 8,
         .max_access_size = 8,
     },
 };
@@ -613,12 +584,12 @@ static const MemoryRegionOps pchip_ops = {
     .write = pchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
 
