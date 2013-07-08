@@ -164,7 +164,7 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
     MemoryRegion *fpga_memory = g_new(MemoryRegion, 1);
 
     fpga = g_malloc0(sizeof(ref405ep_fpga_t));
-    memory_region_init_io(fpga_memory, &ref405ep_fpga_ops, fpga,
+    memory_region_init_io(fpga_memory, NULL, &ref405ep_fpga_ops, fpga,
                           "fpga", 0x00000100);
     memory_region_add_subregion(sysmem, base, fpga_memory);
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
@@ -197,11 +197,11 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
     MemoryRegion *sysmem = get_system_memory();
 
     /* XXX: fix this */
-    memory_region_init_ram(&ram_memories[0], "ef405ep.ram", 0x08000000);
+    memory_region_init_ram(&ram_memories[0], NULL, "ef405ep.ram", 0x08000000);
     vmstate_register_ram_global(&ram_memories[0]);
     ram_bases[0] = 0;
     ram_sizes[0] = 0x08000000;
-    memory_region_init(&ram_memories[1], "ef405ep.ram1", 0);
+    memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
     ram_size = 128 * 1024 * 1024;
@@ -212,7 +212,7 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
                         33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
     sram_size = 512 * 1024;
-    memory_region_init_ram(sram, "ef405ep.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0xFFF00000, sram);
     /* allocate and load BIOS */
@@ -244,7 +244,7 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
         printf("Load BIOS from file\n");
 #endif
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, "ef405ep.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, NULL, "ef405ep.bios", BIOS_SIZE);
         vmstate_register_ram_global(bios);
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
@@ -490,7 +490,7 @@ static void taihu_cpld_init(MemoryRegion *sysmem, uint32_t base)
     MemoryRegion *cpld_memory = g_new(MemoryRegion, 1);
 
     cpld = g_malloc0(sizeof(taihu_cpld_t));
-    memory_region_init_io(cpld_memory, &taihu_cpld_ops, cpld, "cpld", 0x100);
+    memory_region_init_io(cpld_memory, NULL, &taihu_cpld_ops, cpld, "cpld", 0x100);
     memory_region_add_subregion(sysmem, base, cpld_memory);
     qemu_register_reset(&taihu_cpld_reset, cpld);
 }
@@ -514,12 +514,12 @@ static void taihu_405ep_init(QEMUMachineInitArgs *args)
     DriveInfo *dinfo;
 
     /* RAM is soldered to the board so the size cannot be changed */
-    memory_region_init_ram(&ram_memories[0],
+    memory_region_init_ram(&ram_memories[0], NULL,
                            "taihu_405ep.ram-0", 0x04000000);
     vmstate_register_ram_global(&ram_memories[0]);
     ram_bases[0] = 0;
     ram_sizes[0] = 0x04000000;
-    memory_region_init_ram(&ram_memories[1],
+    memory_region_init_ram(&ram_memories[1], NULL,
                            "taihu_405ep.ram-1", 0x04000000);
     vmstate_register_ram_global(&ram_memories[1]);
     ram_bases[1] = 0x04000000;
@@ -563,7 +563,7 @@ static void taihu_405ep_init(QEMUMachineInitArgs *args)
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, "taihu_405ep.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, NULL, "taihu_405ep.bios", BIOS_SIZE);
         vmstate_register_ram_global(bios);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {

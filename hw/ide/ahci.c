@@ -650,6 +650,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     int off_idx = -1;
     int off_pos = -1;
     int tbl_entry_size;
+    IDEBus *bus = &ad->port;
+    BusState *qbus = BUS(bus);
 
     if (!sglist_alloc_hint) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
@@ -691,7 +693,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
             goto out;
         }
 
-        qemu_sglist_init(sglist, (sglist_alloc_hint - off_idx), ad->hba->as);
+        qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
+                         ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr + off_pos),
                         le32_to_cpu(tbl[off_idx].flags_size) + 1 - off_pos);
 
@@ -1155,8 +1158,10 @@ void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
     s->dev = g_malloc0(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", AHCI_MEM_BAR_SIZE);
-    memory_region_init_io(&s->idp, &ahci_idp_ops, s, "ahci-idp", 32);
+    memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,
+                          "ahci", AHCI_MEM_BAR_SIZE);
+    memory_region_init_io(&s->idp, OBJECT(qdev), &ahci_idp_ops, s,
+                          "ahci-idp", 32);
 
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
 

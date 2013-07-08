@@ -848,7 +848,7 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
 
     s = g_malloc0(sizeof(DBDMAState));
 
-    memory_region_init_io(&s->mem, &dbdma_ops, s, "dbdma", 0x1000);
+    memory_region_init_io(&s->mem, NULL, &dbdma_ops, s, "dbdma", 0x1000);
     *dbdma_mem = &s->mem;
     vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);

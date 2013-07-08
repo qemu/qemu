@@ -468,7 +468,7 @@ void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd,
     s->sysmem = sysmem;
     s->irq = irq;
 
-    memory_region_init_io(&s->iomem, &mcf_fec_ops, s, "fec", 0x400);
+    memory_region_init_io(&s->iomem, NULL, &mcf_fec_ops, s, "fec", 0x400);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->conf.macaddr = nd->macaddr;

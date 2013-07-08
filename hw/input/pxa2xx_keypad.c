@@ -313,7 +313,7 @@ PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
     s = (PXA2xxKeyPadState *) g_malloc0(sizeof(PXA2xxKeyPadState));
     s->irq = irq;
 
-    memory_region_init_io(&s->iomem, &pxa2xx_keypad_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_keypad_ops, s,
                           "pxa2xx-keypad", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 

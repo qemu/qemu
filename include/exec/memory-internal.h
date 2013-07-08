@@ -119,8 +119,6 @@ static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags);
 
-extern const IORangeOps memory_region_iorange_ops;
-
 #endif
 
 #endif

@@ -122,7 +122,7 @@ static int puv3_ost_init(SysBusDevice *dev)
     s->ptimer = ptimer_init(s->bh);
     ptimer_set_freq(s->ptimer, 50 * 1000 * 1000);
 
-    memory_region_init_io(&s->iomem, &puv3_ost_ops, s, "puv3_ost",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_ost_ops, s, "puv3_ost",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 

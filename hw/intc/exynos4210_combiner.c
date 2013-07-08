@@ -417,7 +417,7 @@ static int exynos4210_combiner_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->output_irq[i]);
     }
 
-    memory_region_init_io(&s->iomem, &exynos4210_combiner_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_combiner_ops, s,
             "exynos4210-combiner", IIC_REGION_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 

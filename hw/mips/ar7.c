@@ -3622,7 +3622,8 @@ static void ar7_init(AR7State *s, CPUMIPSState *env)
     MemoryRegion *system_memory = get_system_memory();
     //~ hwaddr addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
-    memory_region_init_io(&s->mmio, &ar7_io_ops, s, "ar7.io", 0x0ffff000);
+    memory_region_init_io(&s->mmio, OBJECT(s), &ar7_io_ops, s,
+                          "ar7.io", 0x0ffff000);
     memory_region_add_subregion(system_memory, 0x00001000, &s->mmio);
     // TODO: i/o starting at 0x1e000000, 0x01c00000 bytes.
 
@@ -3872,13 +3873,13 @@ static void ar7_common_init(QEMUMachineInitArgs *args,
     loaderparams.kernel_cmdline = args->kernel_cmdline;
     loaderparams.initrd_filename = args->initrd_filename;
 
-    memory_region_init_ram(&s->ram, "ar7.ram", args->ram_size);
+    memory_region_init_ram(&s->ram, OBJECT(s), "ar7.ram", args->ram_size);
     memory_region_add_subregion(system_memory, KERNEL_LOAD_ADDR, &s->ram);
     fprintf(stderr, "%s: ram_size = 0x" RAM_ADDR_FMT "\n",
             __func__, args->ram_size);
 
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
-    memory_region_init_ram(&s->internal_ram, "ar7.internal", 4 * KiB);
+    memory_region_init_ram(&s->internal_ram, OBJECT(s), "ar7.internal", 4 * KiB);
     memory_region_add_subregion(system_memory, 0, &s->internal_ram);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
@@ -3907,7 +3908,7 @@ static void ar7_common_init(QEMUMachineInitArgs *args,
             __func__, "flashimage.bin", flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
-    memory_region_init_ram(&s->rom, "ar7.rom", 4 * KiB);
+    memory_region_init_ram(&s->rom, OBJECT(s), "ar7.rom", 4 * KiB);
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_memory, PROM_ADDR, &s->rom);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");

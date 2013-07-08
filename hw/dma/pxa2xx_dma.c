@@ -465,7 +465,7 @@ static int pxa2xx_dma_init(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, pxa2xx_dma_request, PXA2XX_DMA_NUM_REQUESTS);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_dma_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_dma_ops, s,
                           "pxa2xx.dma", 0x00010000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);

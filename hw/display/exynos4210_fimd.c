@@ -1126,6 +1126,11 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     /* Total number of bytes of virtual screen used by current window */
     w->fb_len = fb_mapped_len = (w->virtpage_width + w->virtpage_offsize) *
             (w->rightbot_y - w->lefttop_y + 1);
+
+    /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
+     * does not support hot-unplug.
+     */
+    memory_region_unref(w->mem_section.mr);
     w->mem_section = memory_region_find(sysbus_address_space(&s->busdev),
             fb_start_addr, w->fb_len);
     assert(w->mem_section.mr);
@@ -1154,6 +1159,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     return;
 
 error_return:
+    memory_region_unref(w->mem_section.mr);
     w->mem_section.mr = NULL;
     w->mem_section.size = int128_zero();
     w->host_fb_addr = NULL;
@@ -1902,7 +1908,7 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[1]);
     sysbus_init_irq(dev, &s->irq[2]);
 
-    memory_region_init_io(&s->iomem, &exynos4210_fimd_mmio_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     s->console = graphic_console_init(DEVICE(dev), &exynos4210_fimd_ops, s);

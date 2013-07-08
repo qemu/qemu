@@ -146,7 +146,8 @@ static int etraxfs_pic_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_nmi);
 
-    memory_region_init_io(&s->mmio, &pic_ops, s, "etraxfs-pic", R_MAX * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s), &pic_ops, s,
+                          "etraxfs-pic", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }

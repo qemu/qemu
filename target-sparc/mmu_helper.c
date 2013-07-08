@@ -845,6 +845,7 @@ hwaddr cpu_get_phys_page_debug(CPUSPARCState *env, target_ulong addr)
         }
     }
     section = memory_region_find(get_system_memory(), phys_addr, 1);
+    memory_region_unref(section.mr);
     if (!int128_nz(section.size)) {
         return -1;
     }

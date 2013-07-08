@@ -648,7 +648,8 @@ static void cs4231a_initfn (Object *obj)
 {
     CSState *s = CS4231A (obj);
 
-    memory_region_init_io (&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
+    memory_region_init_io (&s->ioports, OBJECT(s), &cs_ioport_ops, s,
+                           "cs4231a", 4);
 }
 
 static void cs4231a_realizefn (DeviceState *dev, Error **errp)

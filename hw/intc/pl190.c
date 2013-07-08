@@ -236,7 +236,7 @@ static int pl190_init(SysBusDevice *dev)
 {
     pl190_state *s = FROM_SYSBUS(pl190_state, dev);
 
-    memory_region_init_io(&s->iomem, &pl190_ops, s, "pl190", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl190_ops, s, "pl190", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     qdev_init_gpio_in(&dev->qdev, pl190_set_irq, 32);
     sysbus_init_irq(dev, &s->irq);

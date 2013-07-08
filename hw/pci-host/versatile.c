@@ -381,8 +381,8 @@ static void pci_vpb_init(Object *obj)
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PCIVPBState *s = PCI_VPB(obj);
 
-    memory_region_init(&s->pci_io_space, "pci_io", 1ULL << 32);
-    memory_region_init(&s->pci_mem_space, "pci_mem", 1ULL << 32);
+    memory_region_init(&s->pci_io_space, OBJECT(s), "pci_io", 1ULL << 32);
+    memory_region_init(&s->pci_mem_space, OBJECT(s), "pci_mem", 1ULL << 32);
 
     pci_bus_new_inplace(&s->pci_bus, DEVICE(obj), "pci",
                         &s->pci_mem_space, &s->pci_io_space,
@@ -424,20 +424,20 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * 3 : PCI IO window
      * 4..6 : PCI memory windows
      */
-    memory_region_init_io(&s->controlregs, &pci_vpb_reg_ops, s, "pci-vpb-regs",
-                          0x1000);
+    memory_region_init_io(&s->controlregs, OBJECT(s), &pci_vpb_reg_ops, s,
+                          "pci-vpb-regs", 0x1000);
     sysbus_init_mmio(sbd, &s->controlregs);
-    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, s,
+    memory_region_init_io(&s->mem_config, OBJECT(s), &pci_vpb_config_ops, s,
                           "pci-vpb-selfconfig", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config);
-    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, s,
+    memory_region_init_io(&s->mem_config2, OBJECT(s), &pci_vpb_config_ops, s,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config2);
 
     /* The window into I/O space is always into a fixed base address;
      * its size is the same for both realview and versatile.
      */
-    memory_region_init_alias(&s->pci_io_window, "pci-vbp-io-window",
+    memory_region_init_alias(&s->pci_io_window, OBJECT(s), "pci-vbp-io-window",
                              &s->pci_io_space, 0, 0x100000);
 
     sysbus_init_mmio(sbd, &s->pci_io_space);
@@ -447,7 +447,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * offsets are guest controllable via the IMAP registers.
      */
     for (i = 0; i < 3; i++) {
-        memory_region_init_alias(&s->pci_mem_window[i], "pci-vbp-window",
+        memory_region_init_alias(&s->pci_mem_window[i], OBJECT(s), "pci-vbp-window",
                                  &s->pci_mem_space, 0, s->mem_win_size[i]);
         sysbus_init_mmio(sbd, &s->pci_mem_window[i]);
     }

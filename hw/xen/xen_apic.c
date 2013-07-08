@@ -38,8 +38,8 @@ static const MemoryRegionOps xen_apic_io_ops = {
 
 static void xen_apic_init(APICCommonState *s)
 {
-    memory_region_init_io(&s->io_memory, &xen_apic_io_ops, s, "xen-apic-msi",
-                          APIC_SPACE_SIZE);
+    memory_region_init_io(&s->io_memory, OBJECT(s), &xen_apic_io_ops, s,
+                          "xen-apic-msi", APIC_SPACE_SIZE);
 
 #if defined(CONFIG_XEN_CTRL_INTERFACE_VERSION) \
     && CONFIG_XEN_CTRL_INTERFACE_VERSION >= 420

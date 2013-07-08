@@ -173,7 +173,7 @@ static void fusbh200_ehci_init(Object *obj)
     FUSBH200EHCIState *f = FUSBH200_EHCI(obj);
     EHCIState *s = &i->ehci;
 
-    memory_region_init_io(&f->mem_vendor, &fusbh200_ehci_mmio_ops, s,
+    memory_region_init_io(&f->mem_vendor, OBJECT(f), &fusbh200_ehci_mmio_ops, s,
                           "fusbh200", 0x4c);
     memory_region_add_subregion(&s->mem,
                                 s->opregbase + s->portscbase + 4 * s->portnr,

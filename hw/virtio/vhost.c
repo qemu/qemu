@@ -16,6 +16,7 @@
 #include <sys/ioctl.h>
 #include "hw/virtio/vhost.h"
 #include "hw/hw.h"
+#include "qemu/atomic.h"
 #include "qemu/range.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
@@ -47,11 +48,9 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
             addr += VHOST_LOG_CHUNK;
             continue;
         }
-        /* Data must be read atomically. We don't really
-         * need the barrier semantics of __sync
-         * builtins, but it's easier to use them than
-         * roll our own. */
-        log = __sync_fetch_and_and(from, 0);
+        /* Data must be read atomically. We don't really need barrier semantics
+         * but it's easier to use atomic_* than roll our own. */
+        log = atomic_xchg(from, 0);
         while ((bit = sizeof(log) > sizeof(int) ?
                 ffsll(log) : ffs(log))) {
             hwaddr page_addr;
@@ -497,6 +496,7 @@ static void vhost_region_add(MemoryListener *listener,
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
                                 dev->n_mem_sections);
     dev->mem_sections[dev->n_mem_sections - 1] = *section;
+    memory_region_ref(section->mr);
     vhost_set_memory(listener, section, true);
 }
 
@@ -512,6 +512,7 @@ static void vhost_region_del(MemoryListener *listener,
     }
 
     vhost_set_memory(listener, section, false);
+    memory_region_unref(section->mr);
     for (i = 0; i < dev->n_mem_sections; ++i) {
         if (dev->mem_sections[i].offset_within_address_space
             == section->offset_within_address_space) {

@@ -1663,7 +1663,7 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 
-    memory_region_init_io(&s->iomem, &omap_dma_ops, s, "omap.dma", memsize);
+    memory_region_init_io(&s->iomem, NULL, &omap_dma_ops, s, "omap.dma", memsize);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;
@@ -2085,7 +2085,7 @@ struct soc_dma_s *omap_dma4_init(hwaddr base, qemu_irq *irqs,
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, !!s->dma->freq);
 
-    memory_region_init_io(&s->iomem, &omap_dma4_ops, s, "omap.dma4", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &omap_dma4_ops, s, "omap.dma4", 0x1000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;

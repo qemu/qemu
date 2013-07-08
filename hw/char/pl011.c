@@ -265,7 +265,7 @@ static int pl011_init(SysBusDevice *dev, const unsigned char *id)
 {
     pl011_state *s = FROM_SYSBUS(pl011_state, dev);
 
-    memory_region_init_io(&s->iomem, &pl011_ops, s, "pl011", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->id = id;

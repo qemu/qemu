@@ -124,16 +124,24 @@ static const VMStateDescription vmstate_isa_i82374 = {
     },
 };
 
+static const MemoryRegionPortio i82374_portio_list[] = {
+    { 0x0A, 1, 1, .read = i82374_read_isr, },
+    { 0x10, 8, 1, .write = i82374_write_command, },
+    { 0x18, 8, 1, .read = i82374_read_status, },
+    { 0x20, 0x20, 1,
+      .write = i82374_write_descriptor, .read = i82374_read_descriptor, },
+    PORTIO_END_OF_LIST(),
+};
+
 static void i82374_isa_realize(DeviceState *dev, Error **errp)
 {
     ISAi82374State *isa = I82374(dev);
     I82374State *s = &isa->state;
+    PortioList *port_list = g_new(PortioList, 1);
 
-    register_ioport_read(isa->iobase + 0x0A, 1, 1, i82374_read_isr, s);
-    register_ioport_write(isa->iobase + 0x10, 8, 1, i82374_write_command, s);
-    register_ioport_read(isa->iobase + 0x18, 8, 1, i82374_read_status, s);
-    register_ioport_write(isa->iobase + 0x20, 0x20, 1, i82374_write_descriptor, s);
-    register_ioport_read(isa->iobase + 0x20, 0x20, 1, i82374_read_descriptor, s);
+    portio_list_init(port_list, OBJECT(isa), i82374_portio_list, s, "i82374");
+    portio_list_add(port_list, isa_address_space_io(&isa->parent_obj),
+                    isa->iobase);
 
     i82374_realize(s, errp);
 

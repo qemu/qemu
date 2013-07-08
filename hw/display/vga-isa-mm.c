@@ -105,13 +105,13 @@ static void vga_mm_init(ISAVGAMMState *s, hwaddr vram_base,
 
     s->it_shift = it_shift;
     s_ioport_ctrl = g_malloc(sizeof(*s_ioport_ctrl));
-    memory_region_init_io(s_ioport_ctrl, &vga_mm_ctrl_ops, s,
+    memory_region_init_io(s_ioport_ctrl, NULL, &vga_mm_ctrl_ops, s,
                           "vga-mm-ctrl", 0x100000);
     memory_region_set_flush_coalesced(s_ioport_ctrl);
 
     vga_io_memory = g_malloc(sizeof(*vga_io_memory));
     /* XXX: endianness? */
-    memory_region_init_io(vga_io_memory, &vga_mem_ops, &s->vga,
+    memory_region_init_io(vga_io_memory, NULL, &vga_mem_ops, &s->vga,
                           "vga-mem", 0x20000);
 
     vmstate_register(NULL, 0, &vmstate_vga_common, s);
@@ -132,11 +132,11 @@ int isa_vga_mm_init(hwaddr vram_base,
     s = g_malloc0(sizeof(*s));
 
     s->vga.vram_size_mb = VGA_RAM_SIZE >> 20;
-    vga_common_init(&s->vga);
+    vga_common_init(&s->vga, NULL);
     vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
     s->vga.con = graphic_console_init(NULL, s->vga.hw_ops, s);
 
-    vga_init_vbe(&s->vga, address_space);
+    vga_init_vbe(&s->vga, NULL, address_space);
     return 0;
 }

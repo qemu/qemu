@@ -56,9 +56,9 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
 
-    vga_common_init(s);
+    vga_common_init(s, OBJECT(dev));
     s->legacy_address_space = isa_address_space(isadev);
-    vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
+    vga_io_memory = vga_init_io(s, OBJECT(dev), &vga_ports, &vbe_ports);
     isa_register_portio_list(isadev, 0x3b0, vga_ports, s, "vga");
     if (vbe_ports) {
         isa_register_portio_list(isadev, 0x1ce, vbe_ports, s, "vbe");
@@ -69,7 +69,7 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     memory_region_set_coalescing(vga_io_memory);
     s->con = graphic_console_init(DEVICE(dev), s->hw_ops, s);
 
-    vga_init_vbe(s, isa_address_space(isadev));
+    vga_init_vbe(s, OBJECT(dev), isa_address_space(isadev));
     /* ROM BIOS */
     rom_add_vga(VGABIOS_FILENAME);
 }

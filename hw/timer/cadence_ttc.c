@@ -409,7 +409,8 @@ static int cadence_ttc_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->timer[i].irq);
     }
 
-    memory_region_init_io(&s->iomem, &cadence_ttc_ops, s, "timer", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &cadence_ttc_ops, s,
+                          "timer", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;

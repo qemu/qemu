@@ -109,7 +109,7 @@ static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
 {
     Lx60FpgaState *s = g_malloc(sizeof(Lx60FpgaState));
 
-    memory_region_init_io(&s->iomem, &lx60_fpga_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &lx60_fpga_ops, s,
             "lx60.fpga", 0x10000);
     memory_region_add_subregion(address_space, base, &s->iomem);
     lx60_fpga_reset(s);
@@ -139,7 +139,7 @@ static void lx60_net_init(MemoryRegion *address_space,
             sysbus_mmio_get_region(s, 1));
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "open_eth.ram", 16384);
+    memory_region_init_ram(ram, OBJECT(s), "open_eth.ram", 16384);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, buffers, ram);
 }
@@ -195,12 +195,12 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "lx60.dram", args->ram_size);
+    memory_region_init_ram(ram, NULL, "lx60.dram", args->ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, "lx60.io", 224 * 1024 * 1024);
+    memory_region_init(system_io, NULL, "lx60.io", 224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
     lx60_fpga_init(system_io, 0x0d020000);
     if (nd_table[0].used) {
@@ -231,7 +231,7 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
         rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram(rom, "lx60.sram", board->sram_size);
+        memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
         vmstate_register_ram_global(rom);
         memory_region_add_subregion(system_memory, 0xfe000000, rom);
 
@@ -262,7 +262,7 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
             MemoryRegion *flash_mr = pflash_cfi01_get_memory(flash);
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
 
-            memory_region_init_alias(flash_io, "lx60.flash",
+            memory_region_init_alias(flash_io, NULL, "lx60.flash",
                     flash_mr, 0, board->flash_size);
             memory_region_add_subregion(system_memory, 0xfe000000,
                     flash_io);

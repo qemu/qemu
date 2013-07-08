@@ -244,7 +244,7 @@ static int mv88w8618_audio_init(SysBusDevice *dev)
 
     wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
 
-    memory_region_init_io(&s->iomem, &mv88w8618_audio_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_audio_ops, s,
                           "audio", MP_AUDIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 

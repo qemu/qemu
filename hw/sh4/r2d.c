@@ -186,7 +186,7 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 
     s->irl = irl;
 
-    memory_region_init_io(&s->iomem, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
+    memory_region_init_io(&s->iomem, NULL, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
@@ -254,7 +254,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, "r2d.sdram", SDRAM_SIZE);
+    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE);
     vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */

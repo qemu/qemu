@@ -201,12 +201,12 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *s = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
+    memory_region_init_io(&s->conf_mem, OBJECT(dev), &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
     sysbus_add_io(dev, 0xcf8, &s->conf_mem);
     sysbus_init_ioports(&s->busdev, 0xcf8, 4);
 
-    memory_region_init_io(&s->data_mem, &pci_host_data_le_ops, s,
+    memory_region_init_io(&s->data_mem, OBJECT(dev), &pci_host_data_le_ops, s,
                           "pci-conf-data", 4);
     sysbus_add_io(dev, 0xcfc, &s->data_mem);
     sysbus_init_ioports(&s->busdev, 0xcfc, 4);
@@ -260,25 +260,25 @@ static PCIBus *i440fx_common_init(const char *device_name,
     f->system_memory = address_space_mem;
     f->pci_address_space = pci_address_space;
     f->ram_memory = ram_memory;
-    memory_region_init_alias(&f->pci_hole, "pci-hole", f->pci_address_space,
+    memory_region_init_alias(&f->pci_hole, OBJECT(d), "pci-hole", f->pci_address_space,
                              pci_hole_start, pci_hole_size);
     memory_region_add_subregion(f->system_memory, pci_hole_start, &f->pci_hole);
-    memory_region_init_alias(&f->pci_hole_64bit, "pci-hole64",
+    memory_region_init_alias(&f->pci_hole_64bit, OBJECT(d), "pci-hole64",
                              f->pci_address_space,
                              pci_hole64_start, pci_hole64_size);
     if (pci_hole64_size) {
         memory_region_add_subregion(f->system_memory, pci_hole64_start,
                                     &f->pci_hole_64bit);
     }
-    memory_region_init_alias(&f->smram_region, "smram-region",
+    memory_region_init_alias(&f->smram_region, OBJECT(d), "smram-region",
                              f->pci_address_space, 0xa0000, 0x20000);
     memory_region_add_subregion_overlap(f->system_memory, 0xa0000,
                                         &f->smram_region, 1);
     memory_region_set_enabled(&f->smram_region, false);
-    init_pam(f->ram_memory, f->system_memory, f->pci_address_space,
+    init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
              &f->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
     for (i = 0; i < 12; ++i) {
-        init_pam(f->ram_memory, f->system_memory, f->pci_address_space,
+        init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
                  &f->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
                  PAM_EXPAN_SIZE);
     }
@@ -549,7 +549,8 @@ static int piix3_initfn(PCIDevice *dev)
 
     isa_bus_new(DEVICE(d), pci_address_space_io(dev));
 
-    memory_region_init_io(&d->rcr_mem, &rcr_ops, d, "piix3-reset-control", 1);
+    memory_region_init_io(&d->rcr_mem, OBJECT(dev), &rcr_ops, d,
+                          "piix3-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(dev), RCR_IOPORT,
                                         &d->rcr_mem, 1);
 

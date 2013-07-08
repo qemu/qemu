@@ -655,7 +655,8 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     d = FROM_SYSBUS(M48t59SysBusState, s);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);
-    memory_region_init_io(&d->io, &m48t59_io_ops, state, "m48t59", 4);
+    memory_region_init_io(&d->io, OBJECT(d), &m48t59_io_ops, state,
+                          "m48t59", 4);
     if (io_base != 0) {
         memory_region_add_subregion(get_system_io(), io_base, &d->io);
     }
@@ -683,7 +684,7 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
     d = ISA_M48T59(isadev);
     s = &d->state;
 
-    memory_region_init_io(&d->io, &m48t59_io_ops, s, "m48t59", 4);
+    memory_region_init_io(&d->io, OBJECT(d), &m48t59_io_ops, s, "m48t59", 4);
     if (io_base != 0) {
         isa_register_ioport(isadev, &d->io, io_base);
     }
@@ -721,7 +722,8 @@ static int m48t59_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->IRQ);
 
-    memory_region_init_io(&s->iomem, &nvram_ops, s, "m48t59.nvram", s->size);
+    memory_region_init_io(&s->iomem, OBJECT(d), &nvram_ops, s,
+                          "m48t59.nvram", s->size);
     sysbus_init_mmio(dev, &s->iomem);
     m48t59_realize_common(s, &err);
     if (err != NULL) {

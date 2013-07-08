@@ -117,7 +117,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     if (pci_enabled) {
         pci_memory = g_new(MemoryRegion, 1);
-        memory_region_init(pci_memory, "pci", INT64_MAX);
+        memory_region_init(pci_memory, NULL, "pci", INT64_MAX);
         rom_memory = pci_memory;
     } else {
         pci_memory = NULL;

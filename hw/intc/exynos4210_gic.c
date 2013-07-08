@@ -299,15 +299,15 @@ static int exynos4210_gic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&s->busdev.qdev, exynos4210_gic_set_irq,
                       EXYNOS4210_GIC_NIRQ - 32);
 
-    memory_region_init(&s->cpu_container, "exynos4210-cpu-container",
+    memory_region_init(&s->cpu_container, OBJECT(s), "exynos4210-cpu-container",
             EXYNOS4210_EXT_GIC_CPU_REGION_SIZE);
-    memory_region_init(&s->dist_container, "exynos4210-dist-container",
+    memory_region_init(&s->dist_container, OBJECT(s), "exynos4210-dist-container",
             EXYNOS4210_EXT_GIC_DIST_REGION_SIZE);
 
     for (i = 0; i < s->num_cpu; i++) {
         /* Map CPU interface per SMP Core */
         sprintf(cpu_alias_name, "%s%x", cpu_prefix, i);
-        memory_region_init_alias(&s->cpu_alias[i],
+        memory_region_init_alias(&s->cpu_alias[i], OBJECT(s),
                                  cpu_alias_name,
                                  sysbus_mmio_get_region(busdev, 1),
                                  0,
@@ -317,7 +317,7 @@ static int exynos4210_gic_init(SysBusDevice *dev)
 
         /* Map Distributor per SMP Core */
         sprintf(dist_alias_name, "%s%x", dist_prefix, i);
-        memory_region_init_alias(&s->dist_alias[i],
+        memory_region_init_alias(&s->dist_alias[i], OBJECT(s),
                                  dist_alias_name,
                                  sysbus_mmio_get_region(busdev, 0),
                                  0,

@@ -167,7 +167,7 @@ static void xen_ram_init(ram_addr_t ram_size)
          */
         block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
-    memory_region_init_ram(&ram_memory, "xen.ram", block_len);
+    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
     vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
@@ -177,7 +177,7 @@ static void xen_ram_init(ram_addr_t ram_size)
         below_4g_mem_size = ram_size;
     }
 
-    memory_region_init_alias(&ram_640k, "xen.ram.640k",
+    memory_region_init_alias(&ram_640k, NULL, "xen.ram.640k",
                              &ram_memory, 0, 0xa0000);
     memory_region_add_subregion(sysmem, 0, &ram_640k);
     /* Skip of the VGA IO memory space, it will be registered later by the VGA
@@ -186,11 +186,11 @@ static void xen_ram_init(ram_addr_t ram_size)
      * The area between 0xc0000 and 0x100000 will be used by SeaBIOS to load
      * the Options ROM, so it is registered here as RAM.
      */
-    memory_region_init_alias(&ram_lo, "xen.ram.lo",
+    memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
                              &ram_memory, 0xc0000, below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
     if (above_4g_mem_size > 0) {
-        memory_region_init_alias(&ram_hi, "xen.ram.hi",
+        memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
                                  &ram_memory, 0x100000000ULL,
                                  above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
@@ -459,6 +459,7 @@ static void xen_set_memory(struct MemoryListener *listener,
 static void xen_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
+    memory_region_ref(section->mr);
     xen_set_memory(listener, section, true);
 }
 
@@ -466,6 +467,7 @@ static void xen_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     xen_set_memory(listener, section, false);
+    memory_region_unref(section->mr);
 }
 
 static void xen_sync_dirty_bitmap(XenIOState *state,

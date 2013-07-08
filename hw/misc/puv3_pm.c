@@ -120,7 +120,7 @@ static int puv3_pm_init(SysBusDevice *dev)
 
     s->reg_PCGR = 0x0;
 
-    memory_region_init_io(&s->iomem, &puv3_pm_ops, s, "puv3_pm",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_pm_ops, s, "puv3_pm",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 

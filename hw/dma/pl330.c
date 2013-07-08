@@ -1528,7 +1528,8 @@ static void pl330_realize(DeviceState *dev, Error **errp)
     PL330State *s = PL330(dev);
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq_abort);
-    memory_region_init_io(&s->iomem, &pl330_ops, s, "dma", PL330_IOMEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl330_ops, s,
+                          "dma", PL330_IOMEM_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
     s->timer = qemu_new_timer_ns(vm_clock, pl330_exec_cycle_timer, s);

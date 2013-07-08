@@ -26,6 +26,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci-host/pam.h"
 
@@ -49,24 +51,24 @@ void smram_set_smm(uint8_t *host_smm_enabled, int smm, uint8_t smram,
     }
 }
 
-void init_pam(MemoryRegion *ram_memory, MemoryRegion *system_memory,
-              MemoryRegion *pci_address_space, PAMMemoryRegion *mem,
-              uint32_t start, uint32_t size)
+void init_pam(DeviceState *dev, MemoryRegion *ram_memory,
+              MemoryRegion *system_memory, MemoryRegion *pci_address_space,
+              PAMMemoryRegion *mem, uint32_t start, uint32_t size)
 {
     int i;
 
     /* RAM */
-    memory_region_init_alias(&mem->alias[3], "pam-ram", ram_memory,
+    memory_region_init_alias(&mem->alias[3], OBJECT(dev), "pam-ram", ram_memory,
                              start, size);
     /* ROM (XXX: not quite correct) */
-    memory_region_init_alias(&mem->alias[1], "pam-rom", ram_memory,
+    memory_region_init_alias(&mem->alias[1], OBJECT(dev), "pam-rom", ram_memory,
                              start, size);
     memory_region_set_readonly(&mem->alias[1], true);
 
     /* XXX: should distinguish read/write cases */
-    memory_region_init_alias(&mem->alias[0], "pam-pci", pci_address_space,
+    memory_region_init_alias(&mem->alias[0], OBJECT(dev), "pam-pci", pci_address_space,
                              start, size);
-    memory_region_init_alias(&mem->alias[2], "pam-pci", pci_address_space,
+    memory_region_init_alias(&mem->alias[2], OBJECT(dev), "pam-pci", pci_address_space,
                              start, size);
 
     for (i = 0; i < 4; ++i) {

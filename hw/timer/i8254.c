@@ -333,7 +333,8 @@ static void pit_realizefn(DeviceState *dev, Error **err)
     s->irq_timer = qemu_new_timer_ns(vm_clock, pit_irq_timer, s);
     qdev_init_gpio_out(dev, &s->irq, 1);
 
-    memory_region_init_io(&pit->ioports, &pit_ioport_ops, pit, "pit", 4);
+    memory_region_init_io(&pit->ioports, OBJECT(pit), &pit_ioport_ops,
+                          pit, "pit", 4);
 
     qdev_init_gpio_in(dev, pit_irq_control, 1);
 

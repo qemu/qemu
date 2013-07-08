@@ -280,10 +280,10 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
 
     msix_mask_all(dev, nentries);
 
-    memory_region_init_io(&dev->msix_table_mmio, &msix_table_mmio_ops, dev,
+    memory_region_init_io(&dev->msix_table_mmio, OBJECT(dev), &msix_table_mmio_ops, dev,
                           "msix-table", table_size);
     memory_region_add_subregion(table_bar, table_offset, &dev->msix_table_mmio);
-    memory_region_init_io(&dev->msix_pba_mmio, &msix_pba_mmio_ops, dev,
+    memory_region_init_io(&dev->msix_pba_mmio, OBJECT(dev), &msix_pba_mmio_ops, dev,
                           "msix-pba", pba_size);
     memory_region_add_subregion(pba_bar, pba_offset, &dev->msix_pba_mmio);
 
@@ -311,7 +311,7 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
     }
 
     name = g_strdup_printf("%s-msix", dev->name);
-    memory_region_init(&dev->msix_exclusive_bar, name, MSIX_EXCLUSIVE_BAR_SIZE);
+    memory_region_init(&dev->msix_exclusive_bar, OBJECT(dev), name, MSIX_EXCLUSIVE_BAR_SIZE);
     g_free(name);
 
     ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,

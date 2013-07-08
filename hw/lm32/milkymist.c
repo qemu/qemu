@@ -112,7 +112,7 @@ milkymist_init(QEMUMachineInitArgs *args)
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 
-    memory_region_init_ram(phys_sdram, "milkymist.sdram", sdram_size);
+    memory_region_init_ram(phys_sdram, NULL, "milkymist.sdram", sdram_size);
     vmstate_register_ram_global(phys_sdram);
     memory_region_add_subregion(address_space_mem, sdram_base, phys_sdram);
 

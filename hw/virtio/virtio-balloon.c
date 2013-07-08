@@ -205,6 +205,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             addr = section.offset_within_region;
             balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
                          !!(vq == s->dvq));
+            memory_region_unref(section.mr);
         }
 
         virtqueue_push(vq, &elem, offset);

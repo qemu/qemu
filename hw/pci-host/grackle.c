@@ -76,8 +76,8 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     phb = PCI_HOST_BRIDGE(dev);
     d = GRACKLE_PCI_HOST_BRIDGE(dev);
 
-    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
-    memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
+    memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
+    memory_region_init_alias(&d->pci_hole, OBJECT(s), "pci-hole", &d->pci_mmio,
                              0x80000000ULL, 0x7e000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
@@ -104,9 +104,9 @@ static int pci_grackle_init_device(SysBusDevice *dev)
 
     phb = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&phb->conf_mem, &pci_host_conf_le_ops,
+    memory_region_init_io(&phb->conf_mem, OBJECT(dev), &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
-    memory_region_init_io(&phb->data_mem, &pci_host_data_le_ops,
+    memory_region_init_io(&phb->data_mem, OBJECT(dev), &pci_host_data_le_ops,
                           dev, "pci-data-idx", 0x1000);
     sysbus_init_mmio(dev, &phb->conf_mem);
     sysbus_init_mmio(dev, &phb->data_mem);

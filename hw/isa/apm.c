@@ -96,7 +96,7 @@ void apm_init(PCIDevice *dev, APMState *apm, apm_ctrl_changed_t callback,
     apm->arg = arg;
 
     /* ioport 0xb2, 0xb3 */
-    memory_region_init_io(&apm->io, &apm_ops, apm, "apm-io", 2);
+    memory_region_init_io(&apm->io, OBJECT(dev), &apm_ops, apm, "apm-io", 2);
     memory_region_add_subregion(pci_address_space_io(dev), APM_CNT_IOPORT,
                                 &apm->io);
 }

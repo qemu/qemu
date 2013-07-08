@@ -144,7 +144,8 @@ static int cs4231_init1(SysBusDevice *dev)
 {
     CSState *s = FROM_SYSBUS(CSState, dev);
 
-    memory_region_init_io(&s->iomem, &cs_mem_ops, s, "cs4321", CS_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &cs_mem_ops, s, "cs4321",
+                          CS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 

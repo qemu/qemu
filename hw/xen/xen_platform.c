@@ -262,16 +262,20 @@ static void platform_fixed_ioport_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps platform_fixed_io_ops = {
     .read = platform_fixed_ioport_read,
     .write = platform_fixed_ioport_write,
+    .valid = {
+        .unaligned = true,
+    },
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
+        .unaligned = true,
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void platform_fixed_ioport_init(PCIXenPlatformState* s)
 {
-    memory_region_init_io(&s->fixed_io, &platform_fixed_io_ops, s,
+    memory_region_init_io(&s->fixed_io, OBJECT(s), &platform_fixed_io_ops, s,
                           "xen-fixed", 16);
     memory_region_add_subregion(get_system_io(), XEN_PLATFORM_IOPORT,
                                 &s->fixed_io);
@@ -315,7 +319,8 @@ static const MemoryRegionOps xen_pci_io_ops = {
 
 static void platform_ioport_bar_setup(PCIXenPlatformState *d)
 {
-    memory_region_init_io(&d->bar, &xen_pci_io_ops, d, "xen-pci", 0x100);
+    memory_region_init_io(&d->bar, OBJECT(d), &xen_pci_io_ops, d,
+                          "xen-pci", 0x100);
 }
 
 static uint64_t platform_mmio_read(void *opaque, hwaddr addr,
@@ -343,7 +348,7 @@ static const MemoryRegionOps platform_mmio_handler = {
 
 static void platform_mmio_setup(PCIXenPlatformState *d)
 {
-    memory_region_init_io(&d->mmio_bar, &platform_mmio_handler, d,
+    memory_region_init_io(&d->mmio_bar, OBJECT(d), &platform_mmio_handler, d,
                           "xen-mmio", 0x1000000);
 }
 

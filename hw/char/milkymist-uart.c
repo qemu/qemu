@@ -196,7 +196,7 @@ static int milkymist_uart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->regs_region, &uart_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &uart_mmio_ops, s,
             "milkymist-uart", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

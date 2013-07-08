@@ -18,6 +18,7 @@
 #include "qemu/thread.h"
 
 typedef struct {
+    MemoryRegion *mr;
     void *host_addr;
     hwaddr guest_addr;
     uint64_t size;

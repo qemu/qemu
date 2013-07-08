@@ -192,7 +192,7 @@ static int pl031_init(SysBusDevice *dev)
     pl031_state *s = FROM_SYSBUS(pl031_state, dev);
     struct tm tm;
 
-    memory_region_init_io(&s->iomem, &pl031_ops, s, "pl031", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl031_ops, s, "pl031", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);

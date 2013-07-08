@@ -703,7 +703,7 @@ static void cuda_initfn(Object *obj)
     CUDAState *s = CUDA(obj);
     int i;
 
-    memory_region_init_io(&s->mem, &cuda_ops, s, "cuda", 0x2000);
+    memory_region_init_io(&s->mem, NULL, &cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->irq);
 

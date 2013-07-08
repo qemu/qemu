@@ -505,10 +505,12 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
                             uint32_t tag, uint32_t lun, void *hba_private)
 {
     SCSIRequest *req;
+    SCSIBus *bus = scsi_bus_from_device(d);
+    BusState *qbus = BUS(bus);
 
     req = g_malloc0(reqops->size);
     req->refcount = 1;
-    req->bus = scsi_bus_from_device(d);
+    req->bus = bus;
     req->dev = d;
     req->tag = tag;
     req->lun = lun;
@@ -516,6 +518,8 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     req->status = -1;
     req->sense_len = 0;
     req->ops = reqops;
+    object_ref(OBJECT(d));
+    object_ref(OBJECT(qbus->parent));
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
@@ -1498,13 +1502,17 @@ void scsi_req_unref(SCSIRequest *req)
 {
     assert(req->refcount > 0);
     if (--req->refcount == 0) {
-        SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, req->dev->qdev.parent_bus);
+        BusState *qbus = req->dev->qdev.parent_bus;
+        SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qbus);
+
         if (bus->info->free_request && req->hba_private) {
             bus->info->free_request(bus, req->hba_private);
         }
         if (req->ops->free_req) {
             req->ops->free_req(req);
         }
+        object_unref(OBJECT(req->dev));
+        object_unref(OBJECT(qbus->parent));
         g_free(req);
     }
 }

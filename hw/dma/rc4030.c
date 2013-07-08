@@ -814,10 +814,10 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 
-    memory_region_init_io(&s->iomem_chipset, &rc4030_ops, s,
+    memory_region_init_io(&s->iomem_chipset, NULL, &rc4030_ops, s,
                           "rc4030.chipset", 0x300);
     memory_region_add_subregion(sysmem, 0x80000000, &s->iomem_chipset);
-    memory_region_init_io(&s->iomem_jazzio, &jazzio_ops, s,
+    memory_region_init_io(&s->iomem_jazzio, NULL, &jazzio_ops, s,
                           "rc4030.jazzio", 0x00001000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 

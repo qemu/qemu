@@ -3,7 +3,6 @@
 
 #include "qemu-common.h"
 #include "exec/memory.h"
-#include "exec/ioport.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
@@ -56,11 +55,14 @@ typedef struct GSIState {
 void gsi_handler(void *opaque, int n, int level);
 
 /* vmport.c */
+typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
+
 static inline void vmport_init(ISABus *bus)
 {
     isa_create_simple(bus, "vmport");
 }
-void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
+
+void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque);
 void vmmouse_get_data(uint32_t *data);
 void vmmouse_set_data(const uint32_t *data);
 
