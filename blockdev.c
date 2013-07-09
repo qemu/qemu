@@ -322,7 +322,6 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
-    BlockDriver *drv = NULL;
     int max_devs;
     int index;
     int ro = 0;
@@ -338,6 +337,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     QemuOpts *opts;
     QDict *bs_opts;
     const char *id;
+    bool has_driver_specific_opts;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
@@ -364,6 +364,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (id) {
         qdict_del(bs_opts, "id");
     }
+
+    has_driver_specific_opts = !!qdict_size(bs_opts);
 
     /* extract parameters */
     bus_id  = qemu_opt_get_number(opts, "bus", 0);
@@ -477,11 +479,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             error_printf("\n");
             return NULL;
         }
-        drv = bdrv_find_whitelisted_format(buf, ro);
-        if (!drv) {
-            error_report("'%s' invalid format", buf);
-            return NULL;
-        }
+
+        qdict_put(bs_opts, "driver", qstring_from_str(buf));
     }
 
     /* disk I/O throttling */
@@ -658,7 +657,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         abort();
     }
     if (!file || !*file) {
-        if (qdict_size(bs_opts)) {
+        if (has_driver_specific_opts) {
             file = NULL;
         } else {
             return dinfo;
@@ -695,13 +694,13 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         error_report("warning: disabling copy_on_read on readonly drive");
     }
 
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
-    bs_opts = NULL;
+    QINCREF(bs_opts);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, NULL);
 
     if (ret < 0) {
         if (ret == -EMEDIUMTYPE) {
             error_report("could not open disk image %s: not in %s format",
-                         file ?: dinfo->id, drv->format_name);
+                         file ?: dinfo->id, qdict_get_str(bs_opts, "driver"));
         } else {
             error_report("could not open disk image %s: %s",
                          file ?: dinfo->id, strerror(-ret));
@@ -712,6 +711,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
 
+    QDECREF(bs_opts);
     qemu_opts_del(opts);
 
     return dinfo;

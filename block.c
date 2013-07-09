@@ -970,6 +970,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     char tmp_filename[PATH_MAX + 1];
     BlockDriverState *file = NULL;
     QDict *file_options = NULL;
+    const char *drvname;
 
     /* NULL means an empty set of options */
     if (options == NULL) {
@@ -1059,6 +1060,12 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     }
 
     /* Find the right image format driver */
+    drvname = qdict_get_try_str(options, "driver");
+    if (drvname) {
+        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
+        qdict_del(options, "driver");
+    }
+
     if (!drv) {
         ret = find_image_format(file, filename, &drv);
     }
