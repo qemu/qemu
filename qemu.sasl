@@ -26,7 +26,7 @@ keytab: /etc/qemu/krb5.tab
 
 # If using digest-md5 for username/passwds, then this is the file
 # containing the passwds. Use 'saslpasswd2 -a qemu [username]'
-# to add entries, and 'sasldblistusers2 -a qemu' to browse it
+# to add entries, and 'sasldblistusers2 -f [sasldb_path]' to browse it
 sasldb_path: /etc/qemu/passwd.db
 
 
