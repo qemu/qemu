@@ -2071,13 +2071,17 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 
 static CPUArchState *find_cpu(uint32_t thread_id)
 {
+    CPUArchState *env;
     CPUState *cpu;
 
-    cpu = qemu_get_cpu(thread_id);
-    if (cpu == NULL) {
-        return NULL;
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
+        if (cpu_index(cpu) == thread_id) {
+            return env;
+        }
     }
-    return cpu->env_ptr;
+
+    return NULL;
 }
 
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
