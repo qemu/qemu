@@ -69,7 +69,7 @@ static int i82801b11_bridge_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_bridge;
     }
-    pci_config_set_prog_interface(d->config, PCI_CLASS_BRDIGE_PCI_INF_SUB);
+    pci_config_set_prog_interface(d->config, PCI_CLASS_BRIDGE_PCI_INF_SUB);
     return 0;
 
 err_bridge:
