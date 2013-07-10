@@ -483,6 +483,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         if (!(flags & MAP_ANONYMOUS)) {
             p = mmap(g2h(start), len, prot,
                      flags | MAP_FIXED, fd, host_offset);
+            if (p == MAP_FAILED) {
+                munmap(g2h(start), host_len);
+                goto fail;
+            }
             host_start += offset - host_offset;
         }
         start = h2g(host_start);

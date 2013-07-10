@@ -105,6 +105,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/vt.h>
 #include <linux/dm-ioctl.h>
 #include <linux/reboot.h>
+#include <linux/route.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -338,6 +339,7 @@ static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 }
 #endif
 
+#ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
 static int sys_utimensat(int dirfd, const char *pathname,
     const struct timespec times[2], int flags)
@@ -347,12 +349,19 @@ static int sys_utimensat(int dirfd, const char *pathname,
     else
         return utimensat(dirfd, pathname, times, flags);
 }
-#else
-#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+#elif defined(__NR_utimensat)
+#define __NR_sys_utimensat __NR_utimensat
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
+#else
+static int sys_utimensat(int dirfd, const char *pathname,
+                         const struct timespec times[2], int flags)
+{
+    errno = ENOSYS;
+    return -1;
+}
 #endif
-#endif /* CONFIG_UTIMENSAT  */
+#endif /* TARGET_NR_utimensat */
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
@@ -1696,31 +1705,36 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     free(vec);
 }
 
+static inline void target_to_host_sock_type(int *type)
+{
+    int host_type = 0;
+    int target_type = *type;
+
+    switch (target_type & TARGET_SOCK_TYPE_MASK) {
+    case TARGET_SOCK_DGRAM:
+        host_type = SOCK_DGRAM;
+        break;
+    case TARGET_SOCK_STREAM:
+        host_type = SOCK_STREAM;
+        break;
+    default:
+        host_type = target_type & TARGET_SOCK_TYPE_MASK;
+        break;
+    }
+    if (target_type & TARGET_SOCK_CLOEXEC) {
+        host_type |= SOCK_CLOEXEC;
+    }
+    if (target_type & TARGET_SOCK_NONBLOCK) {
+        host_type |= SOCK_NONBLOCK;
+    }
+    *type = host_type;
+}
+
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
-#if defined(TARGET_MIPS)
-    switch(type) {
-    case TARGET_SOCK_DGRAM:
-        type = SOCK_DGRAM;
-        break;
-    case TARGET_SOCK_STREAM:
-        type = SOCK_STREAM;
-        break;
-    case TARGET_SOCK_RAW:
-        type = SOCK_RAW;
-        break;
-    case TARGET_SOCK_RDM:
-        type = SOCK_RDM;
-        break;
-    case TARGET_SOCK_SEQPACKET:
-        type = SOCK_SEQPACKET;
-        break;
-    case TARGET_SOCK_PACKET:
-        type = SOCK_PACKET;
-        break;
-    }
-#endif
+    target_to_host_sock_type(&type);
+
     if (domain == PF_NETLINK)
         return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
     return get_errno(socket(domain, type, protocol));
@@ -1952,6 +1966,8 @@ static abi_long do_socketpair(int domain, int type, int protocol,
 {
     int tab[2];
     abi_long ret;
+
+    target_to_host_sock_type(&type);
 
     ret = get_errno(socketpair(domain, type, protocol, tab));
     if (!is_error(ret)) {
@@ -3551,6 +3567,69 @@ out:
     return ret;
 }
 
+static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
+                                int fd, abi_long cmd, abi_long arg)
+{
+    const argtype *arg_type = ie->arg_type;
+    const StructEntry *se;
+    const argtype *field_types;
+    const int *dst_offsets, *src_offsets;
+    int target_size;
+    void *argptr;
+    abi_ulong *target_rt_dev_ptr;
+    unsigned long *host_rt_dev_ptr;
+    abi_long ret;
+    int i;
+
+    assert(ie->access == IOC_W);
+    assert(*arg_type == TYPE_PTR);
+    arg_type++;
+    assert(*arg_type == TYPE_STRUCT);
+    target_size = thunk_type_size(arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        return -TARGET_EFAULT;
+    }
+    arg_type++;
+    assert(*arg_type == (int)STRUCT_rtentry);
+    se = struct_entries + *arg_type++;
+    assert(se->convert[0] == NULL);
+    /* convert struct here to be able to catch rt_dev string */
+    field_types = se->field_types;
+    dst_offsets = se->field_offsets[THUNK_HOST];
+    src_offsets = se->field_offsets[THUNK_TARGET];
+    for (i = 0; i < se->nb_fields; i++) {
+        if (dst_offsets[i] == offsetof(struct rtentry, rt_dev)) {
+            assert(*field_types == TYPE_PTRVOID);
+            target_rt_dev_ptr = (abi_ulong *)(argptr + src_offsets[i]);
+            host_rt_dev_ptr = (unsigned long *)(buf_temp + dst_offsets[i]);
+            if (*target_rt_dev_ptr != 0) {
+                *host_rt_dev_ptr = (unsigned long)lock_user_string(
+                                                  tswapal(*target_rt_dev_ptr));
+                if (!*host_rt_dev_ptr) {
+                    unlock_user(argptr, arg, 0);
+                    return -TARGET_EFAULT;
+                }
+            } else {
+                *host_rt_dev_ptr = 0;
+            }
+            field_types++;
+            continue;
+        }
+        field_types = thunk_convert(buf_temp + dst_offsets[i],
+                                    argptr + src_offsets[i],
+                                    field_types, THUNK_HOST);
+    }
+    unlock_user(argptr, arg, 0);
+
+    ret = get_errno(ioctl(fd, ie->host_cmd, buf_temp));
+    if (*host_rt_dev_ptr != 0) {
+        unlock_user((void *)*host_rt_dev_ptr,
+                    *target_rt_dev_ptr, 0);
+    }
+    return ret;
+}
+
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \
     { TARGET_ ## cmd, cmd, #cmd, access, 0, {  __VA_ARGS__ } },
@@ -4973,6 +5052,30 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
+static int is_proc_myself(const char *filename, const char *entry)
+{
+    if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
+        filename += strlen("/proc/");
+        if (!strncmp(filename, "self/", strlen("self/"))) {
+            filename += strlen("self/");
+        } else if (*filename >= '1' && *filename <= '9') {
+            char myself[80];
+            snprintf(myself, sizeof(myself), "%d/", getpid());
+            if (!strncmp(filename, myself, strlen(myself))) {
+                filename += strlen(myself);
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+        if (!strcmp(filename, entry)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
@@ -4981,15 +5084,14 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
     };
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
-        { "/proc/self/maps", open_self_maps },
-        { "/proc/self/stat", open_self_stat },
-        { "/proc/self/auxv", open_self_auxv },
+        { "maps", open_self_maps },
+        { "stat", open_self_stat },
+        { "auxv", open_self_auxv },
         { NULL, NULL }
     };
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
-        if (!strncmp(pathname, fake_open->filename,
-                     strlen(fake_open->filename))) {
+        if (is_proc_myself(pathname, fake_open->filename)) {
             break;
         }
     }
@@ -6262,20 +6364,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_readlink:
         {
-            void *p2, *temp;
+            void *p2;
             p = lock_user_string(arg1);
             p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!p || !p2)
+            if (!p || !p2) {
                 ret = -TARGET_EFAULT;
-            else {
-                if (strncmp((const char *)p, "/proc/self/exe", 14) == 0) {
-                    char real[PATH_MAX];
-                    temp = realpath(exec_path,real);
-                    ret = (temp==NULL) ? get_errno(-1) : strlen(real) ;
-                    snprintf((char *)p2, arg3, "%s", real);
-                    }
-                else
-                    ret = get_errno(readlink(path(p), p2, arg3));
+            } else if (is_proc_myself((const char *)p, "exe")) {
+                char real[PATH_MAX], *temp;
+                temp = realpath(exec_path, real);
+                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
+                snprintf((char *)p2, arg3, "%s", real);
+            } else {
+                ret = get_errno(readlink(path(p), p2, arg3));
             }
             unlock_user(p2, arg2, ret);
             unlock_user(p, arg1, 0);
@@ -6287,10 +6387,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             void *p2;
             p  = lock_user_string(arg2);
             p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-            if (!p || !p2)
-        	ret = -TARGET_EFAULT;
-            else
+            if (!p || !p2) {
+                ret = -TARGET_EFAULT;
+            } else if (is_proc_myself((const char *)p, "exe")) {
+                char real[PATH_MAX], *temp;
+                temp = realpath(exec_path, real);
+                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
+                snprintf((char *)p2, arg4, "%s", real);
+            } else {
                 ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
+            }
             unlock_user(p2, arg3, ret);
             unlock_user(p, arg2, 0);
         }
@@ -8536,7 +8642,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented_nowarn;
 #endif
 
-#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+#if defined(TARGET_NR_utimensat)
     case TARGET_NR_utimensat:
         {
             struct timespec *tsp, ts[2];

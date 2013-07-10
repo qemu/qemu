@@ -102,14 +102,14 @@ static inline int sas_ss_flags(unsigned long sp)
 
 int host_to_target_signal(int sig)
 {
-    if (sig >= _NSIG)
+    if (sig < 0 || sig >= _NSIG)
         return sig;
     return host_to_target_signal_table[sig];
 }
 
 int target_to_host_signal(int sig)
 {
-    if (sig >= _NSIG)
+    if (sig < 0 || sig >= _NSIG)
         return sig;
     return target_to_host_signal_table[sig];
 }

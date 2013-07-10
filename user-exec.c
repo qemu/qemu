@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
+#include "qemu/bitops.h"
 
 #undef EAX
 #undef ECX
@@ -441,8 +442,11 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #else
     pc = uc->uc_mcontext.arm_pc;
 #endif
-    /* XXX: compute is_write */
-    is_write = 0;
+
+    /* error_code is the FSR value, in which bit 11 is WnR (assuming a v6 or
+     * later processor; on v5 we will always report this as a read).
+     */
+    is_write = extract32(uc->uc_mcontext.error_code, 11, 1);
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write,
                              &uc->uc_sigmask, puc);
