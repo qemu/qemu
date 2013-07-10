@@ -27,20 +27,24 @@
  */
 
 /* predefined ops */
-DEF(end, 0, 0, 0, 0) /* must be kept first */
-DEF(nop, 0, 0, 0, 0)
-DEF(nop1, 0, 0, 1, 0)
-DEF(nop2, 0, 0, 2, 0)
-DEF(nop3, 0, 0, 3, 0)
-DEF(nopn, 0, 0, 1, 0) /* variable number of parameters */
+DEF(end, 0, 0, 0, TCG_OPF_NOT_PRESENT) /* must be kept first */
+DEF(nop, 0, 0, 0, TCG_OPF_NOT_PRESENT)
+DEF(nop1, 0, 0, 1, TCG_OPF_NOT_PRESENT)
+DEF(nop2, 0, 0, 2, TCG_OPF_NOT_PRESENT)
+DEF(nop3, 0, 0, 3, TCG_OPF_NOT_PRESENT)
 
-DEF(discard, 1, 0, 0, 0)
+/* variable number of parameters */
+DEF(nopn, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 
-DEF(set_label, 0, 0, 1, TCG_OPF_BB_END)
-DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER) /* variable number of parameters */
+DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
+DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
+
+/* variable number of parameters */
+DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER)
+
 DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 
-#define IMPL(X) (X ? 0 : TCG_OPF_NOT_PRESENT)
+#define IMPL(X) (__builtin_constant_p(X) && !(X) ? TCG_OPF_NOT_PRESENT : 0)
 #if TCG_TARGET_REG_BITS == 32
 # define IMPL64  TCG_OPF_64BIT | TCG_OPF_NOT_PRESENT
 #else
@@ -66,8 +70,8 @@ DEF(sub_i32, 1, 2, 0, 0)
 DEF(mul_i32, 1, 2, 0, 0)
 DEF(div_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_div_i32))
 DEF(divu_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_div_i32))
-DEF(rem_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_div_i32))
-DEF(remu_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_div_i32))
+DEF(rem_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_rem_i32))
+DEF(remu_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_rem_i32))
 DEF(div2_i32, 2, 3, 0, IMPL(TCG_TARGET_HAS_div2_i32))
 DEF(divu2_i32, 2, 3, 0, IMPL(TCG_TARGET_HAS_div2_i32))
 DEF(and_i32, 1, 2, 0, 0)
@@ -126,8 +130,8 @@ DEF(sub_i64, 1, 2, 0, IMPL64)
 DEF(mul_i64, 1, 2, 0, IMPL64)
 DEF(div_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div_i64))
 DEF(divu_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div_i64))
-DEF(rem_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div_i64))
-DEF(remu_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div_i64))
+DEF(rem_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rem_i64))
+DEF(remu_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rem_i64))
 DEF(div2_i64, 2, 3, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div2_i64))
 DEF(divu2_i64, 2, 3, 0, IMPL64 | IMPL(TCG_TARGET_HAS_div2_i64))
 DEF(and_i64, 1, 2, 0, IMPL64)
@@ -166,9 +170,9 @@ DEF(muls2_i64, 2, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_muls2_i64))
 
 /* QEMU specific */
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-DEF(debug_insn_start, 0, 0, 2, 0)
+DEF(debug_insn_start, 0, 0, 2, TCG_OPF_NOT_PRESENT)
 #else
-DEF(debug_insn_start, 0, 0, 1, 0)
+DEF(debug_insn_start, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 #endif
 DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END)
 DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END)

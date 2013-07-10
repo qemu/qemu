@@ -2312,28 +2312,14 @@ static void tcg_target_init(TCGContext *s)
 }
 
 typedef struct {
-    uint32_t len __attribute__((aligned((sizeof(void *)))));
-    uint32_t id;
-    uint8_t version;
-    char augmentation[1];
-    uint8_t code_align;
-    uint8_t data_align;
-    uint8_t return_column;
-} DebugFrameCIE;
-
-typedef struct {
-    uint32_t len __attribute__((aligned((sizeof(void *)))));
-    uint32_t cie_offset;
-    tcg_target_long func_start __attribute__((packed));
-    tcg_target_long func_len __attribute__((packed));
-    uint8_t def_cfa[4];
-    uint8_t reg_ofs[14];
-} DebugFrameFDE;
-
-typedef struct {
     DebugFrameCIE cie;
-    DebugFrameFDE fde;
+    DebugFrameFDEHeader fde;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[14];
 } DebugFrame;
+
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
 
 #if !defined(__ELF__)
     /* Host machine without ELF. */
@@ -2347,13 +2333,15 @@ static DebugFrame debug_frame = {
     .cie.data_align = 0x78,             /* sleb128 -8 */
     .cie.return_column = 16,
 
-    .fde.len = sizeof(DebugFrameFDE)-4, /* length after .len member */
-    .fde.def_cfa = {
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
         12, 7,                          /* DW_CFA_def_cfa %rsp, ... */
         (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
         (FRAME_SIZE >> 7)
     },
-    .fde.reg_ofs = {
+    .fde_reg_ofs = {
         0x90, 1,                        /* DW_CFA_offset, %rip, -8 */
         /* The following ordering must match tcg_target_callee_save_regs.  */
         0x86, 2,                        /* DW_CFA_offset, %rbp, -16 */
@@ -2374,13 +2362,15 @@ static DebugFrame debug_frame = {
     .cie.data_align = 0x7c,             /* sleb128 -4 */
     .cie.return_column = 8,
 
-    .fde.len = sizeof(DebugFrameFDE)-4, /* length after .len member */
-    .fde.def_cfa = {
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
         12, 4,                          /* DW_CFA_def_cfa %esp, ... */
         (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
         (FRAME_SIZE >> 7)
     },
-    .fde.reg_ofs = {
+    .fde_reg_ofs = {
         0x88, 1,                        /* DW_CFA_offset, %eip, -4 */
         /* The following ordering must match tcg_target_callee_save_regs.  */
         0x85, 2,                        /* DW_CFA_offset, %ebp, -8 */
@@ -2394,9 +2384,6 @@ static DebugFrame debug_frame = {
 #if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    /* We're expecting a 2 byte uleb128 encoded value.  */
-    assert(FRAME_SIZE >> 14 == 0);
-
     debug_frame.fde.func_start = (tcg_target_long) buf;
     debug_frame.fde.func_len = buf_size;
 

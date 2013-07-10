@@ -79,6 +79,7 @@ typedef enum {
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div_i32          1
+#define TCG_TARGET_HAS_rem_i32          1
 #define TCG_TARGET_HAS_not_i32          1
 #define TCG_TARGET_HAS_nor_i32          1
 #define TCG_TARGET_HAS_ext8s_i32        1

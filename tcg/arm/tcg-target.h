@@ -49,6 +49,13 @@ typedef enum {
 
 #define TCG_TARGET_NB_REGS 16
 
+#ifdef __ARM_ARCH_EXT_IDIV__
+#define use_idiv_instructions  1
+#else
+extern bool use_idiv_instructions;
+#endif
+
+
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R13
 #define TCG_TARGET_STACK_ALIGN		8
@@ -73,12 +80,8 @@ typedef enum {
 #define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_muls2_i32        1
-
-#ifdef __ARM_ARCH_EXT_IDIV__
-#define TCG_TARGET_HAS_div_i32          1
-#else
-#define TCG_TARGET_HAS_div_i32          0
-#endif
+#define TCG_TARGET_HAS_div_i32          use_idiv_instructions
+#define TCG_TARGET_HAS_rem_i32          0
 
 extern bool tcg_target_deposit_valid(int ofs, int len);
 #define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid

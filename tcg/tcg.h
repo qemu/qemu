@@ -60,6 +60,7 @@ typedef uint64_t TCGRegSet;
 #if TCG_TARGET_REG_BITS == 32
 /* Turn some undef macros into false macros.  */
 #define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
 #define TCG_TARGET_HAS_rot_i64          0
 #define TCG_TARGET_HAS_ext8s_i64        0
@@ -102,11 +103,13 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_div2_i32         0
 #elif defined(TCG_TARGET_HAS_div2_i32)
 #define TCG_TARGET_HAS_div_i32          0
+#define TCG_TARGET_HAS_rem_i32          0
 #endif
 #if defined(TCG_TARGET_HAS_div_i64)
 #define TCG_TARGET_HAS_div2_i64         0
 #elif defined(TCG_TARGET_HAS_div2_i64)
 #define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_rem_i64          0
 #endif
 
 typedef enum TCGOpcode {
@@ -593,7 +596,8 @@ enum {
     TCG_OPF_SIDE_EFFECTS = 0x04,
     /* Instruction operands are 64-bits (otherwise 32-bits).  */
     TCG_OPF_64BIT        = 0x08,
-    /* Instruction is optional and not implemented by the host.  */
+    /* Instruction is optional and not implemented by the host, or insn
+       is generic and should not be implemened by the host.  */
     TCG_OPF_NOT_PRESENT  = 0x10,
 };
 
