@@ -26,6 +26,8 @@
 #include <stdint.h>
 
 #include "hw/qdev.h"
+#include "qom/object.h"
+#include "qapi/visitor.h"
 
 
 #define TYPE_STATIC_PROPS "static_prop_type"
@@ -91,15 +93,86 @@ static void test_static_globalprop(void)
     g_assert_cmpuint(mt->prop2, ==, PROP_DEFAULT);
 }
 
+#define TYPE_DYNAMIC_PROPS "dynamic-prop-type"
+#define DYNAMIC_TYPE(obj) \
+    OBJECT_CHECK(MyType, (obj), TYPE_DYNAMIC_PROPS)
+
+static void prop1_accessor(Object *obj,
+                           Visitor *v,
+                           void *opaque,
+                           const char *name,
+                           Error **errp)
+{
+    MyType *mt = DYNAMIC_TYPE(obj);
+
+    visit_type_uint32(v, &mt->prop1, name, errp);
+}
+
+static void prop2_accessor(Object *obj,
+                           Visitor *v,
+                           void *opaque,
+                           const char *name,
+                           Error **errp)
+{
+    MyType *mt = DYNAMIC_TYPE(obj);
+
+    visit_type_uint32(v, &mt->prop2, name, errp);
+}
+
+static void dynamic_instance_init(Object *obj)
+{
+    object_property_add(obj, "prop1", "uint32", prop1_accessor, prop1_accessor,
+                        NULL, NULL, NULL);
+    object_property_add(obj, "prop2", "uint32", prop2_accessor, prop2_accessor,
+                        NULL, NULL, NULL);
+}
+
+static void dynamic_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = NULL;
+}
+
+
+static const TypeInfo dynamic_prop_type = {
+    .name = TYPE_DYNAMIC_PROPS,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(MyType),
+    .instance_init = dynamic_instance_init,
+    .class_init = dynamic_class_init,
+};
+
+/* Test setting of static property using global properties */
+static void test_dynamic_globalprop(void)
+{
+    MyType *mt;
+    static GlobalProperty props[] = {
+        { TYPE_DYNAMIC_PROPS, "prop1", "101" },
+        { TYPE_DYNAMIC_PROPS, "prop2", "102" },
+        {}
+    };
+
+    qdev_prop_register_global_list(props);
+
+    mt = DYNAMIC_TYPE(object_new(TYPE_DYNAMIC_PROPS));
+    qdev_init_nofail(DEVICE(mt));
+
+    g_assert_cmpuint(mt->prop1, ==, 101);
+    g_assert_cmpuint(mt->prop2, ==, 102);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&static_prop_type);
+    type_register_static(&dynamic_prop_type);
 
     g_test_add_func("/qdev/properties/static/default", test_static_prop);
     g_test_add_func("/qdev/properties/static/global", test_static_globalprop);
+    g_test_add_func("/qdev/properties/dynamic/global", test_dynamic_globalprop);
 
     g_test_run();
 
