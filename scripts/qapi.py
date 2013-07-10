@@ -78,10 +78,8 @@ def parse(tokens):
 def evaluate(string):
     return parse(map(lambda x: x, tokenize(string)))[0]
 
-def parse_schema(fp):
-    exprs = []
+def get_expr(fp):
     expr = ''
-    expr_eval = None
 
     for line in fp:
         if line.startswith('#') or line == '\n':
@@ -90,27 +88,36 @@ def parse_schema(fp):
         if line.startswith(' '):
             expr += line
         elif expr:
-            expr_eval = evaluate(expr)
-            if expr_eval.has_key('enum'):
-                add_enum(expr_eval['enum'])
-            elif expr_eval.has_key('union'):
-                add_enum('%sKind' % expr_eval['union'])
-            exprs.append(expr_eval)
+            yield expr
             expr = line
         else:
             expr += line
 
     if expr:
+        yield expr
+
+def parse_schema(fp):
+    exprs = []
+
+    for expr in get_expr(fp):
         expr_eval = evaluate(expr)
+
         if expr_eval.has_key('enum'):
             add_enum(expr_eval['enum'])
         elif expr_eval.has_key('union'):
             add_enum('%sKind' % expr_eval['union'])
+        elif expr_eval.has_key('type'):
+            add_struct(expr_eval)
         exprs.append(expr_eval)
 
     return exprs
 
 def parse_args(typeinfo):
+    if isinstance(typeinfo, basestring):
+        struct = find_struct(typeinfo)
+        assert struct != None
+        typeinfo = struct['data']
+
     for member in typeinfo:
         argname = member
         argentry = typeinfo[member]
@@ -180,6 +187,18 @@ def type_name(name):
     return name
 
 enum_types = []
+struct_types = []
+
+def add_struct(definition):
+    global struct_types
+    struct_types.append(definition)
+
+def find_struct(name):
+    global struct_types
+    for struct in struct_types:
+        if struct['type'] == name:
+            return struct
+    return None
 
 def add_enum(name):
     global enum_types
