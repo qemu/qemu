@@ -1378,9 +1378,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     if (arm_feature(env, ARM_FEATURE_DUMMY_C15_REGS)) {
         define_arm_cp_regs(cpu, dummy_c15_cp_reginfo);
     }
-    if (arm_feature(env, ARM_FEATURE_MPIDR)) {
-        define_arm_cp_regs(cpu, mpidr_cp_reginfo);
-    }
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         define_arm_cp_regs(cpu, lpae_cp_reginfo);
     }
@@ -1393,12 +1390,17 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             /* Note that the MIDR isn't a simple constant register because
              * of the TI925 behaviour where writes to another register can
              * cause the MIDR value to change.
+             *
+             * Unimplemented registers in the c15 0 0 0 space default to
+             * MIDR. Define MIDR first as this entire space, then CTR, TCMTR
+             * and friends override accordingly.
              */
             { .name = "MIDR",
-              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = CP_ANY,
               .access = PL1_R, .resetvalue = cpu->midr,
               .writefn = arm_cp_write_ignore, .raw_writefn = raw_write,
-              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid) },
+              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
+              .type = ARM_CP_OVERRIDE },
             { .name = "CTR",
               .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
@@ -1445,6 +1447,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             }
         }
         define_arm_cp_regs(cpu, id_cp_reginfo);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_MPIDR)) {
+        define_arm_cp_regs(cpu, mpidr_cp_reginfo);
     }
 
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
