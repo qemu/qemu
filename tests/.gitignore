@@ -11,6 +11,7 @@ test-iov
 test-mul64
 test-qapi-types.[ch]
 test-qapi-visit.[ch]
+test-qdev-global-props
 test-qmp-commands.h
 test-qmp-commands
 test-qmp-input-strict
