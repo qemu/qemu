@@ -1000,7 +1000,7 @@ typedef struct PcRomPciInfo {
 static void pc_fw_cfg_guest_info(PcGuestInfo *guest_info)
 {
     PcRomPciInfo *info;
-    if (!guest_info->has_pci_info) {
+    if (!guest_info->has_pci_info || !guest_info->fw_cfg) {
         return;
     }
 
