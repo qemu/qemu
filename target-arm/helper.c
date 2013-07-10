@@ -1608,7 +1608,9 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                 ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
                 int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
                 *key = ENCODE_CP_REG(r->cp, is64, r->crn, crm, opc1, opc2);
-                r2->opaque = opaque;
+                if (opaque) {
+                    r2->opaque = opaque;
+                }
                 /* Make sure reginfo passed to helpers for wildcarded regs
                  * has the correct crm/opc1/opc2 for this reg, not CP_ANY:
                  */
