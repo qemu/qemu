@@ -181,7 +181,6 @@ typedef struct CPUWatchpoint {
     sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
                                                                         \
-    CPUArchState *next_cpu; /* next CPU sharing TB cache */                 \
     /* user data */                                                     \
     void *opaque;                                                       \
                                                                         \

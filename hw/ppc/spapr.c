@@ -131,7 +131,6 @@ int spapr_allocate_irq_block(int num, bool lsi)
 static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
-    CPUPPCState *env;
     CPUState *cpu;
     char cpu_model[32];
     int smt = kvmppc_smt_threads();
@@ -139,8 +138,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 
     assert(spapr->cpu_model);
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = CPU(ppc_env_get_cpu(env));
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
@@ -231,7 +229,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                    uint32_t epow_irq)
 {
     void *fdt;
-    CPUPPCState *env;
+    CPUState *cs;
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
@@ -304,10 +302,11 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     /* This is needed during FDT finalization */
     spapr->cpu_model = g_strdup(modelname);
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        CPUState *cpu = CPU(ppc_env_get_cpu(env));
-        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-        int index = cpu->cpu_index;
+    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+        int index = cs->cpu_index;
         uint32_t servers_prop[smp_threads];
         uint32_t gservers_prop[smp_threads * 2];
         char *nodename;
@@ -632,7 +631,7 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
 static void ppc_spapr_reset(void)
 {
-    CPUState *first_cpu_cpu;
+    PowerPCCPU *first_ppc_cpu;
 
     /* Reset the hash table & recalc the RMA */
     spapr_reset_htab(spapr);
@@ -644,11 +643,11 @@ static void ppc_spapr_reset(void)
                        spapr->rtas_size);
 
     /* Set up the entry state */
-    first_cpu_cpu = ENV_GET_CPU(first_cpu);
-    first_cpu->gpr[3] = spapr->fdt_addr;
-    first_cpu->gpr[5] = 0;
-    first_cpu_cpu->halted = 0;
-    first_cpu->nip = spapr->entry_point;
+    first_ppc_cpu = POWERPC_CPU(first_cpu);
+    first_ppc_cpu->env.gpr[3] = spapr->fdt_addr;
+    first_ppc_cpu->env.gpr[5] = 0;
+    first_cpu->halted = 0;
+    first_ppc_cpu->env.nip = spapr->entry_point;
 
 }
 

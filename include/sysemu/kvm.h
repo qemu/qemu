@@ -169,11 +169,11 @@ void *kvm_arch_ram_alloc(ram_addr_t size);
 void kvm_setup_guest_memory(void *start, size_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 
-int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
+int kvm_insert_breakpoint(CPUArchState *env, target_ulong addr,
                           target_ulong len, int type);
-int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
+int kvm_remove_breakpoint(CPUArchState *env, target_ulong addr,
                           target_ulong len, int type);
-void kvm_remove_all_breakpoints(CPUArchState *current_env);
+void kvm_remove_all_breakpoints(CPUState *cpu);
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap);
 #ifndef _WIN32
 int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset);
@@ -252,9 +252,9 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
 
 int kvm_sw_breakpoints_active(CPUState *cpu);
 
-int kvm_arch_insert_sw_breakpoint(CPUState *current_cpu,
+int kvm_arch_insert_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
-int kvm_arch_remove_sw_breakpoint(CPUState *current_cpu,
+int kvm_arch_remove_sw_breakpoint(CPUState *cpu,
                                   struct kvm_sw_breakpoint *bp);
 int kvm_arch_insert_hw_breakpoint(target_ulong addr,
                                   target_ulong len, int type);

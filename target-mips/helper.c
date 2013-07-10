@@ -276,7 +276,7 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     int ret = 0;
 
 #if 0
-    log_cpu_state(env, 0);
+    log_cpu_state(CPU(mips_env_get_cpu(env)), 0);
 #endif
     qemu_log("%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);

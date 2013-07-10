@@ -72,9 +72,8 @@ static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
 
 static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 {
-    CPUAlphaState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
-    CPUState *cpu;
     uint64_t ret = 0;
 
     if (addr & 4) {
@@ -95,7 +94,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 
     case 0x0080:
         /* MISC: Miscellaneous Register.  */
-        cpu = ENV_GET_CPU(env);
         ret = s->cchip.misc | (cpu->cpu_index & 3);
         break;
 
@@ -197,7 +195,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cpu = CPU(alpha_env_get_cpu(cpu_single_env));
         cpu_unassigned_access(cpu, addr, false, false, 0, size);
         return -1;
     }
@@ -215,7 +212,6 @@ static uint64_t dchip_read(void *opaque, hwaddr addr, unsigned size)
 static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     TyphoonState *s = opaque;
-    CPUState *cs;
     uint64_t ret = 0;
 
     if (addr & 4) {
@@ -302,8 +298,7 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cs = CPU(alpha_env_get_cpu(cpu_single_env));
-        cpu_unassigned_access(cs, addr, false, false, 0, size);
+        cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
         return -1;
     }
 
@@ -315,7 +310,6 @@ static void cchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;
-    CPUState *cpu_single_cpu = CPU(alpha_env_get_cpu(cpu_single_env));
     uint64_t val, oldval, newval;
 
     if (addr & 4) {
@@ -465,7 +459,7 @@ static void cchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cpu_unassigned_access(cpu_single_cpu, addr, true, false, 0, size);
+        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
         return;
     }
 }
@@ -480,7 +474,6 @@ static void pchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;
-    CPUState *cs;
     uint64_t val, oldval;
 
     if (addr & 4) {
@@ -582,8 +575,7 @@ static void pchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cs = CPU(alpha_env_get_cpu(cpu_single_env));
-        cpu_unassigned_access(cs, addr, true, false, 0, size);
+        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
         return;
     }
 }

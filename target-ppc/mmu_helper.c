@@ -32,10 +32,10 @@
 
 #ifdef DEBUG_MMU
 #  define LOG_MMU(...) qemu_log(__VA_ARGS__)
-#  define LOG_MMU_STATE(env) log_cpu_state((env), 0)
+#  define LOG_MMU_STATE(cpu) log_cpu_state((cpu), 0)
 #else
 #  define LOG_MMU(...) do { } while (0)
-#  define LOG_MMU_STATE(...) do { } while (0)
+#  define LOG_MMU_STATE(cpu) do { } while (0)
 #endif
 
 #ifdef DEBUG_SOFTWARE_TLB
@@ -1508,7 +1508,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;
     } else if (ret < 0) {
-        LOG_MMU_STATE(env);
+        LOG_MMU_STATE(CPU(ppc_env_get_cpu(env)));
         if (access_type == ACCESS_CODE) {
             switch (ret) {
             case -1:
@@ -2890,7 +2890,7 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = CPU(ppc_env_get_cpu(env));
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     int ret;
 

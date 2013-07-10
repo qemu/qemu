@@ -21,6 +21,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "qom/cpu.h"
 
 /* This device implements the per-cpu private timer and watchdog block
  * which is used in both the ARM11MPCore and Cortex-A9MP.
@@ -49,13 +50,11 @@ typedef struct {
 
 static inline int get_current_cpu(ARMMPTimerState *s)
 {
-    CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
-
-    if (cpu_single_cpu->cpu_index >= s->num_cpu) {
+    if (current_cpu->cpu_index >= s->num_cpu) {
         hw_error("arm_mptimer: num-cpu %d but this cpu is %d!\n",
-                 s->num_cpu, cpu_single_cpu->cpu_index);
+                 s->num_cpu, current_cpu->cpu_index);
     }
-    return cpu_single_cpu->cpu_index;
+    return current_cpu->cpu_index;
 }
 
 static inline void timerblock_update_irq(TimerBlock *tb)

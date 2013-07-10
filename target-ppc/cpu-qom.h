@@ -91,7 +91,7 @@ typedef struct PowerPCCPU {
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 {
-    return POWERPC_CPU(container_of(env, PowerPCCPU, env));
+    return container_of(env, PowerPCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(ppc_env_get_cpu(e))

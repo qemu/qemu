@@ -64,7 +64,7 @@ typedef struct S390CPU {
 
 static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
 {
-    return S390_CPU(container_of(env, S390CPU, env));
+    return container_of(env, S390CPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))

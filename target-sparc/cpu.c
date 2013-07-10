@@ -30,11 +30,6 @@ static void sparc_cpu_reset(CPUState *s)
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(cpu);
     CPUSPARCState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     scc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUSPARCState, breakpoints));

@@ -4250,8 +4250,8 @@ static void *clone_func(void *arg)
 
     env = info->env;
     cpu = ENV_GET_CPU(env);
-    thread_env = env;
-    ts = (TaskState *)thread_env->opaque;
+    thread_cpu = cpu;
+    ts = (TaskState *)env->opaque;
     info->tid = gettid();
     cpu->host_tid = info->tid;
     task_settid(ts);
@@ -5132,6 +5132,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8)
 {
+#ifdef CONFIG_USE_NPTL
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+#endif
     abi_long ret;
     struct stat st;
     struct statfs stfs;
@@ -5146,42 +5149,43 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     switch(num) {
     case TARGET_NR_exit:
 #ifdef CONFIG_USE_NPTL
-      /* In old applications this may be used to implement _exit(2).
-         However in threaded applictions it is used for thread termination,
-         and _exit_group is used for application termination.
-         Do thread termination if we have more then one thread.  */
-      /* FIXME: This probably breaks if a signal arrives.  We should probably
-         be disabling signals.  */
-      if (first_cpu->next_cpu) {
-          TaskState *ts;
-          CPUArchState **lastp;
-          CPUArchState *p;
+        /* In old applications this may be used to implement _exit(2).
+           However in threaded applictions it is used for thread termination,
+           and _exit_group is used for application termination.
+           Do thread termination if we have more then one thread.  */
+        /* FIXME: This probably breaks if a signal arrives.  We should probably
+           be disabling signals.  */
+        if (first_cpu->next_cpu) {
+            TaskState *ts;
+            CPUState **lastp;
+            CPUState *p;
 
-          cpu_list_lock();
-          lastp = &first_cpu;
-          p = first_cpu;
-          while (p && p != (CPUArchState *)cpu_env) {
-              lastp = &p->next_cpu;
-              p = p->next_cpu;
-          }
-          /* If we didn't find the CPU for this thread then something is
-             horribly wrong.  */
-          if (!p)
-              abort();
-          /* Remove the CPU from the list.  */
-          *lastp = p->next_cpu;
-          cpu_list_unlock();
-          ts = ((CPUArchState *)cpu_env)->opaque;
-          if (ts->child_tidptr) {
-              put_user_u32(0, ts->child_tidptr);
-              sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
-                        NULL, NULL, 0);
-          }
-          thread_env = NULL;
-          object_unref(OBJECT(ENV_GET_CPU(cpu_env)));
-          g_free(ts);
-          pthread_exit(NULL);
-      }
+            cpu_list_lock();
+            lastp = &first_cpu;
+            p = first_cpu;
+            while (p && p != cpu) {
+                lastp = &p->next_cpu;
+                p = p->next_cpu;
+            }
+            /* If we didn't find the CPU for this thread then something is
+               horribly wrong.  */
+            if (!p) {
+                abort();
+            }
+            /* Remove the CPU from the list.  */
+            *lastp = p->next_cpu;
+            cpu_list_unlock();
+            ts = ((CPUArchState *)cpu_env)->opaque;
+            if (ts->child_tidptr) {
+                put_user_u32(0, ts->child_tidptr);
+                sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
+                          NULL, NULL, 0);
+            }
+            thread_cpu = NULL;
+            object_unref(OBJECT(ENV_GET_CPU(cpu_env)));
+            g_free(ts);
+            pthread_exit(NULL);
+        }
 #endif
 #ifdef TARGET_GPROF
         _mcleanup();

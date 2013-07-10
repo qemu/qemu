@@ -67,7 +67,7 @@ typedef struct MIPSCPU {
 
 static inline MIPSCPU *mips_env_get_cpu(CPUMIPSState *env)
 {
-    return MIPS_CPU(container_of(env, MIPSCPU, env));
+    return container_of(env, MIPSCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(mips_env_get_cpu(e))

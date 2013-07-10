@@ -70,7 +70,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         } else {
             env->pc = env->eba + (env->exception_index * 32);
         }
-        log_cpu_state_mask(CPU_LOG_INT, env, 0);
+        log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     case EXCP_BREAKPOINT:
     case EXCP_WATCHPOINT:
@@ -79,7 +79,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->ie |= (env->ie & IE_IE) ? IE_BIE : 0;
         env->ie &= ~IE_IE;
         env->pc = env->deba + (env->exception_index * 32);
-        log_cpu_state_mask(CPU_LOG_INT, env, 0);
+        log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     default:
         cpu_abort(env, "unhandled exception type=%d\n",

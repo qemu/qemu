@@ -68,7 +68,8 @@ static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     uint32_t value = 0;
-    CPUPPCState *env = cpu_single_env;
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    CPUPPCState *env = &cpu->env;
 
     addr &= MPC8544_GUTS_MMIO_SIZE - 1;
     switch (addr) {

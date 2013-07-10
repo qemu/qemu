@@ -681,7 +681,7 @@ static void page_flush_tb(void)
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUArchState *env1)
 {
-    CPUArchState *env;
+    CPUState *cpu;
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
@@ -696,7 +696,9 @@ void tb_flush(CPUArchState *env1)
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
@@ -821,7 +823,7 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
 /* invalidate one TB */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
-    CPUArchState *env;
+    CPUState *cpu;
     PageDesc *p;
     unsigned int h, n1;
     tb_page_addr_t phys_pc;
@@ -848,7 +850,9 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
         if (env->tb_jmp_cache[h] == tb) {
             env->tb_jmp_cache[h] = NULL;
         }
@@ -999,8 +1003,10 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
-    CPUArchState *env = cpu_single_env;
-    CPUState *cpu = NULL;
+    CPUState *cpu = current_cpu;
+#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+    CPUArchState *env = NULL;
+#endif
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
@@ -1023,9 +1029,11 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         /* build code bitmap */
         build_page_bitmap(p);
     }
-    if (env != NULL) {
-        cpu = ENV_GET_CPU(env);
+#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+    if (cpu != NULL) {
+        env = cpu->env_ptr;
     }
+#endif
 
     /* we remove all the TBs in the range [start, end[ */
     /* XXX: see if in some cases it could be faster to invalidate all
@@ -1147,8 +1155,8 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
     int n;
 #ifdef TARGET_HAS_PRECISE_SMC
     TranslationBlock *current_tb = NULL;
-    CPUArchState *env = cpu_single_env;
-    CPUState *cpu = NULL;
+    CPUState *cpu = current_cpu;
+    CPUArchState *env = NULL;
     int current_tb_modified = 0;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
@@ -1165,8 +1173,8 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
     if (tb && pc != 0) {
         current_tb = tb_find_pc(pc);
     }
-    if (env != NULL) {
-        cpu = ENV_GET_CPU(env);
+    if (cpu != NULL) {
+        env = cpu->env_ptr;
     }
 #endif
     while (tb != NULL) {

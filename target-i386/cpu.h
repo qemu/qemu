@@ -1125,15 +1125,6 @@ static inline target_long lshift(target_long x, int n)
 /* translate.c */
 void optimize_flags_init(void);
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[R_ESP] = newsp;
-    env->regs[R_EAX] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 #include "svm.h"
 
@@ -1229,7 +1220,7 @@ void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
-void do_smm_enter(CPUX86State *env1);
+void do_smm_enter(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 

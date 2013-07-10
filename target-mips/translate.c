@@ -15540,9 +15540,10 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
 }
 
 static inline void
-gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
-                                int search_pc)
+gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
@@ -15698,12 +15699,12 @@ done_generating:
 
 void gen_intermediate_code (CPUMIPSState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUMIPSState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, true);
 }
 
 static void fpu_dump_state(CPUMIPSState *env, FILE *f, fprintf_function fpu_fprintf,

@@ -106,7 +106,7 @@ typedef struct MoxieCPU {
 
 static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 {
-    return MOXIE_CPU(container_of(env, MoxieCPU, env));
+    return container_of(env, MoxieCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(moxie_env_get_cpu(e))

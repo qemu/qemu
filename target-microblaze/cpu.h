@@ -331,20 +331,6 @@ int cpu_mb_handle_mmu_fault(CPUMBState *env, target_ulong address, int rw,
                             int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mb_handle_mmu_fault
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[R_SP] = newsp;
-    env->regs[3] = 0;
-}
-#endif
-
-static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
-{
-    env->regs[21] = newtls;
-}
-
 static inline int cpu_interrupts_enabled(CPUMBState *env)
 {
     return env->sregs[SR_MSR] & MSR_IE;

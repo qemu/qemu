@@ -213,12 +213,12 @@ int cpu_exec(CPUArchState *env)
         cpu->halted = 0;
     }
 
-    cpu_single_env = env;
+    current_cpu = cpu;
 
-    /* As long as cpu_single_env is null, up to the assignment just above,
+    /* As long as current_cpu is null, up to the assignment just above,
      * requests by other threads to exit the execution loop are expected to
      * be issued using the exit_request global. We must make sure that our
-     * evaluation of the global value is performed past the cpu_single_env
+     * evaluation of the global value is performed past the current_cpu
      * value transition point, which requires a memory barrier as well as
      * an instruction scheduling constraint on modern architectures.  */
     smp_mb();
@@ -331,7 +331,7 @@ int cpu_exec(CPUArchState *env)
                             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
                                                           0);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter(env);
+                            do_smm_enter(x86_env_get_cpu(env));
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
@@ -577,15 +577,15 @@ int cpu_exec(CPUArchState *env)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
 #if defined(TARGET_I386)
-                    log_cpu_state(env, CPU_DUMP_CCOP);
+                    log_cpu_state(cpu, CPU_DUMP_CCOP);
 #elif defined(TARGET_M68K)
                     cpu_m68k_flush_flags(env, env->cc_op);
                     env->cc_op = CC_OP_FLAGS;
                     env->sr = (env->sr & 0xffe0)
                               | env->cc_dest | (env->cc_x << 4);
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #else
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #endif
                 }
 #endif /* DEBUG_DISAS */
@@ -673,7 +673,8 @@ int cpu_exec(CPUArchState *env)
         } else {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
-            env = cpu_single_env;
+            cpu = current_cpu;
+            env = cpu->env_ptr;
         }
     } /* for(;;) */
 
@@ -707,7 +708,7 @@ int cpu_exec(CPUArchState *env)
 #error unsupported target CPU
 #endif
 
-    /* fail safe : never use cpu_single_env outside cpu_exec() */
-    cpu_single_env = NULL;
+    /* fail safe : never use current_cpu outside cpu_exec() */
+    current_cpu = NULL;
     return ret;
 }

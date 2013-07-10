@@ -76,7 +76,7 @@ typedef struct SuperHCPU {
 
 static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
 {
-    return SUPERH_CPU(container_of(env, SuperHCPU, env));
+    return container_of(env, SuperHCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))

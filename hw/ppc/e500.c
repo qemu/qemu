@@ -494,7 +494,6 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
                                           qemu_irq **irqs)
 {
     DeviceState *dev;
-    CPUPPCState *env;
     CPUState *cs;
     int r;
 
@@ -506,9 +505,7 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
         return NULL;
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cs = ENV_GET_CPU(env);
-
+    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
         if (kvm_openpic_connect_vcpu(dev, cs)) {
             fprintf(stderr, "%s: failed to connect vcpu to irqchip\n",
                     __func__);

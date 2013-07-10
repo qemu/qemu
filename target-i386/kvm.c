@@ -345,20 +345,22 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 
 int kvm_arch_on_sigbus(int code, void *addr)
 {
-    if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
+    X86CPU *cpu = X86_CPU(first_cpu);
+
+    if ((cpu->env.mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
         ram_addr_t ram_addr;
         hwaddr paddr;
 
         /* Hope we are lucky for AO MCE */
         if (qemu_ram_addr_from_host(addr, &ram_addr) == NULL ||
-            !kvm_physical_memory_addr_from_host(CPU(first_cpu)->kvm_state,
+            !kvm_physical_memory_addr_from_host(first_cpu->kvm_state,
                                                 addr, &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!: %p\n", addr);
             return 0;
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(x86_env_get_cpu(first_cpu), paddr, code);
+        kvm_mce_inject(X86_CPU(first_cpu), paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;

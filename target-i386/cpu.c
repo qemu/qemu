@@ -2175,11 +2175,6 @@ static void x86_cpu_reset(CPUState *s)
     CPUX86State *env = &cpu->env;
     int i;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, CPU_DUMP_FPU | CPU_DUMP_CCOP);
-    }
-
     xcc->parent_reset(s);
 
 
@@ -2523,6 +2518,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;
+    cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;

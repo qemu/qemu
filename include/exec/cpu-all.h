@@ -20,7 +20,6 @@
 #define CPU_ALL_H
 
 #include "qemu-common.h"
-#include "qemu/tls.h"
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
 
@@ -357,9 +356,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-extern CPUArchState *first_cpu;
-DECLARE_TLS(CPUArchState *,cpu_single_env);
-#define cpu_single_env tls_var(cpu_single_env)
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
 

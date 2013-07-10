@@ -73,8 +73,6 @@ void ppc6xx_irq_init (CPUPPCState *env);
 void ppc970_irq_init (CPUPPCState *env);
 void ppcPOWER7_irq_init (CPUPPCState *env);
 
-void ppce500_set_mpic_proxy(bool enabled);
-
 /* PPC machines for OpenBIOS */
 enum {
     ARCH_PREP = 0,

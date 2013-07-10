@@ -120,15 +120,15 @@ void fork_end(int child)
     if (child) {
         /* Child processes created by fork() only have a single thread.
            Discard information about the parent threads.  */
-        first_cpu = thread_env;
-        thread_env->next_cpu = NULL;
+        first_cpu = thread_cpu;
+        first_cpu->next_cpu = NULL;
         pending_cpus = 0;
         pthread_mutex_init(&exclusive_lock, NULL);
         pthread_mutex_init(&cpu_list_mutex, NULL);
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
@@ -148,7 +148,6 @@ static inline void exclusive_idle(void)
    Must only be called from outside cpu_arm_exec.   */
 static inline void start_exclusive(void)
 {
-    CPUArchState *other;
     CPUState *other_cpu;
 
     pthread_mutex_lock(&exclusive_lock);
@@ -156,8 +155,7 @@ static inline void start_exclusive(void)
 
     pending_cpus = 1;
     /* Make all other cpus stop executing.  */
-    for (other = first_cpu; other; other = other->next_cpu) {
-        other_cpu = ENV_GET_CPU(other);
+    for (other_cpu = first_cpu; other_cpu; other_cpu = other_cpu->next_cpu) {
         if (other_cpu->running) {
             pending_cpus++;
             cpu_exit(other_cpu);
@@ -234,7 +232,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     }
 }
 
@@ -1304,11 +1302,12 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 
 #define EXCP_DUMP(env, fmt, ...)                                        \
 do {                                                                    \
+    CPUState *cs = ENV_GET_CPU(env);                                    \
     fprintf(stderr, fmt , ## __VA_ARGS__);                              \
-    cpu_dump_state(ENV_GET_CPU(env), stderr, fprintf, 0);               \
+    cpu_dump_state(cs, stderr, fprintf, 0);                             \
     qemu_log(fmt, ## __VA_ARGS__);                                      \
     if (qemu_log_enabled()) {                                           \
-        log_cpu_state(env, 0);                                          \
+        log_cpu_state(cs, 0);                                           \
     }                                                                   \
 } while (0)
 
@@ -3152,7 +3151,7 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
-THREAD CPUArchState *thread_env;
+THREAD CPUState *thread_cpu;
 
 void task_settid(TaskState *ts)
 {
@@ -3642,7 +3641,7 @@ int main(int argc, char **argv, char **envp)
     cpu_reset(ENV_GET_CPU(env));
 #endif
 
-    thread_env = env;
+    thread_cpu = ENV_GET_CPU(env);
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;

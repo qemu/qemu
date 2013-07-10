@@ -69,10 +69,10 @@ static MemoryRegion io_mem_unassigned;
 
 #endif
 
-CPUArchState *first_cpu;
+CPUState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
-DEFINE_TLS(CPUArchState *,cpu_single_env);
+DEFINE_TLS(CPUState *, current_cpu);
 /* 0 = Do not count executed instructions.
    1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
@@ -351,27 +351,26 @@ const VMStateDescription vmstate_cpu_common = {
 
 CPUState *qemu_get_cpu(int index)
 {
-    CPUArchState *env = first_cpu;
-    CPUState *cpu = NULL;
+    CPUState *cpu = first_cpu;
 
-    while (env) {
-        cpu = ENV_GET_CPU(env);
+    while (cpu) {
         if (cpu->cpu_index == index) {
             break;
         }
-        env = env->next_cpu;
+        cpu = cpu->next_cpu;
     }
 
-    return env ? cpu : NULL;
+    return cpu;
 }
 
 void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data)
 {
-    CPUArchState *env = first_cpu;
+    CPUState *cpu;
 
-    while (env) {
-        func(ENV_GET_CPU(env), data);
-        env = env->next_cpu;
+    cpu = first_cpu;
+    while (cpu) {
+        func(cpu, data);
+        cpu = cpu->next_cpu;
     }
 }
 
@@ -379,17 +378,17 @@ void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUArchState **penv;
+    CPUState **pcpu;
     int cpu_index;
 
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    env->next_cpu = NULL;
-    penv = &first_cpu;
+    cpu->next_cpu = NULL;
+    pcpu = &first_cpu;
     cpu_index = 0;
-    while (*penv != NULL) {
-        penv = &(*penv)->next_cpu;
+    while (*pcpu != NULL) {
+        pcpu = &(*pcpu)->next_cpu;
         cpu_index++;
     }
     cpu->cpu_index = cpu_index;
@@ -399,7 +398,7 @@ void cpu_exec_init(CPUArchState *env)
 #ifndef CONFIG_USER_ONLY
     cpu->thread_id = qemu_get_thread_id();
 #endif
-    *penv = env;
+    *pcpu = cpu;
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
@@ -618,7 +617,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
         qemu_log("qemu: fatal: ");
         qemu_log_vprintf(fmt, ap2);
         qemu_log("\n");
-        log_cpu_state(env, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+        log_cpu_state(cpu, CPU_DUMP_FPU | CPU_DUMP_CCOP);
         qemu_log_flush();
         qemu_log_close();
     }
@@ -638,16 +637,12 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUArchState *new_env = cpu_init(env->cpu_model_str);
-    CPUArchState *next_cpu = new_env->next_cpu;
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
 #endif
 
     memcpy(new_env, env, sizeof(CPUArchState));
-
-    /* Preserve chaining. */
-    new_env->next_cpu = next_cpu;
 
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
@@ -1467,8 +1462,10 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
     /* we remove the notdirty callback only if the code has been
        flushed */
-    if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
+    if (dirty_flags == 0xff) {
+        CPUArchState *env = current_cpu->env_ptr;
+        tlb_set_dirty(env, env->mem_io_vaddr);
+    }
 }
 
 static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
@@ -1486,7 +1483,7 @@ static const MemoryRegionOps notdirty_mem_ops = {
 /* Generate a debug exception if a watchpoint has been hit.  */
 static void check_watchpoint(int offset, int len_mask, int flags)
 {
-    CPUArchState *env = cpu_single_env;
+    CPUArchState *env = current_cpu->env_ptr;
     target_ulong pc, cs_base;
     target_ulong vaddr;
     CPUWatchpoint *wp;
@@ -1750,12 +1747,14 @@ static void core_commit(MemoryListener *listener)
 
 static void tcg_commit(MemoryListener *listener)
 {
-    CPUArchState *env;
+    CPUState *cpu;
 
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     /* XXX: slow ! */
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
         tlb_flush(env, 1);
     }
 }
@@ -1925,7 +1924,7 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         if (is_write) {
             if (!memory_access_is_direct(mr, is_write)) {
                 l = memory_access_size(mr, l, addr1);
-                /* XXX: could force cpu_single_env to NULL to avoid
+                /* XXX: could force current_cpu to NULL to avoid
                    potential bugs */
                 if (l == 4) {
                     /* 32 bit write access */

@@ -1579,7 +1579,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 
     /* Find the largest hardware supported page size that's less than
      * or equal to the (logical) backing page size of guest RAM */
-    kvm_get_smmu_info(ppc_env_get_cpu(first_cpu), &info);
+    kvm_get_smmu_info(POWERPC_CPU(first_cpu), &info);
     rampagesize = getrampagesize();
     best_page_shift = 0;
 

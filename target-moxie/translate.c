@@ -820,7 +820,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
+static inline void
 gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {

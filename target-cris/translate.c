@@ -3161,10 +3161,11 @@ static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
  */
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
-gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
-                               int search_pc)
+static inline void
+gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUCRISState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
     unsigned int insn_len;
@@ -3419,12 +3420,12 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
 
 void gen_intermediate_code (CPUCRISState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUCRISState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, true);
 }
 
 void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,

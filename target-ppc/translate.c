@@ -9726,10 +9726,11 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
 }
 
 /*****************************************************************************/
-static inline void gen_intermediate_code_internal(CPUPPCState *env,
+static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUPPCState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
@@ -9917,12 +9918,12 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
 
 void gen_intermediate_code (CPUPPCState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(ppc_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUPPCState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(ppc_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb, int pc_pos)

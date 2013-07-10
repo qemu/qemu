@@ -68,7 +68,7 @@ typedef struct SPARCCPU {
 
 static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
 {
-    return SPARC_CPU(container_of(env, SPARCCPU, env));
+    return container_of(env, SPARCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))

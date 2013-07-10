@@ -388,17 +388,18 @@ static inline void free_sigqueue(CPUArchState *env, struct sigqueue *q)
 /* abort execution with signal */
 static void QEMU_NORETURN force_sig(int target_sig)
 {
-    TaskState *ts = (TaskState *)thread_env->opaque;
+    CPUArchState *env = thread_cpu->env_ptr;
+    TaskState *ts = (TaskState *)env->opaque;
     int host_sig, core_dumped = 0;
     struct sigaction act;
     host_sig = target_to_host_signal(target_sig);
-    gdb_signalled(thread_env, target_sig);
+    gdb_signalled(env, target_sig);
 
     /* dump core if supported by target binary format */
     if (core_dump_signal(target_sig) && (ts->bprm->core_dump != NULL)) {
         stop_all_tasks();
         core_dumped =
-            ((*ts->bprm->core_dump)(target_sig, thread_env) == 0);
+            ((*ts->bprm->core_dump)(target_sig, env) == 0);
     }
     if (core_dumped) {
         /* we already dumped the core of target process, we don't want
@@ -503,6 +504,7 @@ int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
+    CPUArchState *env = thread_cpu->env_ptr;
     int sig;
     target_siginfo_t tinfo;
 
@@ -522,9 +524,9 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     fprintf(stderr, "qemu: got signal %d\n", sig);
 #endif
     host_to_target_siginfo_noswap(&tinfo, info);
-    if (queue_signal(thread_env, sig, &tinfo) == 1) {
+    if (queue_signal(env, sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
-        cpu_exit(ENV_GET_CPU(thread_env));
+        cpu_exit(thread_cpu);
     }
 }
 

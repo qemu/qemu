@@ -31,11 +31,6 @@ static void superh_cpu_reset(CPUState *s)
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
     CPUSH4State *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     scc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUSH4State, breakpoints));
