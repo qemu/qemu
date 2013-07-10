@@ -1435,21 +1435,16 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             arm_feature(env, ARM_FEATURE_STRONGARM)) {
             ARMCPRegInfo *r;
             /* Register the blanket "writes ignored" value first to cover the
-             * whole space. Then define the specific ID registers, but update
-             * their access field to allow write access, so that they ignore
-             * writes rather than causing them to UNDEF.
+             * whole space. Then update the specific ID registers to allow write
+             * access, so that they ignore writes rather than causing them to
+             * UNDEF.
              */
             define_one_arm_cp_reg(cpu, &crn0_wi_reginfo);
             for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
                 r->access = PL1_RW;
-                define_one_arm_cp_reg(cpu, r);
             }
-        } else {
-            /* Just register the standard ID registers (read-only, meaning
-             * that writes will UNDEF).
-             */
-            define_arm_cp_regs(cpu, id_cp_reginfo);
         }
+        define_arm_cp_regs(cpu, id_cp_reginfo);
     }
 
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
