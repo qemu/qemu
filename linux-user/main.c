@@ -3594,9 +3594,7 @@ int main(int argc, char **argv, char **envp)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-#if defined(TARGET_SPARC) || defined(TARGET_PPC)
     cpu_reset(ENV_GET_CPU(env));
-#endif
 
     thread_cpu = ENV_GET_CPU(env);
 
