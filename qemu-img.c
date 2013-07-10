@@ -240,7 +240,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
-    proto_drv = bdrv_find_protocol(filename);
+    proto_drv = bdrv_find_protocol(filename, true);
     if (!proto_drv) {
         error_report("Unknown protocol '%s'", filename);
         return 1;
@@ -1261,7 +1261,7 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    proto_drv = bdrv_find_protocol(out_filename);
+    proto_drv = bdrv_find_protocol(out_filename, true);
     if (!proto_drv) {
         error_report("Unknown protocol '%s'", out_filename);
         ret = -1;

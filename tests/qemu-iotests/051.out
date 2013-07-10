@@ -169,4 +169,18 @@ Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Can't use 'qcow2' as a block driver for the protocol level
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Invalid argument
 
+
+=== Parsing protocol from file name ===
+
+Testing: -hda foo:bar
+QEMU_PROG: -hda foo:bar: Unknown protocol
+QEMU_PROG: -hda foo:bar: could not open disk image foo:bar: No such file or directory
+
+Testing: -drive file=foo:bar
+QEMU_PROG: -drive file=foo:bar: Unknown protocol
+QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: No such file or directory
+
+Testing: -drive file.filename=foo:bar
+QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: No such file or directory
+
 *** done

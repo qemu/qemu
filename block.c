@@ -417,7 +417,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
 {
     BlockDriver *drv;
 
-    drv = bdrv_find_protocol(filename);
+    drv = bdrv_find_protocol(filename, true);
     if (drv == NULL) {
         return -ENOENT;
     }
@@ -482,7 +482,8 @@ static BlockDriver *find_hdev_driver(const char *filename)
     return drv;
 }
 
-BlockDriver *bdrv_find_protocol(const char *filename)
+BlockDriver *bdrv_find_protocol(const char *filename,
+                                bool allow_protocol_prefix)
 {
     BlockDriver *drv1;
     char protocol[128];
@@ -503,9 +504,10 @@ BlockDriver *bdrv_find_protocol(const char *filename)
         return drv1;
     }
 
-    if (!path_has_protocol(filename)) {
+    if (!path_has_protocol(filename) || !allow_protocol_prefix) {
         return bdrv_find_format("file");
     }
+
     p = strchr(filename, ':');
     assert(p != NULL);
     len = p - filename;
@@ -784,6 +786,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     BlockDriverState *bs;
     BlockDriver *drv;
     const char *drvname;
+    bool allow_protocol_prefix = false;
     int ret;
 
     /* NULL means an empty set of options */
@@ -800,6 +803,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         filename = qdict_get_try_str(options, "filename");
     } else if (filename && !qdict_haskey(options, "filename")) {
         qdict_put(options, "filename", qstring_from_str(filename));
+        allow_protocol_prefix = true;
     } else {
         qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't specify 'file' and "
                       "'filename' options at the same time");
@@ -813,7 +817,10 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
         qdict_del(options, "driver");
     } else if (filename) {
-        drv = bdrv_find_protocol(filename);
+        drv = bdrv_find_protocol(filename, allow_protocol_prefix);
+        if (!drv) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Unknown protocol");
+        }
     } else {
         qerror_report(ERROR_CLASS_GENERIC_ERROR,
                       "Must specify either driver or file");
@@ -4452,7 +4459,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    proto_drv = bdrv_find_protocol(filename);
+    proto_drv = bdrv_find_protocol(filename, true);
     if (!proto_drv) {
         error_setg(errp, "Unknown protocol '%s'", filename);
         return;

@@ -149,6 +149,18 @@ echo
 run_qemu -drive file=$TEST_IMG,file.driver=file
 run_qemu -drive file=$TEST_IMG,file.driver=qcow2
 
+echo
+echo === Parsing protocol from file name ===
+echo
+
+# Protocol strings are supposed to be parsed from traditional option strings,
+# but not when using driver-specific options. We can distinguish them by the
+# error message for non-existing files.
+
+run_qemu -hda foo:bar
+run_qemu -drive file=foo:bar
+run_qemu -drive file.filename=foo:bar
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
