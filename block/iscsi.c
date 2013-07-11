@@ -62,8 +62,6 @@ typedef struct IscsiAIOCB {
     int status;
     int canceled;
     int retries;
-    size_t read_size;
-    size_t read_offset;
     int64_t sector_num;
     int nb_sectors;
 #ifdef __linux__
@@ -380,6 +378,7 @@ static int
 iscsi_aio_readv_acb(IscsiAIOCB *acb)
 {
     struct iscsi_context *iscsi = acb->iscsilun->iscsi;
+    size_t size;
     uint64_t lba;
     uint32_t num_sectors;
     int ret;
@@ -392,20 +391,7 @@ iscsi_aio_readv_acb(IscsiAIOCB *acb)
     acb->status      = -EINPROGRESS;
     acb->buf         = NULL;
 
-    /* If LUN blocksize is bigger than BDRV_BLOCK_SIZE a read from QEMU
-     * may be misaligned to the LUN, so we may need to read some extra
-     * data.
-     */
-    acb->read_offset = 0;
-    if (acb->iscsilun->block_size > BDRV_SECTOR_SIZE) {
-        uint64_t bdrv_offset = BDRV_SECTOR_SIZE * acb->sector_num;
-
-        acb->read_offset  = bdrv_offset % acb->iscsilun->block_size;
-    }
-
-    num_sectors  = (acb->read_size + acb->iscsilun->block_size
-                    + acb->read_offset - 1)
-                    / acb->iscsilun->block_size;
+    size = acb->nb_sectors * BDRV_SECTOR_SIZE;
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
@@ -416,8 +402,9 @@ iscsi_aio_readv_acb(IscsiAIOCB *acb)
     memset(acb->task, 0, sizeof(struct scsi_task));
 
     acb->task->xfer_dir = SCSI_XFER_READ;
+    acb->task->expxferlen = size;
     lba = sector_qemu2lun(acb->sector_num, acb->iscsilun);
-    acb->task->expxferlen = acb->read_size;
+    num_sectors = sector_qemu2lun(acb->nb_sectors, acb->iscsilun);
 
     switch (acb->iscsilun->type) {
     case TYPE_DISK:
@@ -472,7 +459,6 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
     acb->sector_num  = sector_num;
     acb->iscsilun    = iscsilun;
     acb->qiov        = qiov;
-    acb->read_size   = BDRV_SECTOR_SIZE * (size_t)acb->nb_sectors;
     acb->retries     = ISCSI_CMD_RETRIES;
 
     if (iscsi_aio_readv_acb(acb) != 0) {
