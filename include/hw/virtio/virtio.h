@@ -43,6 +43,8 @@
 /* We notify when the ring is completely used, even if the guest is suppressing
  * callbacks */
 #define VIRTIO_F_NOTIFY_ON_EMPTY        24
+/* Can the device handle any descriptor layout? */
+#define VIRTIO_F_ANY_LAYOUT             27
 /* We support indirect buffer descriptors */
 #define VIRTIO_RING_F_INDIRECT_DESC     28
 /* The Guest publishes the used index for which it expects an interrupt
