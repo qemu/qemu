@@ -1272,6 +1272,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
     }
     if (bs.total_sectors < total_size) {
         ret = -ENOSPC;
+        goto out;
     }
 
     ret = 0;
