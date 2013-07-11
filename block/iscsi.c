@@ -237,6 +237,18 @@ static int64_t sector_qemu2lun(int64_t sector, IscsiLun *iscsilun)
     return sector * BDRV_SECTOR_SIZE / iscsilun->block_size;
 }
 
+static bool is_request_lun_aligned(int64_t sector_num, int nb_sectors,
+                                      IscsiLun *iscsilun)
+{
+    if ((sector_num * BDRV_SECTOR_SIZE) % iscsilun->block_size ||
+        (nb_sectors * BDRV_SECTOR_SIZE) % iscsilun->block_size) {
+            error_report("iSCSI misaligned request: iscsilun->block_size %u, sector_num %ld, nb_sectors %d",
+                         iscsilun->block_size, sector_num, nb_sectors);
+            return 0;
+    }
+    return 1;
+}
+
 static int
 iscsi_aio_writev_acb(IscsiAIOCB *acb)
 {
@@ -320,6 +332,10 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
 {
     IscsiLun *iscsilun = bs->opaque;
     IscsiAIOCB *acb;
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return NULL;
+    }
 
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
     trace_iscsi_aio_writev(iscsilun->iscsi, sector_num, nb_sectors, opaque, acb);
@@ -451,6 +467,10 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
 {
     IscsiLun *iscsilun = bs->opaque;
     IscsiAIOCB *acb;
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return NULL;
+    }
 
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
     trace_iscsi_aio_readv(iscsilun->iscsi, sector_num, nb_sectors, opaque, acb);
