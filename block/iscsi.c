@@ -232,6 +232,11 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
     iscsi_schedule_bh(acb);
 }
 
+static int64_t sector_lun2qemu(int64_t sector, IscsiLun *iscsilun)
+{
+    return sector * iscsilun->block_size / BDRV_SECTOR_SIZE;
+}
+
 static int64_t sector_qemu2lun(int64_t sector, IscsiLun *iscsilun)
 {
     return sector * BDRV_SECTOR_SIZE / iscsilun->block_size;
@@ -296,7 +301,7 @@ iscsi_aio_writev_acb(IscsiAIOCB *acb)
     lba = sector_qemu2lun(acb->sector_num, acb->iscsilun);
     *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
     *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
-    num_sectors = size / acb->iscsilun->block_size;
+    num_sectors = sector_qemu2lun(acb->nb_sectors, acb->iscsilun);
     *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
     acb->task->expxferlen = size;
 
@@ -1161,8 +1166,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags)
     if ((ret = iscsi_readcapacity_sync(iscsilun)) != 0) {
         goto out;
     }
-    bs->total_sectors    = iscsilun->num_blocks *
-                           iscsilun->block_size / BDRV_SECTOR_SIZE ;
+    bs->total_sectors = sector_lun2qemu(iscsilun->num_blocks, iscsilun);
 
     /* Medium changer or tape. We dont have any emulation for this so this must
      * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
