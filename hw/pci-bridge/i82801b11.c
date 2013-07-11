@@ -93,7 +93,7 @@ static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo i82801b11_bridge_info = {
     .name          = "i82801b11-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(I82801b11Bridge),
     .class_init    = i82801b11_bridge_class_init,
 };
@@ -109,8 +109,8 @@ PCIBus *ich9_d2pbr_init(PCIBus *bus, int devfn, int sec_bus)
     if (!d) {
         return NULL;
     }
-    br = DO_UPCAST(PCIBridge, dev, d);
-    qdev = &br->dev.qdev;
+    br = PCI_BRIDGE(d);
+    qdev = DEVICE(d);
 
     snprintf(buf, sizeof(buf), "pci.%d", sec_bus);
     pci_bridge_map_irq(br, buf, pci_swizzle_map_irq_fn);

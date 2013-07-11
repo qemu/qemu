@@ -53,7 +53,7 @@ static void xio3130_upstream_reset(DeviceState *qdev)
 
 static int xio3130_upstream_initfn(PCIDevice *d)
 {
-    PCIBridge* br = DO_UPCAST(PCIBridge, dev, d);
+    PCIBridge *br = PCI_BRIDGE(d);
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
     int rc;
 
@@ -118,9 +118,9 @@ PCIEPort *xio3130_upstream_init(PCIBus *bus, int devfn, bool multifunction,
     if (!d) {
         return NULL;
     }
-    br = DO_UPCAST(PCIBridge, dev, d);
+    br = PCI_BRIDGE(d);
 
-    qdev = &br->dev.qdev;
+    qdev = DEVICE(d);
     pci_bridge_map_irq(br, bus_name, map_irq);
     qdev_prop_set_uint8(qdev, "port", port);
     qdev_init_nofail(qdev);
@@ -134,17 +134,18 @@ static const VMStateDescription vmstate_xio3130_upstream = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(br.dev, PCIEPort),
-        VMSTATE_STRUCT(br.dev.exp.aer_log, PCIEPort, 0, vmstate_pcie_aer_log,
-                       PCIEAERLog),
+        VMSTATE_PCIE_DEVICE(br.parent_obj, PCIEPort),
+        VMSTATE_STRUCT(br.parent_obj.exp.aer_log, PCIEPort, 0,
+                       vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property xio3130_upstream_properties[] = {
     DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
-    DEFINE_PROP_UINT16("aer_log_max", PCIEPort, br.dev.exp.aer_log.log_max,
-    PCIE_AER_LOG_MAX_DEFAULT),
+    DEFINE_PROP_UINT16("aer_log_max", PCIEPort,
+                       br.parent_obj.exp.aer_log.log_max,
+                       PCIE_AER_LOG_MAX_DEFAULT),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -170,7 +171,7 @@ static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo xio3130_upstream_info = {
     .name          = "x3130-upstream",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIEPort),
     .class_init    = xio3130_upstream_class_init,
 };

@@ -74,7 +74,7 @@ static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo dec_21154_pci_bridge_info = {
     .name          = "dec-21154-p2p-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridge),
     .class_init    = dec_21154_pci_bridge_class_init,
 };
@@ -86,7 +86,7 @@ PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
 
     dev = pci_create_multifunction(parent_bus, devfn, false,
                                    "dec-21154-p2p-bridge");
-    br = DO_UPCAST(PCIBridge, dev, dev);
+    br = PCI_BRIDGE(dev);
     pci_bridge_map_irq(br, "DEC 21154 PCI-PCI bridge", dec_map_irq);
     qdev_init_nofail(&dev->qdev);
     return pci_bridge_get_sec_bus(br);

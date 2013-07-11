@@ -53,8 +53,13 @@ struct PCIBridgeWindows {
     MemoryRegion alias_vga[QEMU_PCI_VGA_NUM_REGIONS];
 };
 
+#define TYPE_PCI_BRIDGE "base-pci-bridge"
+#define PCI_BRIDGE(obj) OBJECT_CHECK(PCIBridge, (obj), TYPE_PCI_BRIDGE)
+
 struct PCIBridge {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
 
     /* private member */
     PCIBus sec_bus;

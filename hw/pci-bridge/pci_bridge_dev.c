@@ -38,7 +38,7 @@ typedef struct PCIBridgeDev PCIBridgeDev;
 
 static int pci_bridge_dev_initfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
+    PCIBridge *br = PCI_BRIDGE(dev);
     PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
     int err;
 
@@ -81,7 +81,7 @@ bridge_error:
 
 static void pci_bridge_dev_exitfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
+    PCIBridge *br = PCI_BRIDGE(dev);
     PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
     if (msi_present(dev)) {
         msi_uninit(dev);
@@ -120,8 +120,8 @@ static Property pci_bridge_dev_properties[] = {
 static const VMStateDescription pci_bridge_dev_vmstate = {
     .name = "pci_bridge",
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(bridge.dev, PCIBridgeDev),
-        SHPC_VMSTATE(bridge.dev.shpc, PCIBridgeDev),
+        VMSTATE_PCI_DEVICE(bridge.parent_obj, PCIBridgeDev),
+        SHPC_VMSTATE(bridge.parent_obj.shpc, PCIBridgeDev),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -146,7 +146,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_bridge_dev_info = {
     .name = "pci-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridgeDev),
     .class_init = pci_bridge_dev_class_init,
 };
