@@ -63,7 +63,7 @@ typedef struct M68kCPU {
 
 static inline M68kCPU *m68k_env_get_cpu(CPUM68KState *env)
 {
-    return M68K_CPU(container_of(env, M68kCPU, env));
+    return container_of(env, M68kCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(m68k_env_get_cpu(e))

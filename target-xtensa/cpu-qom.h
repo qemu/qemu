@@ -73,7 +73,7 @@ typedef struct XtensaCPU {
 
 static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
 {
-    return XTENSA_CPU(container_of(env, XtensaCPU, env));
+    return container_of(env, XtensaCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))

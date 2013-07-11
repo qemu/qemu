@@ -346,20 +346,22 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 
 int kvm_arch_on_sigbus(int code, void *addr)
 {
-    if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
+    X86CPU *cpu = X86_CPU(first_cpu);
+
+    if ((cpu->env.mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
         ram_addr_t ram_addr;
         hwaddr paddr;
 
         /* Hope we are lucky for AO MCE */
         if (qemu_ram_addr_from_host(addr, &ram_addr) == NULL ||
-            !kvm_physical_memory_addr_from_host(CPU(first_cpu)->kvm_state,
+            !kvm_physical_memory_addr_from_host(first_cpu->kvm_state,
                                                 addr, &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!: %p\n", addr);
             return 0;
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(x86_env_get_cpu(first_cpu), paddr, code);
+        kvm_mce_inject(X86_CPU(first_cpu), paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -744,7 +746,6 @@ static int kvm_get_supported_msrs(KVMState *s)
 
 int kvm_arch_init(KVMState *s)
 {
-    QemuOptsList *list = qemu_find_opts("machine");
     uint64_t identity_base = 0xfffbc000;
     uint64_t shadow_mem;
     int ret;
@@ -793,15 +794,13 @@ int kvm_arch_init(KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
-    if (!QTAILQ_EMPTY(&list->head)) {
-        shadow_mem = qemu_opt_get_size(QTAILQ_FIRST(&list->head),
-                                       "kvm_shadow_mem", -1);
-        if (shadow_mem != -1) {
-            shadow_mem /= 4096;
-            ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
-            if (ret < 0) {
-                return ret;
-            }
+    shadow_mem = qemu_opt_get_size(qemu_get_machine_opts(),
+                                   "kvm_shadow_mem", -1);
+    if (shadow_mem != -1) {
+        shadow_mem /= 4096;
+        ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
+        if (ret < 0) {
+            return ret;
         }
     }
     return 0;

@@ -241,15 +241,6 @@ int cpu_m68k_handle_mmu_fault(CPUM68KState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_m68k_handle_mmu_fault
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUM68KState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->aregs[7] = newsp;
-    env->dregs[0] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,

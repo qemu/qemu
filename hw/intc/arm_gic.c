@@ -20,6 +20,7 @@
 
 #include "hw/sysbus.h"
 #include "gic_internal.h"
+#include "qom/cpu.h"
 
 //#define DEBUG_GIC
 
@@ -39,8 +40,7 @@ static const uint8_t gic_id[] = {
 static inline int gic_get_current_cpu(GICState *s)
 {
     if (s->num_cpu > 1) {
-        CPUState *cpu = ENV_GET_CPU(cpu_single_env);
-        return cpu->cpu_index;
+        return current_cpu->cpu_index;
     }
     return 0;
 }

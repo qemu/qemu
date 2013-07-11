@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
+#include "qemu/bitops.h"
 
 #undef EAX
 #undef ECX
@@ -82,6 +83,7 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
                                     void *puc)
 {
     uintptr_t address = (uintptr_t)ptr;
+    CPUArchState *env;
     int ret;
 
 #if defined(DEBUG_SIGNAL)
@@ -94,9 +96,9 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
         return 1;
     }
 
+    env = current_cpu->env_ptr;
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(cpu_single_env, address, is_write,
-                               MMU_USER_IDX);
+    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }
@@ -104,12 +106,12 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
     /* now we have a real cpu fault */
-    cpu_restore_state(cpu_single_env, pc);
+    cpu_restore_state(env, pc);
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(cpu_single_env);
+    exception_action(env);
 
     /* never comes here */
     return 1;
@@ -439,8 +441,11 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #else
     pc = uc->uc_mcontext.arm_pc;
 #endif
-    /* XXX: compute is_write */
-    is_write = 0;
+
+    /* error_code is the FSR value, in which bit 11 is WnR (assuming a v6 or
+     * later processor; on v5 we will always report this as a read).
+     */
+    is_write = extract32(uc->uc_mcontext.error_code, 11, 1);
     return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 

@@ -1709,16 +1709,7 @@
 #
 # Generates a synchronous snapshot of a block device.
 #
-# @device:  the name of the device to generate the snapshot from.
-#
-# @snapshot-file: the target of the new image. If the file exists, or if it
-#                 is a device, the snapshot will be created in the existing
-#                 file/device. If does not exist, a new file will be created.
-#
-# @format: #optional the format of the snapshot image, default is 'qcow2'.
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
+# For the arguments, see the documentation of BlockdevSnapshot.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1726,8 +1717,7 @@
 # Since 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
-            '*mode': 'NewImageMode'} }
+  'data': 'BlockdevSnapshot' }
 
 ##
 # @human-monitor-command:
@@ -1801,42 +1791,14 @@
 # The operation can be stopped before it has completed using the
 # block-job-cancel command.
 #
-# @device: the name of the device which should be copied.
-#
-# @target: the target of the new image. If the file exists, or if it
-#          is a device, the existing file/device will be used as the new
-#          destination.  If it does not exist, a new file will be created.
-#
-# @format: #optional the format of the new destination, default is to
-#          probe if @mode is 'existing', else the format of the source
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
-#
-# @speed: #optional the maximum speed, in bytes per second
-#
-# @on-source-error: #optional the action to take on an error on the source,
-#                   default 'report'.  'stop' and 'enospc' can only be used
-#                   if the block device supports io-status (see BlockInfo).
-#
-# @on-target-error: #optional the action to take on an error on the target,
-#                   default 'report' (no limitations, since this applies to
-#                   a different block device than @device).
-#
-# Note that @on-source-error and @on-target-error only affect background I/O.
-# If an error occurs during a guest write request, the device's rerror/werror
-# actions will be used.
+# For the arguments, see the documentation of DriveBackup.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
 # Since 1.6
 ##
-{ 'command': 'drive-backup',
-  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            '*mode': 'NewImageMode', '*speed': 'int',
-            '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError' } }
+{ 'command': 'drive-backup', 'data': 'DriveBackup' }
 
 ##
 # @drive-mirror

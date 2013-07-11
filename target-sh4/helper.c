@@ -154,7 +154,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 	}
 	qemu_log("exception 0x%03x [%s] raised\n",
 		  irq_vector, expname);
-	log_cpu_state(env, 0);
+        log_cpu_state(cs, 0);
     }
 
     env->ssr = env->sr;

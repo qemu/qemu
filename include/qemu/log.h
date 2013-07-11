@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "qemu/compiler.h"
+#include "qom/cpu.h"
 #ifdef NEED_CPU_H
 #include "disas/disas.h"
 #endif
@@ -70,22 +71,37 @@ void GCC_FMT_ATTR(2, 3) qemu_log_mask(int mask, const char *fmt, ...);
 
 /* Special cases: */
 
-#ifdef NEED_CPU_H
 /* cpu_dump_state() logging functions: */
-static inline void log_cpu_state(CPUArchState *env1, int flags)
+/**
+ * log_cpu_state:
+ * @cpu: The CPU whose state is to be logged.
+ * @flags: Flags what to log.
+ *
+ * Logs the output of cpu_dump_state().
+ */
+static inline void log_cpu_state(CPUState *cpu, int flags)
 {
     if (qemu_log_enabled()) {
-        cpu_dump_state(ENV_GET_CPU(env1), qemu_logfile, fprintf, flags);
+        cpu_dump_state(cpu, qemu_logfile, fprintf, flags);
     }
 }
 
-static inline void log_cpu_state_mask(int mask, CPUArchState *env1, int flags)
+/**
+ * log_cpu_state_mask:
+ * @mask: Mask when to log.
+ * @cpu: The CPU whose state is to be logged.
+ * @flags: Flags what to log.
+ *
+ * Logs the output of cpu_dump_state() if loglevel includes @mask.
+ */
+static inline void log_cpu_state_mask(int mask, CPUState *cpu, int flags)
 {
     if (qemu_loglevel & mask) {
-        log_cpu_state(env1, flags);
+        log_cpu_state(cpu, flags);
     }
 }
 
+#ifdef NEED_CPU_H
 /* disas() and target_disas() to qemu_logfile: */
 static inline void log_target_disas(CPUArchState *env, target_ulong start,
                                     target_ulong len, int flags)

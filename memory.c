@@ -835,11 +835,13 @@ static int qemu_target_backtrace(target_ulong *array, size_t size)
     int n = 0;
     if (size >= 2) {
 #if defined(TARGET_ARM)
-        array[0] = cpu_single_env->regs[15];
-        array[1] = cpu_single_env->regs[14];
+        CPUArchState *env = current_cpu->env_ptr;
+        array[0] = env->regs[15];
+        array[1] = env->regs[14];
 #elif defined(TARGET_MIPS)
-        array[0] = cpu_single_env->active_tc.PC;
-        array[1] = cpu_single_env->active_tc.gpr[31];
+        CPUArchState *env = current_cpu->env_ptr;
+        array[0] = env->active_tc.PC;
+        array[1] = env->active_tc.gpr[31];
 #else
         array[0] = 0;
         array[1] = 0;
@@ -853,7 +855,7 @@ static int qemu_target_backtrace(target_ulong *array, size_t size)
 const char *qemu_sprint_backtrace(char *buffer, size_t length)
 {
     char *p = buffer;
-    if (cpu_single_env) {
+    if (current_cpu) {
         target_ulong caller[2];
         const char *symbol;
         qemu_target_backtrace(caller, 2);
@@ -877,9 +879,8 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                 addr, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
     //~ vm_stop(0);
-    if (cpu_single_env != NULL) {
-        cpu_unassigned_access(ENV_GET_CPU(cpu_single_env),
-                              addr, false, false, 0, size);
+    if (current_cpu != NULL) {
+        cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
     }
     return 0;
 }
@@ -893,9 +894,8 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
                 " = 0x%" PRIx64 " %s\n",
                 addr, val, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
-    if (cpu_single_env != NULL) {
-        cpu_unassigned_access(ENV_GET_CPU(cpu_single_env),
-                              addr, true, false, 0, size);
+    if (current_cpu != NULL) {
+        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
     }
 }
 

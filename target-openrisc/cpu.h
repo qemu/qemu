@@ -335,7 +335,7 @@ typedef struct OpenRISCCPU {
 
 static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 {
-    return OPENRISC_CPU(container_of(env, OpenRISCCPU, env));
+    return container_of(env, OpenRISCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
@@ -393,16 +393,6 @@ static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
     }
     return NULL;
 }
-
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->gpr[1] = newsp;
-    }
-    env->gpr[2] = 0;
-}
-#endif
 
 #include "exec/cpu-all.h"
 

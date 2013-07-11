@@ -64,7 +64,7 @@ typedef struct LM32CPU {
 
 static inline LM32CPU *lm32_env_get_cpu(CPULM32State *env)
 {
-    return LM32_CPU(container_of(env, LM32CPU, env));
+    return container_of(env, LM32CPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(lm32_env_get_cpu(e))

@@ -66,7 +66,7 @@ typedef struct CRISCPU {
 
 static inline CRISCPU *cris_env_get_cpu(CPUCRISState *env)
 {
-    return CRIS_CPU(container_of(env, CRISCPU, env));
+    return container_of(env, CRISCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(cris_env_get_cpu(e))

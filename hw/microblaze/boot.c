@@ -28,6 +28,7 @@
 #include "qemu/config-file.h"
 #include "qemu-common.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "elf.h"
 
@@ -93,20 +94,18 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
                             void (*machine_cpu_reset)(MicroBlazeCPU *))
 {
     QemuOpts *machine_opts;
-    const char *kernel_filename = NULL;
-    const char *kernel_cmdline = NULL;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *dtb_arg;
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        const char *dtb_arg;
-        kernel_filename = qemu_opt_get(machine_opts, "kernel");
-        kernel_cmdline = qemu_opt_get(machine_opts, "append");
-        dtb_arg = qemu_opt_get(machine_opts, "dtb");
-        if (dtb_arg) { /* Preference a -dtb argument */
-            dtb_filename = dtb_arg;
-        } else { /* default to pcbios dtb as passed by machine_init */
-            dtb_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);
-        }
+    machine_opts = qemu_get_machine_opts();
+    kernel_filename = qemu_opt_get(machine_opts, "kernel");
+    kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    dtb_arg = qemu_opt_get(machine_opts, "dtb");
+    if (dtb_arg) { /* Preference a -dtb argument */
+        dtb_filename = dtb_arg;
+    } else { /* default to pcbios dtb as passed by machine_init */
+        dtb_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);
     }
 
     boot_info.machine_cpu_reset = machine_cpu_reset;

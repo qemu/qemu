@@ -165,13 +165,13 @@ void memory_mapping_list_init(MemoryMappingList *list)
     QTAILQ_INIT(&list->head);
 }
 
-static CPUArchState *find_paging_enabled_cpu(CPUArchState *start_cpu)
+static CPUState *find_paging_enabled_cpu(CPUState *start_cpu)
 {
-    CPUArchState *env;
+    CPUState *cpu;
 
-    for (env = start_cpu; env != NULL; env = env->next_cpu) {
-        if (cpu_paging_enabled(ENV_GET_CPU(env))) {
-            return env;
+    for (cpu = start_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        if (cpu_paging_enabled(cpu)) {
+            return cpu;
         }
     }
 
@@ -180,15 +180,15 @@ static CPUArchState *find_paging_enabled_cpu(CPUArchState *start_cpu)
 
 void qemu_get_guest_memory_mapping(MemoryMappingList *list, Error **errp)
 {
-    CPUArchState *env, *first_paging_enabled_cpu;
+    CPUState *cpu, *first_paging_enabled_cpu;
     RAMBlock *block;
     ram_addr_t offset, length;
 
     first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
     if (first_paging_enabled_cpu) {
-        for (env = first_paging_enabled_cpu; env != NULL; env = env->next_cpu) {
+        for (cpu = first_paging_enabled_cpu; cpu != NULL; cpu = cpu->next_cpu) {
             Error *err = NULL;
-            cpu_get_memory_mapping(ENV_GET_CPU(env), list, &err);
+            cpu_get_memory_mapping(cpu, list, &err);
             if (err) {
                 error_propagate(errp, err);
                 return;

@@ -23,6 +23,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc_e500.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/timer/m48t59.h"
@@ -440,15 +441,14 @@ void ppce500_irq_init(CPUPPCState *env)
 /* Enable or Disable the E500 EPR capability */
 void ppce500_set_mpic_proxy(bool enabled)
 {
-    CPUPPCState *env;
+    CPUState *cs;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        PowerPCCPU *cpu = ppc_env_get_cpu(env);
-        CPUState *cs = CPU(cpu);
+    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        env->mpic_proxy = enabled;
+        cpu->env.mpic_proxy = enabled;
         if (kvm_enabled()) {
-            kvmppc_set_mpic_proxy(POWERPC_CPU(cs), enabled);
+            kvmppc_set_mpic_proxy(cpu, enabled);
         }
     }
 }

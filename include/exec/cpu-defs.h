@@ -180,7 +180,6 @@ typedef struct CPUWatchpoint {
     sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
                                                                         \
-    CPUArchState *next_cpu; /* next CPU sharing TB cache */                 \
     int bigendian; /* Endianness, 0 = little endian, 1 = big endian. */ \
     /* user data */                                                     \
     void *opaque;                                                       \

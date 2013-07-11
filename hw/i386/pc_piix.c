@@ -229,8 +229,7 @@ static void pc_init1(MemoryRegion *system_memory,
     if (pci_enabled && acpi_enabled) {
         i2c_bus *smbus;
 
-        smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt,
-                                     x86_env_get_cpu(first_cpu), 1);
+        smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,

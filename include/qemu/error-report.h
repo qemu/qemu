@@ -14,6 +14,7 @@
 #define QEMU_ERROR_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include "qemu/compiler.h"
 
 typedef struct Location {
@@ -40,5 +41,6 @@ void error_print_loc(void);
 void error_set_progname(const char *argv0);
 void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 const char *error_get_progname(void);
+extern bool enable_timestamp_msg;
 
 #endif

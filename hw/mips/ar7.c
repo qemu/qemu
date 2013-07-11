@@ -415,9 +415,10 @@ static const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
-    if (cpu_single_env != 0) {
-      p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
-      p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
+    if (current_cpu != 0) {
+      CPUArchState *env = current_cpu->env_ptr;
+      p += sprintf(p, "[%s]", lookup_symbol(env->active_tc.PC));
+      p += sprintf(p, "[%s]", lookup_symbol(env->active_tc.gpr[31]));
     } else {
       /* Called from remote gdb. */
       p += sprintf(p, "[gdb?]");
@@ -639,7 +640,7 @@ static void ar7_update_interrupt(void)
 {
     static int intset;
 
-    CPUMIPSState *env = first_cpu;
+    CPUMIPSState *env = current_cpu->env_ptr;
     uint32_t masked_int1;
     uint32_t masked_int2;
 
@@ -695,7 +696,7 @@ static void ar7_primary_irq(void *opaque, int channel, int level)
     TRACE(INTC && (irq_num != INTERRUPT_SERIAL0 || UART),
           logout("(%p,%d,%d)\n", opaque, irq_num, level));
     if (level) {
-        assert(env == first_cpu);
+        assert(env == first_cpu->env_ptr);
         uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * cindex);
         if (intmask & BIT(offset)) {
             TRACE(INTC && (irq_num != 15 || UART),

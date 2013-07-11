@@ -137,7 +137,6 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
     int i;
-    const char *toplevel_compat = NULL; /* user override */
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char soc[128];
     char mpic[128];
@@ -158,14 +157,9 @@ static int ppce500_load_device_tree(CPUPPCState *env,
             0x0, 0xe1000000,
             0x0, 0x10000,
         };
-    QemuOpts *machine_opts;
-    const char *dtb_file = NULL;
-
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        dtb_file = qemu_opt_get(machine_opts, "dtb");
-        toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
-    }
+    QemuOpts *machine_opts = qemu_get_machine_opts();
+    const char *dtb_file = qemu_opt_get(machine_opts, "dtb");
+    const char *toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
 
     if (dtb_file) {
         char *filename;
@@ -500,7 +494,6 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
                                           qemu_irq **irqs)
 {
     DeviceState *dev;
-    CPUPPCState *env;
     CPUState *cs;
     int r;
 
@@ -512,9 +505,7 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
         return NULL;
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cs = ENV_GET_CPU(env);
-
+    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
         if (kvm_openpic_connect_vcpu(dev, cs)) {
             fprintf(stderr, "%s: failed to connect vcpu to irqchip\n",
                     __func__);
@@ -528,7 +519,6 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
 static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
                                    qemu_irq **irqs)
 {
-    QemuOptsList *list;
     qemu_irq *mpic;
     DeviceState *dev = NULL;
     SysBusDevice *s;
@@ -537,15 +527,11 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     mpic = g_new(qemu_irq, 256);
 
     if (kvm_enabled()) {
-        bool irqchip_allowed = true, irqchip_required = false;
-
-        list = qemu_find_opts("machine");
-        if (!QTAILQ_EMPTY(&list->head)) {
-            irqchip_allowed = qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
+        QemuOpts *machine_opts = qemu_get_machine_opts();
+        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
                                                 "kernel_irqchip", true);
-            irqchip_required = qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
-                                                 "kernel_irqchip", false);
-        }
+        bool irqchip_required = qemu_opt_get_bool(machine_opts,
+                                                  "kernel_irqchip", false);
 
         if (irqchip_allowed) {
             dev = ppce500_init_mpic_kvm(params, irqs);

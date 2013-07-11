@@ -321,7 +321,7 @@ static void highbank_init(QEMUMachineInitArgs *args)
     highbank_binfo.loader_start = 0;
     highbank_binfo.write_secondary_boot = hb_write_secondary;
     highbank_binfo.secondary_cpu_reset_hook = hb_reset_secondary;
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &highbank_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &highbank_binfo);
 }
 
 static QEMUMachine highbank_machine = {

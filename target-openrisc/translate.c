@@ -1684,7 +1684,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     dc->singlestep_enabled = cpu->env.singlestep_enabled;
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("-----------------------------------------\n");
-        log_cpu_state(&cpu->env, 0);
+        log_cpu_state(CPU(cpu), 0);
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;

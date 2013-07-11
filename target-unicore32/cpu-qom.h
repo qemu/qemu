@@ -53,7 +53,7 @@ typedef struct UniCore32CPU {
 
 static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
 {
-    return UNICORE32_CPU(container_of(env, UniCore32CPU, env));
+    return container_of(env, UniCore32CPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))

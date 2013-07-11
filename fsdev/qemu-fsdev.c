@@ -76,6 +76,8 @@ int qemu_fsdev_add(QemuOpts *opts)
 
     if (fsle->fse.ops->parse_opts) {
         if (fsle->fse.ops->parse_opts(opts, &fsle->fse)) {
+            g_free(fsle->fse.fsdev_id);
+            g_free(fsle);
             return -1;
         }
     }

@@ -1188,15 +1188,6 @@ static inline int cpu_mmu_index (CPUPPCState *env)
     return env->mmu_idx;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->gpr[1] = newsp;
-    env->gpr[3] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 /*****************************************************************************/
@@ -2034,17 +2025,6 @@ static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
     *pc = env->nip;
     *cs_base = 0;
     *flags = env->hflags;
-}
-
-static inline void cpu_set_tls(CPUPPCState *env, target_ulong newtls)
-{
-#if defined(TARGET_PPC64)
-    /* The kernel checks TIF_32BIT here; we don't support loading 32-bit
-       binaries on PPC64 yet. */
-    env->gpr[13] = newtls;
-#else
-    env->gpr[2] = newtls;
-#endif
 }
 
 #if !defined(CONFIG_USER_ONLY)
