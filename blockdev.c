@@ -600,23 +600,25 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
         return NULL;
     }
 
-    /* init */
-
-    dinfo = g_malloc0(sizeof(*dinfo));
-    if ((buf = qemu_opts_id(opts)) != NULL) {
-        dinfo->id = g_strdup(buf);
-    } else {
-        /* no id supplied -> create one */
-        dinfo->id = g_malloc0(32);
-        if (type == IF_IDE || type == IF_SCSI)
+    /* no id supplied -> create one */
+    if (qemu_opts_id(opts) == NULL) {
+        char *new_id;
+        if (type == IF_IDE || type == IF_SCSI) {
             mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
-        if (max_devs)
-            snprintf(dinfo->id, 32, "%s%i%s%i",
-                     if_name[type], bus_id, mediastr, unit_id);
-        else
-            snprintf(dinfo->id, 32, "%s%s%i",
-                     if_name[type], mediastr, unit_id);
+        }
+        if (max_devs) {
+            new_id = g_strdup_printf("%s%i%s%i", if_name[type], bus_id,
+                                     mediastr, unit_id);
+        } else {
+            new_id = g_strdup_printf("%s%s%i", if_name[type],
+                                     mediastr, unit_id);
+        }
+        qemu_opts_set_id(opts, new_id);
     }
+
+    /* init */
+    dinfo = g_malloc0(sizeof(*dinfo));
+    dinfo->id = g_strdup(qemu_opts_id(opts));
     dinfo->bdrv = bdrv_new(dinfo->id);
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
