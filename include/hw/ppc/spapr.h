@@ -13,6 +13,8 @@ struct sPAPRNVRAM;
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
+    hwaddr msi_win_addr;
+    MemoryRegion msiwindow;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
 
@@ -303,7 +305,7 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args);
 
 int spapr_allocate_irq(int hint, bool lsi);
-int spapr_allocate_irq_block(int num, bool lsi);
+int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 
 static inline int spapr_allocate_msi(int hint)
 {

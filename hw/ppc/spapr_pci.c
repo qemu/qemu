@@ -250,11 +250,11 @@ static int spapr_msicfg_find(sPAPRPHBState *phb, uint32_t config_addr,
  * This is required for msi_notify()/msix_notify() which
  * will write at the addresses via spapr_msi_write().
  */
-static void spapr_msi_setmsg(PCIDevice *pdev, hwaddr addr,
-                             bool msix, unsigned req_num)
+static void spapr_msi_setmsg(PCIDevice *pdev, hwaddr addr, bool msix,
+                             unsigned first_irq, unsigned req_num)
 {
     unsigned i;
-    MSIMessage msg = { .address = addr, .data = 0 };
+    MSIMessage msg = { .address = addr, .data = first_irq };
 
     if (!msix) {
         msi_set_message(pdev, msg);
@@ -262,8 +262,7 @@ static void spapr_msi_setmsg(PCIDevice *pdev, hwaddr addr,
         return;
     }
 
-    for (i = 0; i < req_num; ++i) {
-        msg.address = addr | (i << 2);
+    for (i = 0; i < req_num; ++i, ++msg.data) {
         msix_set_message(pdev, i, msg);
         trace_spapr_pci_msi_setup(pdev->name, i, msg.address);
     }
@@ -343,7 +342,8 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     /* There is no cached config, allocate MSIs */
     if (!phb->msi_table[ndev].nvec) {
-        irq = spapr_allocate_irq_block(req_num, false);
+        irq = spapr_allocate_irq_block(req_num, false,
+                                       ret_intr_type == RTAS_TYPE_MSI);
         if (irq < 0) {
             fprintf(stderr, "Cannot allocate MSIs for device#%d", ndev);
             rtas_st(rets, 0, -1); /* Hardware error */
@@ -355,8 +355,8 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     /* Setup MSI/MSIX vectors in the device (via cfgspace or MSIX BAR) */
-    spapr_msi_setmsg(pdev, phb->msi_win_addr | (ndev << 16),
-                     ret_intr_type == RTAS_TYPE_MSIX, req_num);
+    spapr_msi_setmsg(pdev, spapr->msi_win_addr, ret_intr_type == RTAS_TYPE_MSIX,
+                     phb->msi_table[ndev].irq, req_num);
 
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, req_num);
@@ -442,10 +442,7 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 static void spapr_msi_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
-    sPAPRPHBState *phb = opaque;
-    int ndev = addr >> 16;
-    int vec = ((addr & 0xFFFF) >> 2) | data;
-    uint32_t irq = phb->msi_table[ndev].irq + vec;
+    uint32_t irq = data;
 
     trace_spapr_pci_msi_write(addr, data, irq);
 
@@ -458,6 +455,23 @@ static const MemoryRegionOps spapr_msi_ops = {
     .write = spapr_msi_write,
     .endianness = DEVICE_LITTLE_ENDIAN
 };
+
+void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr)
+{
+    /*
+     * As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
+     * we need to allocate some memory to catch those writes coming
+     * from msi_notify()/msix_notify().
+     * As MSIMessage:addr is going to be the same and MSIMessage:data
+     * is going to be a VIRQ number, 4 bytes of the MSI MR will only
+     * be used.
+     */
+    spapr->msi_win_addr = addr;
+    memory_region_init_io(&spapr->msiwindow, NULL, &spapr_msi_ops, spapr,
+                          "msi", getpagesize());
+    memory_region_add_subregion(get_system_memory(), spapr->msi_win_addr,
+                                &spapr->msiwindow);
+}
 
 /*
  * PHB PCI device
@@ -484,8 +498,7 @@ static int spapr_phb_init(SysBusDevice *s)
 
         if ((sphb->buid != -1) || (sphb->dma_liobn != -1)
             || (sphb->mem_win_addr != -1)
-            || (sphb->io_win_addr != -1)
-            || (sphb->msi_win_addr != -1)) {
+            || (sphb->io_win_addr != -1)) {
             fprintf(stderr, "Either \"index\" or other parameters must"
                     " be specified for PAPR PHB, not both\n");
             return -1;
@@ -498,7 +511,6 @@ static int spapr_phb_init(SysBusDevice *s)
             + sphb->index * SPAPR_PCI_WINDOW_SPACING;
         sphb->mem_win_addr = windows_base + SPAPR_PCI_MMIO_WIN_OFF;
         sphb->io_win_addr = windows_base + SPAPR_PCI_IO_WIN_OFF;
-        sphb->msi_win_addr = windows_base + SPAPR_PCI_MSI_WIN_OFF;
     }
 
     if (sphb->buid == -1) {
@@ -518,11 +530,6 @@ static int spapr_phb_init(SysBusDevice *s)
 
     if (sphb->io_win_addr == -1) {
         fprintf(stderr, "IO window address not specified for PHB\n");
-        return -1;
-    }
-
-    if (sphb->msi_win_addr == -1) {
-        fprintf(stderr, "MSI window address not specified for PHB\n");
         return -1;
     }
 
@@ -565,18 +572,6 @@ static int spapr_phb_init(SysBusDevice *s)
                              get_system_io(), 0, SPAPR_PCI_IO_WIN_SIZE);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
-
-    /* As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
-     * we need to allocate some memory to catch those writes coming
-     * from msi_notify()/msix_notify() */
-    if (msi_supported) {
-        sprintf(namebuf, "%s.msi", sphb->dtbusname);
-        memory_region_init_io(&sphb->msiwindow, OBJECT(sphb), &spapr_msi_ops, sphb,
-                              namebuf, SPAPR_MSIX_MAX_DEVS * 0x10000);
-        memory_region_add_subregion(get_system_memory(), sphb->msi_win_addr,
-                                    &sphb->msiwindow);
-    }
-
     /*
      * Selecting a busname is more complex than you'd think, due to
      * interacting constraints.  If the user has specified an id
@@ -651,7 +646,6 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
     DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size,
                       SPAPR_PCI_IO_WIN_SIZE),
-    DEFINE_PROP_HEX64("msi_win_addr", sPAPRPHBState, msi_win_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -693,7 +687,6 @@ static const VMStateDescription vmstate_spapr_pci = {
         VMSTATE_UINT64_EQUAL(mem_win_size, sPAPRPHBState),
         VMSTATE_UINT64_EQUAL(io_win_addr, sPAPRPHBState),
         VMSTATE_UINT64_EQUAL(io_win_size, sPAPRPHBState),
-        VMSTATE_UINT64_EQUAL(msi_win_addr, sPAPRPHBState),
         VMSTATE_STRUCT_ARRAY(lsi_table, sPAPRPHBState, PCI_NUM_PINS, 0,
                              vmstate_spapr_pci_lsi, struct spapr_pci_lsi),
         VMSTATE_STRUCT_ARRAY(msi_table, sPAPRPHBState, SPAPR_MSIX_MAX_DEVS, 0,
