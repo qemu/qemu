@@ -449,10 +449,9 @@ static uint64_t spapr_io_read(void *opaque, hwaddr addr,
     case 2:
         return cpu_inw(addr);
     case 4:
-    default:
-        assert(size == 4);
         return cpu_inl(addr);
     }
+    g_assert_not_reached();
 }
 
 static void spapr_io_write(void *opaque, hwaddr addr,
@@ -469,7 +468,7 @@ static void spapr_io_write(void *opaque, hwaddr addr,
         cpu_outl(addr, data);
         return;
     }
-    assert(0);
+    g_assert_not_reached();
 }
 
 static const MemoryRegionOps spapr_io_ops = {

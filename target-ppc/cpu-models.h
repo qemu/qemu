@@ -556,6 +556,7 @@ enum {
     CPU_POWERPC_POWER7_v20         = 0x003F0200,
     CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
+    CPU_POWERPC_POWER8_v10         = 0x004B0100,
     CPU_POWERPC_970                = 0x00390202,
     CPU_POWERPC_970FX_v10          = 0x00391100,
     CPU_POWERPC_970FX_v20          = 0x003C0200,
@@ -732,9 +733,7 @@ enum {
     POWERPC_SVR_8568E              = 0x807D0011 | POWERPC_SVR_E500,
     POWERPC_SVR_8572               = 0x80E00010 | POWERPC_SVR_E500,
     POWERPC_SVR_8572E              = 0x80E80010 | POWERPC_SVR_E500,
-#if 0
-    POWERPC_SVR_8610               = xxx,
-#endif
+    POWERPC_SVR_8610               = 0x80A00011,
     POWERPC_SVR_8641               = 0x80900021,
     POWERPC_SVR_8641D              = 0x80900121,
 };

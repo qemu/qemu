@@ -180,9 +180,11 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     case REMOVE_PARM:
         return H_PARAMETER;
 
-    default: /* REMOVE_HW */
+    case REMOVE_HW:
         return H_HARDWARE;
     }
+
+    g_assert_not_reached();
 }
 
 #define H_BULK_REMOVE_TYPE             0xc000000000000000ULL
