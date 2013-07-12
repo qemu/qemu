@@ -161,7 +161,6 @@ sdl=""
 virtfs=""
 vnc="yes"
 sparse="no"
-tools=""
 uuid=""
 vde=""
 vnc_tls=""
@@ -906,10 +905,6 @@ for opt do
   --disable-docs) docs="no"
   ;;
   --enable-docs) docs="yes"
-  ;;
-  --disable-tools) tools="no"
-  ;;
-  --enable-tools) tools="yes"
   ;;
   --disable-vhost-net) vhost_net="no"
   ;;
@@ -2933,11 +2928,11 @@ if test "$docs" != "no" ; then
   fi
 fi
 
-if test "$tools" = ""; then
+if test "$want_tools" = ""; then
   if test `expr "$target_list" : ".*softmmu.*"` != 0; then
-    tools=yes
+    want_tools=yes
   else
-    tools=no
+    want_tools=no
   fi
 fi
 
@@ -3469,11 +3464,9 @@ qemu_datadir=$datadir$confsuffix
 qemu_localedir="$datadir/locale"
 
 tools=""
-if test "$want_tools" = "yes" ; then
-  tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
-  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-    tools="qemu-nbd\$(EXESUF) $tools"
-  fi
+tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+  tools="qemu-nbd\$(EXESUF) $tools"
 fi
 if test "$softmmu" = yes ; then
   if test "$virtfs" != no ; then
@@ -3815,7 +3808,7 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
-if [ "$tools" = "yes" ] ; then
+if [ "$want_tools" = "yes" ] ; then
   echo "BUILD_TOOLS=yes" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
