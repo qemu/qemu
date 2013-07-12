@@ -71,6 +71,7 @@
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
+#define TBFREQ (100UL * 1000UL * 1000UL)
 
 /* debug UniNorth */
 //#define DEBUG_UNIN
@@ -191,7 +192,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */
-        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        cpu_ppc_tb_init(env, TBFREQ);
         qemu_register_reset(ppc_core99_reset, cpu);
     }
 
@@ -460,7 +461,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
     } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
     /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, 266000000);

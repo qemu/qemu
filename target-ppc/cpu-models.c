@@ -792,17 +792,15 @@
     POWERPC_DEF_SVR("MPC8572E", "MPC8572E",
                     CPU_POWERPC_MPC8572E,     POWERPC_SVR_8572E,     e500v2)
     /* e600 family                                                           */
-    POWERPC_DEF("e600",          CPU_POWERPC_e600,                   7400,
+    POWERPC_DEF("e600",          CPU_POWERPC_e600,                   e600,
                 "PowerPC e600 core")
     /* PowerPC e600 microcontrollers                                         */
-#if defined(TODO)
     POWERPC_DEF_SVR("MPC8610", "MPC8610",
-                    CPU_POWERPC_MPC8610,      POWERPC_SVR_8610,      7400)
-#endif
+                    CPU_POWERPC_MPC8610,      POWERPC_SVR_8610,      e600)
     POWERPC_DEF_SVR("MPC8641", "MPC8641",
-                    CPU_POWERPC_MPC8641,      POWERPC_SVR_8641,      7400)
+                    CPU_POWERPC_MPC8641,      POWERPC_SVR_8641,      e600)
     POWERPC_DEF_SVR("MPC8641D", "MPC8641D",
-                    CPU_POWERPC_MPC8641D,     POWERPC_SVR_8641D,     7400)
+                    CPU_POWERPC_MPC8641D,     POWERPC_SVR_8641D,     e600)
     /* 32 bits "classic" PowerPC                                             */
     /* PowerPC 6xx family                                                    */
     POWERPC_DEF("601_v0",        CPU_POWERPC_601_v0,                 601,
@@ -1145,6 +1143,8 @@
                 "POWER7 v2.1")
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
+    POWERPC_DEF("POWER8_v1.0",   CPU_POWERPC_POWER8_v10,             POWER8,
+                "POWER8 v1.0")
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970,
                 "PowerPC 970")
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970FX,
@@ -1390,6 +1390,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
     { "POWER7", "POWER7_v2.3" },
+    { "POWER8", "POWER8_v1.0" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
     { "Apache", "RS64" },

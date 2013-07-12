@@ -121,14 +121,14 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-enum {
+typedef enum {
     REMOVE_SUCCESS = 0,
     REMOVE_NOT_FOUND = 1,
     REMOVE_PARM = 2,
     REMOVE_HW = 3,
-};
+} RemoveResult;
 
-static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
+static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
                                 target_ulong avpn,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
@@ -165,7 +165,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
-    int ret;
+    RemoveResult ret;
 
     ret = remove_hpte(env, pte_index, avpn, flags,
                       &args[0], &args[1]);
@@ -184,7 +184,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         return H_HARDWARE;
     }
 
-    assert(0);
+    g_assert_not_reached();
 }
 
 #define H_BULK_REMOVE_TYPE             0xc000000000000000ULL

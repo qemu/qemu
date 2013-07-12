@@ -940,7 +940,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         }
     }
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);
+    if (bios_name == NULL) {
+        bios_name = FW_FILE_NAME;
+    }
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
     if (fw_size < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
