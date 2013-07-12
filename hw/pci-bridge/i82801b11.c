@@ -52,7 +52,9 @@
 #define I82801ba_SSVID_SSID     0
 
 typedef struct I82801b11Bridge {
-    PCIBridge br;
+    /*< private >*/
+    PCIBridge parent_obj;
+    /*< public >*/
 } I82801b11Bridge;
 
 static int i82801b11_bridge_initfn(PCIDevice *d)
