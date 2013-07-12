@@ -56,9 +56,8 @@ static void xio3130_downstream_reset(DeviceState *qdev)
 
 static int xio3130_downstream_initfn(PCIDevice *d)
 {
-    PCIBridge *br = PCI_BRIDGE(d);
-    PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
-    PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
+    PCIEPort *p = PCIE_PORT(d);
+    PCIESlot *s = PCIE_SLOT(d);
     int rc;
 
     rc = pci_bridge_initfn(d, TYPE_PCIE_BUS);
@@ -113,9 +112,7 @@ err_bridge:
 
 static void xio3130_downstream_exitfn(PCIDevice *d)
 {
-    PCIBridge *br = PCI_BRIDGE(d);
-    PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
-    PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
+    PCIESlot *s = PCIE_SLOT(d);
 
     pcie_aer_exit(d);
     pcie_chassis_del_slot(s);
@@ -147,7 +144,7 @@ PCIESlot *xio3130_downstream_init(PCIBus *bus, int devfn, bool multifunction,
     qdev_prop_set_uint16(qdev, "slot", slot);
     qdev_init_nofail(qdev);
 
-    return DO_UPCAST(PCIESlot, port, DO_UPCAST(PCIEPort, br, br));
+    return PCIE_SLOT(d);
 }
 
 static const VMStateDescription vmstate_xio3130_downstream = {
@@ -157,21 +154,11 @@ static const VMStateDescription vmstate_xio3130_downstream = {
     .minimum_version_id_old = 1,
     .post_load = pcie_cap_slot_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(port.br.parent_obj, PCIESlot),
-        VMSTATE_STRUCT(port.br.parent_obj.exp.aer_log, PCIESlot, 0,
-                       vmstate_pcie_aer_log, PCIEAERLog),
+        VMSTATE_PCIE_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
+        VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
+                       PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()
     }
-};
-
-static Property xio3130_downstream_properties[] = {
-    DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
-    DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
-    DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
-    DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
-                       port.br.parent_obj.exp.aer_log.log_max,
-                       PCIE_AER_LOG_MAX_DEFAULT),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
@@ -191,13 +178,11 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     dc->desc = "TI X3130 Downstream Port of PCI Express Switch";
     dc->reset = xio3130_downstream_reset;
     dc->vmsd = &vmstate_xio3130_downstream;
-    dc->props = xio3130_downstream_properties;
 }
 
 static const TypeInfo xio3130_downstream_info = {
     .name          = "xio3130-downstream",
-    .parent        = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(PCIESlot),
+    .parent        = TYPE_PCIE_SLOT,
     .class_init    = xio3130_downstream_class_init,
 };
 
