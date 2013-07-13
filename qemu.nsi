@@ -122,6 +122,7 @@ Section "${PRODUCT} (required)"
     File "${BINDIR}\openbios-*"
 
     File /r "${BINDIR}\keymaps"
+    File /r "${BINDIR}\share"
 
 !ifdef W64
     SetRegView 64
@@ -211,6 +212,7 @@ Section "Uninstall"
     Delete "$INSTDIR\qemu-doc.html"
     Delete "$INSTDIR\qemu-tech.html"
     RMDir /r "$INSTDIR\keymaps"
+    RMDir /r "$INSTDIR\share"
     ; Remove generated files
     Delete "$INSTDIR\stderr.txt"
     Delete "$INSTDIR\stdout.txt"
