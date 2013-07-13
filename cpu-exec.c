@@ -673,8 +673,9 @@ int cpu_exec(CPUArchState *env)
         } else {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
-            cpu = current_cpu;
-            env = cpu->env_ptr;
+            /* TODO: Fix comment in 2014 - then it was wrong. */
+            g_assert(cpu == current_cpu);
+            g_assert(env == cpu->env_ptr);
         }
     } /* for(;;) */
 
