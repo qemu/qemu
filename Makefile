@@ -369,7 +369,6 @@ endif
 	set -e; for x in $(KEYMAPS); do \
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
-	$(INSTALL_DATA) $(SRC_PATH)/pc-bios/qemu-icon.bmp "$(DESTDIR)$(datadir)"; \
 	for d in $(TARGET_DIRS); do \
 	$(MAKE) -C $$d $@ || exit 1 ; \
         done
@@ -473,6 +472,13 @@ INSTDIR=/tmp/qemu-nsis
 
 $(INSTALLER): $(SRC_PATH)/qemu.nsi
 	make install prefix=${INSTDIR}
+ifdef SIGNCODE
+	(cd ${INSTDIR}; \
+	 for i in *.exe; do \
+	   $(SIGNCODE) $${i}; \
+	 done \
+	)
+endif
 	(cd ${INSTDIR}; \
 	 for i in qemu-system-*.exe; do \
 	   arch=$${i%.exe}; \
