@@ -73,7 +73,9 @@ static void clipper_init(QEMUMachineInitArgs *args)
     pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
-    rtc_init(isa_bus, 1980, rtc_irq);
+    /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
+    rtc_init(isa_bus, 1900, rtc_irq);
+
     pit_init(isa_bus, 0x40, 0, NULL);
     isa_create_simple(isa_bus, "i8042");
 
