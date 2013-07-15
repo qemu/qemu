@@ -110,11 +110,14 @@ QTestState *qtest_init(const char *extra_args)
     int sock, qmpsock, i;
     gchar *pid_file;
     gchar *command;
-    const char *qemu_binary;
+    const char *qemu_binary, *external_args, *qtest_log_path;
     pid_t pid;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
+
+    external_args = getenv("QTEST_QEMU_ARGS");
+    qtest_log_path = getenv("QTEST_LOG_FILE");
 
     s = g_malloc(sizeof(*s));
 
@@ -129,13 +132,17 @@ QTestState *qtest_init(const char *extra_args)
     if (pid == 0) {
         command = g_strdup_printf("%s "
                                   "-qtest unix:%s,nowait "
-                                  "-qtest-log /dev/null "
+                                  "-qtest-log %s "
                                   "-qmp unix:%s,nowait "
                                   "-pidfile %s "
                                   "-machine accel=qtest "
-                                  "%s", qemu_binary, s->socket_path,
+                                  "%s "
+                                  "%s",
+                                  qemu_binary, s->socket_path,
+                                  qtest_log_path ?: "/dev/null",
                                   s->qmp_socket_path, pid_file,
-                                  extra_args ?: "");
+                                  extra_args ?: "",
+                                  external_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
     }

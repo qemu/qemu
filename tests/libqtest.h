@@ -26,6 +26,20 @@ typedef struct QTestState QTestState;
 
 extern QTestState *global_qtest;
 
+/* When running a QTest program stand-alone, the following environment variables
+ * may be set:
+ *
+ * Mandatory:
+ *  QTEST_QEMU_BINARY: The QEMU binary to use.  It is set automatically when
+ *                     running "make check".
+ *                     (e.g. "../arm-softmmu/qemu-system-arm")
+ *
+ * Optional:
+ *  QTEST_QEMU_ARGS:   Extra arguments to pass to QEMU (e.g. "-d").
+ *  QTEST_LOG_FILE:    A file to which QTest log messages should be written
+ *                     (e.g. "/tmp/qtest.log").
+ */
+
 /**
  * qtest_init:
  * @extra_args: other arguments to pass to QEMU.
