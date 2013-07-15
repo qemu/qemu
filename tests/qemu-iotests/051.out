@@ -23,10 +23,12 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=off
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=: Parameter 'lazy_refcounts' expects 'on' or 'off'
@@ -49,112 +51,152 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on: Lazy ref
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=on: could not open disk image TEST_DIR/t.qcow2: Invalid argument
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy_refcounts=off
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === No medium ===
 
 Testing: -drive if=floppy
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide,media=cdrom
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=scsi,media=cdrom
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide
-QEMU_PROG: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: Device needs media, but drive is empty
+QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device ide-hd failed
 
 Testing: -drive if=virtio
-QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
+QEMU_PROG: -drive if=virtio: Device initialization failed.
+QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
-QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
+QEMU_PROG: -drive if=scsi: Device initialization failed.
+QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device lsi53c895a failed
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device ide-drive,drive=disk
-QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive if=none,id=disk -device ide-hd,drive=disk
-QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
-QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device scsi-disk,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-disk,drive=disk: Device 'scsi-disk' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
-QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device scsi-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
 
 
 === Read-only ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=floppy,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,media=cdrom,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: readonly not supported by this bus type
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-drive,drive=disk
-QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
-QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === Cache modes ===
 
 Testing: -drive media=cdrom,cache=none
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=directsync
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writeback
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writethrough
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=unsafe
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=invalid_value
 QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
@@ -163,10 +205,25 @@ QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
 === Specifying the protocol layer ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=file
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU 1.5.50 monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Can't use 'qcow2' as a block driver for the protocol level
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+
+
+=== Parsing protocol from file name ===
+
+Testing: -hda foo:bar
+QEMU_PROG: -hda foo:bar: Unknown protocol
+QEMU_PROG: -hda foo:bar: could not open disk image foo:bar: No such file or directory
+
+Testing: -drive file=foo:bar
+QEMU_PROG: -drive file=foo:bar: Unknown protocol
+QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: No such file or directory
+
+Testing: -drive file.filename=foo:bar
+QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: No such file or directory
 
 *** done

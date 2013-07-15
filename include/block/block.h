@@ -111,7 +111,8 @@ bool bdrv_io_limits_enabled(BlockDriverState *bs);
 
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
-BlockDriver *bdrv_find_protocol(const char *filename);
+BlockDriver *bdrv_find_protocol(const char *filename,
+                                bool allow_protocol_prefix);
 BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
                                           bool readonly);
@@ -266,7 +267,7 @@ void bdrv_clear_incoming_migration_all(void);
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
-void bdrv_flush_all(void);
+int bdrv_flush_all(void);
 void bdrv_close_all(void);
 void bdrv_drain_all(void);
 
