@@ -805,7 +805,6 @@ void memory_region_init(MemoryRegion *mr,
     mr->owner = owner;
     mr->iommu_ops = NULL;
     mr->parent = NULL;
-    mr->owner = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
