@@ -522,6 +522,10 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 dev->thinint_isc = thinint->isc;
                 dev->ind_bit = thinint->ind_bit;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
+                ret = css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
+                                              dev->thinint_isc, true, false,
+                                              &dev->adapter_id);
+                assert(ret == 0);
                 sch->thinint_active = ((dev->indicators != 0) &&
                                        (dev->summary_indicator != 0));
                 sch->curr_status.scsw.count = ccw.count - len;

@@ -151,6 +151,33 @@ static int __get_all_irqs(KVMS390FLICState *flic,
     return r;
 }
 
+static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
+                                        uint8_t isc, bool swap,
+                                        bool is_maskable)
+{
+    struct kvm_s390_io_adapter adapter = {
+        .id = id,
+        .isc = isc,
+        .maskable = is_maskable,
+        .swap = swap,
+    };
+    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    int r, ret;
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_ADAPTER_REGISTER,
+        .addr = (uint64_t)&adapter,
+    };
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
+        return -ENOSYS;
+    }
+
+    r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+
+    ret = r ? -errno : 0;
+    return ret;
+}
+
 /**
  * kvm_flic_save - Save pending floating interrupts
  * @f: QEMUFile containing migration state
@@ -304,10 +331,12 @@ static void kvm_s390_flic_reset(DeviceState *dev)
 static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
     dc->realize = kvm_s390_flic_realize;
     dc->unrealize = kvm_s390_flic_unrealize;
     dc->reset = kvm_s390_flic_reset;
+    fsc->register_io_adapter = kvm_s390_register_io_adapter;
 }
 
 static const TypeInfo kvm_s390_flic_info = {

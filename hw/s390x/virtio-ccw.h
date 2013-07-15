@@ -85,6 +85,7 @@ struct VirtioCcwDevice {
     bool ioeventfd_disabled;
     uint32_t flags;
     uint8_t thinint_isc;
+    uint32_t adapter_id;
     /* Guest provided values: */
     hwaddr indicators;
     hwaddr indicators2;

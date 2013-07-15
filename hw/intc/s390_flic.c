@@ -44,10 +44,26 @@ void s390_flic_init(void)
     }
 }
 
+static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
+                                         uint8_t isc, bool swap,
+                                         bool is_maskable)
+{
+    /* nothing to do */
+    return 0;
+}
+
+static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
+{
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
+
+    fsc->register_io_adapter = qemu_s390_register_io_adapter;
+}
+
 static const TypeInfo qemu_s390_flic_info = {
     .name          = TYPE_QEMU_S390_FLIC,
     .parent        = TYPE_S390_FLIC_COMMON,
     .instance_size = sizeof(QEMUS390FLICState),
+    .class_init    = qemu_s390_flic_class_init,
 };
 
 static const TypeInfo s390_flic_common_info = {

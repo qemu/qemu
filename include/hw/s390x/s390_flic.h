@@ -32,6 +32,8 @@ typedef struct S390FLICState {
 typedef struct S390FLICStateClass {
     DeviceClass parent_class;
 
+    int (*register_io_adapter)(S390FLICState *fs, uint32_t id, uint8_t isc,
+                               bool swap, bool maskable);
 } S390FLICStateClass;
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"
