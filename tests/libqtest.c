@@ -251,6 +251,9 @@ static gchar **qtest_rsp(QTestState *s, int expected_args)
 redo:
     line = qtest_recv_line(s);
     words = g_strsplit(line->str, " ", 0);
+    if (strcmp(words[0], "FAIL") == 0) {
+        g_assert_cmpstr(line->str, ==, "OK");
+    }
     g_string_free(line, TRUE);
 
     if (strcmp(words[0], "IRQ") == 0) {
