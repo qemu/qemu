@@ -52,6 +52,13 @@ qemu-system-arm options which are useful for trobuleshooting:
         used for this to work.
         By default, you can find the output in /tmp/qemu.log:
 
+UNIT TESTING
+Unit test scripts are included for the STM32 implementation.
+These test will be executed when running "make" with the standard
+check targets (see tests/Makefile for documentation of QEMU's unit
+testing features):
+    make check
+    make check-qtest-arm
 
 
 
