@@ -121,6 +121,11 @@ static int raw_has_zero_init(BlockDriverState *bs)
     return bdrv_has_zero_init(bs->file);
 }
 
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    return bdrv_get_info(bs->file, bdi);
+}
+
 static BlockDriver bdrv_raw = {
     .format_name        = "raw",
 
@@ -140,6 +145,7 @@ static BlockDriver bdrv_raw = {
 
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
+    .bdrv_get_info      = raw_get_info,
     .bdrv_truncate      = raw_truncate,
 
     .bdrv_is_inserted   = raw_is_inserted,
