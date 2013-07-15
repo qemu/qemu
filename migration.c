@@ -484,6 +484,15 @@ bool migrate_rdma_pin_all(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_RDMA_PIN_ALL];
 }
 
+bool migrate_auto_converge(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
+}
+
 int migrate_use_xbzrle(void)
 {
     MigrationState *s;

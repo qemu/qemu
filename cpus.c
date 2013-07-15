@@ -652,6 +652,7 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
 
     wi.func = func;
     wi.data = data;
+    wi.free = false;
     if (cpu->queued_work_first == NULL) {
         cpu->queued_work_first = &wi;
     } else {
@@ -670,6 +671,31 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     }
 }
 
+void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
+{
+    struct qemu_work_item *wi;
+
+    if (qemu_cpu_is_self(cpu)) {
+        func(data);
+        return;
+    }
+
+    wi = g_malloc0(sizeof(struct qemu_work_item));
+    wi->func = func;
+    wi->data = data;
+    wi->free = true;
+    if (cpu->queued_work_first == NULL) {
+        cpu->queued_work_first = wi;
+    } else {
+        cpu->queued_work_last->next = wi;
+    }
+    cpu->queued_work_last = wi;
+    wi->next = NULL;
+    wi->done = false;
+
+    qemu_cpu_kick(cpu);
+}
+
 static void flush_queued_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
@@ -682,6 +708,9 @@ static void flush_queued_work(CPUState *cpu)
         cpu->queued_work_first = wi->next;
         wi->func(wi->data);
         wi->done = true;
+        if (wi->free) {
+            g_free(wi);
+        }
     }
     cpu->queued_work_last = NULL;
     qemu_cond_broadcast(&qemu_work_cond);

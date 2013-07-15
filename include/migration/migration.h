@@ -125,6 +125,8 @@ void migrate_del_blocker(Error *reason);
 
 bool migrate_rdma_pin_all(void);
 
+bool migrate_auto_converge(void);
+
 int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
                          uint8_t *dst, int dlen);
 int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen);
