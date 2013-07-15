@@ -91,6 +91,17 @@ void qtest_irq_intercept_in(QTestState *s, const char *string);
 void qtest_irq_intercept_out(QTestState *s, const char *string);
 
 /**
+ * qtest_set_irq_in:
+ * @s: #QTestState instance to operate on.
+ * @string: QOM path of a device.
+ * @num: Interrupt to set (specifies a GPIO-in pin)
+ * @level: new IRQ level
+ *
+ * Sets the GPIO-in pin level of the device whose path is specified by @string.
+ */
+void qtest_set_irq_in(QTestState *s, const char *string, int num, int level);
+
+/**
  * qtest_outb:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
@@ -366,6 +377,19 @@ static inline void irq_intercept_in(const char *string)
 static inline void irq_intercept_out(const char *string)
 {
     qtest_irq_intercept_out(global_qtest, string);
+}
+
+/**
+ * set_irq_in:
+ * @string: QOM path of a device.
+ * @num: Interrupt to set (specifies a GPIO-in pin)
+ * @level: new IRQ level
+ *
+ * Sets the GPIO-in pin level of the device whose path is specified by @string.
+ */
+static inline void set_irq_in(const char *string, int num, int level)
+{
+    qtest_set_irq_in(global_qtest, string, num, level);
 }
 
 /**

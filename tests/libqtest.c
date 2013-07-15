@@ -387,6 +387,12 @@ void qtest_irq_intercept_in(QTestState *s, const char *qom_path)
     qtest_rsp(s, 0);
 }
 
+void qtest_set_irq_in(QTestState *s, const char *string, int num, int level)
+{
+    qtest_sendf(s, "set_irq_in %s %d %s\n", string, num, level ? "raise" : "lower");
+    qtest_rsp(s, 0);
+}
+
 static void qtest_out(QTestState *s, const char *cmd, uint16_t addr, uint32_t value)
 {
     qtest_sendf(s, "%s 0x%x 0x%x\n", cmd, addr, value);

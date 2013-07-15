@@ -141,6 +141,14 @@ static bool qtest_opened;
  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
  * NUM=0 even though it is remapped to GSI 2).
+ *
+ * A gpio-in IRQ mon an arbitrary device may be changed as follows:
+ *
+ *  > set_irq_in QOM-PATH raise
+ *  < OK
+ *
+ *  > set_irq_in QOM-PATH lower
+ *  < OK
  */
 
 static int hex2nib(char ch)
@@ -263,7 +271,32 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         irq_intercept_dev = dev;
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "set_irq_in") == 0) {
+        DeviceState *dev;
+        qemu_irq irq;
+        unsigned n, level;
 
+        g_assert(words[1]);
+        dev = DEVICE(object_resolve_path(words[1], NULL));
+        if (!dev) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Unknown device\n");
+            return;
+        }
+
+        g_assert(words[2]);
+        n = strtoul(words[2], NULL, 0);
+        irq = qdev_get_gpio_in(dev, n);
+
+        g_assert(words[3]);
+        if (strcmp(words[3], "raise") == 0) {
+            level = 1;
+        } else {
+            level = 0;
+        }
+        qemu_set_irq(irq, level);
+
+        qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "outb") == 0 ||
                strcmp(words[0], "outw") == 0 ||
                strcmp(words[0], "outl") == 0) {
