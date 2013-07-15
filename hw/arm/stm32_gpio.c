@@ -186,7 +186,7 @@ static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value,
              */
             if (IS_BIT_SET(changed_out, pin)) {
                 qemu_set_irq(
-                        s->out_irq[pin],
+                        DEVICE(s)->gpio_out[pin],
                         IS_BIT_SET(s->GPIOx_ODR, pin) ? 1 : 0);
             }
         }
