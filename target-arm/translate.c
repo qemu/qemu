@@ -3501,7 +3501,8 @@ static void gen_nop_hint(DisasContext *s, int val)
         break;
     case 2: /* wfe */
     case 4: /* sev */
-        /* TODO: Implement SEV and WFE.  May help SMP performance.  */
+    case 5: /* sevl */
+        /* TODO: Implement SEV, SEVL and WFE.  May help SMP performance.  */
     default: /* nop */
         break;
     }
