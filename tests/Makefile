@@ -65,6 +65,7 @@ gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y)
 gcov-files-sparc-y += hw/m48t59.c
 gcov-files-sparc64-y += hw/m48t59.c
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
+check-qtest-arm-y += tests/test-stm32$(EXESUF)
 gcov-files-arm-y += hw/tmp105.c
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
@@ -133,6 +134,8 @@ tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
+
+tests/test-stm32$(EXESUF): tests/test-stm32.o
 
 # QTest rules
 
