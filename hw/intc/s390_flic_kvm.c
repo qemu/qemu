@@ -16,6 +16,7 @@
 #include "sysemu/kvm.h"
 #include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
+#include "hw/s390x/adapter.h"
 #include "trace.h"
 
 #define FLIC_SAVE_INITIAL_SIZE getpagesize()
@@ -178,6 +179,68 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
     return ret;
 }
 
+static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
+                                   uint64_t map_addr, bool do_map)
+{
+    struct kvm_s390_io_adapter_req req = {
+        .id = id,
+        .type = do_map ? KVM_S390_IO_ADAPTER_MAP : KVM_S390_IO_ADAPTER_UNMAP,
+        .addr = map_addr,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_ADAPTER_MODIFY,
+        .addr = (uint64_t)&req,
+    };
+    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    int r;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING)) {
+        return -ENOSYS;
+    }
+
+    r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    return r ? -errno : 0;
+}
+
+static int kvm_s390_add_adapter_routes(S390FLICState *fs,
+                                       AdapterRoutes *routes)
+{
+    int ret, i;
+    uint64_t ind_offset = routes->adapter.ind_offset;
+
+    for (i = 0; i < routes->num_routes; i++) {
+        ret = kvm_irqchip_add_adapter_route(kvm_state, &routes->adapter);
+        if (ret < 0) {
+            goto out_undo;
+        }
+        routes->gsi[i] = ret;
+        routes->adapter.ind_offset++;
+    }
+    /* Restore passed-in structure to original state. */
+    routes->adapter.ind_offset = ind_offset;
+    return 0;
+out_undo:
+    while (--i >= 0) {
+        kvm_irqchip_release_virq(kvm_state, routes->gsi[i]);
+        routes->gsi[i] = -1;
+    }
+    routes->adapter.ind_offset = ind_offset;
+    return ret;
+}
+
+static void kvm_s390_release_adapter_routes(S390FLICState *fs,
+                                            AdapterRoutes *routes)
+{
+    int i;
+
+    for (i = 0; i < routes->num_routes; i++) {
+        if (routes->gsi[i] >= 0) {
+            kvm_irqchip_release_virq(kvm_state, routes->gsi[i]);
+            routes->gsi[i] = -1;
+        }
+    }
+}
+
 /**
  * kvm_flic_save - Save pending floating interrupts
  * @f: QEMUFile containing migration state
@@ -337,6 +400,9 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     dc->unrealize = kvm_s390_flic_unrealize;
     dc->reset = kvm_s390_flic_reset;
     fsc->register_io_adapter = kvm_s390_register_io_adapter;
+    fsc->io_adapter_map = kvm_s390_io_adapter_map;
+    fsc->add_adapter_routes = kvm_s390_add_adapter_routes;
+    fsc->release_adapter_routes = kvm_s390_release_adapter_routes;
 }
 
 static const TypeInfo kvm_s390_flic_info = {

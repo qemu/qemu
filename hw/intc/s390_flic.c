@@ -52,11 +52,32 @@ static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
     return 0;
 }
 
+static int qemu_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
+                                    uint64_t map_addr, bool do_map)
+{
+    /* nothing to do */
+    return 0;
+}
+
+static int qemu_s390_add_adapter_routes(S390FLICState *fs,
+                                        AdapterRoutes *routes)
+{
+    return -ENOSYS;
+}
+
+static void qemu_s390_release_adapter_routes(S390FLICState *fs,
+                                             AdapterRoutes *routes)
+{
+}
+
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
     fsc->register_io_adapter = qemu_s390_register_io_adapter;
+    fsc->io_adapter_map = qemu_s390_io_adapter_map;
+    fsc->add_adapter_routes = qemu_s390_add_adapter_routes;
+    fsc->release_adapter_routes = qemu_s390_release_adapter_routes;
 }
 
 static const TypeInfo qemu_s390_flic_info = {

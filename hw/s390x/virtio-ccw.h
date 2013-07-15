@@ -22,6 +22,7 @@
 #include <hw/virtio/virtio-balloon.h>
 #include <hw/virtio/virtio-rng.h>
 #include <hw/virtio/virtio-bus.h>
+#include <hw/s390x/s390_flic.h>
 
 #define VIRTUAL_CSSID 0xfe
 
@@ -77,6 +78,7 @@ typedef struct VirtIOCCWDeviceClass {
 
 typedef struct IndAddr {
     hwaddr addr;
+    uint64_t map;
     unsigned long refcnt;
     int len;
     QTAILQ_ENTRY(IndAddr) sibling;
@@ -92,7 +94,7 @@ struct VirtioCcwDevice {
     bool ioeventfd_disabled;
     uint32_t flags;
     uint8_t thinint_isc;
-    uint32_t adapter_id;
+    AdapterRoutes routes;
     /* Guest provided values: */
     IndAddr *indicators;
     IndAddr *indicators2;
