@@ -7274,14 +7274,72 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     rd = (insn >> 12) & 0xf;
                     if (insn & (1 << 23)) {
                         /* load/store exclusive */
+                        int op2 = (insn >> 8) & 3;
                         op1 = (insn >> 21) & 0x3;
-                        if (op1)
-                            ARCH(6K);
-                        else
-                            ARCH(6);
+
+                        switch (op2) {
+                        case 0: /* lda/stl */
+                            if (op1 == 1) {
+                                goto illegal_op;
+                            }
+                            ARCH(8);
+                            break;
+                        case 1: /* reserved */
+                            goto illegal_op;
+                        case 2: /* ldaex/stlex */
+                            ARCH(8);
+                            break;
+                        case 3: /* ldrex/strex */
+                            if (op1) {
+                                ARCH(6K);
+                            } else {
+                                ARCH(6);
+                            }
+                            break;
+                        }
+
                         addr = tcg_temp_local_new_i32();
                         load_reg_var(s, addr, rn);
-                        if (insn & (1 << 20)) {
+
+                        /* Since the emulation does not have barriers,
+                           the acquire/release semantics need no special
+                           handling */
+                        if (op2 == 0) {
+                            if (insn & (1 << 20)) {
+                                tmp = tcg_temp_new_i32();
+                                switch (op1) {
+                                case 0: /* lda */
+                                    tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
+                                    break;
+                                case 2: /* ldab */
+                                    tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
+                                    break;
+                                case 3: /* ldah */
+                                    tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
+                                    break;
+                                default:
+                                    abort();
+                                }
+                                store_reg(s, rd, tmp);
+                            } else {
+                                rm = insn & 0xf;
+                                tmp = load_reg(s, rm);
+                                switch (op1) {
+                                case 0: /* stl */
+                                    tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                                    break;
+                                case 2: /* stlb */
+                                    tcg_gen_qemu_st8(tmp, addr, IS_USER(s));
+                                    break;
+                                case 3: /* stlh */
+                                    tcg_gen_qemu_st16(tmp, addr, IS_USER(s));
+                                    break;
+                                default:
+                                    abort();
+                                }
+                                tcg_temp_free_i32(tmp);
+                            }
+                        } else if (insn & (1 << 20)) {
                             switch (op1) {
                             case 0: /* ldrex */
                                 gen_load_exclusive(s, rd, 15, addr, 2);
@@ -8126,7 +8184,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     gen_store_exclusive(s, rd, rs, 15, addr, 2);
                 }
                 tcg_temp_free_i32(addr);
-            } else if ((insn & (1 << 6)) == 0) {
+            } else if ((insn & (7 << 5)) == 0) {
                 /* Table Branch.  */
                 if (rn == 15) {
                     addr = tcg_temp_new_i32();
@@ -8152,15 +8210,66 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 tcg_gen_addi_i32(tmp, tmp, s->pc);
                 store_reg(s, 15, tmp);
             } else {
-                /* Load/store exclusive byte/halfword/doubleword.  */
-                ARCH(7);
+                int op2 = (insn >> 6) & 0x3;
                 op = (insn >> 4) & 0x3;
-                if (op == 2) {
+                switch (op2) {
+                case 0:
                     goto illegal_op;
+                case 1:
+                    /* Load/store exclusive byte/halfword/doubleword */
+                    if (op == 2) {
+                        goto illegal_op;
+                    }
+                    ARCH(7);
+                    break;
+                case 2:
+                    /* Load-acquire/store-release */
+                    if (op == 3) {
+                        goto illegal_op;
+                    }
+                    /* Fall through */
+                case 3:
+                    /* Load-acquire/store-release exclusive */
+                    ARCH(8);
+                    break;
                 }
                 addr = tcg_temp_local_new_i32();
                 load_reg_var(s, addr, rn);
-                if (insn & (1 << 20)) {
+                if (!(op2 & 1)) {
+                    if (insn & (1 << 20)) {
+                        tmp = tcg_temp_new_i32();
+                        switch (op) {
+                        case 0: /* ldab */
+                            tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
+                            break;
+                        case 1: /* ldah */
+                            tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
+                            break;
+                        case 2: /* lda */
+                            tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
+                            break;
+                        default:
+                            abort();
+                        }
+                        store_reg(s, rs, tmp);
+                    } else {
+                        tmp = load_reg(s, rs);
+                        switch (op) {
+                        case 0: /* stlb */
+                            tcg_gen_qemu_st8(tmp, addr, IS_USER(s));
+                            break;
+                        case 1: /* stlh */
+                            tcg_gen_qemu_st16(tmp, addr, IS_USER(s));
+                            break;
+                        case 2: /* stl */
+                            tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                            break;
+                        default:
+                            abort();
+                        }
+                        tcg_temp_free_i32(tmp);
+                    }
+                } else if (insn & (1 << 20)) {
                     gen_load_exclusive(s, rs, rd, addr, op);
                 } else {
                     gen_store_exclusive(s, rm, rs, rd, addr, op);
