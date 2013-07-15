@@ -568,10 +568,18 @@ static void dma_buf_commit(IDEState *s)
     qemu_sglist_destroy(&s->sg);
 }
 
+static void ide_async_cmd_done(IDEState *s)
+{
+    if (s->bus->dma->ops->async_cmd_done) {
+        s->bus->dma->ops->async_cmd_done(s->bus->dma);
+    }
+}
+
 void ide_set_inactive(IDEState *s)
 {
     s->bus->dma->aiocb = NULL;
     s->bus->dma->ops->set_inactive(s->bus->dma);
+    ide_async_cmd_done(s);
 }
 
 void ide_dma_error(IDEState *s)
@@ -804,6 +812,7 @@ static void ide_flush_cb(void *opaque, int ret)
 
     bdrv_acct_done(s->bs, &s->acct);
     s->status = READY_STAT | SEEK_STAT;
+    ide_async_cmd_done(s);
     ide_set_irq(s->bus);
 }
 
