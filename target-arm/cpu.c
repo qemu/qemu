@@ -157,6 +157,11 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUARMState *env = &cpu->env;
 
     /* Some features automatically imply others: */
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        set_feature(env, ARM_FEATURE_V7);
+        set_feature(env, ARM_FEATURE_ARM_DIV);
+        set_feature(env, ARM_FEATURE_LPAE);
+    }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
         set_feature(env, ARM_FEATURE_THUMB2);
@@ -744,7 +749,7 @@ static void pxa270c5_initfn(Object *obj)
 static void arm_any_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
-    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_V8);
     set_feature(&cpu->env, ARM_FEATURE_VFP4);
     set_feature(&cpu->env, ARM_FEATURE_VFP_FP16);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
