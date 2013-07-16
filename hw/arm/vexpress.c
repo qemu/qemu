@@ -36,8 +36,6 @@
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
 #define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
 
-static struct arm_boot_info vexpress_binfo;
-
 /* Address maps for peripherals:
  * the Versatile Express motherboard has two possible maps,
  * the "legacy" one (used for A9) and the "Cortex-A Series"
@@ -153,6 +151,7 @@ typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           qemu_irq *pic);
 
 struct VEDBoardInfo {
+    struct arm_boot_info bootinfo;
     const hwaddr *motherboard_map;
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
@@ -272,7 +271,7 @@ static const uint32_t a9_clocks[] = {
     66670000, /* Test chip reference clock: 66.67MHz */
 };
 
-static const VEDBoardInfo a9_daughterboard = {
+static VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
@@ -384,7 +383,7 @@ static const uint32_t a15_clocks[] = {
     40000000, /* OSCCLK8: 40MHz : DDR2 PLL reference */
 };
 
-static const VEDBoardInfo a15_daughterboard = {
+static VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
@@ -396,7 +395,7 @@ static const VEDBoardInfo a15_daughterboard = {
     .init = a15_daughterboard_init,
 };
 
-static void vexpress_common_init(const VEDBoardInfo *daughterboard,
+static void vexpress_common_init(VEDBoardInfo *daughterboard,
                                  QEMUMachineInitArgs *args)
 {
     DeviceState *dev, *sysctl, *pl041;
@@ -524,17 +523,17 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_DAPROM: not modelled */
 
-    vexpress_binfo.ram_size = args->ram_size;
-    vexpress_binfo.kernel_filename = args->kernel_filename;
-    vexpress_binfo.kernel_cmdline = args->kernel_cmdline;
-    vexpress_binfo.initrd_filename = args->initrd_filename;
-    vexpress_binfo.nb_cpus = smp_cpus;
-    vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
-    vexpress_binfo.loader_start = daughterboard->loader_start;
-    vexpress_binfo.smp_loader_start = map[VE_SRAM];
-    vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
-    vexpress_binfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
-    arm_load_kernel(ARM_CPU(first_cpu), &vexpress_binfo);
+    daughterboard->bootinfo.ram_size = args->ram_size;
+    daughterboard->bootinfo.kernel_filename = args->kernel_filename;
+    daughterboard->bootinfo.kernel_cmdline = args->kernel_cmdline;
+    daughterboard->bootinfo.initrd_filename = args->initrd_filename;
+    daughterboard->bootinfo.nb_cpus = smp_cpus;
+    daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
+    daughterboard->bootinfo.loader_start = daughterboard->loader_start;
+    daughterboard->bootinfo.smp_loader_start = map[VE_SRAM];
+    daughterboard->bootinfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
+    daughterboard->bootinfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
+    arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
 static void vexpress_a9_init(QEMUMachineInitArgs *args)
