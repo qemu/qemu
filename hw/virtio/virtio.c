@@ -667,6 +667,14 @@ hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].pa;
 }
 
+void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
+{
+    if (num <= VIRTQUEUE_MAX_SIZE) {
+        vdev->vq[n].vring.num = num;
+        virtqueue_init(&vdev->vq[n]);
+    }
+}
+
 int virtio_queue_get_num(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.num;
