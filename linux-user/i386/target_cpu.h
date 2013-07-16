@@ -36,6 +36,13 @@ static inline void cpu_set_tls(CPUX86State *env, target_ulong newtls)
     do_set_thread_area(env, newtls);
     cpu_x86_load_seg(env, R_GS, env->segs[R_GS].selector);
 }
+#else
+abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr);
+
+static inline void cpu_set_tls(CPUX86State *env, target_ulong newtls)
+{
+    do_arch_prctl(env, TARGET_ARCH_SET_FS, newtls);
+}
 #endif /* defined(TARGET_ABI32) */
 
 #endif /* !defined(TARGET_CPU_H) */

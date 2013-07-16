@@ -4189,7 +4189,7 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 #endif /* TARGET_I386 && TARGET_ABI32 */
 
 #ifndef TARGET_ABI32
-static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
+abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 {
     abi_long ret = 0;
     abi_ulong val;
