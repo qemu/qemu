@@ -4279,7 +4279,6 @@ case "$target_name" in
   s390x)
   ;;
   unicore32)
-    target_nptl="no"
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
