@@ -121,6 +121,7 @@ typedef struct TaskState {
 #endif
 #ifdef TARGET_M68K
     int sim_syscalls;
+    abi_ulong tp_value;
 #endif
 #if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     /* Extra fields for semihosted binaries.  */

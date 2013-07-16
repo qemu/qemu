@@ -8558,6 +8558,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #elif defined(TARGET_I386) && defined(TARGET_ABI32)
       ret = do_set_thread_area(cpu_env, arg1);
       break;
+#elif defined(TARGET_M68K)
+      {
+          TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
+          ts->tp_value = arg1;
+          break;
+      }
 #else
       goto unimplemented_nowarn;
 #endif
@@ -8566,6 +8572,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_get_thread_area:
 #if defined(TARGET_I386) && defined(TARGET_ABI32)
         ret = do_get_thread_area(cpu_env, arg1);
+#elif defined(TARGET_M68K)
+        {
+            TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
+            ret = ts->tp_value;
+            break;
+        }
 #else
         goto unimplemented_nowarn;
 #endif
