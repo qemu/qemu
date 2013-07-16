@@ -105,6 +105,7 @@ def parse_schema(fp):
         if expr_eval.has_key('enum'):
             add_enum(expr_eval['enum'])
         elif expr_eval.has_key('union'):
+            add_union(expr_eval)
             add_enum('%sKind' % expr_eval['union'])
         elif expr_eval.has_key('type'):
             add_struct(expr_eval)
@@ -188,6 +189,7 @@ def type_name(name):
 
 enum_types = []
 struct_types = []
+union_types = []
 
 def add_struct(definition):
     global struct_types
@@ -198,6 +200,17 @@ def find_struct(name):
     for struct in struct_types:
         if struct['type'] == name:
             return struct
+    return None
+
+def add_union(definition):
+    global union_types
+    union_types.append(definition)
+
+def find_union(name):
+    global union_types
+    for union in union_types:
+        if union['union'] == name:
+            return union
     return None
 
 def add_enum(name):
