@@ -153,6 +153,7 @@ void stm32_init(
             uint32_t osc32_freq)
 {
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *flash_alias_mem = g_malloc(sizeof(MemoryRegion));
     qemu_irq *pic;
     int i;
 
@@ -160,11 +161,23 @@ void stm32_init(
 
     Object *stm32_container = container_get(qdev_get_machine(), "/stm32");
 
-    DeviceState *flash_dev = qdev_create(NULL, "stm32_flash");
-    qdev_prop_set_uint32(flash_dev, "size", 0x1FFFF);
-    object_property_add_child(stm32_container, "flash", OBJECT(flash_dev), NULL);
-    qdev_init_nofail(flash_dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(flash_dev), 0, 0x08000000);
+    /* The STM32 family stores its Flash memory at some base address in memory
+     * (0x08000000 for medium density devices), and then aliases it to the
+     * boot memory space, which starts at 0x00000000 (the "System Memory" can also
+     * be aliased to 0x00000000, but this is not implemented here). The processor
+     * executes the code in the aliased memory at 0x00000000.  We need to make a
+     * QEMU alias so that reads in the 0x08000000 area are passed through to the
+     * 0x00000000 area. Note that this is the opposite of real hardware, where the
+     * memory at 0x00000000 passes reads through the "real" flash memory at
+     * 0x08000000, but it works the same either way. */
+    /* TODO: Parameterize the base address of the aliased memory. */
+    memory_region_init_alias(
+            flash_alias_mem,
+            "stm32_flash_alias_mem",
+            address_space_mem,
+            0,
+            flash_size);
+    memory_region_add_subregion(address_space_mem, 0x08000000, flash_alias_mem);
 
     DeviceState *rcc_dev = qdev_create(NULL, "stm32_rcc");
     qdev_prop_set_uint32(rcc_dev, "osc_freq", osc_freq);
