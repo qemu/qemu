@@ -294,6 +294,11 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
             goto fail;
         }
     }
+
+    if (binfo->modify_dtb) {
+        binfo->modify_dtb(binfo, fdt);
+    }
+
     qemu_devtree_dumpdtb(fdt, size);
 
     cpu_physical_memory_write(addr, fdt, size);
