@@ -16,8 +16,6 @@
 #include "exec/user/thunk.h"
 #include "syscall_defs.h"
 #include "syscall.h"
-#include "target_cpu.h"
-#include "target_signal.h"
 #include "exec/gdbstub.h"
 #include "qemu/queue.h"
 
@@ -453,5 +451,12 @@ static inline void *lock_user_string(abi_ulong guest_addr)
 #if defined(CONFIG_USE_NPTL)
 #include <pthread.h>
 #endif
+
+/* Include target-specific struct and function definitions;
+ * they may need access to the target-independent structures
+ * above, so include them last.
+ */
+#include "target_cpu.h"
+#include "target_signal.h"
 
 #endif /* QEMU_H */
