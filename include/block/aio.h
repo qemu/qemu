@@ -17,6 +17,7 @@
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
+#include "qemu/thread.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
@@ -53,6 +54,8 @@ typedef struct AioContext {
      */
     int walking_handlers;
 
+    /* lock to protect between bh's adders and deleter */
+    QemuMutex bh_lock;
     /* Anchor of the list of Bottom Halves belonging to the context */
     struct QEMUBH *first_bh;
 
@@ -127,6 +130,8 @@ void aio_notify(AioContext *ctx);
  * aio_bh_poll: Poll bottom halves for an AioContext.
  *
  * These are internal functions used by the QEMU main loop.
+ * And notice that multiple occurrences of aio_bh_poll cannot
+ * be called concurrently
  */
 int aio_bh_poll(AioContext *ctx);
 
@@ -163,6 +168,8 @@ void qemu_bh_cancel(QEMUBH *bh);
  * Deleting a bottom half frees the memory that was allocated for it by
  * qemu_bh_new.  It also implies canceling the bottom half if it was
  * scheduled.
+ * This func is async. The bottom half will do the delete action at the finial
+ * end.
  *
  * @bh: The bottom half to be deleted.
  */
