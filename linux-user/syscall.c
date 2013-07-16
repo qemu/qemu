@@ -6956,16 +6956,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(fsync(arg1));
         break;
     case TARGET_NR_clone:
-#if defined(TARGET_SH4) || defined(TARGET_ALPHA)
-        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
-#elif defined(TARGET_CRIS)
-        ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg4, arg5));
-#elif defined(TARGET_MICROBLAZE)
+        /* Linux manages to have three different orderings for its
+         * arguments to clone(); the BACKWARDS and BACKWARDS2 defines
+         * match the kernel's CONFIG_CLONE_* settings.
+         * Microblaze is further special in that it uses a sixth
+         * implicit argument to clone for the TLS pointer.
+         */
+#if defined(TARGET_MICROBLAZE)
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg4, arg6, arg5));
-#elif defined(TARGET_S390X)
+#elif defined(TARGET_CLONE_BACKWARDS)
+        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
+#elif defined(TARGET_CLONE_BACKWARDS2)
         ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg5, arg4));
 #else
-        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
+        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
 #endif
         break;
 #ifdef __NR_exit_group

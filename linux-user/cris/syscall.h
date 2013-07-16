@@ -38,4 +38,6 @@ struct target_pt_regs {
         unsigned long eda;
 };
 
+#define TARGET_CLONE_BACKWARDS2
+
 #endif

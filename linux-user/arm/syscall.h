@@ -40,3 +40,5 @@ struct target_pt_regs {
 #else
 #define UNAME_MACHINE "armv5tel"
 #endif
+
+#define TARGET_CLONE_BACKWARDS
