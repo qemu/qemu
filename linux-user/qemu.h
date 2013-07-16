@@ -19,11 +19,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/queue.h"
 
-#if defined(CONFIG_USE_NPTL)
 #define THREAD __thread
-#else
-#define THREAD
-#endif
 
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
@@ -116,9 +112,7 @@ typedef struct TaskState {
     uint32_t v86flags;
     uint32_t v86mask;
 #endif
-#ifdef CONFIG_USE_NPTL
     abi_ulong child_tidptr;
-#endif
 #ifdef TARGET_M68K
     int sim_syscalls;
     abi_ulong tp_value;
@@ -268,10 +262,8 @@ void mmap_unlock(void);
 abi_ulong mmap_find_vma(abi_ulong, abi_ulong);
 void cpu_list_lock(void);
 void cpu_list_unlock(void);
-#if defined(CONFIG_USE_NPTL)
 void mmap_fork_start(void);
 void mmap_fork_end(int child);
-#endif
 
 /* main.c */
 extern unsigned long guest_stack_size;
@@ -449,9 +441,7 @@ static inline void *lock_user_string(abi_ulong guest_addr)
 #define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
 
-#if defined(CONFIG_USE_NPTL)
 #include <pthread.h>
-#endif
 
 /* Include target-specific struct and function definitions;
  * they may need access to the target-independent structures

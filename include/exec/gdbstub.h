@@ -32,7 +32,7 @@ void gdb_register_coprocessor(CPUArchState *env,
 
 static inline int cpu_index(CPUState *cpu)
 {
-#if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
+#if defined(CONFIG_USER_ONLY)
     return cpu->host_tid;
 #else
     return cpu->cpu_index + 1;
