@@ -4055,7 +4055,7 @@ static abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
 }
 
 #if defined(TARGET_I386) && defined(TARGET_ABI32)
-static abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
+abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
 {
     uint64_t *gdt_table = g2h(env->gdt.base);
     struct target_modify_ldt_ldt_s ldt_info;
