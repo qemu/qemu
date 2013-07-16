@@ -65,40 +65,50 @@ static void test_flash_alias(void)
 
 static void test_gpio_read(void)
 {
-    const uint32_t input_addr = GPIOA_BASE_ADDR + 0x08; // GPIO Port A Read Register
+    const uint32_t addr_idr = GPIOA_BASE_ADDR + 0x08; // Input Data Register
     uint32_t value;
 
     config_gpio(GPIOA_BASE_ADDR, 0x44444444, 0x44444444); // All inputs
 
-    value = readl(input_addr);
+    value = readl(addr_idr);
     g_assert_cmpint(value, ==, 0);
 
     set_irq_in("/machine/stm32/gpio[a]", 0, 1);
 
-    value = readl(input_addr);
+    value = readl(addr_idr);
     g_assert_cmpint(value, ==, 1);
 
     set_irq_in("/machine/stm32/gpio[a]", 7, 1);
 
-    value = readl(input_addr);
+    value = readl(addr_idr);
     g_assert_cmpint(value, ==, 0x81);
 }
 
 static void test_gpio_write(void)
 {
-    const uint32_t output_addr = GPIOA_BASE_ADDR + 0x0c;
+    const uint32_t addr_odr = GPIOA_BASE_ADDR + 0x0c; // Output Data Register
+    const uint32_t addr_bsrr = GPIOA_BASE_ADDR + 0x10; // Bit Set Reset Register
+    const uint32_t addr_brr = GPIOA_BASE_ADDR + 0x14; // Bit Reset Register
 
     config_gpio(GPIOA_BASE_ADDR, 0x33333333, 0x33333333); // All outputs
 
-    writel(output_addr, 0x00000000);
+    writel(addr_odr, 0x00000000);
     g_assert_cmpint(get_irq(0x0), ==, 0);
     g_assert_cmpint(get_irq(0xf), ==, 0);
 
-    writel(output_addr, 0x0000ffff);
+    writel(addr_odr, 0x0000ffff);
     g_assert_cmpint(get_irq(0x0), ==, 1);
     g_assert_cmpint(get_irq(0xf), ==, 1);
 
+    writel(addr_brr, 0x00008001);
+    g_assert_cmpint(get_irq(0x0), ==, 0);
+    g_assert_cmpint(get_irq(0x1), ==, 1);
+    g_assert_cmpint(get_irq(0xf), ==, 0);
 
+    writel(addr_bsrr, 0x00028001);
+    g_assert_cmpint(get_irq(0x0), ==, 1);
+    g_assert_cmpint(get_irq(0x1), ==, 0);
+    g_assert_cmpint(get_irq(0xf), ==, 1);
 }
 
 int main(int argc, char **argv)
