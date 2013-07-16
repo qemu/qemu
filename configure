@@ -4236,7 +4236,6 @@ case "$target_name" in
   or32)
     TARGET_ARCH=openrisc
     TARGET_BASE_ARCH=openrisc
-    target_nptl="no"
   ;;
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
