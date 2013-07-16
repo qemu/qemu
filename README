@@ -7,7 +7,7 @@ developmentvboard.  This project runs the demos located in the
 stm32_p103_demos project located at: https://github.com/beckus/stm32_p103_demos .
 
 Commands for a typical build:
-./configure --disable-werror --enable-debug --target-list="arm-softmmu"
+./configure --enable-debug --target-list="arm-softmmu"
 make
 
 Useful make commands when rebuilding:
