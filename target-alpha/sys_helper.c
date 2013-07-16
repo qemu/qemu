@@ -70,7 +70,12 @@ void helper_halt(uint64_t restart)
     }
 }
 
-uint64_t helper_get_time(void)
+uint64_t helper_get_vmtime(void)
+{
+    return qemu_get_clock_ns(vm_clock);
+}
+
+uint64_t helper_get_walltime(void)
 {
     return qemu_get_clock_ns(rtc_clock);
 }

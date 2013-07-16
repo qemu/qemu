@@ -1634,15 +1634,19 @@ static ExitStatus gen_mfpr(int ra, int regno)
         return NO_EXIT;
     }
 
-    if (regno == 250) {
-        /* WALL_TIME */
+    /* Special help for VMTIME and WALLTIME.  */
+    if (regno == 250 || regno == 249) {
+	void (*helper)(TCGv) = gen_helper_get_walltime;
+	if (regno == 249) {
+		helper = gen_helper_get_vmtime;
+	}
         if (use_icount) {
             gen_io_start();
-            gen_helper_get_time(cpu_ir[ra]);
+            helper(cpu_ir[ra]);
             gen_io_end();
             return EXIT_PC_STALE;
         } else {
-            gen_helper_get_time(cpu_ir[ra]);
+            helper(cpu_ir[ra]);
             return NO_EXIT;
         }
     }
