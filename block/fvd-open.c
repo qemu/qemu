@@ -61,7 +61,7 @@ static int fvd_open(BlockDriverState * bs, QDict *options, int flags)
 
     const char * protocol = strchr (filename, ':');
     if (protocol) {
-        drv = bdrv_find_protocol (filename);
+        drv = bdrv_find_protocol (filename, true);
         filename = protocol + 1;
     }
     else {

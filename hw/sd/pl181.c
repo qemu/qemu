@@ -175,7 +175,7 @@ static void pl181_send_command(pl181_state *s)
     if (rlen < 0)
         goto error;
     if (s->cmd & PL181_CMD_RESPONSE) {
-#define RWORD(n) ((response[n] << 24) | (response[n + 1] << 16) \
+#define RWORD(n) (((uint32_t)response[n] << 24) | (response[n + 1] << 16) \
                   | (response[n + 2] << 8) | response[n + 3])
         if (rlen == 0 || (rlen == 4 && (s->cmd & PL181_CMD_LONGRESP)))
             goto error;

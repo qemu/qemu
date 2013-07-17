@@ -1036,6 +1036,7 @@ savevm_section_end(unsigned int section_id) "section_id %u"
 # arch_init.c
 migration_bitmap_sync_start(void) ""
 migration_bitmap_sync_end(uint64_t dirty_pages) "dirty_pages %" PRIu64""
+migration_throttle(void) ""
 
 # hw/qxl.c
 disable qxl_interface_set_mm_time(int qid, uint32_t mm_time) "%d %d"

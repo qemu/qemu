@@ -67,6 +67,7 @@ enum {
     VE_CLCD,
     VE_NORFLASH0,
     VE_NORFLASH1,
+    VE_NORFLASHALIAS,
     VE_SRAM,
     VE_VIDEORAM,
     VE_ETHERNET,
@@ -104,9 +105,11 @@ static hwaddr motherboard_legacy_map[] = {
     [VE_VIDEORAM] = 0x4c000000,
     [VE_ETHERNET] = 0x4e000000,
     [VE_USB] = 0x4f000000,
+    [VE_NORFLASHALIAS] = -1, /* not present */
 };
 
 static hwaddr motherboard_aseries_map[] = {
+    [VE_NORFLASHALIAS] = 0,
     /* CS0: 0x08000000 .. 0x0c000000 */
     [VE_NORFLASH0] = 0x08000000,
     /* CS4: 0x0c000000 .. 0x10000000 */
@@ -400,10 +403,13 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     qemu_irq pic[64];
     uint32_t sys_id;
     DriveInfo *dinfo;
+    pflash_t *pflash0;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+    MemoryRegion *flashalias = g_new(MemoryRegion, 1);
+    MemoryRegion *flash0mem;
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
@@ -471,13 +477,22 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
     dinfo = drive_get_next(IF_PFLASH);
-    if (!pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
+    pflash0 = pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
             VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
             VEXPRESS_FLASH_SECT_SIZE,
             VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
-            0x00, 0x89, 0x00, 0x18, 0)) {
+            0x00, 0x89, 0x00, 0x18, 0);
+    if (!pflash0) {
         fprintf(stderr, "vexpress: error registering flash 0.\n");
         exit(1);
+    }
+
+    if (map[VE_NORFLASHALIAS] != -1) {
+        /* Map flash 0 as an alias into low memory */
+        flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
+        memory_region_init_alias(flashalias, NULL, "vexpress.flashalias",
+                                 flash0mem, 0, VEXPRESS_FLASH_SIZE);
+        memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], flashalias);
     }
 
     dinfo = drive_get_next(IF_PFLASH);

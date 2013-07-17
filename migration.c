@@ -484,6 +484,15 @@ bool migrate_rdma_pin_all(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_RDMA_PIN_ALL];
 }
 
+bool migrate_auto_converge(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
+}
+
 int migrate_use_xbzrle(void)
 {
     MigrationState *s;
@@ -527,15 +536,26 @@ static void *migration_thread(void *opaque)
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
+                int ret;
+
                 DPRINTF("done iterating\n");
                 qemu_mutex_lock_iothread();
                 start_time = qemu_get_clock_ms(rt_clock);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
                 old_vm_running = runstate_is_running();
-                vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-                qemu_file_set_rate_limit(s->file, INT_MAX);
-                qemu_savevm_state_complete(s->file);
+
+                ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+                if (ret >= 0) {
+                    qemu_file_set_rate_limit(s->file, INT_MAX);
+                    qemu_savevm_state_complete(s->file);
+                }
                 qemu_mutex_unlock_iothread();
+
+                if (ret < 0) {
+                    migrate_finish_set_state(s, MIG_STATE_ERROR);
+                    break;
+                }
+
                 if (!qemu_file_get_error(s->file)) {
                     migrate_finish_set_state(s, MIG_STATE_COMPLETED);
                     break;

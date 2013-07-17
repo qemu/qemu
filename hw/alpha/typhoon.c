@@ -51,9 +51,6 @@ typedef struct TyphoonState {
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
     MemoryRegion ram_region;
-
-    /* QEMU emulation state.  */
-    uint32_t latch_tmp;
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
@@ -75,10 +72,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
     CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
     uint64_t ret = 0;
-
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
 
     switch (addr) {
     case 0x0000:
@@ -199,7 +192,6 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
@@ -213,10 +205,6 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     TyphoonState *s = opaque;
     uint64_t ret = 0;
-
-    if (addr & 4) {
-        return s->latch_tmp;
-    }
 
     switch (addr) {
     case 0x0000:
@@ -302,23 +290,14 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
         return -1;
     }
 
-    s->latch_tmp = ret >> 32;
     return ret;
 }
 
 static void cchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval, newval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval, newval;
 
     switch (addr) {
     case 0x0000:
@@ -471,18 +450,10 @@ static void dchip_write(void *opaque, hwaddr addr,
 }
 
 static void pchip_write(void *opaque, hwaddr addr,
-                        uint64_t v32, unsigned size)
+                        uint64_t val, unsigned size)
 {
     TyphoonState *s = opaque;
-    uint64_t val, oldval;
-
-    if (addr & 4) {
-        val = v32 << 32 | s->latch_tmp;
-        addr ^= 4;
-    } else {
-        s->latch_tmp = v32;
-        return;
-    }
+    uint64_t oldval;
 
     switch (addr) {
     case 0x0000:
@@ -585,12 +556,12 @@ static const MemoryRegionOps cchip_ops = {
     .write = cchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
 
@@ -599,11 +570,11 @@ static const MemoryRegionOps dchip_ops = {
     .write = dchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
+        .min_access_size = 8,
         .max_access_size = 8,
     },
 };
@@ -613,12 +584,12 @@ static const MemoryRegionOps pchip_ops = {
     .write = pchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,  /* ??? Should be 8.  */
+        .min_access_size = 8,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
+        .min_access_size = 8,
+        .max_access_size = 8,
     },
 };
 
@@ -705,7 +676,6 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     const uint64_t MB = 1024 * 1024;
     const uint64_t GB = 1024 * MB;
     MemoryRegion *addr_space = get_system_memory();
-    MemoryRegion *addr_space_io = get_system_io();
     DeviceState *dev;
     TyphoonState *s;
     PCIHostState *phb;
@@ -765,28 +735,26 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                                 &s->pchip.reg_mem);
 
     /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
-    /* ??? Ideally we drop the "system" i/o space on the floor and give the
-       PCI subsystem the full address space reserved by the chipset.
-       We can't do that until the MEM and IO paths in memory.c are unified.  */
-    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_bw_io_ops,
+    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_ignore_ops,
                           NULL, "pci0-io", 32*MB);
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
     b = pci_register_bus(dev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
-                         &s->pchip.reg_mem, addr_space_io, 0, 64, TYPE_PCI_BUS);
+                         &s->pchip.reg_mem, &s->pchip.reg_io,
+                         0, 64, TYPE_PCI_BUS);
     phb->bus = b;
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
-    memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops, b,
-                          "pci0-iack", 64*MB);
+    memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,
+                          b, "pci0-iack", 64*MB);
     memory_region_add_subregion(addr_space, 0x801f8000000ULL,
                                 &s->pchip.reg_iack);
 
     /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
-    memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops, b,
-                          "pci0-conf", 16*MB);
+    memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops,
+                          b, "pci0-conf", 16*MB);
     memory_region_add_subregion(addr_space, 0x801fe000000ULL,
                                 &s->pchip.reg_conf);
 
@@ -804,7 +772,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     {
         qemu_irq isa_pci_irq, *isa_irqs;
 
-        *isa_bus = isa_bus_new(NULL, addr_space_io);
+        *isa_bus = isa_bus_new(NULL, &s->pchip.reg_io);
         isa_pci_irq = *qemu_allocate_irqs(typhoon_set_isa_irq, s, 1);
         isa_irqs = i8259_init(*isa_bus, isa_pci_irq);
         isa_bus_irqs(*isa_bus, isa_irqs);

@@ -936,6 +936,7 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 
     qmp_drive_backup(backup->device, backup->target,
                      backup->has_format, backup->format,
+                     backup->sync,
                      backup->has_mode, backup->mode,
                      backup->has_speed, backup->speed,
                      backup->has_on_source_error, backup->on_source_error,
@@ -1421,6 +1422,7 @@ void qmp_block_commit(const char *device,
 
 void qmp_drive_backup(const char *device, const char *target,
                       bool has_format, const char *format,
+                      enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
                       bool has_on_source_error, BlockdevOnError on_source_error,
@@ -1435,6 +1437,10 @@ void qmp_drive_backup(const char *device, const char *target,
     int64_t size;
     int ret;
 
+    if (sync != MIRROR_SYNC_MODE_FULL) {
+        error_setg(errp, "only sync mode 'full' is currently supported");
+        return;
+    }
     if (!has_speed) {
         speed = 0;
     }
