@@ -120,6 +120,7 @@ bool qemu_opt_has_help_opt(QemuOpts *opts);
 bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);
+int qemu_opt_unset(QemuOpts *opts, const char *name);
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
 void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,
                       Error **errp);
