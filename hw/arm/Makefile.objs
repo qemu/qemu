@@ -6,7 +6,4 @@ obj-y += tosa.o versatilepb.o vexpress.o xilinx_zynq.o z2.o
 obj-y += armv7m.o exynos4210.o pxa2xx.o pxa2xx_gpio.o pxa2xx_pic.o
 obj-y += omap1.o omap2.o strongarm.o
 
-obj-y += stm32.o
-obj-y += stm32_rcc.o stm32_gpio.o stm32_uart.o
-obj-y += stm32_afio.o stm32_exti.o
-obj-y += stm32_p103.o stm32_clktree.o
+obj-y += stm32.o stm32_rcc.o stm32_uart.o stm32_clktree.o stm32_p103.o

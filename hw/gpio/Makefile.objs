@@ -4,3 +4,5 @@ common-obj-$(CONFIG_PUV3) += puv3_gpio.o
 common-obj-$(CONFIG_ZAURUS) += zaurus.o
 
 obj-$(CONFIG_OMAP) += omap_gpio.o
+
+obj-y += stm32_gpio.o stm32_afio.o stm32_exti.o
