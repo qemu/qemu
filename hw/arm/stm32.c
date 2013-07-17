@@ -157,9 +157,15 @@ void stm32_init(
     qemu_irq *pic;
     int i;
 
-    pic = armv7m_init(address_space_mem, flash_size, ram_size,    kernel_filename, "cortex-m3");
-
     Object *stm32_container = container_get(qdev_get_machine(), "/stm32");
+
+    pic = armv7m_init(
+              stm32_container,
+              address_space_mem,
+              flash_size,
+              ram_size,
+              kernel_filename,
+              "cortex-m3");
 
     /* The STM32 family stores its Flash memory at some base address in memory
      * (0x08000000 for medium density devices), and then aliases it to the
