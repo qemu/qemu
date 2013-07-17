@@ -1997,7 +1997,7 @@ static const BlockDevOps fdctrl_block_ops = {
 };
 
 /* Init functions */
-static int fdctrl_connect_drives(FDCtrl *fdctrl)
+static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
 {
     unsigned int i;
     FDrive *drive;
@@ -2008,12 +2008,12 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
 
         if (drive->bs) {
             if (bdrv_get_on_error(drive->bs, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
-                error_report("fdc doesn't support drive option werror");
-                return -1;
+                error_setg(errp, "fdc doesn't support drive option werror");
+                return;
             }
             if (bdrv_get_on_error(drive->bs, 1) != BLOCKDEV_ON_ERROR_REPORT) {
-                error_report("fdc doesn't support drive option rerror");
-                return -1;
+                error_setg(errp, "fdc doesn't support drive option rerror");
+                return;
             }
         }
 
@@ -2023,7 +2023,6 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
             bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
         }
     }
-    return 0;
 }
 
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
@@ -2089,7 +2088,7 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     *fdc_tc = qdev_get_gpio_in(dev, 0);
 }
 
-static int fdctrl_init_common(FDCtrl *fdctrl)
+static void fdctrl_realize_common(FDCtrl *fdctrl, Error **errp)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -2110,15 +2109,16 @@ static int fdctrl_init_common(FDCtrl *fdctrl)
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
     fdctrl->fifo_size = 512;
     fdctrl->result_timer = qemu_new_timer_ns(vm_clock,
-                                          fdctrl_result_timer, fdctrl);
+                                             fdctrl_result_timer, fdctrl);
 
     fdctrl->version = 0x90; /* Intel 82078 controller */
     fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
     fdctrl->num_floppies = MAX_FD;
 
-    if (fdctrl->dma_chann != -1)
+    if (fdctrl->dma_chann != -1) {
         DMA_register_channel(fdctrl->dma_chann, &fdctrl_transfer_handler, fdctrl);
-    return fdctrl_connect_drives(fdctrl);
+    }
+    fdctrl_connect_drives(fdctrl, errp);
 }
 
 static const MemoryRegionPortio fdc_portio_list[] = {
@@ -2132,7 +2132,7 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     ISADevice *isadev = ISA_DEVICE(dev);
     FDCtrlISABus *isa = ISA_FDC(dev);
     FDCtrl *fdctrl = &isa->state;
-    int ret;
+    Error *err = NULL;
 
     isa_register_portio_list(isadev, isa->iobase, fdc_portio_list, fdctrl,
                              "fdc");
@@ -2141,9 +2141,9 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     fdctrl->dma_chann = isa->dma;
 
     qdev_set_legacy_instance_id(dev, isa->iobase, 2);
-    ret = fdctrl_init_common(fdctrl);
-    if (ret < 0) {
-        error_setg(errp, "Floppy init failed.");
+    fdctrl_realize_common(fdctrl, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
         return;
     }
 
@@ -2165,6 +2165,7 @@ static void sysbus_fdc_realize(DeviceState *dev, Error **errp)
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
     SysBusDevice *b = SYS_BUS_DEVICE(dev);
+    Error *err = NULL;
 
     sysbus_init_mmio(b, &fdctrl->iomem);
     sysbus_init_irq(b, &fdctrl->irq);
@@ -2172,8 +2173,9 @@ static void sysbus_fdc_realize(DeviceState *dev, Error **errp)
     fdctrl->dma_chann = -1;
 
     qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
-    if (fdctrl_init_common(fdctrl) < 0) {
-        error_setg(errp, "Floppy init failed.");
+    fdctrl_realize_common(fdctrl, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
         return;
     }
 }
@@ -2192,6 +2194,7 @@ static void sun4m_fdc_realize(DeviceState *dev, Error **errp)
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Error *err = NULL;
 
     sysbus_init_mmio(sbd, &fdctrl->iomem);
     sysbus_init_irq(sbd, &fdctrl->irq);
@@ -2199,8 +2202,9 @@ static void sun4m_fdc_realize(DeviceState *dev, Error **errp)
 
     fdctrl->sun4m = 1;
     qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
-    if (fdctrl_init_common(fdctrl) < 0) {
-        error_setg(errp, "Floppy init failed.");
+    fdctrl_realize_common(fdctrl, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
         return;
     }
 }
