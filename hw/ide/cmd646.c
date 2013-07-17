@@ -127,7 +127,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     BMDMAState *bm = opaque;
-    PCIIDEState *pci_dev = bm->pci_dev;
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
     uint32_t val;
 
     if (size != 1) {
@@ -139,16 +139,16 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
         val = bm->cmd;
         break;
     case 1:
-        val = pci_dev->dev.config[MRDMODE];
+        val = pci_dev->config[MRDMODE];
         break;
     case 2:
         val = bm->status;
         break;
     case 3:
-        if (bm == &pci_dev->bmdma[0]) {
-            val = pci_dev->dev.config[UDIDETCR0];
+        if (bm == &bm->pci_dev->bmdma[0]) {
+            val = pci_dev->config[UDIDETCR0];
         } else {
-            val = pci_dev->dev.config[UDIDETCR1];
+            val = pci_dev->config[UDIDETCR1];
         }
         break;
     default:
@@ -165,7 +165,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     BMDMAState *bm = opaque;
-    PCIIDEState *pci_dev = bm->pci_dev;
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
 
     if (size != 1) {
         return;
@@ -179,18 +179,19 @@ static void bmdma_write(void *opaque, hwaddr addr,
         bmdma_cmd_writeb(bm, val);
         break;
     case 1:
-        pci_dev->dev.config[MRDMODE] =
-            (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
-        cmd646_update_irq(pci_dev);
+        pci_dev->config[MRDMODE] =
+            (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
+        cmd646_update_irq(bm->pci_dev);
         break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
         break;
     case 3:
-        if (bm == &pci_dev->bmdma[0])
-            pci_dev->dev.config[UDIDETCR0] = val;
-        else
-            pci_dev->dev.config[UDIDETCR1] = val;
+        if (bm == &bm->pci_dev->bmdma[0]) {
+            pci_dev->config[UDIDETCR0] = val;
+        } else {
+            pci_dev->config[UDIDETCR1] = val;
+        }
         break;
     }
 }
@@ -222,25 +223,29 @@ static void bmdma_setup_bar(PCIIDEState *d)
    registers */
 static void cmd646_update_irq(PCIIDEState *d)
 {
+    PCIDevice *pd = PCI_DEVICE(d);
     int pci_level;
-    pci_level = ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH0) &&
-                 !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH0)) ||
-        ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH1) &&
-         !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH1));
-    qemu_set_irq(d->dev.irq[0], pci_level);
+
+    pci_level = ((pd->config[MRDMODE] & MRDMODE_INTR_CH0) &&
+                 !(pd->config[MRDMODE] & MRDMODE_BLK_CH0)) ||
+        ((pd->config[MRDMODE] & MRDMODE_INTR_CH1) &&
+         !(pd->config[MRDMODE] & MRDMODE_BLK_CH1));
+    qemu_set_irq(pd->irq[0], pci_level);
 }
 
 /* the PCI irq level is the logical OR of the two channels */
 static void cmd646_set_irq(void *opaque, int channel, int level)
 {
     PCIIDEState *d = opaque;
+    PCIDevice *pd = PCI_DEVICE(d);
     int irq_mask;
 
     irq_mask = MRDMODE_INTR_CH0 << channel;
-    if (level)
-        d->dev.config[MRDMODE] |= irq_mask;
-    else
-        d->dev.config[MRDMODE] &= ~irq_mask;
+    if (level) {
+        pd->config[MRDMODE] |= irq_mask;
+    } else {
+        pd->config[MRDMODE] &= ~irq_mask;
+    }
     cmd646_update_irq(d);
 }
 
@@ -257,8 +262,8 @@ static void cmd646_reset(void *opaque)
 /* CMD646 PCI IDE controller */
 static int pci_cmd646_ide_initfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
-    uint8_t *pci_conf = d->dev.config;
+    PCIIDEState *d = PCI_IDE(dev);
+    uint8_t *pci_conf = dev->config;
     qemu_irq *irq;
     int i;
 
@@ -284,7 +289,7 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], &d->dev.qdev, i, 2);
+        ide_bus_new(&d->bus[i], DEVICE(dev), i, 2);
         ide_init2(&d->bus[i], irq[i]);
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
@@ -293,14 +298,14 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
                                          &d->bmdma[i].dma);
     }
 
-    vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
+    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);
     return 0;
 }
 
 static void pci_cmd646_ide_exitfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
 
     for (i = 0; i < 2; ++i) {
@@ -347,8 +352,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo cmd646_ide_info = {
     .name          = "cmd646-ide",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
+    .parent        = TYPE_PCI_IDE,
     .class_init    = cmd646_ide_class_init,
 };
 
