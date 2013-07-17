@@ -30,9 +30,11 @@ static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        return s->card->common_read(s->card->state, offset);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        return pcc->common_read(s->card, offset);
     }
 
     return 0;
@@ -42,9 +44,11 @@ static void pxa2xx_pcmcia_common_write(void *opaque, hwaddr offset,
                                        uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        s->card->common_write(s->card->state, offset, value);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        pcc->common_write(s->card, offset, value);
     }
 }
 
@@ -52,9 +56,11 @@ static uint64_t pxa2xx_pcmcia_attr_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        return s->card->attr_read(s->card->state, offset);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        return pcc->attr_read(s->card, offset);
     }
 
     return 0;
@@ -64,9 +70,11 @@ static void pxa2xx_pcmcia_attr_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        s->card->attr_write(s->card->state, offset, value);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        pcc->attr_write(s->card, offset, value);
     }
 }
 
@@ -74,9 +82,11 @@ static uint64_t pxa2xx_pcmcia_io_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        return s->card->io_read(s->card->state, offset);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        return pcc->io_read(s->card, offset);
     }
 
     return 0;
@@ -86,9 +96,11 @@ static void pxa2xx_pcmcia_io_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
+    PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
-        s->card->io_write(s->card->state, offset, value);
+        pcc = PCMCIA_CARD_GET_CLASS(s->card);
+        pcc->io_write(s->card, offset, value);
     }
 }
 
@@ -161,18 +173,22 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    if (s->slot.attached)
+    PCMCIACardClass *pcc;
+
+    if (s->slot.attached) {
         return -EEXIST;
+    }
 
     if (s->cd_irq) {
         qemu_irq_raise(s->cd_irq);
     }
 
     s->card = card;
+    pcc = PCMCIA_CARD_GET_CLASS(s->card);
 
-    s->slot.attached = 1;
+    s->slot.attached = true;
     s->card->slot = &s->slot;
-    s->card->attach(s->card->state);
+    pcc->attach(s->card);
 
     return 0;
 }
@@ -181,19 +197,25 @@ int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card)
 int pxa2xx_pcmcia_detach(void *opaque)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    if (!s->slot.attached)
-        return -ENOENT;
+    PCMCIACardClass *pcc;
 
-    s->card->detach(s->card->state);
+    if (!s->slot.attached) {
+        return -ENOENT;
+    }
+
+    pcc = PCMCIA_CARD_GET_CLASS(s->card);
+    pcc->detach(s->card);
     s->card->slot = NULL;
     s->card = NULL;
 
-    s->slot.attached = 0;
+    s->slot.attached = false;
 
-    if (s->irq)
+    if (s->irq) {
         qemu_irq_lower(s->irq);
-    if (s->cd_irq)
+    }
+    if (s->cd_irq) {
         qemu_irq_lower(s->cd_irq);
+    }
 
     return 0;
 }
