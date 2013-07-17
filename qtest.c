@@ -26,11 +26,10 @@ const char *qtest_chrdev;
 const char *qtest_log;
 bool qtest_allowed;
 
-static DeviceState *irq_intercept_dev;
+static DeviceState *irq_intercept_dev = NULL;
 static FILE *qtest_log_fp;
 static CharDriverState *qtest_chr;
 static GString *inbuf;
-static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
 static bool qtest_opened;
 
@@ -125,18 +124,18 @@ static bool qtest_opened;
  *
  * IRQ management:
  *
- *  > irq_intercept_in QOM-PATH
+ *  > irq_intercept_in QOM-PATH ID-NUM
  *  < OK
  *
- *  > irq_intercept_out QOM-PATH
+ *  > irq_intercept_out QOM-PATH ID-NUM
  *  < OK
  *
  * Attach to the gpio-in (resp. gpio-out) pins exported by the device at
  * QOM-PATH.  When the pin is triggered, one of the following async messages
  * will be printed to the qtest stream:
  *
- *  IRQ raise NUM
- *  IRQ lower NUM
+ *  IRQ raise GPIO-ID NUM
+ *  IRQ lower GPIO-ID NUM
  *
  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
@@ -207,16 +206,14 @@ static void GCC_FMT_ATTR(2, 3) qtest_send(CharDriverState *chr,
 
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    qemu_irq *old_irqs = opaque;
-    qemu_set_irq(old_irqs[n], level);
 
-    if (irq_levels[n] != level) {
-        CharDriverState *chr = qtest_chr;
-        irq_levels[n] = level;
-        qtest_send_prefix(chr);
-        qtest_send(chr, "IRQ %s %d\n",
-                   level ? "raise" : "lower", n);
-    }
+    IRQInterceptData *intercept_data = opaque;
+    qemu_irq *old_irqs = intercept_data->old_irqs;
+    qemu_set_irq(old_irqs[n], level);
+    CharDriverState *chr = qtest_chr;
+    qtest_send_prefix(chr);
+    qtest_send(chr, "IRQ %s %d %d\n",
+               level ? "raise" : "lower", intercept_data->id, n);
 }
 
 static void qtest_process_command(CharDriverState *chr, gchar **words)
@@ -244,6 +241,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     if (strcmp(words[0], "irq_intercept_out") == 0
         || strcmp(words[0], "irq_intercept_in") == 0) {
 	DeviceState *dev;
+	int id;
 
         g_assert(words[1]);
         dev = DEVICE(object_resolve_path(words[1], NULL));
@@ -253,20 +251,19 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 	    return;
         }
 
-        if (irq_intercept_dev) {
+        g_assert(words[2]);
+        id = strtoul(words[2], NULL, 0);
+
+        if (irq_intercept_dev == dev) {
             qtest_send_prefix(chr);
-            if (irq_intercept_dev != dev) {
-                qtest_send(chr, "FAIL IRQ intercept already enabled\n");
-            } else {
-                qtest_send(chr, "OK\n");
-            }
-	    return;
+            qtest_send(chr, "OK\n");
+            return;
         }
 
         if (words[0][14] == 'o') {
-            qemu_irq_intercept_out(&dev->gpio_out, qtest_irq_handler, dev->num_gpio_out);
+            qemu_irq_intercept_out(&dev->gpio_out, qtest_irq_handler, id, dev->num_gpio_out);
         } else {
-            qemu_irq_intercept_in(dev->gpio_in, qtest_irq_handler, dev->num_gpio_in);
+            qemu_irq_intercept_in(dev->gpio_in, qtest_irq_handler, id, dev->num_gpio_in);
         }
         irq_intercept_dev = dev;
         qtest_send_prefix(chr);
@@ -501,14 +498,9 @@ static int qtest_can_read(void *opaque)
 
 static void qtest_event(void *opaque, int event)
 {
-    int i;
-
     switch (event) {
     case CHR_EVENT_OPENED:
         qemu_system_reset(false);
-        for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
-            irq_levels[i] = 0;
-        }
         qemu_gettimeofday(&start_time);
         qtest_opened = true;
         if (qtest_log_fp) {

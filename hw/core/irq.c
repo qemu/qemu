@@ -118,19 +118,28 @@ qemu_irq *qemu_irq_proxy(qemu_irq **target, int n)
     return qemu_allocate_irqs(proxy_irq_handler, target, n);
 }
 
-void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n)
+
+void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler,
+                           int id, int n)
 {
     int i;
+    IRQInterceptData *intercept_data = g_malloc0(sizeof(IRQInterceptData));
     qemu_irq *old_irqs = qemu_allocate_irqs(NULL, NULL, n);
+    intercept_data->id = id;
+    intercept_data->old_irqs = old_irqs;
     for (i = 0; i < n; i++) {
         *old_irqs[i] = *gpio_in[i];
         gpio_in[i]->handler = handler;
-        gpio_in[i]->opaque = old_irqs;
+        gpio_in[i]->opaque = intercept_data;
     }
 }
 
-void qemu_irq_intercept_out(qemu_irq **gpio_out, qemu_irq_handler handler, int n)
+void qemu_irq_intercept_out(qemu_irq **gpio_out, qemu_irq_handler handler,
+                            int id, int n)
 {
+    IRQInterceptData *intercept_data = g_malloc0(sizeof(IRQInterceptData));
     qemu_irq *old_irqs = *gpio_out;
-    *gpio_out = qemu_allocate_irqs(handler, old_irqs, n);
+    intercept_data->id = id;
+    intercept_data->old_irqs = old_irqs;
+    *gpio_out = qemu_allocate_irqs(handler, intercept_data, n);
 }
