@@ -281,7 +281,7 @@ static void stm32_afio_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo stm32_afio_info = {
-    .name  = "stm32_afio",
+    .name  = "stm32-afio",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(Stm32Afio),
     .class_init = stm32_afio_class_init

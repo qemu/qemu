@@ -873,7 +873,7 @@ static void stm32_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo stm32_uart_info = {
-    .name  = "stm32_uart",
+    .name  = "stm32-uart",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(Stm32Uart),
     .class_init = stm32_uart_class_init

@@ -131,7 +131,7 @@ static Stm32Uart *stm32_create_uart_dev(
         qemu_irq irq)
 {
     char child_name[8];
-    DeviceState *uart_dev = qdev_create(NULL, "stm32_uart");
+    DeviceState *uart_dev = qdev_create(NULL, "stm32-uart");
     QDEV_PROP_SET_PERIPH_T(uart_dev, "periph", periph);
     qdev_prop_set_ptr(uart_dev, "stm32_rcc", rcc_dev);
     qdev_prop_set_ptr(uart_dev, "stm32_gpio", gpio_dev);
@@ -185,7 +185,7 @@ void stm32_init(
             flash_size);
     memory_region_add_subregion(address_space_mem, 0x08000000, flash_alias_mem);
 
-    DeviceState *rcc_dev = qdev_create(NULL, "stm32_rcc");
+    DeviceState *rcc_dev = qdev_create(NULL, "stm32-rcc");
     qdev_prop_set_uint32(rcc_dev, "osc_freq", osc_freq);
     qdev_prop_set_uint32(rcc_dev, "osc32_freq", osc32_freq);
     object_property_add_child(stm32_container, "rcc", OBJECT(rcc_dev), NULL);
@@ -195,7 +195,7 @@ void stm32_init(
     for(i = 0; i < STM32_GPIO_COUNT; i++) {
         char child_name[8];
         stm32_periph_t periph = STM32_GPIOA + i;
-        gpio_dev[i] = qdev_create(NULL, "stm32_gpio");
+        gpio_dev[i] = qdev_create(NULL, "stm32-gpio");
         QDEV_PROP_SET_PERIPH_T(gpio_dev[i], "periph", periph);
         qdev_prop_set_ptr(gpio_dev[i], "stm32_rcc", rcc_dev);
         snprintf(child_name, sizeof(child_name), "gpio[%c]", 'a' + i);
@@ -204,7 +204,7 @@ void stm32_init(
         stm32_gpio[i] = (Stm32Gpio *)gpio_dev[i];
     }
 
-    DeviceState *exti_dev = qdev_create(NULL, "stm32_exti");
+    DeviceState *exti_dev = qdev_create(NULL, "stm32-exti");
     qdev_prop_set_ptr(exti_dev, "stm32_gpio", gpio_dev);
     object_property_add_child(stm32_container, "exti", OBJECT(exti_dev), NULL);
     stm32_init_periph(exti_dev, STM32_EXTI, 0x40010400, NULL);
@@ -220,7 +220,7 @@ void stm32_init(
     sysbus_connect_irq(exti_busdev, 8, pic[STM32_RTCAlarm_IRQ]);
     sysbus_connect_irq(exti_busdev, 9, pic[STM32_OTG_FS_WKUP_IRQ]);
 
-    DeviceState *afio_dev = qdev_create(NULL, "stm32_afio");
+    DeviceState *afio_dev = qdev_create(NULL, "stm32-afio");
     qdev_prop_set_ptr(afio_dev, "stm32_rcc", rcc_dev);
     qdev_prop_set_ptr(afio_dev, "stm32_exti", exti_dev);
     object_property_add_child(stm32_container, "afio", OBJECT(afio_dev), NULL);
