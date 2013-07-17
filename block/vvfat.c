@@ -1164,8 +1164,8 @@ DLOG(if (stderr == NULL) {
     s->sector_count = cyls * heads * secs - (s->first_sectors_number - 1);
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
-        if (enable_write_target(s)) {
-            ret = -EIO;
+        ret = enable_write_target(s);
+        if (ret < 0) {
             goto fail;
         }
         bs->read_only = 0;
@@ -2917,9 +2917,7 @@ static int enable_write_target(BDRVVVFATState *s)
     s->qcow_filename = g_malloc(1024);
     ret = get_tmp_filename(s->qcow_filename, 1024);
     if (ret < 0) {
-        g_free(s->qcow_filename);
-        s->qcow_filename = NULL;
-        return ret;
+        goto err;
     }
 
     bdrv_qcow = bdrv_find_format("qcow");
@@ -2927,18 +2925,18 @@ static int enable_write_target(BDRVVVFATState *s)
     set_option_parameter_int(options, BLOCK_OPT_SIZE, s->sector_count * 512);
     set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
 
-    if (bdrv_create(bdrv_qcow, s->qcow_filename, options) < 0)
-	return -1;
+    ret = bdrv_create(bdrv_qcow, s->qcow_filename, options);
+    if (ret < 0) {
+        goto err;
+    }
 
     s->qcow = bdrv_new("");
-    if (s->qcow == NULL) {
-        return -1;
-    }
 
     ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
     if (ret < 0) {
-	return ret;
+        bdrv_delete(s->qcow);
+        goto err;
     }
 
 #ifndef _WIN32
@@ -2951,6 +2949,11 @@ static int enable_write_target(BDRVVVFATState *s)
     *(void**)s->bs->backing_hd->opaque = s;
 
     return 0;
+
+err:
+    g_free(s->qcow_filename);
+    s->qcow_filename = NULL;
+    return ret;
 }
 
 static void vvfat_close(BlockDriverState *bs)
