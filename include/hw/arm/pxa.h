@@ -97,7 +97,7 @@ typedef struct PXA2xxPCMCIAState PXA2xxPCMCIAState;
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
                                       hwaddr base);
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
-int pxa2xx_pcmcia_dettach(void *opaque);
+int pxa2xx_pcmcia_detach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
 
 /* pxa2xx_keypad.c */

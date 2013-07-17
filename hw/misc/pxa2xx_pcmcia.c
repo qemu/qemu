@@ -178,7 +178,7 @@ int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card)
 }
 
 /* Eject card from the slot */
-int pxa2xx_pcmcia_dettach(void *opaque)
+int pxa2xx_pcmcia_detach(void *opaque)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
     if (!s->slot.attached)
