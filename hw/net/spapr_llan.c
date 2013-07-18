@@ -81,9 +81,9 @@ typedef struct VIOsPAPRVLANDevice {
     VIOsPAPRDevice sdev;
     NICConf nicconf;
     NICState *nic;
-    int isopen;
+    bool isopen;
     target_ulong buf_list;
-    int add_buf_ptr, use_buf_ptr, rx_bufs;
+    uint32_t add_buf_ptr, use_buf_ptr, rx_bufs;
     target_ulong rxq_ptr;
 } VIOsPAPRVLANDevice;
 
@@ -500,6 +500,25 @@ static Property spapr_vlan_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_spapr_llan = {
+    .name = "spapr_llan",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVLANDevice),
+        /* LLAN state */
+        VMSTATE_BOOL(isopen, VIOsPAPRVLANDevice),
+        VMSTATE_UINTTL(buf_list, VIOsPAPRVLANDevice),
+        VMSTATE_UINT32(add_buf_ptr, VIOsPAPRVLANDevice),
+        VMSTATE_UINT32(use_buf_ptr, VIOsPAPRVLANDevice),
+        VMSTATE_UINT32(rx_bufs, VIOsPAPRVLANDevice),
+        VMSTATE_UINTTL(rxq_ptr, VIOsPAPRVLANDevice),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void spapr_vlan_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -514,6 +533,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
     k->signal_mask = 0x1;
     dc->props = spapr_vlan_properties;
     k->rtce_window_size = 0x10000000;
+    dc->vmsd = &vmstate_spapr_llan;
 }
 
 static const TypeInfo spapr_vlan_info = {
