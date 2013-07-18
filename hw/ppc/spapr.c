@@ -129,6 +129,34 @@ int spapr_allocate_irq_block(int num, bool lsi)
     return first;
 }
 
+static XICSState *try_create_xics(const char *type, int nr_servers,
+                                  int nr_irqs)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, type);
+    qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
+    qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
+    if (qdev_init(dev) < 0) {
+        return NULL;
+    }
+
+    return XICS(dev);
+}
+
+static XICSState *xics_system_init(int nr_servers, int nr_irqs)
+{
+    XICSState *icp = NULL;
+
+    icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    if (!icp) {
+        perror("Failed to create XICS\n");
+        abort();
+    }
+
+    return icp;
+}
+
 static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;

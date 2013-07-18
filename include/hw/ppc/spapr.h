@@ -7,7 +7,6 @@
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
-struct icp_state;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 
@@ -15,7 +14,7 @@ typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
-    struct icp_state *icp;
+    XICSState *icp;
 
     hwaddr ram_limit;
     void *htab;
