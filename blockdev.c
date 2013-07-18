@@ -452,12 +452,15 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
         }
     }
 
-    bdrv_flags |= BDRV_O_CACHE_WB;
-    if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
-        if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
-            error_report("invalid cache option");
-            return NULL;
-        }
+    bdrv_flags = 0;
+    if (qemu_opt_get_bool(opts, "cache.writeback", true)) {
+        bdrv_flags |= BDRV_O_CACHE_WB;
+    }
+    if (qemu_opt_get_bool(opts, "cache.direct", false)) {
+        bdrv_flags |= BDRV_O_NOCACHE;
+    }
+    if (qemu_opt_get_bool(opts, "cache.no-flush", true)) {
+        bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
 #ifdef CONFIG_LINUX_AIO
@@ -740,6 +743,8 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
 
 DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
+    const char *value;
+
     /* Change legacy command line options into QMP ones */
     qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
     qemu_opt_rename(all_opts, "iops_rd", "throttling.iops-read");
@@ -750,6 +755,31 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
 
     qemu_opt_rename(all_opts, "readonly", "read-only");
+
+    value = qemu_opt_get(all_opts, "cache");
+    if (value) {
+        int flags = 0;
+
+        if (bdrv_parse_cache_flags(value, &flags) != 0) {
+            error_report("invalid cache option");
+            return NULL;
+        }
+
+        /* Specific options take precedence */
+        if (!qemu_opt_get(all_opts, "cache.writeback")) {
+            qemu_opt_set_bool(all_opts, "cache.writeback",
+                              !!(flags & BDRV_O_CACHE_WB));
+        }
+        if (!qemu_opt_get(all_opts, "cache.direct")) {
+            qemu_opt_set_bool(all_opts, "cache.direct",
+                              !!(flags & BDRV_O_NOCACHE));
+        }
+        if (!qemu_opt_get(all_opts, "cache.no-flush")) {
+            qemu_opt_set_bool(all_opts, "cache.no-flush",
+                              !!(flags & BDRV_O_NO_FLUSH));
+        }
+        qemu_opt_unset(all_opts, "cache");
+    }
 
     return blockdev_init(all_opts, block_default_type);
 }
@@ -1850,10 +1880,17 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },{
-            .name = "cache",
-            .type = QEMU_OPT_STRING,
-            .help = "host cache usage (none, writeback, writethrough, "
-                    "directsync, unsafe)",
+            .name = "cache.writeback",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables writeback mode for any caches",
+        },{
+            .name = "cache.direct",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables use of O_DIRECT (bypass the host page cache)",
+        },{
+            .name = "cache.no-flush",
+            .type = QEMU_OPT_BOOL,
+            .help = "ignore any flush requests for the device",
         },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
