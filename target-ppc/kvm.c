@@ -65,6 +65,7 @@ static int cap_one_reg;
 static int cap_epr;
 static int cap_ppc_watchdog;
 static int cap_papr;
+static int cap_htab_fd;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -101,6 +102,7 @@ int kvm_arch_init(KVMState *s)
     cap_ppc_watchdog = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_WATCHDOG);
     /* Note: we don't set cap_papr here, because this capability is
      * only activated after this by kvmppc_set_papr() */
+    cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -1787,6 +1789,73 @@ static int kvm_ppc_register_host_cpu_type(void)
     return 0;
 }
 
+
+int kvmppc_get_htab_fd(bool write)
+{
+    struct kvm_get_htab_fd s = {
+        .flags = write ? KVM_GET_HTAB_WRITE : 0,
+        .start_index = 0,
+    };
+
+    if (!cap_htab_fd) {
+        fprintf(stderr, "KVM version doesn't support saving the hash table\n");
+        return -1;
+    }
+
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+}
+
+int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
+{
+    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    uint8_t buf[bufsize];
+    ssize_t rc;
+
+    do {
+        rc = read(fd, buf, bufsize);
+        if (rc < 0) {
+            fprintf(stderr, "Error reading data from KVM HTAB fd: %s\n",
+                    strerror(errno));
+            return rc;
+        } else if (rc) {
+            /* Kernel already retuns data in BE format for the file */
+            qemu_put_buffer(f, buf, rc);
+        }
+    } while ((rc != 0)
+             && ((max_ns < 0)
+                 || ((qemu_get_clock_ns(rt_clock) - starttime) < max_ns)));
+
+    return (rc == 0) ? 1 : 0;
+}
+
+int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
+                           uint16_t n_valid, uint16_t n_invalid)
+{
+    struct kvm_get_htab_header *buf;
+    size_t chunksize = sizeof(*buf) + n_valid*HASH_PTE_SIZE_64;
+    ssize_t rc;
+
+    buf = alloca(chunksize);
+    /* This is KVM on ppc, so this is all big-endian */
+    buf->index = index;
+    buf->n_valid = n_valid;
+    buf->n_invalid = n_invalid;
+
+    qemu_get_buffer(f, (void *)(buf + 1), HASH_PTE_SIZE_64*n_valid);
+
+    rc = write(fd, buf, chunksize);
+    if (rc < 0) {
+        fprintf(stderr, "Error writing KVM hash table: %s\n",
+                strerror(errno));
+        return rc;
+    }
+    if (rc != chunksize) {
+        /* We should never get a short write on a single chunk */
+        fprintf(stderr, "Short write, restoring KVM hash table\n");
+        return -1;
+    }
+    return 0;
+}
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
 {

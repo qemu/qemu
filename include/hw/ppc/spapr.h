@@ -37,6 +37,7 @@ typedef struct sPAPREnvironment {
     /* Migration state */
     int htab_save_index;
     bool htab_first_pass;
+    int htab_fd;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
