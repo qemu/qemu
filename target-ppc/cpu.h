@@ -948,7 +948,7 @@ struct CPUPPCState {
 #if defined(TARGET_PPC64)
     /* PowerPC 64 SLB area */
     ppc_slb_t slb[64];
-    int slb_nr;
+    int32_t slb_nr;
 #endif
     /* segment registers */
     hwaddr htab_base;
@@ -957,11 +957,11 @@ struct CPUPPCState {
     /* externally stored hash table */
     uint8_t *external_htab;
     /* BATs */
-    int nb_BATs;
+    uint32_t nb_BATs;
     target_ulong DBAT[2][8];
     target_ulong IBAT[2][8];
     /* PowerPC TLB registers (for 4xx, e500 and 60x software driven TLBs) */
-    int nb_tlb;      /* Total number of TLB                                  */
+    int32_t nb_tlb;      /* Total number of TLB                              */
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
     int nb_ways;     /* Number of ways in the TLB set                        */
     int last_way;    /* Last used way used to allocate TLB in a LRU way      */
@@ -1175,8 +1175,6 @@ static inline CPUPPCState *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
-
-#define CPU_SAVE_VERSION 4
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user
