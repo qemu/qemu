@@ -346,7 +346,8 @@ Send keys to VM.
 Arguments:
 
 keys array:
-    - "key": key sequence (a json-array of key enum values)
+    - "key": key sequence (a json-array of key union values,
+             union can be number or qcode enum)
 
 - hold-time: time to delay key up events, milliseconds. Defaults to 100
              (json-int, optional)
@@ -354,7 +355,9 @@ keys array:
 Example:
 
 -> { "execute": "send-key",
-     "arguments": { 'keys': [ 'ctrl', 'alt', 'delete' ] } }
+     "arguments": { "keys": [ { "type": "qcode", "data": "ctrl" },
+                              { "type": "qcode", "data": "alt" },
+                              { "type": "qcode", "data": "delete" } ] } }
 <- { "return": {} }
 
 EQMP

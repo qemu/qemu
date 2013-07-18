@@ -128,12 +128,15 @@ bool has_%(argname)s = false;
 
 def gen_visitor_input_block(args, obj, dealloc=False):
     ret = ""
+    errparg = 'errp'
+
     if len(args) == 0:
         return ret
 
     push_indent()
 
     if dealloc:
+        errparg = 'NULL'
         ret += mcgen('''
 md = qapi_dealloc_visitor_new();
 v = qapi_dealloc_get_visitor(md);
@@ -148,22 +151,22 @@ v = qmp_input_get_visitor(mi);
     for argname, argtype, optional, structured in parse_args(args):
         if optional:
             ret += mcgen('''
-visit_start_optional(v, &has_%(c_name)s, "%(name)s", errp);
+visit_start_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
 if (has_%(c_name)s) {
 ''',
-                         c_name=c_var(argname), name=argname)
+                         c_name=c_var(argname), name=argname, errp=errparg)
             push_indent()
         ret += mcgen('''
-%(visitor)s(v, &%(c_name)s, "%(name)s", errp);
+%(visitor)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 ''',
                      c_name=c_var(argname), name=argname, argtype=argtype,
-                     visitor=type_visitor(argtype))
+                     visitor=type_visitor(argtype), errp=errparg)
         if optional:
             pop_indent()
             ret += mcgen('''
 }
-visit_end_optional(v, errp);
-''')
+visit_end_optional(v, %(errp)s);
+''', errp=errparg)
 
     if dealloc:
         ret += mcgen('''
@@ -194,7 +197,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_o
     }
     qmp_output_visitor_cleanup(mo);
     v = qapi_dealloc_get_visitor(md);
-    %(visitor)s(v, &ret_in, "unused", errp);
+    %(visitor)s(v, &ret_in, "unused", NULL);
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
