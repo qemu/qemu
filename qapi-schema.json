@@ -3679,3 +3679,79 @@
             '*cpuid-input-ecx': 'int',
             'cpuid-register': 'X86CPURegister32',
             'features': 'int' } }
+
+##
+# @RxState:
+#
+# Packets receiving state
+#
+# @normal: filter assigned packets according to the mac-table
+#
+# @none: don't receive any assigned packet
+#
+# @all: receive all assigned packets
+#
+# Since: 1.6
+##
+{ 'enum': 'RxState', 'data': [ 'normal', 'none', 'all' ] }
+
+##
+# @RxFilterInfo:
+#
+# Rx-filter information for a NIC.
+#
+# @name: net client name
+#
+# @promiscuous: whether promiscuous mode is enabled
+#
+# @multicast: multicast receive state
+#
+# @unicast: unicast receive state
+#
+# @broadcast-allowed: whether to receive broadcast
+#
+# @multicast-overflow: multicast table is overflowed or not
+#
+# @unicast-overflow: unicast table is overflowed or not
+#
+# @main-mac: the main macaddr string
+#
+# @vlan-table: a list of active vlan id
+#
+# @unicast-table: a list of unicast macaddr string
+#
+# @multicast-table: a list of multicast macaddr string
+#
+# Since 1.6
+##
+
+{ 'type': 'RxFilterInfo',
+  'data': {
+    'name':               'str',
+    'promiscuous':        'bool',
+    'multicast':          'RxState',
+    'unicast':            'RxState',
+    'broadcast-allowed':  'bool',
+    'multicast-overflow': 'bool',
+    'unicast-overflow':   'bool',
+    'main-mac':           'str',
+    'vlan-table':         ['int'],
+    'unicast-table':      ['str'],
+    'multicast-table':    ['str'] }}
+
+##
+# @query-rx-filter:
+#
+# Return rx-filter information for all NICs (or for the given NIC).
+#
+# @name: #optional net client name
+#
+# Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
+#          Returns an error if the given @name doesn't exist, or given
+#          NIC doesn't support rx-filter querying, or given net client
+#          isn't a NIC.
+#
+# Since: 1.6
+##
+{ 'command': 'query-rx-filter', 'data': { '*name': 'str' },
+  'returns': ['RxFilterInfo'] }

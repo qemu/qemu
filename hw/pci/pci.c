@@ -378,6 +378,7 @@ int pci_bus_num(PCIBus *s)
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
     uint8_t *config;
     int i;
 
@@ -395,6 +396,10 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
     memcpy(s->config, config, size);
 
     pci_update_mappings(s);
+    if (pc->is_bridge) {
+        PCIBridge *b = container_of(s, PCIBridge, dev);
+        pci_bridge_update_mappings(b);
+    }
 
     memory_region_set_enabled(&s->bus_master_enable_region,
                               pci_get_word(s->config + PCI_COMMAND)

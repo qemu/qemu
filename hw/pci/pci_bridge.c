@@ -224,7 +224,7 @@ static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
     g_free(w);
 }
 
-static void pci_bridge_update_mappings(PCIBridge *br)
+void pci_bridge_update_mappings(PCIBridge *br)
 {
     PCIBridgeWindows *w = br->windows;
 
