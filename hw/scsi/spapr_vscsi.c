@@ -578,6 +578,69 @@ static void vscsi_request_cancelled(SCSIRequest *sreq)
     vscsi_put_req(req);
 }
 
+static const VMStateDescription vmstate_spapr_vscsi_req = {
+    .name = "spapr_vscsi_req",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_BUFFER(crq.raw, vscsi_req),
+        VMSTATE_BUFFER(iu.srp.reserved, vscsi_req),
+        VMSTATE_UINT32(qtag, vscsi_req),
+        VMSTATE_BOOL(active, vscsi_req),
+        VMSTATE_UINT32(data_len, vscsi_req),
+        VMSTATE_BOOL(writing, vscsi_req),
+        VMSTATE_UINT32(senselen, vscsi_req),
+        VMSTATE_BUFFER(sense, vscsi_req),
+        VMSTATE_UINT8(dma_fmt, vscsi_req),
+        VMSTATE_UINT16(local_desc, vscsi_req),
+        VMSTATE_UINT16(total_desc, vscsi_req),
+        VMSTATE_UINT16(cdb_offset, vscsi_req),
+      /*Restart SCSI request from the beginning for now */
+      /*VMSTATE_UINT16(cur_desc_num, vscsi_req),
+        VMSTATE_UINT16(cur_desc_offset, vscsi_req),*/
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
+{
+    vscsi_req *req = sreq->hba_private;
+    assert(req->active);
+
+    vmstate_save_state(f, &vmstate_spapr_vscsi_req, req);
+
+    dprintf("VSCSI: saving tag=%u, current desc#%d, offset=%x\n",
+            req->qtag, req->cur_desc_num, req->cur_desc_offset);
+}
+
+static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq)
+{
+    SCSIBus *bus = sreq->bus;
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(bus->qbus.parent);
+    vscsi_req *req;
+    int rc;
+
+    assert(sreq->tag < VSCSI_REQ_LIMIT);
+    req = &s->reqs[sreq->tag];
+    assert(!req->active);
+
+    memset(req, 0, sizeof(*req));
+    rc = vmstate_load_state(f, &vmstate_spapr_vscsi_req, req, 1);
+    if (rc) {
+        fprintf(stderr, "VSCSI: failed loading request tag#%u\n", sreq->tag);
+        return NULL;
+    }
+    assert(req->active);
+
+    req->sreq = scsi_req_ref(sreq);
+
+    dprintf("VSCSI: restoring tag=%u, current desc#%d, offset=%x\n",
+            req->qtag, req->cur_desc_num, req->cur_desc_offset);
+
+    return req;
+}
+
 static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
 {
     union viosrp_iu *iu = &req->iu;
@@ -932,7 +995,9 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
 
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
-    .cancel = vscsi_request_cancelled
+    .cancel = vscsi_request_cancelled,
+    .save_request = vscsi_save_request,
+    .load_request = vscsi_load_request,
 };
 
 static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
@@ -996,6 +1061,20 @@ static Property spapr_vscsi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_spapr_vscsi = {
+    .name = "spapr_vscsi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_SPAPR_VIO(vdev, VSCSIState),
+        /* VSCSI state */
+        /* ???? */
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1010,6 +1089,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->signal_mask = 0x00000001;
     dc->props = spapr_vscsi_properties;
     k->rtce_window_size = 0x10000000;
+    dc->vmsd = &vmstate_spapr_vscsi;
 }
 
 static const TypeInfo spapr_vscsi_info = {
