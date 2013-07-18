@@ -9,6 +9,8 @@ struct sPAPRPHBState;
 struct sPAPRNVRAM;
 struct icp_state;
 
+#define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
+
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
@@ -17,20 +19,24 @@ typedef struct sPAPREnvironment {
 
     hwaddr ram_limit;
     void *htab;
-    long htab_shift;
+    uint32_t htab_shift;
     hwaddr rma_size;
     int vrma_adjust;
     hwaddr fdt_addr, rtas_addr;
     long rtas_size;
     void *fdt_skel;
     target_ulong entry_point;
-    int next_irq;
-    int rtc_offset;
+    uint32_t next_irq;
+    uint64_t rtc_offset;
     char *cpu_model;
     bool has_graphics;
 
     uint32_t epow_irq;
     Notifier epow_notifier;
+
+    /* Migration state */
+    int htab_save_index;
+    bool htab_first_pass;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0

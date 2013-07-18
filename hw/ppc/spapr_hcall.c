@@ -115,7 +115,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     ppc_hash64_store_hpte1(env, hpte, ptel);
     /* eieio();  FIXME: need some sort of barrier for smp? */
-    ppc_hash64_store_hpte0(env, hpte, pteh);
+    ppc_hash64_store_hpte0(env, hpte, pteh | HPTE64_V_HPTE_DIRTY);
 
     args[0] = pte_index + i;
     return H_SUCCESS;
@@ -152,7 +152,7 @@ static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
     }
     *vp = v;
     *rp = r;
-    ppc_hash64_store_hpte0(env, hpte, 0);
+    ppc_hash64_store_hpte0(env, hpte, HPTE64_V_HPTE_DIRTY);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
     return REMOVE_SUCCESS;
@@ -282,11 +282,11 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     r |= (flags << 48) & HPTE64_R_KEY_HI;
     r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
     rb = compute_tlbie_rb(v, r, pte_index);
-    ppc_hash64_store_hpte0(env, hpte, v & ~HPTE64_V_VALID);
+    ppc_hash64_store_hpte0(env, hpte, (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY);
     ppc_tlb_invalidate_one(env, rb);
     ppc_hash64_store_hpte1(env, hpte, r);
     /* Don't need a memory barrier, due to qemu's global lock */
-    ppc_hash64_store_hpte0(env, hpte, v);
+    ppc_hash64_store_hpte0(env, hpte, v | HPTE64_V_HPTE_DIRTY);
     return H_SUCCESS;
 }
 
