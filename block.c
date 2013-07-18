@@ -2255,7 +2255,7 @@ int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
 
     enabled = bs->io_limits_enabled;
     bs->io_limits_enabled = false;
-    ret = bdrv_read(bs, 0, buf, 1);
+    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
     bs->io_limits_enabled = enabled;
     return ret;
 }
