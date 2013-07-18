@@ -217,7 +217,8 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(waitid), 241 },
     { SCMP_SYS(io_cancel), 241 },
     { SCMP_SYS(io_setup), 241 },
-    { SCMP_SYS(io_destroy), 241 }
+    { SCMP_SYS(io_destroy), 241 },
+    { SCMP_SYS(arch_prctl), 240 }
 };
 
 int seccomp_start(void)
