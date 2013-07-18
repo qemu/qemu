@@ -645,7 +645,7 @@ static void spapr_phb_reset(DeviceState *qdev)
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
 
     /* Reset the IOMMU state */
-    spapr_tce_reset(sphb->tcet);
+    device_reset(DEVICE(sphb->tcet));
 }
 
 static Property spapr_phb_properties[] = {

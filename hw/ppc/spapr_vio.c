@@ -316,7 +316,7 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
 static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
 {
     if (dev->tcet) {
-        spapr_tce_reset(dev->tcet);
+        device_reset(DEVICE(dev->tcet));
     }
     free_crq(dev);
 }

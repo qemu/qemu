@@ -848,9 +848,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
 
-    /* Set up IOMMU */
-    spapr_iommu_init();
-
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 

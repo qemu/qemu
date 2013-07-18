@@ -334,10 +334,6 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
 #define SPAPR_TCE_PAGE_SIZE    (1ULL << SPAPR_TCE_PAGE_SHIFT)
 #define SPAPR_TCE_PAGE_MASK    (SPAPR_TCE_PAGE_SIZE - 1)
 
-typedef struct sPAPRTCE {
-    uint64_t tce;
-} sPAPRTCE;
-
 #define SPAPR_VIO_BASE_LIOBN    0x00000000
 #define SPAPR_PCI_BASE_LIOBN    0x80000000
 
@@ -345,14 +341,27 @@ typedef struct sPAPRTCE {
 
 typedef struct sPAPRTCETable sPAPRTCETable;
 
-void spapr_iommu_init(void);
+#define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"
+#define SPAPR_TCE_TABLE(obj) \
+    OBJECT_CHECK(sPAPRTCETable, (obj), TYPE_SPAPR_TCE_TABLE)
+
+struct sPAPRTCETable {
+    DeviceState parent;
+    uint32_t liobn;
+    uint32_t window_size;
+    uint32_t nb_table;
+    uint64_t *table;
+    bool bypass;
+    int fd;
+    MemoryRegion iommu;
+    QLIST_ENTRY(sPAPRTCETable) list;
+};
+
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    size_t window_size);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
-void spapr_tce_free(sPAPRTCETable *tcet);
-void spapr_tce_reset(sPAPRTCETable *tcet);
 void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
