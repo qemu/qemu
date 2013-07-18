@@ -1697,19 +1697,23 @@ if test "$gtk" != "no"; then
       vtepackage="vte"
       vteversion="0.24.0"
     fi
-    if $pkg_config --exists "$gtkpackage >= $gtkversion" && \
-       $pkg_config --exists "$vtepackage >= $vteversion"; then
+    if ! $pkg_config --exists "$gtkpackage >= $gtkversion"; then
+        if test "$gtk" = "yes" ; then
+            feature_not_found "gtk"
+        fi
+        gtk="no"
+    elif ! $pkg_config --exists "$vtepackage >= $vteversion"; then
+        if test "$gtk" = "yes" ; then
+            error_exit "libvte not found (required for gtk support)"
+        fi
+        gtk="no"
+    else
 	gtk_cflags=`$pkg_config --cflags $gtkpackage 2>/dev/null`
 	gtk_libs=`$pkg_config --libs $gtkpackage 2>/dev/null`
 	vte_cflags=`$pkg_config --cflags $vtepackage 2>/dev/null`
 	vte_libs=`$pkg_config --libs $vtepackage 2>/dev/null`
 	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
 	gtk="yes"
-    else
-	if test "$gtk" = "yes" ; then
-	    feature_not_found "gtk"
-	fi
-	gtk="no"
     fi
 fi
 
