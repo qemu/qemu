@@ -662,6 +662,54 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_spapr_pci_lsi = {
+    .name = "spapr_pci/lsi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32_EQUAL(irq, struct spapr_pci_lsi),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_pci_msi = {
+    .name = "spapr_pci/lsi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(config_addr, struct spapr_pci_msi),
+        VMSTATE_UINT32(irq, struct spapr_pci_msi),
+        VMSTATE_UINT32(nvec, struct spapr_pci_msi),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_pci = {
+    .name = "spapr_pci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64_EQUAL(buid, sPAPRPHBState),
+        VMSTATE_UINT32_EQUAL(dma_liobn, sPAPRPHBState),
+        VMSTATE_UINT64_EQUAL(mem_win_addr, sPAPRPHBState),
+        VMSTATE_UINT64_EQUAL(mem_win_size, sPAPRPHBState),
+        VMSTATE_UINT64_EQUAL(io_win_addr, sPAPRPHBState),
+        VMSTATE_UINT64_EQUAL(io_win_size, sPAPRPHBState),
+        VMSTATE_UINT64_EQUAL(msi_win_addr, sPAPRPHBState),
+        VMSTATE_STRUCT_ARRAY(lsi_table, sPAPRPHBState, PCI_NUM_PINS, 0,
+                             vmstate_spapr_pci_lsi, struct spapr_pci_lsi),
+        VMSTATE_STRUCT_ARRAY(msi_table, sPAPRPHBState, SPAPR_MSIX_MAX_DEVS, 0,
+                             vmstate_spapr_pci_msi, struct spapr_pci_msi),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
                                            PCIBus *rootbus)
 {
@@ -680,6 +728,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     sdc->init = spapr_phb_init;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
+    dc->vmsd = &vmstate_spapr_pci;
 }
 
 static const TypeInfo spapr_phb_info = {
