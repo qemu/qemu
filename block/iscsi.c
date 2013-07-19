@@ -58,6 +58,15 @@ typedef struct IscsiLun {
     struct scsi_inquiry_block_limits bl;
 } IscsiLun;
 
+typedef struct IscsiTask {
+    int status;
+    int complete;
+    int retries;
+    int do_retry;
+    struct scsi_task *task;
+    Coroutine *co;
+} IscsiTask;
+
 typedef struct IscsiAIOCB {
     BlockDriverAIOCB common;
     QEMUIOVector *qiov;
@@ -111,6 +120,41 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
     qemu_bh_schedule(acb->bh);
 }
 
+static void
+iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
+                        void *command_data, void *opaque)
+{
+    struct IscsiTask *iTask = opaque;
+    struct scsi_task *task = command_data;
+
+    iTask->complete = 1;
+    iTask->status = status;
+    iTask->do_retry = 0;
+    iTask->task = task;
+
+    if (iTask->retries-- > 0 && status == SCSI_STATUS_CHECK_CONDITION
+        && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
+        iTask->do_retry = 1;
+        goto out;
+    }
+
+    if (status != SCSI_STATUS_GOOD) {
+        error_report("iSCSI: Failure. %s", iscsi_get_error(iscsi));
+    }
+
+out:
+    if (iTask->co) {
+        qemu_coroutine_enter(iTask->co, NULL);
+    }
+}
+
+static void iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
+{
+    *iTask = (struct IscsiTask) {
+        .co         = qemu_coroutine_self(),
+        .retries    = ISCSI_CMD_RETRIES,
+    };
+}
 
 static void
 iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
@@ -848,6 +892,96 @@ iscsi_getlength(BlockDriverState *bs)
     return len;
 }
 
+static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
+                                                  int64_t sector_num,
+                                                  int nb_sectors, int *pnum)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct scsi_get_lba_status *lbas = NULL;
+    struct scsi_lba_status_descriptor *lbasd = NULL;
+    struct IscsiTask iTask;
+    int64_t ret;
+
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* default to all sectors allocated */
+    ret = BDRV_BLOCK_DATA;
+    ret |= (sector_num << BDRV_SECTOR_BITS) | BDRV_BLOCK_OFFSET_VALID;
+    *pnum = nb_sectors;
+
+    /* LUN does not support logical block provisioning */
+    if (iscsilun->lbpme == 0) {
+        goto out;
+    }
+
+retry:
+    if (iscsi_get_lba_status_task(iscsilun->iscsi, iscsilun->lun,
+                                  sector_qemu2lun(sector_num, iscsilun),
+                                  8 + 16, iscsi_co_generic_cb,
+                                  &iTask) == NULL) {
+        ret = -EIO;
+        goto out;
+    }
+
+    while (!iTask.complete) {
+        iscsi_set_events(iscsilun);
+        qemu_coroutine_yield();
+    }
+
+    if (iTask.do_retry) {
+        if (iTask.task != NULL) {
+            scsi_free_scsi_task(iTask.task);
+            iTask.task = NULL;
+        }
+        goto retry;
+    }
+
+    if (iTask.status != SCSI_STATUS_GOOD) {
+        /* in case the get_lba_status_callout fails (i.e.
+         * because the device is busy or the cmd is not
+         * supported) we pretend all blocks are allocated
+         * for backwards compatiblity */
+        goto out;
+    }
+
+    lbas = scsi_datain_unmarshall(iTask.task);
+    if (lbas == NULL) {
+        ret = -EIO;
+        goto out;
+    }
+
+    lbasd = &lbas->descriptors[0];
+
+    if (sector_qemu2lun(sector_num, iscsilun) != lbasd->lba) {
+        ret = -EIO;
+        goto out;
+    }
+
+    *pnum = sector_lun2qemu(lbasd->num_blocks, iscsilun);
+    if (*pnum > nb_sectors) {
+        *pnum = nb_sectors;
+    }
+
+    if (lbasd->provisioning == SCSI_PROVISIONING_TYPE_DEALLOCATED ||
+        lbasd->provisioning == SCSI_PROVISIONING_TYPE_ANCHORED) {
+        ret &= ~BDRV_BLOCK_DATA;
+        if (iscsilun->lbprz) {
+            ret |= BDRV_BLOCK_ZERO;
+        }
+    }
+
+out:
+    if (iTask.task != NULL) {
+        scsi_free_scsi_task(iTask.task);
+    }
+    return ret;
+}
+
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
 {
     QemuOptsList *list;
@@ -1397,6 +1531,8 @@ static BlockDriver bdrv_iscsi = {
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_truncate   = iscsi_truncate,
+
+    .bdrv_co_get_block_status = iscsi_co_get_block_status,
 
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
