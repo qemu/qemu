@@ -1787,7 +1787,9 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
+                   + (int128_nz(mr->size) ?
+                      (hwaddr)int128_get64(int128_sub(mr->size,
+                                                      int128_one())) : 0),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
@@ -1802,7 +1804,9 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
+                   + (int128_nz(mr->size) ?
+                      (hwaddr)int128_get64(int128_sub(mr->size,
+                                                      int128_one())) : 0),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
