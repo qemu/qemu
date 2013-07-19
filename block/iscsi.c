@@ -87,6 +87,7 @@ typedef struct IscsiAIOCB {
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES 5
+#define ISCSI_MAX_UNMAP 131072
 
 static void
 iscsi_bh_cb(void *p)
@@ -618,88 +619,6 @@ iscsi_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
-static int iscsi_aio_discard_acb(IscsiAIOCB *acb);
-
-static void
-iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
-                     void *command_data, void *opaque)
-{
-    IscsiAIOCB *acb = opaque;
-
-    if (acb->canceled != 0) {
-        return;
-    }
-
-    acb->status = 0;
-    if (status != 0) {
-        if (status == SCSI_STATUS_CHECK_CONDITION
-            && acb->task->sense.key == SCSI_SENSE_UNIT_ATTENTION
-            && acb->retries-- > 0) {
-            scsi_free_scsi_task(acb->task);
-            acb->task = NULL;
-            if (iscsi_aio_discard_acb(acb) == 0) {
-                iscsi_set_events(acb->iscsilun);
-                return;
-            }
-        }
-        error_report("Failed to unmap data on iSCSI lun. %s",
-                     iscsi_get_error(iscsi));
-        acb->status = -EIO;
-    }
-
-    iscsi_schedule_bh(acb);
-}
-
-static int iscsi_aio_discard_acb(IscsiAIOCB *acb) {
-    struct iscsi_context *iscsi = acb->iscsilun->iscsi;
-    struct unmap_list list[1];
-
-    acb->canceled   = 0;
-    acb->bh         = NULL;
-    acb->status     = -EINPROGRESS;
-    acb->buf        = NULL;
-
-    list[0].lba = sector_qemu2lun(acb->sector_num, acb->iscsilun);
-    list[0].num = acb->nb_sectors * BDRV_SECTOR_SIZE / acb->iscsilun->block_size;
-
-    acb->task = iscsi_unmap_task(iscsi, acb->iscsilun->lun,
-                                 0, 0, &list[0], 1,
-                                 iscsi_unmap_cb,
-                                 acb);
-    if (acb->task == NULL) {
-        error_report("iSCSI: Failed to send unmap command. %s",
-                     iscsi_get_error(iscsi));
-        return -1;
-    }
-
-    return 0;
-}
-
-static BlockDriverAIOCB *
-iscsi_aio_discard(BlockDriverState *bs,
-                  int64_t sector_num, int nb_sectors,
-                  BlockDriverCompletionFunc *cb, void *opaque)
-{
-    IscsiLun *iscsilun = bs->opaque;
-    IscsiAIOCB *acb;
-
-    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
-
-    acb->iscsilun    = iscsilun;
-    acb->nb_sectors  = nb_sectors;
-    acb->sector_num  = sector_num;
-    acb->retries     = ISCSI_CMD_RETRIES;
-
-    if (iscsi_aio_discard_acb(acb) != 0) {
-        qemu_aio_release(acb);
-        return NULL;
-    }
-
-    iscsi_set_events(iscsilun);
-
-    return &acb->common;
-}
-
 #ifdef __linux__
 static void
 iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
@@ -980,6 +899,77 @@ out:
         scsi_free_scsi_task(iTask.task);
     }
     return ret;
+}
+
+static int
+coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
+                                   int nb_sectors)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct IscsiTask iTask;
+    struct unmap_list list;
+    uint32_t nb_blocks;
+    uint32_t max_unmap;
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return -EINVAL;
+    }
+
+    if (!iscsilun->lbp.lbpu) {
+        /* UNMAP is not supported by the target */
+        return 0;
+    }
+
+    list.lba = sector_qemu2lun(sector_num, iscsilun);
+    nb_blocks = sector_qemu2lun(nb_sectors, iscsilun);
+
+    max_unmap = iscsilun->bl.max_unmap;
+    if (max_unmap == 0xffffffff) {
+        max_unmap = ISCSI_MAX_UNMAP;
+    }
+
+    while (nb_blocks > 0) {
+        iscsi_co_init_iscsitask(iscsilun, &iTask);
+        list.num = nb_blocks;
+        if (list.num > max_unmap) {
+            list.num = max_unmap;
+        }
+retry:
+        if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
+                         iscsi_co_generic_cb, &iTask) == NULL) {
+            return -EIO;
+        }
+
+        while (!iTask.complete) {
+            iscsi_set_events(iscsilun);
+            qemu_coroutine_yield();
+        }
+
+        if (iTask.task != NULL) {
+            scsi_free_scsi_task(iTask.task);
+            iTask.task = NULL;
+        }
+
+        if (iTask.do_retry) {
+            goto retry;
+        }
+
+        if (iTask.status == SCSI_STATUS_CHECK_CONDITION) {
+            /* the target might fail with a check condition if it
+               is not happy with the alignment of the UNMAP request
+               we silently fail in this case */
+            return 0;
+        }
+
+        if (iTask.status != SCSI_STATUS_GOOD) {
+            return -EIO;
+        }
+
+        list.lba += list.num;
+        nb_blocks -= list.num;
+    }
+
+    return 0;
 }
 
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
@@ -1533,12 +1523,12 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_truncate   = iscsi_truncate,
 
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
+    .bdrv_co_discard      = iscsi_co_discard,
 
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
     .bdrv_aio_flush  = iscsi_aio_flush,
 
-    .bdrv_aio_discard = iscsi_aio_discard,
     .bdrv_has_zero_init = iscsi_has_zero_init,
 
 #ifdef __linux__
