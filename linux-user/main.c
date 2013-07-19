@@ -2310,7 +2310,31 @@ done_syscall:
                 abi_ulong trap_instr;
                 unsigned int code;
 
-                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (env->hflags & MIPS_HFLAG_M16) {
+                    if (env->insn_flags & ASE_MICROMIPS) {
+                        /* microMIPS mode */
+                        abi_ulong instr[2];
+
+                        ret = get_user_u16(instr[0], env->active_tc.PC) ||
+                              get_user_u16(instr[1], env->active_tc.PC + 2);
+
+                        trap_instr = (instr[0] << 16) | instr[1];
+                    } else {
+                        /* MIPS16e mode */
+                        ret = get_user_u16(trap_instr, env->active_tc.PC);
+                        if (ret != 0) {
+                            goto error;
+                        }
+                        code = (trap_instr >> 6) & 0x3f;
+                        if (do_break(env, &info, code) != 0) {
+                            goto error;
+                        }
+                        break;
+                    }
+                } else {
+                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                }
+
                 if (ret != 0) {
                     goto error;
                 }
@@ -2334,14 +2358,30 @@ done_syscall:
                 abi_ulong trap_instr;
                 unsigned int code = 0;
 
-                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (env->hflags & MIPS_HFLAG_M16) {
+                    /* microMIPS mode */
+                    abi_ulong instr[2];
+
+                    ret = get_user_u16(instr[0], env->active_tc.PC) ||
+                          get_user_u16(instr[1], env->active_tc.PC + 2);
+
+                    trap_instr = (instr[0] << 16) | instr[1];
+                } else {
+                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                }
+
                 if (ret != 0) {
                     goto error;
                 }
 
                 /* The immediate versions don't provide a code.  */
                 if (!(trap_instr & 0xFC000000)) {
-                    code = ((trap_instr >> 6) & ((1 << 10) - 1));
+                    if (env->hflags & MIPS_HFLAG_M16) {
+                        /* microMIPS mode */
+                        code = ((trap_instr >> 12) & ((1 << 4) - 1));
+                    } else {
+                        code = ((trap_instr >> 6) & ((1 << 10) - 1));
+                    }
                 }
 
                 if (do_break(env, &info, code) != 0) {
