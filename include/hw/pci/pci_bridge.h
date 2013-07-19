@@ -37,6 +37,7 @@ PCIBus *pci_bridge_get_sec_bus(PCIBridge *br);
 pcibus_t pci_bridge_get_base(const PCIDevice *bridge, uint8_t type);
 pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type);
 
+void pci_bridge_update_mappings(PCIBridge *br);
 void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len);
 void pci_bridge_disable_base_limit(PCIDevice *dev);

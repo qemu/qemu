@@ -303,7 +303,6 @@ QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wmissing-format-attribute $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
-QEMU_CFLAGS="-Wextra $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-unused-parameter $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-missing-field-initializers $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-sign-compare $QEMU_CFLAGS"
@@ -311,6 +310,7 @@ QEMU_CFLAGS="-Wno-override-init $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-error=format $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-error=format-extra-args $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wno-error=parentheses $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wextra $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/include"
 if test "$debug_info" = "yes"; then
@@ -1735,11 +1735,6 @@ if test "$gtk" != "no"; then
 	gtk_libs=`$pkg_config --libs $gtkpackage`
         libs_softmmu="$gtk_libs $libs_softmmu"
 	gtk="yes"
-    else
-	if test "$gtk" = "yes" ; then
-	    feature_not_found "gtk"
-	fi
-	gtk="no"
     fi
 fi
 

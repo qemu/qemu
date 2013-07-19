@@ -720,35 +720,32 @@ static GIOChannel *io_channel_from_socket(int fd)
 
 static int io_channel_send(GIOChannel *fd, const void *buf, size_t len)
 {
-    GIOStatus status;
-    size_t offset;
+    size_t offset = 0;
+    GIOStatus status = G_IO_STATUS_NORMAL;
 
-    offset = 0;
-    while (offset < len) {
-        gsize bytes_written;
+    while (offset < len && status == G_IO_STATUS_NORMAL) {
+        gsize bytes_written = 0;
 
         status = g_io_channel_write_chars(fd, buf + offset, len - offset,
                                           &bytes_written, NULL);
-        if (status != G_IO_STATUS_NORMAL) {
-            if (status == G_IO_STATUS_AGAIN) {
-                /* If we've written any data, return a partial write. */
-                if (offset) {
-                    break;
-                }
-                errno = EAGAIN;
-            } else {
-                errno = EINVAL;
-            }
-
-            return -1;
-        } else if (status == G_IO_STATUS_EOF) {
-            break;
-        }
-
         offset += bytes_written;
     }
 
-    return offset;
+    if (offset > 0) {
+        return offset;
+    }
+    switch (status) {
+    case G_IO_STATUS_NORMAL:
+        g_assert(len == 0);
+        return 0;
+    case G_IO_STATUS_AGAIN:
+        errno = EAGAIN;
+        return -1;
+    default:
+        break;
+    }
+    errno = EINVAL;
+    return -1;
 }
 
 #ifndef _WIN32

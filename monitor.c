@@ -189,6 +189,7 @@ struct Monitor {
     int suspend_cnt;
     bool skip_flush;
     QString *outbuf;
+    guint watch;
     ReadLineState *rs;
     MonitorControl *mc;
     CPUState *mon_cpu;
@@ -263,7 +264,10 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 static gboolean monitor_unblocked(GIOChannel *chan, GIOCondition cond,
                                   void *opaque)
 {
-    monitor_flush(opaque);
+    Monitor *mon = opaque;
+
+    mon->watch = 0;
+    monitor_flush(mon);
     return FALSE;
 }
 
@@ -294,7 +298,10 @@ void monitor_flush(Monitor *mon)
             QDECREF(mon->outbuf);
             mon->outbuf = tmp;
         }
-        qemu_chr_fe_add_watch(mon->chr, G_IO_OUT, monitor_unblocked, mon);
+        if (mon->watch == 0) {
+            mon->watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT,
+                                               monitor_unblocked, mon);
+        }
     }
 }
 
@@ -490,6 +497,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_BLOCK_JOB_READY] = "BLOCK_JOB_READY",
     [QEVENT_DEVICE_DELETED] = "DEVICE_DELETED",
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
+    [QEVENT_NIC_RX_FILTER_CHANGED] = "NIC_RX_FILTER_CHANGED",
     [QEVENT_SUSPEND] = "SUSPEND",
     [QEVENT_SUSPEND_DISK] = "SUSPEND_DISK",
     [QEVENT_WAKEUP] = "WAKEUP",

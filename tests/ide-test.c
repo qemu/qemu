@@ -122,7 +122,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
 
 static void ide_test_quit(void)
 {
-    qtest_quit(global_qtest);
+    qtest_end();
 }
 
 static QPCIDevice *get_pci_device(uint16_t *bmdma_base)

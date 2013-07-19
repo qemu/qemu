@@ -244,7 +244,7 @@ static void test_ide_none(void)
     setup_common(argv, ARRAY_SIZE(argv));
     qtest_start(g_strjoinv(" ", argv));
     test_cmos();
-    qtest_quit(global_qtest);
+    qtest_end();
 }
 
 static void test_ide_mbr(bool use_device, MBRcontents mbr)
@@ -262,7 +262,7 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
     }
     qtest_start(g_strjoinv(" ", argv));
     test_cmos();
-    qtest_quit(global_qtest);
+    qtest_end();
 }
 
 /*
@@ -334,7 +334,7 @@ static void test_ide_drive_user(const char *dev, bool trans)
     g_free(opts);
     qtest_start(g_strjoinv(" ", argv));
     test_cmos();
-    qtest_quit(global_qtest);
+    qtest_end();
 }
 
 /*
@@ -387,7 +387,7 @@ static void test_ide_drive_cd_0(void)
     }
     qtest_start(g_strjoinv(" ", argv));
     test_cmos();
-    qtest_quit(global_qtest);
+    qtest_end();
 }
 
 int main(int argc, char **argv)
