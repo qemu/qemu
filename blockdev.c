@@ -378,7 +378,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     secs  = qemu_opt_get_number(opts, "secs", 0);
 
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
-    ro = qemu_opt_get_bool(opts, "readonly", 0);
+    ro = qemu_opt_get_bool(opts, "read-only", 0);
     copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
 
     file = qemu_opt_get(opts, "file");
@@ -684,7 +684,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     } else if (ro == 1) {
         if (type != IF_SCSI && type != IF_VIRTIO && type != IF_FLOPPY &&
             type != IF_NONE && type != IF_PFLASH) {
-            error_report("readonly not supported by this bus type");
+            error_report("read-only not supported by this bus type");
             goto err;
         }
     }
@@ -692,7 +692,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     if (ro && copy_on_read) {
-        error_report("warning: disabling copy_on_read on readonly drive");
+        error_report("warning: disabling copy_on_read on read-only drive");
     }
 
     QINCREF(bs_opts);
@@ -748,6 +748,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
     qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
     qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+
+    qemu_opt_rename(all_opts, "readonly", "read-only");
 
     return blockdev_init(all_opts, block_default_type);
 }
@@ -1877,7 +1879,7 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
         },{
-            .name = "readonly",
+            .name = "read-only",
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{

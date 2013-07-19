@@ -137,7 +137,7 @@ QEMU 1.5.50 monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: readonly not supported by this bus type
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: read-only not supported by this bus type
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU 1.5.50 monitor - type 'help' for more information
