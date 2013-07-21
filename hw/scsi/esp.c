@@ -676,6 +676,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SysBusESPState *sysbus = ESP(dev);
     ESPState *s = &sysbus->esp;
+    Error *err = NULL;
 
     sysbus_init_irq(sbd, &s->irq);
     assert(sysbus->it_shift != -1);
@@ -688,8 +689,9 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
 
     scsi_bus_new(&s->bus, dev, &esp_scsi_info, NULL);
-    if (scsi_bus_legacy_handle_cmdline(&s->bus) < 0) {
-        error_setg(errp, "Handling legacy SCSI command line failed");
+    scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
         return;
     }
 }

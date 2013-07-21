@@ -619,6 +619,7 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     static int virtio_scsi_id;
+    Error *err = NULL;
     int ret;
 
     ret = virtio_scsi_common_init(vs);
@@ -629,7 +630,11 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info, vdev->bus_name);
 
     if (!qdev->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus);
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
 
     register_savevm(qdev, "virtio-scsi", virtio_scsi_id++, 1,

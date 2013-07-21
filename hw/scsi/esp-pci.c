@@ -346,6 +346,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     DeviceState *d = DEVICE(dev);
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
+    Error *err = NULL;
 
     pci_conf = dev->config;
 
@@ -364,7 +365,11 @@ static int esp_pci_scsi_init(PCIDevice *dev)
 
     scsi_bus_new(&s->bus, d, &esp_pci_scsi_info, NULL);
     if (!d->hotplugged) {
-        return scsi_bus_legacy_handle_cmdline(&s->bus);
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
     return 0;
 }

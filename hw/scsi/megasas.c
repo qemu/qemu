@@ -2102,6 +2102,7 @@ static int megasas_scsi_init(PCIDevice *dev)
     MegasasState *s = MEGASAS(dev);
     uint8_t *pci_conf;
     int i, bar_type;
+    Error *err = NULL;
 
     pci_conf = dev->config;
 
@@ -2172,7 +2173,11 @@ static int megasas_scsi_init(PCIDevice *dev)
 
     scsi_bus_new(&s->bus, DEVICE(dev), &megasas_scsi_info, NULL);
     if (!d->hotplugged) {
-        return scsi_bus_legacy_handle_cmdline(&s->bus);
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
     return 0;
 }
