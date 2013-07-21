@@ -305,14 +305,19 @@ static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
     tcg_temp_free(tmp);
 }
 
-static void gen_advance_ccount(DisasContext *dc)
+static void gen_advance_ccount_cond(DisasContext *dc)
 {
     if (dc->ccount_delta > 0) {
         TCGv_i32 tmp = tcg_const_i32(dc->ccount_delta);
-        dc->ccount_delta = 0;
         gen_helper_advance_ccount(cpu_env, tmp);
         tcg_temp_free(tmp);
     }
+}
+
+static void gen_advance_ccount(DisasContext *dc)
+{
+    gen_advance_ccount_cond(dc);
+    dc->ccount_delta = 0;
 }
 
 static void reset_used_window(DisasContext *dc)
@@ -829,15 +834,27 @@ static void gen_window_check1(DisasContext *dc, unsigned r1)
     }
     if (option_enabled(dc, XTENSA_OPTION_WINDOWED_REGISTER) &&
             r1 / 4 > dc->used_window) {
-        TCGv_i32 pc = tcg_const_i32(dc->pc);
-        TCGv_i32 w = tcg_const_i32(r1 / 4);
+        int label = gen_new_label();
+        TCGv_i32 ws = tcg_temp_new_i32();
 
         dc->used_window = r1 / 4;
-        gen_advance_ccount(dc);
-        gen_helper_window_check(cpu_env, pc, w);
+        tcg_gen_deposit_i32(ws, cpu_SR[WINDOW_START], cpu_SR[WINDOW_START],
+                dc->config->nareg / 4, dc->config->nareg / 4);
+        tcg_gen_shr_i32(ws, ws, cpu_SR[WINDOW_BASE]);
+        tcg_gen_andi_i32(ws, ws, (2 << (r1 / 4)) - 2);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, ws, 0, label);
+        {
+            TCGv_i32 pc = tcg_const_i32(dc->pc);
+            TCGv_i32 w = tcg_const_i32(r1 / 4);
 
-        tcg_temp_free(w);
-        tcg_temp_free(pc);
+            gen_advance_ccount_cond(dc);
+            gen_helper_window_check(cpu_env, pc, w);
+
+            tcg_temp_free(w);
+            tcg_temp_free(pc);
+        }
+        gen_set_label(label);
+        tcg_temp_free(ws);
     }
 }
 
