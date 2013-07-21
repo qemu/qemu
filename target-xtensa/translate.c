@@ -491,7 +491,7 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
-static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
+static bool gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
 {
     if (!xtensa_option_bits_enabled(dc->config, sregnames[sr].opt_bits)) {
         if (sregnames[sr].name) {
@@ -500,6 +500,7 @@ static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
             qemu_log("SR %d is not implemented\n", sr);
         }
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+        return false;
     } else if (!(sregnames[sr].access & access)) {
         static const char * const access_text[] = {
             [SR_R] = "rsr",
@@ -510,7 +511,9 @@ static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
         qemu_log("SR %s is not available for %s\n", sregnames[sr].name,
                 access_text[access]);
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+        return false;
     }
+    return true;
 }
 
 static void gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
@@ -1482,9 +1485,9 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 break;
 
             case 6: /*XSR*/
-                {
+                if (gen_check_sr(dc, RSR_SR, SR_X)) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
-                    gen_check_sr(dc, RSR_SR, SR_X);
+
                     if (RSR_SR >= 64) {
                         gen_check_privilege(dc);
                     }
@@ -1707,21 +1710,23 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 3: /*RST3*/
             switch (OP2) {
             case 0: /*RSR*/
-                gen_check_sr(dc, RSR_SR, SR_R);
-                if (RSR_SR >= 64) {
-                    gen_check_privilege(dc);
+                if (gen_check_sr(dc, RSR_SR, SR_R)) {
+                    if (RSR_SR >= 64) {
+                        gen_check_privilege(dc);
+                    }
+                    gen_window_check1(dc, RRR_T);
+                    gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                 }
-                gen_window_check1(dc, RRR_T);
-                gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                 break;
 
             case 1: /*WSR*/
-                gen_check_sr(dc, RSR_SR, SR_W);
-                if (RSR_SR >= 64) {
-                    gen_check_privilege(dc);
+                if (gen_check_sr(dc, RSR_SR, SR_W)) {
+                    if (RSR_SR >= 64) {
+                        gen_check_privilege(dc);
+                    }
+                    gen_window_check1(dc, RRR_T);
+                    gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
                 }
-                gen_window_check1(dc, RRR_T);
-                gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
                 break;
 
             case 2: /*SEXTu*/
