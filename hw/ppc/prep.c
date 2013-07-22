@@ -410,7 +410,7 @@ static const MemoryRegionOps PPC_prep_io_ops = {
         .read = { PPC_prep_io_readb, PPC_prep_io_readw, PPC_prep_io_readl },
         .write = { PPC_prep_io_writeb, PPC_prep_io_writew, PPC_prep_io_writel },
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 #define NVRAM_SIZE        0x2000
