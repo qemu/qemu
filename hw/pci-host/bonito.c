@@ -210,14 +210,8 @@ typedef struct PCIBonitoState
     MemoryRegion iomem;
     MemoryRegion iomem_ldma;
     MemoryRegion iomem_cop;
-
-    hwaddr bonito_pciio_start;
-    hwaddr bonito_pciio_length;
-    int bonito_pciio_handle;
-
-    hwaddr bonito_localio_start;
-    hwaddr bonito_localio_length;
-    int bonito_localio_handle;
+    MemoryRegion bonito_pciio;
+    MemoryRegion bonito_localio;
 
 } PCIBonitoState;
 
@@ -750,15 +744,16 @@ static int bonito_initfn(PCIDevice *dev)
     sysbus_mmio_map(sysbus, 4, 0xbfe00300);
 
     /* Map PCI IO Space  0x1fd0 0000 - 0x1fd1 0000 */
-    s->bonito_pciio_start = BONITO_PCIIO_BASE;
-    s->bonito_pciio_length = BONITO_PCIIO_SIZE;
-    isa_mem_base = s->bonito_pciio_start;
-    isa_mmio_init(s->bonito_pciio_start, s->bonito_pciio_length);
+    memory_region_init_alias(&s->bonito_pciio, OBJECT(s), "isa_mmio",
+                             get_system_io(), 0, BONITO_PCIIO_SIZE);
+    sysbus_init_mmio(sysbus, &s->bonito_pciio);
+    sysbus_mmio_map(sysbus, 5, BONITO_PCIIO_BASE);
 
     /* add pci local io mapping */
-    s->bonito_localio_start = BONITO_DEV_BASE;
-    s->bonito_localio_length = BONITO_DEV_SIZE;
-    isa_mmio_init(s->bonito_localio_start, s->bonito_localio_length);
+    memory_region_init_alias(&s->bonito_localio, OBJECT(s), "isa_mmio",
+                             get_system_io(), 0, BONITO_DEV_SIZE);
+    sysbus_init_mmio(sysbus, &s->bonito_localio);
+    sysbus_mmio_map(sysbus, 6, BONITO_DEV_BASE);
 
     /* set the default value of north bridge pci config */
     pci_set_word(dev->config + PCI_COMMAND, 0x0000);
