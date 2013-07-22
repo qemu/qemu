@@ -295,9 +295,9 @@ static void migrate_fd_cleanup(void *opaque)
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
-static void migrate_finish_set_state(MigrationState *s, int new_state)
+static void migrate_set_state(MigrationState *s, int old_state, int new_state)
 {
-    if (atomic_cmpxchg(&s->state, MIG_STATE_ACTIVE, new_state) == new_state) {
+    if (atomic_cmpxchg(&s->state, old_state, new_state) == new_state) {
         trace_migrate_set_state(new_state);
     }
 }
@@ -315,7 +315,7 @@ static void migrate_fd_cancel(MigrationState *s)
 {
     DPRINTF("cancelling migration\n");
 
-    migrate_finish_set_state(s, MIG_STATE_CANCELLED);
+    migrate_set_state(s, s->state, MIG_STATE_CANCELLED);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
@@ -569,19 +569,19 @@ static void *migration_thread(void *opaque)
                 qemu_mutex_unlock_iothread();
 
                 if (ret < 0) {
-                    migrate_finish_set_state(s, MIG_STATE_ERROR);
+                    migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
                     break;
                 }
 
                 if (!qemu_file_get_error(s->file)) {
-                    migrate_finish_set_state(s, MIG_STATE_COMPLETED);
+                    migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_COMPLETED);
                     break;
                 }
             }
         }
 
         if (qemu_file_get_error(s->file)) {
-            migrate_finish_set_state(s, MIG_STATE_ERROR);
+            migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
             break;
         }
         current_time = qemu_get_clock_ms(rt_clock);
