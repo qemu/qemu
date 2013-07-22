@@ -183,6 +183,7 @@ static void portio_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps portio_ops = {
     .read = portio_read,
     .write = portio_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.unaligned = true,
     .impl.unaligned = true,
 };
