@@ -339,6 +339,36 @@ static void flatview_simplify(FlatView *view)
     }
 }
 
+static bool memory_region_wrong_endianness(MemoryRegion *mr)
+{
+#ifdef TARGET_WORDS_BIGENDIAN
+    return mr->ops->endianness == DEVICE_LITTLE_ENDIAN;
+#else
+    return mr->ops->endianness == DEVICE_BIG_ENDIAN;
+#endif
+}
+
+static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
+{
+    if (memory_region_wrong_endianness(mr)) {
+        switch (size) {
+        case 1:
+            break;
+        case 2:
+            *data = bswap16(*data);
+            break;
+        case 4:
+            *data = bswap32(*data);
+            break;
+        case 8:
+            *data = bswap64(*data);
+            break;
+        default:
+            abort();
+        }
+    }
+}
+
 static void memory_region_oldmmio_read_accessor(void *opaque,
                                                 hwaddr addr,
                                                 uint64_t *value,
@@ -786,15 +816,6 @@ static void memory_region_destructor_rom_device(MemoryRegion *mr)
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
-static bool memory_region_wrong_endianness(MemoryRegion *mr)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    return mr->ops->endianness == DEVICE_LITTLE_ENDIAN;
-#else
-    return mr->ops->endianness == DEVICE_BIG_ENDIAN;
-#endif
-}
-
 void memory_region_init(MemoryRegion *mr,
                         Object *owner,
                         const char *name,
@@ -919,27 +940,6 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
     }
 
     return data;
-}
-
-static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
-{
-    if (memory_region_wrong_endianness(mr)) {
-        switch (size) {
-        case 1:
-            break;
-        case 2:
-            *data = bswap16(*data);
-            break;
-        case 4:
-            *data = bswap32(*data);
-            break;
-        case 8:
-            *data = bswap64(*data);
-            break;
-        default:
-            abort();
-        }
-    }
 }
 
 static bool memory_region_dispatch_read(MemoryRegion *mr,
