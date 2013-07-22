@@ -382,6 +382,7 @@ typedef struct CPUXtensaState {
     uint32_t ccount_base;
 
     int exception_taken;
+    int yield_needed;
     unsigned static_vectors;
 
     /* Watchpoints for DBREAK registers */
@@ -554,6 +555,7 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_EXCEPTION 0x4000
 #define XTENSA_TBFLAG_WINDOW_MASK 0x18000
 #define XTENSA_TBFLAG_WINDOW_SHIFT 15
+#define XTENSA_TBFLAG_YIELD 0x20000
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
@@ -594,6 +596,9 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         *flags |= w << XTENSA_TBFLAG_WINDOW_SHIFT;
     } else {
         *flags |= 3 << XTENSA_TBFLAG_WINDOW_SHIFT;
+    }
+    if (env->yield_needed) {
+        *flags |= XTENSA_TBFLAG_YIELD;
     }
 }
 

@@ -105,6 +105,9 @@ void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
 
     cs->exception_index = excp;
+    if (excp == EXCP_YIELD) {
+        env->yield_needed = 0;
+    }
     if (excp == EXCP_DEBUG) {
         env->exception_taken = 0;
     }
@@ -431,6 +434,7 @@ void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
     dcc = (uint64_t)(env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] - 1) + 1;
     timer_mod(env->ccompare[i].timer,
               env->ccount_time + (dcc * 1000000) / env->config->clock_freq_khz);
+    env->yield_needed = 1;
 }
 
 void HELPER(check_interrupts)(CPUXtensaState *env)
