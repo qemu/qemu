@@ -129,7 +129,6 @@ static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
     PCTestdev *dev = opaque;
     uint64_t ret = 0;
     memcpy(&ret, &dev->iomem_buf[addr], len);
-    ret = le64_to_cpu(ret);
 
     return ret;
 }
@@ -138,7 +137,6 @@ static void test_iomem_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned len)
 {
     PCTestdev *dev = opaque;
-    val = cpu_to_le64(val);
     memcpy(&dev->iomem_buf[addr], &val, len);
     dev->iomem_buf[addr] = val;
 }
