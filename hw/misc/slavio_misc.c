@@ -368,7 +368,7 @@ static void slavio_led_mem_writew(void *opaque, hwaddr addr,
 {
     MiscState *s = opaque;
 
-    trace_slavio_led_mem_readw(val & 0xffff);
+    trace_slavio_led_mem_writew(val & 0xffff);
     switch (addr) {
     case 0:
         s->leds = val;
