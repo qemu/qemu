@@ -55,6 +55,10 @@ struct arm_boot_info {
                                  const struct arm_boot_info *info);
     void (*secondary_cpu_reset_hook)(ARMCPU *cpu,
                                      const struct arm_boot_info *info);
+    /* if a board needs to be able to modify a device tree provided by
+     * the user it should implement this hook.
+     */
+    void (*modify_dtb)(const struct arm_boot_info *info, void *fdt);
     /* Used internally by arm_boot.c */
     int is_linux;
     hwaddr initrd_start;

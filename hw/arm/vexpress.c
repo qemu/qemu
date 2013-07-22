@@ -31,12 +31,17 @@
 #include "exec/address-spaces.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/flash.h"
+#include "sysemu/device_tree.h"
+#include <libfdt.h>
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
 #define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
 
-static struct arm_boot_info vexpress_binfo;
+/* Number of virtio transports to create (0..8; limited by
+ * number of available IRQ lines).
+ */
+#define NUM_VIRTIO_TRANSPORTS 4
 
 /* Address maps for peripherals:
  * the Versatile Express motherboard has two possible maps,
@@ -73,6 +78,7 @@ enum {
     VE_ETHERNET,
     VE_USB,
     VE_DAPROM,
+    VE_VIRTIO,
 };
 
 static hwaddr motherboard_legacy_map[] = {
@@ -91,6 +97,7 @@ static hwaddr motherboard_legacy_map[] = {
     [VE_WDT] = 0x1000f000,
     [VE_TIMER01] = 0x10011000,
     [VE_TIMER23] = 0x10012000,
+    [VE_VIRTIO] = 0x10013000,
     [VE_SERIALDVI] = 0x10016000,
     [VE_RTC] = 0x10017000,
     [VE_COMPACTFLASH] = 0x1001a000,
@@ -137,6 +144,7 @@ static hwaddr motherboard_aseries_map[] = {
     [VE_WDT] = 0x1c0f0000,
     [VE_TIMER01] = 0x1c110000,
     [VE_TIMER23] = 0x1c120000,
+    [VE_VIRTIO] = 0x1c130000,
     [VE_SERIALDVI] = 0x1c160000,
     [VE_RTC] = 0x1c170000,
     [VE_COMPACTFLASH] = 0x1c1a0000,
@@ -153,6 +161,7 @@ typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           qemu_irq *pic);
 
 struct VEDBoardInfo {
+    struct arm_boot_info bootinfo;
     const hwaddr *motherboard_map;
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
@@ -272,7 +281,7 @@ static const uint32_t a9_clocks[] = {
     66670000, /* Test chip reference clock: 66.67MHz */
 };
 
-static const VEDBoardInfo a9_daughterboard = {
+static VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
@@ -384,7 +393,7 @@ static const uint32_t a15_clocks[] = {
     40000000, /* OSCCLK8: 40MHz : DDR2 PLL reference */
 };
 
-static const VEDBoardInfo a15_daughterboard = {
+static VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
@@ -396,7 +405,86 @@ static const VEDBoardInfo a15_daughterboard = {
     .init = a15_daughterboard_init,
 };
 
-static void vexpress_common_init(const VEDBoardInfo *daughterboard,
+static int add_virtio_mmio_node(void *fdt, uint32_t acells, uint32_t scells,
+                                hwaddr addr, hwaddr size, uint32_t intc,
+                                int irq)
+{
+    /* Add a virtio_mmio node to the device tree blob:
+     *   virtio_mmio@ADDRESS {
+     *       compatible = "virtio,mmio";
+     *       reg = <ADDRESS, SIZE>;
+     *       interrupt-parent = <&intc>;
+     *       interrupts = <0, irq, 1>;
+     *   }
+     * (Note that the format of the interrupts property is dependent on the
+     * interrupt controller that interrupt-parent points to; these are for
+     * the ARM GIC and indicate an SPI interrupt, rising-edge-triggered.)
+     */
+    int rc;
+    char *nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, addr);
+
+    rc = qemu_devtree_add_subnode(fdt, nodename);
+    rc |= qemu_devtree_setprop_string(fdt, nodename,
+                                      "compatible", "virtio,mmio");
+    rc |= qemu_devtree_setprop_sized_cells(fdt, nodename, "reg",
+                                           acells, addr, scells, size);
+    qemu_devtree_setprop_cells(fdt, nodename, "interrupt-parent", intc);
+    qemu_devtree_setprop_cells(fdt, nodename, "interrupts", 0, irq, 1);
+    g_free(nodename);
+    if (rc) {
+        return -1;
+    }
+    return 0;
+}
+
+static uint32_t find_int_controller(void *fdt)
+{
+    /* Find the FDT node corresponding to the interrupt controller
+     * for virtio-mmio devices. We do this by scanning the fdt for
+     * a node with the right compatibility, since we know there is
+     * only one GIC on a vexpress board.
+     * We return the phandle of the node, or 0 if none was found.
+     */
+    const char *compat = "arm,cortex-a9-gic";
+    int offset;
+
+    offset = fdt_node_offset_by_compatible(fdt, -1, compat);
+    if (offset >= 0) {
+        return fdt_get_phandle(fdt, offset);
+    }
+    return 0;
+}
+
+static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    uint32_t acells, scells, intc;
+    const VEDBoardInfo *daughterboard = (const VEDBoardInfo *)info;
+
+    acells = qemu_devtree_getprop_cell(fdt, "/", "#address-cells");
+    scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
+    intc = find_int_controller(fdt);
+    if (!intc) {
+        /* Not fatal, we just won't provide virtio. This will
+         * happen with older device tree blobs.
+         */
+        fprintf(stderr, "QEMU: warning: couldn't find interrupt controller in "
+                "dtb; will not include virtio-mmio devices in the dtb.\n");
+    } else {
+        int i;
+        const hwaddr *map = daughterboard->motherboard_map;
+
+        /* We iterate backwards here because adding nodes
+         * to the dtb puts them in last-first.
+         */
+        for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
+            add_virtio_mmio_node(fdt, acells, scells,
+                                 map[VE_VIRTIO] + 0x200 * i,
+                                 0x200, intc, 40 + i);
+        }
+    }
+}
+
+static void vexpress_common_init(VEDBoardInfo *daughterboard,
                                  QEMUMachineInitArgs *args)
 {
     DeviceState *dev, *sysctl, *pl041;
@@ -524,17 +612,27 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_DAPROM: not modelled */
 
-    vexpress_binfo.ram_size = args->ram_size;
-    vexpress_binfo.kernel_filename = args->kernel_filename;
-    vexpress_binfo.kernel_cmdline = args->kernel_cmdline;
-    vexpress_binfo.initrd_filename = args->initrd_filename;
-    vexpress_binfo.nb_cpus = smp_cpus;
-    vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
-    vexpress_binfo.loader_start = daughterboard->loader_start;
-    vexpress_binfo.smp_loader_start = map[VE_SRAM];
-    vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
-    vexpress_binfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
-    arm_load_kernel(ARM_CPU(first_cpu), &vexpress_binfo);
+    /* Create mmio transports, so the user can create virtio backends
+     * (which will be automatically plugged in to the transports). If
+     * no backend is created the transport will just sit harmlessly idle.
+     */
+    for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+        sysbus_create_simple("virtio-mmio", map[VE_VIRTIO] + 0x200 * i,
+                             pic[40 + i]);
+    }
+
+    daughterboard->bootinfo.ram_size = args->ram_size;
+    daughterboard->bootinfo.kernel_filename = args->kernel_filename;
+    daughterboard->bootinfo.kernel_cmdline = args->kernel_cmdline;
+    daughterboard->bootinfo.initrd_filename = args->initrd_filename;
+    daughterboard->bootinfo.nb_cpus = smp_cpus;
+    daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
+    daughterboard->bootinfo.loader_start = daughterboard->loader_start;
+    daughterboard->bootinfo.smp_loader_start = map[VE_SRAM];
+    daughterboard->bootinfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
+    daughterboard->bootinfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
+    daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
+    arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
 static void vexpress_a9_init(QEMUMachineInitArgs *args)

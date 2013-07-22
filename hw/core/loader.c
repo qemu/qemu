@@ -434,15 +434,17 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uimage(const char *filename, hwaddr *ep,
-                hwaddr *loadaddr, int *is_linux)
+static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
+                            int *is_linux, uint8_t image_type)
 {
     int fd;
     int size;
+    hwaddr address;
     uboot_image_header_t h;
     uboot_image_header_t *hdr = &h;
     uint8_t *data = NULL;
     int ret = -1;
+    int do_uncompress = 0;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -457,32 +459,55 @@ int load_uimage(const char *filename, hwaddr *ep,
     if (hdr->ih_magic != IH_MAGIC)
         goto out;
 
-    /* TODO: Implement other image types.  */
-    if (hdr->ih_type != IH_TYPE_KERNEL) {
-        fprintf(stderr, "Can only load u-boot image type \"kernel\"\n");
+    if (hdr->ih_type != image_type) {
+        fprintf(stderr, "Wrong image type %d, expected %d\n", hdr->ih_type,
+                image_type);
         goto out;
     }
 
-    switch (hdr->ih_comp) {
-    case IH_COMP_NONE:
-    case IH_COMP_GZIP:
+    /* TODO: Implement other image types.  */
+    switch (hdr->ih_type) {
+    case IH_TYPE_KERNEL:
+        address = hdr->ih_load;
+        if (loadaddr) {
+            *loadaddr = hdr->ih_load;
+        }
+
+        switch (hdr->ih_comp) {
+        case IH_COMP_NONE:
+            break;
+        case IH_COMP_GZIP:
+            do_uncompress = 1;
+            break;
+        default:
+            fprintf(stderr,
+                    "Unable to load u-boot images with compression type %d\n",
+                    hdr->ih_comp);
+            goto out;
+        }
+
+        if (ep) {
+            *ep = hdr->ih_ep;
+        }
+
+        /* TODO: Check CPU type.  */
+        if (is_linux) {
+            if (hdr->ih_os == IH_OS_LINUX) {
+                *is_linux = 1;
+            } else {
+                *is_linux = 0;
+            }
+        }
+
+        break;
+    case IH_TYPE_RAMDISK:
+        address = *loadaddr;
         break;
     default:
-        fprintf(stderr,
-                "Unable to load u-boot images with compression type %d\n",
-                hdr->ih_comp);
+        fprintf(stderr, "Unsupported u-boot image type %d\n", hdr->ih_type);
         goto out;
     }
 
-    /* TODO: Check CPU type.  */
-    if (is_linux) {
-        if (hdr->ih_os == IH_OS_LINUX)
-            *is_linux = 1;
-        else
-            *is_linux = 0;
-    }
-
-    *ep = hdr->ih_ep;
     data = g_malloc(hdr->ih_size);
 
     if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
@@ -490,7 +515,7 @@ int load_uimage(const char *filename, hwaddr *ep,
         goto out;
     }
 
-    if (hdr->ih_comp == IH_COMP_GZIP) {
+    if (do_uncompress) {
         uint8_t *compressed_data;
         size_t max_bytes;
         ssize_t bytes;
@@ -508,10 +533,7 @@ int load_uimage(const char *filename, hwaddr *ep,
         hdr->ih_size = bytes;
     }
 
-    rom_add_blob_fixed(filename, data, hdr->ih_size, hdr->ih_load);
-
-    if (loadaddr)
-        *loadaddr = hdr->ih_load;
+    rom_add_blob_fixed(filename, data, hdr->ih_size, address);
 
     ret = hdr->ih_size;
 
@@ -520,6 +542,18 @@ out:
         g_free(data);
     close(fd);
     return ret;
+}
+
+int load_uimage(const char *filename, hwaddr *ep, hwaddr *loadaddr,
+                int *is_linux)
+{
+    return load_uboot_image(filename, ep, loadaddr, is_linux, IH_TYPE_KERNEL);
+}
+
+/* Load a ramdisk.  */
+int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
+{
+    return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK);
 }
 
 /*
