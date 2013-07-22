@@ -605,9 +605,11 @@ pci_ebus_init1(PCIDevice *pci_dev)
     pci_dev->config[0x09] = 0x00; // programming i/f
     pci_dev->config[0x0D] = 0x0a; // latency_timer
 
-    isa_mmio_setup(&s->bar0, 0x1000000);
+    memory_region_init_alias(&s->bar0, OBJECT(s), "bar0", get_system_io(),
+                             0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
-    isa_mmio_setup(&s->bar1, 0x800000);
+    memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
+                             0, 0x800000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar1);
     return 0;
 }
