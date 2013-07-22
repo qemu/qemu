@@ -2099,7 +2099,9 @@ void *address_space_map(AddressSpace *as,
         if (bounce.buffer) {
             return NULL;
         }
-        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
+        /* Avoid unbounded allocations */
+        l = MIN(l, TARGET_PAGE_SIZE);
+        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, l);
         bounce.addr = addr;
         bounce.len = l;
 
