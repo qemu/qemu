@@ -369,28 +369,26 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
     }
 }
 
-static void memory_region_oldmmio_read_accessor(void *opaque,
+static void memory_region_oldmmio_read_accessor(MemoryRegion *mr,
                                                 hwaddr addr,
                                                 uint64_t *value,
                                                 unsigned size,
                                                 unsigned shift,
                                                 uint64_t mask)
 {
-    MemoryRegion *mr = opaque;
     uint64_t tmp;
 
     tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
     *value |= (tmp & mask) << shift;
 }
 
-static void memory_region_read_accessor(void *opaque,
+static void memory_region_read_accessor(MemoryRegion *mr,
                                         hwaddr addr,
                                         uint64_t *value,
                                         unsigned size,
                                         unsigned shift,
                                         uint64_t mask)
 {
-    MemoryRegion *mr = opaque;
     uint64_t tmp;
 
     if (mr->flush_coalesced_mmio) {
@@ -400,28 +398,26 @@ static void memory_region_read_accessor(void *opaque,
     *value |= (tmp & mask) << shift;
 }
 
-static void memory_region_oldmmio_write_accessor(void *opaque,
+static void memory_region_oldmmio_write_accessor(MemoryRegion *mr,
                                                  hwaddr addr,
                                                  uint64_t *value,
                                                  unsigned size,
                                                  unsigned shift,
                                                  uint64_t mask)
 {
-    MemoryRegion *mr = opaque;
     uint64_t tmp;
 
     tmp = (*value >> shift) & mask;
     mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
 }
 
-static void memory_region_write_accessor(void *opaque,
+static void memory_region_write_accessor(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t *value,
                                          unsigned size,
                                          unsigned shift,
                                          uint64_t mask)
 {
-    MemoryRegion *mr = opaque;
     uint64_t tmp;
 
     if (mr->flush_coalesced_mmio) {
@@ -436,13 +432,13 @@ static void access_with_adjusted_size(hwaddr addr,
                                       unsigned size,
                                       unsigned access_size_min,
                                       unsigned access_size_max,
-                                      void (*access)(void *opaque,
+                                      void (*access)(MemoryRegion *mr,
                                                      hwaddr addr,
                                                      uint64_t *value,
                                                      unsigned size,
                                                      unsigned shift,
                                                      uint64_t mask),
-                                      void *opaque)
+                                      MemoryRegion *mr)
 {
     uint64_t access_mask;
     unsigned access_size;
@@ -460,10 +456,10 @@ static void access_with_adjusted_size(hwaddr addr,
     access_mask = -1ULL >> (64 - access_size * 8);
     for (i = 0; i < size; i += access_size) {
 #ifdef TARGET_WORDS_BIGENDIAN
-        access(opaque, addr + i, value, access_size,
+        access(mr, addr + i, value, access_size,
                (size - access_size - i) * 8, access_mask);
 #else
-        access(opaque, addr + i, value, access_size, i * 8, access_mask);
+        access(mr, addr + i, value, access_size, i * 8, access_mask);
 #endif
     }
 }
