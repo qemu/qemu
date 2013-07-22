@@ -164,6 +164,7 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     int bios_size;
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -273,7 +274,10 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
     rtc_init(isa_bus, 2000, NULL);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
-    isa_mmio_init(0x14000000, 0x00010000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00010000);
+    memory_region_add_subregion(get_system_memory(), 0x14000000, isa);
+
     isa_mem_base = 0x10000000;
 
     pit = pit_init(isa_bus, 0x40, 0, NULL);
