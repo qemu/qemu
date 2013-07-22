@@ -49,6 +49,7 @@ typedef struct PCTestdev {
     ISADevice parent_obj;
 
     MemoryRegion ioport;
+    MemoryRegion ioport_byte;
     MemoryRegion flush;
     MemoryRegion irq;
     MemoryRegion iomem;
@@ -99,6 +100,16 @@ static uint64_t test_ioport_read(void *opaque, hwaddr addr, unsigned len)
 static const MemoryRegionOps test_ioport_ops = {
     .read = test_ioport_read,
     .write = test_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps test_ioport_byte_ops = {
+    .read = test_ioport_read,
+    .write = test_ioport_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -156,6 +167,9 @@ static void testdev_realizefn(DeviceState *d, Error **errp)
 
     memory_region_init_io(&dev->ioport, OBJECT(dev), &test_ioport_ops, dev,
                           "pc-testdev-ioport", 4);
+    memory_region_init_io(&dev->ioport_byte, OBJECT(dev),
+                          &test_ioport_byte_ops, dev,
+                          "pc-testdev-ioport-byte", 4);
     memory_region_init_io(&dev->flush, OBJECT(dev), &test_flush_ops, dev,
                           "pc-testdev-flush-page", 4);
     memory_region_init_io(&dev->irq, OBJECT(dev), &test_irq_ops, dev,
@@ -165,6 +179,7 @@ static void testdev_realizefn(DeviceState *d, Error **errp)
 
     memory_region_add_subregion(io,  0xe0,       &dev->ioport);
     memory_region_add_subregion(io,  0xe4,       &dev->flush);
+    memory_region_add_subregion(io,  0xe8,       &dev->ioport_byte);
     memory_region_add_subregion(io,  0x2000,     &dev->irq);
     memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
 }
