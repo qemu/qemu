@@ -4387,7 +4387,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 #ifdef CONFIG_SPICE
-    if (using_spice && !qxl_enabled) {
+    if (using_spice && !spice_displays) {
         qemu_spice_display_init(ds);
     }
 #endif

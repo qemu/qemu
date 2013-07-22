@@ -27,6 +27,7 @@
 #include "monitor/monitor.h"
 
 extern int using_spice;
+extern int spice_displays;
 
 void qemu_spice_init(void);
 void qemu_spice_input_init(void);
@@ -57,6 +58,7 @@ static inline CharDriverState *qemu_chr_open_spice_port(const char *name)
 #include "monitor/monitor.h"
 
 #define using_spice 0
+#define spice_displays 0
 static inline int qemu_spice_set_passwd(const char *passwd,
                                         bool fail_if_connected,
                                         bool disconnect_if_connected)

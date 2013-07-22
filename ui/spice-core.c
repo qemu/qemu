@@ -48,6 +48,7 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 int using_spice = 0;
+int spice_displays;
 
 static QemuThread me;
 
@@ -834,6 +835,10 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
         spice_server = spice_server_new();
         spice_server_init(spice_server, &core_interface);
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+    }
+
+    if (strcmp(sin->sif->type, SPICE_INTERFACE_QXL) == 0) {
+        spice_displays++;
     }
 
     return spice_server_add_interface(spice_server, sin);
