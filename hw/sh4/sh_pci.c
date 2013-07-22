@@ -129,7 +129,8 @@ static int sh_pci_device_init(SysBusDevice *dev)
                           "sh_pci", 0x224);
     memory_region_init_alias(&s->memconfig_a7, OBJECT(s), "sh_pci.2",
                              &s->memconfig_p4, 0, 0x224);
-    isa_mmio_setup(&s->isa, 0x40000);
+    memory_region_init_alias(&s->isa, OBJECT(s), "sh_pci.isa",
+                             get_system_io(), 0, 0x40000);
     sysbus_init_mmio(dev, &s->memconfig_p4);
     sysbus_init_mmio(dev, &s->memconfig_a7);
     s->iobr = 0xfe240000;
