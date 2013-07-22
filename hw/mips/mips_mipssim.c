@@ -140,6 +140,7 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     const char *initrd_filename = args->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
@@ -212,7 +213,9 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     cpu_mips_clock_init(env);
 
     /* Register 64 KB of ISA IO space at 0x1fd00000. */
-    isa_mmio_init(0x1fd00000, 0x00010000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00010000);
+    memory_region_add_subregion(get_system_memory(), 0x1fd00000, isa);
 
     /* A single 16450 sits at offset 0x3f8. It is attached to
        MIPS CPU INT2, which is interrupt 4. */
