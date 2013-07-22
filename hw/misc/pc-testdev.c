@@ -80,13 +80,20 @@ static void test_ioport_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned len)
 {
     PCTestdev *dev = opaque;
-    dev->ioport_data = data;
+    int bits = len * 8;
+    int start_bit = (addr & 3) * 8;
+    uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
+    dev->ioport_data &= ~mask;
+    dev->ioport_data |= data << start_bit;
 }
 
 static uint64_t test_ioport_read(void *opaque, hwaddr addr, unsigned len)
 {
     PCTestdev *dev = opaque;
-    return dev->ioport_data;
+    int bits = len * 8;
+    int start_bit = (addr & 3) * 8;
+    uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
+    return (dev->ioport_data & mask) >> start_bit;
 }
 
 static const MemoryRegionOps test_ioport_ops = {
