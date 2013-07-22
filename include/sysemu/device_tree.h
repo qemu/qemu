@@ -51,4 +51,63 @@ int qemu_devtree_add_subnode(void *fdt, const char *name);
 
 void qemu_devtree_dumpdtb(void *fdt, int size);
 
+/**
+ * qemu_devtree_setprop_sized_cells_from_array:
+ * @fdt: device tree blob
+ * @node_path: node to set property on
+ * @property: property to set
+ * @numvalues: number of values
+ * @values: array of number-of-cells, value pairs
+ *
+ * Set the specified property on the specified node in the device tree
+ * to be an array of cells. The values of the cells are specified via
+ * the values list, which alternates between "number of cells used by
+ * this value" and "value".
+ * number-of-cells must be either 1 or 2 (other values will result in
+ * an error being returned). If a value is too large to fit in the
+ * number of cells specified for it, an error is returned.
+ *
+ * This function is useful because device tree nodes often have cell arrays
+ * which are either lists of addresses or lists of address,size tuples, but
+ * the number of cells used for each element vary depending on the
+ * #address-cells and #size-cells properties of their parent node.
+ * If you know all your cell elements are one cell wide you can use the
+ * simpler qemu_devtree_setprop_cells(). If you're not setting up the
+ * array programmatically, qemu_devtree_setprop_sized_cells may be more
+ * convenient.
+ *
+ * Return value: 0 on success, <0 on error.
+ */
+int qemu_devtree_setprop_sized_cells_from_array(void *fdt,
+                                                const char *node_path,
+                                                const char *property,
+                                                int numvalues,
+                                                uint64_t *values);
+
+/**
+ * qemu_devtree_setprop_sized_cells:
+ * @fdt: device tree blob
+ * @node_path: node to set property on
+ * @property: property to set
+ * @...: list of number-of-cells, value pairs
+ *
+ * Set the specified property on the specified node in the device tree
+ * to be an array of cells. The values of the cells are specified via
+ * the variable arguments, which alternates between "number of cells
+ * used by this value" and "value".
+ *
+ * This is a convenience wrapper for the function
+ * qemu_devtree_setprop_sized_cells_from_array().
+ *
+ * Return value: 0 on success, <0 on error.
+ */
+#define qemu_devtree_setprop_sized_cells(fdt, node_path, property, ...)       \
+    ({                                                                        \
+        uint64_t qdt_tmp[] = { __VA_ARGS__ };                                 \
+        qemu_devtree_setprop_sized_cells_from_array(fdt, node_path,           \
+                                                    property,                 \
+                                                    ARRAY_SIZE(qdt_tmp) / 2,  \
+                                                    qdt_tmp);                 \
+    })
+
 #endif /* __DEVICE_TREE_H__ */

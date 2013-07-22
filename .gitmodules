@@ -15,7 +15,7 @@
 	url = git://git.qemu.org/openbios.git
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
-	url = git://repo.or.cz/qemu-palcode.git
+	url = git://github.com/rth7680/qemu-palcode.git
 [submodule "roms/sgabios"]
 	path = roms/sgabios
 	url = git://git.qemu.org/sgabios.git

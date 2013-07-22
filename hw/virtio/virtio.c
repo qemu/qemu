@@ -19,8 +19,11 @@
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
 
-/* The alignment to use between consumer and producer parts of vring.
- * x86 pagesize again. */
+/*
+ * The alignment to use between consumer and producer parts of vring.
+ * x86 pagesize again. This is the default, used by transports like PCI
+ * which don't provide a means for the guest to tell the host the alignment.
+ */
 #define VIRTIO_PCI_VRING_ALIGN         4096
 
 typedef struct VRingDesc
@@ -54,6 +57,7 @@ typedef struct VRingUsed
 typedef struct VRing
 {
     unsigned int num;
+    unsigned int align;
     hwaddr desc;
     hwaddr avail;
     hwaddr used;
@@ -93,7 +97,7 @@ static void virtqueue_init(VirtQueue *vq)
     vq->vring.avail = pa + vq->vring.num * sizeof(VRingDesc);
     vq->vring.used = vring_align(vq->vring.avail +
                                  offsetof(VRingAvail, ring[vq->vring.num]),
-                                 VIRTIO_PCI_VRING_ALIGN);
+                                 vq->vring.align);
 }
 
 static inline uint64_t vring_desc_addr(hwaddr desc_pa, int i)
@@ -667,6 +671,14 @@ hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].pa;
 }
 
+void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
+{
+    if (num <= VIRTQUEUE_MAX_SIZE) {
+        vdev->vq[n].vring.num = num;
+        virtqueue_init(&vdev->vq[n]);
+    }
+}
+
 int virtio_queue_get_num(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.num;
@@ -677,6 +689,21 @@ int virtio_queue_get_id(VirtQueue *vq)
     VirtIODevice *vdev = vq->vdev;
     assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_PCI_QUEUE_MAX]);
     return vq - &vdev->vq[0];
+}
+
+void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    /* Check that the transport told us it was going to do this
+     * (so a buggy transport will immediately assert rather than
+     * silently failing to migrate this state)
+     */
+    assert(k->has_variable_vring_alignment);
+
+    vdev->vq[n].vring.align = align;
+    virtqueue_init(&vdev->vq[n]);
 }
 
 void virtio_queue_notify_vq(VirtQueue *vq)
@@ -719,6 +746,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
         abort();
 
     vdev->vq[i].vring.num = queue_size;
+    vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
 
     return &vdev->vq[i];
@@ -825,6 +853,9 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
             break;
 
         qemu_put_be32(f, vdev->vq[i].vring.num);
+        if (k->has_variable_vring_alignment) {
+            qemu_put_be32(f, vdev->vq[i].vring.align);
+        }
         qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
         if (k->save_queue) {
@@ -881,6 +912,9 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 
     for (i = 0; i < num; i++) {
         vdev->vq[i].vring.num = qemu_get_be32(f);
+        if (k->has_variable_vring_alignment) {
+            vdev->vq[i].vring.align = qemu_get_be32(f);
+        }
         vdev->vq[i].pa = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
         vdev->vq[i].signalled_used_valid = false;

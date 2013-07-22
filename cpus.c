@@ -443,10 +443,11 @@ static int do_vm_stop(RunState state)
         pause_all_vcpus();
         runstate_set(state);
         vm_state_notify(0, state);
-        bdrv_drain_all();
-        ret = bdrv_flush_all();
         monitor_protocol_event(QEVENT_STOP, NULL);
     }
+
+    bdrv_drain_all();
+    ret = bdrv_flush_all();
 
     return ret;
 }
@@ -1126,7 +1127,9 @@ int vm_stop_force_state(RunState state)
         return vm_stop(state);
     } else {
         runstate_set(state);
-        return 0;
+        /* Make sure to return an error if the flush in a previous vm_stop()
+         * failed. */
+        return bdrv_flush_all();
     }
 }
 

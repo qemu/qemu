@@ -2493,8 +2493,8 @@ listening on port 4444 would be:
 @table @code
 @item -serial mon:telnet::4444,server,nowait
 @end table
-When monitor is multiplexed to stdio this way, Ctrl+C will not terminate
-QEMU anymore but will be passed to the guest instead.
+When the monitor is multiplexed to stdio in this way, Ctrl+C will not terminate
+QEMU any more but will be passed to the guest instead.
 
 @item braille
 Braille device.  This will use BrlAPI to display the braille output on a real

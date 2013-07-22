@@ -355,7 +355,7 @@ minimac2_write(void *opaque, hwaddr addr, uint64_t value,
 {
     MilkymistMinimac2State *s = opaque;
 
-    trace_milkymist_minimac2_memory_read(addr, value);
+    trace_milkymist_minimac2_memory_write(addr, value);
 
     addr >>= 2;
     switch (addr) {

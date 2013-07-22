@@ -537,7 +537,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, 1, false);
 
-    vring_teardown(&s->vring);
+    vring_teardown(&s->vring, s->vdev, 0);
     s->started = false;
     s->stopping = false;
 }
