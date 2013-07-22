@@ -191,6 +191,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIG_STATE_SETUP:
         info->has_status = true;
         info->status = g_strdup("setup");
+        info->has_total_time = false;
         break;
     case MIG_STATE_ACTIVE:
         info->has_status = true;
@@ -200,6 +201,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             - s->total_time;
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
+        info->has_setup_time = true;
+        info->setup_time = s->setup_time;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
@@ -231,6 +234,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->total_time = s->total_time;
         info->has_downtime = true;
         info->downtime = s->downtime;
+        info->has_setup_time = true;
+        info->setup_time = s->setup_time;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
@@ -539,6 +544,7 @@ static void *migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
+    int64_t setup_start = qemu_get_clock_ms(host_clock);
     int64_t initial_bytes = 0;
     int64_t max_size = 0;
     int64_t start_time = initial_time;
@@ -547,7 +553,10 @@ static void *migration_thread(void *opaque)
     DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
 
+    s->setup_time = qemu_get_clock_ms(host_clock) - setup_start;
     migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
+
+    DPRINTF("setup complete\n");
 
     while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
