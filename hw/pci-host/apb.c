@@ -302,56 +302,6 @@ static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void pci_apb_iowriteb (void *opaque, hwaddr addr,
-                                  uint32_t val)
-{
-    cpu_outb(addr & IOPORTS_MASK, val);
-}
-
-static void pci_apb_iowritew (void *opaque, hwaddr addr,
-                                  uint32_t val)
-{
-    cpu_outw(addr & IOPORTS_MASK, bswap16(val));
-}
-
-static void pci_apb_iowritel (void *opaque, hwaddr addr,
-                                uint32_t val)
-{
-    cpu_outl(addr & IOPORTS_MASK, bswap32(val));
-}
-
-static uint32_t pci_apb_ioreadb (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = cpu_inb(addr & IOPORTS_MASK);
-    return val;
-}
-
-static uint32_t pci_apb_ioreadw (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = bswap16(cpu_inw(addr & IOPORTS_MASK));
-    return val;
-}
-
-static uint32_t pci_apb_ioreadl (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = bswap32(cpu_inl(addr & IOPORTS_MASK));
-    return val;
-}
-
-static const MemoryRegionOps pci_ioport_ops = {
-    .old_mmio = {
-        .read = { pci_apb_ioreadb, pci_apb_ioreadw, pci_apb_ioreadl },
-        .write = { pci_apb_iowriteb, pci_apb_iowritew, pci_apb_iowritel, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 /* The APB host has an IRQ line for each IRQ line of each slot.  */
 static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -536,8 +486,8 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->pci_config);
 
     /* pci_ioport */
-    memory_region_init_io(&s->pci_ioport, OBJECT(s), &pci_ioport_ops, s,
-                          "apb-pci-ioport", 0x10000);
+    memory_region_init_alias(&s->pci_ioport, OBJECT(s), "apb-pci-ioport",
+                             get_system_io(), 0, 0x10000);
     /* at region 2 */
     sysbus_init_mmio(dev, &s->pci_ioport);
 
