@@ -908,9 +908,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
                 fprintf(stderr,
-                        "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
+                        "qemu: Warning, could not load MIPS bios '%s', and no -kernel argument was specified\n",
                         bios_name);
-                exit(1);
             }
         }
         /* In little endian mode the 32bit words in the bios are swapped,

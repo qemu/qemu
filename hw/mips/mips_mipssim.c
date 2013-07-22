@@ -192,9 +192,8 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         fprintf(stderr,
-                "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
+                "qemu: Warning, could not load MIPS bios '%s', and no -kernel argument was specified\n",
                 filename);
-        exit(1);
     } else {
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;

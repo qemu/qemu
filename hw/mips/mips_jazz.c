@@ -177,9 +177,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
         bios_size = -1;
     }
     if (bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) {
-        fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n",
+        fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
                 bios_name);
-        exit(1);
     }
 
     /* Init CPU internal devices */
