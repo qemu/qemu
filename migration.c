@@ -36,7 +36,8 @@
 #endif
 
 enum {
-    MIG_STATE_ERROR,
+    MIG_STATE_ERROR = -1,
+    MIG_STATE_NONE,
     MIG_STATE_SETUP,
     MIG_STATE_CANCELLED,
     MIG_STATE_ACTIVE,
@@ -63,7 +64,7 @@ static NotifierList migration_state_notifiers =
 MigrationState *migrate_get_current(void)
 {
     static MigrationState current_migration = {
-        .state = MIG_STATE_SETUP,
+        .state = MIG_STATE_NONE,
         .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
@@ -184,8 +185,12 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     MigrationState *s = migrate_get_current();
 
     switch (s->state) {
-    case MIG_STATE_SETUP:
+    case MIG_STATE_NONE:
         /* no migration has happened ever */
+        break;
+    case MIG_STATE_SETUP:
+        info->has_status = true;
+        info->status = g_strdup("setup");
         break;
     case MIG_STATE_ACTIVE:
         info->has_status = true;
@@ -257,7 +262,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
 
-    if (s->state == MIG_STATE_ACTIVE) {
+    if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -392,7 +397,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     params.blk = blk;
     params.shared = inc;
 
-    if (s->state == MIG_STATE_ACTIVE) {
+    if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -542,6 +547,8 @@ static void *migration_thread(void *opaque)
     DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
 
+    migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
+
     while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
@@ -632,8 +639,8 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    s->state = MIG_STATE_ACTIVE;
-    trace_migrate_set_state(MIG_STATE_ACTIVE);
+    s->state = MIG_STATE_SETUP;
+    trace_migrate_set_state(MIG_STATE_SETUP);
 
     /* This is a best 1st approximation. ns to ms */
     s->expected_downtime = max_downtime/1000000;
