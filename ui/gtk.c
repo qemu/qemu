@@ -98,6 +98,10 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define GDK_KEY_minus GDK_minus
 #endif
 
+#define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
+#define IGNORE_MODIFIER_MASK \
+    (GDK_MODIFIER_MASK & ~(GDK_LOCK_MASK | GDK_MOD2_MASK))
+
 static const int modifier_keycode[] = {
     /* shift, control, alt keys, meta keys, both left & right */
     0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
@@ -473,22 +477,10 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    GtkAccelGroupEntry *entries;
-    guint n_entries = 0;
-    gboolean propagate_accel = TRUE;
     gboolean handled = FALSE;
 
-    entries = gtk_accel_group_query(s->accel_group, key->keyval,
-                                    key->state, &n_entries);
-    if (n_entries) {
-        const char *quark = g_quark_to_string(entries[0].accel_path_quark);
-
-        if (gd_is_grab_active(s) && strstart(quark, "<QEMU>/File/", NULL)) {
-            propagate_accel = FALSE;
-        }
-    }
-
-    if (!handled && propagate_accel) {
+    if (!gd_is_grab_active(s) ||
+        (key->state & IGNORE_MODIFIER_MASK) == HOTKEY_MODIFIERS) {
         handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
     }
     if (handled) {
@@ -1197,7 +1189,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
     group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
-    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
     vc->terminal = vte_terminal_new();
 
@@ -1354,7 +1346,8 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
         gtk_image_menu_item_new_from_stock(GTK_STOCK_FULLSCREEN, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
                                  "<QEMU>/View/Full Screen");
-    gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f,
+                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->full_screen_item);
 
     separator = gtk_separator_menu_item_new();
@@ -1363,19 +1356,22 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     s->zoom_in_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_IN, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_in_item),
                                  "<QEMU>/View/Zoom In");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus,
+                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_in_item);
 
     s->zoom_out_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_OUT, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_out_item),
                                  "<QEMU>/View/Zoom Out");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus,
+                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_out_item);
 
     s->zoom_fixed_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_100, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_fixed_item),
                                  "<QEMU>/View/Zoom Fixed");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0,
+                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_fixed_item);
 
     s->zoom_fit_item = gtk_check_menu_item_new_with_mnemonic(_("Zoom To _Fit"));
@@ -1390,7 +1386,8 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     s->grab_item = gtk_check_menu_item_new_with_mnemonic(_("_Grab Input"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->grab_item),
                                  "<QEMU>/View/Grab Input");
-    gtk_accel_map_add_entry("<QEMU>/View/Grab Input", GDK_KEY_g, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/Grab Input", GDK_KEY_g,
+                            HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->grab_item);
 
     separator = gtk_separator_menu_item_new();
@@ -1400,7 +1397,7 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(s->vga_item));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->vga_item),
                                  "<QEMU>/View/VGA");
-    gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->vga_item);
 
     for (i = 0; i < nb_vcs; i++) {
