@@ -3,7 +3,6 @@
 include pci.mak
 include sound.mak
 include usb.mak
-CONFIG_ISA_MMIO=y
 CONFIG_ESP=y
 CONFIG_VGA=y
 CONFIG_VGA_PCI=y

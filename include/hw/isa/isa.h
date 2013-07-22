@@ -92,9 +92,6 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
 
 extern hwaddr isa_mem_base;
 
-void isa_mmio_setup(MemoryRegion *mr, hwaddr size);
-void isa_mmio_init(hwaddr base, hwaddr size);
-
 /* dma.c */
 int DMA_get_channel_mode (int nchan);
 int DMA_read_memory (int nchan, void *buf, int pos, int size);
