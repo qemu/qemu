@@ -42,6 +42,13 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
     return bdrv_co_is_allocated(bs->file, sector_num, nb_sectors, pnum);
 }
 
+static int coroutine_fn raw_co_write_zeroes(BlockDriverState *bs,
+                                            int64_t sector_num,
+                                            int nb_sectors)
+{
+    return bdrv_co_write_zeroes(bs->file, sector_num, nb_sectors);
+}
+
 static int64_t raw_getlength(BlockDriverState *bs)
 {
     return bdrv_getlength(bs->file);
@@ -114,6 +121,11 @@ static int raw_has_zero_init(BlockDriverState *bs)
     return bdrv_has_zero_init(bs->file);
 }
 
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    return bdrv_get_info(bs->file, bdi);
+}
+
 static BlockDriver bdrv_raw = {
     .format_name        = "raw",
 
@@ -128,10 +140,12 @@ static BlockDriver bdrv_raw = {
     .bdrv_co_readv          = raw_co_readv,
     .bdrv_co_writev         = raw_co_writev,
     .bdrv_co_is_allocated   = raw_co_is_allocated,
+    .bdrv_co_write_zeroes   = raw_co_write_zeroes,
     .bdrv_co_discard        = raw_co_discard,
 
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
+    .bdrv_get_info      = raw_get_info,
     .bdrv_truncate      = raw_truncate,
 
     .bdrv_is_inserted   = raw_is_inserted,

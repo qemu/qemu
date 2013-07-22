@@ -237,6 +237,7 @@ libiscsi=""
 coroutine=""
 seccomp=""
 glusterfs=""
+glusterfs_discard="no"
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
@@ -2570,23 +2571,21 @@ fi
 ##########################################
 # glusterfs probe
 if test "$glusterfs" != "no" ; then
-  cat > $TMPC <<EOF
-#include <glusterfs/api/glfs.h>
-int main(void) {
-    (void) glfs_new("volume");
-    return 0;
-}
-EOF
-  glusterfs_libs="-lgfapi -lgfrpc -lgfxdr"
-  if compile_prog "" "$glusterfs_libs" ; then
-    glusterfs=yes
+  if $pkg_config --atleast-version=3 glusterfs-api >/dev/null 2>&1; then
+    glusterfs="yes"
+    glusterfs_cflags=`$pkg_config --cflags glusterfs-api 2>/dev/null`
+    glusterfs_libs=`$pkg_config --libs glusterfs-api 2>/dev/null`
+    CFLAGS="$CFLAGS $glusterfs_cflags"
     libs_tools="$glusterfs_libs $libs_tools"
     libs_softmmu="$glusterfs_libs $libs_softmmu"
+    if $pkg_config --atleast-version=5 glusterfs-api >/dev/null 2>&1; then
+      glusterfs_discard="yes"
+    fi
   else
     if test "$glusterfs" = "yes" ; then
       feature_not_found "GlusterFS backend support"
     fi
-    glusterfs=no
+    glusterfs="no"
   fi
 fi
 
@@ -3967,6 +3966,10 @@ fi
 
 if test "$glusterfs" = "yes" ; then
   echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
+fi
+
+if test "$glusterfs_discard" = "yes" ; then
+  echo "CONFIG_GLUSTERFS_DISCARD=y" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then
