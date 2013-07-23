@@ -82,7 +82,7 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
         }
 
         if (kernel_size < 0) {
-            qemu_log("QEMU: couldn't load the kernel '%s'\n",
+            fprintf(stderr, "QEMU: couldn't load the kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
@@ -107,7 +107,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_openrisc_init(cpu_model);
         if (cpu == NULL) {
-            qemu_log("Unable to find CPU definition!\n");
+            fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
         }
         qemu_register_reset(main_cpu_reset, cpu);
