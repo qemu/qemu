@@ -2879,6 +2879,7 @@ static inline
 void gen_intermediate_code_internal(XtensaCPU *cpu,
                                     TranslationBlock *tb, bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUXtensaState *env = &cpu->env;
     DisasContext dc;
     int insn_count = 0;
@@ -2894,7 +2895,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     }
 
     dc.config = env->config;
-    dc.singlestep_enabled = env->singlestep_enabled;
+    dc.singlestep_enabled = cs->singlestep_enabled;
     dc.tb = tb;
     dc.pc = pc_start;
     dc.ring = tb->flags & XTENSA_TBFLAG_RING_MASK;
@@ -2917,7 +2918,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
 
     gen_tb_start();
 
-    if (env->singlestep_enabled && env->exception_taken) {
+    if (cs->singlestep_enabled && env->exception_taken) {
         env->exception_taken = 0;
         tcg_gen_movi_i32(cpu_pc, dc.pc);
         gen_exception(&dc, EXCP_DEBUG);
@@ -2970,7 +2971,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         if (dc.icount) {
             tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
         }
-        if (env->singlestep_enabled) {
+        if (cs->singlestep_enabled) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
             break;

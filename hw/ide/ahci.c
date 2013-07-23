@@ -117,12 +117,13 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 
 static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    PCIDevice *pci_dev = PCI_DEVICE(d);
 
     DPRINTF(0, "raise irq\n");
 
-    if (msi_enabled(&d->card)) {
-        msi_notify(&d->card, 0);
+    if (msi_enabled(pci_dev)) {
+        msi_notify(pci_dev, 0);
     } else {
         qemu_irq_raise(s->irq);
     }
@@ -130,11 +131,11 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 
 static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
 
     DPRINTF(0, "lower irq\n");
 
-    if (!msi_enabled(&d->card)) {
+    if (!msi_enabled(PCI_DEVICE(d))) {
         qemu_irq_lower(s->irq);
     }
 }
@@ -1285,8 +1286,14 @@ const VMStateDescription vmstate_ahci = {
     },
 };
 
+#define TYPE_SYSBUS_AHCI "sysbus-ahci"
+#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
+
 typedef struct SysbusAHCIState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     AHCIState ahci;
     uint32_t num_ports;
 } SysbusAHCIState;
@@ -1302,19 +1309,20 @@ static const VMStateDescription vmstate_sysbus_ahci = {
 
 static void sysbus_ahci_reset(DeviceState *dev)
 {
-    SysbusAHCIState *s = DO_UPCAST(SysbusAHCIState, busdev.qdev, dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
     ahci_reset(&s->ahci);
 }
 
-static int sysbus_ahci_init(SysBusDevice *dev)
+static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
-    SysbusAHCIState *s = FROM_SYSBUS(SysbusAHCIState, dev);
-    ahci_init(&s->ahci, &dev->qdev, NULL, s->num_ports);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    sysbus_init_mmio(dev, &s->ahci.mem);
-    sysbus_init_irq(dev, &s->ahci.irq);
-    return 0;
+    ahci_init(&s->ahci, dev, NULL, s->num_ports);
+
+    sysbus_init_mmio(sbd, &s->ahci.mem);
+    sysbus_init_irq(sbd, &s->ahci.irq);
 }
 
 static Property sysbus_ahci_properties[] = {
@@ -1324,17 +1332,16 @@ static Property sysbus_ahci_properties[] = {
 
 static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sbc->init = sysbus_ahci_init;
+    dc->realize = sysbus_ahci_realize;
     dc->vmsd = &vmstate_sysbus_ahci;
     dc->props = sysbus_ahci_properties;
     dc->reset = sysbus_ahci_reset;
 }
 
 static const TypeInfo sysbus_ahci_info = {
-    .name          = "sysbus-ahci",
+    .name          = TYPE_SYSBUS_AHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysbusAHCIState),
     .class_init    = sysbus_ahci_class_init,

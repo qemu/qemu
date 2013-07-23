@@ -47,6 +47,7 @@ gcov-files-test-mul64-y = util/host-utils.c
 check-unit-y += tests/test-int128$(EXESUF)
 # all code tested by test-int128 is inside int128.h
 gcov-files-test-int128-y =
+check-unit-y += tests/test-bitops$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -125,6 +126,7 @@ tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marsh
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 
 tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
+tests/test-bitops$(EXESUF): tests/test-bitops.o libqemuutil.a
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o
 libqos-obj-y += tests/libqos/i2c.o

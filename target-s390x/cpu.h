@@ -1041,11 +1041,6 @@ static inline bool cpu_has_work(CPUState *cpu)
         (env->psw.mask & PSW_MASK_EXT);
 }
 
-static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
-{
-    env->psw.addr = tb->pc;
-}
-
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);

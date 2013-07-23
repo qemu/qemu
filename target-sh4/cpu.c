@@ -24,6 +24,21 @@
 #include "migration/vmstate.h"
 
 
+static void superh_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
+static void superh_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+
+    cpu->env.pc = tb->pc;
+    cpu->env.flags = tb->flags;
+}
+
 /* CPUClass::reset() */
 static void superh_cpu_reset(CPUState *s)
 {
@@ -269,6 +284,11 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = superh_cpu_class_by_name;
     cc->do_interrupt = superh_cpu_do_interrupt;
     cc->dump_state = superh_cpu_dump_state;
+    cc->set_pc = superh_cpu_set_pc;
+    cc->synchronize_from_tb = superh_cpu_synchronize_from_tb;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = superh_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_sh_cpu;
 }
 

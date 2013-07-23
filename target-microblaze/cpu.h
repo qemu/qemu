@@ -365,9 +365,4 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUMBState *env, TranslationBlock *tb)
-{
-    env->sregs[SR_PC] = tb->pc;
-}
-
 #endif

@@ -301,9 +301,17 @@ typedef struct AHCIState {
 } AHCIState;
 
 typedef struct AHCIPCIState {
-    PCIDevice card;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     AHCIState ahci;
 } AHCIPCIState;
+
+#define TYPE_ICH9_AHCI "ich9-ahci"
+
+#define ICH_AHCI(obj) \
+    OBJECT_CHECK(AHCIPCIState, (obj), TYPE_ICH9_AHCI)
 
 extern const VMStateDescription vmstate_ahci;
 

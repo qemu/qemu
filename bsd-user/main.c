@@ -643,7 +643,7 @@ void cpu_loop(CPUSPARCState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
 #if 0
                 if (sig)
                   {
@@ -738,6 +738,7 @@ int main(int argc, char **argv)
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
     CPUArchState *env;
+    CPUState *cpu;
     int optind;
     const char *r;
     int gdbstub_port = 0;
@@ -912,10 +913,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    cpu = ENV_GET_CPU(env);
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_reset(ENV_GET_CPU(env));
+    cpu_reset(cpu);
 #endif
-    thread_cpu = ENV_GET_CPU(env);
+    thread_cpu = cpu;
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;
@@ -1134,7 +1136,7 @@ int main(int argc, char **argv)
 
     if (gdbstub_port) {
         gdbserver_start (gdbstub_port);
-        gdb_handlesig(env, 0);
+        gdb_handlesig(cpu, 0);
     }
     cpu_loop(env);
     /* never exits */

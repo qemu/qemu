@@ -522,9 +522,4 @@ static inline int cpu_has_work(CPUState *cpu)
     return env->pending_irq_level;
 }
 
-static inline void cpu_pc_from_tb(CPUXtensaState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-
 #endif

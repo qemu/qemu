@@ -310,6 +310,7 @@ static void set_idt(int n, unsigned int dpl)
 
 void cpu_loop(CPUX86State *env)
 {
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     int trapnr;
     abi_ulong pc;
     target_siginfo_t info;
@@ -481,7 +482,7 @@ void cpu_loop(CPUX86State *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -913,7 +914,7 @@ void cpu_loop(CPUARMState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -1004,7 +1005,7 @@ void cpu_loop(CPUUniCore32State *env)
             {
                 int sig;
 
-                sig = gdb_handlesig(env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
@@ -1271,7 +1272,7 @@ void cpu_loop (CPUSPARCState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -1802,7 +1803,7 @@ void cpu_loop(CPUPPCState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig(env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
@@ -2353,7 +2354,7 @@ done_syscall:
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -2513,7 +2514,7 @@ void cpu_loop(CPUOpenRISCState *env)
             break;
         }
         if (gdbsig) {
-            gdb_handlesig(env, gdbsig);
+            gdb_handlesig(cs, gdbsig);
             if (gdbsig != TARGET_SIGTRAP) {
                 exit(1);
             }
@@ -2556,7 +2557,7 @@ void cpu_loop(CPUSH4State *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -2624,7 +2625,7 @@ void cpu_loop(CPUCRISState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -2724,7 +2725,7 @@ void cpu_loop(CPUMBState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -2817,7 +2818,7 @@ void cpu_loop(CPUM68KState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
                 if (sig)
                   {
                     info.si_signo = sig;
@@ -3044,7 +3045,7 @@ void cpu_loop(CPUAlphaState *env)
             }
             break;
         case EXCP_DEBUG:
-            info.si_signo = gdb_handlesig (env, TARGET_SIGTRAP);
+            info.si_signo = gdb_handlesig(cs, TARGET_SIGTRAP);
             if (info.si_signo) {
                 env->lock_addr = -1;
                 info.si_errno = 0;
@@ -3097,7 +3098,7 @@ void cpu_loop(CPUS390XState *env)
             break;
 
         case EXCP_DEBUG:
-            sig = gdb_handlesig(env, TARGET_SIGTRAP);
+            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
             if (sig) {
                 n = TARGET_TRAP_BRKPT;
                 goto do_signal_pc;
@@ -3584,6 +3585,7 @@ int main(int argc, char **argv)
     struct linux_binprm bprm;
     TaskState *ts;
     CPUArchState *env;
+    CPUState *cpu;
     int optind;
     char **target_environ, **wrk;
     char **target_argv;
@@ -3680,11 +3682,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    cpu = ENV_GET_CPU(env);
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_reset(ENV_GET_CPU(env));
+    cpu_reset(cpu);
 #endif
 
-    thread_cpu = ENV_GET_CPU(env);
+    thread_cpu = cpu;
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;
@@ -4119,7 +4122,7 @@ int main(int argc, char **argv)
                     gdbstub_port);
             exit(1);
         }
-        gdb_handlesig(env, 0);
+        gdb_handlesig(cpu, 0);
     }
     cpu_loop(env);
     /* never exits */

@@ -40,8 +40,23 @@ speaking, the size of guest memory can always fit into ram_addr_t but
 it would not be correct to store an actual guest physical address in a
 ram_addr_t.
 
-Use target_ulong (or abi_ulong) for CPU virtual addresses, however
-devices should not need to use target_ulong.
+For CPU virtual addresses there are several possible types.
+vaddr is the best type to use to hold a CPU virtual address in
+target-independent code. It is guaranteed to be large enough to hold a
+virtual address for any target, and it does not change size from target
+to target. It is always unsigned.
+target_ulong is a type the size of a virtual address on the CPU; this means
+it may be 32 or 64 bits depending on which target is being built. It should
+therefore be used only in target-specific code, and in some
+performance-critical built-per-target core code such as the TLB code.
+There is also a signed version, target_long.
+abi_ulong is for the *-user targets, and represents a type the size of
+'void *' in that target's ABI. (This may not be the same as the size of a
+full CPU virtual address in the case of target ABIs which use 32 bit pointers
+on 64 bit CPUs, like sparc32plus.) Definitions of structures that must match
+the target's ABI must use this type for anything that on the target is defined
+to be an 'unsigned long' or a pointer type.
+There is also a signed version, abi_long.
 
 Of course, take all of the above with a grain of salt.  If you're about
 to use some system interface that requires a type like size_t, pid_t or

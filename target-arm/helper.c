@@ -1513,16 +1513,17 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
 
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
 
     if (arm_feature(env, ARM_FEATURE_NEON)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
     } else if (arm_feature(env, ARM_FEATURE_VFP3)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  35, "arm-vfp3.xml", 0);
     } else if (arm_feature(env, ARM_FEATURE_VFP)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  19, "arm-vfp.xml", 0);
     }
 }
@@ -2762,17 +2763,19 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
     return 1;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
+hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret;
 
-    ret = get_phys_addr(env, addr, 0, 0, &phys_addr, &prot, &page_size);
+    ret = get_phys_addr(&cpu->env, addr, 0, 0, &phys_addr, &prot, &page_size);
 
-    if (ret != 0)
+    if (ret != 0) {
         return -1;
+    }
 
     return phys_addr;
 }

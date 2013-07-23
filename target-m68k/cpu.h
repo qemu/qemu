@@ -260,9 +260,4 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUM68KState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-
 #endif

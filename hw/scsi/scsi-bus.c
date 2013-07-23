@@ -209,10 +209,11 @@ static int scsi_qdev_exit(DeviceState *qdev)
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
                                       int unit, bool removable, int bootindex,
-                                      const char *serial)
+                                      const char *serial, Error **errp)
 {
     const char *driver;
     DeviceState *dev;
+    Error *err = NULL;
 
     driver = bdrv_is_sg(bdrv) ? "scsi-generic" : "scsi-disk";
     dev = qdev_create(&bus->qbus, driver);
@@ -227,19 +228,25 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
         qdev_prop_set_string(dev, "serial", serial);
     }
     if (qdev_prop_set_drive(dev, "drive", bdrv) < 0) {
+        error_setg(errp, "Setting drive property failed");
         qdev_free(dev);
         return NULL;
     }
-    if (qdev_init(dev) < 0)
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        qdev_free(dev);
         return NULL;
+    }
     return SCSI_DEVICE(dev);
 }
 
-int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
+void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp)
 {
     Location loc;
     DriveInfo *dinfo;
-    int res = 0, unit;
+    int unit;
+    Error *err = NULL;
 
     loc_push_none(&loc);
     for (unit = 0; unit <= bus->info->max_target; unit++) {
@@ -248,13 +255,14 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        if (!scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1, NULL)) {
-            res = -1;
+        scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1, NULL,
+                                  &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
             break;
         }
     }
     loc_pop(&loc);
-    return res;
 }
 
 static int32_t scsi_invalid_field(SCSIRequest *req, uint8_t *buf)

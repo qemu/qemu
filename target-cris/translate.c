@@ -3164,6 +3164,7 @@ static inline void
 gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUCRISState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
@@ -3196,7 +3197,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->ppc = pc_start;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->flags_uptodate = 1;
     dc->flagx_known = 1;
     dc->flags_x = tb->flags & X_FLAG;
@@ -3336,7 +3337,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 
         /* If we are rexecuting a branch due to exceptions on
            delay slots dont break.  */
-        if (!(tb->pc & 1) && env->singlestep_enabled) {
+        if (!(tb->pc & 1) && cs->singlestep_enabled) {
             break;
         }
     } while (!dc->is_jmp && !dc->cpustate_changed
@@ -3369,7 +3370,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 
     cris_evaluate_flags(dc);
 
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         if (dc->is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(env_pc, npc);
         }

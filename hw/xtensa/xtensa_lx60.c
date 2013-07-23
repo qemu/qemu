@@ -144,9 +144,11 @@ static void lx60_net_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, buffers, ram);
 }
 
-static uint64_t translate_phys_addr(void *env, uint64_t addr)
+static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
-    return cpu_get_phys_page_debug(env, addr);
+    XtensaCPU *cpu = opaque;
+
+    return cpu_get_phys_page_debug(CPU(cpu), addr);
 }
 
 static void lx60_reset(void *opaque)
@@ -252,7 +254,7 @@ static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
         }
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
-        int success = load_elf(kernel_filename, translate_phys_addr, env,
+        int success = load_elf(kernel_filename, translate_phys_addr, cpu,
                 &elf_entry, &elf_lowaddr, NULL, be, ELF_MACHINE, 0);
         if (success > 0) {
             env->pc = elf_entry;

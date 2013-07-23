@@ -2984,6 +2984,7 @@ static inline void
 gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
@@ -3005,7 +3006,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
     dc->cc_op = CC_OP_DYNAMIC;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->is_mem = 0;
@@ -3048,14 +3049,14 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
 	disas_m68k_insn(env, dc);
         num_insns++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
             gen_flush_cc_op(dc);

@@ -1849,6 +1849,7 @@ static inline void
 gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
@@ -1868,7 +1869,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
        so assume it is a dynamic branch.  */
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.features = env->features;
     ctx.has_movcal = (ctx.flags & TB_FLAG_PENDING_MOVCA);
 
@@ -1914,8 +1915,9 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;
-	if (env->singlestep_enabled)
+        if (cs->singlestep_enabled) {
 	    break;
+        }
         if (num_insns >= max_insns)
             break;
         if (singlestep)
@@ -1923,7 +1925,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (env->singlestep_enabled) {
+    if (cs->singlestep_enabled) {
         tcg_gen_movi_i32(cpu_pc, ctx.pc);
         gen_helper_debug(cpu_env);
     } else {

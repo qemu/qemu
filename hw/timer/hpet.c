@@ -42,6 +42,9 @@
 
 #define HPET_MSI_SUPPORT        0
 
+#define TYPE_HPET "hpet"
+#define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
+
 struct HPETState;
 typedef struct HPETTimer {  /* timers */
     uint8_t tn;             /*timer number*/
@@ -59,7 +62,10 @@ typedef struct HPETTimer {  /* timers */
 } HPETTimer;
 
 typedef struct HPETState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
@@ -634,7 +640,8 @@ static const MemoryRegionOps hpet_ram_ops = {
 
 static void hpet_reset(DeviceState *d)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, SYS_BUS_DEVICE(d));
+    HPETState *s = HPET(d);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(d);
     int i;
 
     for (i = 0; i < s->num_timers; i++) {
@@ -657,7 +664,7 @@ static void hpet_reset(DeviceState *d)
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-    hpet_cfg.hpet[s->hpet_id].address = SYS_BUS_DEVICE(d)->mmio[0].addr;
+    hpet_cfg.hpet[s->hpet_id].address = sbd->mmio[0].addr;
 
     /* to document that the RTC lowers its output on reset as well */
     s->rtc_irq_level = 0;
@@ -665,7 +672,7 @@ static void hpet_reset(DeviceState *d)
 
 static void hpet_handle_legacy_irq(void *opaque, int n, int level)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, opaque);
+    HPETState *s = HPET(opaque);
 
     if (n == HPET_LEGACY_PIT_INT) {
         if (!hpet_in_legacy_mode(s)) {
@@ -679,9 +686,20 @@ static void hpet_handle_legacy_irq(void *opaque, int n, int level)
     }
 }
 
-static int hpet_init(SysBusDevice *dev)
+static void hpet_init(Object *obj)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    HPETState *s = HPET(obj);
+
+    /* HPET Area */
+    memory_region_init_io(&s->iomem, obj, &hpet_ram_ops, s, "hpet", 0x400);
+    sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void hpet_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    HPETState *s = HPET(dev);
     int i;
     HPETTimer *timer;
 
@@ -691,14 +709,14 @@ static int hpet_init(SysBusDevice *dev)
     }
 
     if (hpet_cfg.count == 8) {
-        fprintf(stderr, "Only 8 instances of HPET is allowed\n");
-        return -1;
+        error_setg(errp, "Only 8 instances of HPET is allowed");
+        return;
     }
 
     s->hpet_id = hpet_cfg.count++;
 
     for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
-        sysbus_init_irq(dev, &s->irqs[i]);
+        sysbus_init_irq(sbd, &s->irqs[i]);
     }
 
     if (s->num_timers < HPET_MIN_TIMERS) {
@@ -718,13 +736,8 @@ static int hpet_init(SysBusDevice *dev)
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     s->capability |= ((HPET_CLK_PERIOD) << 32);
 
-    qdev_init_gpio_in(&dev->qdev, hpet_handle_legacy_irq, 2);
-    qdev_init_gpio_out(&dev->qdev, &s->pit_enabled, 1);
-
-    /* HPET Area */
-    memory_region_init_io(&s->iomem, OBJECT(s), &hpet_ram_ops, s, "hpet", 0x400);
-    sysbus_init_mmio(dev, &s->iomem);
-    return 0;
+    qdev_init_gpio_in(dev, hpet_handle_legacy_irq, 2);
+    qdev_init_gpio_out(dev, &s->pit_enabled, 1);
 }
 
 static Property hpet_device_properties[] = {
@@ -736,9 +749,8 @@ static Property hpet_device_properties[] = {
 static void hpet_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = hpet_init;
+    dc->realize = hpet_realize;
     dc->no_user = 1;
     dc->reset = hpet_reset;
     dc->vmsd = &vmstate_hpet;
@@ -746,9 +758,10 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo hpet_device_info = {
-    .name          = "hpet",
+    .name          = TYPE_HPET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HPETState),
+    .instance_init = hpet_init,
     .class_init    = hpet_device_class_init,
 };
 

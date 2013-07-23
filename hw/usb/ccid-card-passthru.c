@@ -364,7 +364,7 @@ static int passthru_exitfn(CCIDCardState *base)
 }
 
 static VMStateDescription passthru_vmstate = {
-    .name = PASSTHRU_DEV_NAME,
+    .name = "ccid-card-passthru",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {

@@ -152,6 +152,7 @@ static uint32_t errno_h2g(int host_errno)
 
 void HELPER(simcall)(CPUXtensaState *env)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     uint32_t *regs = env->regs;
 
     switch (regs[2]) {
@@ -169,8 +170,7 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t len = regs[5];
 
             while (len > 0) {
-                hwaddr paddr =
-                    cpu_get_phys_page_debug(env, vaddr);
+                hwaddr paddr = cpu_get_phys_page_debug(cs, vaddr);
                 uint32_t page_left =
                     TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
                 uint32_t io_sz = page_left < len ? page_left : len;
@@ -204,8 +204,8 @@ void HELPER(simcall)(CPUXtensaState *env)
             int i;
 
             for (i = 0; i < ARRAY_SIZE(name); ++i) {
-                rc = cpu_memory_rw_debug(
-                        env, regs[3] + i, (uint8_t *)name + i, 1, 0);
+                rc = cpu_memory_rw_debug(cs, regs[3] + i,
+                                         (uint8_t *)name + i, 1, 0);
                 if (rc != 0 || name[i] == 0) {
                     break;
                 }
@@ -249,7 +249,7 @@ void HELPER(simcall)(CPUXtensaState *env)
             FD_SET(fd, &fdset);
 
             if (target_tv) {
-                cpu_memory_rw_debug(env, target_tv,
+                cpu_memory_rw_debug(cs, target_tv,
                         (uint8_t *)target_tvv, sizeof(target_tvv), 0);
                 tv.tv_sec = (int32_t)tswap32(target_tvv[0]);
                 tv.tv_usec = (int32_t)tswap32(target_tvv[1]);
@@ -284,8 +284,8 @@ void HELPER(simcall)(CPUXtensaState *env)
             };
 
             argv.argptr[0] = tswap32(regs[3] + offsetof(struct Argv, text));
-            cpu_memory_rw_debug(
-                    env, regs[3], (uint8_t *)&argv, sizeof(argv), 1);
+            cpu_memory_rw_debug(cs,
+                                regs[3], (uint8_t *)&argv, sizeof(argv), 1);
         }
         break;
 

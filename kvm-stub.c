@@ -83,13 +83,13 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
     return -ENOSYS;
 }
 
-int kvm_insert_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
 }
 
-int kvm_remove_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
