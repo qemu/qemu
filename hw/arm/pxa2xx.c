@@ -798,8 +798,15 @@ static int pxa2xx_ssp_init(SysBusDevice *sbd)
 #define RTCPICR		0x34	/* RTC Periodic Interrupt Counter register */
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
+#define TYPE_PXA2XX_RTC "pxa2xx_rtc"
+#define PXA2XX_RTC(obj) \
+    OBJECT_CHECK(PXA2xxRTCState, (obj), TYPE_PXA2XX_RTC)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t rttr;
     uint32_t rtsr;
@@ -1110,7 +1117,7 @@ static const MemoryRegionOps pxa2xx_rtc_ops = {
 
 static int pxa2xx_rtc_init(SysBusDevice *dev)
 {
-    PXA2xxRTCState *s = FROM_SYSBUS(PXA2xxRTCState, dev);
+    PXA2xxRTCState *s = PXA2XX_RTC(dev);
     struct tm tm;
     int wom;
 
@@ -1205,7 +1212,7 @@ static void pxa2xx_rtc_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_rtc_sysbus_info = {
-    .name          = "pxa2xx_rtc",
+    .name          = TYPE_PXA2XX_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxRTCState),
     .class_init    = pxa2xx_rtc_sysbus_class_init,
@@ -2128,7 +2135,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
-    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+    sysbus_create_simple(TYPE_PXA2XX_RTC, 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
@@ -2259,7 +2266,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
-    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+    sysbus_create_simple(TYPE_PXA2XX_RTC, 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
