@@ -35,7 +35,7 @@ memory tracked during each live migration iteration round cannot keep pace
 with the rate of dirty memory produced by the workload.
 
 RDMA currently comes in two flavors: both Ethernet based (RoCE, or RDMA
-over Convered Ethernet) as well as Infiniband-based. This implementation of
+over Converged Ethernet) as well as Infiniband-based. This implementation of
 migration using RDMA is capable of using both technologies because of
 the use of the OpenFabrics OFED software stack that abstracts out the
 programming model irrespective of the underlying hardware.
@@ -188,9 +188,9 @@ header portion and a data portion (but together are transmitted
 as a single SEND message).
 
 Header:
-    * Length  (of the data portion, uint32, network byte order)
-    * Type    (what command to perform, uint32, network byte order)
-    * Repeat  (Number of commands in data portion, same type only)
+    * Length               (of the data portion, uint32, network byte order)
+    * Type                 (what command to perform, uint32, network byte order)
+    * Repeat               (Number of commands in data portion, same type only)
 
 The 'Repeat' field is here to support future multiple page registrations
 in a single message without any need to change the protocol itself
@@ -202,17 +202,19 @@ The maximum number of repeats is hard-coded to 4096. This is a conservative
 limit based on the maximum size of a SEND message along with emperical
 observations on the maximum future benefit of simultaneous page registrations.
 
-The 'type' field has 10 different command values:
-    1. Unused
-    2. Error              (sent to the source during bad things)
-    3. Ready              (control-channel is available)
-    4. QEMU File          (for sending non-live device state)
-    5. RAM Blocks request (used right after connection setup)
-    6. RAM Blocks result  (used right after connection setup)
-    7. Compress page      (zap zero page and skip registration)
-    8. Register request   (dynamic chunk registration)
-    9. Register result    ('rkey' to be used by sender)
-    10. Register finished  (registration for current iteration finished)
+The 'type' field has 12 different command values:
+     1. Unused
+     2. Error                      (sent to the source during bad things)
+     3. Ready                      (control-channel is available)
+     4. QEMU File                  (for sending non-live device state)
+     5. RAM Blocks request         (used right after connection setup)
+     6. RAM Blocks result          (used right after connection setup)
+     7. Compress page              (zap zero page and skip registration)
+     8. Register request           (dynamic chunk registration)
+     9. Register result            ('rkey' to be used by sender)
+    10. Register finished          (registration for current iteration finished)
+    11. Unregister request         (unpin previously registered memory)
+    12. Unregister finished        (confirmation that unpin completed)
 
 A single control message, as hinted above, can contain within the data
 portion an array of many commands of the same type. If there is more than
@@ -243,7 +245,7 @@ qemu_rdma_exchange_send(header, data, optional response header & data):
    from the receiver to tell us that the receiver
    is *ready* for us to transmit some new bytes.
 2. Optionally: if we are expecting a response from the command
-   (that we have no yet transmitted), let's post an RQ
+   (that we have not yet transmitted), let's post an RQ
    work request to receive that data a few moments later.
 3. When the READY arrives, librdmacm will
    unblock us and we immediately post a RQ work request
@@ -293,8 +295,10 @@ librdmacm provides the user with a 'private data' area to be exchanged
 at connection-setup time before any infiniband traffic is generated.
 
 Header:
-    * Version (protocol version validated before send/recv occurs), uint32, network byte order
-    * Flags   (bitwise OR of each capability), uint32, network byte order
+    * Version (protocol version validated before send/recv occurs),
+                                               uint32, network byte order
+    * Flags   (bitwise OR of each capability),
+                                               uint32, network byte order
 
 There is no data portion of this header right now, so there is
 no length field. The maximum size of the 'private data' section
@@ -313,7 +317,7 @@ If the version is invalid, we throw an error.
 If the version is new, we only negotiate the capabilities that the
 requested version is able to perform and ignore the rest.
 
-Currently there is only *one* capability in Version #1: dynamic page registration
+Currently there is only one capability in Version #1: dynamic page registration
 
 Finally: Negotiation happens with the Flags field: If the primary-VM
 sets a flag, but the destination does not support this capability, it
@@ -326,8 +330,8 @@ QEMUFileRDMA Interface:
 
 QEMUFileRDMA introduces a couple of new functions:
 
-1. qemu_rdma_get_buffer()  (QEMUFileOps rdma_read_ops)
-2. qemu_rdma_put_buffer()  (QEMUFileOps rdma_write_ops)
+1. qemu_rdma_get_buffer()               (QEMUFileOps rdma_read_ops)
+2. qemu_rdma_put_buffer()               (QEMUFileOps rdma_write_ops)
 
 These two functions are very short and simply use the protocol
 describe above to deliver bytes without changing the upper-level
@@ -413,3 +417,8 @@ TODO:
    the use of KSM and ballooning while using RDMA.
 4. Also, some form of balloon-device usage tracking would also
    help alleviate some issues.
+5. Move UNREGISTER requests to a separate thread.
+6. Use LRU to provide more fine-grained direction of UNREGISTER
+   requests for unpinning memory in an overcommitted environment.
+7. Expose UNREGISTER support to the user by way of workload-specific
+   hints about application behavior.

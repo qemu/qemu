@@ -252,6 +252,24 @@ static void cpu_pre_save(void *opaque)
     }
 
     env->fpregs_format_vmstate = 0;
+
+    /*
+     * Real mode guest segments register DPL should be zero.
+     * Older KVM version were setting it wrongly.
+     * Fixing it will allow live migration to host with unrestricted guest
+     * support (otherwise the migration will fail with invalid guest state
+     * error).
+     */
+    if (!(env->cr[0] & CR0_PE_MASK) &&
+        (env->segs[R_CS].flags >> DESC_DPL_SHIFT & 3) != 0) {
+        env->segs[R_CS].flags &= ~(env->segs[R_CS].flags & DESC_DPL_MASK);
+        env->segs[R_DS].flags &= ~(env->segs[R_DS].flags & DESC_DPL_MASK);
+        env->segs[R_ES].flags &= ~(env->segs[R_ES].flags & DESC_DPL_MASK);
+        env->segs[R_FS].flags &= ~(env->segs[R_FS].flags & DESC_DPL_MASK);
+        env->segs[R_GS].flags &= ~(env->segs[R_GS].flags & DESC_DPL_MASK);
+        env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
+    }
+
 }
 
 static int cpu_post_load(void *opaque, int version_id)
@@ -259,6 +277,24 @@ static int cpu_post_load(void *opaque, int version_id)
     X86CPU *cpu = opaque;
     CPUX86State *env = &cpu->env;
     int i;
+
+    /*
+     * Real mode guest segments register DPL should be zero.
+     * Older KVM version were setting it wrongly.
+     * Fixing it will allow live migration from such host that don't have
+     * restricted guest support to a host with unrestricted guest support
+     * (otherwise the migration will fail with invalid guest state
+     * error).
+     */
+    if (!(env->cr[0] & CR0_PE_MASK) &&
+        (env->segs[R_CS].flags >> DESC_DPL_SHIFT & 3) != 0) {
+        env->segs[R_CS].flags &= ~(env->segs[R_CS].flags & DESC_DPL_MASK);
+        env->segs[R_DS].flags &= ~(env->segs[R_DS].flags & DESC_DPL_MASK);
+        env->segs[R_ES].flags &= ~(env->segs[R_ES].flags & DESC_DPL_MASK);
+        env->segs[R_FS].flags &= ~(env->segs[R_FS].flags & DESC_DPL_MASK);
+        env->segs[R_GS].flags &= ~(env->segs[R_GS].flags & DESC_DPL_MASK);
+        env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
+    }
 
     /* XXX: restore FPU round state */
     env->fpstt = (env->fpus_vmstate >> 11) & 7;
