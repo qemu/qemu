@@ -462,8 +462,15 @@ static const TypeInfo mv88w8618_eth_info = {
 
 #define MP_LCD_TEXTCOLOR        0xe0e0ff /* RRGGBB */
 
+#define TYPE_MUSICPAL_LCD "musicpal_lcd"
+#define MUSICPAL_LCD(obj) \
+    OBJECT_CHECK(musicpal_lcd_state, (obj), TYPE_MUSICPAL_LCD)
+
 typedef struct musicpal_lcd_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t brightness;
     uint32_t mode;
@@ -614,20 +621,21 @@ static const GraphicHwOps musicpal_gfx_ops = {
     .gfx_update  = lcd_refresh,
 };
 
-static int musicpal_lcd_init(SysBusDevice *dev)
+static int musicpal_lcd_init(SysBusDevice *sbd)
 {
-    musicpal_lcd_state *s = FROM_SYSBUS(musicpal_lcd_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_lcd_state *s = MUSICPAL_LCD(dev);
 
     s->brightness = 7;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &musicpal_lcd_ops, s,
                           "musicpal-lcd", MP_LCD_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    s->con = graphic_console_init(DEVICE(dev), &musicpal_gfx_ops, s);
+    s->con = graphic_console_init(dev, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
-    qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brightness_in, 3);
+    qdev_init_gpio_in(dev, musicpal_lcd_gpio_brightness_in, 3);
 
     return 0;
 }
@@ -658,7 +666,7 @@ static void musicpal_lcd_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_lcd_info = {
-    .name          = "musicpal_lcd",
+    .name          = TYPE_MUSICPAL_LCD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_lcd_state),
     .class_init    = musicpal_lcd_class_init,
@@ -1649,7 +1657,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
-    lcd_dev = sysbus_create_simple("musicpal_lcd", MP_LCD_BASE, NULL);
+    lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
     key_dev = sysbus_create_simple("musicpal_key", -1, NULL);
 
     /* I2C read data */
