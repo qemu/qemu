@@ -22,6 +22,13 @@
 #include "qemu-common.h"
 
 
+static void lm32_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    LM32CPU *cpu = LM32_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 /* CPUClass::reset() */
 static void lm32_cpu_reset(CPUState *s)
 {
@@ -79,7 +86,11 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = lm32_cpu_do_interrupt;
     cc->dump_state = lm32_cpu_dump_state;
-    cpu_class_set_vmsd(cc, &vmstate_lm32_cpu);
+    cc->set_pc = lm32_cpu_set_pc;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = lm32_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_lm32_cpu;
+#endif
 }
 
 static const TypeInfo lm32_cpu_type_info = {

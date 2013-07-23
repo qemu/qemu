@@ -118,11 +118,6 @@ int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
     return 1;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
-{
-    return addr;
-}
-
 #else /* !CONFIG_USER_ONLY */
 
 int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
@@ -162,12 +157,14 @@ void moxie_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-hwaddr cpu_get_phys_page_debug(CPUMoxieState *env, target_ulong addr)
+hwaddr moxie_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    MoxieCPU *cpu = MOXIE_CPU(cs);
     uint32_t phy = addr;
     MoxieMMUResult res;
     int miss;
-    miss = moxie_mmu_translate(&res, env, addr, 0, 0);
+
+    miss = moxie_mmu_translate(&res, &cpu->env, addr, 0, 0);
     if (!miss) {
         phy = res.phy;
     }

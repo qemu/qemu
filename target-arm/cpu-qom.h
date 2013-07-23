@@ -147,4 +147,6 @@ void arm_v7m_cpu_do_interrupt(CPUState *cpu);
 void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                         int flags);
 
+hwaddr arm_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
 #endif

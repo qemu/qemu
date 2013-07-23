@@ -315,12 +315,13 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     return ret;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
+hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    AlphaCPU *cpu = ALPHA_CPU(cs);
     target_ulong phys;
     int prot, fail;
 
-    fail = get_physical_address(env, addr, 0, 0, &phys, &prot);
+    fail = get_physical_address(&cpu->env, addr, 0, 0, &phys, &prot);
     return (fail >= 0 ? -1 : phys);
 }
 

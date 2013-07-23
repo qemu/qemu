@@ -1741,6 +1741,7 @@ static inline void
 gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUMBState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
@@ -1766,7 +1767,7 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
         dc->jmp = JMP_INDIRECT;
     }
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->nr_nops = 0;
@@ -1859,8 +1860,9 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
                 break;
             }
         }
-        if (env->singlestep_enabled)
+        if (cs->singlestep_enabled) {
             break;
+        }
     } while (!dc->is_jmp && !dc->cpustate_changed
          && tcg_ctx.gen_opc_ptr < gen_opc_end
                  && !singlestep
@@ -1887,7 +1889,7 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
     }
     t_sync_flags(dc);
 
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {

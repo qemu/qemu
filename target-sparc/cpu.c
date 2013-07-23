@@ -723,6 +723,22 @@ void sparc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n");
 }
 
+static void sparc_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+
+    cpu->env.pc = value;
+    cpu->env.npc = value + 4;
+}
+
+static void sparc_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+
+    cpu->env.pc = tb->pc;
+    cpu->env.npc = tb->cs_base;
+}
+
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
@@ -766,7 +782,15 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
-    cpu_class_set_do_unassigned_access(cc, sparc_cpu_unassigned_access);
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    cc->memory_rw_debug = sparc_cpu_memory_rw_debug;
+#endif
+    cc->set_pc = sparc_cpu_set_pc;
+    cc->synchronize_from_tb = sparc_cpu_synchronize_from_tb;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unassigned_access = sparc_cpu_unassigned_access;
+    cc->get_phys_page_debug = sparc_cpu_get_phys_page_debug;
+#endif
 }
 
 static const TypeInfo sparc_cpu_type_info = {

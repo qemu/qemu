@@ -1186,7 +1186,7 @@ static void tcg_exec_all(void)
         CPUArchState *env = cpu->env_ptr;
 
         qemu_clock_enable(vm_clock,
-                          (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
+                          (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (cpu_can_run(cpu)) {
             r = tcg_cpu_exec(env);
@@ -1285,7 +1285,6 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
 {
     FILE *f;
     uint32_t l;
-    CPUArchState *env;
     CPUState *cpu;
     uint8_t buf[1024];
 
@@ -1299,7 +1298,6 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
                   "a CPU number");
         return;
     }
-    env = cpu->env_ptr;
 
     f = fopen(filename, "wb");
     if (!f) {
@@ -1311,7 +1309,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         l = sizeof(buf);
         if (l > size)
             l = size;
-        cpu_memory_rw_debug(env, addr, buf, l, 0);
+        cpu_memory_rw_debug(cpu, addr, buf, l, 0);
         if (fwrite(buf, 1, l, f) != l) {
             error_set(errp, QERR_IO_ERROR);
             goto exit;

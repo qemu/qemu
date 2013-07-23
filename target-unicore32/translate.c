@@ -1879,6 +1879,7 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
         TranslationBlock *tb, bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
@@ -1900,7 +1901,7 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
@@ -1971,7 +1972,7 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
          * ensures prefetch aborts occur at the right place.  */
         num_insns++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
@@ -1988,7 +1989,7 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             if (dc->is_jmp == DISAS_SYSCALL) {

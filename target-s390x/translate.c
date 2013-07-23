@@ -4740,6 +4740,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
                                                   TranslationBlock *tb,
                                                   bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUS390XState *env = &cpu->env;
     DisasContext dc;
     target_ulong pc_start;
@@ -4761,7 +4762,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     dc.tb = tb;
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
-    do_debug = dc.singlestep_enabled = env->singlestep_enabled;
+    do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
@@ -4818,7 +4819,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
                 || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
-                || env->singlestep_enabled)) {
+                || cs->singlestep_enabled)) {
             status = EXIT_PC_STALE;
         }
     } while (status == NO_EXIT);

@@ -146,11 +146,6 @@ static inline int cpu_mmu_index(CPUUniCore32State *env)
 #include "cpu-qom.h"
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUUniCore32State *env, TranslationBlock *tb)
-{
-    env->regs[31] = tb->pc;
-}
-
 static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {

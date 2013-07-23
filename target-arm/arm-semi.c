@@ -122,8 +122,10 @@ static target_ulong arm_semi_syscall_len;
 static target_ulong syscall_err;
 #endif
 
-static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
+static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = env->opaque;
 #endif
@@ -152,12 +154,14 @@ static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
     }
 }
 
-static void arm_semi_flen_cb(CPUARMState *env, target_ulong ret, target_ulong err)
+static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
-    cpu_memory_rw_debug(env, env->regs[13]-64+32, (uint8_t *)&size, 4, 0);
+    cpu_memory_rw_debug(cs, env->regs[13]-64+32, (uint8_t *)&size, 4, 0);
     env->regs[0] = be32_to_cpu(size);
 #ifdef CONFIG_USER_ONLY
     ((TaskState *)env->opaque)->swi_errno = err;

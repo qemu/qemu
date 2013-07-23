@@ -5386,6 +5386,7 @@ long do_rt_sigreturn(CPUArchState *env)
 
 void process_pending_signals(CPUArchState *cpu_env)
 {
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
     int sig;
     abi_ulong handler;
     sigset_t set, old_set;
@@ -5419,7 +5420,7 @@ void process_pending_signals(CPUArchState *cpu_env)
     if (!k->first)
         k->pending = 0;
 
-    sig = gdb_handlesig (cpu_env, sig);
+    sig = gdb_handlesig(cpu, sig);
     if (!sig) {
         sa = NULL;
         handler = TARGET_SIG_IGN;

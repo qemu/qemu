@@ -508,12 +508,13 @@ int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
     return 0;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUSH4State * env, target_ulong addr)
+hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
     target_ulong physical;
     int prot;
 
-    get_physical_address(env, &physical, &prot, addr, 0, 0);
+    get_physical_address(&cpu->env, &physical, &prot, addr, 0, 0);
     return physical;
 }
 

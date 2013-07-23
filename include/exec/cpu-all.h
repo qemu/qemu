@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
+#include "qom/cpu.h"
 
 /* some important defines:
  *
@@ -428,18 +429,7 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
 void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
-#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
-#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
-#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
-
-void cpu_single_step(CPUArchState *env, int enabled);
-
 #if !defined(CONFIG_USER_ONLY)
-
-/* Return the physical page corresponding to a virtual one. Use it
-   only for debugging because no protection checks are done. Return -1
-   if no page found. */
-hwaddr cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
 /* memory API */
 
@@ -494,7 +484,7 @@ void qemu_mutex_lock_ramlist(void);
 void qemu_mutex_unlock_ramlist(void);
 #endif /* !CONFIG_USER_ONLY */
 
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
 #endif /* CPU_ALL_H */

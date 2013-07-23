@@ -22,6 +22,29 @@
 #include "qemu-common.h"
 
 
+static void mips_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    env->active_tc.PC = value & ~(target_ulong)1;
+    if (value & 1) {
+        env->hflags |= MIPS_HFLAG_M16;
+    } else {
+        env->hflags &= ~(MIPS_HFLAG_M16);
+    }
+}
+
+static void mips_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    env->active_tc.PC = tb->pc;
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
+}
+
 /* CPUClass::reset() */
 static void mips_cpu_reset(CPUState *s)
 {
@@ -75,7 +98,12 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     cc->do_interrupt = mips_cpu_do_interrupt;
     cc->dump_state = mips_cpu_dump_state;
-    cpu_class_set_do_unassigned_access(cc, mips_cpu_unassigned_access);
+    cc->set_pc = mips_cpu_set_pc;
+    cc->synchronize_from_tb = mips_cpu_synchronize_from_tb;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unassigned_access = mips_cpu_unassigned_access;
+    cc->get_phys_page_debug = mips_cpu_get_phys_page_debug;
+#endif
 }
 
 static const TypeInfo mips_cpu_type_info = {

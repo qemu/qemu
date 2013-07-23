@@ -24,6 +24,13 @@
 #include "migration/vmstate.h"
 
 
+static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
@@ -263,8 +270,12 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->do_interrupt = alpha_cpu_do_interrupt;
     cc->dump_state = alpha_cpu_dump_state;
-    cpu_class_set_do_unassigned_access(cc, alpha_cpu_unassigned_access);
-    device_class_set_vmsd(dc, &vmstate_alpha_cpu);
+    cc->set_pc = alpha_cpu_set_pc;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unassigned_access = alpha_cpu_unassigned_access;
+    cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_alpha_cpu;
+#endif
 }
 
 static const TypeInfo alpha_cpu_type_info = {

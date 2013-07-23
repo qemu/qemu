@@ -25,6 +25,13 @@
 #endif
 #include "sysemu/sysemu.h"
 
+static void arm_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    cpu->env.regs[15] = value;
+}
+
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
     /* Reset a single ARMCPRegInfo register */
@@ -816,7 +823,11 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = arm_cpu_class_by_name;
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->dump_state = arm_cpu_dump_state;
-    cpu_class_set_vmsd(cc, &vmstate_arm_cpu);
+    cc->set_pc = arm_cpu_set_pc;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_arm_cpu;
+#endif
 }
 
 static void cpu_register(const ARMCPUInfo *info)

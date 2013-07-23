@@ -118,6 +118,7 @@ int cpu_moxie_exec(CPUMoxieState *s);
 void moxie_cpu_do_interrupt(CPUState *cs);
 void moxie_cpu_dump_state(CPUState *cpu, FILE *f,
                           fprintf_function cpu_fprintf, int flags);
+hwaddr moxie_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,
                              void *puc);
@@ -142,11 +143,6 @@ static inline int cpu_mmu_index(CPUMoxieState *env)
 
 #include "exec/cpu-all.h"
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUMoxieState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

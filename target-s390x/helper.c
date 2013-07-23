@@ -417,9 +417,10 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     return 0;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUS390XState *env,
-                                           target_ulong vaddr)
+hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     target_ulong raddr;
     int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     int old_exc = env->exception_index;

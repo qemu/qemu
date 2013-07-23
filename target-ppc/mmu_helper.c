@@ -1409,8 +1409,10 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
+hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     mmu_ctx_t ctx;
 
     switch (env->mmu_model) {

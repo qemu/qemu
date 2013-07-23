@@ -146,6 +146,7 @@ static void update_guest_rom_state(VAPICROMState *s)
 
 static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
 {
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     hwaddr paddr;
     target_ulong addr;
 
@@ -158,7 +159,7 @@ static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
      * virtual address space for the APIC mapping.
      */
     for (addr = 0xfffff000; addr >= 0x80000000; addr -= TARGET_PAGE_SIZE) {
-        paddr = cpu_get_phys_page_debug(env, addr);
+        paddr = cpu_get_phys_page_debug(cs, addr);
         if (paddr != APIC_DEFAULT_ADDRESS) {
             continue;
         }
@@ -187,9 +188,10 @@ static bool opcode_matches(uint8_t *opcode, const TPRInstruction *instr)
          modrm_reg(opcode[1]) == instr->modrm_reg);
 }
 
-static int evaluate_tpr_instruction(VAPICROMState *s, CPUX86State *env,
+static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
                                     target_ulong *pip, TPRAccess access)
 {
+    CPUState *cs = CPU(cpu);
     const TPRInstruction *instr;
     target_ulong ip = *pip;
     uint8_t opcode[2];
@@ -210,7 +212,7 @@ static int evaluate_tpr_instruction(VAPICROMState *s, CPUX86State *env,
      * RSP, used by the patched instruction, is zero, so the guest gets a
      * double fault and dies.
      */
-    if (env->regs[R_ESP] == 0) {
+    if (cpu->env.regs[R_ESP] == 0) {
         return -1;
     }
 
@@ -225,7 +227,7 @@ static int evaluate_tpr_instruction(VAPICROMState *s, CPUX86State *env,
             if (instr->access != access) {
                 continue;
             }
-            if (cpu_memory_rw_debug(env, ip - instr->length, opcode,
+            if (cpu_memory_rw_debug(cs, ip - instr->length, opcode,
                                     sizeof(opcode), 0) < 0) {
                 return -1;
             }
@@ -236,7 +238,7 @@ static int evaluate_tpr_instruction(VAPICROMState *s, CPUX86State *env,
         }
         return -1;
     } else {
-        if (cpu_memory_rw_debug(env, ip, opcode, sizeof(opcode), 0) < 0) {
+        if (cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0) < 0) {
             return -1;
         }
         for (i = 0; i < ARRAY_SIZE(tpr_instr); i++) {
@@ -253,7 +255,7 @@ instruction_ok:
      * Grab the virtual TPR address from the instruction
      * and update the cached values.
      */
-    if (cpu_memory_rw_debug(env, ip + instr->addr_offset,
+    if (cpu_memory_rw_debug(cs, ip + instr->addr_offset,
                             (void *)&real_tpr_addr,
                             sizeof(real_tpr_addr), 0) < 0) {
         return -1;
@@ -271,6 +273,7 @@ instruction_ok:
 
 static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     hwaddr paddr;
     uint32_t rom_state_vaddr;
     uint32_t pos, patch, offset;
@@ -287,7 +290,7 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
 
     /* find out virtual address of the ROM */
     rom_state_vaddr = s->rom_state_paddr + (ip & 0xf0000000);
-    paddr = cpu_get_phys_page_debug(env, rom_state_vaddr);
+    paddr = cpu_get_phys_page_debug(cs, rom_state_vaddr);
     if (paddr == -1) {
         return -1;
     }
@@ -332,8 +335,9 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
  * cannot be accessed or is considered invalid. This also ensures that we are
  * not patching the wrong guest.
  */
-static int get_kpcr_number(CPUX86State *env)
+static int get_kpcr_number(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     struct kpcr {
         uint8_t  fill1[0x1c];
         uint32_t self;
@@ -341,7 +345,7 @@ static int get_kpcr_number(CPUX86State *env)
         uint8_t  number;
     } QEMU_PACKED kpcr;
 
-    if (cpu_memory_rw_debug(env, env->segs[R_FS].base,
+    if (cpu_memory_rw_debug(CPU(cpu), env->segs[R_FS].base,
                             (void *)&kpcr, sizeof(kpcr), 0) < 0 ||
         kpcr.self != env->segs[R_FS].base) {
         return -1;
@@ -349,9 +353,9 @@ static int get_kpcr_number(CPUX86State *env)
     return kpcr.number;
 }
 
-static int vapic_enable(VAPICROMState *s, CPUX86State *env)
+static int vapic_enable(VAPICROMState *s, X86CPU *cpu)
 {
-    int cpu_number = get_kpcr_number(env);
+    int cpu_number = get_kpcr_number(cpu);
     hwaddr vapic_paddr;
     static const uint8_t enabled = 1;
 
@@ -362,26 +366,26 @@ static int vapic_enable(VAPICROMState *s, CPUX86State *env)
         (((hwaddr)cpu_number) << VAPIC_CPU_SHIFT);
     cpu_physical_memory_rw(vapic_paddr + offsetof(VAPICState, enabled),
                            (void *)&enabled, sizeof(enabled), 1);
-    apic_enable_vapic(env->apic_state, vapic_paddr);
+    apic_enable_vapic(cpu->env.apic_state, vapic_paddr);
 
     s->state = VAPIC_ACTIVE;
 
     return 0;
 }
 
-static void patch_byte(CPUX86State *env, target_ulong addr, uint8_t byte)
+static void patch_byte(X86CPU *cpu, target_ulong addr, uint8_t byte)
 {
-    cpu_memory_rw_debug(env, addr, &byte, 1, 1);
+    cpu_memory_rw_debug(CPU(cpu), addr, &byte, 1, 1);
 }
 
-static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
+static void patch_call(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
                        uint32_t target)
 {
     uint32_t offset;
 
     offset = cpu_to_le32(target - ip - 5);
-    patch_byte(env, ip, 0xe8); /* call near */
-    cpu_memory_rw_debug(env, ip + 1, (void *)&offset, sizeof(offset), 1);
+    patch_byte(cpu, ip, 0xe8); /* call near */
+    cpu_memory_rw_debug(CPU(cpu), ip + 1, (void *)&offset, sizeof(offset), 1);
 }
 
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
@@ -409,32 +413,32 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 
     pause_all_vcpus();
 
-    cpu_memory_rw_debug(env, ip, opcode, sizeof(opcode), 0);
+    cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0);
 
     switch (opcode[0]) {
     case 0x89: /* mov r32 to r/m32 */
-        patch_byte(env, ip, 0x50 + modrm_reg(opcode[1]));  /* push reg */
-        patch_call(s, env, ip + 1, handlers->set_tpr);
+        patch_byte(cpu, ip, 0x50 + modrm_reg(opcode[1]));  /* push reg */
+        patch_call(s, cpu, ip + 1, handlers->set_tpr);
         break;
     case 0x8b: /* mov r/m32 to r32 */
-        patch_byte(env, ip, 0x90);
-        patch_call(s, env, ip + 1, handlers->get_tpr[modrm_reg(opcode[1])]);
+        patch_byte(cpu, ip, 0x90);
+        patch_call(s, cpu, ip + 1, handlers->get_tpr[modrm_reg(opcode[1])]);
         break;
     case 0xa1: /* mov abs to eax */
-        patch_call(s, env, ip, handlers->get_tpr[0]);
+        patch_call(s, cpu, ip, handlers->get_tpr[0]);
         break;
     case 0xa3: /* mov eax to abs */
-        patch_call(s, env, ip, handlers->set_tpr_eax);
+        patch_call(s, cpu, ip, handlers->set_tpr_eax);
         break;
     case 0xc7: /* mov imm32, r/m32 (c7/0) */
-        patch_byte(env, ip, 0x68);  /* push imm32 */
-        cpu_memory_rw_debug(env, ip + 6, (void *)&imm32, sizeof(imm32), 0);
-        cpu_memory_rw_debug(env, ip + 1, (void *)&imm32, sizeof(imm32), 1);
-        patch_call(s, env, ip + 5, handlers->set_tpr);
+        patch_byte(cpu, ip, 0x68);  /* push imm32 */
+        cpu_memory_rw_debug(cs, ip + 6, (void *)&imm32, sizeof(imm32), 0);
+        cpu_memory_rw_debug(cs, ip + 1, (void *)&imm32, sizeof(imm32), 1);
+        patch_call(s, cpu, ip + 5, handlers->set_tpr);
         break;
     case 0xff: /* push r/m32 */
-        patch_byte(env, ip, 0x50); /* push eax */
-        patch_call(s, env, ip + 1, handlers->get_tpr_stack);
+        patch_byte(cpu, ip, 0x50); /* push eax */
+        patch_call(s, cpu, ip + 1, handlers->get_tpr_stack);
         break;
     default:
         abort();
@@ -458,16 +462,16 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
 
     cpu_synchronize_state(cs);
 
-    if (evaluate_tpr_instruction(s, env, &ip, access) < 0) {
+    if (evaluate_tpr_instruction(s, cpu, &ip, access) < 0) {
         if (s->state == VAPIC_ACTIVE) {
-            vapic_enable(s, env);
+            vapic_enable(s, cpu);
         }
         return;
     }
     if (update_rom_mapping(s, env, ip) < 0) {
         return;
     }
-    if (vapic_enable(s, env) < 0) {
+    if (vapic_enable(s, cpu) < 0) {
         return;
     }
     patch_instruction(s, cpu, ip);
@@ -667,8 +671,8 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
              * accurate.
              */
             pause_all_vcpus();
-            patch_byte(env, env->eip - 2, 0x66);
-            patch_byte(env, env->eip - 1, 0x90);
+            patch_byte(cpu, env->eip - 2, 0x66);
+            patch_byte(cpu, env->eip - 1, 0x90);
             resume_all_vcpus();
         }
 
@@ -681,7 +685,7 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         if (find_real_tpr_addr(s, env) < 0) {
             break;
         }
-        vapic_enable(s, env);
+        vapic_enable(s, cpu);
         break;
     default:
     case 4:
@@ -722,7 +726,7 @@ static void do_vapic_enable(void *data)
     VAPICROMState *s = data;
     X86CPU *cpu = X86_CPU(first_cpu);
 
-    vapic_enable(s, &cpu->env);
+    vapic_enable(s, cpu);
 }
 
 static int vapic_post_load(void *opaque, int version_id)

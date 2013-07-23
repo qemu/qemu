@@ -255,16 +255,17 @@ void cris_cpu_do_interrupt(CPUState *cs)
           env->pregs[PR_ERP]);
 }
 
-hwaddr cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
+hwaddr cris_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
     uint32_t phy = addr;
     struct cris_mmu_result res;
     int miss;
 
-    miss = cris_mmu_translate(&res, env, addr, 0, 0, 1);
+    miss = cris_mmu_translate(&res, &cpu->env, addr, 0, 0, 1);
     /* If D TLB misses, try I TLB.  */
     if (miss) {
-        miss = cris_mmu_translate(&res, env, addr, 2, 0, 1);
+        miss = cris_mmu_translate(&res, &cpu->env, addr, 2, 0, 1);
     }
 
     if (!miss) {

@@ -30,6 +30,18 @@
 typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
 
 /**
+ * vaddr:
+ * Type wide enough to contain any #target_ulong virtual address.
+ */
+typedef uint64_t vaddr;
+#define VADDR_PRId PRId64
+#define VADDR_PRIu PRIu64
+#define VADDR_PRIo PRIo64
+#define VADDR_PRIx PRIx64
+#define VADDR_PRIX PRIX64
+#define VADDR_MAX UINT64_MAX
+
+/**
  * SECTION:cpu
  * @section_id: QEMU-cpu
  * @title: CPU Class
@@ -48,6 +60,8 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
                                     bool is_write, bool is_exec, int opaque,
                                     unsigned size);
 
+struct TranslationBlock;
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -56,11 +70,16 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @do_interrupt: Callback for interrupt handling.
  * @do_unassigned_access: Callback for unassigned access handling.
+ * @memory_rw_debug: Callback for GDB memory access.
  * @dump_state: Callback for dumping state.
  * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @get_paging_enabled: Callback for inquiring whether paging is enabled.
  * @get_memory_mapping: Callback for obtaining the memory mappings.
+ * @set_pc: Callback for setting the Program Counter register.
+ * @synchronize_from_tb: Callback for synchronizing state from a TCG
+ * #TranslationBlock.
+ * @get_phys_page_debug: Callback for obtaining a physical address.
  * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
@@ -76,6 +95,8 @@ typedef struct CPUClass {
     int reset_dump_flags;
     void (*do_interrupt)(CPUState *cpu);
     CPUUnassignedAccess do_unassigned_access;
+    int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
+                           uint8_t *buf, int len, bool is_write);
     void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                        int flags);
     void (*dump_statistics)(CPUState *cpu, FILE *f,
@@ -84,6 +105,9 @@ typedef struct CPUClass {
     bool (*get_paging_enabled)(const CPUState *cpu);
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
+    void (*set_pc)(CPUState *cpu, vaddr value);
+    void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
+    hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
 
     const struct VMStateDescription *vmsd;
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
@@ -114,8 +138,10 @@ struct kvm_run;
  * @stopped: Indicates the CPU has been artificially stopped.
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
+ * @singlestep_enabled: Flags for single-stepping.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
+ * @gdb_regs: Additional GDB registers.
  * @next_cpu: Next CPU sharing TB cache.
  * @kvm_fd: vCPU file descriptor for KVM.
  *
@@ -146,9 +172,11 @@ struct CPUState {
     volatile sig_atomic_t exit_request;
     volatile sig_atomic_t tcg_exit_req;
     uint32_t interrupt_request;
+    int singlestep_enabled;
 
     void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;
+    struct GDBRegisterState *gdb_regs;
     CPUState *next_cpu;
 
     int kvm_fd;
@@ -259,6 +287,25 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                          int flags);
 
+#ifndef CONFIG_USER_ONLY
+/**
+ * cpu_get_phys_page_debug:
+ * @cpu: The CPU to obtain the physical page address for.
+ * @addr: The virtual address.
+ *
+ * Obtains the physical page corresponding to a virtual one.
+ * Use it only for debugging because no protection checks are done.
+ *
+ * Returns: Corresponding physical page address or -1 if no page found.
+ */
+static inline hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->get_phys_page_debug(cpu, addr);
+}
+#endif
+
 /**
  * cpu_reset:
  * @cpu: The CPU whose state is to be reset.
@@ -275,59 +322,6 @@ void cpu_reset(CPUState *cpu);
  * Returns: A #CPUClass or %NULL if not matching class is found.
  */
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
-
-/**
- * cpu_class_set_vmsd:
- * @cc: CPU class
- * @value: Value to set. Unused for %CONFIG_USER_ONLY.
- *
- * Sets #VMStateDescription for @cc.
- *
- * The @value argument is intentionally discarded for the non-softmmu targets
- * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #CPUClass.vmsd directly instead.
- */
-#ifndef CONFIG_USER_ONLY
-static inline void cpu_class_set_vmsd(CPUClass *cc,
-                                      const struct VMStateDescription *value)
-{
-    cc->vmsd = value;
-}
-#else
-#define cpu_class_set_vmsd(cc, value) ((cc)->vmsd = NULL)
-#endif
-
-#ifndef CONFIG_USER_ONLY
-static inline void cpu_class_set_do_unassigned_access(CPUClass *cc,
-                                                      CPUUnassignedAccess value)
-{
-    cc->do_unassigned_access = value;
-}
-#else
-#define cpu_class_set_do_unassigned_access(cc, value) \
-    ((cc)->do_unassigned_access = NULL)
-#endif
-
-/**
- * device_class_set_vmsd:
- * @dc: Device class
- * @value: Value to set. Unused for %CONFIG_USER_ONLY.
- *
- * Sets #VMStateDescription for @dc.
- *
- * The @value argument is intentionally discarded for the non-softmmu targets
- * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #DeviceClass.vmsd directly instead.
- */
-#ifndef CONFIG_USER_ONLY
-static inline void device_class_set_vmsd(DeviceClass *dc,
-                                         const struct VMStateDescription *value)
-{
-    dc->vmsd = value;
-}
-#else
-#define device_class_set_vmsd(dc, value) ((dc)->vmsd = NULL)
-#endif
 
 /**
  * qemu_cpu_has_work:
@@ -488,6 +482,19 @@ void cpu_resume(CPUState *cpu);
  * Initializes a vCPU.
  */
 void qemu_init_vcpu(CPUState *cpu);
+
+#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
+#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
+#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
+
+/**
+ * cpu_single_step:
+ * @cpu: CPU to the flags for.
+ * @enabled: Flags to enable.
+ *
+ * Enables or disables single-stepping for @cpu.
+ */
+void cpu_single_step(CPUState *cpu, int enabled);
 
 #ifdef CONFIG_SOFTMMU
 extern const struct VMStateDescription vmstate_cpu_common;

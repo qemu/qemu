@@ -5223,6 +5223,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
                                                   TranslationBlock *tb,
                                                   bool spc)
 {
+    CPUState *cs = CPU(cpu);
     CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
@@ -5244,7 +5245,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     dc->def = env->def;
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
-    dc->singlestep = (env->singlestep_enabled || singlestep);
+    dc->singlestep = (cs->singlestep_enabled || singlestep);
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     num_insns = 0;
