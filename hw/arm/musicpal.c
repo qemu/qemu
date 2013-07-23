@@ -1183,8 +1183,15 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 /* LCD brightness bits in GPIO_OE_HI */
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
+#define TYPE_MUSICPAL_GPIO "musicpal_gpio"
+#define MUSICPAL_GPIO(obj) \
+    OBJECT_CHECK(musicpal_gpio_state, (obj), TYPE_MUSICPAL_GPIO)
+
 typedef struct musicpal_gpio_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t lcd_brightness;
     uint32_t out_state;
@@ -1344,8 +1351,7 @@ static const MemoryRegionOps musicpal_gpio_ops = {
 
 static void musicpal_gpio_reset(DeviceState *d)
 {
-    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state,
-                                         SYS_BUS_DEVICE(d));
+    musicpal_gpio_state *s = MUSICPAL_GPIO(d);
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1355,19 +1361,20 @@ static void musicpal_gpio_reset(DeviceState *d)
     s->isr = 0;
 }
 
-static int musicpal_gpio_init(SysBusDevice *dev)
+static int musicpal_gpio_init(SysBusDevice *sbd)
 {
-    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_gpio_state *s = MUSICPAL_GPIO(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &musicpal_gpio_ops, s,
                           "musicpal-gpio", MP_GPIO_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
-    qdev_init_gpio_in(&dev->qdev, musicpal_gpio_pin_event, 32);
+    qdev_init_gpio_in(dev, musicpal_gpio_pin_event, 32);
 
     return 0;
 }
@@ -1399,7 +1406,7 @@ static void musicpal_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_gpio_info = {
-    .name          = "musicpal_gpio",
+    .name          = TYPE_MUSICPAL_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_gpio_state),
     .class_init    = musicpal_gpio_class_init,
@@ -1671,7 +1678,8 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 
     sysbus_create_simple(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
 
-    dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
+    dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
+                               pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
