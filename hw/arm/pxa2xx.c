@@ -457,9 +457,16 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
     }
 };
 
+#define TYPE_PXA2XX_SSP "pxa2xx-ssp"
+#define PXA2XX_SSP(obj) \
+    OBJECT_CHECK(PXA2xxSSPState, (obj), TYPE_PXA2XX_SSP)
+
 /* Synchronous Serial Ports */
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq;
     int enable;
@@ -757,19 +764,20 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int pxa2xx_ssp_init(SysBusDevice *dev)
+static int pxa2xx_ssp_init(SysBusDevice *sbd)
 {
-    PXA2xxSSPState *s = FROM_SYSBUS(PXA2xxSSPState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxSSPState *s = PXA2XX_SSP(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_ssp_ops, s,
                           "pxa2xx-ssp", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
+    sysbus_init_mmio(sbd, &s->iomem);
+    register_savevm(dev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
-    s->bus = ssi_create_bus(&dev->qdev, "ssi");
+    s->bus = ssi_create_bus(dev, "ssi");
     return 0;
 }
 
@@ -2107,7 +2115,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
         DeviceState *dev;
-        dev = sysbus_create_simple("pxa2xx-ssp", pxa27x_ssp[i].io_base,
+        dev = sysbus_create_simple(TYPE_PXA2XX_SSP, pxa27x_ssp[i].io_base,
                         qdev_get_gpio_in(s->pic, pxa27x_ssp[i].irqn));
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
@@ -2238,7 +2246,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
         DeviceState *dev;
-        dev = sysbus_create_simple("pxa2xx-ssp", pxa255_ssp[i].io_base,
+        dev = sysbus_create_simple(TYPE_PXA2XX_SSP, pxa255_ssp[i].io_base,
                         qdev_get_gpio_in(s->pic, pxa255_ssp[i].irqn));
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
@@ -2278,7 +2286,7 @@ static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_ssp_info = {
-    .name          = "pxa2xx-ssp",
+    .name          = TYPE_PXA2XX_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxSSPState),
     .class_init    = pxa2xx_ssp_class_init,
