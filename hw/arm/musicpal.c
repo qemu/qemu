@@ -146,8 +146,15 @@ typedef struct mv88w8618_rx_desc {
     uint32_t next;
 } mv88w8618_rx_desc;
 
+#define TYPE_MV88W8618_ETH "mv88w8618_eth"
+#define MV88W8618_ETH(obj) \
+    OBJECT_CHECK(mv88w8618_eth_state, (obj), TYPE_MV88W8618_ETH)
+
 typedef struct mv88w8618_eth_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t smir;
@@ -382,16 +389,17 @@ static NetClientInfo net_mv88w8618_info = {
     .cleanup = eth_cleanup,
 };
 
-static int mv88w8618_eth_init(SysBusDevice *dev)
+static int mv88w8618_eth_init(SysBusDevice *sbd)
 {
-    mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    mv88w8618_eth_state *s = MV88W8618_ETH(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_eth_ops, s,
                           "mv88w8618-eth", MP_ETH_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -429,7 +437,7 @@ static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_eth_info = {
-    .name          = "mv88w8618_eth",
+    .name          = TYPE_MV88W8618_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_eth_state),
     .class_init    = mv88w8618_eth_class_init,
@@ -1627,7 +1635,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
 
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
-    dev = qdev_create(NULL, "mv88w8618_eth");
+    dev = qdev_create(NULL, TYPE_MV88W8618_ETH);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
