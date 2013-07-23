@@ -335,6 +335,10 @@ int main(int argc, char **argv)
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
 
+#ifdef CONFIG_POSIX
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
     progname = basename(argv[0]);
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {

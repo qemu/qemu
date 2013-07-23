@@ -2322,6 +2322,10 @@ int main(int argc, char **argv)
     const img_cmd_t *cmd;
     const char *cmdname;
 
+#ifdef CONFIG_POSIX
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
     error_set_progname(argv[0]);
 
     qemu_init_main_loop();
