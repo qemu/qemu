@@ -96,7 +96,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
-   OpenRISCCPU *cpu = NULL;
+    OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
     int n;
 
