@@ -626,6 +626,9 @@
 #          to enable the capability on the source VM. The feature is disabled by
 #          default. (since 1.6)
 #
+# @auto-converge: If enabled, QEMU will automatically throttle down the guest
+#          to speed up convergence of RAM migration. (since 1.6)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
