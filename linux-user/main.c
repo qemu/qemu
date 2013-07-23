@@ -1920,7 +1920,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_sched_get_priority_min, 1)
 	MIPS_SYS(sys_sched_rr_get_interval, 2)	/* 4165 */
 	MIPS_SYS(sys_nanosleep,	2)
-	MIPS_SYS(sys_mremap	, 4)
+	MIPS_SYS(sys_mremap	, 5)
 	MIPS_SYS(sys_accept	, 3)
 	MIPS_SYS(sys_bind	, 3)
 	MIPS_SYS(sys_connect	, 3)	/* 4170 */
@@ -2057,7 +2057,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_pselect6, 6)
 	MIPS_SYS(sys_ppoll, 5)
 	MIPS_SYS(sys_unshare, 1)
-	MIPS_SYS(sys_splice, 4)
+	MIPS_SYS(sys_splice, 6)
 	MIPS_SYS(sys_sync_file_range, 7) /* 4305 */
 	MIPS_SYS(sys_tee, 4)
 	MIPS_SYS(sys_vmsplice, 4)
