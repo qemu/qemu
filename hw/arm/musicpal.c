@@ -816,8 +816,15 @@ typedef struct mv88w8618_timer_state {
     qemu_irq irq;
 } mv88w8618_timer_state;
 
+#define TYPE_MV88W8618_PIT "mv88w8618_pit"
+#define MV88W8618_PIT(obj) \
+    OBJECT_CHECK(mv88w8618_pit_state, (obj), TYPE_MV88W8618_PIT)
+
 typedef struct mv88w8618_pit_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     mv88w8618_timer_state timer[4];
 } mv88w8618_pit_state;
@@ -899,8 +906,7 @@ static void mv88w8618_pit_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pit_reset(DeviceState *d)
 {
-    mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state,
-                                         SYS_BUS_DEVICE(d));
+    mv88w8618_pit_state *s = MV88W8618_PIT(d);
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -917,7 +923,7 @@ static const MemoryRegionOps mv88w8618_pit_ops = {
 
 static int mv88w8618_pit_init(SysBusDevice *dev)
 {
-    mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state, dev);
+    mv88w8618_pit_state *s = MV88W8618_PIT(dev);
     int i;
 
     /* Letting them all run at 1 MHz is likely just a pragmatic
@@ -967,7 +973,7 @@ static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_pit_info = {
-    .name          = "mv88w8618_pit",
+    .name          = TYPE_MV88W8618_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pit_state),
     .class_init    = mv88w8618_pit_class_init,
@@ -1598,7 +1604,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sysbus_create_varargs("mv88w8618_pit", MP_PIT_BASE, pic[MP_TIMER1_IRQ],
+    sysbus_create_varargs(TYPE_MV88W8618_PIT, MP_PIT_BASE, pic[MP_TIMER1_IRQ],
                           pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
                           pic[MP_TIMER4_IRQ], NULL);
 
