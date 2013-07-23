@@ -677,9 +677,15 @@ static const TypeInfo musicpal_lcd_info = {
 #define MP_PIC_ENABLE_SET       0x08
 #define MP_PIC_ENABLE_CLR       0x0C
 
-typedef struct mv88w8618_pic_state
-{
-    SysBusDevice busdev;
+#define TYPE_MV88W8618_PIC "mv88w8618_pic"
+#define MV88W8618_PIC(obj) \
+    OBJECT_CHECK(mv88w8618_pic_state, (obj), TYPE_MV88W8618_PIC)
+
+typedef struct mv88w8618_pic_state {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t level;
     uint32_t enabled;
@@ -737,8 +743,7 @@ static void mv88w8618_pic_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pic_reset(DeviceState *d)
 {
-    mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state,
-                                         SYS_BUS_DEVICE(d));
+    mv88w8618_pic_state *s = MV88W8618_PIC(d);
 
     s->level = 0;
     s->enabled = 0;
@@ -752,9 +757,9 @@ static const MemoryRegionOps mv88w8618_pic_ops = {
 
 static int mv88w8618_pic_init(SysBusDevice *dev)
 {
-    mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state, dev);
+    mv88w8618_pic_state *s = MV88W8618_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
+    qdev_init_gpio_in(DEVICE(dev), mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_pic_ops, s,
                           "musicpal-pic", MP_PIC_SIZE);
@@ -785,7 +790,7 @@ static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_pic_info = {
-    .name          = "mv88w8618_pic",
+    .name          = TYPE_MV88W8618_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pic_state),
     .class_init    = mv88w8618_pic_class_init,
@@ -1588,7 +1593,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
-    dev = sysbus_create_simple("mv88w8618_pic", MP_PIC_BASE,
+    dev = sysbus_create_simple(TYPE_MV88W8618_PIC, MP_PIC_BASE,
                                cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
