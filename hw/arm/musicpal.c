@@ -1436,8 +1436,15 @@ static const TypeInfo musicpal_gpio_info = {
 #define MP_KEY_BTN_VOLUME      (1 << 6)
 #define MP_KEY_BTN_NAVIGATION  (1 << 7)
 
+#define TYPE_MUSICPAL_KEY "musicpal_key"
+#define MUSICPAL_KEY(obj) \
+    OBJECT_CHECK(musicpal_key_state, (obj), TYPE_MUSICPAL_KEY)
+
 typedef struct musicpal_key_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t kbd_extended;
     uint32_t pressed_keys;
@@ -1521,17 +1528,18 @@ static void musicpal_key_event(void *opaque, int keycode)
     s->kbd_extended = 0;
 }
 
-static int musicpal_key_init(SysBusDevice *dev)
+static int musicpal_key_init(SysBusDevice *sbd)
 {
-    musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_key_state *s = MUSICPAL_KEY(dev);
 
     memory_region_init(&s->iomem, OBJECT(s), "dummy", 0);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
     qemu_add_kbd_event_handler(musicpal_key_event, s);
 
@@ -1560,7 +1568,7 @@ static void musicpal_key_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_key_info = {
-    .name          = "musicpal_key",
+    .name          = TYPE_MUSICPAL_KEY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_key_state),
     .class_init    = musicpal_key_class_init,
@@ -1684,7 +1692,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple("musicpal_key", -1, NULL);
+    key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,
