@@ -1843,51 +1843,61 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     return 0;
 }
 
+#define TYPE_PCI_OHCI "pci-ohci"
+#define PCI_OHCI(obj) OBJECT_CHECK(OHCIPCIState, (obj), TYPE_PCI_OHCI)
+
 typedef struct {
-    PCIDevice pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     OHCIState state;
     char *masterbus;
     uint32_t num_ports;
     uint32_t firstport;
 } OHCIPCIState;
 
-static int usb_ohci_initfn_pci(struct PCIDevice *dev)
+static int usb_ohci_initfn_pci(PCIDevice *dev)
 {
-    OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
+    OHCIPCIState *ohci = PCI_OHCI(dev);
 
-    ohci->pci_dev.config[PCI_CLASS_PROG] = 0x10; /* OHCI */
-    ohci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
+    dev->config[PCI_CLASS_PROG] = 0x10; /* OHCI */
+    dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    if (usb_ohci_init(&ohci->state, &dev->qdev, ohci->num_ports, 0,
+    if (usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
                       ohci->masterbus, ohci->firstport,
                       pci_get_address_space(dev)) != 0) {
         return -1;
     }
-    ohci->state.irq = ohci->pci_dev.irq[0];
+    ohci->state.irq = dev->irq[0];
 
-    /* TODO: avoid cast below by using dev */
-    pci_register_bar(&ohci->pci_dev, 0, 0, &ohci->state.mem);
+    pci_register_bar(dev, 0, 0, &ohci->state.mem);
     return 0;
 }
 
+#define TYPE_SYSBUS_OHCI "sysbus-ohci"
+#define SYSBUS_OHCI(obj) OBJECT_CHECK(OHCISysBusState, (obj), TYPE_SYSBUS_OHCI)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     OHCIState ohci;
     uint32_t num_ports;
     dma_addr_t dma_offset;
 } OHCISysBusState;
 
-static int ohci_init_pxa(SysBusDevice *dev)
+static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 {
-    OHCISysBusState *s = FROM_SYSBUS(OHCISysBusState, dev);
+    OHCISysBusState *s = SYSBUS_OHCI(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     /* Cannot fail as we pass NULL for masterbus */
-    usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset, NULL, 0,
+    usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset, NULL, 0,
                   &address_space_memory);
-    sysbus_init_irq(dev, &s->ohci.irq);
-    sysbus_init_mmio(dev, &s->ohci.mem);
-
-    return 0;
+    sysbus_init_irq(sbd, &s->ohci.irq);
+    sysbus_init_mmio(sbd, &s->ohci.mem);
 }
 
 static Property ohci_pci_properties[] = {
@@ -1912,7 +1922,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ohci_pci_info = {
-    .name          = "pci-ohci",
+    .name          = TYPE_PCI_OHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(OHCIPCIState),
     .class_init    = ohci_pci_class_init,
@@ -1927,15 +1937,14 @@ static Property ohci_sysbus_properties[] = {
 static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sbc->init = ohci_init_pxa;
+    dc->realize = ohci_realize_pxa;
     dc->desc = "OHCI USB Controller";
     dc->props = ohci_sysbus_properties;
 }
 
 static const TypeInfo ohci_sysbus_info = {
-    .name          = "sysbus-ohci",
+    .name          = TYPE_SYSBUS_OHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OHCISysBusState),
     .class_init    = ohci_sysbus_class_init,

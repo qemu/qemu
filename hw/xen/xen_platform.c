@@ -49,7 +49,10 @@
 #define PFFLAG_ROM_LOCK 1 /* Sets whether ROM memory area is RW or RO */
 
 typedef struct PCIXenPlatformState {
-    PCIDevice  pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion fixed_io;
     MemoryRegion bar;
     MemoryRegion mmio_bar;
@@ -61,6 +64,10 @@ typedef struct PCIXenPlatformState {
     char log_buffer[4096];
     int log_buffer_off;
 } PCIXenPlatformState;
+
+#define TYPE_XEN_PLATFORM "xen-platform"
+#define XEN_PLATFORM(obj) \
+    OBJECT_CHECK(PCIXenPlatformState, (obj), TYPE_XEN_PLATFORM)
 
 #define XEN_PLATFORM_IOPORT 0x10
 
@@ -88,7 +95,7 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_free(&d->qdev);
+        qdev_free(DEVICE(d));
     }
 }
 
@@ -103,7 +110,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_STORAGE_IDE
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_unplug(&(d->qdev), NULL);
+        qdev_unplug(DEVICE(d), NULL);
     }
 }
 
@@ -117,7 +124,8 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
     PCIXenPlatformState *s = opaque;
 
     switch (addr) {
-    case 0:
+    case 0: {
+        PCIDevice *pci_dev = PCI_DEVICE(s);
         /* Unplug devices.  Value is a bitmask of which devices to
            unplug, with bit 0 the IDE devices, bit 1 the network
            devices, and bit 2 the non-primary-master IDE devices. */
@@ -125,16 +133,17 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
             DPRINTF("unplug disks\n");
             bdrv_drain_all();
             bdrv_flush_all();
-            pci_unplug_disks(s->pci_dev.bus);
+            pci_unplug_disks(pci_dev->bus);
         }
         if (val & UNPLUG_ALL_NICS) {
             DPRINTF("unplug nics\n");
-            pci_unplug_nics(s->pci_dev.bus);
+            pci_unplug_nics(pci_dev->bus);
         }
         if (val & UNPLUG_AUX_IDE_DISKS) {
             DPRINTF("unplug auxiliary disks not supported\n");
         }
         break;
+    }
     case 2:
         switch (val) {
         case 1:
@@ -368,7 +377,7 @@ static const VMStateDescription vmstate_xen_platform = {
     .minimum_version_id_old = 4,
     .post_load = xen_platform_post_load,
     .fields = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(pci_dev, PCIXenPlatformState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIXenPlatformState),
         VMSTATE_UINT8(flags, PCIXenPlatformState),
         VMSTATE_END_OF_LIST()
     }
@@ -376,10 +385,10 @@ static const VMStateDescription vmstate_xen_platform = {
 
 static int xen_platform_initfn(PCIDevice *dev)
 {
-    PCIXenPlatformState *d = DO_UPCAST(PCIXenPlatformState, pci_dev, dev);
+    PCIXenPlatformState *d = XEN_PLATFORM(dev);
     uint8_t *pci_conf;
 
-    pci_conf = d->pci_dev.config;
+    pci_conf = dev->config;
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 
@@ -388,11 +397,11 @@ static int xen_platform_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1;
 
     platform_ioport_bar_setup(d);
-    pci_register_bar(&d->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
 
     /* reserve 16MB mmio address for share memory*/
     platform_mmio_setup(d);
-    pci_register_bar(&d->pci_dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &d->mmio_bar);
 
     platform_fixed_ioport_init(d);
@@ -402,7 +411,7 @@ static int xen_platform_initfn(PCIDevice *dev)
 
 static void platform_reset(DeviceState *dev)
 {
-    PCIXenPlatformState *s = DO_UPCAST(PCIXenPlatformState, pci_dev.qdev, dev);
+    PCIXenPlatformState *s = XEN_PLATFORM(dev);
 
     platform_fixed_ioport_reset(s);
 }
@@ -425,7 +434,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xen_platform_info = {
-    .name          = "xen-platform",
+    .name          = TYPE_XEN_PLATFORM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),
     .class_init    = xen_platform_class_init,

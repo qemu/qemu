@@ -912,12 +912,17 @@ static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
 static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
+    Error *err = NULL;
 
     dev->crq.SendFunc = vscsi_do_crq;
 
     scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus);
+        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
+        if (err != NULL) {
+            error_free(err);
+            return -1;
+        }
     }
 
     return 0;

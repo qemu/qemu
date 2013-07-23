@@ -60,6 +60,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     const char *boot_device = args->boot_device;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
+    PCIHostState *phb;
     PCIBus *host_bus;
     PCIDevice *lpc;
     BusState *idebus[MAX_SATA_PORTS];
@@ -139,7 +140,8 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     q35_host->mch.guest_info = guest_info;
     /* pci */
     qdev_init_nofail(DEVICE(q35_host));
-    host_bus = q35_host->host.pci.bus;
+    phb = PCI_HOST_BRIDGE(q35_host);
+    host_bus = phb->bus;
     /* create ISA bus */
     lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
                                           ICH9_LPC_FUNC), true,
