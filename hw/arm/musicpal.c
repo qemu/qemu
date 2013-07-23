@@ -982,8 +982,15 @@ static const TypeInfo mv88w8618_pit_info = {
 /* Flash config register offsets */
 #define MP_FLASHCFG_CFGR0    0x04
 
+#define TYPE_MV88W8618_FLASHCFG "mv88w8618_flashcfg"
+#define MV88W8618_FLASHCFG(obj) \
+    OBJECT_CHECK(mv88w8618_flashcfg_state, (obj), TYPE_MV88W8618_FLASHCFG)
+
 typedef struct mv88w8618_flashcfg_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t cfgr0;
 } mv88w8618_flashcfg_state;
@@ -1023,7 +1030,7 @@ static const MemoryRegionOps mv88w8618_flashcfg_ops = {
 
 static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 {
-    mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
+    mv88w8618_flashcfg_state *s = MV88W8618_FLASHCFG(dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_flashcfg_ops, s,
@@ -1053,7 +1060,7 @@ static void mv88w8618_flashcfg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_flashcfg_info = {
-    .name          = "mv88w8618_flashcfg",
+    .name          = TYPE_MV88W8618_FLASHCFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_flashcfg_state),
     .class_init    = mv88w8618_flashcfg_class_init,
@@ -1651,7 +1658,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 #endif
 
     }
-    sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
+    sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
     dev = qdev_create(NULL, TYPE_MV88W8618_ETH);
