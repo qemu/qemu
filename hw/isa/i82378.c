@@ -45,7 +45,6 @@ typedef struct I82378State {
 typedef struct PCIi82378State {
     PCIDevice pci_dev;
     uint32_t isa_io_base;
-    uint32_t isa_mem_base;
     I82378State state;
 } PCIi82378State;
 
@@ -234,7 +233,6 @@ static int pci_i82378_init(PCIDevice *dev)
     pci_set_long(dev->wmask + PCI_BASE_ADDRESS_0, 0);
     pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, pci->isa_io_base);
 
-    isa_mem_base = pci->isa_mem_base;
     isa_bus_new(&dev->qdev, pci_address_space_io(dev));
 
     i82378_init(&dev->qdev, s);
@@ -244,7 +242,6 @@ static int pci_i82378_init(PCIDevice *dev)
 
 static Property i82378_properties[] = {
     DEFINE_PROP_HEX32("iobase", PCIi82378State, isa_io_base, 0x80000000),
-    DEFINE_PROP_HEX32("membase", PCIi82378State, isa_mem_base, 0xc0000000),
     DEFINE_PROP_END_OF_LIST()
 };
 
