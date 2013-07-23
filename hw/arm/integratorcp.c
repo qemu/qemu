@@ -271,15 +271,21 @@ static int integratorcm_init(SysBusDevice *dev)
 /* Integrator/CP hardware emulation.  */
 /* Primary interrupt controller.  */
 
-typedef struct icp_pic_state
-{
-  SysBusDevice busdev;
-  MemoryRegion iomem;
-  uint32_t level;
-  uint32_t irq_enabled;
-  uint32_t fiq_enabled;
-  qemu_irq parent_irq;
-  qemu_irq parent_fiq;
+#define TYPE_INTEGRATOR_PIC "integrator_pic"
+#define INTEGRATOR_PIC(obj) \
+   OBJECT_CHECK(icp_pic_state, (obj), TYPE_INTEGRATOR_PIC)
+
+typedef struct icp_pic_state {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    MemoryRegion iomem;
+    uint32_t level;
+    uint32_t irq_enabled;
+    uint32_t fiq_enabled;
+    qemu_irq parent_irq;
+    qemu_irq parent_fiq;
 } icp_pic_state;
 
 static void icp_pic_update(icp_pic_state *s)
@@ -374,16 +380,17 @@ static const MemoryRegionOps icp_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int icp_pic_init(SysBusDevice *dev)
+static int icp_pic_init(SysBusDevice *sbd)
 {
-    icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    icp_pic_state *s = INTEGRATOR_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
-    sysbus_init_irq(dev, &s->parent_irq);
-    sysbus_init_irq(dev, &s->parent_fiq);
+    qdev_init_gpio_in(dev, icp_pic_set_irq, 32);
+    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(sbd, &s->parent_fiq);
     memory_region_init_io(&s->iomem, OBJECT(s), &icp_pic_ops, s,
                           "icp-pic", 0x00800000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -487,13 +494,13 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
     cpu_pic = arm_pic_init_cpu(cpu);
-    dev = sysbus_create_varargs("integrator_pic", 0x14000000,
+    dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
                                 cpu_pic[ARM_PIC_CPU_IRQ],
                                 cpu_pic[ARM_PIC_CPU_FIQ], NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
+    sysbus_create_simple(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
     sysbus_create_varargs("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
@@ -559,7 +566,7 @@ static void icp_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo icp_pic_info = {
-    .name          = "integrator_pic",
+    .name          = TYPE_INTEGRATOR_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pic_state),
     .class_init    = icp_pic_class_init,
