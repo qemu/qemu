@@ -24,6 +24,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
+#include "qapi/visitor.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
@@ -227,4 +228,27 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     qemu_register_reset(pm_reset, pm);
     pm->powerdown_notifier.notify = pm_powerdown_req;
     qemu_register_powerdown_notifier(&pm->powerdown_notifier);
+}
+
+static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v,
+                                 void *opaque, const char *name,
+                                 Error **errp)
+{
+    ICH9LPCPMRegs *pm = opaque;
+    uint32_t value = pm->pm_io_base + ICH9_PMIO_GPE0_STS;
+
+    visit_type_uint32(v, &value, name, errp);
+}
+
+void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
+{
+    static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
+
+    object_property_add_uint32_ptr(obj, ACPI_PM_PROP_PM_IO_BASE,
+                                   &pm->pm_io_base, errp);
+    object_property_add(obj, ACPI_PM_PROP_GPE0_BLK, "uint32",
+                        ich9_pm_get_gpe0_blk,
+                        NULL, NULL, pm, NULL);
+    object_property_add_uint32_ptr(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
+                                   &gpe0_len, errp);
 }

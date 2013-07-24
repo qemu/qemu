@@ -389,6 +389,16 @@ static int mch_init(PCIDevice *d)
     return 0;
 }
 
+uint64_t mch_mcfg_base(void)
+{
+    bool ambiguous;
+    Object *o = object_resolve_path_type("", TYPE_MCH_PCI_DEVICE, &ambiguous);
+    if (!o) {
+        return 0;
+    }
+    return MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+}
+
 static void mch_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
