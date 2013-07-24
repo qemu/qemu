@@ -706,9 +706,14 @@ static const TypeInfo strongarm_gpio_info = {
 #define PSDR 0x0c
 #define PPFR 0x10
 
+#define TYPE_STRONGARM_PPC "strongarm-ppc"
+#define STRONGARM_PPC(obj) \
+    OBJECT_CHECK(StrongARMPPCInfo, (obj), TYPE_STRONGARM_PPC)
+
 typedef struct StrongARMPPCInfo StrongARMPPCInfo;
 struct StrongARMPPCInfo {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq handler[28];
 
@@ -817,19 +822,18 @@ static const MemoryRegionOps strongarm_ppc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_ppc_init(SysBusDevice *dev)
+static int strongarm_ppc_init(SysBusDevice *sbd)
 {
-    StrongARMPPCInfo *s;
+    DeviceState *dev = DEVICE(sbd);
+    StrongARMPPCInfo *s = STRONGARM_PPC(dev);
 
-    s = FROM_SYSBUS(StrongARMPPCInfo, dev);
-
-    qdev_init_gpio_in(&dev->qdev, strongarm_ppc_set, 22);
-    qdev_init_gpio_out(&dev->qdev, s->handler, 22);
+    qdev_init_gpio_in(dev, strongarm_ppc_set, 22);
+    qdev_init_gpio_out(dev, s->handler, 22);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ppc_ops, s,
                           "ppc", 0x1000);
 
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     return 0;
 }
@@ -860,7 +864,7 @@ static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_ppc_info = {
-    .name          = "strongarm-ppc",
+    .name          = TYPE_STRONGARM_PPC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPPCInfo),
     .class_init    = strongarm_ppc_class_init,
@@ -1612,7 +1616,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
 
     s->gpio = strongarm_gpio_init(0x90040000, s->pic);
 
-    s->ppc = sysbus_create_varargs("strongarm-ppc", 0x90060000, NULL);
+    s->ppc = sysbus_create_varargs(TYPE_STRONGARM_PPC, 0x90060000, NULL);
 
     for (i = 0; sa_serial[i].io_base; i++) {
         DeviceState *dev = qdev_create(NULL, "strongarm-uart");
