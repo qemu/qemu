@@ -119,6 +119,7 @@ path_of() {
 # default parameters
 source_path=`dirname "$0"`
 cpu=""
+iasl="iasl"
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
@@ -256,6 +257,8 @@ for opt do
   --cc=*) CC="$optarg"
   ;;
   --cxx=*) CXX="$optarg"
+  ;;
+  --iasl=*) iasl="$optarg"
   ;;
   --source-path=*) source_path="$optarg"
   ;;
@@ -1055,6 +1058,7 @@ echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
+echo "  --iasl=IASL              use ACPI compiler IASL [$iasl]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
 echo "                           build time"
 echo "  --cxx=CXX                use C++ compiler CXX [$cxx]"
@@ -4239,6 +4243,9 @@ else
 fi
 echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
+if $iasl -h > /dev/null 2>&1; then
+  echo "IASL=$iasl" >> $config_host_mak
+fi
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
 echo "CXX=$cxx" >> $config_host_mak
@@ -4691,7 +4698,7 @@ for rom in seabios vgabios ; do
     echo "BCC=bcc" >> $config_mak
     echo "CPP=$cpp" >> $config_mak
     echo "OBJCOPY=objcopy" >> $config_mak
-    echo "IASL=iasl" >> $config_mak
+    echo "IASL=$iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
 
