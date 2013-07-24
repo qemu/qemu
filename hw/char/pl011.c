@@ -10,8 +10,12 @@
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
 
+#define TYPE_PL011 "pl011"
+#define PL011(obj) OBJECT_CHECK(PL011State, (obj), TYPE_PL011)
+
 typedef struct PL011State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t readbuff;
     uint32_t flags;
@@ -261,64 +265,62 @@ static const VMStateDescription vmstate_pl011 = {
     }
 };
 
-static int pl011_init(SysBusDevice *dev, const unsigned char *id)
+static void pl011_init(Object *obj)
 {
-    PL011State *s = FROM_SYSBUS(PL011State, dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    PL011State *s = PL011(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    s->id = id;
-    s->chr = qemu_char_get_next_serial();
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 
     s->read_trigger = 1;
     s->ifl = 0x12;
     s->cr = 0x300;
     s->flags = 0x90;
+
+    s->id = pl011_id_arm;
+}
+
+static void pl011_realize(DeviceState *dev, Error **errp)
+{
+    PL011State *s = PL011(dev);
+
+    s->chr = qemu_char_get_next_serial();
+
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }
-    vmstate_register(&dev->qdev, -1, &vmstate_pl011, s);
-    return 0;
 }
 
-static int pl011_arm_init(SysBusDevice *dev)
+static void pl011_class_init(ObjectClass *oc, void *data)
 {
-    return pl011_init(dev, pl011_id_arm);
-}
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
-static int pl011_luminary_init(SysBusDevice *dev)
-{
-    return pl011_init(dev, pl011_id_luminary);
-}
-
-static void pl011_arm_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-
-    sdc->init = pl011_arm_init;
+    dc->realize = pl011_realize;
+    dc->vmsd = &vmstate_pl011;
 }
 
 static const TypeInfo pl011_arm_info = {
-    .name          = "pl011",
+    .name          = TYPE_PL011,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL011State),
-    .class_init    = pl011_arm_class_init,
+    .instance_init = pl011_init,
+    .class_init    = pl011_class_init,
 };
 
-static void pl011_luminary_class_init(ObjectClass *klass, void *data)
+static void pl011_luminary_init(Object *obj)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    PL011State *s = PL011(obj);
 
-    sdc->init = pl011_luminary_init;
+    s->id = pl011_id_luminary;
 }
 
 static const TypeInfo pl011_luminary_info = {
     .name          = "pl011_luminary",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL011State),
-    .class_init    = pl011_luminary_class_init,
+    .parent        = TYPE_PL011,
+    .instance_init = pl011_luminary_init,
 };
 
 static void pl011_register_types(void)
