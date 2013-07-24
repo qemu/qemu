@@ -10,7 +10,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
 
-typedef struct {
+typedef struct PL011State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t readbuff;
@@ -31,7 +31,7 @@ typedef struct {
     CharDriverState *chr;
     qemu_irq irq;
     const unsigned char *id;
-} pl011_state;
+} PL011State;
 
 #define PL011_INT_TX 0x20
 #define PL011_INT_RX 0x10
@@ -46,7 +46,7 @@ static const unsigned char pl011_id_arm[8] =
 static const unsigned char pl011_id_luminary[8] =
   { 0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
-static void pl011_update(pl011_state *s)
+static void pl011_update(PL011State *s)
 {
     uint32_t flags;
 
@@ -57,7 +57,7 @@ static void pl011_update(pl011_state *s)
 static uint64_t pl011_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl011_state *s = (pl011_state *)opaque;
+    PL011State *s = (PL011State *)opaque;
     uint32_t c;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -113,7 +113,7 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
     }
 }
 
-static void pl011_set_read_trigger(pl011_state *s)
+static void pl011_set_read_trigger(PL011State *s)
 {
 #if 0
     /* The docs say the RX interrupt is triggered when the FIFO exceeds
@@ -130,7 +130,7 @@ static void pl011_set_read_trigger(pl011_state *s)
 static void pl011_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    pl011_state *s = (pl011_state *)opaque;
+    PL011State *s = (PL011State *)opaque;
     unsigned char ch;
 
     switch (offset >> 2) {
@@ -191,7 +191,7 @@ static void pl011_write(void *opaque, hwaddr offset,
 
 static int pl011_can_receive(void *opaque)
 {
-    pl011_state *s = (pl011_state *)opaque;
+    PL011State *s = (PL011State *)opaque;
 
     if (s->lcr & 0x10)
         return s->read_count < 16;
@@ -201,7 +201,7 @@ static int pl011_can_receive(void *opaque)
 
 static void pl011_put_fifo(void *opaque, uint32_t value)
 {
-    pl011_state *s = (pl011_state *)opaque;
+    PL011State *s = (PL011State *)opaque;
     int slot;
 
     slot = s->read_pos + s->read_count;
@@ -242,28 +242,28 @@ static const VMStateDescription vmstate_pl011 = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT32(readbuff, pl011_state),
-        VMSTATE_UINT32(flags, pl011_state),
-        VMSTATE_UINT32(lcr, pl011_state),
-        VMSTATE_UINT32(cr, pl011_state),
-        VMSTATE_UINT32(dmacr, pl011_state),
-        VMSTATE_UINT32(int_enabled, pl011_state),
-        VMSTATE_UINT32(int_level, pl011_state),
-        VMSTATE_UINT32_ARRAY(read_fifo, pl011_state, 16),
-        VMSTATE_UINT32(ilpr, pl011_state),
-        VMSTATE_UINT32(ibrd, pl011_state),
-        VMSTATE_UINT32(fbrd, pl011_state),
-        VMSTATE_UINT32(ifl, pl011_state),
-        VMSTATE_INT32(read_pos, pl011_state),
-        VMSTATE_INT32(read_count, pl011_state),
-        VMSTATE_INT32(read_trigger, pl011_state),
+        VMSTATE_UINT32(readbuff, PL011State),
+        VMSTATE_UINT32(flags, PL011State),
+        VMSTATE_UINT32(lcr, PL011State),
+        VMSTATE_UINT32(cr, PL011State),
+        VMSTATE_UINT32(dmacr, PL011State),
+        VMSTATE_UINT32(int_enabled, PL011State),
+        VMSTATE_UINT32(int_level, PL011State),
+        VMSTATE_UINT32_ARRAY(read_fifo, PL011State, 16),
+        VMSTATE_UINT32(ilpr, PL011State),
+        VMSTATE_UINT32(ibrd, PL011State),
+        VMSTATE_UINT32(fbrd, PL011State),
+        VMSTATE_UINT32(ifl, PL011State),
+        VMSTATE_INT32(read_pos, PL011State),
+        VMSTATE_INT32(read_count, PL011State),
+        VMSTATE_INT32(read_trigger, PL011State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static int pl011_init(SysBusDevice *dev, const unsigned char *id)
 {
-    pl011_state *s = FROM_SYSBUS(pl011_state, dev);
+    PL011State *s = FROM_SYSBUS(PL011State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -303,7 +303,7 @@ static void pl011_arm_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl011_arm_info = {
     .name          = "pl011",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl011_state),
+    .instance_size = sizeof(PL011State),
     .class_init    = pl011_arm_class_init,
 };
 
@@ -317,7 +317,7 @@ static void pl011_luminary_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl011_luminary_info = {
     .name          = "pl011_luminary",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl011_state),
+    .instance_size = sizeof(PL011State),
     .class_init    = pl011_luminary_class_init,
 };
 
