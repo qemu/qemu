@@ -897,9 +897,13 @@ static int stellaris_i2c_init(SysBusDevice *sbd)
 #define STELLARIS_ADC_FIFO_EMPTY    0x0100
 #define STELLARIS_ADC_FIFO_FULL     0x1000
 
-typedef struct
-{
-    SysBusDevice busdev;
+#define TYPE_STELLARIS_ADC "stellaris-adc"
+#define STELLARIS_ADC(obj) \
+    OBJECT_CHECK(stellaris_adc_state, (obj), TYPE_STELLARIS_ADC)
+
+typedef struct StellarisADCState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t actss;
     uint32_t ris;
@@ -1148,21 +1152,22 @@ static const VMStateDescription vmstate_stellaris_adc = {
     }
 };
 
-static int stellaris_adc_init(SysBusDevice *dev)
+static int stellaris_adc_init(SysBusDevice *sbd)
 {
-    stellaris_adc_state *s = FROM_SYSBUS(stellaris_adc_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    stellaris_adc_state *s = STELLARIS_ADC(dev);
     int n;
 
     for (n = 0; n < 4; n++) {
-        sysbus_init_irq(dev, &s->irq[n]);
+        sysbus_init_irq(sbd, &s->irq[n]);
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_adc_ops, s,
                           "adc", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     stellaris_adc_reset(s);
-    qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_adc, s);
+    qdev_init_gpio_in(dev, stellaris_adc_trigger, 1);
+    vmstate_register(dev, -1, &vmstate_stellaris_adc, s);
     return 0;
 }
 
@@ -1219,7 +1224,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
                       flash_size, sram_size, kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {
-        dev = sysbus_create_varargs("stellaris-adc", 0x40038000,
+        dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
                                     pic[14], pic[15], pic[16], pic[17], NULL);
         adc = qdev_get_gpio_in(dev, 0);
     } else {
@@ -1397,7 +1402,7 @@ static void stellaris_adc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_adc_info = {
-    .name          = "stellaris-adc",
+    .name          = TYPE_STELLARIS_ADC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_adc_state),
     .class_init    = stellaris_adc_class_init,
