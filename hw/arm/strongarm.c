@@ -70,8 +70,14 @@ static struct {
 };
 
 /* Interrupt Controller */
-typedef struct {
-    SysBusDevice busdev;
+
+#define TYPE_STRONGARM_PIC "strongarm_pic"
+#define STRONGARM_PIC(obj) \
+    OBJECT_CHECK(StrongARMPICState, (obj), TYPE_STRONGARM_PIC)
+
+typedef struct StrongARMPICState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq    irq;
     qemu_irq    fiq;
@@ -168,16 +174,17 @@ static const MemoryRegionOps strongarm_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_pic_initfn(SysBusDevice *dev)
+static int strongarm_pic_initfn(SysBusDevice *sbd)
 {
-    StrongARMPICState *s = FROM_SYSBUS(StrongARMPICState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    StrongARMPICState *s = STRONGARM_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, strongarm_pic_set_irq, SA_PIC_SRCS);
+    qdev_init_gpio_in(dev, strongarm_pic_set_irq, SA_PIC_SRCS);
     memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_pic_ops, s,
                           "pic", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_irq(dev, &s->fiq);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->fiq);
 
     return 0;
 }
@@ -214,7 +221,7 @@ static void strongarm_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_pic_info = {
-    .name          = "strongarm_pic",
+    .name          = TYPE_STRONGARM_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPICState),
     .class_init    = strongarm_pic_class_init,
