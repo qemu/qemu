@@ -161,11 +161,16 @@ static int mpcore_priv_init(SysBusDevice *sbd)
     return 0;
 }
 
+#define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
+#define REALVIEW_MPCORE_RIRQ(obj) \
+    OBJECT_CHECK(mpcore_rirq_state, (obj), TYPE_REALVIEW_MPCORE_RIRQ)
+
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
    controllers.  The output of these, plus some of the raw input lines
    are fed into a single SMP-aware interrupt controller on the CPU.  */
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     SysBusDevice *priv;
     qemu_irq cpuic[32];
     qemu_irq rvic[4][64];
@@ -196,9 +201,10 @@ static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static int realview_mpcore_init(SysBusDevice *dev)
+static int realview_mpcore_init(SysBusDevice *sbd)
 {
-    mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    mpcore_rirq_state *s = REALVIEW_MPCORE_RIRQ(dev);
     DeviceState *gic;
     DeviceState *priv;
     int n;
@@ -208,7 +214,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
     qdev_init_nofail(priv);
     s->priv = SYS_BUS_DEVICE(priv);
-    sysbus_pass_irq(dev, s->priv);
+    sysbus_pass_irq(sbd, s->priv);
     for (i = 0; i < 32; i++) {
         s->cpuic[i] = qdev_get_gpio_in(priv, i);
     }
@@ -220,8 +226,8 @@ static int realview_mpcore_init(SysBusDevice *dev)
             s->rvic[n][i] = qdev_get_gpio_in(gic, i);
         }
     }
-    qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio(dev, sysbus_mmio_get_region(s->priv, 0));
+    qdev_init_gpio_in(dev, mpcore_rirq_set_irq, 64);
+    sysbus_init_mmio(sbd, sysbus_mmio_get_region(s->priv, 0));
     return 0;
 }
 
@@ -240,7 +246,7 @@ static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mpcore_rirq_info = {
-    .name          = "realview_mpcore",
+    .name          = TYPE_REALVIEW_MPCORE_RIRQ,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mpcore_rirq_state),
     .class_init    = mpcore_rirq_class_init,
