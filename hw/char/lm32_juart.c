@@ -22,7 +22,7 @@
 #include "trace.h"
 #include "sysemu/char.h"
 
-#include "hw/lm32/lm32_juart.h"
+#include "hw/char/lm32_juart.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,
