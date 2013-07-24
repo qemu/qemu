@@ -31,8 +31,15 @@
 
 #define PXA2XX_PIC_SRCS	40
 
+#define TYPE_PXA2XX_PIC "pxa2xx_pic"
+#define PXA2XX_PIC(obj) \
+    OBJECT_CHECK(PXA2xxPICState, (obj), TYPE_PXA2XX_PIC)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     ARMCPU *cpu;
     uint32_t int_enabled[2];
@@ -260,9 +267,8 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
 
 DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
 {
-    CPUARMState *env = &cpu->env;
-    DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");
-    PXA2xxPICState *s = FROM_SYSBUS(PXA2xxPICState, SYS_BUS_DEVICE(dev));
+    DeviceState *dev = qdev_create(NULL, TYPE_PXA2XX_PIC);
+    PXA2xxPICState *s = PXA2XX_PIC(dev);
 
     s->cpu = cpu;
 
@@ -284,7 +290,7 @@ DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     /* Enable IC coprocessor access.  */
-    define_arm_cp_regs_with_opaque(arm_env_get_cpu(env), pxa_pic_cp_reginfo, s);
+    define_arm_cp_regs_with_opaque(cpu, pxa_pic_cp_reginfo, s);
 
     return dev;
 }
@@ -321,7 +327,7 @@ static void pxa2xx_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_pic_info = {
-    .name          = "pxa2xx_pic",
+    .name          = TYPE_PXA2XX_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxPICState),
     .class_init    = pxa2xx_pic_class_init,
