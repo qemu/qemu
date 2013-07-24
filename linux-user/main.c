@@ -1861,7 +1861,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_lseek	, 3)
 	MIPS_SYS(sys_getpid	, 0)	/* 4020 */
 	MIPS_SYS(sys_mount	, 5)
-	MIPS_SYS(sys_oldumount	, 1)
+	MIPS_SYS(sys_umount	, 1)
 	MIPS_SYS(sys_setuid	, 1)
 	MIPS_SYS(sys_getuid	, 0)
 	MIPS_SYS(sys_stime	, 1)	/* 4025 */
@@ -1891,7 +1891,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_geteuid	, 0)
 	MIPS_SYS(sys_getegid	, 0)	/* 4050 */
 	MIPS_SYS(sys_acct	, 0)
-	MIPS_SYS(sys_umount	, 2)
+	MIPS_SYS(sys_umount2	, 2)
 	MIPS_SYS(sys_ni_syscall	, 0)
 	MIPS_SYS(sys_ioctl	, 3)
 	MIPS_SYS(sys_fcntl	, 3)	/* 4055 */
