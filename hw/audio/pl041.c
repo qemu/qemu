@@ -70,8 +70,12 @@ typedef struct {
     uint8_t rx_sample_size;
 } pl041_channel;
 
+#define TYPE_PL041 "pl041"
+#define PL041(obj) OBJECT_CHECK(PL041State, (obj), TYPE_PL041)
+
 typedef struct PL041State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
 
@@ -504,7 +508,7 @@ static void pl041_write(void *opaque, hwaddr offset,
 
 static void pl041_device_reset(DeviceState *d)
 {
-    PL041State *s = DO_UPCAST(PL041State, busdev.qdev, d);
+    PL041State *s = PL041(d);
 
     pl041_reset(s);
 }
@@ -517,7 +521,7 @@ static const MemoryRegionOps pl041_ops = {
 
 static int pl041_init(SysBusDevice *dev)
 {
-    PL041State *s = FROM_SYSBUS(PL041State, dev);
+    PL041State *s = PL041(dev);
 
     DBG_L1("pl041_init 0x%08x\n", (uint32_t)s);
 
@@ -635,7 +639,7 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl041_device_info = {
-    .name          = "pl041",
+    .name          = TYPE_PL041,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL041State),
     .class_init    = pl041_device_class_init,
