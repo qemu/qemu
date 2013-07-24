@@ -5697,7 +5697,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#ifdef TARGET_NR_umount2 /* not on alpha */
+#ifdef TARGET_NR_umount2
     case TARGET_NR_umount2:
         if (!(p = lock_user_string(arg1)))
             goto efault;

@@ -612,9 +612,6 @@
 #ifdef TARGET_NR_oldstat
 { TARGET_NR_oldstat, "oldstat" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_oldumount
-{ TARGET_NR_oldumount, "oldumount" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_olduname
 { TARGET_NR_olduname, "olduname" , NULL, NULL, NULL },
 #endif
