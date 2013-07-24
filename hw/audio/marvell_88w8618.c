@@ -36,8 +36,13 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
+#define TYPE_MV88W8618_AUDIO "mv88w8618_audio"
+#define MV88W8618_AUDIO(obj) \
+    OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
+
 typedef struct mv88w8618_audio_state {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t playback_mode;
@@ -219,8 +224,7 @@ static void mv88w8618_audio_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_audio_reset(DeviceState *d)
 {
-    mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state,
-                                           SYS_BUS_DEVICE(d));
+    mv88w8618_audio_state *s = MV88W8618_AUDIO(d);
 
     s->playback_mode = 0;
     s->status = 0;
@@ -238,7 +242,7 @@ static const MemoryRegionOps mv88w8618_audio_ops = {
 
 static int mv88w8618_audio_init(SysBusDevice *dev)
 {
-    mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state, dev);
+    mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -287,7 +291,7 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_audio_info = {
-    .name          = "mv88w8618_audio",
+    .name          = TYPE_MV88W8618_AUDIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_audio_state),
     .class_init    = mv88w8618_audio_class_init,
