@@ -43,8 +43,12 @@ do { printf("imx_serial: " fmt , ##args); } while (0)
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_IMX_SERIAL "imx-serial"
+#define IMX_SERIAL(obj) OBJECT_CHECK(IMXSerialState, (obj), TYPE_IMX_SERIAL)
+
+typedef struct IMXSerialState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     int32_t readbuff;
 
@@ -169,7 +173,7 @@ static void imx_serial_reset(IMXSerialState *s)
 
 static void imx_serial_reset_at_boot(DeviceState *dev)
 {
-    IMXSerialState *s = container_of(dev, IMXSerialState, busdev.qdev);
+    IMXSerialState *s = IMX_SERIAL(dev);
 
     imx_serial_reset(s);
 
@@ -383,7 +387,7 @@ static const struct MemoryRegionOps imx_serial_ops = {
 
 static int imx_serial_init(SysBusDevice *dev)
 {
-    IMXSerialState *s = FROM_SYSBUS(IMXSerialState, dev);
+    IMXSerialState *s = IMX_SERIAL(dev);
 
 
     memory_region_init_io(&s->iomem, OBJECT(s), &imx_serial_ops, s,
@@ -410,7 +414,7 @@ void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq)
     const char chr_name[] = "serial";
     char label[ARRAY_SIZE(chr_name) + 1];
 
-    dev = qdev_create(NULL, "imx-serial");
+    dev = qdev_create(NULL, TYPE_IMX_SERIAL);
 
     if (uart >= MAX_SERIAL_PORTS) {
         hw_error("Cannot assign uart %d: QEMU supports only %d ports\n",
@@ -455,7 +459,7 @@ static void imx_serial_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo imx_serial_info = {
-    .name = "imx-serial",
+    .name = TYPE_IMX_SERIAL,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMXSerialState),
     .class_init = imx_serial_class_init,
