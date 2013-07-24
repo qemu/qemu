@@ -685,8 +685,13 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 
 /* I2C controller.  */
 
+#define TYPE_STELLARIS_I2C "stellaris-i2c"
+#define STELLARIS_I2C(obj) \
+    OBJECT_CHECK(stellaris_i2c_state, (obj), TYPE_STELLARIS_I2C)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     i2c_bus *bus;
     qemu_irq irq;
     MemoryRegion iomem;
@@ -859,21 +864,22 @@ static const VMStateDescription vmstate_stellaris_i2c = {
     }
 };
 
-static int stellaris_i2c_init(SysBusDevice * dev)
+static int stellaris_i2c_init(SysBusDevice *sbd)
 {
-    stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    stellaris_i2c_state *s = STELLARIS_I2C(dev);
     i2c_bus *bus;
 
-    sysbus_init_irq(dev, &s->irq);
-    bus = i2c_init_bus(&dev->qdev, "i2c");
+    sysbus_init_irq(sbd, &s->irq);
+    bus = i2c_init_bus(dev, "i2c");
     s->bus = bus;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_i2c_ops, s,
                           "i2c", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_i2c, s);
+    vmstate_register(dev, -1, &vmstate_stellaris_i2c, s);
     return 0;
 }
 
@@ -1244,7 +1250,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
 
     if (board->dc2 & (1 << 12)) {
-        dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
+        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000, pic[8]);
         i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
@@ -1363,7 +1369,7 @@ static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_i2c_info = {
-    .name          = "stellaris-i2c",
+    .name          = TYPE_STELLARIS_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_i2c_state),
     .class_init    = stellaris_i2c_class_init,
