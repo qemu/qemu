@@ -12,8 +12,13 @@
 
 /* MPCore private memory region.  */
 
+#define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
+#define ARM11MPCORE_PRIV(obj) \
+    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
+
 typedef struct ARM11MPCorePriveState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     uint32_t scu_control;
     int iomemtype;
     uint32_t old_timer_status[8];
@@ -125,9 +130,10 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     }
 }
 
-static int mpcore_priv_init(SysBusDevice *dev)
+static int mpcore_priv_init(SysBusDevice *sbd)
 {
-    ARM11MPCorePriveState *s = FROM_SYSBUS(ARM11MPCorePriveState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(dev);
 
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
@@ -137,10 +143,10 @@ static int mpcore_priv_init(SysBusDevice *dev)
     qdev_init_nofail(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, SYS_BUS_DEVICE(s->gic));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(s->gic));
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, mpcore_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
@@ -151,7 +157,7 @@ static int mpcore_priv_init(SysBusDevice *dev)
     qdev_init_nofail(s->wdtimer);
 
     mpcore_priv_map_setup(s);
-    sysbus_init_mmio(dev, &s->container);
+    sysbus_init_mmio(sbd, &s->container);
     return 0;
 }
 
@@ -198,7 +204,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
     int n;
     int i;
 
-    priv = qdev_create(NULL, "arm11mpcore_priv");
+    priv = qdev_create(NULL, TYPE_ARM11MPCORE_PRIV);
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
     qdev_init_nofail(priv);
     s->priv = SYS_BUS_DEVICE(priv);
@@ -264,7 +270,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mpcore_priv_info = {
-    .name          = "arm11mpcore_priv",
+    .name          = TYPE_ARM11MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARM11MPCorePriveState),
     .class_init    = mpcore_priv_class_init,
