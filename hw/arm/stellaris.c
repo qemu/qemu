@@ -43,8 +43,13 @@ typedef const struct {
 
 /* General purpose timer module.  */
 
+#define TYPE_STELLARIS_GPTM "stellaris-gptm"
+#define STELLARIS_GPTM(obj) \
+    OBJECT_CHECK(gptm_state, (obj), TYPE_STELLARIS_GPTM)
+
 typedef struct gptm_state {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t config;
     uint32_t mode[2];
@@ -300,21 +305,22 @@ static const VMStateDescription vmstate_stellaris_gptm = {
     }
 };
 
-static int stellaris_gptm_init(SysBusDevice *dev)
+static int stellaris_gptm_init(SysBusDevice *sbd)
 {
-    gptm_state *s = FROM_SYSBUS(gptm_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    gptm_state *s = STELLARIS_GPTM(dev);
 
-    sysbus_init_irq(dev, &s->irq);
-    qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
+    sysbus_init_irq(sbd, &s->irq);
+    qdev_init_gpio_out(dev, &s->trigger, 1);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &gptm_ops, s,
                           "gptm", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[1]);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_gptm, s);
+    vmstate_register(dev, -1, &vmstate_stellaris_gptm, s);
     return 0;
 }
 
@@ -1215,7 +1221,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (0x10000 << i)) {
-            dev = sysbus_create_simple("stellaris-gptm",
+            dev = sysbus_create_simple(TYPE_STELLARIS_GPTM,
                                        0x40030000 + i * 0x1000,
                                        pic[timer_irq[i]]);
             /* TODO: This is incorrect, but we get away with it because
@@ -1371,7 +1377,7 @@ static void stellaris_gptm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_gptm_info = {
-    .name          = "stellaris-gptm",
+    .name          = TYPE_STELLARIS_GPTM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(gptm_state),
     .class_init    = stellaris_gptm_class_init,
