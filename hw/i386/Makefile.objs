@@ -5,6 +5,7 @@ obj-y += pc_sysfw.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
 
 obj-y += kvmvapic.o
+obj-y += bios-linker-loader.o
 
 iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
     ; then echo "$(2)"; else echo "$(3)"; fi ;)
