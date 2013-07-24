@@ -39,8 +39,12 @@ enum pl110_version
     PL111
 };
 
+#define TYPE_PL110 "pl110"
+#define PL110(obj) OBJECT_CHECK(PL110State, (obj), TYPE_PL110)
+
 typedef struct PL110State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     QemuConsole *con;
 
@@ -129,6 +133,7 @@ static int pl110_enabled(PL110State *s)
 static void pl110_update_display(void *opaque)
 {
     PL110State *s = (PL110State *)opaque;
+    SysBusDevice *sbd;
     DisplaySurface *surface = qemu_console_surface(s->con);
     drawfn* fntable;
     drawfn fn;
@@ -138,8 +143,11 @@ static void pl110_update_display(void *opaque)
     int first;
     int last;
 
-    if (!pl110_enabled(s))
+    if (!pl110_enabled(s)) {
         return;
+    }
+
+    sbd = SYS_BUS_DEVICE(s);
 
     switch (surface_bits_per_pixel(surface)) {
     case 0:
@@ -232,7 +240,7 @@ static void pl110_update_display(void *opaque)
     }
     dest_width *= s->cols;
     first = 0;
-    framebuffer_update_display(surface, sysbus_address_space(&s->busdev),
+    framebuffer_update_display(surface, sysbus_address_space(sbd),
                                s->upbase, s->cols, s->rows,
                                src_width, dest_width, 0,
                                s->invalidate,
@@ -449,30 +457,38 @@ static const GraphicHwOps pl110_gfx_ops = {
     .gfx_update  = pl110_update_display,
 };
 
-static int pl110_init(SysBusDevice *dev)
+static int pl110_initfn(SysBusDevice *sbd)
 {
-    PL110State *s = FROM_SYSBUS(PL110State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PL110State *s = PL110(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl110_ops, s, "pl110", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
-    s->con = graphic_console_init(DEVICE(dev), &pl110_gfx_ops, s);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    qdev_init_gpio_in(dev, pl110_mux_ctrl_set, 1);
+    s->con = graphic_console_init(dev, &pl110_gfx_ops, s);
     return 0;
 }
 
-static int pl110_versatile_init(SysBusDevice *dev)
+static void pl110_init(Object *obj)
 {
-    PL110State *s = FROM_SYSBUS(PL110State, dev);
-    s->version = PL110_VERSATILE;
-    return pl110_init(dev);
+    PL110State *s = PL110(obj);
+
+    s->version = PL110;
 }
 
-static int pl111_init(SysBusDevice *dev)
+static void pl110_versatile_init(Object *obj)
 {
-    PL110State *s = FROM_SYSBUS(PL110State, dev);
+    PL110State *s = PL110(obj);
+
+    s->version = PL110_VERSATILE;
+}
+
+static void pl111_init(Object *obj)
+{
+    PL110State *s = PL110(obj);
+
     s->version = PL111;
-    return pl110_init(dev);
 }
 
 static void pl110_class_init(ObjectClass *klass, void *data)
@@ -480,53 +496,30 @@ static void pl110_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pl110_init;
+    k->init = pl110_initfn;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->no_user = 1;
     dc->vmsd = &vmstate_pl110;
 }
 
 static const TypeInfo pl110_info = {
-    .name          = "pl110",
+    .name          = TYPE_PL110,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL110State),
+    .instance_init = pl110_init,
     .class_init    = pl110_class_init,
 };
 
-static void pl110_versatile_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl110_versatile_init;
-    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->no_user = 1;
-    dc->vmsd = &vmstate_pl110;
-}
-
 static const TypeInfo pl110_versatile_info = {
     .name          = "pl110_versatile",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL110State),
-    .class_init    = pl110_versatile_class_init,
+    .parent        = TYPE_PL110,
+    .instance_init = pl110_versatile_init,
 };
-
-static void pl111_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl111_init;
-    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->no_user = 1;
-    dc->vmsd = &vmstate_pl110;
-}
 
 static const TypeInfo pl111_info = {
     .name          = "pl111",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL110State),
-    .class_init    = pl111_class_init,
+    .parent        = TYPE_PL110,
+    .instance_init = pl111_init,
 };
 
 static void pl110_register_types(void)
