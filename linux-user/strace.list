@@ -1521,3 +1521,9 @@
 #ifdef TARGET_NR_pipe2
 { TARGET_NR_pipe2, "pipe2", NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_atomic_cmpxchg_32
+{ TARGET_NR_atomic_cmpxchg_32, "atomic_cmpxchg_32", NULL, NULL, NULL },
+#endif
+#ifdef TARGET_NR_atomic_barrier
+{ TARGET_NR_atomic_barrier, "atomic_barrier", NULL, NULL, NULL },
+#endif
