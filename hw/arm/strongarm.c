@@ -1336,8 +1336,14 @@ static const TypeInfo strongarm_uart_info = {
 };
 
 /* Synchronous Serial Ports */
-typedef struct {
-    SysBusDevice busdev;
+
+#define TYPE_STRONGARM_SSP "strongarm-ssp"
+#define STRONGARM_SSP(obj) \
+    OBJECT_CHECK(StrongARMSSPState, (obj), TYPE_STRONGARM_SSP)
+
+typedef struct StrongARMSSPState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
     SSIBus *bus;
@@ -1519,23 +1525,25 @@ static int strongarm_ssp_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int strongarm_ssp_init(SysBusDevice *dev)
+static int strongarm_ssp_init(SysBusDevice *sbd)
 {
-    StrongARMSSPState *s = FROM_SYSBUS(StrongARMSSPState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    StrongARMSSPState *s = STRONGARM_SSP(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ssp_ops, s,
                           "ssp", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    s->bus = ssi_create_bus(&dev->qdev, "ssi");
+    s->bus = ssi_create_bus(dev, "ssi");
     return 0;
 }
 
 static void strongarm_ssp_reset(DeviceState *dev)
 {
-    StrongARMSSPState *s = DO_UPCAST(StrongARMSSPState, busdev.qdev, dev);
+    StrongARMSSPState *s = STRONGARM_SSP(dev);
+
     s->sssr = 0x03; /* 3 bit data, SPI, disabled */
     s->rx_start = 0;
     s->rx_level = 0;
@@ -1569,7 +1577,7 @@ static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_ssp_info = {
-    .name          = "strongarm-ssp",
+    .name          = TYPE_STRONGARM_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMSSPState),
     .class_init    = strongarm_ssp_class_init,
@@ -1633,7 +1641,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
                 qdev_get_gpio_in(s->pic, sa_serial[i].irq));
     }
 
-    s->ssp = sysbus_create_varargs("strongarm-ssp", 0x80070000,
+    s->ssp = sysbus_create_varargs(TYPE_STRONGARM_SSP, 0x80070000,
                 qdev_get_gpio_in(s->pic, SA_PIC_SSP), NULL);
     s->ssp_bus = (SSIBus *)qdev_get_child_bus(s->ssp, "ssi");
 
