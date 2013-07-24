@@ -53,8 +53,8 @@ static const char *balloon_stat_names[] = {
 /*
  * reset_stats - Mark all items in the stats array as unset
  *
- * This function needs to be called at device intialization and before
- * before updating to a set of newly-generated stats.  This will ensure that no
+ * This function needs to be called at device initialization and before
+ * updating to a set of newly-generated stats.  This will ensure that no
  * stale values stick around in case the guest reports a subset of the supported
  * statistics.
  */
