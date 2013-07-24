@@ -908,8 +908,13 @@ static const TypeInfo strongarm_ppc_info = {
 #define RX_FIFO_FRE (1 << 9)
 #define RX_FIFO_ROR (1 << 10)
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_STRONGARM_UART "strongarm-uart"
+#define STRONGARM_UART(obj) \
+    OBJECT_CHECK(StrongARMUARTState, (obj), TYPE_STRONGARM_UART)
+
+typedef struct StrongARMUARTState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     CharDriverState *chr;
     qemu_irq irq;
@@ -1225,7 +1230,7 @@ static const MemoryRegionOps strongarm_uart_ops = {
 
 static int strongarm_uart_init(SysBusDevice *dev)
 {
-    StrongARMUARTState *s = FROM_SYSBUS(StrongARMUARTState, dev);
+    StrongARMUARTState *s = STRONGARM_UART(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_uart_ops, s,
                           "uart", 0x10000);
@@ -1248,7 +1253,7 @@ static int strongarm_uart_init(SysBusDevice *dev)
 
 static void strongarm_uart_reset(DeviceState *dev)
 {
-    StrongARMUARTState *s = DO_UPCAST(StrongARMUARTState, busdev.qdev, dev);
+    StrongARMUARTState *s = STRONGARM_UART(dev);
 
     s->utcr0 = UTCR0_DSS; /* 8 data, no parity */
     s->brd = 23;    /* 9600 */
@@ -1324,7 +1329,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_uart_info = {
-    .name          = "strongarm-uart",
+    .name          = TYPE_STRONGARM_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
     .class_init    = strongarm_uart_class_init,
@@ -1619,7 +1624,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
     s->ppc = sysbus_create_varargs(TYPE_STRONGARM_PPC, 0x90060000, NULL);
 
     for (i = 0; sa_serial[i].io_base; i++) {
-        DeviceState *dev = qdev_create(NULL, "strongarm-uart");
+        DeviceState *dev = qdev_create(NULL, TYPE_STRONGARM_UART);
         qdev_prop_set_chr(dev, "chardev", serial_hds[i]);
         qdev_init_nofail(dev);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
