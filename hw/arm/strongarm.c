@@ -242,8 +242,13 @@ static const TypeInfo strongarm_pic_info = {
  * trim delete isn't emulated, so
  * f = 32 768 / (RTTR_trim + 1) */
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_STRONGARM_RTC "strongarm-rtc"
+#define STRONGARM_RTC(obj) \
+    OBJECT_CHECK(StrongARMRTCState, (obj), TYPE_STRONGARM_RTC)
+
+typedef struct StrongARMRTCState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t rttr;
     uint32_t rtsr;
@@ -374,7 +379,7 @@ static const MemoryRegionOps strongarm_rtc_ops = {
 
 static int strongarm_rtc_init(SysBusDevice *dev)
 {
-    StrongARMRTCState *s = FROM_SYSBUS(StrongARMRTCState, dev);
+    StrongARMRTCState *s = STRONGARM_RTC(dev);
     struct tm tm;
 
     s->rttr = 0x0;
@@ -443,7 +448,7 @@ static void strongarm_rtc_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_rtc_sysbus_info = {
-    .name          = "strongarm-rtc",
+    .name          = TYPE_STRONGARM_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMRTCState),
     .class_init    = strongarm_rtc_sysbus_class_init,
@@ -1599,7 +1604,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC3),
                     NULL);
 
-    sysbus_create_simple("strongarm-rtc", 0x90010000,
+    sysbus_create_simple(TYPE_STRONGARM_RTC, 0x90010000,
                     qdev_get_gpio_in(s->pic, SA_PIC_RTC_ALARM));
 
     s->gpio = strongarm_gpio_init(0x90040000, s->pic);
