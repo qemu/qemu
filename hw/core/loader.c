@@ -663,7 +663,7 @@ int rom_add_file(const char *file, const char *fw_dir,
     rom_insert(rom);
     if (rom->fw_file && fw_cfg) {
         const char *basename;
-        char fw_file_name[56];
+        char fw_file_name[FW_CFG_MAX_FILE_PATH];
         void *data;
 
         basename = strrchr(rom->fw_file, '/');

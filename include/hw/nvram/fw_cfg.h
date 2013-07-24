@@ -46,12 +46,14 @@
 
 #define FW_CFG_INVALID          0xffff
 
+#define FW_CFG_MAX_FILE_PATH    56
+
 #ifndef NO_QEMU_PROTOS
 typedef struct FWCfgFile {
     uint32_t  size;        /* file size */
     uint16_t  select;      /* write this to 0x510 to read it */
     uint16_t  reserved;
-    char      name[56];
+    char      name[FW_CFG_MAX_FILE_PATH];
 } FWCfgFile;
 
 typedef struct FWCfgFiles {
