@@ -13,9 +13,16 @@
 
 #define PXA2XX_GPIO_BANKS	4
 
+#define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
+#define PXA2XX_GPIO(obj) \
+    OBJECT_CHECK(PXA2xxGPIOInfo, (obj), TYPE_PXA2XX_GPIO)
+
 typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
 struct PXA2xxGPIOInfo {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq0, irq1, irqX;
     int lines;
@@ -256,7 +263,7 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     CPUState *cs = CPU(cpu);
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "pxa2xx-gpio");
+    dev = qdev_create(NULL, TYPE_PXA2XX_GPIO);
     qdev_prop_set_int32(dev, "lines", lines);
     qdev_prop_set_int32(dev, "ncpu", cs->cpu_index);
     qdev_init_nofail(dev);
@@ -272,22 +279,21 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     return dev;
 }
 
-static int pxa2xx_gpio_initfn(SysBusDevice *dev)
+static int pxa2xx_gpio_initfn(SysBusDevice *sbd)
 {
-    PXA2xxGPIOInfo *s;
-
-    s = FROM_SYSBUS(PXA2xxGPIOInfo, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
 
     s->cpu = ARM_CPU(qemu_get_cpu(s->ncpu));
 
-    qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
-    qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);
+    qdev_init_gpio_in(dev, pxa2xx_gpio_set, s->lines);
+    qdev_init_gpio_out(dev, s->handler, s->lines);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq0);
-    sysbus_init_irq(dev, &s->irq1);
-    sysbus_init_irq(dev, &s->irqX);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq0);
+    sysbus_init_irq(sbd, &s->irq1);
+    sysbus_init_irq(sbd, &s->irqX);
 
     return 0;
 }
@@ -298,7 +304,8 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
  */
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler)
 {
-    PXA2xxGPIOInfo *s = FROM_SYSBUS(PXA2xxGPIOInfo, SYS_BUS_DEVICE(dev));
+    PXA2xxGPIOInfo *s = PXA2XX_GPIO(dev);
+
     s->read_notify = handler;
 }
 
@@ -337,7 +344,7 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_gpio_info = {
-    .name          = "pxa2xx-gpio",
+    .name          = TYPE_PXA2XX_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxGPIOInfo),
     .class_init    = pxa2xx_gpio_class_init,
