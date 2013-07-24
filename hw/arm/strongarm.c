@@ -464,6 +464,10 @@ static const TypeInfo strongarm_rtc_sysbus_info = {
 #define GEDR 0x18
 #define GAFR 0x1c
 
+#define TYPE_STRONGARM_GPIO "strongarm-gpio"
+#define STRONGARM_GPIO(obj) \
+    OBJECT_CHECK(StrongARMGPIOInfo, (obj), TYPE_STRONGARM_GPIO)
+
 typedef struct StrongARMGPIOInfo StrongARMGPIOInfo;
 struct StrongARMGPIOInfo {
     SysBusDevice busdev;
@@ -630,7 +634,7 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     DeviceState *dev;
     int i;
 
-    dev = qdev_create(NULL, "strongarm-gpio");
+    dev = qdev_create(NULL, TYPE_STRONGARM_GPIO);
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
@@ -641,24 +645,23 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     return dev;
 }
 
-static int strongarm_gpio_initfn(SysBusDevice *dev)
+static int strongarm_gpio_initfn(SysBusDevice *sbd)
 {
-    StrongARMGPIOInfo *s;
+    DeviceState *dev = DEVICE(sbd);
+    StrongARMGPIOInfo *s = STRONGARM_GPIO(dev);
     int i;
 
-    s = FROM_SYSBUS(StrongARMGPIOInfo, dev);
-
-    qdev_init_gpio_in(&dev->qdev, strongarm_gpio_set, 28);
-    qdev_init_gpio_out(&dev->qdev, s->handler, 28);
+    qdev_init_gpio_in(dev, strongarm_gpio_set, 28);
+    qdev_init_gpio_out(dev, s->handler, 28);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_gpio_ops, s,
                           "gpio", 0x1000);
 
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     for (i = 0; i < 11; i++) {
-        sysbus_init_irq(dev, &s->irqs[i]);
+        sysbus_init_irq(sbd, &s->irqs[i]);
     }
-    sysbus_init_irq(dev, &s->irqX);
+    sysbus_init_irq(sbd, &s->irqX);
 
     return 0;
 }
@@ -690,7 +693,7 @@ static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo strongarm_gpio_info = {
-    .name          = "strongarm-gpio",
+    .name          = TYPE_STRONGARM_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMGPIOInfo),
     .class_init    = strongarm_gpio_class_init,
