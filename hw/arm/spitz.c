@@ -50,8 +50,12 @@
 #define FLASHCTL_RYBY		(1 << 5)
 #define FLASHCTL_NCE		(FLASHCTL_CE0 | FLASHCTL_CE1)
 
+#define TYPE_SL_NAND "sl-nand"
+#define SL_NAND(obj) OBJECT_CHECK(SLNANDState, (obj), TYPE_SL_NAND)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     DeviceState *nand;
     uint8_t ctl;
@@ -147,7 +151,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "sl-nand");
+    dev = qdev_create(NULL, TYPE_SL_NAND);
 
     qdev_prop_set_uint8(dev, "manf_id", NAND_MFR_SAMSUNG);
     if (size == FLASH_128M)
@@ -159,11 +163,10 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, FLASH_BASE);
 }
 
-static int sl_nand_init(SysBusDevice *dev) {
-    SLNANDState *s;
+static int sl_nand_init(SysBusDevice *dev)
+{
+    SLNANDState *s = SL_NAND(dev);
     DriveInfo *nand;
-
-    s = FROM_SYSBUS(SLNANDState, dev);
 
     s->ctl = 0;
     nand = drive_get(IF_MTD, 0, 0);
@@ -1027,7 +1030,7 @@ static void sl_nand_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sl_nand_info = {
-    .name          = "sl-nand",
+    .name          = TYPE_SL_NAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLNANDState),
     .class_init    = sl_nand_class_init,
