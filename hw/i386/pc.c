@@ -1047,6 +1047,27 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
 {
     PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
     PcGuestInfo *guest_info = &guest_info_state->info;
+    int i, j;
+
+    guest_info->ram_size = below_4g_mem_size + above_4g_mem_size;
+    guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
+    guest_info->apic_xrupt_override = kvm_allows_irq0_override();
+    guest_info->numa_nodes = nb_numa_nodes;
+    guest_info->node_mem = g_memdup(node_mem, guest_info->numa_nodes *
+                                    sizeof *guest_info->node_mem);
+    guest_info->node_cpu = g_malloc0(guest_info->apic_id_limit *
+                                     sizeof *guest_info->node_cpu);
+
+    for (i = 0; i < max_cpus; i++) {
+        unsigned int apic_id = x86_cpu_apic_id_from_index(i);
+        assert(apic_id < guest_info->apic_id_limit);
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (test_bit(i, node_cpumask[j])) {
+                guest_info->node_cpu[apic_id] = j;
+                break;
+            }
+        }
+    }
 
     guest_info_state->machine_done.notify = pc_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);

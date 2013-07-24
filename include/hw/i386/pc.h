@@ -9,6 +9,9 @@
 #include "hw/i386/ioapic.h"
 
 #include "qemu/range.h"
+#include "qemu/bitmap.h"
+#include "sysemu/sysemu.h"
+#include "hw/pci/pci.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -20,6 +23,12 @@ typedef struct PcPciInfo {
 struct PcGuestInfo {
     bool has_pci_info;
     bool isapc_ram_fw;
+    hwaddr ram_size;
+    unsigned apic_id_limit;
+    bool apic_xrupt_override;
+    uint64_t numa_nodes;
+    uint64_t *node_mem;
+    uint64_t *node_cpu;
     FWCfgState *fw_cfg;
 };
 
