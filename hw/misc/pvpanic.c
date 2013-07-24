@@ -117,8 +117,19 @@ void pvpanic_init(ISABus *bus)
     isa_create_simple(bus, TYPE_ISA_PVPANIC_DEVICE);
 }
 
+#define PVPANIC_IOPORT_PROP "ioport"
+
+uint16_t pvpanic_port(void)
+{
+    Object *o = object_resolve_path_type("", TYPE_ISA_PVPANIC_DEVICE, NULL);
+    if (!o) {
+        return 0;
+    }
+    return object_property_get_int(o, PVPANIC_IOPORT_PROP, NULL);
+}
+
 static Property pvpanic_isa_properties[] = {
-    DEFINE_PROP_UINT16("ioport", PVPanicState, ioport, 0x505),
+    DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicState, ioport, 0x505),
     DEFINE_PROP_END_OF_LIST(),
 };
 

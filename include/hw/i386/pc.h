@@ -235,6 +235,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory,
 
 /* pvpanic.c */
 void pvpanic_init(ISABus *bus);
+uint16_t pvpanic_port(void);
 
 /* e820 types */
 #define E820_RAM        1
