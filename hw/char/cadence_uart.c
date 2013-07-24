@@ -106,8 +106,12 @@
 
 #define R_MAX (R_TTRIG + 1)
 
+#define TYPE_CADENCE_UART "cadence_uart"
+#define CADENCE_UART(obj) OBJECT_CHECK(UartState, (obj), TYPE_CADENCE_UART)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t r[R_MAX];
     uint8_t r_fifo[RX_FIFO_SIZE];
@@ -442,7 +446,7 @@ static void cadence_uart_reset(UartState *s)
 
 static int cadence_uart_init(SysBusDevice *dev)
 {
-    UartState *s = FROM_SYSBUS(UartState, dev);
+    UartState *s = CADENCE_UART(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &uart_ops, s, "uart", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -504,7 +508,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo cadence_uart_info = {
-    .name          = "cadence_uart",
+    .name          = TYPE_CADENCE_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UartState),
     .class_init    = cadence_uart_class_init,
