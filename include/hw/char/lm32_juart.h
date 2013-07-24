@@ -3,6 +3,8 @@
 
 #include "hw/qdev.h"
 
+#define TYPE_LM32_JUART "lm32-juart"
+
 uint32_t lm32_juart_get_jtx(DeviceState *d);
 uint32_t lm32_juart_get_jrx(DeviceState *d);
 void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx);
