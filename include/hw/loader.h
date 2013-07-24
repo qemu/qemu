@@ -46,6 +46,7 @@ void *rom_add_blob(const char *name, const void *blob, size_t len,
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
                         size_t romsize, hwaddr addr);
 int rom_load_all(void);
+void rom_load_done(void);
 void rom_set_fw(FWCfgState *f);
 int rom_copy(uint8_t *dest, hwaddr addr, size_t size);
 void *rom_ptr(hwaddr addr);
