@@ -46,8 +46,13 @@
 #define CONTROL_RST_RX    0x02
 #define CONTROL_IE        0x10
 
+#define TYPE_XILINX_UARTLITE "xlnx.xps-uartlite"
+#define XILINX_UARTLITE(obj) \
+    OBJECT_CHECK(XilinxUARTLite, (obj), TYPE_XILINX_UARTLITE)
+
 typedef struct XilinxUARTLite {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     CharDriverState *chr;
     qemu_irq irq;
@@ -193,7 +198,7 @@ static void uart_event(void *opaque, int event)
 
 static int xilinx_uartlite_init(SysBusDevice *dev)
 {
-    XilinxUARTLite *s = FROM_SYSBUS(typeof (*s), dev);
+    XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -216,7 +221,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_uartlite_info = {
-    .name          = "xlnx.xps-uartlite",
+    .name          = TYPE_XILINX_UARTLITE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxUARTLite),
     .class_init    = xilinx_uartlite_class_init,
