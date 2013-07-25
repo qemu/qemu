@@ -37,9 +37,9 @@
 #define TARGET_HAS_ICE 1
 
 #ifdef TARGET_X86_64
-#define ELF_MACHINE	EM_X86_64
+#define ELF_MACHINE     EM_X86_64
 #else
-#define ELF_MACHINE	EM_386
+#define ELF_MACHINE     EM_386
 #endif
 
 #define CPUArchState struct CPUX86State
@@ -98,10 +98,10 @@
 #define DESC_TSS_BUSY_MASK (1 << 9)
 
 /* eflags masks */
-#define CC_C   	0x0001
-#define CC_P 	0x0004
-#define CC_A	0x0010
-#define CC_Z	0x0040
+#define CC_C    0x0001
+#define CC_P    0x0004
+#define CC_A    0x0010
+#define CC_Z    0x0040
 #define CC_S    0x0080
 #define CC_O    0x0800
 
@@ -109,14 +109,14 @@
 #define IOPL_SHIFT 12
 #define VM_SHIFT   17
 
-#define TF_MASK 		0x00000100
-#define IF_MASK 		0x00000200
-#define DF_MASK 		0x00000400
-#define IOPL_MASK		0x00003000
-#define NT_MASK	         	0x00004000
-#define RF_MASK			0x00010000
-#define VM_MASK			0x00020000
-#define AC_MASK			0x00040000
+#define TF_MASK                 0x00000100
+#define IF_MASK                 0x00000200
+#define DF_MASK                 0x00000400
+#define IOPL_MASK               0x00003000
+#define NT_MASK                 0x00004000
+#define RF_MASK                 0x00010000
+#define VM_MASK                 0x00020000
+#define AC_MASK                 0x00040000
 #define VIF_MASK                0x00080000
 #define VIP_MASK                0x00100000
 #define ID_MASK                 0x00200000
@@ -238,28 +238,28 @@
 #define DR7_TYPE_IO_RW       0x2
 #define DR7_TYPE_DATA_RW     0x3
 
-#define PG_PRESENT_BIT	0
-#define PG_RW_BIT	1
-#define PG_USER_BIT	2
-#define PG_PWT_BIT	3
-#define PG_PCD_BIT	4
-#define PG_ACCESSED_BIT	5
-#define PG_DIRTY_BIT	6
-#define PG_PSE_BIT	7
-#define PG_GLOBAL_BIT	8
-#define PG_NX_BIT	63
+#define PG_PRESENT_BIT  0
+#define PG_RW_BIT       1
+#define PG_USER_BIT     2
+#define PG_PWT_BIT      3
+#define PG_PCD_BIT      4
+#define PG_ACCESSED_BIT 5
+#define PG_DIRTY_BIT    6
+#define PG_PSE_BIT      7
+#define PG_GLOBAL_BIT   8
+#define PG_NX_BIT       63
 
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
-#define PG_RW_MASK	 (1 << PG_RW_BIT)
-#define PG_USER_MASK	 (1 << PG_USER_BIT)
-#define PG_PWT_MASK	 (1 << PG_PWT_BIT)
-#define PG_PCD_MASK	 (1 << PG_PCD_BIT)
+#define PG_RW_MASK       (1 << PG_RW_BIT)
+#define PG_USER_MASK     (1 << PG_USER_BIT)
+#define PG_PWT_MASK      (1 << PG_PWT_BIT)
+#define PG_PCD_MASK      (1 << PG_PCD_BIT)
 #define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
-#define PG_DIRTY_MASK	 (1 << PG_DIRTY_BIT)
-#define PG_PSE_MASK	 (1 << PG_PSE_BIT)
-#define PG_GLOBAL_MASK	 (1 << PG_GLOBAL_BIT)
+#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
+#define PG_PSE_MASK      (1 << PG_PSE_BIT)
+#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
 #define PG_HI_USER_MASK  0x7ff0000000000000LL
-#define PG_NX_MASK	 (1LL << PG_NX_BIT)
+#define PG_NX_MASK       (1LL << PG_NX_BIT)
 
 #define PG_ERROR_W_BIT     1
 
@@ -269,32 +269,32 @@
 #define PG_ERROR_RSVD_MASK 0x08
 #define PG_ERROR_I_D_MASK  0x10
 
-#define MCG_CTL_P	(1ULL<<8)   /* MCG_CAP register available */
-#define MCG_SER_P	(1ULL<<24) /* MCA recovery/new status bits */
+#define MCG_CTL_P       (1ULL<<8)   /* MCG_CAP register available */
+#define MCG_SER_P       (1ULL<<24) /* MCA recovery/new status bits */
 
-#define MCE_CAP_DEF	(MCG_CTL_P|MCG_SER_P)
-#define MCE_BANKS_DEF	10
+#define MCE_CAP_DEF     (MCG_CTL_P|MCG_SER_P)
+#define MCE_BANKS_DEF   10
 
-#define MCG_STATUS_RIPV	(1ULL<<0)   /* restart ip valid */
-#define MCG_STATUS_EIPV	(1ULL<<1)   /* ip points to correct instruction */
-#define MCG_STATUS_MCIP	(1ULL<<2)   /* machine check in progress */
+#define MCG_STATUS_RIPV (1ULL<<0)   /* restart ip valid */
+#define MCG_STATUS_EIPV (1ULL<<1)   /* ip points to correct instruction */
+#define MCG_STATUS_MCIP (1ULL<<2)   /* machine check in progress */
 
-#define MCI_STATUS_VAL	(1ULL<<63)  /* valid error */
-#define MCI_STATUS_OVER	(1ULL<<62)  /* previous errors lost */
-#define MCI_STATUS_UC	(1ULL<<61)  /* uncorrected error */
-#define MCI_STATUS_EN	(1ULL<<60)  /* error enabled */
-#define MCI_STATUS_MISCV (1ULL<<59) /* misc error reg. valid */
-#define MCI_STATUS_ADDRV (1ULL<<58) /* addr reg. valid */
-#define MCI_STATUS_PCC	(1ULL<<57)  /* processor context corrupt */
-#define MCI_STATUS_S	(1ULL<<56)  /* Signaled machine check */
-#define MCI_STATUS_AR	(1ULL<<55)  /* Action required */
+#define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
+#define MCI_STATUS_OVER  (1ULL<<62)  /* previous errors lost */
+#define MCI_STATUS_UC    (1ULL<<61)  /* uncorrected error */
+#define MCI_STATUS_EN    (1ULL<<60)  /* error enabled */
+#define MCI_STATUS_MISCV (1ULL<<59)  /* misc error reg. valid */
+#define MCI_STATUS_ADDRV (1ULL<<58)  /* addr reg. valid */
+#define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
+#define MCI_STATUS_S     (1ULL<<56)  /* Signaled machine check */
+#define MCI_STATUS_AR    (1ULL<<55)  /* Action required */
 
 /* MISC register defines */
-#define MCM_ADDR_SEGOFF	0	/* segment offset */
-#define MCM_ADDR_LINEAR	1	/* linear address */
-#define MCM_ADDR_PHYS	2	/* physical address */
-#define MCM_ADDR_MEM	3	/* memory address */
-#define MCM_ADDR_GENERIC 7	/* generic */
+#define MCM_ADDR_SEGOFF  0      /* segment offset */
+#define MCM_ADDR_LINEAR  1      /* linear address */
+#define MCM_ADDR_PHYS    2      /* physical address */
+#define MCM_ADDR_MEM     3      /* memory address */
+#define MCM_ADDR_GENERIC 7      /* generic */
 
 #define MSR_IA32_TSC                    0x10
 #define MSR_IA32_APICBASE               0x1b
@@ -305,10 +305,10 @@
 #define MSR_TSC_ADJUST                  0x0000003b
 #define MSR_IA32_TSCDEADLINE            0x6e0
 
-#define MSR_MTRRcap			0xfe
-#define MSR_MTRRcap_VCNT		8
-#define MSR_MTRRcap_FIXRANGE_SUPPORT	(1 << 8)
-#define MSR_MTRRcap_WC_SUPPORTED	(1 << 10)
+#define MSR_MTRRcap                     0xfe
+#define MSR_MTRRcap_VCNT                8
+#define MSR_MTRRcap_FIXRANGE_SUPPORT    (1 << 8)
+#define MSR_MTRRcap_WC_SUPPORTED        (1 << 10)
 
 #define MSR_IA32_SYSENTER_CS            0x174
 #define MSR_IA32_SYSENTER_ESP           0x175
@@ -320,33 +320,33 @@
 
 #define MSR_IA32_PERF_STATUS            0x198
 
-#define MSR_IA32_MISC_ENABLE		0x1a0
+#define MSR_IA32_MISC_ENABLE            0x1a0
 /* Indicates good rep/movs microcode on some processors: */
 #define MSR_IA32_MISC_ENABLE_DEFAULT    1
 
-#define MSR_MTRRphysBase(reg)		(0x200 + 2 * (reg))
-#define MSR_MTRRphysMask(reg)		(0x200 + 2 * (reg) + 1)
+#define MSR_MTRRphysBase(reg)           (0x200 + 2 * (reg))
+#define MSR_MTRRphysMask(reg)           (0x200 + 2 * (reg) + 1)
 
-#define MSR_MTRRfix64K_00000		0x250
-#define MSR_MTRRfix16K_80000		0x258
-#define MSR_MTRRfix16K_A0000		0x259
-#define MSR_MTRRfix4K_C0000		0x268
-#define MSR_MTRRfix4K_C8000		0x269
-#define MSR_MTRRfix4K_D0000		0x26a
-#define MSR_MTRRfix4K_D8000		0x26b
-#define MSR_MTRRfix4K_E0000		0x26c
-#define MSR_MTRRfix4K_E8000		0x26d
-#define MSR_MTRRfix4K_F0000		0x26e
-#define MSR_MTRRfix4K_F8000		0x26f
+#define MSR_MTRRfix64K_00000            0x250
+#define MSR_MTRRfix16K_80000            0x258
+#define MSR_MTRRfix16K_A0000            0x259
+#define MSR_MTRRfix4K_C0000             0x268
+#define MSR_MTRRfix4K_C8000             0x269
+#define MSR_MTRRfix4K_D0000             0x26a
+#define MSR_MTRRfix4K_D8000             0x26b
+#define MSR_MTRRfix4K_E0000             0x26c
+#define MSR_MTRRfix4K_E8000             0x26d
+#define MSR_MTRRfix4K_F0000             0x26e
+#define MSR_MTRRfix4K_F8000             0x26f
 
 #define MSR_PAT                         0x277
 
-#define MSR_MTRRdefType			0x2ff
+#define MSR_MTRRdefType                 0x2ff
 
-#define MSR_MC0_CTL			0x400
-#define MSR_MC0_STATUS			0x401
-#define MSR_MC0_ADDR			0x402
-#define MSR_MC0_MISC			0x403
+#define MSR_MC0_CTL                     0x400
+#define MSR_MC0_STATUS                  0x401
+#define MSR_MC0_ADDR                    0x402
+#define MSR_MC0_MISC                    0x403
 
 #define MSR_EFER                        0xc0000080
 
@@ -550,24 +550,24 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
 
-#define EXCP00_DIVZ	0
-#define EXCP01_DB	1
-#define EXCP02_NMI	2
-#define EXCP03_INT3	3
-#define EXCP04_INTO	4
-#define EXCP05_BOUND	5
-#define EXCP06_ILLOP	6
-#define EXCP07_PREX	7
-#define EXCP08_DBLE	8
-#define EXCP09_XERR	9
-#define EXCP0A_TSS	10
-#define EXCP0B_NOSEG	11
-#define EXCP0C_STACK	12
-#define EXCP0D_GPF	13
-#define EXCP0E_PAGE	14
-#define EXCP10_COPR	16
-#define EXCP11_ALGN	17
-#define EXCP12_MCHK	18
+#define EXCP00_DIVZ     0
+#define EXCP01_DB       1
+#define EXCP02_NMI      2
+#define EXCP03_INT3     3
+#define EXCP04_INTO     4
+#define EXCP05_BOUND    5
+#define EXCP06_ILLOP    6
+#define EXCP07_PREX     7
+#define EXCP08_DBLE     8
+#define EXCP09_XERR     9
+#define EXCP0A_TSS      10
+#define EXCP0B_NOSEG    11
+#define EXCP0C_STACK    12
+#define EXCP0D_GPF      13
+#define EXCP0E_PAGE     14
+#define EXCP10_COPR     16
+#define EXCP11_ALGN     17
+#define EXCP12_MCHK     18
 
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
@@ -1087,7 +1087,7 @@ static inline CPUX86State *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
-#define cpudef_setup	x86_cpudef_setup
+#define cpudef_setup x86_cpudef_setup
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
