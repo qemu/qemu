@@ -400,6 +400,7 @@ void cpu_unlock(void);
 typedef struct SubchDev SubchDev;
 
 #ifndef CONFIG_USER_ONLY
+extern void io_subsystem_reset(void);
 SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
                          uint16_t schid);
 bool css_subch_visible(SubchDev *sch);
