@@ -559,7 +559,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     default:
-        g_assert(false);
+        g_assert_not_reached();
     }
 }
 
@@ -645,7 +645,7 @@ static void check_native_list(QObject *qobj,
         }
         break;
     default:
-        g_assert(false);
+        g_assert_not_reached();
     }
     QDECREF(qlist);
 }
