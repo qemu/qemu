@@ -646,6 +646,10 @@ CPUArchState *cpu_copy(CPUArchState *env)
     CPUWatchpoint *wp;
 #endif
 
+    /* Reset non arch specific state */
+    cpu_reset(ENV_GET_CPU(new_env));
+
+    /* Copy arch specific state into the new CPU */
     memcpy(new_env, env, sizeof(CPUArchState));
 
     /* Clone all break/watchpoints.

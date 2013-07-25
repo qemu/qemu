@@ -92,7 +92,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 }
 #endif
 
-#if defined(CONFIG_USE_NPTL)
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
 
@@ -207,43 +206,6 @@ void cpu_list_unlock(void)
 {
     pthread_mutex_unlock(&cpu_list_mutex);
 }
-#else /* if !CONFIG_USE_NPTL */
-/* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUState *cpu)
-{
-}
-
-static inline void cpu_exec_end(CPUState *cpu)
-{
-}
-
-static inline void start_exclusive(void)
-{
-}
-
-static inline void end_exclusive(void)
-{
-}
-
-void fork_start(void)
-{
-}
-
-void fork_end(int child)
-{
-    if (child) {
-        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
-    }
-}
-
-void cpu_list_lock(void)
-{
-}
-
-void cpu_list_unlock(void)
-{
-}
-#endif
 
 
 #ifdef TARGET_I386
@@ -2349,7 +2311,31 @@ done_syscall:
                 abi_ulong trap_instr;
                 unsigned int code;
 
-                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (env->hflags & MIPS_HFLAG_M16) {
+                    if (env->insn_flags & ASE_MICROMIPS) {
+                        /* microMIPS mode */
+                        abi_ulong instr[2];
+
+                        ret = get_user_u16(instr[0], env->active_tc.PC) ||
+                              get_user_u16(instr[1], env->active_tc.PC + 2);
+
+                        trap_instr = (instr[0] << 16) | instr[1];
+                    } else {
+                        /* MIPS16e mode */
+                        ret = get_user_u16(trap_instr, env->active_tc.PC);
+                        if (ret != 0) {
+                            goto error;
+                        }
+                        code = (trap_instr >> 6) & 0x3f;
+                        if (do_break(env, &info, code) != 0) {
+                            goto error;
+                        }
+                        break;
+                    }
+                } else {
+                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                }
+
                 if (ret != 0) {
                     goto error;
                 }
@@ -2373,14 +2359,30 @@ done_syscall:
                 abi_ulong trap_instr;
                 unsigned int code = 0;
 
-                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (env->hflags & MIPS_HFLAG_M16) {
+                    /* microMIPS mode */
+                    abi_ulong instr[2];
+
+                    ret = get_user_u16(instr[0], env->active_tc.PC) ||
+                          get_user_u16(instr[1], env->active_tc.PC + 2);
+
+                    trap_instr = (instr[0] << 16) | instr[1];
+                } else {
+                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                }
+
                 if (ret != 0) {
                     goto error;
                 }
 
                 /* The immediate versions don't provide a code.  */
                 if (!(trap_instr & 0xFC000000)) {
-                    code = ((trap_instr >> 6) & ((1 << 10) - 1));
+                    if (env->hflags & MIPS_HFLAG_M16) {
+                        /* microMIPS mode */
+                        code = ((trap_instr >> 12) & ((1 << 4) - 1));
+                    } else {
+                        code = ((trap_instr >> 6) & ((1 << 10) - 1));
+                    }
                 }
 
                 if (do_break(env, &info, code) != 0) {
@@ -3157,12 +3159,7 @@ THREAD CPUState *thread_cpu;
 void task_settid(TaskState *ts)
 {
     if (ts->ts_tid == 0) {
-#ifdef CONFIG_USE_NPTL
         ts->ts_tid = (pid_t)syscall(SYS_gettid);
-#else
-        /* when no threads are used, tid becomes pid */
-        ts->ts_tid = getpid();
-#endif
     }
 }
 
@@ -3640,9 +3637,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     cpu = ENV_GET_CPU(env);
-#if defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_reset(cpu);
-#endif
+    cpu_reset(ENV_GET_CPU(env));
 
     thread_cpu = cpu;
 

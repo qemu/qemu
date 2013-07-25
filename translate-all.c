@@ -1148,7 +1148,8 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 
 #if !defined(CONFIG_SOFTMMU)
 static void tb_invalidate_phys_page(tb_page_addr_t addr,
-                                    uintptr_t pc, void *puc)
+                                    uintptr_t pc, void *puc,
+                                    bool locked)
 {
     TranslationBlock *tb;
     PageDesc *p;
@@ -1206,6 +1207,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
            itself */
         cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        if (locked) {
+            mmap_unlock();
+        }
         cpu_resume_from_signal(env, puc);
     }
 #endif
@@ -1723,7 +1727,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         if (!(p->flags & PAGE_WRITE) &&
             (flags & PAGE_WRITE) &&
             p->first_tb) {
-            tb_invalidate_phys_page(addr, 0, NULL);
+            tb_invalidate_phys_page(addr, 0, NULL, false);
         }
         p->flags = flags;
     }
@@ -1818,7 +1822,7 @@ int page_unprotect(target_ulong address, uintptr_t pc, void *puc)
 
             /* and since the content will be modified, we must invalidate
                the corresponding translated code. */
-            tb_invalidate_phys_page(addr, pc, puc);
+            tb_invalidate_phys_page(addr, pc, puc, true);
 #ifdef DEBUG_TB_CHECK
             tb_invalidate_check(addr);
 #endif

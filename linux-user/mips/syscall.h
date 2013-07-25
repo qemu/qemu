@@ -225,3 +225,5 @@ struct target_pt_regs {
 #define TARGET_QEMU_ESIGRETURN 255
 
 #define UNAME_MACHINE "mips"
+
+#define TARGET_CLONE_BACKWARDS
