@@ -65,6 +65,17 @@ static void s390_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.psw.addr = value;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+/* S390CPUClass::load_normal() */
+static void s390_cpu_load_normal(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    cpu->env.psw.addr = ldl_phys(4) & PSW_MASK_ESA_ADDR;
+    cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
+    s390_add_running_cpu(cpu);
+}
+#endif
+
 /* CPUClass::reset() */
 static void s390_cpu_reset(CPUState *s)
 {
@@ -169,6 +180,9 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = s390_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
+#if !defined(CONFIG_USER_ONLY)
+    scc->load_normal = s390_cpu_load_normal;
+#endif
     cc->reset = s390_cpu_reset;
 
     cc->do_interrupt = s390_cpu_do_interrupt;
