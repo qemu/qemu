@@ -190,11 +190,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         /* qemu_ld/st address constraint */
     case 'L':
         ct->ct |= TCG_CT_REG;
-#if TCG_TARGET_REG_BITS == 64
+        if (TCG_TARGET_REG_BITS == 64) {
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
-#else
+        } else {
             tcg_regset_set32(ct->u.regs, 0, 0xff);
-#endif
+        }
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
@@ -1025,22 +1025,24 @@ static void tcg_out_jmp(TCGContext *s, tcg_target_long dest)
 
 #include "exec/softmmu_defs.h"
 
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
-static const void *qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
+/* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
+ *                                     int mmu_idx, uintptr_t ra)
+ */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ret_ldb_mmu,
+    helper_ret_ldw_mmu,
+    helper_ret_ldl_mmu,
+    helper_ret_ldq_mmu,
 };
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
-static const void *qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
+/* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
+ *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
+ */
+static const void * const qemu_st_helpers[4] = {
+    helper_ret_stb_mmu,
+    helper_ret_stw_mmu,
+    helper_ret_stl_mmu,
+    helper_ret_stq_mmu,
 };
 
 static void add_qemu_ldst_label(TCGContext *s,
@@ -1468,6 +1470,12 @@ static void add_qemu_ldst_label(TCGContext *s,
     }
 }
 
+/* See the GETPC definition in include/exec/exec-all.h.  */
+static inline uintptr_t do_getpc(uint8_t *raddr)
+{
+    return (uintptr_t)raddr - 1;
+}
+
 /*
  * Generate code for the slow path for a load at the end of block
  */
@@ -1499,32 +1507,19 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         }
 
         tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
+        ofs += 4;
+
+        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, do_getpc(l->raddr));
     } else {
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
+        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
                      l->mem_index);
+        tcg_out_movi(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[3],
+                     do_getpc(l->raddr));
     }
 
-    /* Code generation of qemu_ld/st's slow path calling MMU helper
-
-       PRE_PROC ...
-       call MMU helper
-       jmp POST_PROC (2b) : short forward jump <- GETRA()
-       jmp next_code (5b) : dummy long backward jump which is never executed
-       POST_PROC ... : do post-processing <- GETRA() + 7
-       jmp next_code : jump to the code corresponding to next IR of qemu_ld/st
-    */
-
     tcg_out_calli(s, (tcg_target_long)qemu_ld_helpers[s_bits]);
-
-    /* Jump to post-processing code */
-    tcg_out8(s, OPC_JMP_short);
-    tcg_out8(s, 5);
-    /* Dummy backward jump having information of fast path'pc for MMU helpers */
-    tcg_out8(s, OPC_JMP_long);
-    *(int32_t *)s->code_ptr = (int32_t)(l->raddr - s->code_ptr - 4);
-    s->code_ptr += 4;
 
     data_reg = l->datalo_reg;
     switch(opc) {
@@ -1606,36 +1601,32 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         }
 
         tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
+        ofs += 4;
+
+        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, do_getpc(l->raddr));
     } else {
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
+        uintptr_t pc;
+
+        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
         tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
                     tcg_target_call_iarg_regs[2], l->datalo_reg);
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
                      l->mem_index);
+
+        pc = do_getpc(l->raddr);
+        if (ARRAY_SIZE(tcg_target_call_iarg_regs) > 4) {
+            tcg_out_movi(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[4], pc);
+        } else if (pc == (int32_t)pc) {
+            tcg_out_sti(s, TCG_TYPE_PTR, TCG_REG_ESP, 0, pc);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RAX, pc);
+            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RAX, TCG_REG_ESP, 0);
+        }
     }
-
-    /* Code generation of qemu_ld/st's slow path calling MMU helper
-
-       PRE_PROC ...
-       call MMU helper
-       jmp POST_PROC (2b) : short forward jump <- GETRA()
-       jmp next_code (5b) : dummy long backward jump which is never executed
-       POST_PROC ... : do post-processing <- GETRA() + 7
-       jmp next_code : jump to the code corresponding to next IR of qemu_ld/st
-    */
 
     tcg_out_calli(s, (tcg_target_long)qemu_st_helpers[s_bits]);
 
-    /* Jump to post-processing code */
-    tcg_out8(s, OPC_JMP_short);
-    tcg_out8(s, 5);
-    /* Dummy backward jump having information of fast path'pc for MMU helpers */
-    tcg_out8(s, OPC_JMP_long);
-    *(int32_t *)s->code_ptr = (int32_t)(l->raddr - s->code_ptr - 4);
-    s->code_ptr += 4;
-
-    /* Jump to the code corresponding to next IR of qemu_st */
     tcg_out_jmp(s, (tcg_target_long)l->raddr);
 }
 

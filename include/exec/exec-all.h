@@ -326,18 +326,9 @@ extern uintptr_t tci_tb_ptr;
    (6) jump to corresponding code of the next of fast path
  */
 # if defined(__i386__) || defined(__x86_64__)
-/* To avoid broken disassembling, long jmp is used for embedding fast path pc,
-   so that the destination is the next code of fast path, though this jmp is
-   never executed.
-
-   call MMU helper
-   jmp POST_PROC (2byte)    <- GETRA()
-   jmp NEXT_CODE (5byte)
-   POST_PROCESS ...         <- GETRA() + 7
- */
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST() ((uintptr_t)(GETRA() + 7 + \
-                                    *(int32_t *)((void *)GETRA() + 3) - 1))
+/* The return address argument for ldst is passed directly.  */
+#  define GETPC_LDST()  (abort(), 0)
 # elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
 #  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
