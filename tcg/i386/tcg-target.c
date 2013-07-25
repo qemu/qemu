@@ -541,19 +541,34 @@ static inline void tcg_out_mov(TCGContext *s, TCGType type,
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg)
 {
+    tcg_target_long diff;
+
     if (arg == 0) {
         tgen_arithr(s, ARITH_XOR, ret, ret);
         return;
-    } else if (arg == (uint32_t)arg || type == TCG_TYPE_I32) {
+    }
+    if (arg == (uint32_t)arg || type == TCG_TYPE_I32) {
         tcg_out_opc(s, OPC_MOVL_Iv + LOWREGMASK(ret), 0, ret, 0);
         tcg_out32(s, arg);
-    } else if (arg == (int32_t)arg) {
+        return;
+    }
+    if (arg == (int32_t)arg) {
         tcg_out_modrm(s, OPC_MOVL_EvIz + P_REXW, 0, ret);
         tcg_out32(s, arg);
-    } else {
-        tcg_out_opc(s, OPC_MOVL_Iv + P_REXW + LOWREGMASK(ret), 0, ret, 0);
-        tcg_out64(s, arg);
+        return;
     }
+
+    /* Try a 7 byte pc-relative lea before the 10 byte movq.  */
+    diff = arg - ((tcg_target_long)s->code_ptr + 7);
+    if (diff == (int32_t)diff) {
+        tcg_out_opc(s, OPC_LEA | P_REXW, ret, 0, 0);
+        tcg_out8(s, (LOWREGMASK(ret) << 3) | 5);
+        tcg_out32(s, diff);
+        return;
+    }
+
+    tcg_out_opc(s, OPC_MOVL_Iv + P_REXW + LOWREGMASK(ret), 0, ret, 0);
+    tcg_out64(s, arg);
 }
 
 static inline void tcg_out_pushi(TCGContext *s, tcg_target_long val)
