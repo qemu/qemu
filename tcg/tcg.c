@@ -133,6 +133,13 @@ static inline void tcg_out32(TCGContext *s, uint32_t v)
     s->code_ptr = p + 4;
 }
 
+static inline void tcg_out64(TCGContext *s, uint64_t v)
+{
+    uint8_t *p = s->code_ptr;
+    *(uint64_t *)p = v;
+    s->code_ptr = p + 8;
+}
+
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,

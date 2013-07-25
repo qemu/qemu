@@ -552,8 +552,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out32(s, arg);
     } else {
         tcg_out_opc(s, OPC_MOVL_Iv + P_REXW + LOWREGMASK(ret), 0, ret, 0);
-        tcg_out32(s, arg);
-        tcg_out32(s, arg >> 31 >> 1);
+        tcg_out64(s, arg);
     }
 }
 
