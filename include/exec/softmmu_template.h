@@ -78,15 +78,18 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
 }
 
 /* handle all cases except unaligned access which span two pages */
+#ifdef SOFTMMU_CODE_ACCESS
+static
+#endif
 DATA_TYPE
-glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
-                                         int mmu_idx)
+glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
+                                             target_ulong addr, int mmu_idx,
+                                             uintptr_t retaddr)
 {
     DATA_TYPE res;
     int index;
     target_ulong tlb_addr;
     hwaddr ioaddr;
-    uintptr_t retaddr;
 
     /* test if there is match for unaligned or IO access */
     /* XXX: could done more in memory macro in a non portable way */
@@ -98,13 +101,11 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            retaddr = GETPC_EXT();
             ioaddr = env->iotlb[mmu_idx][index];
             res = glue(io_read, SUFFIX)(env, ioaddr, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
-            retaddr = GETPC_EXT();
 #ifdef ALIGNED_ONLY
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
@@ -115,7 +116,6 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
             uintptr_t addend;
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-                retaddr = GETPC_EXT();
                 do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
@@ -124,8 +124,6 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                                 (addr + addend));
         }
     } else {
-        /* the page is not in the TLB : fill it */
-        retaddr = GETPC_EXT();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
@@ -134,6 +132,14 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
         goto redo;
     }
     return res;
+}
+
+DATA_TYPE
+glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
+                                         int mmu_idx)
+{
+    return glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(env, addr, mmu_idx,
+                                                        GETPC_EXT());
 }
 
 /* handle all unaligned cases */
@@ -214,13 +220,13 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
 }
 
-void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
-                                              target_ulong addr, DATA_TYPE val,
-                                              int mmu_idx)
+void
+glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
+                                             target_ulong addr, DATA_TYPE val,
+                                             int mmu_idx, uintptr_t retaddr)
 {
     hwaddr ioaddr;
     target_ulong tlb_addr;
-    uintptr_t retaddr;
     int index;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -231,12 +237,10 @@ void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            retaddr = GETPC_EXT();
             ioaddr = env->iotlb[mmu_idx][index];
             glue(io_write, SUFFIX)(env, ioaddr, val, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
-            retaddr = GETPC_EXT();
 #ifdef ALIGNED_ONLY
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
 #endif
@@ -247,7 +251,6 @@ void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
             uintptr_t addend;
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
-                retaddr = GETPC_EXT();
                 do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
             }
 #endif
@@ -257,7 +260,6 @@ void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
         }
     } else {
         /* the page is not in the TLB : fill it */
-        retaddr = GETPC_EXT();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
@@ -265,6 +267,14 @@ void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
         tlb_fill(env, addr, 1, mmu_idx, retaddr);
         goto redo;
     }
+}
+
+void
+glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
+                                         DATA_TYPE val, int mmu_idx)
+{
+    glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(env, addr, val, mmu_idx,
+                                                 GETPC_EXT());
 }
 
 /* handles all unaligned cases */
