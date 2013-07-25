@@ -3,7 +3,6 @@
 include pci.mak
 include sound.mak
 include usb.mak
-CONFIG_ISA_MMIO=y
 CONFIG_ESP=y
 CONFIG_VGA=y
 CONFIG_VGA_PCI=y
@@ -34,3 +33,4 @@ CONFIG_I8259=y
 CONFIG_JAZZ_LED=y
 CONFIG_MC146818RTC=y
 CONFIG_VT82C686=y
+CONFIG_ISA_TESTDEV=y

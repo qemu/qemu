@@ -87,6 +87,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     int linux_boot, i;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -225,7 +226,9 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     }
 
     /* Register 2 MB of ISA IO space */
-    isa_mmio_init(0xfe000000, 0x00200000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00200000);
+    memory_region_add_subregion(sysmem, 0xfe000000, isa);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
     heathrow_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));

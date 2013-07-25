@@ -333,8 +333,7 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
         }
 
         if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
-            fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n", bios_name);
-            exit(1);
+            fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n", bios_name);
         }
     }
 

@@ -53,7 +53,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
-check-qtest-i386-y = tests/fdc-test$(EXESUF)
+check-qtest-i386-y = tests/endianness-test$(EXESUF)
+check-qtest-i386-y += tests/fdc-test$(EXESUF)
 gcov-files-i386-y = hw/fdc.c
 check-qtest-i386-y += tests/ide-test$(EXESUF)
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
@@ -65,8 +66,16 @@ check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
+check-qtest-mips-y = tests/endianness-test$(EXESUF)
+check-qtest-mips64-y = tests/endianness-test$(EXESUF)
+check-qtest-mips64el-y = tests/endianness-test$(EXESUF)
+check-qtest-ppc-y = tests/endianness-test$(EXESUF)
+check-qtest-ppc64-y = tests/endianness-test$(EXESUF)
+check-qtest-sh4-y = tests/endianness-test$(EXESUF)
+check-qtest-sh4eb-y = tests/endianness-test$(EXESUF)
+check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
 #check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
-#check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
+#check-qtest-sparc64-y += tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y += hw/m48t59.c
 gcov-files-sparc64-y += hw/m48t59.c
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
@@ -136,6 +145,7 @@ libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
+tests/endianness-test$(EXESUF): tests/endianness-test.o
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o

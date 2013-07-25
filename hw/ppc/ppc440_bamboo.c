@@ -164,6 +164,7 @@ static void bamboo_init(QEMUMachineInitArgs *args)
     const char *initrd_filename = args->initrd_filename;
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     MemoryRegion *ram_memories
         = g_malloc(PPC440EP_SDRAM_NR_BANKS * sizeof(*ram_memories));
     hwaddr ram_bases[PPC440EP_SDRAM_NR_BANKS];
@@ -225,7 +226,9 @@ static void bamboo_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, PPC440EP_PCI_IOLEN);
+    memory_region_add_subregion(get_system_memory(), PPC440EP_PCI_IO, isa);
 
     if (serial_hds[0] != NULL) {
         serial_mm_init(address_space_mem, 0xef600300, 0, pic[0],

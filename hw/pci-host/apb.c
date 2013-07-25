@@ -70,9 +70,14 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define MAX_IVEC 0x40
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
+#define TYPE_APB "pbm"
+
+#define APB_DEVICE(obj) \
+    OBJECT_CHECK(APBState, (obj), TYPE_APB)
+
 typedef struct APBState {
-    SysBusDevice busdev;
-    PCIBus      *bus;
+    PCIHostState parent_obj;
+
     MemoryRegion apb_config;
     MemoryRegion pci_config;
     MemoryRegion pci_mmio;
@@ -284,10 +289,11 @@ static void apb_pci_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     APBState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
     val = qemu_bswap_len(val, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
-    pci_data_write(s->bus, addr, val, size);
+    pci_data_write(phb->bus, addr, val, size);
 }
 
 static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
@@ -295,62 +301,13 @@ static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
 {
     uint32_t ret;
     APBState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
-    ret = pci_data_read(s->bus, addr, size);
+    ret = pci_data_read(phb->bus, addr, size);
     ret = qemu_bswap_len(ret, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, ret);
     return ret;
 }
-
-static void pci_apb_iowriteb (void *opaque, hwaddr addr,
-                                  uint32_t val)
-{
-    cpu_outb(addr & IOPORTS_MASK, val);
-}
-
-static void pci_apb_iowritew (void *opaque, hwaddr addr,
-                                  uint32_t val)
-{
-    cpu_outw(addr & IOPORTS_MASK, bswap16(val));
-}
-
-static void pci_apb_iowritel (void *opaque, hwaddr addr,
-                                uint32_t val)
-{
-    cpu_outl(addr & IOPORTS_MASK, bswap32(val));
-}
-
-static uint32_t pci_apb_ioreadb (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = cpu_inb(addr & IOPORTS_MASK);
-    return val;
-}
-
-static uint32_t pci_apb_ioreadw (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = bswap16(cpu_inw(addr & IOPORTS_MASK));
-    return val;
-}
-
-static uint32_t pci_apb_ioreadl (void *opaque, hwaddr addr)
-{
-    uint32_t val;
-
-    val = bswap32(cpu_inl(addr & IOPORTS_MASK));
-    return val;
-}
-
-static const MemoryRegionOps pci_ioport_ops = {
-    .old_mmio = {
-        .read = { pci_apb_ioreadb, pci_apb_ioreadw, pci_apb_ioreadl },
-        .write = { pci_apb_iowriteb, pci_apb_iowritew, pci_apb_iowritel, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 /* The APB host has an IRQ line for each IRQ line of each slot.  */
 static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -431,12 +388,13 @@ PCIBus *pci_apb_init(hwaddr special_base,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    PCIHostState *phb;
     APBState *d;
     PCIDevice *pci_dev;
     PCIBridge *br;
 
     /* Ultrasparc PBM main bus */
-    dev = qdev_create(NULL, "pbm");
+    dev = qdev_create(NULL, TYPE_APB);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     /* apb_config */
@@ -445,24 +403,25 @@ PCIBus *pci_apb_init(hwaddr special_base,
     sysbus_mmio_map(s, 1, special_base + 0x1000000ULL);
     /* pci_ioport */
     sysbus_mmio_map(s, 2, special_base + 0x2000000ULL);
-    d = FROM_SYSBUS(APBState, s);
+    d = APB_DEVICE(dev);
 
     memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
 
-    d->bus = pci_register_bus(&d->busdev.qdev, "pci",
-                              pci_apb_set_irq, pci_pbm_map_irq, d,
-                              &d->pci_mmio,
-                              get_system_io(),
-                              0, 32, TYPE_PCI_BUS);
+    phb = PCI_HOST_BRIDGE(dev);
+    phb->bus = pci_register_bus(DEVICE(phb), "pci",
+                                pci_apb_set_irq, pci_pbm_map_irq, d,
+                                &d->pci_mmio,
+                                get_system_io(),
+                                0, 32, TYPE_PCI_BUS);
 
     *pbm_irqs = d->pbm_irqs;
     d->ivec_irqs = ivec_irqs;
 
-    pci_create_simple(d->bus, 0, "pbm-pci");
+    pci_create_simple(phb->bus, 0, "pbm-pci");
 
     /* APB secondary busses */
-    pci_dev = pci_create_multifunction(d->bus, PCI_DEVFN(1, 0), true,
+    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    "pbm-bridge");
     br = DO_UPCAST(PCIBridge, dev, pci_dev);
     pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 1",
@@ -470,7 +429,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     qdev_init_nofail(&pci_dev->qdev);
     *bus2 = pci_bridge_get_sec_bus(br);
 
-    pci_dev = pci_create_multifunction(d->bus, PCI_DEVFN(1, 1), true,
+    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    "pbm-bridge");
     br = DO_UPCAST(PCIBridge, dev, pci_dev);
     pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 2",
@@ -478,13 +437,13 @@ PCIBus *pci_apb_init(hwaddr special_base,
     qdev_init_nofail(&pci_dev->qdev);
     *bus3 = pci_bridge_get_sec_bus(br);
 
-    return d->bus;
+    return phb->bus;
 }
 
 static void pci_pbm_reset(DeviceState *d)
 {
     unsigned int i;
-    APBState *s = container_of(d, APBState, busdev.qdev);
+    APBState *s = APB_DEVICE(d);
 
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] &= PBM_PCI_IMR_MASK;
@@ -513,7 +472,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     APBState *s;
     unsigned int i;
 
-    s = FROM_SYSBUS(APBState, dev);
+    s = APB_DEVICE(dev);
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
     }
@@ -536,8 +495,8 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->pci_config);
 
     /* pci_ioport */
-    memory_region_init_io(&s->pci_ioport, OBJECT(s), &pci_ioport_ops, s,
-                          "apb-pci-ioport", 0x10000);
+    memory_region_init_alias(&s->pci_ioport, OBJECT(s), "apb-pci-ioport",
+                             get_system_io(), 0, 0x10000);
     /* at region 2 */
     sysbus_init_mmio(dev, &s->pci_ioport);
 
@@ -581,8 +540,8 @@ static void pbm_host_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pbm_host_info = {
-    .name          = "pbm",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name          = TYPE_APB,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(APBState),
     .class_init    = pbm_host_class_init,
 };
