@@ -608,6 +608,14 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_modrm_offset(s, opc, arg, arg1, arg2);
 }
 
+static inline void tcg_out_sti(TCGContext *s, TCGType type, TCGReg base,
+                               tcg_target_long ofs, tcg_target_long val)
+{
+    int opc = OPC_MOVL_EvIz + (type == TCG_TYPE_I64 ? P_REXW : 0);
+    tcg_out_modrm_offset(s, opc, 0, base, ofs);
+    tcg_out32(s, val);
+}
+
 static void tcg_out_shifti(TCGContext *s, int subopc, int reg, int count)
 {
     /* Propagate an opcode prefix, such as P_DATA16.  */
@@ -1463,22 +1471,12 @@ static void add_qemu_ldst_label(TCGContext *s,
 /*
  * Generate code for the slow path for a load at the end of block
  */
-static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
+static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    int s_bits;
-    int opc = label->opc;
-    int mem_index = label->mem_index;
-#if TCG_TARGET_REG_BITS == 32
-    int stack_adjust;
-    int addrlo_reg = label->addrlo_reg;
-    int addrhi_reg = label->addrhi_reg;
-#endif
-    int data_reg = label->datalo_reg;
-    int data_reg2 = label->datahi_reg;
-    uint8_t *raddr = label->raddr;
-    uint8_t **label_ptr = &label->label_ptr[0];
-
-    s_bits = opc & 3;
+    int opc = l->opc;
+    int s_bits = opc & 3;
+    TCGReg data_reg;
+    uint8_t **label_ptr = &l->label_ptr[0];
 
     /* resolve label address */
     *(uint32_t *)label_ptr[0] = (uint32_t)(s->code_ptr - label_ptr[0] - 4);
@@ -1486,22 +1484,27 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
         *(uint32_t *)label_ptr[1] = (uint32_t)(s->code_ptr - label_ptr[1] - 4);
     }
 
-#if TCG_TARGET_REG_BITS == 32
-    tcg_out_pushi(s, mem_index);
-    stack_adjust = 4;
-    if (TARGET_LONG_BITS == 64) {
-        tcg_out_push(s, addrhi_reg);
-        stack_adjust += 4;
+    if (TCG_TARGET_REG_BITS == 32) {
+        int ofs = 0;
+
+        tcg_out_st(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_ESP, ofs);
+        ofs += 4;
+
+        tcg_out_st(s, TCG_TYPE_I32, l->addrlo_reg, TCG_REG_ESP, ofs);
+        ofs += 4;
+
+        if (TARGET_LONG_BITS == 64) {
+            tcg_out_st(s, TCG_TYPE_I32, l->addrhi_reg, TCG_REG_ESP, ofs);
+            ofs += 4;
+        }
+
+        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
+        /* The second argument is already loaded with addrlo.  */
+        tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                     l->mem_index);
     }
-    tcg_out_push(s, addrlo_reg);
-    stack_adjust += 4;
-    tcg_out_push(s, TCG_AREG0);
-    stack_adjust += 4;
-#else
-    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
-    /* The second argument is already loaded with addrlo.  */
-    tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2], mem_index);
-#endif
 
     /* Code generation of qemu_ld/st's slow path calling MMU helper
 
@@ -1520,18 +1523,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
     tcg_out8(s, 5);
     /* Dummy backward jump having information of fast path'pc for MMU helpers */
     tcg_out8(s, OPC_JMP_long);
-    *(int32_t *)s->code_ptr = (int32_t)(raddr - s->code_ptr - 4);
+    *(int32_t *)s->code_ptr = (int32_t)(l->raddr - s->code_ptr - 4);
     s->code_ptr += 4;
 
-#if TCG_TARGET_REG_BITS == 32
-    if (stack_adjust == (TCG_TARGET_REG_BITS / 8)) {
-        /* Pop and discard.  This is 2 bytes smaller than the add.  */
-        tcg_out_pop(s, TCG_REG_ECX);
-    } else if (stack_adjust != 0) {
-        tcg_out_addi(s, TCG_REG_CALL_STACK, stack_adjust);
-    }
-#endif
-
+    data_reg = l->datalo_reg;
     switch(opc) {
     case 0 | 4:
         tcg_out_ext8s(s, data_reg, TCG_REG_EAX, P_REXW);
@@ -1559,10 +1554,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
         } else if (data_reg == TCG_REG_EDX) {
             /* xchg %edx, %eax */
             tcg_out_opc(s, OPC_XCHG_ax_r32 + TCG_REG_EDX, 0, 0, 0);
-            tcg_out_mov(s, TCG_TYPE_I32, data_reg2, TCG_REG_EAX);
+            tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_EAX);
         } else {
             tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
-            tcg_out_mov(s, TCG_TYPE_I32, data_reg2, TCG_REG_EDX);
+            tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_EDX);
         }
         break;
     default:
@@ -1570,28 +1565,17 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
     }
 
     /* Jump to the code corresponding to next IR of qemu_st */
-    tcg_out_jmp(s, (tcg_target_long)raddr);
+    tcg_out_jmp(s, (tcg_target_long)l->raddr);
 }
 
 /*
  * Generate code for the slow path for a store at the end of block
  */
-static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
+static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    int s_bits;
-    int stack_adjust;
-    int opc = label->opc;
-    int mem_index = label->mem_index;
-    int data_reg = label->datalo_reg;
-#if TCG_TARGET_REG_BITS == 32
-    int data_reg2 = label->datahi_reg;
-    int addrlo_reg = label->addrlo_reg;
-    int addrhi_reg = label->addrhi_reg;
-#endif
-    uint8_t *raddr = label->raddr;
-    uint8_t **label_ptr = &label->label_ptr[0];
-
-    s_bits = opc & 3;
+    int opc = l->opc;
+    int s_bits = opc & 3;
+    uint8_t **label_ptr = &l->label_ptr[0];
 
     /* resolve label address */
     *(uint32_t *)label_ptr[0] = (uint32_t)(s->code_ptr - label_ptr[0] - 4);
@@ -1599,31 +1583,37 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
         *(uint32_t *)label_ptr[1] = (uint32_t)(s->code_ptr - label_ptr[1] - 4);
     }
 
-#if TCG_TARGET_REG_BITS == 32
-    tcg_out_pushi(s, mem_index);
-    stack_adjust = 4;
-    if (opc == 3) {
-        tcg_out_push(s, data_reg2);
-        stack_adjust += 4;
+    if (TCG_TARGET_REG_BITS == 32) {
+        int ofs = 0;
+
+        tcg_out_st(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_ESP, ofs);
+        ofs += 4;
+
+        tcg_out_st(s, TCG_TYPE_I32, l->addrlo_reg, TCG_REG_ESP, ofs);
+        ofs += 4;
+
+        if (TARGET_LONG_BITS == 64) {
+            tcg_out_st(s, TCG_TYPE_I32, l->addrhi_reg, TCG_REG_ESP, ofs);
+            ofs += 4;
+        }
+
+        tcg_out_st(s, TCG_TYPE_I32, l->datalo_reg, TCG_REG_ESP, ofs);
+        ofs += 4;
+
+        if (opc == 3) {
+            tcg_out_st(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_ESP, ofs);
+            ofs += 4;
+        }
+
+        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
+        /* The second argument is already loaded with addrlo.  */
+        tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
+                    tcg_target_call_iarg_regs[2], l->datalo_reg);
+        tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                     l->mem_index);
     }
-    tcg_out_push(s, data_reg);
-    stack_adjust += 4;
-    if (TARGET_LONG_BITS == 64) {
-        tcg_out_push(s, addrhi_reg);
-        stack_adjust += 4;
-    }
-    tcg_out_push(s, addrlo_reg);
-    stack_adjust += 4;
-    tcg_out_push(s, TCG_AREG0);
-    stack_adjust += 4;
-#else
-    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], TCG_AREG0);
-    /* The second argument is already loaded with addrlo.  */
-    tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
-                tcg_target_call_iarg_regs[2], data_reg);
-    tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3], mem_index);
-    stack_adjust = 0;
-#endif
 
     /* Code generation of qemu_ld/st's slow path calling MMU helper
 
@@ -1642,18 +1632,11 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *label)
     tcg_out8(s, 5);
     /* Dummy backward jump having information of fast path'pc for MMU helpers */
     tcg_out8(s, OPC_JMP_long);
-    *(int32_t *)s->code_ptr = (int32_t)(raddr - s->code_ptr - 4);
+    *(int32_t *)s->code_ptr = (int32_t)(l->raddr - s->code_ptr - 4);
     s->code_ptr += 4;
 
-    if (stack_adjust == (TCG_TARGET_REG_BITS / 8)) {
-        /* Pop and discard.  This is 2 bytes smaller than the add.  */
-        tcg_out_pop(s, TCG_REG_ECX);
-    } else if (stack_adjust != 0) {
-        tcg_out_addi(s, TCG_REG_CALL_STACK, stack_adjust);
-    }
-
     /* Jump to the code corresponding to next IR of qemu_st */
-    tcg_out_jmp(s, (tcg_target_long)raddr);
+    tcg_out_jmp(s, (tcg_target_long)l->raddr);
 }
 
 /*
