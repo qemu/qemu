@@ -1618,7 +1618,7 @@ static int kvm_guest_debug_workarounds(X86CPU *cpu)
      */
     if (reinject_trap ||
         (!kvm_has_robust_singlestep() && cs->singlestep_enabled)) {
-        ret = kvm_update_guest_debug(env, reinject_trap);
+        ret = kvm_update_guest_debug(cs, reinject_trap);
     }
     return ret;
 }
