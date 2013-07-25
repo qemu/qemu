@@ -1735,7 +1735,6 @@ target_ulong helper_evpe(CPUMIPSState *env)
 void helper_fork(target_ulong arg1, target_ulong arg2)
 {
     // arg1 = rt, arg2 = rs
-    arg1 = 0;
     // TODO: store to TC register
 }
 
