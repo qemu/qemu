@@ -34,9 +34,15 @@ OrderedDicts so that ordering is preserved.
 There are two basic syntaxes used, type definitions and command definitions.
 
 The first syntax defines a type and is represented by a dictionary.  There are
-two kinds of types that are supported: complex user-defined types, and enums.
+three kinds of user-defined types that are supported: complex types,
+enumeration types and union types.
 
-A complex type is a dictionary containing a single key who's value is a
+Generally speaking, types definitions should always use CamelCase for the type
+names. Command names should be all lower case with words separated by a hyphen.
+
+=== Complex types ===
+
+A complex type is a dictionary containing a single key whose value is a
 dictionary.  This corresponds to a struct in C or an Object in JSON.  An
 example of a complex type is:
 
@@ -47,13 +53,104 @@ The use of '*' as a prefix to the name means the member is optional.  Optional
 members should always be added to the end of the dictionary to preserve
 backwards compatibility.
 
-An enumeration type is a dictionary containing a single key who's value is a
+=== Enumeration types ===
+
+An enumeration type is a dictionary containing a single key whose value is a
 list of strings.  An example enumeration is:
 
  { 'enum': 'MyEnum', 'data': [ 'value1', 'value2', 'value3' ] }
 
-Generally speaking, complex types and enums should always use CamelCase for
-the type names.
+=== Union types ===
+
+Union types are used to let the user choose between several different data
+types.  A union type is defined using a dictionary as explained in the
+following paragraphs.
+
+
+A simple union type defines a mapping from discriminator values to data types
+like in this example:
+
+ { 'type': 'FileOptions', 'data': { 'filename': 'str' } }
+ { 'type': 'Qcow2Options',
+   'data': { 'backing-file': 'str', 'lazy-refcounts': 'bool' } }
+
+ { 'union': 'BlockdevOptions',
+   'data': { 'file': 'FileOptions',
+             'qcow2': 'Qcow2Options' } }
+
+In the QMP wire format, a simple union is represented by a dictionary that
+contains the 'type' field as a discriminator, and a 'data' field that is of the
+specified data type corresponding to the discriminator value:
+
+ { "type": "qcow2", "data" : { "backing-file": "/some/place/my-image",
+                               "lazy-refcounts": true } }
+
+
+A union definition can specify a complex type as its base. In this case, the
+fields of the complex type are included as top-level fields of the union
+dictionary in the QMP wire format. An example definition is:
+
+ { 'type': 'BlockdevCommonOptions', 'data': { 'readonly': 'bool' } }
+ { 'union': 'BlockdevOptions',
+   'base': 'BlockdevCommonOptions',
+   'data': { 'raw': 'RawOptions',
+             'qcow2': 'Qcow2Options' } }
+
+And it looks like this on the wire:
+
+ { "type": "qcow2",
+   "readonly": false,
+   "data" : { "backing-file": "/some/place/my-image",
+              "lazy-refcounts": true } }
+
+
+Flat union types avoid the nesting on the wire. They are used whenever a
+specific field of the base type is declared as the discriminator ('type' is
+then no longer generated). The discriminator must always be a string field.
+The above example can then be modified as follows:
+
+ { 'type': 'BlockdevCommonOptions',
+   'data': { 'driver': 'str', 'readonly': 'bool' } }
+ { 'union': 'BlockdevOptions',
+   'base': 'BlockdevCommonOptions',
+   'discriminator': 'driver',
+   'data': { 'raw': 'RawOptions',
+             'qcow2': 'Qcow2Options' } }
+
+Resulting in this JSON object:
+
+ { "driver": "qcow2",
+   "readonly": false,
+   "backing-file": "/some/place/my-image",
+   "lazy-refcounts": true }
+
+
+A special type of unions are anonymous unions. They don't form a dictionary in
+the wire format but allow the direct use of different types in their place. As
+they aren't structured, they don't have any explicit discriminator but use
+the (QObject) data type of their value as an implicit discriminator. This means
+that they are restricted to using only one discriminator value per QObject
+type. For example, you cannot have two different complex types in an anonymous
+union, or two different integer types.
+
+Anonymous unions are declared using an empty dictionary as their discriminator.
+The discriminator values never appear on the wire, they are only used in the
+generated C code. Anonymous unions cannot have a base type.
+
+ { 'union': 'BlockRef',
+   'discriminator': {},
+   'data': { 'definition': 'BlockdevOptions',
+             'reference': 'str' } }
+
+This example allows using both of the following example objects:
+
+ { "file": "my_existing_block_device_id" }
+ { "file": { "driver": "file",
+             "readonly": false,
+             'filename': "/tmp/mydisk.qcow2" } }
+
+
+=== Commands ===
 
 Commands are defined by using a list containing three members.  The first
 member is the command name, the second member is a dictionary containing
@@ -64,8 +161,6 @@ An example command is:
  { 'command': 'my-command',
    'data': { 'arg1': 'str', '*arg2': 'str' },
    'returns': 'str' }
-
-Command names should be all lower case with words separated by a hyphen.
 
 
 == Code generation ==

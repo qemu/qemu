@@ -260,6 +260,8 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         /* XXX: should QError be emitted? */
     case QTYPE_NONE:
         break;
+    case QTYPE_MAX:
+        abort();
     }
 }
 

@@ -291,7 +291,7 @@ static QemuOptsList qcow2_runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qcow2_runtime_opts.head),
     .desc = {
         {
-            .name = "lazy_refcounts",
+            .name = QCOW2_OPT_LAZY_REFCOUNTS,
             .type = QEMU_OPT_BOOL,
             .help = "Postpone refcount updates",
         },

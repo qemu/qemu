@@ -97,6 +97,12 @@ class TestSingleDrive(iotests.QMPTestCase):
                              target=target_img, sync='full', mode='existing')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+    def test_invalid_format(self):
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             target=target_img, sync='full',
+                             format='spaghetti-noodles')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
     def test_device_not_found(self):
         result = self.vm.qmp('drive-backup', device='nonexistent',
                              target=target_img, sync='full')
