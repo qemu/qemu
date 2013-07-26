@@ -15,8 +15,12 @@
 
 #define PL190_NUM_PRIO 17
 
+#define TYPE_PL190 "pl190"
+#define PL190(obj) OBJECT_CHECK(PL190State, (obj), TYPE_PL190)
+
 typedef struct PL190State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t level;
     uint32_t soft_level;
@@ -218,29 +222,29 @@ static const MemoryRegionOps pl190_ops = {
 
 static void pl190_reset(DeviceState *d)
 {
-  PL190State *s = DO_UPCAST(PL190State, busdev.qdev, d);
-  int i;
+    PL190State *s = PL190(d);
+    int i;
 
-  for (i = 0; i < 16; i++)
-    {
-      s->vect_addr[i] = 0;
-      s->vect_control[i] = 0;
+    for (i = 0; i < 16; i++) {
+        s->vect_addr[i] = 0;
+        s->vect_control[i] = 0;
     }
-  s->vect_addr[16] = 0;
-  s->prio_mask[17] = 0xffffffff;
-  s->priority = PL190_NUM_PRIO;
-  pl190_update_vectors(s);
+    s->vect_addr[16] = 0;
+    s->prio_mask[17] = 0xffffffff;
+    s->priority = PL190_NUM_PRIO;
+    pl190_update_vectors(s);
 }
 
-static int pl190_init(SysBusDevice *dev)
+static int pl190_init(SysBusDevice *sbd)
 {
-    PL190State *s = FROM_SYSBUS(PL190State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PL190State *s = PL190(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl190_ops, s, "pl190", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    qdev_init_gpio_in(&dev->qdev, pl190_set_irq, 32);
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_irq(dev, &s->fiq);
+    sysbus_init_mmio(sbd, &s->iomem);
+    qdev_init_gpio_in(dev, pl190_set_irq, 32);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->fiq);
     return 0;
 }
 
@@ -275,7 +279,7 @@ static void pl190_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl190_info = {
-    .name          = "pl190",
+    .name          = TYPE_PL190,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL190State),
     .class_init    = pl190_class_init,
