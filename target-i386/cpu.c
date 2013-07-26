@@ -1475,7 +1475,8 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
     error_propagate(errp, err);
 }
 
-static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
+static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
+                                const char *name)
 {
     x86_def_t *def;
     int i;
@@ -1742,7 +1743,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
 
     memset(def, 0, sizeof(*def));
 
-    if (cpu_x86_find_by_name(def, name) < 0) {
+    if (cpu_x86_find_by_name(cpu, def, name) < 0) {
         error_setg(errp, "Unable to find CPU definition: %s", name);
         return;
     }
