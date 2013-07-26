@@ -35,7 +35,7 @@ typedef struct {
     uint32_t conf;
 } pl080_channel;
 
-typedef struct {
+typedef struct PL080State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint8_t tc_int;
@@ -51,7 +51,7 @@ typedef struct {
     /* Flag to avoid recursive DMA invocations.  */
     int running;
     qemu_irq irq;
-} pl080_state;
+} PL080State;
 
 static const VMStateDescription vmstate_pl080_channel = {
     .name = "pl080_channel",
@@ -72,20 +72,20 @@ static const VMStateDescription vmstate_pl080 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(tc_int, pl080_state),
-        VMSTATE_UINT8(tc_mask, pl080_state),
-        VMSTATE_UINT8(err_int, pl080_state),
-        VMSTATE_UINT8(err_mask, pl080_state),
-        VMSTATE_UINT32(conf, pl080_state),
-        VMSTATE_UINT32(sync, pl080_state),
-        VMSTATE_UINT32(req_single, pl080_state),
-        VMSTATE_UINT32(req_burst, pl080_state),
-        VMSTATE_UINT8(tc_int, pl080_state),
-        VMSTATE_UINT8(tc_int, pl080_state),
-        VMSTATE_UINT8(tc_int, pl080_state),
-        VMSTATE_STRUCT_ARRAY(chan, pl080_state, PL080_MAX_CHANNELS,
+        VMSTATE_UINT8(tc_int, PL080State),
+        VMSTATE_UINT8(tc_mask, PL080State),
+        VMSTATE_UINT8(err_int, PL080State),
+        VMSTATE_UINT8(err_mask, PL080State),
+        VMSTATE_UINT32(conf, PL080State),
+        VMSTATE_UINT32(sync, PL080State),
+        VMSTATE_UINT32(req_single, PL080State),
+        VMSTATE_UINT32(req_burst, PL080State),
+        VMSTATE_UINT8(tc_int, PL080State),
+        VMSTATE_UINT8(tc_int, PL080State),
+        VMSTATE_UINT8(tc_int, PL080State),
+        VMSTATE_STRUCT_ARRAY(chan, PL080State, PL080_MAX_CHANNELS,
                              1, vmstate_pl080_channel, pl080_channel),
-        VMSTATE_INT32(running, pl080_state),
+        VMSTATE_INT32(running, PL080State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -96,7 +96,7 @@ static const unsigned char pl080_id[] =
 static const unsigned char pl081_id[] =
 { 0x81, 0x10, 0x04, 0x0a, 0x0d, 0xf0, 0x05, 0xb1 };
 
-static void pl080_update(pl080_state *s)
+static void pl080_update(PL080State *s)
 {
     if ((s->tc_int & s->tc_mask)
             || (s->err_int & s->err_mask))
@@ -105,7 +105,7 @@ static void pl080_update(pl080_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void pl080_run(pl080_state *s)
+static void pl080_run(PL080State *s)
 {
     int c;
     int flow;
@@ -221,7 +221,7 @@ again:
 static uint64_t pl080_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl080_state *s = (pl080_state *)opaque;
+    PL080State *s = (PL080State *)opaque;
     uint32_t i;
     uint32_t mask;
 
@@ -290,7 +290,7 @@ static uint64_t pl080_read(void *opaque, hwaddr offset,
 static void pl080_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    pl080_state *s = (pl080_state *)opaque;
+    PL080State *s = (PL080State *)opaque;
     int i;
 
     if (offset >= 0x100 && offset < 0x200) {
@@ -357,7 +357,7 @@ static const MemoryRegionOps pl080_ops = {
 
 static int pl08x_init(SysBusDevice *dev, int nchannels)
 {
-    pl080_state *s = FROM_SYSBUS(pl080_state, dev);
+    PL080State *s = FROM_SYSBUS(PL080State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -389,7 +389,7 @@ static void pl080_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl080_info = {
     .name          = "pl080",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl080_state),
+    .instance_size = sizeof(PL080State),
     .class_init    = pl080_class_init,
 };
 
@@ -406,7 +406,7 @@ static void pl081_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl081_info = {
     .name          = "pl081",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl080_state),
+    .instance_size = sizeof(PL080State),
     .class_init    = pl081_class_init,
 };
 
