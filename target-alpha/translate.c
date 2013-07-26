@@ -1521,7 +1521,8 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_mov_i64(cpu_unique, cpu_ir[IR_A0]);
             break;
         default:
-            return gen_excp(ctx, EXCP_CALL_PAL, palcode & 0xbf);
+            palcode &= 0xbf;
+            goto do_call_pal;
         }
         return NO_EXIT;
     }
@@ -1586,13 +1587,31 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
 
         default:
-            return gen_excp(ctx, EXCP_CALL_PAL, palcode & 0x3f);
+            palcode &= 0x3f;
+            goto do_call_pal;
         }
         return NO_EXIT;
     }
 #endif
-
     return gen_invalid(ctx);
+
+ do_call_pal:
+#ifdef CONFIG_USER_ONLY
+    return gen_excp(ctx, EXCP_CALL_PAL, palcode);
+#else
+    {
+        TCGv pc = tcg_const_i64(ctx->pc);
+        TCGv entry = tcg_const_i64(palcode & 0x80
+                                   ? 0x2000 + (palcode - 0x80) * 64
+                                   : 0x1000 + palcode * 64);
+
+        gen_helper_call_pal(cpu_env, pc, entry);
+
+        tcg_temp_free(entry);
+        tcg_temp_free(pc);
+        return EXIT_PC_UPDATED;
+    }
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
