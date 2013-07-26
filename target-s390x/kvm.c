@@ -345,12 +345,10 @@ void *kvm_arch_ram_alloc(ram_addr_t size)
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
     static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
-    if (cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
-        cpu_memory_rw_debug(env, bp->pc, (uint8_t *)diag_501, 4, 1)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501, 4, 1)) {
         return -EINVAL;
     }
     return 0;
@@ -358,16 +356,14 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
 int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
     uint8_t t[4];
     static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
-    if (cpu_memory_rw_debug(env, bp->pc, t, 4, 0)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, t, 4, 0)) {
         return -EINVAL;
     } else if (memcmp(t, diag_501, 4)) {
         return -EINVAL;
-    } else if (cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1)) {
+    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1)) {
         return -EINVAL;
     }
 
