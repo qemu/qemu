@@ -72,6 +72,11 @@ void helper_tbis(CPUAlphaState *env, uint64_t p)
     tlb_flush_page(env, p);
 }
 
+void helper_tb_flush(CPUAlphaState *env)
+{
+    tb_flush(env);
+}
+
 void helper_halt(uint64_t restart)
 {
     if (restart) {

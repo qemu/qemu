@@ -1609,6 +1609,17 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         tcg_temp_free(entry);
         tcg_temp_free(pc);
+
+        /* Since the destination is running in PALmode, we don't really
+           need the page permissions check.  We'll see the existance of
+           the page when we create the TB, and we'll flush all TBs if
+           we change the PAL base register.  */
+        if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
+            tcg_gen_goto_tb(0);
+            tcg_gen_exit_tb((tcg_target_long)ctx->tb);
+            return EXIT_GOTO_TB;
+        }
+
         return EXIT_PC_UPDATED;
     }
 #endif
@@ -1726,6 +1737,15 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         /* ALARM */
         gen_helper_set_alarm(cpu_env, tmp);
         break;
+
+    case 7:
+        /* PALBR */
+        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, palbr));
+        /* Changing the PAL base register implies un-chaining all of the TBs
+           that ended with a CALL_PAL.  Since the base register usually only
+           changes during boot, flushing everything works well.  */
+        gen_helper_tb_flush(cpu_env);
+        return EXIT_PC_STALE;
 
     default:
         /* The basic registers are data only, and unknown registers
