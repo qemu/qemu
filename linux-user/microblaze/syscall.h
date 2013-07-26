@@ -48,4 +48,6 @@ struct target_pt_regs {
         uint32_t kernel_mode;
 };
 
+#define TARGET_CLONE_BACKWARDS
+
 #endif

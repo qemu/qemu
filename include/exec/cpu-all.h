@@ -210,11 +210,15 @@ extern uintptr_t reserved_va;
 })
 #endif
 
-#define h2g(x) ({ \
+#define h2g_nocheck(x) ({ \
     uintptr_t __ret = (uintptr_t)(x) - GUEST_BASE; \
+    (abi_ulong)__ret; \
+})
+
+#define h2g(x) ({ \
     /* Check if given address fits target address space */ \
     assert(h2g_valid(x)); \
-    (abi_ulong)__ret; \
+    h2g_nocheck(x); \
 })
 
 #define saddr(x) g2h(x)

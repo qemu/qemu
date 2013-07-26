@@ -96,6 +96,10 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
         return 1;
     }
 
+    /* Convert forcefully to guest address space, invalid addresses
+       are still valid segv ones */
+    address = h2g_nocheck(address);
+
     env = current_cpu->env_ptr;
     /* see if it is an MMU fault */
     ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);

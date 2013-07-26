@@ -25,12 +25,20 @@ static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
     if (newsp) {
         env->regwptr[22] = newsp;
     }
+    /* syscall return for clone child: 0, and clear CF since
+     * this counts as a success return value.
+     */
     env->regwptr[0] = 0;
-    /* FIXME: Do we also need to clear CF?  */
-    /* XXXXX */
-    printf("HELPME: %s:%d\n", __FILE__, __LINE__);
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+    env->xcc &= ~PSR_CARRY;
+#else
+    env->psr &= ~PSR_CARRY;
+#endif
 }
 
-/* TODO: need to implement cpu_set_tls() */
+static inline void cpu_set_tls(CPUSPARCState *env, target_ulong newtls)
+{
+    env->gregs[7] = newtls;
+}
 
 #endif

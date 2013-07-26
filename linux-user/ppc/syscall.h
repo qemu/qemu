@@ -62,3 +62,5 @@ struct target_revectored_struct {
 #else
 #define UNAME_MACHINE "ppc"
 #endif
+
+#define TARGET_CLONE_BACKWARDS

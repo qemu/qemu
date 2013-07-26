@@ -29,6 +29,10 @@ static inline void cpu_clone_regs(CPUM68KState *env, target_ulong newsp)
     env->dregs[0] = 0;
 }
 
-/* TODO: need to implement cpu_set_tls() */
+static inline void cpu_set_tls(CPUM68KState *env, target_ulong newtls)
+{
+    TaskState *ts = env->opaque;
+    ts->tp_value = newtls;
+}
 
 #endif
