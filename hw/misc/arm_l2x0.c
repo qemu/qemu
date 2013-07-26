@@ -23,7 +23,7 @@
 /* L2C-310 r3p2 */
 #define CACHE_ID 0x410000c8
 
-typedef struct l2x0_state {
+typedef struct L2x0State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t cache_type;
@@ -33,19 +33,19 @@ typedef struct l2x0_state {
     uint32_t tag_ctrl;
     uint32_t filter_start;
     uint32_t filter_end;
-} l2x0_state;
+} L2x0State;
 
 static const VMStateDescription vmstate_l2x0 = {
     .name = "l2x0",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(ctrl, l2x0_state),
-        VMSTATE_UINT32(aux_ctrl, l2x0_state),
-        VMSTATE_UINT32(data_ctrl, l2x0_state),
-        VMSTATE_UINT32(tag_ctrl, l2x0_state),
-        VMSTATE_UINT32(filter_start, l2x0_state),
-        VMSTATE_UINT32(filter_end, l2x0_state),
+        VMSTATE_UINT32(ctrl, L2x0State),
+        VMSTATE_UINT32(aux_ctrl, L2x0State),
+        VMSTATE_UINT32(data_ctrl, L2x0State),
+        VMSTATE_UINT32(tag_ctrl, L2x0State),
+        VMSTATE_UINT32(filter_start, L2x0State),
+        VMSTATE_UINT32(filter_end, L2x0State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -55,7 +55,7 @@ static uint64_t l2x0_priv_read(void *opaque, hwaddr offset,
                                unsigned size)
 {
     uint32_t cache_data;
-    l2x0_state *s = (l2x0_state *)opaque;
+    L2x0State *s = (L2x0State *)opaque;
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         return 0; /* cache ops complete */
@@ -97,7 +97,7 @@ static uint64_t l2x0_priv_read(void *opaque, hwaddr offset,
 static void l2x0_priv_write(void *opaque, hwaddr offset,
                             uint64_t value, unsigned size)
 {
-    l2x0_state *s = (l2x0_state *)opaque;
+    L2x0State *s = (L2x0State *)opaque;
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         /* ignore */
@@ -137,7 +137,7 @@ static void l2x0_priv_write(void *opaque, hwaddr offset,
 
 static void l2x0_priv_reset(DeviceState *dev)
 {
-    l2x0_state *s = DO_UPCAST(l2x0_state, busdev.qdev, dev);
+    L2x0State *s = DO_UPCAST(L2x0State, busdev.qdev, dev);
 
     s->ctrl = 0;
     s->aux_ctrl = 0x02020000;
@@ -155,7 +155,7 @@ static const MemoryRegionOps l2x0_mem_ops = {
 
 static int l2x0_priv_init(SysBusDevice *dev)
 {
-    l2x0_state *s = FROM_SYSBUS(l2x0_state, dev);
+    L2x0State *s = FROM_SYSBUS(L2x0State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &l2x0_mem_ops, s,
                           "l2x0_cc", 0x1000);
@@ -164,7 +164,7 @@ static int l2x0_priv_init(SysBusDevice *dev)
 }
 
 static Property l2x0_properties[] = {
-    DEFINE_PROP_UINT32("cache-type", l2x0_state, cache_type, 0x1c100100),
+    DEFINE_PROP_UINT32("cache-type", L2x0State, cache_type, 0x1c100100),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -183,7 +183,7 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
 static const TypeInfo l2x0_info = {
     .name = "l2x0",
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(l2x0_state),
+    .instance_size = sizeof(L2x0State),
     .class_init = l2x0_class_init,
 };
 
