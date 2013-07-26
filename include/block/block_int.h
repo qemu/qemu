@@ -404,6 +404,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @bs: Block device to operate on.
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @sync_mode: What parts of the disk image should be copied to the destination.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
@@ -413,7 +414,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * until the job is cancelled or manually completed.
  */
 void backup_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, BlockdevOnError on_source_error,
+                  int64_t speed, MirrorSyncMode sync_mode,
+                  BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb, void *opaque,
                   Error **errp);

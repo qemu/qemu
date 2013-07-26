@@ -960,6 +960,7 @@ Arguments:
 
 Example:
 -> { "execute": "drive-backup", "arguments": { "device": "drive0",
+                                               "sync": "full",
                                                "target": "backup.img" } }
 <- { "return": {} }
 EQMP

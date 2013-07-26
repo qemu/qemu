@@ -1489,16 +1489,13 @@ void qmp_drive_backup(const char *device, const char *target,
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
+    BlockDriverState *source = NULL;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
     int64_t size;
     int ret;
 
-    if (sync != MIRROR_SYNC_MODE_FULL) {
-        error_setg(errp, "only sync mode 'full' is currently supported");
-        return;
-    }
     if (!has_speed) {
         speed = 0;
     }
@@ -1541,6 +1538,18 @@ void qmp_drive_backup(const char *device, const char *target,
 
     flags = bs->open_flags | BDRV_O_RDWR;
 
+    /* See if we have a backing HD we can use to create our new image
+     * on top of. */
+    if (sync == MIRROR_SYNC_MODE_TOP) {
+        source = bs->backing_hd;
+        if (!source) {
+            sync = MIRROR_SYNC_MODE_FULL;
+        }
+    }
+    if (sync == MIRROR_SYNC_MODE_NONE) {
+        source = bs;
+    }
+
     size = bdrv_getlength(bs);
     if (size < 0) {
         error_setg_errno(errp, -size, "bdrv_getlength failed");
@@ -1549,8 +1558,14 @@ void qmp_drive_backup(const char *device, const char *target,
 
     if (mode != NEW_IMAGE_MODE_EXISTING) {
         assert(format && drv);
-        bdrv_img_create(target, format,
-                        NULL, NULL, NULL, size, flags, &local_err, false);
+        if (source) {
+            bdrv_img_create(target, format, source->filename,
+                            source->drv->format_name, NULL,
+                            size, flags, &local_err, false);
+        } else {
+            bdrv_img_create(target, format, NULL, NULL, NULL,
+                            size, flags, &local_err, false);
+        }
     }
 
     if (error_is_set(&local_err)) {
@@ -1566,7 +1581,7 @@ void qmp_drive_backup(const char *device, const char *target,
         return;
     }
 
-    backup_start(bs, target_bs, speed, on_source_error, on_target_error,
+    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_delete(target_bs);
