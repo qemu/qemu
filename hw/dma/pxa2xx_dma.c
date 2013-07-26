@@ -26,8 +26,12 @@ typedef struct {
     int request;
 } PXA2xxDMAChannel;
 
+#define TYPE_PXA2XX_DMA "pxa2xx-dma"
+#define PXA2XX_DMA(obj) OBJECT_CHECK(PXA2xxDMAState, (obj), TYPE_PXA2XX_DMA)
+
 typedef struct PXA2xxDMAState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq;
 
@@ -445,11 +449,11 @@ static void pxa2xx_dma_request(void *opaque, int req_num, int on)
     }
 }
 
-static int pxa2xx_dma_init(SysBusDevice *dev)
+static int pxa2xx_dma_init(SysBusDevice *sbd)
 {
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxDMAState *s = PXA2XX_DMA(dev);
     int i;
-    PXA2xxDMAState *s;
-    s = FROM_SYSBUS(PXA2xxDMAState, dev);
 
     if (s->channels <= 0) {
         return -1;
@@ -463,12 +467,12 @@ static int pxa2xx_dma_init(SysBusDevice *dev)
 
     memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
-    qdev_init_gpio_in(&dev->qdev, pxa2xx_dma_request, PXA2XX_DMA_NUM_REQUESTS);
+    qdev_init_gpio_in(dev, pxa2xx_dma_request, PXA2XX_DMA_NUM_REQUESTS);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_dma_ops, s,
                           "pxa2xx.dma", 0x00010000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 
     return 0;
 }
@@ -560,7 +564,7 @@ static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_dma_info = {
-    .name          = "pxa2xx-dma",
+    .name          = TYPE_PXA2XX_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxDMAState),
     .class_init    = pxa2xx_dma_class_init,
