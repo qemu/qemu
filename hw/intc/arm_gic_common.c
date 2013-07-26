@@ -110,7 +110,7 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 
 static void arm_gic_common_reset(DeviceState *dev)
 {
-    GICState *s = FROM_SYSBUS(GICState, SYS_BUS_DEVICE(dev));
+    GICState *s = ARM_GIC_COMMON(dev);
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
