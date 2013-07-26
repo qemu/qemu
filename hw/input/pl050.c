@@ -10,8 +10,12 @@
 #include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 
+#define TYPE_PL050 "pl050"
+#define PL050(obj) OBJECT_CHECK(PL050State, (obj), TYPE_PL050)
+
 typedef struct PL050State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     void *dev;
     uint32_t cr;
@@ -19,7 +23,7 @@ typedef struct PL050State {
     uint32_t last;
     int pending;
     qemu_irq irq;
-    int is_mouse;
+    bool is_mouse;
 } PL050State;
 
 static const VMStateDescription vmstate_pl050 = {
@@ -133,65 +137,67 @@ static const MemoryRegionOps pl050_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pl050_init(SysBusDevice *dev, int is_mouse)
+static int pl050_initfn(SysBusDevice *dev)
 {
-    PL050State *s = FROM_SYSBUS(PL050State, dev);
+    PL050State *s = PL050(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl050_ops, s, "pl050", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
-    s->is_mouse = is_mouse;
-    if (s->is_mouse)
+    if (s->is_mouse) {
         s->dev = ps2_mouse_init(pl050_update, s);
-    else
+    } else {
         s->dev = ps2_kbd_init(pl050_update, s);
+    }
     return 0;
 }
 
-static int pl050_init_keyboard(SysBusDevice *dev)
+static void pl050_keyboard_init(Object *obj)
 {
-    return pl050_init(dev, 0);
+    PL050State *s = PL050(obj);
+
+    s->is_mouse = false;
 }
 
-static int pl050_init_mouse(SysBusDevice *dev)
+static void pl050_mouse_init(Object *obj)
 {
-    return pl050_init(dev, 1);
-}
+    PL050State *s = PL050(obj);
 
-static void pl050_kbd_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl050_init_keyboard;
-    dc->vmsd = &vmstate_pl050;
+    s->is_mouse = true;
 }
 
 static const TypeInfo pl050_kbd_info = {
     .name          = "pl050_keyboard",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL050State),
-    .class_init    = pl050_kbd_class_init,
+    .parent        = TYPE_PL050,
+    .instance_init = pl050_keyboard_init,
 };
-
-static void pl050_mouse_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl050_init_mouse;
-    dc->vmsd = &vmstate_pl050;
-}
 
 static const TypeInfo pl050_mouse_info = {
     .name          = "pl050_mouse",
+    .parent        = TYPE_PL050,
+    .instance_init = pl050_mouse_init,
+};
+
+static void pl050_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(oc);
+
+    sdc->init = pl050_initfn;
+    dc->vmsd = &vmstate_pl050;
+}
+
+static const TypeInfo pl050_type_info = {
+    .name          = TYPE_PL050,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL050State),
-    .class_init    = pl050_mouse_class_init,
+    .abstract      = true,
+    .class_init    = pl050_class_init,
 };
 
 static void pl050_register_types(void)
 {
+    type_register_static(&pl050_type_info);
     type_register_static(&pl050_kbd_info);
     type_register_static(&pl050_mouse_info);
 }
