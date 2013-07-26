@@ -57,8 +57,12 @@ typedef struct MiscState {
     uint16_t leds;
 } MiscState;
 
+#define TYPE_APC "apc"
+#define APC(obj) OBJECT_CHECK(APCState, (obj), TYPE_APC)
+
 typedef struct APCState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq cpu_halt;
 } APCState;
@@ -411,7 +415,7 @@ static const VMStateDescription vmstate_misc = {
 
 static int apc_init1(SysBusDevice *dev)
 {
-    APCState *s = FROM_SYSBUS(APCState, dev);
+    APCState *s = APC(dev);
 
     sysbus_init_irq(dev, &s->cpu_halt);
 
@@ -498,7 +502,7 @@ static void apc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo apc_info = {
-    .name          = "apc",
+    .name          = TYPE_APC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MiscState),
     .class_init    = apc_class_init,
