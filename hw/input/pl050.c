@@ -10,7 +10,7 @@
 #include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 
-typedef struct {
+typedef struct PL050State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     void *dev;
@@ -20,17 +20,17 @@ typedef struct {
     int pending;
     qemu_irq irq;
     int is_mouse;
-} pl050_state;
+} PL050State;
 
 static const VMStateDescription vmstate_pl050 = {
     .name = "pl050",
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(cr, pl050_state),
-        VMSTATE_UINT32(clk, pl050_state),
-        VMSTATE_UINT32(last, pl050_state),
-        VMSTATE_INT32(pending, pl050_state),
+        VMSTATE_UINT32(cr, PL050State),
+        VMSTATE_UINT32(clk, PL050State),
+        VMSTATE_UINT32(last, PL050State),
+        VMSTATE_INT32(pending, PL050State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -48,7 +48,7 @@ static const unsigned char pl050_id[] =
 
 static void pl050_update(void *opaque, int level)
 {
-    pl050_state *s = (pl050_state *)opaque;
+    PL050State *s = (PL050State *)opaque;
     int raise;
 
     s->pending = level;
@@ -60,7 +60,7 @@ static void pl050_update(void *opaque, int level)
 static uint64_t pl050_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl050_state *s = (pl050_state *)opaque;
+    PL050State *s = (PL050State *)opaque;
     if (offset >= 0xfe0 && offset < 0x1000)
         return pl050_id[(offset - 0xfe0) >> 2];
 
@@ -103,7 +103,7 @@ static uint64_t pl050_read(void *opaque, hwaddr offset,
 static void pl050_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    pl050_state *s = (pl050_state *)opaque;
+    PL050State *s = (PL050State *)opaque;
     switch (offset >> 2) {
     case 0: /* KMICR */
         s->cr = value;
@@ -135,7 +135,7 @@ static const MemoryRegionOps pl050_ops = {
 
 static int pl050_init(SysBusDevice *dev, int is_mouse)
 {
-    pl050_state *s = FROM_SYSBUS(pl050_state, dev);
+    PL050State *s = FROM_SYSBUS(PL050State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl050_ops, s, "pl050", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -170,7 +170,7 @@ static void pl050_kbd_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl050_kbd_info = {
     .name          = "pl050_keyboard",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl050_state),
+    .instance_size = sizeof(PL050State),
     .class_init    = pl050_kbd_class_init,
 };
 
@@ -186,7 +186,7 @@ static void pl050_mouse_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl050_mouse_info = {
     .name          = "pl050_mouse",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl050_state),
+    .instance_size = sizeof(PL050State),
     .class_init    = pl050_mouse_class_init,
 };
 
