@@ -23,8 +23,12 @@
 /* L2C-310 r3p2 */
 #define CACHE_ID 0x410000c8
 
+#define TYPE_ARM_L2X0 "l2x0"
+#define ARM_L2X0(obj) OBJECT_CHECK(L2x0State, (obj), TYPE_ARM_L2X0)
+
 typedef struct L2x0State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t cache_type;
     uint32_t ctrl;
@@ -137,7 +141,7 @@ static void l2x0_priv_write(void *opaque, hwaddr offset,
 
 static void l2x0_priv_reset(DeviceState *dev)
 {
-    L2x0State *s = DO_UPCAST(L2x0State, busdev.qdev, dev);
+    L2x0State *s = ARM_L2X0(dev);
 
     s->ctrl = 0;
     s->aux_ctrl = 0x02020000;
@@ -155,7 +159,7 @@ static const MemoryRegionOps l2x0_mem_ops = {
 
 static int l2x0_priv_init(SysBusDevice *dev)
 {
-    L2x0State *s = FROM_SYSBUS(L2x0State, dev);
+    L2x0State *s = ARM_L2X0(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &l2x0_mem_ops, s,
                           "l2x0_cc", 0x1000);
@@ -181,7 +185,7 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo l2x0_info = {
-    .name = "l2x0",
+    .name = TYPE_ARM_L2X0,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(L2x0State),
     .class_init = l2x0_class_init,
