@@ -372,8 +372,13 @@ type_init(exynos4210_gic_register_types)
  * output sysbus IRQ line. The output IRQ level is formed as OR between all
  * gpio inputs.
  */
-typedef struct {
-    SysBusDevice busdev;
+
+#define TYPE_EXYNOS4210_IRQ_GATE "exynos4210.irq_gate"
+#define EXYNOS4210_IRQ_GATE(obj) \
+    OBJECT_CHECK(Exynos4210IRQGateState, (obj), TYPE_EXYNOS4210_IRQ_GATE)
+
+typedef struct Exynos4210IRQGateState {
+    SysBusDevice parent_obj;
 
     uint32_t n_in;      /* inputs amount */
     uint32_t *level;    /* input levels */
@@ -418,8 +423,7 @@ static void exynos4210_irq_gate_handler(void *opaque, int irq, int level)
 
 static void exynos4210_irq_gate_reset(DeviceState *d)
 {
-    Exynos4210IRQGateState *s =
-            DO_UPCAST(Exynos4210IRQGateState, busdev.qdev, d);
+    Exynos4210IRQGateState *s = EXYNOS4210_IRQ_GATE(d);
 
     memset(s->level, 0, s->n_in * sizeof(*s->level));
 }
@@ -427,17 +431,18 @@ static void exynos4210_irq_gate_reset(DeviceState *d)
 /*
  * IRQ Gate initialization.
  */
-static int exynos4210_irq_gate_init(SysBusDevice *dev)
+static int exynos4210_irq_gate_init(SysBusDevice *sbd)
 {
-    Exynos4210IRQGateState *s = FROM_SYSBUS(Exynos4210IRQGateState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    Exynos4210IRQGateState *s = EXYNOS4210_IRQ_GATE(dev);
 
     /* Allocate general purpose input signals and connect a handler to each of
      * them */
-    qdev_init_gpio_in(&s->busdev.qdev, exynos4210_irq_gate_handler, s->n_in);
+    qdev_init_gpio_in(dev, exynos4210_irq_gate_handler, s->n_in);
 
     s->level = g_malloc0(s->n_in * sizeof(*s->level));
 
-    sysbus_init_irq(dev, &s->out);
+    sysbus_init_irq(sbd, &s->out);
 
     return 0;
 }
@@ -454,7 +459,7 @@ static void exynos4210_irq_gate_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_irq_gate_info = {
-    .name          = "exynos4210.irq_gate",
+    .name          = TYPE_EXYNOS4210_IRQ_GATE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210IRQGateState),
     .class_init    = exynos4210_irq_gate_class_init,
