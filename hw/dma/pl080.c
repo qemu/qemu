@@ -35,8 +35,12 @@ typedef struct {
     uint32_t conf;
 } pl080_channel;
 
+#define TYPE_PL080 "pl080"
+#define PL080(obj) OBJECT_CHECK(PL080State, (obj), TYPE_PL080)
+
 typedef struct PL080State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint8_t tc_int;
     uint8_t tc_mask;
@@ -355,59 +359,44 @@ static const MemoryRegionOps pl080_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pl08x_init(SysBusDevice *dev, int nchannels)
+static void pl080_init(Object *obj)
 {
-    PL080State *s = FROM_SYSBUS(PL080State, dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    PL080State *s = PL080(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    s->nchannels = nchannels;
-    return 0;
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    s->nchannels = 8;
 }
 
-static int pl080_init(SysBusDevice *dev)
+static void pl081_init(Object *obj)
 {
-    return pl08x_init(dev, 8);
+    PL080State *s = PL080(obj);
+
+    s->nchannels = 2;
 }
 
-static int pl081_init(SysBusDevice *dev)
+static void pl080_class_init(ObjectClass *oc, void *data)
 {
-    return pl08x_init(dev, 2);
-}
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
-static void pl080_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl080_init;
     dc->no_user = 1;
     dc->vmsd = &vmstate_pl080;
 }
 
 static const TypeInfo pl080_info = {
-    .name          = "pl080",
+    .name          = TYPE_PL080,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL080State),
+    .instance_init = pl080_init,
     .class_init    = pl080_class_init,
 };
 
-static void pl081_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = pl081_init;
-    dc->no_user = 1;
-    dc->vmsd = &vmstate_pl080;
-}
-
 static const TypeInfo pl081_info = {
     .name          = "pl081",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL080State),
-    .class_init    = pl081_class_init,
+    .parent        = TYPE_PL080,
+    .instance_init = pl081_init,
 };
 
 /* The PL080 and PL081 are the same except for the number of channels
