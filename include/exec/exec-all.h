@@ -358,6 +358,20 @@ static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
                                    not the start of the next opcode  */
     return ra;
 }
+#elif defined(__aarch64__)
+#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
+#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
+static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+{
+    int32_t b;
+    ra += 4;                    /* skip one instruction */
+    b = *(int32_t *)ra;         /* load the branch insn */
+    b = (b << 6) >> (6 - 2);    /* extract the displacement */
+    ra += b;                    /* apply the displacement  */
+    ra -= 4;                    /* return a pointer into the current opcode,
+                                   not the start of the next opcode  */
+    return ra;
+}
 # else
 #  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif

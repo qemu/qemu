@@ -154,8 +154,6 @@ typedef struct CPUWatchpoint {
                                      memory was accessed */             \
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
-    /* buffer for temporaries in the code generator */                  \
-    long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \
                                                                         \
     int64_t icount_extra; /* Instructions until next timer event.  */   \
     /* Number of cycles left, with interrupt flag in high bit.          \
