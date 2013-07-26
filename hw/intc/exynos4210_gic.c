@@ -260,8 +260,13 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 
 /********* GIC part *********/
 
+#define TYPE_EXYNOS4210_GIC "exynos4210.gic"
+#define EXYNOS4210_GIC(obj) \
+    OBJECT_CHECK(Exynos4210GicState, (obj), TYPE_EXYNOS4210_GIC)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion cpu_container;
     MemoryRegion dist_container;
     MemoryRegion cpu_alias[EXYNOS4210_NCPUS];
@@ -276,9 +281,10 @@ static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
-static int exynos4210_gic_init(SysBusDevice *dev)
+static int exynos4210_gic_init(SysBusDevice *sbd)
 {
-    Exynos4210GicState *s = FROM_SYSBUS(Exynos4210GicState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    Exynos4210GicState *s = EXYNOS4210_GIC(dev);
     uint32_t i;
     const char cpu_prefix[] = "exynos4210-gic-alias_cpu";
     const char dist_prefix[] = "exynos4210-gic-alias_dist";
@@ -293,10 +299,10 @@ static int exynos4210_gic_init(SysBusDevice *dev)
     busdev = SYS_BUS_DEVICE(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, busdev);
+    sysbus_pass_irq(sbd, busdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, exynos4210_gic_set_irq,
+    qdev_init_gpio_in(dev, exynos4210_gic_set_irq,
                       EXYNOS4210_GIC_NIRQ - 32);
 
     memory_region_init(&s->cpu_container, OBJECT(s), "exynos4210-cpu-container",
@@ -326,8 +332,8 @@ static int exynos4210_gic_init(SysBusDevice *dev)
                 EXYNOS4210_EXT_GIC_DIST_GET_OFFSET(i), &s->dist_alias[i]);
     }
 
-    sysbus_init_mmio(dev, &s->cpu_container);
-    sysbus_init_mmio(dev, &s->dist_container);
+    sysbus_init_mmio(sbd, &s->cpu_container);
+    sysbus_init_mmio(sbd, &s->dist_container);
 
     return 0;
 }
@@ -347,7 +353,7 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_gic_info = {
-    .name          = "exynos4210.gic",
+    .name          = TYPE_EXYNOS4210_GIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210GicState),
     .class_init    = exynos4210_gic_class_init,
