@@ -3364,9 +3364,9 @@
 ##
 # @ChardevRingbuf:
 #
-# Configuration info for memory chardevs
+# Configuration info for ring buffer chardevs.
 #
-# @size: #optional Ringbuffer size, must be power of two, default is 65536
+# @size: #optional ring buffer size, must be power of two, default is 65536
 #
 # Since: 1.5
 ##
@@ -3397,6 +3397,8 @@
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',
+                                       'ringbuf': 'ChardevRingbuf',
+                                       # next one is just for compatibility
                                        'memory' : 'ChardevRingbuf' } }
 
 ##
