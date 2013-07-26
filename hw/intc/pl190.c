@@ -15,7 +15,7 @@
 
 #define PL190_NUM_PRIO 17
 
-typedef struct {
+typedef struct PL190State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t level;
@@ -32,18 +32,18 @@ typedef struct {
     int prev_prio[PL190_NUM_PRIO];
     qemu_irq irq;
     qemu_irq fiq;
-} pl190_state;
+} PL190State;
 
 static const unsigned char pl190_id[] =
 { 0x90, 0x11, 0x04, 0x00, 0x0D, 0xf0, 0x05, 0xb1 };
 
-static inline uint32_t pl190_irq_level(pl190_state *s)
+static inline uint32_t pl190_irq_level(PL190State *s)
 {
     return (s->level | s->soft_level) & s->irq_enable & ~s->fiq_select;
 }
 
 /* Update interrupts.  */
-static void pl190_update(pl190_state *s)
+static void pl190_update(PL190State *s)
 {
     uint32_t level = pl190_irq_level(s);
     int set;
@@ -56,7 +56,7 @@ static void pl190_update(pl190_state *s)
 
 static void pl190_set_irq(void *opaque, int irq, int level)
 {
-    pl190_state *s = (pl190_state *)opaque;
+    PL190State *s = (PL190State *)opaque;
 
     if (level)
         s->level |= 1u << irq;
@@ -65,7 +65,7 @@ static void pl190_set_irq(void *opaque, int irq, int level)
     pl190_update(s);
 }
 
-static void pl190_update_vectors(pl190_state *s)
+static void pl190_update_vectors(PL190State *s)
 {
     uint32_t mask;
     int i;
@@ -88,7 +88,7 @@ static void pl190_update_vectors(pl190_state *s)
 static uint64_t pl190_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl190_state *s = (pl190_state *)opaque;
+    PL190State *s = (PL190State *)opaque;
     int i;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -152,7 +152,7 @@ static uint64_t pl190_read(void *opaque, hwaddr offset,
 static void pl190_write(void *opaque, hwaddr offset,
                         uint64_t val, unsigned size)
 {
-    pl190_state *s = (pl190_state *)opaque;
+    PL190State *s = (PL190State *)opaque;
 
     if (offset >= 0x100 && offset < 0x140) {
         s->vect_addr[(offset - 0x100) >> 2] = val;
@@ -218,7 +218,7 @@ static const MemoryRegionOps pl190_ops = {
 
 static void pl190_reset(DeviceState *d)
 {
-  pl190_state *s = DO_UPCAST(pl190_state, busdev.qdev, d);
+  PL190State *s = DO_UPCAST(PL190State, busdev.qdev, d);
   int i;
 
   for (i = 0; i < 16; i++)
@@ -234,7 +234,7 @@ static void pl190_reset(DeviceState *d)
 
 static int pl190_init(SysBusDevice *dev)
 {
-    pl190_state *s = FROM_SYSBUS(pl190_state, dev);
+    PL190State *s = FROM_SYSBUS(PL190State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl190_ops, s, "pl190", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -249,16 +249,16 @@ static const VMStateDescription vmstate_pl190 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(level, pl190_state),
-        VMSTATE_UINT32(soft_level, pl190_state),
-        VMSTATE_UINT32(irq_enable, pl190_state),
-        VMSTATE_UINT32(fiq_select, pl190_state),
-        VMSTATE_UINT8_ARRAY(vect_control, pl190_state, 16),
-        VMSTATE_UINT32_ARRAY(vect_addr, pl190_state, PL190_NUM_PRIO),
-        VMSTATE_UINT32_ARRAY(prio_mask, pl190_state, PL190_NUM_PRIO+1),
-        VMSTATE_INT32(protected, pl190_state),
-        VMSTATE_INT32(priority, pl190_state),
-        VMSTATE_INT32_ARRAY(prev_prio, pl190_state, PL190_NUM_PRIO),
+        VMSTATE_UINT32(level, PL190State),
+        VMSTATE_UINT32(soft_level, PL190State),
+        VMSTATE_UINT32(irq_enable, PL190State),
+        VMSTATE_UINT32(fiq_select, PL190State),
+        VMSTATE_UINT8_ARRAY(vect_control, PL190State, 16),
+        VMSTATE_UINT32_ARRAY(vect_addr, PL190State, PL190_NUM_PRIO),
+        VMSTATE_UINT32_ARRAY(prio_mask, PL190State, PL190_NUM_PRIO+1),
+        VMSTATE_INT32(protected, PL190State),
+        VMSTATE_INT32(priority, PL190State),
+        VMSTATE_INT32_ARRAY(prev_prio, PL190State, PL190_NUM_PRIO),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -277,7 +277,7 @@ static void pl190_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl190_info = {
     .name          = "pl190",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl190_state),
+    .instance_size = sizeof(PL190State),
     .class_init    = pl190_class_init,
 };
 
