@@ -55,7 +55,6 @@ struct SysBusDevice {
     pio_addr_t pio[QDEV_MAX_PIO];
 };
 
-void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
