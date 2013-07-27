@@ -298,8 +298,13 @@ static int sp804_init(SysBusDevice *sbd)
 
 /* Integrator/CP timer module.  */
 
+#define TYPE_INTEGRATOR_PIT "integrator_pit"
+#define INTEGRATOR_PIT(obj) \
+    OBJECT_CHECK(icp_pit_state, (obj), TYPE_INTEGRATOR_PIT)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     arm_timer_state *timer[3];
 } icp_pit_state;
@@ -341,7 +346,7 @@ static const MemoryRegionOps icp_pit_ops = {
 
 static int icp_pit_init(SysBusDevice *dev)
 {
-    icp_pit_state *s = FROM_SYSBUS(icp_pit_state, dev);
+    icp_pit_state *s = INTEGRATOR_PIT(dev);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
     s->timer[0] = arm_timer_init(40000000);
@@ -369,7 +374,7 @@ static void icp_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo icp_pit_info = {
-    .name          = "integrator_pit",
+    .name          = TYPE_INTEGRATOR_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pit_state),
     .class_init    = icp_pit_class_init,
