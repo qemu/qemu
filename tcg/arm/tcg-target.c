@@ -320,6 +320,9 @@ typedef enum {
     INSN_STRB_REG  = 0x06400000,
 
     INSN_LDRD_IMM  = 0x004000d0,
+    INSN_LDRD_REG  = 0x000000d0,
+    INSN_STRD_IMM  = 0x004000f0,
+    INSN_STRD_REG  = 0x000000f0,
 } ARMInsn;
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
@@ -808,6 +811,30 @@ static inline void tcg_out_st32_r(TCGContext *s, int cond, TCGReg rt,
                                   TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STR_REG, rt, rn, rm, 1, 1, 0);
+}
+
+static inline void tcg_out_ldrd_8(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm8)
+{
+    tcg_out_memop_8(s, cond, INSN_LDRD_IMM, rt, rn, imm8, 1, 0);
+}
+
+static inline void tcg_out_ldrd_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
+{
+    tcg_out_memop_r(s, cond, INSN_LDRD_REG, rt, rn, rm, 1, 1, 0);
+}
+
+static inline void tcg_out_strd_8(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm8)
+{
+    tcg_out_memop_8(s, cond, INSN_STRD_IMM, rt, rn, imm8, 1, 0);
+}
+
+static inline void tcg_out_strd_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
+{
+    tcg_out_memop_r(s, cond, INSN_STRD_REG, rt, rn, rm, 1, 1, 0);
 }
 
 /* Register pre-increment with base writeback.  */
@@ -1397,6 +1424,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
             tcg_out_ld32_12(s, COND_AL, data_reg, TCG_REG_R1, 4);
             tcg_out_bswap32(s, COND_AL, data_reg2, data_reg2);
             tcg_out_bswap32(s, COND_AL, data_reg, data_reg);
+        } else if (use_armv6_instructions
+                   && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
+            tcg_out_ldrd_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
         } else {
             tcg_out_ld32_rwb(s, COND_AL, data_reg, TCG_REG_R1, addr_reg);
             tcg_out_ld32_12(s, COND_AL, data_reg2, TCG_REG_R1, 4);
@@ -1450,9 +1480,13 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
         }
         break;
     case 3:
-        /* TODO: use block load -
-         * check that data_reg2 > data_reg or the other way */
-        if (data_reg == addr_reg) {
+        if (use_armv6_instructions && !bswap
+            && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
+            tcg_out_ldrd_8(s, COND_AL, data_reg, addr_reg, 0);
+        } else if (use_armv6_instructions && bswap
+                   && (data_reg2 & 1) == 0 && data_reg == data_reg2 + 1) {
+            tcg_out_ldrd_8(s, COND_AL, data_reg2, addr_reg, 0);
+        } else if (data_reg == addr_reg) {
             tcg_out_ld32_12(s, COND_AL, data_reg2, addr_reg, bswap ? 0 : 4);
             tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, bswap ? 4 : 0);
         } else {
@@ -1529,6 +1563,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
             tcg_out_st32_rwb(s, COND_AL, TCG_REG_R0, TCG_REG_R1, addr_reg);
             tcg_out_bswap32(s, COND_AL, TCG_REG_R0, data_reg);
             tcg_out_st32_12(s, COND_AL, TCG_REG_R0, TCG_REG_R1, 4);
+        } else if (use_armv6_instructions
+                   && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
+            tcg_out_strd_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
         } else {
             tcg_out_st32_rwb(s, COND_AL, data_reg, TCG_REG_R1, addr_reg);
             tcg_out_st32_12(s, COND_AL, data_reg2, TCG_REG_R1, 4);
@@ -1576,13 +1613,14 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         }
         break;
     case 3:
-        /* TODO: use block store -
-         * check that data_reg2 > data_reg or the other way */
         if (bswap) {
             tcg_out_bswap32(s, COND_AL, TCG_REG_R0, data_reg2);
             tcg_out_st32_12(s, COND_AL, TCG_REG_R0, addr_reg, 0);
             tcg_out_bswap32(s, COND_AL, TCG_REG_R0, data_reg);
             tcg_out_st32_12(s, COND_AL, TCG_REG_R0, addr_reg, 4);
+        } else if (use_armv6_instructions
+                   && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
+            tcg_out_strd_8(s, COND_AL, data_reg, addr_reg, 0);
         } else {
             tcg_out_st32_12(s, COND_AL, data_reg, addr_reg, 0);
             tcg_out_st32_12(s, COND_AL, data_reg2, addr_reg, 4);
