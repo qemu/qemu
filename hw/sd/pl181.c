@@ -22,8 +22,12 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 
 #define PL181_FIFO_LEN 16
 
+#define TYPE_PL181 "pl181"
+#define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
+
 typedef struct PL181State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     SDState *card;
     uint32_t clock;
@@ -449,7 +453,7 @@ static const MemoryRegionOps pl181_ops = {
 
 static void pl181_reset(DeviceState *d)
 {
-    PL181State *s = DO_UPCAST(PL181State, busdev.qdev, d);
+    PL181State *s = PL181(d);
 
     s->power = 0;
     s->cmdarg = 0;
@@ -474,16 +478,17 @@ static void pl181_reset(DeviceState *d)
     sd_set_cb(s->card, s->cardstatus[0], s->cardstatus[1]);
 }
 
-static int pl181_init(SysBusDevice *dev)
+static int pl181_init(SysBusDevice *sbd)
 {
-    PL181State *s = FROM_SYSBUS(PL181State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PL181State *s = PL181(dev);
     DriveInfo *dinfo;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl181_ops, s, "pl181", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq[0]);
-    sysbus_init_irq(dev, &s->irq[1]);
-    qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq[0]);
+    sysbus_init_irq(sbd, &s->irq[1]);
+    qdev_init_gpio_out(dev, s->cardstatus, 2);
     dinfo = drive_get_next(IF_SD);
     s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
     return 0;
@@ -501,7 +506,7 @@ static void pl181_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl181_info = {
-    .name          = "pl181",
+    .name          = TYPE_PL181,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL181State),
     .class_init    = pl181_class_init,
