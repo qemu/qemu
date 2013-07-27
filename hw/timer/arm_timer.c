@@ -179,14 +179,14 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0271d/index.html
 */
 
-typedef struct {
+typedef struct SP804State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     arm_timer_state *timer[2];
     uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
-} sp804_state;
+} SP804State;
 
 static const uint8_t sp804_ids[] = {
     /* Timer ID */
@@ -198,7 +198,7 @@ static const uint8_t sp804_ids[] = {
 /* Merge the IRQs from the two component devices.  */
 static void sp804_set_irq(void *opaque, int irq, int level)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     s->level[irq] = level;
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
@@ -207,7 +207,7 @@ static void sp804_set_irq(void *opaque, int irq, int level)
 static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
@@ -239,7 +239,7 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
 static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    sp804_state *s = (sp804_state *)opaque;
+    SP804State *s = (SP804State *)opaque;
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
@@ -268,14 +268,14 @@ static const VMStateDescription vmstate_sp804 = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(level, sp804_state, 2),
+        VMSTATE_INT32_ARRAY(level, SP804State, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static int sp804_init(SysBusDevice *dev)
 {
-    sp804_state *s = FROM_SYSBUS(sp804_state, dev);
+    SP804State *s = FROM_SYSBUS(SP804State, dev);
     qemu_irq *qi;
 
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
@@ -371,8 +371,8 @@ static const TypeInfo icp_pit_info = {
 };
 
 static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
-    DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
+    DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -388,7 +388,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 static const TypeInfo sp804_info = {
     .name          = "sp804",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(sp804_state),
+    .instance_size = sizeof(SP804State),
     .class_init    = sp804_class_init,
 };
 
