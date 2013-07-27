@@ -12,6 +12,7 @@
 # See the COPYING.LIB file in the top-level directory.
 
 from ordereddict import OrderedDict
+import sys
 
 builtin_types = [
     'str', 'int', 'number', 'bool',
@@ -34,6 +35,23 @@ builtin_type_qtypes = {
     'uint64':   'QTYPE_QINT',
 }
 
+class QAPISchemaError(Exception):
+    def __init__(self, schema, msg):
+        self.fp = schema.fp
+        self.msg = msg
+        self.line = self.col = 1
+        for ch in schema.src[0:schema.pos]:
+            if ch == '\n':
+                self.line += 1
+                self.col = 1
+            elif ch == '\t':
+                self.col = (self.col + 7) % 8 + 1
+            else:
+                self.col += 1
+
+    def __str__(self):
+        return "%s:%s:%s: %s" % (self.fp.name, self.line, self.col, self.msg)
+
 class QAPISchema:
 
     def __init__(self, fp):
@@ -52,6 +70,7 @@ class QAPISchema:
         while True:
             bol = self.cursor == 0 or self.src[self.cursor-1] == '\n'
             self.tok = self.src[self.cursor]
+            self.pos = self.cursor
             self.cursor += 1
             self.val = None
 
@@ -66,7 +85,8 @@ class QAPISchema:
                     ch = self.src[self.cursor]
                     self.cursor += 1
                     if ch == '\n':
-                        raise Exception("Mismatched quotes")
+                        raise QAPISchemaError(self,
+                                              'Missing terminating "\'"')
                     if esc:
                         string += ch
                         esc = False
@@ -116,7 +136,12 @@ class QAPISchema:
         return expr
 
 def parse_schema(fp):
-    schema = QAPISchema(fp)
+    try:
+        schema = QAPISchema(fp)
+    except QAPISchemaError as e:
+        print >>sys.stderr, e
+        exit(1)
+
     exprs = []
 
     for expr_eval in schema.exprs:
