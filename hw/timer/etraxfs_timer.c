@@ -42,8 +42,13 @@
 #define R_INTR        0x50
 #define R_MASKED_INTR 0x54
 
+#define TYPE_ETRAX_FS_TIMER "etraxfs,timer"
+#define ETRAX_TIMER(obj) \
+    OBJECT_CHECK(ETRAXTimerState, (obj), TYPE_ETRAX_FS_TIMER)
+
 typedef struct ETRAXTimerState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     qemu_irq irq;
     qemu_irq nmi;
@@ -311,7 +316,7 @@ static void etraxfs_timer_reset(void *opaque)
 
 static int etraxfs_timer_init(SysBusDevice *dev)
 {
-    ETRAXTimerState *t = FROM_SYSBUS(typeof (*t), dev);
+    ETRAXTimerState *t = ETRAX_TIMER(dev);
 
     t->bh_t0 = qemu_bh_new(timer0_hit, t);
     t->bh_t1 = qemu_bh_new(timer1_hit, t);
@@ -338,7 +343,7 @@ static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo etraxfs_timer_info = {
-    .name          = "etraxfs,timer",
+    .name          = TYPE_ETRAX_FS_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ETRAXTimerState),
     .class_init    = etraxfs_timer_class_init,
