@@ -559,6 +559,9 @@ static void tcx_init(hwaddr addr, int vram_size, int width,
 }
 
 /* NCR89C100/MACIO Internal ID register */
+
+#define TYPE_MACIO_ID_REGISTER "macio_idreg"
+
 static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
 
 static void idreg_init(hwaddr addr)
@@ -566,7 +569,7 @@ static void idreg_init(hwaddr addr)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "macio_idreg");
+    dev = qdev_create(NULL, TYPE_MACIO_ID_REGISTER);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 
@@ -574,14 +577,18 @@ static void idreg_init(hwaddr addr)
     cpu_physical_memory_write_rom(addr, idreg_data, sizeof(idreg_data));
 }
 
+#define MACIO_ID_REGISTER(obj) \
+    OBJECT_CHECK(IDRegState, (obj), TYPE_MACIO_ID_REGISTER)
+
 typedef struct IDRegState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mem;
 } IDRegState;
 
 static int idreg_init1(SysBusDevice *dev)
 {
-    IDRegState *s = FROM_SYSBUS(IDRegState, dev);
+    IDRegState *s = MACIO_ID_REGISTER(dev);
 
     memory_region_init_ram(&s->mem, OBJECT(s),
                            "sun4m.idreg", sizeof(idreg_data));
@@ -599,7 +606,7 @@ static void idreg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo idreg_info = {
-    .name          = "macio_idreg",
+    .name          = TYPE_MACIO_ID_REGISTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IDRegState),
     .class_init    = idreg_class_init,
