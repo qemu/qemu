@@ -50,8 +50,12 @@ enum {
     CR_STOP  = (1 << 3),
 };
 
+#define TYPE_LM32_TIMER "lm32-timer"
+#define LM32_TIMER(obj) OBJECT_CHECK(LM32TimerState, (obj), TYPE_LM32_TIMER)
+
 struct LM32TimerState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     QEMUBH *bh;
@@ -161,7 +165,7 @@ static void timer_hit(void *opaque)
 
 static void timer_reset(DeviceState *d)
 {
-    LM32TimerState *s = container_of(d, LM32TimerState, busdev.qdev);
+    LM32TimerState *s = LM32_TIMER(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -172,7 +176,7 @@ static void timer_reset(DeviceState *d)
 
 static int lm32_timer_init(SysBusDevice *dev)
 {
-    LM32TimerState *s = FROM_SYSBUS(typeof(*s), dev);
+    LM32TimerState *s = LM32_TIMER(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -217,7 +221,7 @@ static void lm32_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lm32_timer_info = {
-    .name          = "lm32-timer",
+    .name          = TYPE_LM32_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32TimerState),
     .class_init    = lm32_timer_class_init,
