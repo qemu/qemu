@@ -57,9 +57,14 @@ struct xlx_timer
     uint32_t regs[R_MAX];
 };
 
+#define TYPE_XILINX_TIMER "xlnx.xps-timer"
+#define XILINX_TIMER(obj) \
+    OBJECT_CHECK(struct timerblock, (obj), TYPE_XILINX_TIMER)
+
 struct timerblock
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     qemu_irq irq;
     uint8_t one_timer_only;
@@ -200,7 +205,7 @@ static void timer_hit(void *opaque)
 
 static int xilinx_timer_init(SysBusDevice *dev)
 {
-    struct timerblock *t = FROM_SYSBUS(typeof (*t), dev);
+    struct timerblock *t = XILINX_TIMER(dev);
     unsigned int i;
 
     /* All timers share a single irq line.  */
@@ -241,7 +246,7 @@ static void xilinx_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_timer_info = {
-    .name          = "xlnx.xps-timer",
+    .name          = TYPE_XILINX_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct timerblock),
     .class_init    = xilinx_timer_class_init,
