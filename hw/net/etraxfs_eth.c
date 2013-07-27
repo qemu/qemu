@@ -322,9 +322,14 @@ static void mdio_cycle(struct qemu_mdio *bus)
 #define R_STAT          0x0b
 #define FS_ETH_MAX_REGS      0x17
 
+#define TYPE_ETRAX_FS_ETH "etraxfs-eth"
+#define ETRAX_FS_ETH(obj) \
+    OBJECT_CHECK(struct fs_eth, (obj), TYPE_ETRAX_FS_ETH)
+
 struct fs_eth
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     NICState *nic;
     NICConf conf;
@@ -597,9 +602,10 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
-static int fs_eth_init(SysBusDevice *dev)
+static int fs_eth_init(SysBusDevice *sbd)
 {
-    struct fs_eth *s = FROM_SYSBUS(typeof(*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct fs_eth *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
         hw_error("Unconnected ETRAX-FS Ethernet MAC.\n");
@@ -612,11 +618,11 @@ static int fs_eth_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->mmio, OBJECT(dev), &eth_ops, s,
                           "etraxfs-eth", 0x5c);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
-                          object_get_typename(OBJECT(s)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(s)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
 
@@ -643,7 +649,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo etraxfs_eth_info = {
-    .name          = "etraxfs-eth",
+    .name          = TYPE_ETRAX_FS_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct fs_eth),
     .class_init    = etraxfs_eth_class_init,
