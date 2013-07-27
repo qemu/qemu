@@ -101,6 +101,8 @@ class QAPISchema:
                 if self.cursor == len(self.src):
                     self.tok = None
                     return
+            elif not self.tok.isspace():
+                raise QAPISchemaError(self, 'Stray "%s"' % self.tok)
 
     def get_members(self):
         expr = OrderedDict()
