@@ -39,8 +39,12 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_INT_RX  0x04
 #define PL022_INT_TX  0x08
 
+#define TYPE_PL022 "pl022"
+#define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
+
 typedef struct PL022State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t cr0;
     uint32_t cr1;
@@ -273,16 +277,17 @@ static const VMStateDescription vmstate_pl022 = {
     }
 };
 
-static int pl022_init(SysBusDevice *dev)
+static int pl022_init(SysBusDevice *sbd)
 {
-    PL022State *s = FROM_SYSBUS(PL022State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PL022State *s = PL022(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl022_ops, s, "pl022", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-    s->ssi = ssi_create_bus(&dev->qdev, "ssi");
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    s->ssi = ssi_create_bus(dev, "ssi");
     pl022_reset(s);
-    vmstate_register(&dev->qdev, -1, &vmstate_pl022, s);
+    vmstate_register(dev, -1, &vmstate_pl022, s);
     return 0;
 }
 
@@ -294,7 +299,7 @@ static void pl022_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl022_info = {
-    .name          = "pl022",
+    .name          = TYPE_PL022,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL022State),
     .class_init    = pl022_class_init,
