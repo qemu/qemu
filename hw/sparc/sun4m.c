@@ -612,8 +612,12 @@ static const TypeInfo idreg_info = {
     .class_init    = idreg_class_init,
 };
 
+#define TYPE_TCX_AFX "tcx_afx"
+#define TCX_AFX(obj) OBJECT_CHECK(AFXState, (obj), TYPE_TCX_AFX)
+
 typedef struct AFXState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mem;
 } AFXState;
 
@@ -623,7 +627,7 @@ static void afx_init(hwaddr addr)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "tcx_afx");
+    dev = qdev_create(NULL, TYPE_TCX_AFX);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 
@@ -632,7 +636,7 @@ static void afx_init(hwaddr addr)
 
 static int afx_init1(SysBusDevice *dev)
 {
-    AFXState *s = FROM_SYSBUS(AFXState, dev);
+    AFXState *s = TCX_AFX(dev);
 
     memory_region_init_ram(&s->mem, OBJECT(s), "sun4m.afx", 4);
     vmstate_register_ram_global(&s->mem);
@@ -648,7 +652,7 @@ static void afx_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo afx_info = {
-    .name          = "tcx_afx",
+    .name          = TYPE_TCX_AFX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AFXState),
     .class_init    = afx_class_init,
