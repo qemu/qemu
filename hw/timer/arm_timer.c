@@ -179,8 +179,12 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0271d/index.html
 */
 
+#define TYPE_SP804 "sp804"
+#define SP804(obj) OBJECT_CHECK(SP804State, (obj), TYPE_SP804)
+
 typedef struct SP804State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     arm_timer_state *timer[2];
     uint32_t freq0, freq1;
@@ -273,21 +277,22 @@ static const VMStateDescription vmstate_sp804 = {
     }
 };
 
-static int sp804_init(SysBusDevice *dev)
+static int sp804_init(SysBusDevice *sbd)
 {
-    SP804State *s = FROM_SYSBUS(SP804State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SP804State *s = SP804(dev);
     qemu_irq *qi;
 
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
     memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
                           "sp804", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    vmstate_register(&dev->qdev, -1, &vmstate_sp804, s);
+    sysbus_init_mmio(sbd, &s->iomem);
+    vmstate_register(dev, -1, &vmstate_sp804, s);
     return 0;
 }
 
@@ -386,7 +391,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sp804_info = {
-    .name          = "sp804",
+    .name          = TYPE_SP804,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SP804State),
     .class_init    = sp804_class_init,
