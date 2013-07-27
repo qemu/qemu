@@ -33,8 +33,12 @@ do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 #define RTC_MIS     0x18    /* Masked interrupt status register */
 #define RTC_ICR     0x1c    /* Interrupt clear register */
 
+#define TYPE_PL031 "pl031"
+#define PL031(obj) OBJECT_CHECK(PL031State, (obj), TYPE_PL031)
+
 typedef struct PL031State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     QEMUTimer *timer;
     qemu_irq irq;
@@ -189,7 +193,7 @@ static const MemoryRegionOps pl031_ops = {
 
 static int pl031_init(SysBusDevice *dev)
 {
-    PL031State *s = FROM_SYSBUS(PL031State, dev);
+    PL031State *s = PL031(dev);
     struct tm tm;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl031_ops, s, "pl031", 0x1000);
@@ -251,7 +255,7 @@ static void pl031_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl031_info = {
-    .name          = "pl031",
+    .name          = TYPE_PL031,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL031State),
     .class_init    = pl031_class_init,
