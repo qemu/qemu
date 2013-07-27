@@ -240,8 +240,13 @@ typedef struct {
 
 } Exynos4210MCTLT;
 
+#define TYPE_EXYNOS4210_MCT "exynos4210.mct"
+#define EXYNOS4210_MCT(obj) \
+    OBJECT_CHECK(Exynos4210MCTState, (obj), TYPE_EXYNOS4210_MCT)
+
 typedef struct Exynos4210MCTState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     /* Registers */
@@ -955,7 +960,7 @@ static void exynos4210_mct_update_freq(Exynos4210MCTState *s)
 /* set defaul_timer values for all fields */
 static void exynos4210_mct_reset(DeviceState *d)
 {
-    Exynos4210MCTState *s = (Exynos4210MCTState *)d;
+    Exynos4210MCTState *s = EXYNOS4210_MCT(d);
     uint32_t i;
 
     s->reg_mct_cfg = 0;
@@ -1424,7 +1429,7 @@ static const MemoryRegionOps exynos4210_mct_ops = {
 static int exynos4210_mct_init(SysBusDevice *dev)
 {
     int i;
-    Exynos4210MCTState *s = FROM_SYSBUS(Exynos4210MCTState, dev);
+    Exynos4210MCTState *s = EXYNOS4210_MCT(dev);
     QEMUBH *bh[2];
 
     /* Global timer */
@@ -1467,7 +1472,7 @@ static void exynos4210_mct_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_mct_info = {
-    .name          = "exynos4210.mct",
+    .name          = TYPE_EXYNOS4210_MCT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210MCTState),
     .class_init    = exynos4210_mct_class_init,
