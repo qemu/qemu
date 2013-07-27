@@ -168,15 +168,15 @@ def parse_schema(fp):
 
     exprs = []
 
-    for expr_eval in schema.exprs:
-        if expr_eval.has_key('enum'):
-            add_enum(expr_eval['enum'])
-        elif expr_eval.has_key('union'):
-            add_union(expr_eval)
-            add_enum('%sKind' % expr_eval['union'])
-        elif expr_eval.has_key('type'):
-            add_struct(expr_eval)
-        exprs.append(expr_eval)
+    for expr in schema.exprs:
+        if expr.has_key('enum'):
+            add_enum(expr['enum'])
+        elif expr.has_key('union'):
+            add_union(expr)
+            add_enum('%sKind' % expr['union'])
+        elif expr.has_key('type'):
+            add_struct(expr)
+        exprs.append(expr)
 
     return exprs
 
