@@ -137,10 +137,11 @@ void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 
 static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    CRISCPU *cpu = CRIS_CPU(dev);
+    CPUState *cs = CPU(dev);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     ccc->parent_realize(dev, errp);
 }

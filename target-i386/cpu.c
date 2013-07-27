@@ -2333,6 +2333,7 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
@@ -2387,12 +2388,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     mce_init(cpu);
+    qemu_init_vcpu(cs);
 
     x86_cpu_apic_realize(cpu, &local_err);
     if (local_err != NULL) {
         goto out;
     }
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
     xcc->parent_realize(dev, &local_err);
 out:
