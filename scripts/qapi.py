@@ -68,13 +68,12 @@ class QAPISchema:
 
     def accept(self):
         while True:
-            bol = self.cursor == 0 or self.src[self.cursor-1] == '\n'
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
             self.cursor += 1
             self.val = None
 
-            if self.tok == '#' and bol:
+            if self.tok == '#':
                 self.cursor = self.src.find('\n', self.cursor)
             elif self.tok in ['{', '}', ':', ',', '[', ']']:
                 return
