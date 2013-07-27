@@ -2,9 +2,11 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
+# Copyright (c) 2013 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPLv2.
 # See the COPYING.LIB file in the top-level directory.
@@ -32,91 +34,92 @@ builtin_type_qtypes = {
     'uint64':   'QTYPE_QINT',
 }
 
-def tokenize(data):
-    while len(data):
-        ch = data[0]
-        data = data[1:]
-        if ch in ['{', '}', ':', ',', '[', ']']:
-            yield ch
-        elif ch in ' \n':
-            None
-        elif ch == "'":
-            string = ''
-            esc = False
-            while True:
-                if (data == ''):
-                    raise Exception("Mismatched quotes")
-                ch = data[0]
-                data = data[1:]
-                if esc:
-                    string += ch
-                    esc = False
-                elif ch == "\\":
-                    esc = True
-                elif ch == "'":
-                    break
-                else:
-                    string += ch
-            yield string
+class QAPISchema:
 
-def parse(tokens):
-    if tokens[0] == '{':
-        ret = OrderedDict()
-        tokens = tokens[1:]
-        while tokens[0] != '}':
-            key = tokens[0]
-            tokens = tokens[1:]
+    def __init__(self, fp):
+        self.fp = fp
+        self.src = fp.read()
+        if self.src == '' or self.src[-1] != '\n':
+            self.src += '\n'
+        self.cursor = 0
+        self.exprs = []
+        self.accept()
 
-            tokens = tokens[1:] # :
+        while self.tok != None:
+            self.exprs.append(self.get_expr())
 
-            value, tokens = parse(tokens)
+    def accept(self):
+        while True:
+            bol = self.cursor == 0 or self.src[self.cursor-1] == '\n'
+            self.tok = self.src[self.cursor]
+            self.cursor += 1
+            self.val = None
 
-            if tokens[0] == ',':
-                tokens = tokens[1:]
+            if self.tok == '#' and bol:
+                self.cursor = self.src.find('\n', self.cursor)
+            elif self.tok in ['{', '}', ':', ',', '[', ']']:
+                return
+            elif self.tok == "'":
+                string = ''
+                esc = False
+                while True:
+                    ch = self.src[self.cursor]
+                    self.cursor += 1
+                    if ch == '\n':
+                        raise Exception("Mismatched quotes")
+                    if esc:
+                        string += ch
+                        esc = False
+                    elif ch == "\\":
+                        esc = True
+                    elif ch == "'":
+                        self.val = string
+                        return
+                    else:
+                        string += ch
+            elif self.tok == '\n':
+                if self.cursor == len(self.src):
+                    self.tok = None
+                    return
 
-            ret[key] = value
-        tokens = tokens[1:]
-        return ret, tokens
-    elif tokens[0] == '[':
-        ret = []
-        tokens = tokens[1:]
-        while tokens[0] != ']':
-            value, tokens = parse(tokens)
-            if tokens[0] == ',':
-                tokens = tokens[1:]
-            ret.append(value)
-        tokens = tokens[1:]
-        return ret, tokens
-    else:
-        return tokens[0], tokens[1:]
+    def get_members(self):
+        expr = OrderedDict()
+        while self.tok != '}':
+            key = self.val
+            self.accept()
+            self.accept()        # :
+            expr[key] = self.get_expr()
+            if self.tok == ',':
+                self.accept()
+        self.accept()
+        return expr
 
-def evaluate(string):
-    return parse(map(lambda x: x, tokenize(string)))[0]
+    def get_values(self):
+        expr = []
+        while self.tok != ']':
+            expr.append(self.get_expr())
+            if self.tok == ',':
+                self.accept()
+        self.accept()
+        return expr
 
-def get_expr(fp):
-    expr = ''
-
-    for line in fp:
-        if line.startswith('#') or line == '\n':
-            continue
-
-        if line.startswith(' '):
-            expr += line
-        elif expr:
-            yield expr
-            expr = line
+    def get_expr(self):
+        if self.tok == '{':
+            self.accept()
+            expr = self.get_members()
+        elif self.tok == '[':
+            self.accept()
+            expr = self.get_values()
         else:
-            expr += line
-
-    if expr:
-        yield expr
+            expr = self.val
+            self.accept()
+        return expr
 
 def parse_schema(fp):
+    schema = QAPISchema(fp)
     exprs = []
 
-    for expr in get_expr(fp):
-        expr_eval = evaluate(expr)
-
+    for expr_eval in schema.exprs:
         if expr_eval.has_key('enum'):
             add_enum(expr_eval['enum'])
         elif expr_eval.has_key('union'):

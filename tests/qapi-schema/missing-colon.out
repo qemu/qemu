@@ -1,3 +1,3 @@
-[OrderedDict([('enum', ','), ('data', ['good', 'bad', 'ugly'])])]
-[',']
+[OrderedDict([('enum', None), ('data', ['good', 'bad', 'ugly'])])]
+[None]
 []
