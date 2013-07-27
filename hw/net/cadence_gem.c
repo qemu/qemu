@@ -315,8 +315,12 @@ static inline void rx_desc_set_length(unsigned *desc, unsigned len)
     desc[1] |= len;
 }
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_CADENCE_GEM "cadence_gem"
+#define GEM(obj) OBJECT_CHECK(GemState, (obj), TYPE_CADENCE_GEM)
+
+typedef struct GemState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     NICState *nic;
     NICConf conf;
@@ -945,7 +949,7 @@ static void gem_phy_reset(GemState *s)
 
 static void gem_reset(DeviceState *d)
 {
-    GemState *s = FROM_SYSBUS(GemState, SYS_BUS_DEVICE(d));
+    GemState *s = GEM(d);
 
     DB_PRINT("\n");
 
@@ -1155,22 +1159,22 @@ static NetClientInfo net_gem_info = {
     .link_status_changed = gem_set_link,
 };
 
-static int gem_init(SysBusDevice *dev)
+static int gem_init(SysBusDevice *sbd)
 {
-    GemState *s;
+    DeviceState *dev = DEVICE(sbd);
+    GemState *s = GEM(dev);
 
     DB_PRINT("\n");
 
-    s = FROM_SYSBUS(GemState, dev);
     gem_init_register_masks(s);
     memory_region_init_io(&s->iomem, OBJECT(s), &gem_ops, s,
                           "enet", sizeof(s->regs));
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_gem_info, &s->conf,
-            object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+            object_get_typename(OBJECT(dev)), dev->id, s);
 
     return 0;
 }
@@ -1206,10 +1210,10 @@ static void gem_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo gem_info = {
-    .class_init = gem_class_init,
-    .name  = "cadence_gem",
+    .name  = TYPE_CADENCE_GEM,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(GemState),
+    .class_init = gem_class_init,
 };
 
 static void gem_register_types(void)
