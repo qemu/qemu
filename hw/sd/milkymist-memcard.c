@@ -58,8 +58,13 @@ enum {
     R_MAX
 };
 
+#define TYPE_MILKYMIST_MEMCARD "milkymist-memcard"
+#define MILKYMIST_MEMCARD(obj) \
+    OBJECT_CHECK(MilkymistMemcardState, (obj), TYPE_MILKYMIST_MEMCARD)
+
 struct MilkymistMemcardState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
     SDState *card;
 
@@ -231,8 +236,7 @@ static const MemoryRegionOps memcard_mmio_ops = {
 
 static void milkymist_memcard_reset(DeviceState *d)
 {
-    MilkymistMemcardState *s =
-            container_of(d, MilkymistMemcardState, busdev.qdev);
+    MilkymistMemcardState *s = MILKYMIST_MEMCARD(d);
     int i;
 
     s->command_write_ptr = 0;
@@ -246,7 +250,7 @@ static void milkymist_memcard_reset(DeviceState *d)
 
 static int milkymist_memcard_init(SysBusDevice *dev)
 {
-    MilkymistMemcardState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
     DriveInfo *dinfo;
 
     dinfo = drive_get_next(IF_SD);
@@ -289,7 +293,7 @@ static void milkymist_memcard_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_memcard_info = {
-    .name          = "milkymist-memcard",
+    .name          = TYPE_MILKYMIST_MEMCARD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMemcardState),
     .class_init    = milkymist_memcard_class_init,
