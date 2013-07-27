@@ -26,7 +26,6 @@
 #include "trace.h"
 
 typedef struct {
-    DeviceState qdev;
     MemoryRegion iomem;
     uint32_t chip_size;
     char *filename;
