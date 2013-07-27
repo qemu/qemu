@@ -78,7 +78,7 @@ void kvm_setup_guest_memory(void *start, size_t size)
 {
 }
 
-int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
+int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
 {
     return -ENOSYS;
 }

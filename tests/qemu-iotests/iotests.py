@@ -95,6 +95,11 @@ class VM(object):
         self._num_drives += 1
         return self
 
+    def hmp_qemu_io(self, drive, cmd):
+        '''Write to a given drive using an HMP command'''
+        return self.qmp('human-monitor-command',
+                        command_line='qemu-io %s "%s"' % (drive, cmd))
+
     def add_fd(self, fd, fdset, opaque, opts=''):
         '''Pass a file descriptor to the VM'''
         options = ['fd=%d' % fd,

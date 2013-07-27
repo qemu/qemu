@@ -100,10 +100,14 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->dump_state = mips_cpu_dump_state;
     cc->set_pc = mips_cpu_set_pc;
     cc->synchronize_from_tb = mips_cpu_synchronize_from_tb;
+    cc->gdb_read_register = mips_cpu_gdb_read_register;
+    cc->gdb_write_register = mips_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->do_unassigned_access = mips_cpu_unassigned_access;
     cc->get_phys_page_debug = mips_cpu_get_phys_page_debug;
 #endif
+
+    cc->gdb_num_core_regs = 73;
 }
 
 static const TypeInfo mips_cpu_type_info = {

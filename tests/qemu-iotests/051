@@ -72,11 +72,11 @@ echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 echo
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=42
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=foo
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=on
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=off
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=42
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=foo
 
 
 echo
@@ -85,8 +85,8 @@ echo
 
 _make_test_img -ocompat=0.10 $size
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy_refcounts=off
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=on
+run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=off
 
 echo
 echo === No medium ===

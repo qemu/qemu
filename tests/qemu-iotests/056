@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+#
+# Tests for drive-backup
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# Based on 041.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+import os
+import iotests
+from iotests import qemu_img, qemu_io, create_image
+
+backing_img = os.path.join(iotests.test_dir, 'backing.img')
+test_img = os.path.join(iotests.test_dir, 'test.img')
+target_img = os.path.join(iotests.test_dir, 'target.img')
+
+class TestSyncModesNoneAndTop(iotests.QMPTestCase):
+    image_len = 64 * 1024 * 1024 # MB
+
+    def setUp(self):
+        create_image(backing_img, TestSyncModesNoneAndTop.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_io('-c', 'write -P0x41 0 512', test_img)
+        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
+        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
+        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def test_complete_top(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-backup', device='drive0', sync='top',
+                             format=iotests.imgfmt, target=target_img)
+        self.assert_qmp(result, 'return', {})
+
+        # Custom completed check as we are not copying all data.
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp_absent(event, 'data/error')
+                    completed = True
+
+        self.assert_no_active_block_jobs()
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after backup')
+
+    def test_cancel_sync_none(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             sync='none', target=target_img)
+        self.assert_qmp(result, 'return', {})
+        time.sleep(1)
+        self.vm.hmp_qemu_io('drive0', 'write -P0x5e 0 512')
+        self.vm.hmp_qemu_io('drive0', 'aio_flush')
+        # Verify that the original contents exist in the target image.
+
+        event = self.cancel_and_wait()
+        self.assert_qmp(event, 'data/type', 'backup')
+
+        self.vm.shutdown()
+        time.sleep(1)
+        self.assertEqual(-1, qemu_io('-c', 'read -P0x41 0 512', target_img).find("verification failed"))
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2', 'qed'])

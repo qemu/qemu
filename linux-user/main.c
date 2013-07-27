@@ -3680,7 +3680,7 @@ int main(int argc, char **argv)
         exit(1);
     }
     cpu = ENV_GET_CPU(env);
-    cpu_reset(ENV_GET_CPU(env));
+    cpu_reset(cpu);
 
     thread_cpu = cpu;
 

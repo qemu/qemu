@@ -286,10 +286,13 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->dump_state = superh_cpu_dump_state;
     cc->set_pc = superh_cpu_set_pc;
     cc->synchronize_from_tb = superh_cpu_synchronize_from_tb;
+    cc->gdb_read_register = superh_cpu_gdb_read_register;
+    cc->gdb_write_register = superh_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = superh_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_sh_cpu;
+    cc->gdb_num_core_regs = 59;
 }
 
 static const TypeInfo superh_cpu_type_info = {

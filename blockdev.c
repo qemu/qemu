@@ -312,7 +312,8 @@ static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
     return true;
 }
 
-DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
+static DriveInfo *blockdev_init(QemuOpts *all_opts,
+                                BlockInterfaceType block_default_type)
 {
     const char *buf;
     const char *file = NULL;
@@ -322,7 +323,6 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
-    BlockDriver *drv = NULL;
     int max_devs;
     int index;
     int ro = 0;
@@ -338,6 +338,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     QemuOpts *opts;
     QDict *bs_opts;
     const char *id;
+    bool has_driver_specific_opts;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
@@ -365,6 +366,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qdict_del(bs_opts, "id");
     }
 
+    has_driver_specific_opts = !!qdict_size(bs_opts);
+
     /* extract parameters */
     bus_id  = qemu_opt_get_number(opts, "bus", 0);
     unit_id = qemu_opt_get_number(opts, "unit", -1);
@@ -375,7 +378,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     secs  = qemu_opt_get_number(opts, "secs", 0);
 
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
-    ro = qemu_opt_get_bool(opts, "readonly", 0);
+    ro = qemu_opt_get_bool(opts, "read-only", 0);
     copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
 
     file = qemu_opt_get(opts, "file");
@@ -449,12 +452,15 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
     }
 
-    bdrv_flags |= BDRV_O_CACHE_WB;
-    if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
-        if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
-            error_report("invalid cache option");
-            return NULL;
-        }
+    bdrv_flags = 0;
+    if (qemu_opt_get_bool(opts, "cache.writeback", true)) {
+        bdrv_flags |= BDRV_O_CACHE_WB;
+    }
+    if (qemu_opt_get_bool(opts, "cache.direct", false)) {
+        bdrv_flags |= BDRV_O_NOCACHE;
+    }
+    if (qemu_opt_get_bool(opts, "cache.no-flush", true)) {
+        bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
 #ifdef CONFIG_LINUX_AIO
@@ -477,26 +483,23 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             error_printf("\n");
             return NULL;
         }
-        drv = bdrv_find_whitelisted_format(buf, ro);
-        if (!drv) {
-            error_report("'%s' invalid format", buf);
-            return NULL;
-        }
+
+        qdict_put(bs_opts, "driver", qstring_from_str(buf));
     }
 
     /* disk I/O throttling */
     io_limits.bps[BLOCK_IO_LIMIT_TOTAL]  =
-                           qemu_opt_get_number(opts, "bps", 0);
+        qemu_opt_get_number(opts, "throttling.bps-total", 0);
     io_limits.bps[BLOCK_IO_LIMIT_READ]   =
-                           qemu_opt_get_number(opts, "bps_rd", 0);
+        qemu_opt_get_number(opts, "throttling.bps-read", 0);
     io_limits.bps[BLOCK_IO_LIMIT_WRITE]  =
-                           qemu_opt_get_number(opts, "bps_wr", 0);
+        qemu_opt_get_number(opts, "throttling.bps-write", 0);
     io_limits.iops[BLOCK_IO_LIMIT_TOTAL] =
-                           qemu_opt_get_number(opts, "iops", 0);
+        qemu_opt_get_number(opts, "throttling.iops-total", 0);
     io_limits.iops[BLOCK_IO_LIMIT_READ]  =
-                           qemu_opt_get_number(opts, "iops_rd", 0);
+        qemu_opt_get_number(opts, "throttling.iops-read", 0);
     io_limits.iops[BLOCK_IO_LIMIT_WRITE] =
-                           qemu_opt_get_number(opts, "iops_wr", 0);
+        qemu_opt_get_number(opts, "throttling.iops-write", 0);
 
     if (!do_check_io_limits(&io_limits, &error)) {
         error_report("%s", error_get_pretty(error));
@@ -658,7 +661,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         abort();
     }
     if (!file || !*file) {
-        if (qdict_size(bs_opts)) {
+        if (has_driver_specific_opts) {
             file = NULL;
         } else {
             return dinfo;
@@ -684,7 +687,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     } else if (ro == 1) {
         if (type != IF_SCSI && type != IF_VIRTIO && type != IF_FLOPPY &&
             type != IF_NONE && type != IF_PFLASH) {
-            error_report("readonly not supported by this bus type");
+            error_report("read-only not supported by this bus type");
             goto err;
         }
     }
@@ -692,16 +695,16 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     if (ro && copy_on_read) {
-        error_report("warning: disabling copy_on_read on readonly drive");
+        error_report("warning: disabling copy_on_read on read-only drive");
     }
 
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
-    bs_opts = NULL;
+    QINCREF(bs_opts);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, NULL);
 
     if (ret < 0) {
         if (ret == -EMEDIUMTYPE) {
             error_report("could not open disk image %s: not in %s format",
-                         file ?: dinfo->id, drv->format_name);
+                         file ?: dinfo->id, qdict_get_str(bs_opts, "driver"));
         } else {
             error_report("could not open disk image %s: %s",
                          file ?: dinfo->id, strerror(-ret));
@@ -712,6 +715,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
 
+    QDECREF(bs_opts);
     qemu_opts_del(opts);
 
     return dinfo;
@@ -724,6 +728,60 @@ err:
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo);
     return NULL;
+}
+
+static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
+{
+    const char *value;
+
+    value = qemu_opt_get(opts, from);
+    if (value) {
+        qemu_opt_set(opts, to, value);
+        qemu_opt_unset(opts, from);
+    }
+}
+
+DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
+{
+    const char *value;
+
+    /* Change legacy command line options into QMP ones */
+    qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
+    qemu_opt_rename(all_opts, "iops_rd", "throttling.iops-read");
+    qemu_opt_rename(all_opts, "iops_wr", "throttling.iops-write");
+
+    qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
+    qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
+    qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+
+    qemu_opt_rename(all_opts, "readonly", "read-only");
+
+    value = qemu_opt_get(all_opts, "cache");
+    if (value) {
+        int flags = 0;
+
+        if (bdrv_parse_cache_flags(value, &flags) != 0) {
+            error_report("invalid cache option");
+            return NULL;
+        }
+
+        /* Specific options take precedence */
+        if (!qemu_opt_get(all_opts, "cache.writeback")) {
+            qemu_opt_set_bool(all_opts, "cache.writeback",
+                              !!(flags & BDRV_O_CACHE_WB));
+        }
+        if (!qemu_opt_get(all_opts, "cache.direct")) {
+            qemu_opt_set_bool(all_opts, "cache.direct",
+                              !!(flags & BDRV_O_NOCACHE));
+        }
+        if (!qemu_opt_get(all_opts, "cache.no-flush")) {
+            qemu_opt_set_bool(all_opts, "cache.no-flush",
+                              !!(flags & BDRV_O_NO_FLUSH));
+        }
+        qemu_opt_unset(all_opts, "cache");
+    }
+
+    return blockdev_init(all_opts, block_default_type);
 }
 
 void do_commit(Monitor *mon, const QDict *qdict)
@@ -1431,16 +1489,13 @@ void qmp_drive_backup(const char *device, const char *target,
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
+    BlockDriverState *source = NULL;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
     int64_t size;
     int ret;
 
-    if (sync != MIRROR_SYNC_MODE_FULL) {
-        error_setg(errp, "only sync mode 'full' is currently supported");
-        return;
-    }
     if (!has_speed) {
         speed = 0;
     }
@@ -1483,6 +1538,18 @@ void qmp_drive_backup(const char *device, const char *target,
 
     flags = bs->open_flags | BDRV_O_RDWR;
 
+    /* See if we have a backing HD we can use to create our new image
+     * on top of. */
+    if (sync == MIRROR_SYNC_MODE_TOP) {
+        source = bs->backing_hd;
+        if (!source) {
+            sync = MIRROR_SYNC_MODE_FULL;
+        }
+    }
+    if (sync == MIRROR_SYNC_MODE_NONE) {
+        source = bs;
+    }
+
     size = bdrv_getlength(bs);
     if (size < 0) {
         error_setg_errno(errp, -size, "bdrv_getlength failed");
@@ -1491,8 +1558,14 @@ void qmp_drive_backup(const char *device, const char *target,
 
     if (mode != NEW_IMAGE_MODE_EXISTING) {
         assert(format && drv);
-        bdrv_img_create(target, format,
-                        NULL, NULL, NULL, size, flags, &local_err, false);
+        if (source) {
+            bdrv_img_create(target, format, source->filename,
+                            source->drv->format_name, NULL,
+                            size, flags, &local_err, false);
+        } else {
+            bdrv_img_create(target, format, NULL, NULL, NULL,
+                            size, flags, &local_err, false);
+        }
     }
 
     if (error_is_set(&local_err)) {
@@ -1508,7 +1581,7 @@ void qmp_drive_backup(const char *device, const char *target,
         return;
     }
 
-    backup_start(bs, target_bs, speed, on_source_error, on_target_error,
+    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_delete(target_bs);
@@ -1822,10 +1895,17 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },{
-            .name = "cache",
-            .type = QEMU_OPT_STRING,
-            .help = "host cache usage (none, writeback, writethrough, "
-                    "directsync, unsafe)",
+            .name = "cache.writeback",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables writeback mode for any caches",
+        },{
+            .name = "cache.direct",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables use of O_DIRECT (bypass the host page cache)",
+        },{
+            .name = "cache.no-flush",
+            .type = QEMU_OPT_BOOL,
+            .help = "ignore any flush requests for the device",
         },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
@@ -1851,31 +1931,31 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
         },{
-            .name = "readonly",
+            .name = "read-only",
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
-            .name = "iops",
+            .name = "throttling.iops-total",
             .type = QEMU_OPT_NUMBER,
             .help = "limit total I/O operations per second",
         },{
-            .name = "iops_rd",
+            .name = "throttling.iops-read",
             .type = QEMU_OPT_NUMBER,
             .help = "limit read operations per second",
         },{
-            .name = "iops_wr",
+            .name = "throttling.iops-write",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write operations per second",
         },{
-            .name = "bps",
+            .name = "throttling.bps-total",
             .type = QEMU_OPT_NUMBER,
             .help = "limit total bytes per second",
         },{
-            .name = "bps_rd",
+            .name = "throttling.bps-read",
             .type = QEMU_OPT_NUMBER,
             .help = "limit read bytes per second",
         },{
-            .name = "bps_wr",
+            .name = "throttling.bps-write",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write bytes per second",
         },{

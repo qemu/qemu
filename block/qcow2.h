@@ -59,10 +59,10 @@
 #define DEFAULT_CLUSTER_SIZE 65536
 
 
-#define QCOW2_OPT_LAZY_REFCOUNTS "lazy_refcounts"
-#define QCOW2_OPT_DISCARD_REQUEST "pass_discard_request"
-#define QCOW2_OPT_DISCARD_SNAPSHOT "pass_discard_snapshot"
-#define QCOW2_OPT_DISCARD_OTHER "pass_discard_other"
+#define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
+#define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
+#define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
+#define QCOW2_OPT_DISCARD_OTHER "pass-discard-other"
 
 typedef struct QCowHeader {
     uint32_t magic;
