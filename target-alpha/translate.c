@@ -379,13 +379,26 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 #endif
 }
 
-static int use_goto_tb(DisasContext *ctx, uint64_t dest)
+static bool in_superpage(DisasContext *ctx, int64_t addr)
 {
-    /* Check for the dest on the same page as the start of the TB.  We
-       also want to suppress goto_tb in the case of single-steping and IO.  */
-    return (((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0
-            && !ctx->singlestep_enabled
-            && !(ctx->tb->cflags & CF_LAST_IO));
+    return ((ctx->tb->flags & TB_FLAGS_USER_MODE) == 0
+            && addr < 0
+            && ((addr >> 41) & 3) == 2
+            && addr >> TARGET_VIRT_ADDR_SPACE_BITS == addr >> 63);
+}
+
+static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+{
+    /* Suppress goto_tb in the case of single-steping and IO.  */
+    if (ctx->singlestep_enabled || (ctx->tb->cflags & CF_LAST_IO)) {
+        return false;
+    }
+    /* If the destination is in the superpage, the page perms can't change.  */
+    if (in_superpage(ctx, dest)) {
+        return true;
+    }
+    /* Check for the dest on the same page as the start of the TB.  */
+    return ((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0;
 }
 
 static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
@@ -3431,6 +3444,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     CPUAlphaState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
+    target_ulong pc_mask;
     uint32_t insn;
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
@@ -3460,8 +3474,15 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+
+    if (in_superpage(&ctx, pc_start)) {
+        pc_mask = (1ULL << 41) - 1;
+    } else {
+        pc_mask = ~TARGET_PAGE_MASK;
+    }
 
     gen_tb_start();
     do {
@@ -3499,7 +3520,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
         if (ret == NO_EXIT
-            && ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
+            && ((ctx.pc & pc_mask) == 0
                 || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
