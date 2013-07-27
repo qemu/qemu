@@ -83,6 +83,14 @@ gcov-files-arm-y += hw/tmp105.c
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
 
+check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
+        comments.json empty.json funny-char.json indented-expr.json \
+        missing-colon.json missing-comma-list.json \
+        missing-comma-object.json non-objects.json \
+        quoted-structural-chars.json \
+        trailing-comma-list.json trailing-comma-object.json \
+        unclosed-list.json unclosed-object.json unclosed-string.json)
+
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
@@ -171,6 +179,7 @@ check-help:
 	@echo " make check-qtest-TARGET   Run qtest tests for given target"
 	@echo " make check-qtest          Run qtest tests"
 	@echo " make check-unit           Run qobject tests"
+	@echo " make check-qapi-schema    Run QAPI schema tests"
 	@echo " make check-block          Run block tests"
 	@echo " make check-report.html    Generates an HTML test report"
 	@echo
@@ -233,13 +242,24 @@ check-report.html: check-report.xml
 check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF)
 	$<
 
+.PHONY: check-tests/test-qapi.py
+check-tests/test-qapi.py: tests/test-qapi.py
+
+.PHONY: $(patsubst %, check-%, $(check-qapi-schema-y))
+$(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
+	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py <$^ >$*.out 2>$*.err; echo $$? >$*.exit, "  TEST  $*.out")
+	@diff -q $(SRC_PATH)/$*.out $*.out
+	@diff -q $(SRC_PATH)/$*.err $*.err
+	@diff -q $(SRC_PATH)/$*.exit $*.exit
+
 # Consolidated targets
 
-.PHONY: check-qtest check-unit check
+.PHONY: check-qapi-schema check-qtest check-unit check
+check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-unit check-qtest
+check: check-qapi-schema check-unit check-qtest
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)

@@ -1,0 +1,3 @@
+[OrderedDict([('enum', 'Status'), ('data', ['good', 'bad', 'ugly'])])]
+['Status']
+[]
