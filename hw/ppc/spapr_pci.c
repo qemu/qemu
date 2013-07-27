@@ -479,6 +479,7 @@ static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
 static int spapr_phb_init(SysBusDevice *s)
 {
+    DeviceState *dev = DEVICE(s);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     const char *busname;
@@ -596,14 +597,14 @@ static int spapr_phb_init(SysBusDevice *s)
      * since it's unique by construction, and makes the guest visible
      * BUID clear.
      */
-    if (s->qdev.id) {
+    if (dev->id) {
         busname = NULL;
     } else if (sphb->index == 0) {
         busname = "pci";
     } else {
         busname = sphb->dtbusname;
     }
-    bus = pci_register_bus(DEVICE(s), busname,
+    bus = pci_register_bus(dev, busname,
                            pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                            &sphb->memspace, &sphb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
@@ -611,7 +612,7 @@ static int spapr_phb_init(SysBusDevice *s)
 
     sphb->dma_window_start = 0;
     sphb->dma_window_size = 0x40000000;
-    sphb->tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
+    sphb->tcet = spapr_tce_new_table(dev, sphb->dma_liobn,
                                      sphb->dma_window_size);
     if (!sphb->tcet) {
         fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
