@@ -42,8 +42,13 @@ do { fprintf(stderr, "stellaris_enet: error: " fmt , ## __VA_ARGS__);} while (0)
 #define SE_TCTL_CRC     0x04
 #define SE_TCTL_DUPLEX  0x08
 
+#define TYPE_STELLARIS_ENET "stellaris_enet"
+#define STELLARIS_ENET(obj) \
+    OBJECT_CHECK(stellaris_enet_state, (obj), TYPE_STELLARIS_ENET)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     uint32_t ris;
     uint32_t im;
     uint32_t rctl;
@@ -386,7 +391,7 @@ static void stellaris_enet_cleanup(NetClientState *nc)
 {
     stellaris_enet_state *s = qemu_get_nic_opaque(nc);
 
-    unregister_savevm(&s->busdev.qdev, "stellaris_enet", s);
+    unregister_savevm(DEVICE(s), "stellaris_enet", s);
 
     memory_region_destroy(&s->mmio);
 
@@ -401,22 +406,23 @@ static NetClientInfo net_stellaris_enet_info = {
     .cleanup = stellaris_enet_cleanup,
 };
 
-static int stellaris_enet_init(SysBusDevice *dev)
+static int stellaris_enet_init(SysBusDevice *sbd)
 {
-    stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    stellaris_enet_state *s = STELLARIS_ENET(dev);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &stellaris_enet_ops, s,
                           "stellaris_enet", 0x1000);
-    sysbus_init_mmio(dev, &s->mmio);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_stellaris_enet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     stellaris_enet_reset(s);
-    register_savevm(&s->busdev.qdev, "stellaris_enet", -1, 1,
+    register_savevm(dev, "stellaris_enet", -1, 1,
                     stellaris_enet_save, stellaris_enet_load, s);
     return 0;
 }
@@ -436,7 +442,7 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_enet_info = {
-    .name          = "stellaris_enet",
+    .name          = TYPE_STELLARIS_ENET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_enet_state),
     .class_init    = stellaris_enet_class_init,
