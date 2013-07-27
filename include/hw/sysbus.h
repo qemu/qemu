@@ -42,7 +42,10 @@ typedef struct SysBusDeviceClass {
 } SysBusDeviceClass;
 
 struct SysBusDevice {
-    DeviceState qdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     int num_irq;
     qemu_irq irqs[QDEV_MAX_IRQ];
     qemu_irq *irqp[QDEV_MAX_IRQ];
