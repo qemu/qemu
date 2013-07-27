@@ -21,6 +21,9 @@ int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
                           uint32_t initrd_image, uint32_t initrd_size,
                           uint32_t NVRAM_image,
                           int width, int height, int depth);
+
+#define TYPE_SYSBUS_M48T59 "m48t59"
+
 typedef struct M48t59State M48t59State;
 
 void m48t59_write (void *private, uint32_t addr, uint32_t val);
