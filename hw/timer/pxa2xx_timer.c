@@ -60,6 +60,10 @@ static int pxa2xx_timer4_freq[8] = {
     [5 ... 7] = 0,
 };
 
+#define TYPE_PXA2XX_TIMER "pxa2xx-timer"
+#define PXA2XX_TIMER(obj) \
+    OBJECT_CHECK(PXA2xxTimerInfo, (obj), TYPE_PXA2XX_TIMER)
+
 typedef struct PXA2xxTimerInfo PXA2xxTimerInfo;
 
 typedef struct {
@@ -80,7 +84,8 @@ typedef struct {
 } PXA2xxTimer4;
 
 struct PXA2xxTimerInfo {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t flags;
 
@@ -429,10 +434,9 @@ static int pxa25x_timer_post_load(void *opaque, int version_id)
 
 static int pxa2xx_timer_init(SysBusDevice *dev)
 {
+    PXA2xxTimerInfo *s = PXA2XX_TIMER(dev);
     int i;
-    PXA2xxTimerInfo *s;
 
-    s = FROM_SYSBUS(PXA2xxTimerInfo, dev);
     s->irq_enabled = 0;
     s->oldclock = 0;
     s->clock = 0;
@@ -527,24 +531,21 @@ static const VMStateDescription vmstate_pxa2xx_timer_regs = {
 static Property pxa25x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA25X_FREQ),
     DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
-    PXA2XX_TIMER_HAVE_TM4, false),
+                    PXA2XX_TIMER_HAVE_TM4, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pxa2xx_timer_init;
     dc->desc = "PXA25x timer";
-    dc->vmsd = &vmstate_pxa2xx_timer_regs;
     dc->props = pxa25x_timer_dev_properties;
 }
 
 static const TypeInfo pxa25x_timer_dev_info = {
     .name          = "pxa25x-timer",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PXA2XX_TIMER,
     .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa25x_timer_dev_class_init,
 };
@@ -552,30 +553,45 @@ static const TypeInfo pxa25x_timer_dev_info = {
 static Property pxa27x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA27X_FREQ),
     DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
-    PXA2XX_TIMER_HAVE_TM4, true),
+                    PXA2XX_TIMER_HAVE_TM4, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxa27x_timer_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pxa2xx_timer_init;
     dc->desc = "PXA27x timer";
-    dc->vmsd = &vmstate_pxa2xx_timer_regs;
     dc->props = pxa27x_timer_dev_properties;
 }
 
 static const TypeInfo pxa27x_timer_dev_info = {
     .name          = "pxa27x-timer",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PXA2XX_TIMER,
     .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa27x_timer_dev_class_init,
 };
 
+static void pxa2xx_timer_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(oc);
+
+    sdc->init = pxa2xx_timer_init;
+    dc->vmsd = &vmstate_pxa2xx_timer_regs;
+}
+
+static const TypeInfo pxa2xx_timer_type_info = {
+    .name          = TYPE_PXA2XX_TIMER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxTimerInfo),
+    .abstract      = true,
+    .class_init    = pxa2xx_timer_class_init,
+};
+
 static void pxa2xx_timer_register_types(void)
 {
+    type_register_static(&pxa2xx_timer_type_info);
     type_register_static(&pxa25x_timer_dev_info);
     type_register_static(&pxa27x_timer_dev_info);
 }
