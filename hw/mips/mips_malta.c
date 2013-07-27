@@ -79,8 +79,12 @@ typedef struct {
     SerialState *uart;
 } MaltaFPGAState;
 
+#define TYPE_MIPS_MALTA "mips-malta"
+#define MIPS_MALTA(obj) OBJECT_CHECK(MaltaState, (obj), TYPE_MIPS_MALTA)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     qemu_irq *i8259;
 } MaltaState;
 
@@ -808,8 +812,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     int fl_sectors = bios_size >> 16;
     int be;
 
-    DeviceState *dev = qdev_create(NULL, "mips-malta");
-    MaltaState *s = DO_UPCAST(MaltaState, busdev.qdev, dev);
+    DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
+    MaltaState *s = MIPS_MALTA(dev);
 
     qdev_init_nofail(dev);
 
@@ -1004,7 +1008,7 @@ static void mips_malta_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mips_malta_device = {
-    .name          = "mips-malta",
+    .name          = TYPE_MIPS_MALTA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
     .class_init    = mips_malta_class_init,
