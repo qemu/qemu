@@ -658,8 +658,12 @@ static const TypeInfo afx_info = {
     .class_init    = afx_class_init,
 };
 
+#define TYPE_OPENPROM "openprom"
+#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+
 typedef struct PROMState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion prom;
 } PROMState;
 
@@ -677,7 +681,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     char *filename;
     int ret;
 
-    dev = qdev_create(NULL, "openprom");
+    dev = qdev_create(NULL, TYPE_OPENPROM);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 
@@ -706,7 +710,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 static int prom_init1(SysBusDevice *dev)
 {
-    PROMState *s = FROM_SYSBUS(PROMState, dev);
+    PROMState *s = OPENPROM(dev);
 
     memory_region_init_ram(&s->prom, OBJECT(s), "sun4m.prom", PROM_SIZE_MAX);
     vmstate_register_ram_global(&s->prom);
@@ -729,7 +733,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo prom_info = {
-    .name          = "openprom",
+    .name          = TYPE_OPENPROM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
