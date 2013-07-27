@@ -714,9 +714,12 @@ static const TypeInfo prom_info = {
 };
 
 
-typedef struct RamDevice
-{
-    SysBusDevice busdev;
+#define TYPE_SUN4U_MEMORY "memory"
+#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
+
+typedef struct RamDevice {
+    SysBusDevice parent_obj;
+
     MemoryRegion ram;
     uint64_t size;
 } RamDevice;
@@ -724,7 +727,7 @@ typedef struct RamDevice
 /* System RAM */
 static int ram_init1(SysBusDevice *dev)
 {
-    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
+    RamDevice *d = SUN4U_RAM(dev);
 
     memory_region_init_ram(&d->ram, OBJECT(d), "sun4u.ram", d->size);
     vmstate_register_ram_global(&d->ram);
@@ -739,10 +742,10 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
     RamDevice *d;
 
     /* allocate RAM */
-    dev = qdev_create(NULL, "memory");
+    dev = qdev_create(NULL, TYPE_SUN4U_MEMORY);
     s = SYS_BUS_DEVICE(dev);
 
-    d = FROM_SYSBUS(RamDevice, s);
+    d = SUN4U_RAM(dev);
     d->size = RAM_size;
     qdev_init_nofail(dev);
 
@@ -764,7 +767,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ram_info = {
-    .name          = "memory",
+    .name          = TYPE_SUN4U_MEMORY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
