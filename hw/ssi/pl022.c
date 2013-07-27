@@ -39,7 +39,7 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_INT_RX  0x04
 #define PL022_INT_TX  0x08
 
-typedef struct {
+typedef struct PL022State {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t cr0;
@@ -58,12 +58,12 @@ typedef struct {
     uint16_t rx_fifo[8];
     qemu_irq irq;
     SSIBus *ssi;
-} pl022_state;
+} PL022State;
 
 static const unsigned char pl022_id[8] =
   { 0x22, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 
-static void pl022_update(pl022_state *s)
+static void pl022_update(PL022State *s)
 {
     s->sr = 0;
     if (s->tx_fifo_len == 0)
@@ -85,7 +85,7 @@ static void pl022_update(pl022_state *s)
     qemu_set_irq(s->irq, (s->is & s->im) != 0);
 }
 
-static void pl022_xfer(pl022_state *s)
+static void pl022_xfer(PL022State *s)
 {
     int i;
     int o;
@@ -133,7 +133,7 @@ static void pl022_xfer(pl022_state *s)
 static uint64_t pl022_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl022_state *s = (pl022_state *)opaque;
+    PL022State *s = (PL022State *)opaque;
     int val;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -177,7 +177,7 @@ static uint64_t pl022_read(void *opaque, hwaddr offset,
 static void pl022_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    pl022_state *s = (pl022_state *)opaque;
+    PL022State *s = (PL022State *)opaque;
 
     switch (offset) {
     case 0x00: /* CR0 */
@@ -221,7 +221,7 @@ static void pl022_write(void *opaque, hwaddr offset,
     }
 }
 
-static void pl022_reset(pl022_state *s)
+static void pl022_reset(PL022State *s)
 {
     s->rx_fifo_len = 0;
     s->tx_fifo_len = 0;
@@ -242,40 +242,40 @@ static const VMStateDescription vmstate_pl022 = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT32(cr0, pl022_state),
-        VMSTATE_UINT32(cr1, pl022_state),
-        VMSTATE_UINT32(bitmask, pl022_state),
-        VMSTATE_UINT32(sr, pl022_state),
-        VMSTATE_UINT32(cpsr, pl022_state),
-        VMSTATE_UINT32(is, pl022_state),
-        VMSTATE_UINT32(im, pl022_state),
-        VMSTATE_INT32(tx_fifo_head, pl022_state),
-        VMSTATE_INT32(rx_fifo_head, pl022_state),
-        VMSTATE_INT32(tx_fifo_len, pl022_state),
-        VMSTATE_INT32(rx_fifo_len, pl022_state),
-        VMSTATE_UINT16(tx_fifo[0], pl022_state),
-        VMSTATE_UINT16(rx_fifo[0], pl022_state),
-        VMSTATE_UINT16(tx_fifo[1], pl022_state),
-        VMSTATE_UINT16(rx_fifo[1], pl022_state),
-        VMSTATE_UINT16(tx_fifo[2], pl022_state),
-        VMSTATE_UINT16(rx_fifo[2], pl022_state),
-        VMSTATE_UINT16(tx_fifo[3], pl022_state),
-        VMSTATE_UINT16(rx_fifo[3], pl022_state),
-        VMSTATE_UINT16(tx_fifo[4], pl022_state),
-        VMSTATE_UINT16(rx_fifo[4], pl022_state),
-        VMSTATE_UINT16(tx_fifo[5], pl022_state),
-        VMSTATE_UINT16(rx_fifo[5], pl022_state),
-        VMSTATE_UINT16(tx_fifo[6], pl022_state),
-        VMSTATE_UINT16(rx_fifo[6], pl022_state),
-        VMSTATE_UINT16(tx_fifo[7], pl022_state),
-        VMSTATE_UINT16(rx_fifo[7], pl022_state),
+        VMSTATE_UINT32(cr0, PL022State),
+        VMSTATE_UINT32(cr1, PL022State),
+        VMSTATE_UINT32(bitmask, PL022State),
+        VMSTATE_UINT32(sr, PL022State),
+        VMSTATE_UINT32(cpsr, PL022State),
+        VMSTATE_UINT32(is, PL022State),
+        VMSTATE_UINT32(im, PL022State),
+        VMSTATE_INT32(tx_fifo_head, PL022State),
+        VMSTATE_INT32(rx_fifo_head, PL022State),
+        VMSTATE_INT32(tx_fifo_len, PL022State),
+        VMSTATE_INT32(rx_fifo_len, PL022State),
+        VMSTATE_UINT16(tx_fifo[0], PL022State),
+        VMSTATE_UINT16(rx_fifo[0], PL022State),
+        VMSTATE_UINT16(tx_fifo[1], PL022State),
+        VMSTATE_UINT16(rx_fifo[1], PL022State),
+        VMSTATE_UINT16(tx_fifo[2], PL022State),
+        VMSTATE_UINT16(rx_fifo[2], PL022State),
+        VMSTATE_UINT16(tx_fifo[3], PL022State),
+        VMSTATE_UINT16(rx_fifo[3], PL022State),
+        VMSTATE_UINT16(tx_fifo[4], PL022State),
+        VMSTATE_UINT16(rx_fifo[4], PL022State),
+        VMSTATE_UINT16(tx_fifo[5], PL022State),
+        VMSTATE_UINT16(rx_fifo[5], PL022State),
+        VMSTATE_UINT16(tx_fifo[6], PL022State),
+        VMSTATE_UINT16(rx_fifo[6], PL022State),
+        VMSTATE_UINT16(tx_fifo[7], PL022State),
+        VMSTATE_UINT16(rx_fifo[7], PL022State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static int pl022_init(SysBusDevice *dev)
 {
-    pl022_state *s = FROM_SYSBUS(pl022_state, dev);
+    PL022State *s = FROM_SYSBUS(PL022State, dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl022_ops, s, "pl022", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -296,7 +296,7 @@ static void pl022_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl022_info = {
     .name          = "pl022",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl022_state),
+    .instance_size = sizeof(PL022State),
     .class_init    = pl022_class_init,
 };
 
