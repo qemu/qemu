@@ -96,8 +96,12 @@ typedef struct {
     int bigendian;
 } MaltaFPGAState;
 
+#define TYPE_MIPS_MALTA "mips-malta"
+#define MIPS_MALTA(obj) OBJECT_CHECK(MaltaState, (obj), TYPE_MIPS_MALTA)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     qemu_irq *i8259;
 } MaltaState;
 
@@ -825,8 +829,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     int fl_idx = 0;
     int fl_sectors = bios_size >> 16;
 
-    DeviceState *dev = qdev_create(NULL, "mips-malta");
-    MaltaState *s = DO_UPCAST(MaltaState, busdev.qdev, dev);
+    DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
+    MaltaState *s = MIPS_MALTA(dev);
 
     qdev_init_nofail(dev);
 
@@ -1010,10 +1014,10 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     pci_vga_init(pci_bus);
 }
 
-static void mips_malta_reset(DeviceState *d)
+static void mips_malta_reset(DeviceState *dev)
 {
     /* TODO: fix code. */
-    MaltaState *s = container_of(d, MaltaState, busdev.qdev);
+    MaltaState *s = MIPS_MALTA(dev);
     (void)s;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
@@ -1055,7 +1059,7 @@ static void mips_malta_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mips_malta_device = {
-    .name          = "mips-malta",
+    .name          = TYPE_MIPS_MALTA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
     .class_init    = mips_malta_class_init,
