@@ -324,21 +324,7 @@ extern uintptr_t tci_tb_ptr;
    In some implementations, we pass the "logical" return address manually;
    in others, we must infer the logical return from the true return.  */
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-# if defined(__arm__)
-/* We define two insns between the return address and the branch back to
-   straight-line.  Find and decode that branch insn.  */
-#  define GETRA_LDST(RA)   tcg_getra_ldst(RA)
-static inline uintptr_t tcg_getra_ldst(uintptr_t ra)
-{
-    int32_t b;
-    ra += 8;                    /* skip the two insns */
-    b = *(int32_t *)ra;         /* load the branch insn */
-    b = (b << 8) >> (8 - 2);    /* extract the displacement */
-    ra += 8;                    /* branches are relative to pc+8 */
-    ra += b;                    /* apply the displacement */
-    return ra;
-}
-# elif defined(__aarch64__)
+# if defined(__aarch64__)
 #  define GETRA_LDST(RA)  tcg_getra_ldst(RA)
 static inline uintptr_t tcg_getra_ldst(uintptr_t ra)
 {
