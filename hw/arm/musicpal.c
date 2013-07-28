@@ -534,7 +534,7 @@ static void lcd_invalidate(void *opaque)
 {
 }
 
-static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
+static void musicpal_lcd_gpio_brightness_in(void *opaque, int irq, int level)
 {
     musicpal_lcd_state *s = opaque;
     s->brightness &= ~(1 << irq);
@@ -619,7 +619,7 @@ static int musicpal_lcd_init(SysBusDevice *dev)
     s->con = graphic_console_init(DEVICE(dev), &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
-    qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brigthness_in, 3);
+    qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brightness_in, 3);
 
     return 0;
 }
