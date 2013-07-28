@@ -324,7 +324,7 @@ static const MemoryRegionOps fw_cfg_data_mem_ops = {
 static const MemoryRegionOps fw_cfg_comb_mem_ops = {
     .read = fw_cfg_comb_read,
     .write = fw_cfg_comb_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.accepts = fw_cfg_comb_valid,
 };
 
