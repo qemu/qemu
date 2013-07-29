@@ -15,6 +15,7 @@ extern PropertyInfo qdev_prop_uint64;
 extern PropertyInfo qdev_prop_hex8;
 extern PropertyInfo qdev_prop_hex32;
 extern PropertyInfo qdev_prop_hex64;
+extern PropertyInfo qdev_prop_size;
 extern PropertyInfo qdev_prop_string;
 extern PropertyInfo qdev_prop_chr;
 extern PropertyInfo qdev_prop_ptr;
@@ -116,6 +117,8 @@ extern PropertyInfo qdev_prop_arraylen;
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex32, uint32_t)
 #define DEFINE_PROP_HEX64(_n, _s, _f, _d)                       \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex64, uint64_t)
+#define DEFINE_PROP_SIZE(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_size, uint64_t)
 #define DEFINE_PROP_PCI_DEVFN(_n, _s, _f, _d)                   \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_pci_devfn, int32_t)
 

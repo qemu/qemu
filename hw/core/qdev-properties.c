@@ -1135,3 +1135,58 @@ void qdev_prop_set_globals(DeviceState *dev, Error **errp)
         class = object_class_get_parent(class);
     } while (class);
 }
+
+/* --- 64bit unsigned int 'size' type --- */
+
+static void get_size(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_size(v, ptr, name, errp);
+}
+
+static void set_size(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_size(v, ptr, name, errp);
+}
+
+static int parse_size(DeviceState *dev, Property *prop, const char *str)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    Error *errp = NULL;
+
+    if (str != NULL) {
+        parse_option_size(prop->name, str, ptr, &errp);
+    }
+    assert_no_error(errp);
+    return 0;
+}
+
+static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
+{
+    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    char suffixes[] = {'T', 'G', 'M', 'K', 'B'};
+    int i = 0;
+    uint64_t div;
+
+    for (div = (long int)1 << 40; !(*ptr / div) ; div >>= 10) {
+        i++;
+    }
+    return snprintf(dest, len, "%0.03f%c", (double)*ptr/div, suffixes[i]);
+}
+
+PropertyInfo qdev_prop_size = {
+    .name  = "size",
+    .parse = parse_size,
+    .print = print_size,
+    .get = get_size,
+    .set = set_size,
+};
