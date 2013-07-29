@@ -216,6 +216,7 @@ static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
     union viosrp_iu *iu = &req->iu;
     uint64_t tag = iu->srp.rsp.tag;
     int total_len = sizeof(iu->srp.rsp);
+    uint8_t sol_not = iu->srp.cmd.sol_not;
 
     dprintf("VSCSI: Sending resp status: 0x%x, "
             "res_in: %d, res_out: %d\n", status, res_in, res_out);
@@ -248,7 +249,7 @@ static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
     /* Handle success vs. failure */
     iu->srp.rsp.status = status;
     if (status) {
-        iu->srp.rsp.sol_not = (iu->srp.cmd.sol_not & 0x04) >> 2;
+        iu->srp.rsp.sol_not = (sol_not & 0x04) >> 2;
         if (req->senselen) {
             req->iu.srp.rsp.flags |= SRP_RSP_FLAG_SNSVALID;
             req->iu.srp.rsp.sense_data_len = cpu_to_be32(req->senselen);
@@ -256,7 +257,7 @@ static int vscsi_send_rsp(VSCSIState *s, vscsi_req *req,
             total_len += req->senselen;
         }
     } else {
-        iu->srp.rsp.sol_not = (iu->srp.cmd.sol_not & 0x02) >> 1;
+        iu->srp.rsp.sol_not = (sol_not & 0x02) >> 1;
     }
 
     vscsi_send_iu(s, req, total_len, VIOSRP_SRP_FORMAT);
