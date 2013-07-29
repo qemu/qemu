@@ -46,10 +46,12 @@ static void lm32_cpu_reset(CPUState *s)
 
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    LM32CPU *cpu = LM32_CPU(dev);
+    CPUState *cs = CPU(dev);
     LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
+
+    qemu_init_vcpu(cs);
 
     lcc->parent_realize(dev, errp);
 }

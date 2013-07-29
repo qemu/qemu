@@ -159,6 +159,7 @@ static void arm_cpu_finalizefn(Object *obj)
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     ARMCPU *cpu = ARM_CPU(dev);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
@@ -214,7 +215,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     init_cpreg_list(cpu);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     acc->parent_realize(dev, errp);
 }

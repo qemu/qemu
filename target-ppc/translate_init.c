@@ -7861,6 +7861,8 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
                                  34, "power-spe.xml", 0);
     }
 
+    qemu_init_vcpu(cs);
+
     pcc->parent_realize(dev, errp);
 
 #if defined(PPC_DUMP_CPU)

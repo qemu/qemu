@@ -1475,9 +1475,11 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
     error_propagate(errp, err);
 }
 
-static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
+static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
+                                const char *name)
 {
     x86_def_t *def;
+    Error *err = NULL;
     int i;
 
     if (name == NULL) {
@@ -1485,6 +1487,8 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
     }
     if (kvm_enabled() && strcmp(name, "host") == 0) {
         kvm_cpu_fill_host(x86_cpu_def);
+        object_property_set_bool(OBJECT(cpu), true, "pmu", &err);
+        assert_no_error(err);
         return 0;
     }
 
@@ -1742,7 +1746,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
 
     memset(def, 0, sizeof(*def));
 
-    if (cpu_x86_find_by_name(def, name) < 0) {
+    if (cpu_x86_find_by_name(cpu, def, name) < 0) {
         error_setg(errp, "Unable to find CPU definition: %s", name);
         return;
     }
@@ -2016,7 +2020,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0xA:
         /* Architectural Performance Monitoring Leaf */
-        if (kvm_enabled()) {
+        if (kvm_enabled() && cpu->enable_pmu) {
             KVMState *s = cs->kvm_state;
 
             *eax = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EAX);
@@ -2333,6 +2337,7 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
@@ -2387,12 +2392,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     mce_init(cpu);
+    qemu_init_vcpu(cs);
 
     x86_cpu_apic_realize(cpu, &local_err);
     if (local_err != NULL) {
         goto out;
     }
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
     xcc->parent_realize(dev, &local_err);
 out:
@@ -2520,6 +2526,11 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
+static Property x86_cpu_properties[] = {
+    DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
@@ -2529,6 +2540,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     xcc->parent_realize = dc->realize;
     dc->realize = x86_cpu_realizefn;
     dc->bus_type = TYPE_ICC_BUS;
+    dc->props = x86_cpu_properties;
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;
