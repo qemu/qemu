@@ -40,10 +40,10 @@
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -550,7 +550,7 @@ static int kvm_put_fp(CPUState *cs)
         reg.addr = (uintptr_t)&fpscr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set FPSCR to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set FPSCR to KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -564,7 +564,7 @@ static int kvm_put_fp(CPUState *cs)
 
             ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to set %s%d to KVM: %s\n", vsx ? "VSR" : "FPR",
+                DPRINTF("Unable to set %s%d to KVM: %s\n", vsx ? "VSR" : "FPR",
                         i, strerror(errno));
                 return ret;
             }
@@ -576,7 +576,7 @@ static int kvm_put_fp(CPUState *cs)
         reg.addr = (uintptr_t)&env->vscr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VSCR to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VSCR to KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -585,7 +585,7 @@ static int kvm_put_fp(CPUState *cs)
             reg.addr = (uintptr_t)&env->avr[i];
             ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to set VR%d to KVM: %s\n", i, strerror(errno));
+                DPRINTF("Unable to set VR%d to KVM: %s\n", i, strerror(errno));
                 return ret;
             }
         }
@@ -610,7 +610,7 @@ static int kvm_get_fp(CPUState *cs)
         reg.addr = (uintptr_t)&fpscr;
         ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to get FPSCR from KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to get FPSCR from KVM: %s\n", strerror(errno));
             return ret;
         } else {
             env->fpscr = fpscr;
@@ -624,7 +624,7 @@ static int kvm_get_fp(CPUState *cs)
 
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to get %s%d from KVM: %s\n",
+                DPRINTF("Unable to get %s%d from KVM: %s\n",
                         vsx ? "VSR" : "FPR", i, strerror(errno));
                 return ret;
             } else {
@@ -641,7 +641,7 @@ static int kvm_get_fp(CPUState *cs)
         reg.addr = (uintptr_t)&env->vscr;
         ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to get VSCR from KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to get VSCR from KVM: %s\n", strerror(errno));
             return ret;
         }
 
@@ -650,7 +650,7 @@ static int kvm_get_fp(CPUState *cs)
             reg.addr = (uintptr_t)&env->avr[i];
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
             if (ret < 0) {
-                dprintf("Unable to get VR%d from KVM: %s\n",
+                DPRINTF("Unable to get VR%d from KVM: %s\n",
                         i, strerror(errno));
                 return ret;
             }
@@ -672,7 +672,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->vpa_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get VPA address from KVM: %s\n", strerror(errno));
+        DPRINTF("Unable to get VPA address from KVM: %s\n", strerror(errno));
         return ret;
     }
 
@@ -682,7 +682,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get SLB shadow state from KVM: %s\n",
+        DPRINTF("Unable to get SLB shadow state from KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -692,7 +692,7 @@ static int kvm_get_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to get dispatch trace log state from KVM: %s\n",
+        DPRINTF("Unable to get dispatch trace log state from KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -718,7 +718,7 @@ static int kvm_put_vpa(CPUState *cs)
         reg.addr = (uintptr_t)&env->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
             return ret;
         }
     }
@@ -729,7 +729,7 @@ static int kvm_put_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
+        DPRINTF("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
         return ret;
     }
 
@@ -738,7 +738,7 @@ static int kvm_put_vpa(CPUState *cs)
     reg.addr = (uintptr_t)&env->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
-        dprintf("Unable to set dispatch trace log state to KVM: %s\n",
+        DPRINTF("Unable to set dispatch trace log state to KVM: %s\n",
                 strerror(errno));
         return ret;
     }
@@ -748,7 +748,7 @@ static int kvm_put_vpa(CPUState *cs)
         reg.addr = (uintptr_t)&env->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
-            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
             return ret;
         }
     }
@@ -866,7 +866,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 #ifdef TARGET_PPC64
         if (cap_papr) {
             if (kvm_put_vpa(cs) < 0) {
-                dprintf("Warning: Unable to set VPA information to KVM\n");
+                DPRINTF("Warning: Unable to set VPA information to KVM\n");
             }
         }
 #endif /* TARGET_PPC64 */
@@ -1075,7 +1075,7 @@ int kvm_arch_get_registers(CPUState *cs)
 #ifdef TARGET_PPC64
         if (cap_papr) {
             if (kvm_get_vpa(cs) < 0) {
-                dprintf("Warning: Unable to get VPA information from KVM\n");
+                DPRINTF("Warning: Unable to get VPA information from KVM\n");
             }
         }
 #endif
@@ -1129,7 +1129,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
          */
         irq = KVM_INTERRUPT_SET;
 
-        dprintf("injected interrupt %d\n", irq);
+        DPRINTF("injected interrupt %d\n", irq);
         r = kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &irq);
         if (r < 0) {
             printf("cpu %d fail inject %x\n", cs->cpu_index, irq);
@@ -1193,20 +1193,20 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     switch (run->exit_reason) {
     case KVM_EXIT_DCR:
         if (run->dcr.is_write) {
-            dprintf("handle dcr write\n");
+            DPRINTF("handle dcr write\n");
             ret = kvmppc_handle_dcr_write(env, run->dcr.dcrn, run->dcr.data);
         } else {
-            dprintf("handle dcr read\n");
+            DPRINTF("handle dcr read\n");
             ret = kvmppc_handle_dcr_read(env, run->dcr.dcrn, &run->dcr.data);
         }
         break;
     case KVM_EXIT_HLT:
-        dprintf("handle halt\n");
+        DPRINTF("handle halt\n");
         ret = kvmppc_handle_halt(cpu);
         break;
 #if defined(TARGET_PPC64)
     case KVM_EXIT_PAPR_HCALL:
-        dprintf("handle PAPR hypercall\n");
+        DPRINTF("handle PAPR hypercall\n");
         run->papr_hcall.ret = spapr_hypercall(cpu,
                                               run->papr_hcall.nr,
                                               run->papr_hcall.args);
@@ -1214,12 +1214,12 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
 #endif
     case KVM_EXIT_EPR:
-        dprintf("handle epr\n");
+        DPRINTF("handle epr\n");
         run->epr.epr = ldl_phys(env->mpic_iack);
         ret = 0;
         break;
     case KVM_EXIT_WATCHDOG:
-        dprintf("handle watchdog expiry\n");
+        DPRINTF("handle watchdog expiry\n");
         watchdog_perform_action();
         ret = 0;
         break;
