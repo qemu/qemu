@@ -8523,6 +8523,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
       {
           TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
           ts->tp_value = arg1;
+          ret = 0;
           break;
       }
 #else
