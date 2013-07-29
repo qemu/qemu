@@ -32,6 +32,7 @@
 #include "hw/arm/arm.h"
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
 
 /*****************************************************************************/
@@ -188,7 +189,7 @@ static void sx1_init(QEMUMachineInitArgs *args, const int version)
                                 OMAP_CS1_BASE, &cs[1]);
     }
 
-    if (!args->kernel_filename && !fl_idx) {
+    if (!args->kernel_filename && !fl_idx && !qtest_enabled()) {
         fprintf(stderr, "Kernel or Flash image must be specified\n");
         exit(1);
     }
