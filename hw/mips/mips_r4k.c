@@ -26,6 +26,7 @@
 #include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #define MAX_IDE_BUS 2
 
@@ -244,8 +245,7 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
-    }
-    else {
+    } else if (!qtest_enabled()) {
 	/* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
 		bios_name);
