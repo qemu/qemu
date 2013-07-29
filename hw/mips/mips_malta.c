@@ -1036,9 +1036,9 @@ void mips_malta_init(QEMUMachineInitArgs *args)
      */
     memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE);
     if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
-                  FLASH_ADDRESS, bios_size)) {
+                  FLASH_ADDRESS, BIOS_SIZE)) {
         memcpy(memory_region_get_ram_ptr(bios_copy),
-               memory_region_get_ram_ptr(bios), bios_size);
+               memory_region_get_ram_ptr(bios), BIOS_SIZE);
     }
     memory_region_set_readonly(bios_copy, true);
     memory_region_add_subregion(system_memory, RESET_ADDRESS, bios_copy);
