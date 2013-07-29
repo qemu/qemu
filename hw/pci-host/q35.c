@@ -29,6 +29,7 @@
  */
 #include "hw/hw.h"
 #include "hw/pci-host/q35.h"
+#include "qapi/visitor.h"
 
 /****************************************************************************
  * Q35 host
@@ -64,9 +65,49 @@ static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
     return "0000";
 }
 
+static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
+                                        void *opaque, const char *name,
+                                        Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint32_t value = s->mch.pci_info.w32.begin;
+
+    visit_type_uint32(v, &value, name, errp);
+}
+
+static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
+                                      void *opaque, const char *name,
+                                      Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint32_t value = s->mch.pci_info.w32.end;
+
+    visit_type_uint32(v, &value, name, errp);
+}
+
+static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
+                                          void *opaque, const char *name,
+                                          Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+
+    visit_type_uint64(v, &s->mch.pci_info.w64.begin, name, errp);
+}
+
+static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
+                                        void *opaque, const char *name,
+                                        Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+
+    visit_type_uint64(v, &s->mch.pci_info.w64.end, name, errp);
+}
+
 static Property mch_props[] = {
     DEFINE_PROP_UINT64("MCFG", Q35PCIHost, parent_obj.base_addr,
                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT),
+    DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, Q35PCIHost,
+                     mch.pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -96,6 +137,31 @@ static void q35_host_initfn(Object *obj)
     object_property_add_child(OBJECT(s), "mch", OBJECT(&s->mch), NULL);
     qdev_prop_set_uint32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "int",
+                        q35_host_get_pci_hole_start,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "int",
+                        q35_host_get_pci_hole_end,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "int",
+                        q35_host_get_pci_hole64_start,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "int",
+                        q35_host_get_pci_hole64_end,
+                        NULL, NULL, NULL, NULL);
+
+    /* Leave enough space for the biggest MCFG BAR */
+    /* TODO: this matches current bios behaviour, but
+     * it's not a power of two, which means an MTRR
+     * can't cover it exactly.
+     */
+    s->mch.pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
+        MCH_HOST_BRIDGE_PCIEXBAR_MAX;
+    s->mch.pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
 }
 
 static const TypeInfo q35_host_info = {
@@ -253,16 +319,7 @@ static void mch_reset(DeviceState *qdev)
 static int mch_init(PCIDevice *d)
 {
     int i;
-    hwaddr pci_hole64_size;
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
-
-    /* Leave enough space for the biggest MCFG BAR */
-    /* TODO: this matches current bios behaviour, but
-     * it's not a power of two, which means an MTRR
-     * can't cover it exactly.
-     */
-    mch->guest_info->pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
-        MCH_HOST_BRIDGE_PCIEXBAR_MAX;
 
     /* setup pci memory regions */
     memory_region_init_alias(&mch->pci_hole, OBJECT(mch), "pci-hole",
@@ -271,15 +328,16 @@ static int mch_init(PCIDevice *d)
                              0x100000000ULL - mch->below_4g_mem_size);
     memory_region_add_subregion(mch->system_memory, mch->below_4g_mem_size,
                                 &mch->pci_hole);
-    pci_hole64_size = (sizeof(hwaddr) == 4 ? 0 :
-                       ((uint64_t)1 << 62));
+
+    pc_init_pci64_hole(&mch->pci_info, 0x100000000ULL + mch->above_4g_mem_size,
+                       mch->pci_hole64_size);
     memory_region_init_alias(&mch->pci_hole_64bit, OBJECT(mch), "pci-hole64",
                              mch->pci_address_space,
-                             0x100000000ULL + mch->above_4g_mem_size,
-                             pci_hole64_size);
-    if (pci_hole64_size) {
+                             mch->pci_info.w64.begin,
+                             mch->pci_hole64_size);
+    if (mch->pci_hole64_size) {
         memory_region_add_subregion(mch->system_memory,
-                                    0x100000000ULL + mch->above_4g_mem_size,
+                                    mch->pci_info.w64.begin,
                                     &mch->pci_hole_64bit);
     }
     /* smram */

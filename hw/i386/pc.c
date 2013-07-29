@@ -55,6 +55,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
+#include "hw/pci/pci_host.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1003,15 +1004,27 @@ typedef struct PcRomPciInfo {
 static void pc_fw_cfg_guest_info(PcGuestInfo *guest_info)
 {
     PcRomPciInfo *info;
+    Object *pci_info;
+    bool ambiguous = false;
+
     if (!guest_info->has_pci_info || !guest_info->fw_cfg) {
+        return;
+    }
+    pci_info = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
+    g_assert(!ambiguous);
+    if (!pci_info) {
         return;
     }
 
     info = g_malloc(sizeof *info);
-    info->w32_min = cpu_to_le64(guest_info->pci_info.w32.begin);
-    info->w32_max = cpu_to_le64(guest_info->pci_info.w32.end);
-    info->w64_min = cpu_to_le64(guest_info->pci_info.w64.begin);
-    info->w64_max = cpu_to_le64(guest_info->pci_info.w64.end);
+    info->w32_min = cpu_to_le64(object_property_get_int(pci_info,
+                                PCI_HOST_PROP_PCI_HOLE_START, NULL));
+    info->w32_max = cpu_to_le64(object_property_get_int(pci_info,
+                                PCI_HOST_PROP_PCI_HOLE_END, NULL));
+    info->w64_min = cpu_to_le64(object_property_get_int(pci_info,
+                                PCI_HOST_PROP_PCI_HOLE64_START, NULL));
+    info->w64_max = cpu_to_le64(object_property_get_int(pci_info,
+                                PCI_HOST_PROP_PCI_HOLE64_END, NULL));
     /* Pass PCI hole info to guest via a side channel.
      * Required so guest PCI enumeration does the right thing. */
     fw_cfg_add_file(guest_info->fw_cfg, "etc/pci-info", info, sizeof *info);
@@ -1037,27 +1050,26 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
     PcGuestInfo *guest_info = &guest_info_state->info;
 
-    guest_info->pci_info.w32.end = IO_APIC_DEFAULT_ADDRESS;
-    if (sizeof(hwaddr) == 4) {
-        guest_info->pci_info.w64.begin = 0;
-        guest_info->pci_info.w64.end = 0;
-    } else {
-        /*
-         * BIOS does not set MTRR entries for the 64 bit window, so no need to
-         * align address to power of two.  Align address at 1G, this makes sure
-         * it can be exactly covered with a PAT entry even when using huge
-         * pages.
-         */
-        guest_info->pci_info.w64.begin =
-            ROUND_UP((0x1ULL << 32) + above_4g_mem_size, 0x1ULL << 30);
-        guest_info->pci_info.w64.end = guest_info->pci_info.w64.begin +
-            (0x1ULL << 62);
-        assert(guest_info->pci_info.w64.begin <= guest_info->pci_info.w64.end);
-    }
-
     guest_info_state->machine_done.notify = pc_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
     return guest_info;
+}
+
+void pc_init_pci64_hole(PcPciInfo *pci_info, uint64_t pci_hole64_start,
+                        uint64_t pci_hole64_size)
+{
+    if ((sizeof(hwaddr) == 4) || (!pci_hole64_size)) {
+        return;
+    }
+    /*
+     * BIOS does not set MTRR entries for the 64 bit window, so no need to
+     * align address to power of two.  Align address at 1G, this makes sure
+     * it can be exactly covered with a PAT entry even when using huge
+     * pages.
+     */
+    pci_info->w64.begin = ROUND_UP(pci_hole64_start, 0x1ULL << 30);
+    pci_info->w64.end = pci_info->w64.begin + pci_hole64_size;
+    assert(pci_info->w64.begin <= pci_info->w64.end);
 }
 
 void pc_acpi_init(const char *default_dsdt)

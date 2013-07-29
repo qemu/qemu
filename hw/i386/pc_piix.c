@@ -129,15 +129,6 @@ static void pc_init1(MemoryRegion *system_memory,
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
     guest_info->has_pci_info = has_pci_info;
 
-    /* Set PCI window size the way seabios has always done it. */
-    /* Power of 2 so bios can cover it with a single MTRR */
-    if (ram_size <= 0x80000000)
-        guest_info->pci_info.w32.begin = 0x80000000;
-    else if (ram_size <= 0xc0000000)
-        guest_info->pci_info.w32.begin = 0xc0000000;
-    else
-        guest_info->pci_info.w32.begin = 0xe0000000;
-
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         fw_cfg = pc_memory_init(system_memory,
@@ -160,10 +151,7 @@ static void pc_init1(MemoryRegion *system_memory,
                               system_memory, system_io, ram_size,
                               below_4g_mem_size,
                               0x100000000ULL - below_4g_mem_size,
-                              0x100000000ULL + above_4g_mem_size,
-                              (sizeof(hwaddr) == 4
-                               ? 0
-                               : ((uint64_t)1 << 62)),
+                              above_4g_mem_size,
                               pci_memory, ram_memory);
     } else {
         pci_bus = NULL;
