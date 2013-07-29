@@ -117,6 +117,20 @@ static struct vscsi_req *vscsi_get_req(VSCSIState *s)
     return NULL;
 }
 
+static struct vscsi_req *vscsi_find_req(VSCSIState *s, uint64_t srp_tag)
+{
+    vscsi_req *req;
+    int i;
+
+    for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
+        req = &s->reqs[i];
+        if (req->iu.srp.cmd.tag == srp_tag) {
+            return req;
+        }
+    }
+    return NULL;
+}
+
 static void vscsi_put_req(vscsi_req *req)
 {
     if (req->sreq != NULL) {
@@ -755,40 +769,91 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 {
     union viosrp_iu *iu = &req->iu;
-    int fn;
+    vscsi_req *tmpreq;
+    int i, lun = 0, resp = SRP_TSK_MGMT_COMPLETE;
+    SCSIDevice *d;
+    uint64_t tag = iu->srp.rsp.tag;
+    uint8_t sol_not = iu->srp.cmd.sol_not;
 
     fprintf(stderr, "vscsi_process_tsk_mgmt %02x\n",
             iu->srp.tsk_mgmt.tsk_mgmt_func);
 
-    switch (iu->srp.tsk_mgmt.tsk_mgmt_func) {
-#if 0 /* We really don't deal with these for now */
-    case SRP_TSK_ABORT_TASK:
-        fn = ABORT_TASK;
-        break;
-    case SRP_TSK_ABORT_TASK_SET:
-        fn = ABORT_TASK_SET;
-        break;
-    case SRP_TSK_CLEAR_TASK_SET:
-        fn = CLEAR_TASK_SET;
-        break;
-    case SRP_TSK_LUN_RESET:
-        fn = LOGICAL_UNIT_RESET;
-        break;
-    case SRP_TSK_CLEAR_ACA:
-        fn = CLEAR_ACA;
-        break;
-#endif
-    default:
-        fn = 0;
-    }
-    if (fn) {
-        /* XXX Send/Handle target task management */
-        ;
+    d = vscsi_device_find(&s->bus, be64_to_cpu(req->iu.srp.tsk_mgmt.lun), &lun);
+    if (!d) {
+        resp = SRP_TSK_MGMT_FIELDS_INVALID;
     } else {
-        vscsi_makeup_sense(s, req, ILLEGAL_REQUEST, 0x20, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
+        switch (iu->srp.tsk_mgmt.tsk_mgmt_func) {
+        case SRP_TSK_ABORT_TASK:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            tmpreq = vscsi_find_req(s, req->iu.srp.tsk_mgmt.task_tag);
+            if (tmpreq && tmpreq->sreq) {
+                assert(tmpreq->sreq->hba_private);
+                scsi_req_cancel(tmpreq->sreq);
+            }
+            break;
+
+        case SRP_TSK_LUN_RESET:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            qdev_reset_all(&d->qdev);
+            break;
+
+        case SRP_TSK_ABORT_TASK_SET:
+        case SRP_TSK_CLEAR_TASK_SET:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
+                tmpreq = &s->reqs[i];
+                if (tmpreq->iu.srp.cmd.lun != req->iu.srp.tsk_mgmt.lun) {
+                    continue;
+                }
+                if (!tmpreq->active || !tmpreq->sreq) {
+                    continue;
+                }
+                assert(tmpreq->sreq->hba_private);
+                scsi_req_cancel(tmpreq->sreq);
+            }
+            break;
+
+        case SRP_TSK_CLEAR_ACA:
+            resp = SRP_TSK_MGMT_NOT_SUPPORTED;
+            break;
+
+        default:
+            resp = SRP_TSK_MGMT_FIELDS_INVALID;
+            break;
+        }
     }
-    return !fn;
+
+    /* Compose the response here as  */
+    memset(iu, 0, sizeof(struct srp_rsp) + 4);
+    iu->srp.rsp.opcode = SRP_RSP;
+    iu->srp.rsp.req_lim_delta = cpu_to_be32(1);
+    iu->srp.rsp.tag = tag;
+    iu->srp.rsp.flags |= SRP_RSP_FLAG_RSPVALID;
+    iu->srp.rsp.resp_data_len = cpu_to_be32(4);
+    if (resp) {
+        iu->srp.rsp.sol_not = (sol_not & 0x04) >> 2;
+    } else {
+        iu->srp.rsp.sol_not = (sol_not & 0x02) >> 1;
+    }
+
+    iu->srp.rsp.status = GOOD;
+    iu->srp.rsp.data[3] = resp;
+
+    vscsi_send_iu(s, req, sizeof(iu->srp.rsp) + 4, VIOSRP_SRP_FORMAT);
+
+    return 1;
 }
 
 static int vscsi_handle_srp_req(VSCSIState *s, vscsi_req *req)
