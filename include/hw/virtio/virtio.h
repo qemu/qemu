@@ -124,10 +124,12 @@ struct VirtIODevice
 };
 
 typedef struct VirtioDeviceClass {
-    /* This is what a VirtioDevice must implement */
     DeviceClass parent;
+
+    /* This is what a VirtioDevice must implement */
     int (*init)(VirtIODevice *vdev);
     void (*exit)(VirtIODevice *vdev);
+    DeviceRealize realize;
     uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
     uint32_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
