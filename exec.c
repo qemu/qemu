@@ -1913,6 +1913,9 @@ static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
     if (l > access_size_max) {
         l = access_size_max;
     }
+    if (l & (l - 1)) {
+        l = 1 << (qemu_fls(l) - 1);
+    }
 
     return l;
 }
