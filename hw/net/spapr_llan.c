@@ -38,9 +38,9 @@
 /*#define DEBUG*/
 
 #ifdef DEBUG
-#define dprintf(fmt...) do { fprintf(stderr, fmt); } while (0)
+#define DPRINTF(fmt...) do { fprintf(stderr, fmt); } while (0)
 #else
-#define dprintf(fmt...)
+#define DPRINTF(fmt...)
 #endif
 
 /*
@@ -105,7 +105,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     uint64_t handle;
     uint8_t control;
 
-    dprintf("spapr_vlan_receive() [%s] rx_bufs=%d\n", sdev->qdev.id,
+    DPRINTF("spapr_vlan_receive() [%s] rx_bufs=%d\n", sdev->qdev.id,
             dev->rx_bufs);
 
     if (!dev->isopen) {
@@ -123,7 +123,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
         }
 
         bd = vio_ldq(sdev, dev->buf_list + buf_ptr);
-        dprintf("use_buf_ptr=%d bd=0x%016llx\n",
+        DPRINTF("use_buf_ptr=%d bd=0x%016llx\n",
                 buf_ptr, (unsigned long long)bd);
     } while ((!(bd & VLAN_BD_VALID) || (VLAN_BD_LEN(bd) < (size + 8)))
              && (buf_ptr != dev->use_buf_ptr));
@@ -138,14 +138,14 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     dev->use_buf_ptr = buf_ptr;
     vio_stq(sdev, dev->buf_list + dev->use_buf_ptr, 0);
 
-    dprintf("Found buffer: ptr=%d num=%d\n", dev->use_buf_ptr, dev->rx_bufs);
+    DPRINTF("Found buffer: ptr=%d num=%d\n", dev->use_buf_ptr, dev->rx_bufs);
 
     /* Transfer the packet data */
     if (spapr_vio_dma_write(sdev, VLAN_BD_ADDR(bd) + 8, buf, size) < 0) {
         return -1;
     }
 
-    dprintf("spapr_vlan_receive: DMA write completed\n");
+    DPRINTF("spapr_vlan_receive: DMA write completed\n");
 
     /* Update the receive queue */
     control = VLAN_RXQC_TOGGLE | VLAN_RXQC_VALID;
@@ -159,7 +159,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     vio_sth(sdev, VLAN_BD_ADDR(rxq_bd) + dev->rxq_ptr + 2, 8);
     vio_stb(sdev, VLAN_BD_ADDR(rxq_bd) + dev->rxq_ptr, control);
 
-    dprintf("wrote rxq entry (ptr=0x%llx): 0x%016llx 0x%016llx\n",
+    DPRINTF("wrote rxq entry (ptr=0x%llx): 0x%016llx 0x%016llx\n",
             (unsigned long long)dev->rxq_ptr,
             (unsigned long long)vio_ldq(sdev, VLAN_BD_ADDR(rxq_bd) +
                                         dev->rxq_ptr),
@@ -374,7 +374,7 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
     VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     vlan_bd_t bd;
 
-    dprintf("H_ADD_LOGICAL_LAN_BUFFER(0x" TARGET_FMT_lx
+    DPRINTF("H_ADD_LOGICAL_LAN_BUFFER(0x" TARGET_FMT_lx
             ", 0x" TARGET_FMT_lx ")\n", reg, buf);
 
     if (!sdev) {
@@ -405,7 +405,7 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
 
     dev->rx_bufs++;
 
-    dprintf("h_add_logical_lan_buffer():  Added buf  ptr=%d  rx_bufs=%d"
+    DPRINTF("h_add_logical_lan_buffer():  Added buf  ptr=%d  rx_bufs=%d"
             " bd=0x%016llx\n", dev->add_buf_ptr, dev->rx_bufs,
             (unsigned long long)buf);
 
@@ -425,14 +425,14 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     int i, nbufs;
     int ret;
 
-    dprintf("H_SEND_LOGICAL_LAN(0x" TARGET_FMT_lx ", <bufs>, 0x"
+    DPRINTF("H_SEND_LOGICAL_LAN(0x" TARGET_FMT_lx ", <bufs>, 0x"
             TARGET_FMT_lx ")\n", reg, continue_token);
 
     if (!sdev) {
         return H_PARAMETER;
     }
 
-    dprintf("rxbufs = %d\n", dev->rx_bufs);
+    DPRINTF("rxbufs = %d\n", dev->rx_bufs);
 
     if (!dev->isopen) {
         return H_DROPPED;
@@ -444,7 +444,7 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     total_len = 0;
     for (i = 0; i < 6; i++) {
-        dprintf("   buf desc: 0x" TARGET_FMT_lx "\n", bufs[i]);
+        DPRINTF("   buf desc: 0x" TARGET_FMT_lx "\n", bufs[i]);
         if (!(bufs[i] & VLAN_BD_VALID)) {
             break;
         }
@@ -452,7 +452,7 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     nbufs = i;
-    dprintf("h_send_logical_lan() %d buffers, total length 0x%x\n",
+    DPRINTF("h_send_logical_lan() %d buffers, total length 0x%x\n",
             nbufs, total_len);
 
     if (total_len == 0) {
