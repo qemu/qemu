@@ -13,6 +13,8 @@
 
 struct vring block;
 
+static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
                           unsigned long param2)
 {
@@ -301,3 +303,19 @@ bool virtio_is_blk(struct subchannel_id schid)
     return true;
 }
 
+int enable_mss_facility(void)
+{
+    int ret;
+    struct chsc_area_sda *sda_area = (struct chsc_area_sda *) chsc_page;
+
+    memset(sda_area, 0, PAGE_SIZE);
+    sda_area->request.length = 0x0400;
+    sda_area->request.code = 0x0031;
+    sda_area->operation_code = 0x2;
+
+    ret = chsc(sda_area);
+    if ((ret == 0) && (sda_area->response.code == 0x0001)) {
+        return 0;
+    }
+    return -EIO;
+}

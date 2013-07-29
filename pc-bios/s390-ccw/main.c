@@ -35,6 +35,13 @@ static void virtio_setup(uint64_t dev_info)
         check_devno = true;
         dev_no = dev_info & 0xffff;
         debug_print_int("device no. ", dev_no);
+        blk_schid.ssid = (dev_info >> 16) & 0x3;
+        if (blk_schid.ssid != 0) {
+            debug_print_int("ssid ", blk_schid.ssid);
+            if (enable_mss_facility() != 0) {
+                virtio_panic("Failed to enable mss facility\n");
+            }
+        }
     }
 
     for (i = 0; i < 0x10000; i++) {
