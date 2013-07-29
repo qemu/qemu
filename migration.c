@@ -338,9 +338,9 @@ void remove_migration_state_change_notifier(Notifier *notify)
     notifier_remove(notify);
 }
 
-bool migration_is_active(MigrationState *s)
+bool migration_in_setup(MigrationState *s)
 {
-    return s->state == MIG_STATE_ACTIVE;
+    return s->state == MIG_STATE_SETUP;
 }
 
 bool migration_has_finished(MigrationState *s)
