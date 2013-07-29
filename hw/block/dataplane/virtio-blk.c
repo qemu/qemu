@@ -18,7 +18,6 @@
 #include "qemu/error-report.h"
 #include "hw/virtio/dataplane/vring.h"
 #include "ioq.h"
-#include "migration/migration.h"
 #include "block/block.h"
 #include "hw/virtio/virtio-blk.h"
 #include "virtio-blk.h"
@@ -69,8 +68,6 @@ struct VirtIOBlockDataPlane {
                                              queue */
 
     unsigned int num_reqs;
-
-    Error *migration_blocker;
 };
 
 /* Raise an interrupt to signal guest, if necessary */
@@ -433,10 +430,6 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     /* Prevent block operations that conflict with data plane thread */
     bdrv_set_in_use(blk->conf.bs, 1);
 
-    error_setg(&s->migration_blocker,
-            "x-data-plane does not support migration");
-    migrate_add_blocker(s->migration_blocker);
-
     *dataplane = s;
     return true;
 }
@@ -448,8 +441,6 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
     bdrv_set_in_use(s->blk->conf.bs, 0);
     g_free(s);
 }
