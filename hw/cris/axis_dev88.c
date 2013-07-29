@@ -32,6 +32,7 @@
 #include "boot.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #define D(x)
 #define DNAND(x)
@@ -340,14 +341,14 @@ void axisdev88_init(QEMUMachineInitArgs *args)
                              irq[0x14 + i]);
     }
 
-    if (!kernel_filename) {
+    if (kernel_filename) {
+        li.image_filename = kernel_filename;
+        li.cmdline = kernel_cmdline;
+        cris_load_image(cpu, &li);
+    } else if (!qtest_enabled()) {
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
     }
-
-    li.image_filename = kernel_filename;
-    li.cmdline = kernel_cmdline;
-    cris_load_image(cpu, &li);
 }
 
 static QEMUMachine axisdev88_machine = {
