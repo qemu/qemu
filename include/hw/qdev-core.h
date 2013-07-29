@@ -18,6 +18,34 @@ enum {
 #define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
 #define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
 
+typedef enum DeviceCategory {
+    DEVICE_CATEGORY_BRIDGE,
+    DEVICE_CATEGORY_USB,
+    DEVICE_CATEGORY_STORAGE,
+    DEVICE_CATEGORY_NETWORK,
+    DEVICE_CATEGORY_INPUT,
+    DEVICE_CATEGORY_DISPLAY,
+    DEVICE_CATEGORY_SOUND,
+    DEVICE_CATEGORY_MISC,
+    DEVICE_CATEGORY_MAX
+} DeviceCategory;
+
+static inline const char *qdev_category_get_name(DeviceCategory category)
+{
+    static const char *category_names[DEVICE_CATEGORY_MAX] = {
+        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
+        [DEVICE_CATEGORY_USB]     = "USB",
+        [DEVICE_CATEGORY_STORAGE] = "Storage",
+        [DEVICE_CATEGORY_NETWORK] = "Network",
+        [DEVICE_CATEGORY_INPUT]   = "Input",
+        [DEVICE_CATEGORY_DISPLAY] = "Display",
+        [DEVICE_CATEGORY_SOUND]   = "Sound",
+        [DEVICE_CATEGORY_MISC]    = "Misc",
+    };
+
+    return category_names[category];
+};
+
 typedef int (*qdev_initfn)(DeviceState *dev);
 typedef int (*qdev_event)(DeviceState *dev);
 typedef void (*qdev_resetfn)(DeviceState *dev);
@@ -81,6 +109,7 @@ typedef struct DeviceClass {
     ObjectClass parent_class;
     /*< public >*/
 
+    DECLARE_BITMAP(categories, DEVICE_CATEGORY_MAX);
     const char *fw_name;
     const char *desc;
     Property *props;
