@@ -658,7 +658,9 @@ void migrate_fd_connect(MigrationState *s)
     qemu_file_set_rate_limit(s->file,
                              s->bandwidth_limit / XFER_LIMIT_RATIO);
 
+    /* Notify before starting migration thread */
+    notifier_list_notify(&migration_state_notifiers, s);
+
     qemu_thread_create(&s->thread, migration_thread, s,
                        QEMU_THREAD_JOINABLE);
-    notifier_list_notify(&migration_state_notifiers, s);
 }
