@@ -68,8 +68,9 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
  * will wrap those in double-quotes and treat the entire object as a
  * string)
  */
-static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
-                                            const char *json_string)
+static GCC_FMT_ATTR(2, 0)
+Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
+                                     const char *json_string)
 {
     Visitor *v;
 

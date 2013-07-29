@@ -1737,8 +1737,8 @@ void helper_fork(target_ulong arg1, target_ulong arg2)
 {
     fprintf(stderr, "%s:%u - %s\n", __FILE__, __LINE__, __func__);
     // arg1 = rt, arg2 = rs
-    //arg1 = 0;
-    // TODO: store to TC register
+    // TODO: store to TC register, assert to detect test cases.
+    g_assert_not_reached();
 }
 
 target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
