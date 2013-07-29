@@ -4603,7 +4603,7 @@ long do_sigreturn(CPUPPCState *env)
 {
     struct target_sigcontext *sc = NULL;
     struct target_mcontext *sr = NULL;
-    target_ulong sr_addr, sc_addr;
+    target_ulong sr_addr = 0, sc_addr;
     sigset_t blocked;
     target_sigset_t set;
 
