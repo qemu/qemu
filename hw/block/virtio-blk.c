@@ -681,9 +681,9 @@ static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
 }
 #endif /* CONFIG_VIRTIO_BLK_DATA_PLANE */
 
-static int virtio_blk_device_init(VirtIODevice *vdev)
+static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *blk = &(s->blk);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
@@ -692,18 +692,19 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
     static int virtio_blk_id;
 
     if (!blk->conf.bs) {
-        error_report("drive property not set");
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
     if (!bdrv_is_inserted(blk->conf.bs)) {
-        error_report("Device needs media, but drive is empty");
-        return -1;
+        error_setg(errp, "Device needs media, but drive is empty");
+        return;
     }
 
     blkconf_serial(&blk->conf, &blk->serial);
     s->original_wce = bdrv_enable_write_cache(blk->conf.bs);
     if (blkconf_geometry(&blk->conf, NULL, 65535, 255, 255) < 0) {
-        return -1;
+        error_setg(errp, "Error setting geometry");
+        return;
     }
 
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
@@ -718,10 +719,9 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     virtio_blk_data_plane_create(vdev, blk, &s->dataplane, &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_propagate(errp, err);
         virtio_cleanup(vdev);
-        return -1;
+        return;
     }
     s->migration_state_notifier.notify = virtio_blk_migration_state_changed;
     add_migration_state_change_notifier(&s->migration_state_notifier);
@@ -736,7 +736,6 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
     bdrv_iostatus_enable(s->bs);
 
     add_boot_device_path(s->conf->bootindex, dev, "/disk@0,0");
-    return 0;
 }
 
 static void virtio_blk_device_exit(VirtIODevice *vdev)
@@ -762,9 +761,10 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
     dc->props = virtio_blk_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->init = virtio_blk_device_init;
+    vdc->realize = virtio_blk_device_realize;
     vdc->exit = virtio_blk_device_exit;
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;

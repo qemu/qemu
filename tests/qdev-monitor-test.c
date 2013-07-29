@@ -32,10 +32,8 @@ static void test_device_add(void)
                    "}}");
     g_assert(response);
     error = qdict_get_qdict(response, "error");
-    g_assert(!strcmp(qdict_get_try_str(error, "class") ?: "",
-                     "GenericError"));
     g_assert(!strcmp(qdict_get_try_str(error, "desc") ?: "",
-                     "Device initialization failed."));
+                     "Device needs media, but drive is empty"));
     QDECREF(response);
 
     /* Delete the drive */
