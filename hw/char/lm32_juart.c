@@ -22,7 +22,7 @@
 #include "trace.h"
 #include "sysemu/char.h"
 
-#include "hw/lm32/lm32_juart.h"
+#include "hw/char/lm32_juart.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,
@@ -38,8 +38,11 @@ enum {
     JRX_FULL = (1<<8),
 };
 
+#define LM32_JUART(obj) OBJECT_CHECK(LM32JuartState, (obj), TYPE_LM32_JUART)
+
 struct LM32JuartState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     CharDriverState *chr;
 
     uint32_t jtx;
@@ -49,7 +52,7 @@ typedef struct LM32JuartState LM32JuartState;
 
 uint32_t lm32_juart_get_jtx(DeviceState *d)
 {
-    LM32JuartState *s = container_of(d, LM32JuartState, busdev.qdev);
+    LM32JuartState *s = LM32_JUART(d);
 
     trace_lm32_juart_get_jtx(s->jtx);
     return s->jtx;
@@ -57,7 +60,7 @@ uint32_t lm32_juart_get_jtx(DeviceState *d)
 
 uint32_t lm32_juart_get_jrx(DeviceState *d)
 {
-    LM32JuartState *s = container_of(d, LM32JuartState, busdev.qdev);
+    LM32JuartState *s = LM32_JUART(d);
 
     trace_lm32_juart_get_jrx(s->jrx);
     return s->jrx;
@@ -65,7 +68,7 @@ uint32_t lm32_juart_get_jrx(DeviceState *d)
 
 void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
 {
-    LM32JuartState *s = container_of(d, LM32JuartState, busdev.qdev);
+    LM32JuartState *s = LM32_JUART(d);
     unsigned char ch = jtx & 0xff;
 
     trace_lm32_juart_set_jtx(s->jtx);
@@ -78,7 +81,7 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
 
 void lm32_juart_set_jrx(DeviceState *d, uint32_t jtx)
 {
-    LM32JuartState *s = container_of(d, LM32JuartState, busdev.qdev);
+    LM32JuartState *s = LM32_JUART(d);
 
     trace_lm32_juart_set_jrx(s->jrx);
     s->jrx &= ~JRX_FULL;
@@ -104,7 +107,7 @@ static void juart_event(void *opaque, int event)
 
 static void juart_reset(DeviceState *d)
 {
-    LM32JuartState *s = container_of(d, LM32JuartState, busdev.qdev);
+    LM32JuartState *s = LM32_JUART(d);
 
     s->jtx = 0;
     s->jrx = 0;
@@ -112,7 +115,7 @@ static void juart_reset(DeviceState *d)
 
 static int lm32_juart_init(SysBusDevice *dev)
 {
-    LM32JuartState *s = FROM_SYSBUS(typeof(*s), dev);
+    LM32JuartState *s = LM32_JUART(dev);
 
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
@@ -145,7 +148,7 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lm32_juart_info = {
-    .name          = "lm32-juart",
+    .name          = TYPE_LM32_JUART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32JuartState),
     .class_init    = lm32_juart_class_init,

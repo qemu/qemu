@@ -70,7 +70,10 @@ typedef struct gic_irq_state {
 } gic_irq_state;
 
 typedef struct GICState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     qemu_irq parent_irq[NCPU];
     bool enabled;
     bool cpu_enabled[NCPU];

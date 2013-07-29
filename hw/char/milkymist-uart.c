@@ -52,8 +52,13 @@ enum {
     DBG_BREAK_EN = (1<<0),
 };
 
+#define TYPE_MILKYMIST_UART "milkymist-uart"
+#define MILKYMIST_UART(obj) \
+    OBJECT_CHECK(MilkymistUartState, (obj), TYPE_MILKYMIST_UART)
+
 struct MilkymistUartState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
     CharDriverState *chr;
     qemu_irq irq;
@@ -179,7 +184,7 @@ static void uart_event(void *opaque, int event)
 
 static void milkymist_uart_reset(DeviceState *d)
 {
-    MilkymistUartState *s = container_of(d, MilkymistUartState, busdev.qdev);
+    MilkymistUartState *s = MILKYMIST_UART(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -192,12 +197,12 @@ static void milkymist_uart_reset(DeviceState *d)
 
 static int milkymist_uart_init(SysBusDevice *dev)
 {
-    MilkymistUartState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistUartState *s = MILKYMIST_UART(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->regs_region, OBJECT(s), &uart_mmio_ops, s,
-            "milkymist-uart", R_MAX * 4);
+                          "milkymist-uart", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
     s->chr = qemu_char_get_next_serial();
@@ -230,7 +235,7 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_uart_info = {
-    .name          = "milkymist-uart",
+    .name          = TYPE_MILKYMIST_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistUartState),
     .class_init    = milkymist_uart_class_init,

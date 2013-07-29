@@ -1,8 +1,7 @@
 #ifndef HW_LM32_H
 #define HW_LM32_H 1
 
-
-#include "qemu-common.h"
+#include "hw/char/lm32_juart.h"
 
 static inline DeviceState *lm32_pic_init(qemu_irq cpu_irq)
 {
@@ -21,7 +20,7 @@ static inline DeviceState *lm32_juart_init(void)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "lm32-juart");
+    dev = qdev_create(NULL, TYPE_LM32_JUART);
     qdev_init_nofail(dev);
 
     return dev;

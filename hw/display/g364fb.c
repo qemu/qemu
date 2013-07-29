@@ -493,26 +493,33 @@ static void g364fb_init(DeviceState *dev, G364State *s)
     memory_region_set_coalescing(&s->mem_vram);
 }
 
+#define TYPE_G364 "sysbus-g364"
+#define G364(obj) OBJECT_CHECK(G364SysBusState, (obj), TYPE_G364)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     G364State g364;
 } G364SysBusState;
 
-static int g364fb_sysbus_init(SysBusDevice *dev)
+static int g364fb_sysbus_init(SysBusDevice *sbd)
 {
-    G364State *s = &FROM_SYSBUS(G364SysBusState, dev)->g364;
+    DeviceState *dev = DEVICE(sbd);
+    G364SysBusState *sbs = G364(dev);
+    G364State *s = &sbs->g364;
 
-    g364fb_init(&dev->qdev, s);
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_mmio(dev, &s->mem_ctrl);
-    sysbus_init_mmio(dev, &s->mem_vram);
+    g364fb_init(dev, s);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &s->mem_ctrl);
+    sysbus_init_mmio(sbd, &s->mem_vram);
 
     return 0;
 }
 
 static void g364fb_sysbus_reset(DeviceState *d)
 {
-    G364SysBusState *s = DO_UPCAST(G364SysBusState, busdev.qdev, d);
+    G364SysBusState *s = G364(d);
+
     g364fb_reset(&s->g364);
 }
 
@@ -536,7 +543,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo g364fb_sysbus_info = {
-    .name          = "sysbus-g364",
+    .name          = TYPE_G364,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),
     .class_init    = g364fb_sysbus_class_init,

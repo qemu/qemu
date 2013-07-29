@@ -423,7 +423,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    "pbm-bridge");
-    br = DO_UPCAST(PCIBridge, dev, pci_dev);
+    br = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 1",
                        pci_apb_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
@@ -431,7 +431,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    "pbm-bridge");
-    br = DO_UPCAST(PCIBridge, dev, pci_dev);
+    br = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 2",
                        pci_apb_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
@@ -566,8 +566,7 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pbm_pci_bridge_info = {
     .name          = "pbm-bridge",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIBridge),
+    .parent        = TYPE_PCI_BRIDGE,
     .class_init    = pbm_pci_bridge_class_init,
 };
 

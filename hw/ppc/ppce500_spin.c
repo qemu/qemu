@@ -42,8 +42,12 @@ typedef struct spin_info {
     uint64_t reserved;
 } QEMU_PACKED SpinInfo;
 
-typedef struct spin_state {
-    SysBusDevice busdev;
+#define TYPE_E500_SPIN "e500-spin"
+#define E500_SPIN(obj) OBJECT_CHECK(SpinState, (obj), TYPE_E500_SPIN)
+
+typedef struct SpinState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     SpinInfo spin[MAX_CPUS];
 } SpinState;
@@ -187,9 +191,7 @@ static const MemoryRegionOps spin_rw_ops = {
 
 static int ppce500_spin_initfn(SysBusDevice *dev)
 {
-    SpinState *s;
-
-    s = FROM_SYSBUS(SpinState, SYS_BUS_DEVICE(dev));
+    SpinState *s = E500_SPIN(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &spin_rw_ops, s,
                           "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
@@ -208,7 +210,7 @@ static void ppce500_spin_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppce500_spin_info = {
-    .name          = "e500-spin",
+    .name          = TYPE_E500_SPIN,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SpinState),
     .class_init    = ppce500_spin_class_init,

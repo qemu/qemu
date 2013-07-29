@@ -146,8 +146,15 @@ typedef struct mv88w8618_rx_desc {
     uint32_t next;
 } mv88w8618_rx_desc;
 
+#define TYPE_MV88W8618_ETH "mv88w8618_eth"
+#define MV88W8618_ETH(obj) \
+    OBJECT_CHECK(mv88w8618_eth_state, (obj), TYPE_MV88W8618_ETH)
+
 typedef struct mv88w8618_eth_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t smir;
@@ -382,16 +389,17 @@ static NetClientInfo net_mv88w8618_info = {
     .cleanup = eth_cleanup,
 };
 
-static int mv88w8618_eth_init(SysBusDevice *dev)
+static int mv88w8618_eth_init(SysBusDevice *sbd)
 {
-    mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    mv88w8618_eth_state *s = MV88W8618_ETH(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_eth_ops, s,
                           "mv88w8618-eth", MP_ETH_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -429,7 +437,7 @@ static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_eth_info = {
-    .name          = "mv88w8618_eth",
+    .name          = TYPE_MV88W8618_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_eth_state),
     .class_init    = mv88w8618_eth_class_init,
@@ -454,8 +462,15 @@ static const TypeInfo mv88w8618_eth_info = {
 
 #define MP_LCD_TEXTCOLOR        0xe0e0ff /* RRGGBB */
 
+#define TYPE_MUSICPAL_LCD "musicpal_lcd"
+#define MUSICPAL_LCD(obj) \
+    OBJECT_CHECK(musicpal_lcd_state, (obj), TYPE_MUSICPAL_LCD)
+
 typedef struct musicpal_lcd_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t brightness;
     uint32_t mode;
@@ -534,7 +549,7 @@ static void lcd_invalidate(void *opaque)
 {
 }
 
-static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
+static void musicpal_lcd_gpio_brightness_in(void *opaque, int irq, int level)
 {
     musicpal_lcd_state *s = opaque;
     s->brightness &= ~(1 << irq);
@@ -606,20 +621,21 @@ static const GraphicHwOps musicpal_gfx_ops = {
     .gfx_update  = lcd_refresh,
 };
 
-static int musicpal_lcd_init(SysBusDevice *dev)
+static int musicpal_lcd_init(SysBusDevice *sbd)
 {
-    musicpal_lcd_state *s = FROM_SYSBUS(musicpal_lcd_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_lcd_state *s = MUSICPAL_LCD(dev);
 
     s->brightness = 7;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &musicpal_lcd_ops, s,
                           "musicpal-lcd", MP_LCD_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    s->con = graphic_console_init(DEVICE(dev), &musicpal_gfx_ops, s);
+    s->con = graphic_console_init(dev, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
-    qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brigthness_in, 3);
+    qdev_init_gpio_in(dev, musicpal_lcd_gpio_brightness_in, 3);
 
     return 0;
 }
@@ -650,7 +666,7 @@ static void musicpal_lcd_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_lcd_info = {
-    .name          = "musicpal_lcd",
+    .name          = TYPE_MUSICPAL_LCD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_lcd_state),
     .class_init    = musicpal_lcd_class_init,
@@ -661,9 +677,15 @@ static const TypeInfo musicpal_lcd_info = {
 #define MP_PIC_ENABLE_SET       0x08
 #define MP_PIC_ENABLE_CLR       0x0C
 
-typedef struct mv88w8618_pic_state
-{
-    SysBusDevice busdev;
+#define TYPE_MV88W8618_PIC "mv88w8618_pic"
+#define MV88W8618_PIC(obj) \
+    OBJECT_CHECK(mv88w8618_pic_state, (obj), TYPE_MV88W8618_PIC)
+
+typedef struct mv88w8618_pic_state {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t level;
     uint32_t enabled;
@@ -721,8 +743,7 @@ static void mv88w8618_pic_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pic_reset(DeviceState *d)
 {
-    mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state,
-                                         SYS_BUS_DEVICE(d));
+    mv88w8618_pic_state *s = MV88W8618_PIC(d);
 
     s->level = 0;
     s->enabled = 0;
@@ -736,9 +757,9 @@ static const MemoryRegionOps mv88w8618_pic_ops = {
 
 static int mv88w8618_pic_init(SysBusDevice *dev)
 {
-    mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state, dev);
+    mv88w8618_pic_state *s = MV88W8618_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
+    qdev_init_gpio_in(DEVICE(dev), mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_pic_ops, s,
                           "musicpal-pic", MP_PIC_SIZE);
@@ -769,7 +790,7 @@ static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_pic_info = {
-    .name          = "mv88w8618_pic",
+    .name          = TYPE_MV88W8618_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pic_state),
     .class_init    = mv88w8618_pic_class_init,
@@ -795,8 +816,15 @@ typedef struct mv88w8618_timer_state {
     qemu_irq irq;
 } mv88w8618_timer_state;
 
+#define TYPE_MV88W8618_PIT "mv88w8618_pit"
+#define MV88W8618_PIT(obj) \
+    OBJECT_CHECK(mv88w8618_pit_state, (obj), TYPE_MV88W8618_PIT)
+
 typedef struct mv88w8618_pit_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     mv88w8618_timer_state timer[4];
 } mv88w8618_pit_state;
@@ -878,8 +906,7 @@ static void mv88w8618_pit_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pit_reset(DeviceState *d)
 {
-    mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state,
-                                         SYS_BUS_DEVICE(d));
+    mv88w8618_pit_state *s = MV88W8618_PIT(d);
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -896,7 +923,7 @@ static const MemoryRegionOps mv88w8618_pit_ops = {
 
 static int mv88w8618_pit_init(SysBusDevice *dev)
 {
-    mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state, dev);
+    mv88w8618_pit_state *s = MV88W8618_PIT(dev);
     int i;
 
     /* Letting them all run at 1 MHz is likely just a pragmatic
@@ -946,7 +973,7 @@ static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_pit_info = {
-    .name          = "mv88w8618_pit",
+    .name          = TYPE_MV88W8618_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pit_state),
     .class_init    = mv88w8618_pit_class_init,
@@ -955,8 +982,15 @@ static const TypeInfo mv88w8618_pit_info = {
 /* Flash config register offsets */
 #define MP_FLASHCFG_CFGR0    0x04
 
+#define TYPE_MV88W8618_FLASHCFG "mv88w8618_flashcfg"
+#define MV88W8618_FLASHCFG(obj) \
+    OBJECT_CHECK(mv88w8618_flashcfg_state, (obj), TYPE_MV88W8618_FLASHCFG)
+
 typedef struct mv88w8618_flashcfg_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t cfgr0;
 } mv88w8618_flashcfg_state;
@@ -996,7 +1030,7 @@ static const MemoryRegionOps mv88w8618_flashcfg_ops = {
 
 static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 {
-    mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
+    mv88w8618_flashcfg_state *s = MV88W8618_FLASHCFG(dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     memory_region_init_io(&s->iomem, OBJECT(s), &mv88w8618_flashcfg_ops, s,
@@ -1026,7 +1060,7 @@ static void mv88w8618_flashcfg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mv88w8618_flashcfg_info = {
-    .name          = "mv88w8618_flashcfg",
+    .name          = TYPE_MV88W8618_FLASHCFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_flashcfg_state),
     .class_init    = mv88w8618_flashcfg_class_init,
@@ -1149,8 +1183,15 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 /* LCD brightness bits in GPIO_OE_HI */
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
+#define TYPE_MUSICPAL_GPIO "musicpal_gpio"
+#define MUSICPAL_GPIO(obj) \
+    OBJECT_CHECK(musicpal_gpio_state, (obj), TYPE_MUSICPAL_GPIO)
+
 typedef struct musicpal_gpio_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t lcd_brightness;
     uint32_t out_state;
@@ -1310,8 +1351,7 @@ static const MemoryRegionOps musicpal_gpio_ops = {
 
 static void musicpal_gpio_reset(DeviceState *d)
 {
-    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state,
-                                         SYS_BUS_DEVICE(d));
+    musicpal_gpio_state *s = MUSICPAL_GPIO(d);
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1321,19 +1361,20 @@ static void musicpal_gpio_reset(DeviceState *d)
     s->isr = 0;
 }
 
-static int musicpal_gpio_init(SysBusDevice *dev)
+static int musicpal_gpio_init(SysBusDevice *sbd)
 {
-    musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_gpio_state *s = MUSICPAL_GPIO(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &musicpal_gpio_ops, s,
                           "musicpal-gpio", MP_GPIO_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
-    qdev_init_gpio_in(&dev->qdev, musicpal_gpio_pin_event, 32);
+    qdev_init_gpio_in(dev, musicpal_gpio_pin_event, 32);
 
     return 0;
 }
@@ -1365,7 +1406,7 @@ static void musicpal_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_gpio_info = {
-    .name          = "musicpal_gpio",
+    .name          = TYPE_MUSICPAL_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_gpio_state),
     .class_init    = musicpal_gpio_class_init,
@@ -1395,8 +1436,15 @@ static const TypeInfo musicpal_gpio_info = {
 #define MP_KEY_BTN_VOLUME      (1 << 6)
 #define MP_KEY_BTN_NAVIGATION  (1 << 7)
 
+#define TYPE_MUSICPAL_KEY "musicpal_key"
+#define MUSICPAL_KEY(obj) \
+    OBJECT_CHECK(musicpal_key_state, (obj), TYPE_MUSICPAL_KEY)
+
 typedef struct musicpal_key_state {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t kbd_extended;
     uint32_t pressed_keys;
@@ -1480,17 +1528,18 @@ static void musicpal_key_event(void *opaque, int keycode)
     s->kbd_extended = 0;
 }
 
-static int musicpal_key_init(SysBusDevice *dev)
+static int musicpal_key_init(SysBusDevice *sbd)
 {
-    musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    musicpal_key_state *s = MUSICPAL_KEY(dev);
 
     memory_region_init(&s->iomem, OBJECT(s), "dummy", 0);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
     qemu_add_kbd_event_handler(musicpal_key_event, s);
 
@@ -1519,7 +1568,7 @@ static void musicpal_key_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo musicpal_key_info = {
-    .name          = "musicpal_key",
+    .name          = TYPE_MUSICPAL_KEY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_key_state),
     .class_init    = musicpal_key_class_init,
@@ -1572,12 +1621,12 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
-    dev = sysbus_create_simple("mv88w8618_pic", MP_PIC_BASE,
+    dev = sysbus_create_simple(TYPE_MV88W8618_PIC, MP_PIC_BASE,
                                cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sysbus_create_varargs("mv88w8618_pit", MP_PIT_BASE, pic[MP_TIMER1_IRQ],
+    sysbus_create_varargs(TYPE_MV88W8618_PIT, MP_PIT_BASE, pic[MP_TIMER1_IRQ],
                           pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
                           pic[MP_TIMER4_IRQ], NULL);
 
@@ -1624,10 +1673,10 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 #endif
 
     }
-    sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
+    sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
     qemu_check_nic_model(&nd_table[0], "mv88w8618");
-    dev = qdev_create(NULL, "mv88w8618_eth");
+    dev = qdev_create(NULL, TYPE_MV88W8618_ETH);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
@@ -1637,12 +1686,13 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 
     sysbus_create_simple(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
 
-    dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
+    dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
+                               pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
-    lcd_dev = sysbus_create_simple("musicpal_lcd", MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple("musicpal_key", -1, NULL);
+    lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
+    key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,

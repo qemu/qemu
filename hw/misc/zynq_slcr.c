@@ -114,8 +114,12 @@ typedef enum {
   RESET_MAX
 } ResetValues;
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_ZYNQ_SLCR "xilinx,zynq_slcr"
+#define ZYNQ_SLCR(obj) OBJECT_CHECK(ZynqSLCRState, (obj), TYPE_ZYNQ_SLCR)
+
+typedef struct ZynqSLCRState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     union {
@@ -158,9 +162,8 @@ typedef struct {
 
 static void zynq_slcr_reset(DeviceState *d)
 {
+    ZynqSLCRState *s = ZYNQ_SLCR(d);
     int i;
-    ZynqSLCRState *s =
-            FROM_SYSBUS(ZynqSLCRState, SYS_BUS_DEVICE(d));
 
     DB_PRINT("RESET\n");
 
@@ -492,7 +495,7 @@ static const MemoryRegionOps slcr_ops = {
 
 static int zynq_slcr_init(SysBusDevice *dev)
 {
-    ZynqSLCRState *s = FROM_SYSBUS(ZynqSLCRState, dev);
+    ZynqSLCRState *s = ZYNQ_SLCR(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &slcr_ops, s, "slcr", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
@@ -523,7 +526,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo zynq_slcr_info = {
     .class_init = zynq_slcr_class_init,
-    .name  = "xilinx,zynq_slcr",
+    .name  = TYPE_ZYNQ_SLCR,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
 };

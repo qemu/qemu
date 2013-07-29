@@ -80,6 +80,7 @@ M: Michael Walle <michael@walle.cc>
 S: Maintained
 F: target-lm32/
 F: hw/lm32/
+F: hw/char/lm32_*
 
 M68K
 M: Paul Brook <paul@codesourcery.com>

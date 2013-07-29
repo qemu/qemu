@@ -57,8 +57,13 @@ enum {
     R_MAX
 };
 
+#define TYPE_MILKYMIST_SYSCTL "milkymist-sysctl"
+#define MILKYMIST_SYSCTL(obj) \
+    OBJECT_CHECK(MilkymistSysctlState, (obj), TYPE_MILKYMIST_SYSCTL)
+
 struct MilkymistSysctlState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
 
     QEMUBH *bh0;
@@ -246,8 +251,7 @@ static void timer1_hit(void *opaque)
 
 static void milkymist_sysctl_reset(DeviceState *d)
 {
-    MilkymistSysctlState *s =
-            container_of(d, MilkymistSysctlState, busdev.qdev);
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -267,7 +271,7 @@ static void milkymist_sysctl_reset(DeviceState *d)
 
 static int milkymist_sysctl_init(SysBusDevice *dev)
 {
-    MilkymistSysctlState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistSysctlState *s = MILKYMIST_SYSCTL(dev);
 
     sysbus_init_irq(dev, &s->gpio_irq);
     sysbus_init_irq(dev, &s->timer0_irq);
@@ -324,7 +328,7 @@ static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_sysctl_info = {
-    .name          = "milkymist-sysctl",
+    .name          = TYPE_MILKYMIST_SYSCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSysctlState),
     .class_init    = milkymist_sysctl_class_init,

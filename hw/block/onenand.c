@@ -34,8 +34,12 @@
 /* Fixed */
 #define BLOCK_SHIFT	(PAGE_SHIFT + 6)
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_ONE_NAND "onenand"
+#define ONE_NAND(obj) OBJECT_CHECK(OneNANDState, (obj), TYPE_ONE_NAND)
+
+typedef struct OneNANDState {
+    SysBusDevice parent_obj;
+
     struct {
         uint16_t man;
         uint16_t dev;
@@ -226,7 +230,9 @@ static void onenand_reset(OneNANDState *s, int cold)
 
 static void onenand_system_reset(DeviceState *dev)
 {
-    onenand_reset(FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(dev)), 1);
+    OneNANDState *s = ONE_NAND(dev);
+
+    onenand_reset(s, 1);
 }
 
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
@@ -757,11 +763,13 @@ static const MemoryRegionOps onenand_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int onenand_initfn(SysBusDevice *dev)
+static int onenand_initfn(SysBusDevice *sbd)
 {
-    OneNANDState *s = (OneNANDState *)dev;
+    DeviceState *dev = DEVICE(sbd);
+    OneNANDState *s = ONE_NAND(dev);
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
+
     s->base = (hwaddr)-1;
     s->rdy = NULL;
     s->blocks = size >> BLOCK_SHIFT;
@@ -794,9 +802,9 @@ static int onenand_initfn(SysBusDevice *dev)
     s->data[1][0] = ram + ((0x0200 + (1 << (PAGE_SHIFT - 1))) << s->shift);
     s->data[1][1] = ram + ((0x8010 + (1 << (PAGE_SHIFT - 6))) << s->shift);
     onenand_mem_setup(s);
-    sysbus_init_irq(dev, &s->intr);
-    sysbus_init_mmio(dev, &s->container);
-    vmstate_register(&dev->qdev,
+    sysbus_init_irq(sbd, &s->intr);
+    sysbus_init_mmio(sbd, &s->container);
+    vmstate_register(dev,
                      ((s->shift & 0x7f) << 24)
                      | ((s->id.man & 0xff) << 16)
                      | ((s->id.dev & 0xff) << 8)
@@ -825,7 +833,7 @@ static void onenand_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo onenand_info = {
-    .name          = "onenand",
+    .name          = TYPE_ONE_NAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OneNANDState),
     .class_init    = onenand_class_init,
@@ -838,7 +846,9 @@ static void onenand_register_types(void)
 
 void *onenand_raw_otp(DeviceState *onenand_device)
 {
-    return FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(onenand_device))->otp;
+    OneNANDState *s = ONE_NAND(onenand_device);
+
+    return s->otp;
 }
 
 type_init(onenand_register_types)

@@ -54,8 +54,13 @@ typedef struct CPUTimerState {
     uint64_t limit;
 } CPUTimerState;
 
+#define TYPE_SLAVIO_TIMER "slavio_timer"
+#define SLAVIO_TIMER(obj) \
+    OBJECT_CHECK(SLAVIO_TIMERState, (obj), TYPE_SLAVIO_TIMER)
+
 typedef struct SLAVIO_TIMERState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     uint32_t num_cpus;
     uint32_t cputimer_mode;
     CPUTimerState cputimer[MAX_CPUS + 1];
@@ -354,7 +359,7 @@ static const VMStateDescription vmstate_slavio_timer = {
 
 static void slavio_timer_reset(DeviceState *d)
 {
-    SLAVIO_TIMERState *s = container_of(d, SLAVIO_TIMERState, busdev.qdev);
+    SLAVIO_TIMERState *s = SLAVIO_TIMER(d);
     unsigned int i;
     CPUTimerState *curr_timer;
 
@@ -375,7 +380,7 @@ static void slavio_timer_reset(DeviceState *d)
 
 static int slavio_timer_init1(SysBusDevice *dev)
 {
-    SLAVIO_TIMERState *s = FROM_SYSBUS(SLAVIO_TIMERState, dev);
+    SLAVIO_TIMERState *s = SLAVIO_TIMER(dev);
     QEMUBH *bh;
     unsigned int i;
     TimerContext *tc;
@@ -421,7 +426,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo slavio_timer_info = {
-    .name          = "slavio_timer",
+    .name          = TYPE_SLAVIO_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),
     .class_init    = slavio_timer_class_init,

@@ -64,8 +64,13 @@ typedef struct {
     qemu_irq irq;
 } CadenceTimerState;
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_CADENCE_TTC "cadence_ttc"
+#define CADENCE_TTC(obj) \
+    OBJECT_CHECK(CadenceTTCState, (obj), TYPE_CADENCE_TTC)
+
+typedef struct CadenceTTCState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     CadenceTimerState timer[3];
 } CadenceTTCState;
@@ -401,7 +406,7 @@ static void cadence_timer_init(uint32_t freq, CadenceTimerState *s)
 
 static int cadence_ttc_init(SysBusDevice *dev)
 {
-    CadenceTTCState *s = FROM_SYSBUS(CadenceTTCState, dev);
+    CadenceTTCState *s = CADENCE_TTC(dev);
     int i;
 
     for (i = 0; i < 3; ++i) {
@@ -476,7 +481,7 @@ static void cadence_ttc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo cadence_ttc_info = {
-    .name  = "cadence_ttc",
+    .name  = TYPE_CADENCE_TTC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(CadenceTTCState),
     .class_init = cadence_ttc_class_init,

@@ -457,9 +457,16 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
     }
 };
 
+#define TYPE_PXA2XX_SSP "pxa2xx-ssp"
+#define PXA2XX_SSP(obj) \
+    OBJECT_CHECK(PXA2xxSSPState, (obj), TYPE_PXA2XX_SSP)
+
 /* Synchronous Serial Ports */
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq;
     int enable;
@@ -757,19 +764,20 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int pxa2xx_ssp_init(SysBusDevice *dev)
+static int pxa2xx_ssp_init(SysBusDevice *sbd)
 {
-    PXA2xxSSPState *s = FROM_SYSBUS(PXA2xxSSPState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxSSPState *s = PXA2XX_SSP(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_ssp_ops, s,
                           "pxa2xx-ssp", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
+    sysbus_init_mmio(sbd, &s->iomem);
+    register_savevm(dev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
-    s->bus = ssi_create_bus(&dev->qdev, "ssi");
+    s->bus = ssi_create_bus(dev, "ssi");
     return 0;
 }
 
@@ -790,8 +798,15 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
 #define RTCPICR		0x34	/* RTC Periodic Interrupt Counter register */
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
+#define TYPE_PXA2XX_RTC "pxa2xx_rtc"
+#define PXA2XX_RTC(obj) \
+    OBJECT_CHECK(PXA2xxRTCState, (obj), TYPE_PXA2XX_RTC)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t rttr;
     uint32_t rtsr;
@@ -1102,7 +1117,7 @@ static const MemoryRegionOps pxa2xx_rtc_ops = {
 
 static int pxa2xx_rtc_init(SysBusDevice *dev)
 {
-    PXA2xxRTCState *s = FROM_SYSBUS(PXA2xxRTCState, dev);
+    PXA2xxRTCState *s = PXA2XX_RTC(dev);
     struct tm tm;
     int wom;
 
@@ -1197,7 +1212,7 @@ static void pxa2xx_rtc_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_rtc_sysbus_info = {
-    .name          = "pxa2xx_rtc",
+    .name          = TYPE_PXA2XX_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxRTCState),
     .class_init    = pxa2xx_rtc_sysbus_class_init,
@@ -1209,8 +1224,15 @@ typedef struct {
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
+#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
+#define PXA2XX_I2C(obj) \
+    OBJECT_CHECK(PXA2xxI2CState, (obj), TYPE_PXA2XX_I2C)
+
 struct PXA2xxI2CState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     PXA2xxI2CSlaveState *slave;
     i2c_bus *bus;
@@ -1458,16 +1480,16 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     SysBusDevice *i2c_dev;
     PXA2xxI2CState *s;
 
-    i2c_dev = SYS_BUS_DEVICE(qdev_create(NULL, "pxa2xx_i2c"));
-    qdev_prop_set_uint32(&i2c_dev->qdev, "size", region_size + 1);
-    qdev_prop_set_uint32(&i2c_dev->qdev, "offset", base & region_size);
+    dev = qdev_create(NULL, TYPE_PXA2XX_I2C);
+    qdev_prop_set_uint32(dev, "size", region_size + 1);
+    qdev_prop_set_uint32(dev, "offset", base & region_size);
+    qdev_init_nofail(dev);
 
-    qdev_init_nofail(&i2c_dev->qdev);
-
+    i2c_dev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(i2c_dev, 0, base & ~region_size);
     sysbus_connect_irq(i2c_dev, 0, irq);
 
-    s = FROM_SYSBUS(PXA2xxI2CState, i2c_dev);
+    s = PXA2XX_I2C(i2c_dev);
     /* FIXME: Should the slave device really be on a separate bus?  */
     dev = i2c_create_slave(i2c_init_bus(NULL, "dummy"), "pxa2xx-i2c-slave", 0);
     s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE(dev));
@@ -1476,16 +1498,17 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     return s;
 }
 
-static int pxa2xx_i2c_initfn(SysBusDevice *dev)
+static int pxa2xx_i2c_initfn(SysBusDevice *sbd)
 {
-    PXA2xxI2CState *s = FROM_SYSBUS(PXA2xxI2CState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PXA2xxI2CState *s = PXA2XX_I2C(dev);
 
-    s->bus = i2c_init_bus(&dev->qdev, "i2c");
+    s->bus = i2c_init_bus(dev, "i2c");
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_i2c_ops, s,
                           "pxa2xx-i2c", s->region_size);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 
     return 0;
 }
@@ -1513,7 +1536,7 @@ static void pxa2xx_i2c_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_i2c_info = {
-    .name          = "pxa2xx_i2c",
+    .name          = TYPE_PXA2XX_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxI2CState),
     .class_init    = pxa2xx_i2c_class_init,
@@ -2107,7 +2130,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
         DeviceState *dev;
-        dev = sysbus_create_simple("pxa2xx-ssp", pxa27x_ssp[i].io_base,
+        dev = sysbus_create_simple(TYPE_PXA2XX_SSP, pxa27x_ssp[i].io_base,
                         qdev_get_gpio_in(s->pic, pxa27x_ssp[i].irqn));
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
@@ -2120,7 +2143,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
-    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+    sysbus_create_simple(TYPE_PXA2XX_RTC, 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
@@ -2238,7 +2261,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
         DeviceState *dev;
-        dev = sysbus_create_simple("pxa2xx-ssp", pxa255_ssp[i].io_base,
+        dev = sysbus_create_simple(TYPE_PXA2XX_SSP, pxa255_ssp[i].io_base,
                         qdev_get_gpio_in(s->pic, pxa255_ssp[i].irqn));
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
@@ -2251,7 +2274,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
-    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+    sysbus_create_simple(TYPE_PXA2XX_RTC, 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
@@ -2278,7 +2301,7 @@ static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_ssp_info = {
-    .name          = "pxa2xx-ssp",
+    .name          = TYPE_PXA2XX_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxSSPState),
     .class_init    = pxa2xx_ssp_class_init,

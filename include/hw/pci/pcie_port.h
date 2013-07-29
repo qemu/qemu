@@ -24,8 +24,13 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 
+#define TYPE_PCIE_PORT "pcie-port"
+#define PCIE_PORT(obj) OBJECT_CHECK(PCIEPort, (obj), TYPE_PCIE_PORT)
+
 struct PCIEPort {
-    PCIBridge   br;
+    /*< private >*/
+    PCIBridge   parent_obj;
+    /*< public >*/
 
     /* pci express switch port */
     uint8_t     port;
@@ -33,8 +38,13 @@ struct PCIEPort {
 
 void pcie_port_init_reg(PCIDevice *d);
 
+#define TYPE_PCIE_SLOT "pcie-slot"
+#define PCIE_SLOT(obj) OBJECT_CHECK(PCIESlot, (obj), TYPE_PCIE_SLOT)
+
 struct PCIESlot {
-    PCIEPort    port;
+    /*< private >*/
+    PCIEPort    parent_obj;
+    /*< public >*/
 
     /* pci express switch port with slot */
     uint8_t     chassis;

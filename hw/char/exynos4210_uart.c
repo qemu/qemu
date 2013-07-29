@@ -166,8 +166,13 @@ typedef struct {
     uint32_t    size;
 } Exynos4210UartFIFO;
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_EXYNOS4210_UART "exynos4210.uart"
+#define EXYNOS4210_UART(obj) \
+    OBJECT_CHECK(Exynos4210UartState, (obj), TYPE_EXYNOS4210_UART)
+
+typedef struct Exynos4210UartState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t             reg[EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)];
@@ -538,8 +543,7 @@ static void exynos4210_uart_event(void *opaque, int event)
 
 static void exynos4210_uart_reset(DeviceState *dev)
 {
-    Exynos4210UartState *s =
-            container_of(dev, Exynos4210UartState, busdev.qdev);
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
     int regs_number = sizeof(exynos4210_uart_regs)/sizeof(Exynos4210UartReg);
     int i;
 
@@ -582,10 +586,10 @@ static const VMStateDescription vmstate_exynos4210_uart = {
 };
 
 DeviceState *exynos4210_uart_create(hwaddr addr,
-                                 int fifo_size,
-                                 int channel,
-                                 CharDriverState *chr,
-                                 qemu_irq irq)
+                                    int fifo_size,
+                                    int channel,
+                                    CharDriverState *chr,
+                                    qemu_irq irq)
 {
     DeviceState  *dev;
     SysBusDevice *bus;
@@ -593,7 +597,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     const char chr_name[] = "serial";
     char label[ARRAY_SIZE(chr_name) + 1];
 
-    dev = qdev_create(NULL, "exynos4210.uart");
+    dev = qdev_create(NULL, TYPE_EXYNOS4210_UART);
 
     if (!chr) {
         if (channel >= MAX_SERIAL_PORTS) {
@@ -627,7 +631,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
 
 static int exynos4210_uart_init(SysBusDevice *dev)
 {
-    Exynos4210UartState *s = FROM_SYSBUS(Exynos4210UartState, dev);
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
 
     /* memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_uart_ops, s,
@@ -662,7 +666,7 @@ static void exynos4210_uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_uart_info = {
-    .name          = "exynos4210.uart",
+    .name          = TYPE_EXYNOS4210_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210UartState),
     .class_init    = exynos4210_uart_class_init,

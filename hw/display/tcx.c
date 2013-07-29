@@ -34,8 +34,12 @@
 #define TCX_THC_NREGS_24 0x1000
 #define TCX_TEC_NREGS    0x1000
 
+#define TYPE_TCX "SUNW,tcx"
+#define TCX(obj) OBJECT_CHECK(TCXState, (obj), TYPE_TCX)
+
 typedef struct TCXState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     QemuConsole *con;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
@@ -423,7 +427,7 @@ static const VMStateDescription vmstate_tcx = {
 
 static void tcx_reset(DeviceState *d)
 {
-    TCXState *s = container_of(d, TCXState, busdev.qdev);
+    TCXState *s = TCX(d);
 
     /* Initialize palette */
     memset(s->r, 0, 256);
@@ -523,7 +527,7 @@ static const GraphicHwOps tcx24_ops = {
 
 static int tcx_init1(SysBusDevice *dev)
 {
-    TCXState *s = FROM_SYSBUS(TCXState, dev);
+    TCXState *s = TCX(dev);
     ram_addr_t vram_offset = 0;
     int size;
     uint8_t *vram_base;
@@ -609,7 +613,7 @@ static void tcx_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tcx_info = {
-    .name          = "SUNW,tcx",
+    .name          = TYPE_TCX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),
     .class_init    = tcx_class_init,

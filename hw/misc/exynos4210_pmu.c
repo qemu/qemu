@@ -386,8 +386,13 @@ static const Exynos4210PmuReg exynos4210_pmu_regs[] = {
 #define PMU_NUM_OF_REGISTERS     \
     (sizeof(exynos4210_pmu_regs) / sizeof(Exynos4210PmuReg))
 
+#define TYPE_EXYNOS4210_PMU "exynos4210.pmu"
+#define EXYNOS4210_PMU(obj) \
+    OBJECT_CHECK(Exynos4210PmuState, (obj), TYPE_EXYNOS4210_PMU)
+
 typedef struct Exynos4210PmuState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t reg[PMU_NUM_OF_REGISTERS];
 } Exynos4210PmuState;
@@ -443,8 +448,7 @@ static const MemoryRegionOps exynos4210_pmu_ops = {
 
 static void exynos4210_pmu_reset(DeviceState *dev)
 {
-    Exynos4210PmuState *s =
-            container_of(dev, Exynos4210PmuState, busdev.qdev);
+    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
     unsigned i;
 
     /* Set default values for registers */
@@ -455,7 +459,7 @@ static void exynos4210_pmu_reset(DeviceState *dev)
 
 static int exynos4210_pmu_init(SysBusDevice *dev)
 {
-    Exynos4210PmuState *s = FROM_SYSBUS(Exynos4210PmuState, dev);
+    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
 
     /* memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(dev), &exynos4210_pmu_ops, s,
@@ -485,7 +489,7 @@ static void exynos4210_pmu_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_pmu_info = {
-    .name          = "exynos4210.pmu",
+    .name          = TYPE_EXYNOS4210_PMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),
     .class_init    = exynos4210_pmu_class_init,

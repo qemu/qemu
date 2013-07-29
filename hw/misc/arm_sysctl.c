@@ -16,8 +16,13 @@
 
 #define LOCK_VALUE 0xa05f
 
+#define TYPE_ARM_SYSCTL "realview_sysctl"
+#define ARM_SYSCTL(obj) \
+    OBJECT_CHECK(arm_sysctl_state, (obj), TYPE_ARM_SYSCTL)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq pl110_mux_ctrl;
 
@@ -85,7 +90,7 @@ static int board_id(arm_sysctl_state *s)
 
 static void arm_sysctl_reset(DeviceState *d)
 {
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    arm_sysctl_state *s = ARM_SYSCTL(d);
     int i;
 
     s->leds = 0;
@@ -587,7 +592,7 @@ static void arm_sysctl_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, sd);
+    arm_sysctl_state *s = ARM_SYSCTL(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &arm_sysctl_ops, s,
                           "arm-sysctl", 0x1000);
@@ -598,14 +603,15 @@ static void arm_sysctl_init(Object *obj)
 
 static void arm_sysctl_realize(DeviceState *d, Error **errp)
 {
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    arm_sysctl_state *s = ARM_SYSCTL(d);
+
     s->db_clock = g_new0(uint32_t, s->db_num_clocks);
 }
 
 static void arm_sysctl_finalize(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
+    arm_sysctl_state *s = ARM_SYSCTL(obj);
+
     g_free(s->db_voltage);
     g_free(s->db_clock);
     g_free(s->db_clock_reset);
@@ -634,7 +640,7 @@ static void arm_sysctl_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo arm_sysctl_info = {
-    .name          = "realview_sysctl",
+    .name          = TYPE_ARM_SYSCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(arm_sysctl_state),
     .instance_init = arm_sysctl_init,

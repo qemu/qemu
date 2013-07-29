@@ -267,8 +267,12 @@ typedef struct desc {
 
 #define DEFAULT_PHY 1
 
+#define TYPE_OPEN_ETH "open_eth"
+#define OPEN_ETH(obj) OBJECT_CHECK(OpenEthState, (obj), TYPE_OPEN_ETH)
+
 typedef struct OpenEthState {
-    SysBusDevice dev;
+    SysBusDevice parent_obj;
+
     NICState *nic;
     NICConf conf;
     MemoryRegion reg_io;
@@ -677,28 +681,30 @@ static const MemoryRegionOps open_eth_desc_ops = {
     .write = open_eth_desc_write,
 };
 
-static int sysbus_open_eth_init(SysBusDevice *dev)
+static int sysbus_open_eth_init(SysBusDevice *sbd)
 {
-    OpenEthState *s = DO_UPCAST(OpenEthState, dev, dev);
+    DeviceState *dev = DEVICE(sbd);
+    OpenEthState *s = OPEN_ETH(dev);
 
     memory_region_init_io(&s->reg_io, OBJECT(dev), &open_eth_reg_ops, s,
             "open_eth.regs", 0x54);
-    sysbus_init_mmio(dev, &s->reg_io);
+    sysbus_init_mmio(sbd, &s->reg_io);
 
     memory_region_init_io(&s->desc_io, OBJECT(dev), &open_eth_desc_ops, s,
             "open_eth.desc", 0x400);
-    sysbus_init_mmio(dev, &s->desc_io);
+    sysbus_init_mmio(sbd, &s->desc_io);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
     s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
-                          object_get_typename(OBJECT(s)), s->dev.qdev.id, s);
+                          object_get_typename(OBJECT(s)), dev->id, s);
     return 0;
 }
 
 static void qdev_open_eth_reset(DeviceState *dev)
 {
-    OpenEthState *d = DO_UPCAST(OpenEthState, dev.qdev, dev);
+    OpenEthState *d = OPEN_ETH(dev);
+
     open_eth_reset(d);
 }
 
@@ -720,7 +726,7 @@ static void open_eth_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo open_eth_info = {
-    .name          = "open_eth",
+    .name          = TYPE_OPEN_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenEthState),
     .class_init    = open_eth_class_init,

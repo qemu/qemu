@@ -12,8 +12,13 @@
 
 /* MPCore private memory region.  */
 
+#define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
+#define ARM11MPCORE_PRIV(obj) \
+    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
+
 typedef struct ARM11MPCorePriveState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     uint32_t scu_control;
     int iomemtype;
     uint32_t old_timer_status[8];
@@ -125,9 +130,10 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     }
 }
 
-static int mpcore_priv_init(SysBusDevice *dev)
+static int mpcore_priv_init(SysBusDevice *sbd)
 {
-    ARM11MPCorePriveState *s = FROM_SYSBUS(ARM11MPCorePriveState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(dev);
 
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
@@ -137,10 +143,10 @@ static int mpcore_priv_init(SysBusDevice *dev)
     qdev_init_nofail(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, SYS_BUS_DEVICE(s->gic));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(s->gic));
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, mpcore_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
@@ -151,15 +157,20 @@ static int mpcore_priv_init(SysBusDevice *dev)
     qdev_init_nofail(s->wdtimer);
 
     mpcore_priv_map_setup(s);
-    sysbus_init_mmio(dev, &s->container);
+    sysbus_init_mmio(sbd, &s->container);
     return 0;
 }
+
+#define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
+#define REALVIEW_MPCORE_RIRQ(obj) \
+    OBJECT_CHECK(mpcore_rirq_state, (obj), TYPE_REALVIEW_MPCORE_RIRQ)
 
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
    controllers.  The output of these, plus some of the raw input lines
    are fed into a single SMP-aware interrupt controller on the CPU.  */
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     SysBusDevice *priv;
     qemu_irq cpuic[32];
     qemu_irq rvic[4][64];
@@ -190,19 +201,20 @@ static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static int realview_mpcore_init(SysBusDevice *dev)
+static int realview_mpcore_init(SysBusDevice *sbd)
 {
-    mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    mpcore_rirq_state *s = REALVIEW_MPCORE_RIRQ(dev);
     DeviceState *gic;
     DeviceState *priv;
     int n;
     int i;
 
-    priv = qdev_create(NULL, "arm11mpcore_priv");
+    priv = qdev_create(NULL, TYPE_ARM11MPCORE_PRIV);
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
     qdev_init_nofail(priv);
     s->priv = SYS_BUS_DEVICE(priv);
-    sysbus_pass_irq(dev, s->priv);
+    sysbus_pass_irq(sbd, s->priv);
     for (i = 0; i < 32; i++) {
         s->cpuic[i] = qdev_get_gpio_in(priv, i);
     }
@@ -214,8 +226,8 @@ static int realview_mpcore_init(SysBusDevice *dev)
             s->rvic[n][i] = qdev_get_gpio_in(gic, i);
         }
     }
-    qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio(dev, sysbus_mmio_get_region(s->priv, 0));
+    qdev_init_gpio_in(dev, mpcore_rirq_set_irq, 64);
+    sysbus_init_mmio(sbd, sysbus_mmio_get_region(s->priv, 0));
     return 0;
 }
 
@@ -234,7 +246,7 @@ static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mpcore_rirq_info = {
-    .name          = "realview_mpcore",
+    .name          = TYPE_REALVIEW_MPCORE_RIRQ,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mpcore_rirq_state),
     .class_init    = mpcore_rirq_class_init,
@@ -264,7 +276,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mpcore_priv_info = {
-    .name          = "arm11mpcore_priv",
+    .name          = TYPE_ARM11MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARM11MPCorePriveState),
     .class_init    = mpcore_priv_class_init,

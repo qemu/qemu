@@ -292,8 +292,13 @@ struct Exynos4210fimdWindow {
     hwaddr fb_len;       /* Framebuffer length */
 };
 
+#define TYPE_EXYNOS4210_FIMD "exynos4210.fimd"
+#define EXYNOS4210_FIMD(obj) \
+    OBJECT_CHECK(Exynos4210fimdState, (obj), TYPE_EXYNOS4210_FIMD)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     QemuConsole *console;
     qemu_irq irq[3];
@@ -1108,6 +1113,7 @@ static inline int fimd_get_buffer_id(Exynos4210fimdWindow *w)
  * VIDOSDA, VIDOSDB, VIDWADDx and SHADOWCON registers */
 static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     Exynos4210fimdWindow *w = &s->window[win];
     hwaddr fb_start_addr, fb_mapped_len;
 
@@ -1131,8 +1137,8 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
      * does not support hot-unplug.
      */
     memory_region_unref(w->mem_section.mr);
-    w->mem_section = memory_region_find(sysbus_address_space(&s->busdev),
-            fb_start_addr, w->fb_len);
+    w->mem_section = memory_region_find(sysbus_address_space(sbd),
+                                        fb_start_addr, w->fb_len);
     assert(w->mem_section.mr);
     assert(w->mem_section.offset_within_address_space == fb_start_addr);
     DPRINT_TRACE("Window %u framebuffer changed: address=0x%08x, len=0x%x\n",
@@ -1328,7 +1334,7 @@ static void exynos4210_fimd_update(void *opaque)
 
 static void exynos4210_fimd_reset(DeviceState *d)
 {
-    Exynos4210fimdState *s = DO_UPCAST(Exynos4210fimdState, busdev.qdev, d);
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(d);
     unsigned w;
 
     DPRINT_TRACE("Display controller reset\n");
@@ -1900,7 +1906,7 @@ static const GraphicHwOps exynos4210_fimd_ops = {
 
 static int exynos4210_fimd_init(SysBusDevice *dev)
 {
-    Exynos4210fimdState *s = FROM_SYSBUS(Exynos4210fimdState, dev);
+    Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
 
     s->ifb = NULL;
 
@@ -1927,7 +1933,7 @@ static void exynos4210_fimd_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_fimd_info = {
-    .name = "exynos4210.fimd",
+    .name = TYPE_EXYNOS4210_FIMD,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210fimdState),
     .class_init = exynos4210_fimd_class_init,

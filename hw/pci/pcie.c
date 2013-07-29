@@ -305,7 +305,7 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
 
     dev->exp.hpev_notified = false;
 
-    pci_bus_hotplug(pci_bridge_get_sec_bus(DO_UPCAST(PCIBridge, dev, dev)),
+    pci_bus_hotplug(pci_bridge_get_sec_bus(PCI_BRIDGE(dev)),
                     pcie_cap_slot_hotplug, &dev->qdev);
 }
 

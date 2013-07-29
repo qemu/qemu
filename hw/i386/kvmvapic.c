@@ -456,7 +456,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
                              TPRAccess access)
 {
-    VAPICROMState *s = DO_UPCAST(VAPICROMState, busdev.qdev, dev);
+    VAPICROMState *s = VAPIC(dev);
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
@@ -508,7 +508,7 @@ static void vapic_enable_tpr_reporting(bool enable)
 
 static void vapic_reset(DeviceState *dev)
 {
-    VAPICROMState *s = DO_UPCAST(VAPICROMState, busdev.qdev, dev);
+    VAPICROMState *s = VAPIC(dev);
 
     if (s->state == VAPIC_ACTIVE) {
         s->state = VAPIC_STANDBY;

@@ -106,7 +106,8 @@ static void bmdma_setup_bar(PCIIDEState *d)
 static void piix3_reset(void *opaque)
 {
     PCIIDEState *d = opaque;
-    uint8_t *pci_conf = d->dev.config;
+    PCIDevice *pd = PCI_DEVICE(d);
+    uint8_t *pci_conf = pd->config;
     int i;
 
     for (i = 0; i < 2; i++) {
@@ -135,7 +136,7 @@ static void pci_piix_init_ports(PCIIDEState *d) {
     int i;
 
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], &d->dev.qdev, i, 2);
+        ide_bus_new(&d->bus[i], DEVICE(d), i, 2);
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
         ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
@@ -149,17 +150,17 @@ static void pci_piix_init_ports(PCIIDEState *d) {
 
 static int pci_piix_ide_initfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
-    uint8_t *pci_conf = d->dev.config;
+    PCIIDEState *d = PCI_IDE(dev);
+    uint8_t *pci_conf = dev->config;
 
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
     qemu_register_reset(piix3_reset, d);
 
     bmdma_setup_bar(d);
-    pci_register_bar(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
+    pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
-    vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
+    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
 
     pci_piix_init_ports(d);
 
@@ -168,13 +169,11 @@ static int pci_piix_ide_initfn(PCIDevice *dev)
 
 static int pci_piix3_xen_ide_unplug(DeviceState *dev)
 {
-    PCIDevice *pci_dev;
     PCIIDEState *pci_ide;
     DriveInfo *di;
     int i = 0;
 
-    pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
-    pci_ide = DO_UPCAST(PCIIDEState, dev, pci_dev);
+    pci_ide = PCI_IDE(dev);
 
     for (; i < 3; i++) {
         di = drive_get_by_index(IF_IDE, i);
@@ -188,7 +187,7 @@ static int pci_piix3_xen_ide_unplug(DeviceState *dev)
             drive_put_ref(di);
         }
     }
-    qdev_reset_all(&(pci_ide->dev.qdev));
+    qdev_reset_all(DEVICE(dev));
     return 0;
 }
 
@@ -203,7 +202,7 @@ PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 
 static void pci_piix_ide_exitfn(PCIDevice *dev)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
 
     for (i = 0; i < 2; ++i) {
@@ -254,8 +253,7 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix3_ide_info = {
     .name          = "piix3-ide",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
+    .parent        = TYPE_PCI_IDE,
     .class_init    = piix3_ide_class_init,
 };
 
@@ -275,8 +273,7 @@ static void piix3_ide_xen_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix3_ide_xen_info = {
     .name          = "piix3-ide-xen",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
+    .parent        = TYPE_PCI_IDE,
     .class_init    = piix3_ide_xen_class_init,
 };
 
@@ -297,8 +294,7 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix4_ide_info = {
     .name          = "piix4-ide",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
+    .parent        = TYPE_PCI_IDE,
     .class_init    = piix4_ide_class_init,
 };
 

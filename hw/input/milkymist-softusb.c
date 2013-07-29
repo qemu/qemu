@@ -44,8 +44,13 @@ enum {
 #define COMLOC_KEVT_PRODUCE  0x1142
 #define COMLOC_KEVT_BASE     0x1143
 
+#define TYPE_MILKYMIST_SOFTUSB "milkymist-softusb"
+#define MILKYMIST_SOFTUSB(obj) \
+    OBJECT_CHECK(MilkymistSoftUsbState, (obj), TYPE_MILKYMIST_SOFTUSB)
+
 struct MilkymistSoftUsbState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     HIDState hid_kbd;
     HIDState hid_mouse;
 
@@ -242,8 +247,7 @@ static void softusb_mouse_hid_datain(HIDState *hs)
 
 static void milkymist_softusb_reset(DeviceState *d)
 {
-    MilkymistSoftUsbState *s =
-            container_of(d, MilkymistSoftUsbState, busdev.qdev);
+    MilkymistSoftUsbState *s = MILKYMIST_SOFTUSB(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -261,7 +265,7 @@ static void milkymist_softusb_reset(DeviceState *d)
 
 static int milkymist_softusb_init(SysBusDevice *dev)
 {
-    MilkymistSoftUsbState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistSoftUsbState *s = MILKYMIST_SOFTUSB(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -320,7 +324,7 @@ static void milkymist_softusb_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_softusb_info = {
-    .name          = "milkymist-softusb",
+    .name          = TYPE_MILKYMIST_SOFTUSB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSoftUsbState),
     .class_init    = milkymist_softusb_class_init,

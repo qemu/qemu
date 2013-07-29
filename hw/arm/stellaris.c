@@ -43,8 +43,13 @@ typedef const struct {
 
 /* General purpose timer module.  */
 
+#define TYPE_STELLARIS_GPTM "stellaris-gptm"
+#define STELLARIS_GPTM(obj) \
+    OBJECT_CHECK(gptm_state, (obj), TYPE_STELLARIS_GPTM)
+
 typedef struct gptm_state {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t config;
     uint32_t mode[2];
@@ -300,21 +305,22 @@ static const VMStateDescription vmstate_stellaris_gptm = {
     }
 };
 
-static int stellaris_gptm_init(SysBusDevice *dev)
+static int stellaris_gptm_init(SysBusDevice *sbd)
 {
-    gptm_state *s = FROM_SYSBUS(gptm_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    gptm_state *s = STELLARIS_GPTM(dev);
 
-    sysbus_init_irq(dev, &s->irq);
-    qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
+    sysbus_init_irq(sbd, &s->irq);
+    qdev_init_gpio_out(dev, &s->trigger, 1);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &gptm_ops, s,
                           "gptm", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[1]);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_gptm, s);
+    vmstate_register(dev, -1, &vmstate_stellaris_gptm, s);
     return 0;
 }
 
@@ -679,8 +685,13 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 
 /* I2C controller.  */
 
+#define TYPE_STELLARIS_I2C "stellaris-i2c"
+#define STELLARIS_I2C(obj) \
+    OBJECT_CHECK(stellaris_i2c_state, (obj), TYPE_STELLARIS_I2C)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     i2c_bus *bus;
     qemu_irq irq;
     MemoryRegion iomem;
@@ -853,21 +864,22 @@ static const VMStateDescription vmstate_stellaris_i2c = {
     }
 };
 
-static int stellaris_i2c_init(SysBusDevice * dev)
+static int stellaris_i2c_init(SysBusDevice *sbd)
 {
-    stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    stellaris_i2c_state *s = STELLARIS_I2C(dev);
     i2c_bus *bus;
 
-    sysbus_init_irq(dev, &s->irq);
-    bus = i2c_init_bus(&dev->qdev, "i2c");
+    sysbus_init_irq(sbd, &s->irq);
+    bus = i2c_init_bus(dev, "i2c");
     s->bus = bus;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_i2c_ops, s,
                           "i2c", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_i2c, s);
+    vmstate_register(dev, -1, &vmstate_stellaris_i2c, s);
     return 0;
 }
 
@@ -885,9 +897,13 @@ static int stellaris_i2c_init(SysBusDevice * dev)
 #define STELLARIS_ADC_FIFO_EMPTY    0x0100
 #define STELLARIS_ADC_FIFO_FULL     0x1000
 
-typedef struct
-{
-    SysBusDevice busdev;
+#define TYPE_STELLARIS_ADC "stellaris-adc"
+#define STELLARIS_ADC(obj) \
+    OBJECT_CHECK(stellaris_adc_state, (obj), TYPE_STELLARIS_ADC)
+
+typedef struct StellarisADCState {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t actss;
     uint32_t ris;
@@ -1136,21 +1152,22 @@ static const VMStateDescription vmstate_stellaris_adc = {
     }
 };
 
-static int stellaris_adc_init(SysBusDevice *dev)
+static int stellaris_adc_init(SysBusDevice *sbd)
 {
-    stellaris_adc_state *s = FROM_SYSBUS(stellaris_adc_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    stellaris_adc_state *s = STELLARIS_ADC(dev);
     int n;
 
     for (n = 0; n < 4; n++) {
-        sysbus_init_irq(dev, &s->irq[n]);
+        sysbus_init_irq(sbd, &s->irq[n]);
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stellaris_adc_ops, s,
                           "adc", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     stellaris_adc_reset(s);
-    qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_adc, s);
+    qdev_init_gpio_in(dev, stellaris_adc_trigger, 1);
+    vmstate_register(dev, -1, &vmstate_stellaris_adc, s);
     return 0;
 }
 
@@ -1207,7 +1224,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
                       flash_size, sram_size, kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {
-        dev = sysbus_create_varargs("stellaris-adc", 0x40038000,
+        dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
                                     pic[14], pic[15], pic[16], pic[17], NULL);
         adc = qdev_get_gpio_in(dev, 0);
     } else {
@@ -1215,7 +1232,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (0x10000 << i)) {
-            dev = sysbus_create_simple("stellaris-gptm",
+            dev = sysbus_create_simple(TYPE_STELLARIS_GPTM,
                                        0x40030000 + i * 0x1000,
                                        pic[timer_irq[i]]);
             /* TODO: This is incorrect, but we get away with it because
@@ -1238,7 +1255,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
 
     if (board->dc2 & (1 << 12)) {
-        dev = sysbus_create_simple("stellaris-i2c", 0x40020000, pic[8]);
+        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000, pic[8]);
         i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
@@ -1357,7 +1374,7 @@ static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_i2c_info = {
-    .name          = "stellaris-i2c",
+    .name          = TYPE_STELLARIS_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_i2c_state),
     .class_init    = stellaris_i2c_class_init,
@@ -1371,7 +1388,7 @@ static void stellaris_gptm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_gptm_info = {
-    .name          = "stellaris-gptm",
+    .name          = TYPE_STELLARIS_GPTM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(gptm_state),
     .class_init    = stellaris_gptm_class_init,
@@ -1385,7 +1402,7 @@ static void stellaris_adc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo stellaris_adc_info = {
-    .name          = "stellaris-adc",
+    .name          = TYPE_STELLARIS_ADC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_adc_state),
     .class_init    = stellaris_adc_class_init,

@@ -16,8 +16,12 @@
 /* Number of 2k memory pages available.  */
 #define NUM_PACKETS 4
 
+#define TYPE_SMC91C111 "smc91c111"
+#define SMC91C111(obj) OBJECT_CHECK(smc91c111_state, (obj), TYPE_SMC91C111)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     NICState *nic;
     NICConf conf;
     uint16_t tcr;
@@ -254,7 +258,8 @@ static void smc91c111_queue_tx(smc91c111_state *s, int packet)
 
 static void smc91c111_reset(DeviceState *dev)
 {
-    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, SYS_BUS_DEVICE(dev));
+    smc91c111_state *s = SMC91C111(dev);
+
     s->bank = 0;
     s->tx_fifo_len = 0;
     s->tx_fifo_done_len = 0;
@@ -302,8 +307,9 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 5:
             SET_HIGH(rcr, value);
-            if (s->rcr & RCR_SOFT_RST)
-                smc91c111_reset(&s->busdev.qdev);
+            if (s->rcr & RCR_SOFT_RST) {
+                smc91c111_reset(DEVICE(s));
+            }
             return;
         case 10: case 11: /* RPCR */
             /* Ignored */
@@ -744,16 +750,18 @@ static NetClientInfo net_smc91c111_info = {
     .cleanup = smc91c111_cleanup,
 };
 
-static int smc91c111_init1(SysBusDevice *dev)
+static int smc91c111_init1(SysBusDevice *sbd)
 {
-    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    smc91c111_state *s = SMC91C111(dev);
+
     memory_region_init_io(&s->mmio, OBJECT(s), &smc91c111_mem_ops, s,
                           "smc91c111-mmio", 16);
-    sysbus_init_mmio(dev, &s->mmio);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     /* ??? Save/restore.  */
     return 0;
@@ -776,7 +784,7 @@ static void smc91c111_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo smc91c111_info = {
-    .name          = "smc91c111",
+    .name          = TYPE_SMC91C111,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(smc91c111_state),
     .class_init    = smc91c111_class_init,
@@ -795,7 +803,7 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     SysBusDevice *s;
 
     qemu_check_nic_model(nd, "smc91c111");
-    dev = qdev_create(NULL, "smc91c111");
+    dev = qdev_create(NULL, TYPE_SMC91C111);
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
