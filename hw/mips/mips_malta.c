@@ -47,6 +47,7 @@
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
+#include "qemu/host-utils.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -79,8 +80,12 @@ typedef struct {
     SerialState *uart;
 } MaltaFPGAState;
 
+#define TYPE_MIPS_MALTA "mips-malta"
+#define MIPS_MALTA(obj) OBJECT_CHECK(MaltaState, (obj), TYPE_MIPS_MALTA)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     qemu_irq *i8259;
 } MaltaState;
 
@@ -144,12 +149,12 @@ struct _eeprom24c0x_t {
 
 typedef struct _eeprom24c0x_t eeprom24c0x_t;
 
-static eeprom24c0x_t eeprom = {
+static eeprom24c0x_t spd_eeprom = {
     .contents = {
-        /* 00000000: */ 0x80,0x08,0x04,0x0D,0x0A,0x01,0x40,0x00,
+        /* 00000000: */ 0x80,0x08,0xFF,0x0D,0x0A,0xFF,0x40,0x00,
         /* 00000008: */ 0x01,0x75,0x54,0x00,0x82,0x08,0x00,0x01,
-        /* 00000010: */ 0x8F,0x04,0x02,0x01,0x01,0x00,0x0E,0x00,
-        /* 00000018: */ 0x00,0x00,0x00,0x14,0x0F,0x14,0x2D,0x40,
+        /* 00000010: */ 0x8F,0x04,0x02,0x01,0x01,0x00,0x00,0x00,
+        /* 00000018: */ 0x00,0x00,0x00,0x14,0x0F,0x14,0x2D,0xFF,
         /* 00000020: */ 0x15,0x08,0x15,0x08,0x00,0x00,0x00,0x00,
         /* 00000028: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         /* 00000030: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -165,69 +170,157 @@ static eeprom24c0x_t eeprom = {
     },
 };
 
-static uint8_t eeprom24c0x_read(void)
+static void generate_eeprom_spd(uint8_t *eeprom, ram_addr_t ram_size)
 {
-    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
-        eeprom.tick, eeprom.scl, eeprom.sda, eeprom.data);
-    return eeprom.sda;
+    enum { SDR = 0x4, DDR2 = 0x8 } type;
+    uint8_t *spd = spd_eeprom.contents;
+    uint8_t nbanks = 0;
+    uint16_t density = 0;
+    int i;
+
+    /* work in terms of MB */
+    ram_size >>= 20;
+
+    while ((ram_size >= 4) && (nbanks <= 2)) {
+        int sz_log2 = MIN(31 - clz32(ram_size), 14);
+        nbanks++;
+        density |= 1 << (sz_log2 - 2);
+        ram_size -= 1 << sz_log2;
+    }
+
+    /* split to 2 banks if possible */
+    if ((nbanks == 1) && (density > 1)) {
+        nbanks++;
+        density >>= 1;
+    }
+
+    if (density & 0xff00) {
+        density = (density & 0xe0) | ((density >> 8) & 0x1f);
+        type = DDR2;
+    } else if (!(density & 0x1f)) {
+        type = DDR2;
+    } else {
+        type = SDR;
+    }
+
+    if (ram_size) {
+        fprintf(stderr, "Warning: SPD cannot represent final %dMB"
+                " of SDRAM\n", (int)ram_size);
+    }
+
+    /* fill in SPD memory information */
+    spd[2] = type;
+    spd[5] = nbanks;
+    spd[31] = density;
+
+    /* checksum */
+    spd[63] = 0;
+    for (i = 0; i < 63; i++) {
+        spd[63] += spd[i];
+    }
+
+    /* copy for SMBUS */
+    memcpy(eeprom, spd, sizeof(spd_eeprom.contents));
 }
 
-static void eeprom24c0x_write(int scl, int sda)
+static void generate_eeprom_serial(uint8_t *eeprom)
 {
-    if (eeprom.scl && scl && (eeprom.sda != sda)) {
+    int i, pos = 0;
+    uint8_t mac[6] = { 0x00 };
+    uint8_t sn[5] = { 0x01, 0x23, 0x45, 0x67, 0x89 };
+
+    /* version */
+    eeprom[pos++] = 0x01;
+
+    /* count */
+    eeprom[pos++] = 0x02;
+
+    /* MAC address */
+    eeprom[pos++] = 0x01; /* MAC */
+    eeprom[pos++] = 0x06; /* length */
+    memcpy(&eeprom[pos], mac, sizeof(mac));
+    pos += sizeof(mac);
+
+    /* serial number */
+    eeprom[pos++] = 0x02; /* serial */
+    eeprom[pos++] = 0x05; /* length */
+    memcpy(&eeprom[pos], sn, sizeof(sn));
+    pos += sizeof(sn);
+
+    /* checksum */
+    eeprom[pos] = 0;
+    for (i = 0; i < pos; i++) {
+        eeprom[pos] += eeprom[i];
+    }
+}
+
+static uint8_t eeprom24c0x_read(eeprom24c0x_t *eeprom)
+{
+    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
+        eeprom->tick, eeprom->scl, eeprom->sda, eeprom->data);
+    return eeprom->sda;
+}
+
+static void eeprom24c0x_write(eeprom24c0x_t *eeprom, int scl, int sda)
+{
+    if (eeprom->scl && scl && (eeprom->sda != sda)) {
         logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda, sda ? "stop" : "start");
+                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda,
+                sda ? "stop" : "start");
         if (!sda) {
-            eeprom.tick = 1;
-            eeprom.command = 0;
+            eeprom->tick = 1;
+            eeprom->command = 0;
         }
-    } else if (eeprom.tick == 0 && !eeprom.ack) {
+    } else if (eeprom->tick == 0 && !eeprom->ack) {
         /* Waiting for start. */
         logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
-    } else if (!eeprom.scl && scl) {
+                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda);
+    } else if (!eeprom->scl && scl) {
         logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
-                eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
-        if (eeprom.ack) {
+                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda);
+        if (eeprom->ack) {
             logout("\ti2c ack bit = 0\n");
             sda = 0;
-            eeprom.ack = 0;
-        } else if (eeprom.sda == sda) {
+            eeprom->ack = 0;
+        } else if (eeprom->sda == sda) {
             uint8_t bit = (sda != 0);
             logout("\ti2c bit = %d\n", bit);
-            if (eeprom.tick < 9) {
-                eeprom.command <<= 1;
-                eeprom.command += bit;
-                eeprom.tick++;
-                if (eeprom.tick == 9) {
-                    logout("\tcommand 0x%04x, %s\n", eeprom.command, bit ? "read" : "write");
-                    eeprom.ack = 1;
+            if (eeprom->tick < 9) {
+                eeprom->command <<= 1;
+                eeprom->command += bit;
+                eeprom->tick++;
+                if (eeprom->tick == 9) {
+                    logout("\tcommand 0x%04x, %s\n", eeprom->command,
+                           bit ? "read" : "write");
+                    eeprom->ack = 1;
                 }
-            } else if (eeprom.tick < 17) {
-                if (eeprom.command & 1) {
-                    sda = ((eeprom.data & 0x80) != 0);
+            } else if (eeprom->tick < 17) {
+                if (eeprom->command & 1) {
+                    sda = ((eeprom->data & 0x80) != 0);
                 }
-                eeprom.address <<= 1;
-                eeprom.address += bit;
-                eeprom.tick++;
-                eeprom.data <<= 1;
-                if (eeprom.tick == 17) {
-                    eeprom.data = eeprom.contents[eeprom.address];
-                    logout("\taddress 0x%04x, data 0x%02x\n", eeprom.address, eeprom.data);
-                    eeprom.ack = 1;
-                    eeprom.tick = 0;
+                eeprom->address <<= 1;
+                eeprom->address += bit;
+                eeprom->tick++;
+                eeprom->data <<= 1;
+                if (eeprom->tick == 17) {
+                    eeprom->data = eeprom->contents[eeprom->address];
+                    logout("\taddress 0x%04x, data 0x%02x\n",
+                           eeprom->address, eeprom->data);
+                    eeprom->ack = 1;
+                    eeprom->tick = 0;
                 }
-            } else if (eeprom.tick >= 17) {
+            } else if (eeprom->tick >= 17) {
                 sda = 0;
             }
         } else {
             logout("\tsda changed with raising scl\n");
         }
     } else {
-        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom.tick, eeprom.scl, scl, eeprom.sda, sda);
+        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom->tick, eeprom->scl,
+               scl, eeprom->sda, sda);
     }
-    eeprom.scl = scl;
-    eeprom.sda = sda;
+    eeprom->scl = scl;
+    eeprom->sda = sda;
 }
 
 static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
@@ -290,7 +383,7 @@ static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
 
     /* I2CINP Register */
     case 0x00b00:
-        val = ((s->i2cin & ~1) | eeprom24c0x_read());
+        val = ((s->i2cin & ~1) | eeprom24c0x_read(&spd_eeprom));
         break;
 
     /* I2COE Register */
@@ -386,7 +479,7 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
 
     /* I2COUT Register */
     case 0x00b10:
-        eeprom24c0x_write(val & 0x02, val & 0x01);
+        eeprom24c0x_write(&spd_eeprom, val & 0x02, val & 0x01);
         s->i2cout = val;
         break;
 
@@ -699,7 +792,7 @@ static int64_t load_kernel (void)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
@@ -789,8 +882,10 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     pflash_t *fl;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *bios, *bios_alias = g_new(MemoryRegion, 1);
+    MemoryRegion *bios, *bios_copy = g_new(MemoryRegion, 1);
     target_long bios_size = FLASH_SIZE;
+    const size_t smbus_eeprom_size = 8 * 256;
+    uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
     int64_t kernel_entry;
     PCIBus *pci_bus;
     ISABus *isa_bus;
@@ -808,8 +903,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     int fl_sectors = bios_size >> 16;
     int be;
 
-    DeviceState *dev = qdev_create(NULL, "mips-malta");
-    MaltaState *s = DO_UPCAST(MaltaState, busdev.qdev, dev);
+    DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
+    MaltaState *s = MIPS_MALTA(dev);
 
     qdev_init_nofail(dev);
 
@@ -857,6 +952,10 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     memory_region_init_ram(ram, NULL, "mips_malta.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
+
+    /* generate SPD EEPROM data */
+    generate_eeprom_spd(&smbus_eeprom_buf[0 * 256], ram_size);
+    generate_eeprom_serial(&smbus_eeprom_buf[6 * 256]);
 
 #ifdef TARGET_WORDS_BIGENDIAN
     be = 1;
@@ -916,8 +1015,11 @@ void mips_malta_init(QEMUMachineInitArgs *args)
            a neat trick which allows bi-endian firmware. */
 #ifndef TARGET_WORDS_BIGENDIAN
         {
-            uint32_t *addr = memory_region_get_ram_ptr(bios);
-            uint32_t *end = addr + bios_size;
+            uint32_t *end, *addr = rom_ptr(FLASH_ADDRESS);
+            if (!addr) {
+                addr = memory_region_get_ram_ptr(bios);
+            }
+            end = (void *)addr + MIN(bios_size, 0x3e0000);
             while (addr < end) {
                 bswap32s(addr);
                 addr++;
@@ -926,14 +1028,23 @@ void mips_malta_init(QEMUMachineInitArgs *args)
 #endif
     }
 
-    /* Map the BIOS at a 2nd physical location, as on the real board. */
-    memory_region_init_alias(bios_alias, NULL, "bios.1fc", bios, 0, BIOS_SIZE);
-    memory_region_add_subregion(system_memory, RESET_ADDRESS, bios_alias);
+    /*
+     * Map the BIOS at a 2nd physical location, as on the real board.
+     * Copy it so that we can patch in the MIPS revision, which cannot be
+     * handled by an overlapping region as the resulting ROM code subpage
+     * regions are not executable.
+     */
+    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE);
+    if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
+                  FLASH_ADDRESS, BIOS_SIZE)) {
+        memcpy(memory_region_get_ram_ptr(bios_copy),
+               memory_region_get_ram_ptr(bios), BIOS_SIZE);
+    }
+    memory_region_set_readonly(bios_copy, true);
+    memory_region_add_subregion(system_memory, RESET_ADDRESS, bios_copy);
 
-    /* Board ID = 0x420 (Malta Board with CoreLV)
-       XXX: theoretically 0x1e000010 should map to flash and 0x1fc00010 should
-       map to the board ID. */
-    stl_p(memory_region_get_ram_ptr(bios) + 0x10, 0x00000420);
+    /* Board ID = 0x420 (Malta Board with CoreLV) */
+    stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
@@ -965,8 +1076,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     pci_create_simple(pci_bus, piix4_devfn + 2, "piix4-usb-uhci");
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100,
                           isa_get_irq(NULL, 9), NULL, 0, NULL);
-    /* TODO: Populate SPD eeprom data.  */
-    smbus_eeprom_init(smbus, 8, NULL, 0);
+    smbus_eeprom_init(smbus, 8, smbus_eeprom_buf, smbus_eeprom_size);
+    g_free(smbus_eeprom_buf);
     pit = pit_init(isa_bus, 0x40, 0, NULL);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
@@ -1004,7 +1115,7 @@ static void mips_malta_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mips_malta_device = {
-    .name          = "mips-malta",
+    .name          = TYPE_MIPS_MALTA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
     .class_init    = mips_malta_class_init,

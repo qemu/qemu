@@ -131,7 +131,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         int sector_num = (s->lba << 2) + (s->io_buffer_index >> 9);
         int nsector = io->len >> 9;
 
-        MACIO_DPRINTF("precopying unaligned %d bytes to %#lx\n",
+        MACIO_DPRINTF("precopying unaligned %d bytes to %#" HWADDR_PRIx "\n",
                       unaligned, io->addr + io->len - unaligned);
 
         bdrv_read(s->bs, sector_num + nsector, io->remainder, 1);
@@ -212,14 +212,15 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         s->nsector -= n;
     }
 
-    MACIO_DPRINTF("remainder: %d io->len: %d nsector: %d sector_num: %ld\n",
+    MACIO_DPRINTF("remainder: %d io->len: %d nsector: %d "
+                  "sector_num: %" PRId64 "\n",
                   io->remainder_len, io->len, s->nsector, sector_num);
     if (io->remainder_len && io->len) {
         /* guest wants the rest of its previous transfer */
         int remainder_len = MIN(io->remainder_len, io->len);
         uint8_t *p = &io->remainder[0x200 - remainder_len];
 
-        MACIO_DPRINTF("copying remainder %d bytes at %#lx\n",
+        MACIO_DPRINTF("copying remainder %d bytes at %#" HWADDR_PRIx "\n",
                       remainder_len, io->addr);
 
         switch (s->dma_cmd) {
@@ -261,7 +262,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     if (unaligned) {
         int nsector = io->len >> 9;
 
-        MACIO_DPRINTF("precopying unaligned %d bytes to %#lx\n",
+        MACIO_DPRINTF("precopying unaligned %d bytes to %#" HWADDR_PRIx "\n",
                       unaligned, io->addr + io->len - unaligned);
 
         switch (s->dma_cmd) {

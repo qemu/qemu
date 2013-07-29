@@ -1029,7 +1029,7 @@ static void abort_prepare(BlkTransactionState *common, Error **errp)
 
 static void abort_commit(BlkTransactionState *common)
 {
-    assert(false); /* this action never succeeds */
+    g_assert_not_reached(); /* this action never succeeds */
 }
 
 static const BdrvActionOps actions[] = {

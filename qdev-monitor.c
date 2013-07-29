@@ -360,7 +360,7 @@ static BusState *qbus_find(const char *path)
 
         /* find device */
         if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
-            assert(0);
+            g_assert_not_reached();
             elem[0] = len = 0;
         }
         pos += len;
@@ -397,7 +397,7 @@ static BusState *qbus_find(const char *path)
 
         /* find bus */
         if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
-            assert(0);
+            g_assert_not_reached();
             elem[0] = len = 0;
         }
         pos += len;

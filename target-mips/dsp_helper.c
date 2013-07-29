@@ -390,7 +390,7 @@ static inline int32_t mipsdsp_mul_q15_q15_overflowflag21(uint16_t a, uint16_t b,
         temp = 0x7FFFFFFF;
         set_DSPControl_overflow_flag(1, 21, env);
     } else {
-        temp = ((int32_t)(int16_t)a * (int32_t)(int16_t)b) << 1;
+        temp = ((int16_t)a * (int16_t)b) << 1;
     }
 
     return temp;
@@ -583,7 +583,7 @@ static inline int64_t mipsdsp_mul_q31_q31(int32_t ac, uint32_t a, uint32_t b,
         temp = (0x01ull << 63) - 1;
         set_DSPControl_overflow_flag(1, 16 + ac, env);
     } else {
-        temp = ((uint64_t)a * (uint64_t)b) << 1;
+        temp = ((int64_t)(int32_t)a * (int32_t)b) << 1;
     }
 
     return temp;
@@ -622,7 +622,7 @@ static inline int16_t mipsdsp_rndq15_mul_q15_q15(uint16_t a, uint16_t b,
         temp = 0x7FFF0000;
         set_DSPControl_overflow_flag(1, 21, env);
     } else {
-        temp = (a * b) << 1;
+        temp = ((int16_t)a * (int16_t)b) << 1;
         temp = temp + 0x00008000;
     }
 
@@ -648,16 +648,22 @@ static inline int32_t mipsdsp_sat16_mul_q15_q15(uint16_t a, uint16_t b,
 static inline uint16_t mipsdsp_trunc16_sat16_round(int32_t a,
                                                    CPUMIPSState *env)
 {
-    int64_t temp;
+    uint16_t temp;
 
-    temp = (int32_t)a + 0x00008000;
 
-    if (a > (int)0x7fff8000) {
-        temp = 0x7FFFFFFF;
+    /*
+     * The value 0x00008000 will be added to the input Q31 value, and the code
+     * needs to check if the addition causes an overflow. Since a positive value
+     * is added, overflow can happen in one direction only.
+     */
+    if (a > 0x7FFF7FFF) {
+        temp = 0x7FFF;
         set_DSPControl_overflow_flag(1, 22, env);
+    } else {
+        temp = ((a + 0x8000) >> 16) & 0xFFFF;
     }
 
-    return (temp >> 16) & 0xFFFF;
+    return temp;
 }
 
 static inline uint8_t mipsdsp_sat8_reduce_precision(uint16_t a,

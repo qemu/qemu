@@ -2,6 +2,9 @@
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */
 
+/* Kernels can be configured with 64KB pages */
+#define INITRD_PAGE_MASK (~((1 << 16) - 1))
+
 #include "exec/memory.h"
 
 /* gt64xxx.c */
