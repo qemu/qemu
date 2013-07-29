@@ -128,7 +128,6 @@ void watchdog_perform_action(void)
     case WDT_POWEROFF:          /* same as 'quit' command in monitor */
         watchdog_mon_event("poweroff");
         exit(0);
-        break;
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
         watchdog_mon_event("pause");

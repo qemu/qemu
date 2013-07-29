@@ -394,7 +394,7 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         break;
     }
     default:
-        g_assert(false);
+        g_assert_not_reached();
     }
 
     g_string_free(gstr_union, true);

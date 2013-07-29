@@ -168,7 +168,7 @@ typedef struct QEMU_PACKED VHDXLogEntryHeader {
                                            vhdx_header.  If not found in
                                            vhdx_header, it is invalid */
     uint64_t    flushed_file_offset;    /* see spec for full details - this
-                                           sould be vhdx file size in bytes */
+                                           should be vhdx file size in bytes */
     uint64_t    last_file_offset;       /* size in bytes that all allocated
                                            file structures fit into */
 } VHDXLogEntryHeader;

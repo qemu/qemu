@@ -199,7 +199,7 @@ Version #1 requires that all server implementations of the protocol must
 check this field and register all requests found in the array of commands located
 in the data portion and return an equal number of results in the response.
 The maximum number of repeats is hard-coded to 4096. This is a conservative
-limit based on the maximum size of a SEND message along with emperical
+limit based on the maximum size of a SEND message along with empirical
 observations on the maximum future benefit of simultaneous page registrations.
 
 The 'type' field has 12 different command values:

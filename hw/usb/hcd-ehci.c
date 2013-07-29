@@ -1357,7 +1357,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     default:
         /* should not be triggerable */
         fprintf(stderr, "USB invalid response %d\n", p->packet.status);
-        assert(0);
+        g_assert_not_reached();
         break;
     }
 
@@ -2142,7 +2142,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
         default:
             fprintf(stderr, "Bad state!\n");
             again = -1;
-            assert(0);
+            g_assert_not_reached();
             break;
         }
 
@@ -2206,7 +2206,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad asynchronous state %d. "
                 "Resetting to active\n", ehci->astate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -2256,7 +2256,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad periodic state %d. "
                 "Resetting to active\n", ehci->pstate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 

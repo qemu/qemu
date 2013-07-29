@@ -844,7 +844,8 @@ you can totally disable graphical output so that QEMU is a simple
 command line application. The emulated serial port is redirected on
 the console and muxed with the monitor (unless redirected elsewhere
 explicitly). Therefore, you can still use QEMU to debug a Linux kernel
-with a serial console.
+with a serial console.  Use @key{C-a h} for help on switching between
+the console and monitor.
 ETEXI
 
 DEF("curses", 0, QEMU_OPTION_curses,

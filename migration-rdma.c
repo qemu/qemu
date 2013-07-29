@@ -2494,7 +2494,7 @@ static int qemu_rdma_close(void *opaque)
  *    @size == 0 :
  *        A 'hint' or 'advice' that means that we wish to speculatively
  *        and asynchronously unregister this memory. In this case, there is no
- *        gaurantee that the unregister will actually happen, for example,
+ *        guarantee that the unregister will actually happen, for example,
  *        if the memory is being actively transmitted. Additionally, the memory
  *        may be re-registered at any future time if a write within the same
  *        chunk was requested again, even if you attempted to unregister it
@@ -2570,7 +2570,7 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
         qemu_rdma_signal_unregister(rdma, index, chunk, 0);
 
         /*
-         * TODO: Synchronous, gauranteed unregistration (should not occur during
+         * TODO: Synchronous, guaranteed unregistration (should not occur during
          * fast-path). Otherwise, unregisters will process on the next call to
          * qemu_rdma_drain_cq()
         if (size < 0) {
