@@ -415,6 +415,14 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
         return false;
     }
 
+    /* If dataplane is (re-)enabled while the guest is running there could be
+     * block jobs that can conflict.
+     */
+    if (bdrv_in_use(blk->conf.bs)) {
+        error_report("cannot start dataplane thread while device is in use");
+        return false;
+    }
+
     fd = raw_get_aio_fd(blk->conf.bs);
     if (fd < 0) {
         error_report("drive is incompatible with x-data-plane, "
