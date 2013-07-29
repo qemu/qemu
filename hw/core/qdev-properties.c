@@ -74,13 +74,14 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
     }
 }
 
-static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
+static int prop_print_bit(DeviceState *dev, Property *prop, char *dest,
+                          size_t len)
 {
     uint32_t *p = qdev_get_prop_ptr(dev, prop);
     return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
 }
 
-static void get_bit(Object *obj, Visitor *v, void *opaque,
+static void prop_get_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -91,7 +92,7 @@ static void get_bit(Object *obj, Visitor *v, void *opaque,
     visit_type_bool(v, &value, name, errp);
 }
 
-static void set_bit(Object *obj, Visitor *v, void *opaque,
+static void prop_set_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -115,9 +116,9 @@ static void set_bit(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_bit = {
     .name  = "boolean",
     .legacy_name  = "on/off",
-    .print = print_bit,
-    .get   = get_bit,
-    .set   = set_bit,
+    .print = prop_print_bit,
+    .get   = prop_get_bit,
+    .set   = prop_set_bit,
 };
 
 /* --- bool --- */

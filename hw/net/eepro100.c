@@ -47,6 +47,7 @@
 #include "hw/nvram/eeprom93xx.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
+#include "qemu/bitops.h"
 
 /* QEMU sends frames smaller than 60 bytes to ethernet nics.
  * Such frames are rejected by real nics and their emulations.
@@ -105,7 +106,6 @@
 #define PCI_IO_SIZE             64
 #define PCI_FLASH_SIZE          (128 * KiB)
 
-#define BIT(n) (1 << (n))
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
 /* The SCB accepts the following controls for the Tx and Rx units: */
