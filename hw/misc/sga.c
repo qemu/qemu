@@ -47,6 +47,7 @@ static void sga_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->realize = sga_realizefn;
     dc->desc = "Serial Graphics Adapter";
 }

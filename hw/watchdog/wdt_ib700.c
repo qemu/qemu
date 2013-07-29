@@ -137,6 +137,7 @@ static void wdt_ib700_class_init(ObjectClass *klass, void *data)
     dc->realize = wdt_ib700_realize;
     dc->reset = wdt_ib700_reset;
     dc->vmsd = &vmstate_ib700;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo wdt_ib700_info = {

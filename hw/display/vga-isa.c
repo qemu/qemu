@@ -87,6 +87,7 @@ static void vga_isa_class_initfn(ObjectClass *klass, void *data)
     dc->reset = vga_isa_reset;
     dc->vmsd = &vmstate_vga_common;
     dc->props = vga_isa_properties;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
 static const TypeInfo vga_isa_info = {

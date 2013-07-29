@@ -1197,6 +1197,7 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     dc->reset = pvscsi_reset;
     dc->vmsd = &vmstate_pvscsi;
     dc->props = pvscsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     k->config_write = pvscsi_write_config;
 }
 

@@ -281,6 +281,7 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_AC97;
     k->revision = 0x50;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "AC97";
 }
 
@@ -322,6 +323,7 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_MC97;
     k->class_id = PCI_CLASS_COMMUNICATION_OTHER;
     k->revision = 0x30;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MC97";
 }
 
@@ -401,6 +403,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->revision = 0x40;
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->props = via_pm_properties;
 }
 

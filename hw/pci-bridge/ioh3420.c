@@ -220,6 +220,7 @@ static void ioh3420_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_IOH_EPORT;
     k->revision = PCI_DEVICE_ID_IOH_REV;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Intel IOH device id 3420 PCIE Root Port";
     dc->reset = ioh3420_reset;
     dc->vmsd = &vmstate_ioh3420;

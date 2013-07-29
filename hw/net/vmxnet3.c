@@ -2453,6 +2453,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     dc->reset = vmxnet3_qdev_reset;
     dc->vmsd = &vmstate_vmxnet3;
     dc->props = vmxnet3_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo vmxnet3_info = {

@@ -2249,6 +2249,7 @@ static void isabus_fdc_class_init(ObjectClass *klass, void *data)
     dc->reset = fdctrl_external_reset_isa;
     dc->vmsd = &vmstate_isa_fdc;
     dc->props = isa_fdc_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo isa_fdc_info = {
@@ -2282,6 +2283,7 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
     dc->reset = fdctrl_external_reset_sysbus;
     dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sysbus_fdc_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sysbus_fdc_info = {
@@ -2305,6 +2307,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
     dc->reset = fdctrl_external_reset_sysbus;
     dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sun4m_fdc_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sun4m_fdc_info = {

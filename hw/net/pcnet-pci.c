@@ -366,6 +366,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     dc->reset = pci_reset;
     dc->vmsd = &vmstate_pci_pcnet;
     dc->props = pcnet_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo pcnet_info = {

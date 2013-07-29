@@ -481,6 +481,7 @@ static void pl110_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl110_init;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->no_user = 1;
     dc->vmsd = &vmstate_pl110;
 }
@@ -498,6 +499,7 @@ static void pl110_versatile_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl110_versatile_init;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->no_user = 1;
     dc->vmsd = &vmstate_pl110;
 }
@@ -515,6 +517,7 @@ static void pl111_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl111_init;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->no_user = 1;
     dc->vmsd = &vmstate_pl110;
 }

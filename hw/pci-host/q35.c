@@ -78,6 +78,7 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
     hc->root_bus_path = q35_host_root_bus_path;
     dc->realize = q35_host_realize;
     dc->props = mch_props;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
 }
 
@@ -306,6 +307,7 @@ static void mch_class_init(ObjectClass *klass, void *data)
     k->init = mch_init;
     k->config_write = mch_write_config;
     dc->reset = mch_reset;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Host bridge";
     dc->vmsd = &vmstate_mch;
     k->vendor_id = PCI_VENDOR_ID_INTEL;

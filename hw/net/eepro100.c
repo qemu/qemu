@@ -2083,6 +2083,7 @@ static void eepro100_class_init(ObjectClass *klass, void *data)
 
     info = eepro100_get_class_by_name(object_class_get_name(klass));
 
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->props = e100_properties;
     dc->desc = info->desc;
     k->vendor_id = PCI_VENDOR_ID_INTEL;

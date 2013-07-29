@@ -3299,6 +3299,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     dc->props = vfio_pci_dev_properties;
     dc->vmsd = &vfio_pci_vmstate;
     dc->desc = "VFIO-based PCI device assignment";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     pdc->init = vfio_initfn;
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;

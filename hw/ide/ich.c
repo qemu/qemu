@@ -160,6 +160,7 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_SATA;
     dc->vmsd = &vmstate_ich9_ahci;
     dc->reset = pci_ich9_reset;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo ich_ahci_info = {

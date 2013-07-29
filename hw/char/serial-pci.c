@@ -205,6 +205,7 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_serial;
     dc->props = serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
@@ -219,6 +220,7 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_2x_serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
@@ -233,6 +235,7 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
     dc->props = multi_4x_serial_pci_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo serial_pci_info = {

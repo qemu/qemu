@@ -553,6 +553,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_bt_handle_data;
     uc->handle_destroy = usb_bt_handle_destroy;
     dc->vmsd = &vmstate_usb_bt;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo bt_info = {

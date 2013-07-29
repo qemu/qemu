@@ -600,6 +600,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = ich9_lpc_reset;
     k->init = ich9_lpc_initfn;
     dc->vmsd = &vmstate_ich9_lpc;

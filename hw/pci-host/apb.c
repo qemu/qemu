@@ -536,6 +536,7 @@ static void pbm_host_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pci_pbm_init_device;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = pci_pbm_reset;
 }
 
@@ -558,6 +559,7 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
     k->revision = 0x11;
     k->config_write = pci_bridge_write_config;
     k->is_bridge = 1;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = pci_bridge_reset;
     dc->vmsd = &vmstate_pci_device;
 }

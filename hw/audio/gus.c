@@ -315,6 +315,7 @@ static void gus_class_initfn (ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS (klass);
 
     dc->realize = gus_realizefn;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Gravis Ultrasound GF1";
     dc->vmsd = &vmstate_gus;
     dc->props = gus_properties;

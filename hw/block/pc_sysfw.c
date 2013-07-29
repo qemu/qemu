@@ -286,6 +286,7 @@ static void pcsysfw_class_init (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "PC System Firmware";
     dc->init = pcsysfw_init;
     dc->props = pcsysfw_properties;

@@ -207,6 +207,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     dc->exit = virtio_rng_device_exit;
     dc->props = virtio_rng_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     vdc->init = virtio_rng_device_init;
     vdc->get_features = get_features;
 }

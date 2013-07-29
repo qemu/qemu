@@ -2213,6 +2213,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     dc->props = megasas_properties;
     dc->reset = megasas_scsi_reset;
     dc->vmsd = &vmstate_megasas;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "LSI MegaRAID SAS 1078";
 }
 

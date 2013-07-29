@@ -658,6 +658,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
     dc->props = usb_tablet_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo usb_tablet_info = {
@@ -677,6 +678,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Mouse";
     uc->usb_desc       = &desc_mouse;
     dc->vmsd = &vmstate_usb_ptr;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo usb_mouse_info = {
@@ -696,6 +698,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Keyboard";
     uc->usb_desc       = &desc_keyboard;
     dc->vmsd = &vmstate_usb_kbd;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo usb_keyboard_info = {

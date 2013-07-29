@@ -392,6 +392,7 @@ static void passthru_class_initfn(ObjectClass *klass, void *data)
     cc->exitfn = passthru_exitfn;
     cc->get_atr = passthru_get_atr;
     cc->apdu_from_guest = passthru_apdu_from_guest;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "passthrough smartcard";
     dc->vmsd = &passthru_vmstate;
     dc->props = passthru_card_properties;

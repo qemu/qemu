@@ -118,6 +118,7 @@ static void isa_ide_class_initfn(ObjectClass *klass, void *data)
     dc->fw_name = "ide";
     dc->reset = isa_ide_reset;
     dc->props = isa_ide_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo isa_ide_info = {

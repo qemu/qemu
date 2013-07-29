@@ -1638,6 +1638,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     dc->exit = virtio_net_device_exit;
     dc->props = virtio_net_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->init = virtio_net_device_init;
     vdc->get_config = virtio_net_get_config;
     vdc->set_config = virtio_net_set_config;

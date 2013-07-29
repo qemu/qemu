@@ -161,6 +161,7 @@ static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130U;
     k->revision = XIO3130_REVISION;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "TI X3130 Upstream Port of PCI Express Switch";
     dc->reset = xio3130_upstream_reset;
     dc->vmsd = &vmstate_xio3130_upstream;

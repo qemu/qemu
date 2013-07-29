@@ -592,6 +592,7 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     cc->exitfn = emulated_exitfn;
     cc->get_atr = emulated_get_atr;
     cc->apdu_from_guest = emulated_apdu_from_guest;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "emulated smartcard";
     dc->props = emulated_card_properties;
 }

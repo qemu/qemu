@@ -821,6 +821,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_MEMORY_RAM;
     dc->reset = ivshmem_reset;
     dc->props = ivshmem_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo ivshmem_info = {

@@ -2362,6 +2362,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->ep_stopped     = usbredir_ep_stopped;
     dc->vmsd           = &usbredir_vmstate;
     dc->props          = usbredir_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo usbredir_dev_info = {

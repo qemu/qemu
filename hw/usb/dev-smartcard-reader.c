@@ -1449,6 +1449,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "CCID Rev 1.1 smartcard reader";
     dc->vmsd = &ccid_vmstate;
     dc->props = ccid_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo ccid_info = {

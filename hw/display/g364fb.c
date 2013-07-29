@@ -528,6 +528,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = g364fb_sysbus_init;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "G364 framebuffer";
     dc->reset = g364fb_sysbus_reset;
     dc->vmsd = &vmstate_g364fb;
