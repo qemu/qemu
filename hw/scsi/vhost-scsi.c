@@ -240,10 +240,10 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     migrate_add_blocker(s->migration_blocker);
 }
 
-static void vhost_scsi_exit(VirtIODevice *vdev)
+static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
 {
-    VHostSCSI *s = VHOST_SCSI(vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VHostSCSI *s = VHOST_SCSI(dev);
 
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);
@@ -252,7 +252,8 @@ static void vhost_scsi_exit(VirtIODevice *vdev)
     vhost_scsi_set_status(vdev, 0);
 
     g_free(s->dev.vqs);
-    virtio_scsi_common_exit(vs);
+
+    virtio_scsi_common_unrealize(dev, errp);
 }
 
 static Property vhost_scsi_properties[] = {
@@ -268,7 +269,7 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
     dc->props = vhost_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vhost_scsi_realize;
-    vdc->exit = vhost_scsi_exit;
+    vdc->unrealize = vhost_scsi_unrealize;
     vdc->get_features = vhost_scsi_get_features;
     vdc->set_config = vhost_scsi_set_config;
     vdc->set_status = vhost_scsi_set_status;

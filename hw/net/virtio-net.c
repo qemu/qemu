@@ -1567,15 +1567,16 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     add_boot_device_path(n->nic_conf.bootindex, dev, "/ethernet-phy@0");
 }
 
-static void virtio_net_device_exit(VirtIODevice *vdev)
+static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIONet *n = VIRTIO_NET(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIONet *n = VIRTIO_NET(dev);
     int i;
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
 
-    unregister_savevm(DEVICE(vdev), "virtio-net", n);
+    unregister_savevm(dev, "virtio-net", n);
 
     if (n->netclient_name) {
         g_free(n->netclient_name);
@@ -1636,7 +1637,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_net_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->realize = virtio_net_device_realize;
-    vdc->exit = virtio_net_device_exit;
+    vdc->unrealize = virtio_net_device_unrealize;
     vdc->get_config = virtio_net_get_config;
     vdc->set_config = virtio_net_set_config;
     vdc->get_features = virtio_net_get_features;

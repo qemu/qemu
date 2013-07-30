@@ -187,13 +187,14 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
                     virtio_rng_load, vrng);
 }
 
-static void virtio_rng_device_exit(VirtIODevice *vdev)
+static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIORNG *vrng = VIRTIO_RNG(dev);
 
     timer_del(vrng->rate_limit_timer);
     timer_free(vrng->rate_limit_timer);
-    unregister_savevm(DEVICE(vdev), "virtio-rng", vrng);
+    unregister_savevm(dev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
 }
 
@@ -210,7 +211,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_rng_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     vdc->realize = virtio_rng_device_realize;
-    vdc->exit = virtio_rng_device_exit;
+    vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
 }
 

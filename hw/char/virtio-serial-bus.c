@@ -988,11 +988,12 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_init = virtio_serial_port_class_init,
 };
 
-static void virtio_serial_device_exit(VirtIODevice *vdev)
+static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
 
-    unregister_savevm(DEVICE(vdev), "virtio-console", vser);
+    unregister_savevm(dev, "virtio-console", vser);
 
     g_free(vser->ivqs);
     g_free(vser->ovqs);
@@ -1019,7 +1020,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_serial_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     vdc->realize = virtio_serial_device_realize;
-    vdc->exit = virtio_serial_device_exit;
+    vdc->unrealize = virtio_serial_device_unrealize;
     vdc->get_features = get_features;
     vdc->get_config = get_config;
     vdc->set_config = set_config;
