@@ -1156,16 +1156,10 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
-    assert(vdc->init != NULL || vdc->realize != NULL);
     if (vdc->realize != NULL) {
         vdc->realize(dev, &err);
         if (err != NULL) {
             error_propagate(errp, err);
-            return;
-        }
-    } else {
-        if (vdc->init(vdev) < 0) {
-            error_setg(errp, "Device initialization failed.");
             return;
         }
     }
