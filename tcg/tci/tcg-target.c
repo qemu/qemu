@@ -34,9 +34,6 @@
         tcg_abort(); \
     } while (0)
 
-/* Single bit n. */
-#define BIT(n) (1 << (n))
-
 /* Bitfield n...m (in 32 bit value). */
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
