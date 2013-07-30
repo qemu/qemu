@@ -186,7 +186,7 @@ typedef struct {
     DEFINE_PROP_BIT("param_change", _state, _feature_field,                    \
                                             VIRTIO_SCSI_F_CHANGE, true)
 
-int virtio_scsi_common_init(VirtIOSCSICommon *vs);
+void virtio_scsi_common_realize(DeviceState *dev, Error **errp);
 void virtio_scsi_common_exit(VirtIOSCSICommon *vs);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */

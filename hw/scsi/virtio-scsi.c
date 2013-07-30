@@ -589,9 +589,10 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
-int virtio_scsi_common_init(VirtIOSCSICommon *s)
+void virtio_scsi_common_realize(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);
     int i;
 
     virtio_init(vdev, "virtio-scsi", VIRTIO_ID_SCSI,
@@ -609,22 +610,19 @@ int virtio_scsi_common_init(VirtIOSCSICommon *s)
         s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
                                          virtio_scsi_handle_cmd);
     }
-
-    return 0;
 }
 
-static int virtio_scsi_device_init(VirtIODevice *vdev)
+static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
     static int virtio_scsi_id;
     Error *err = NULL;
-    int ret;
 
-    ret = virtio_scsi_common_init(vs);
-    if (ret < 0) {
-        return ret;
+    virtio_scsi_common_realize(dev, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
     }
 
     scsi_bus_new(&s->bus, sizeof(s->bus), dev,
@@ -633,20 +631,19 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     if (!dev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
-            error_free(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
     }
 
     register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
                     virtio_scsi_save, virtio_scsi_load, s);
-
-    return 0;
 }
 
 void virtio_scsi_common_exit(VirtIOSCSICommon *vs)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(vs);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
 
     g_free(vs->cmd_vqs);
     virtio_cleanup(vdev);
@@ -679,9 +676,10 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
     dc->props = virtio_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->init = virtio_scsi_device_init;
+    vdc->realize = virtio_scsi_device_realize;
     vdc->exit = virtio_scsi_device_exit;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
