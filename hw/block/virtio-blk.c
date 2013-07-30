@@ -683,8 +683,8 @@ static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
 
 static int virtio_blk_device_init(VirtIODevice *vdev)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    DeviceState *dev = DEVICE(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *blk = &(s->blk);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     Error *err = NULL;
@@ -728,14 +728,14 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
 #endif
 
     s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
-    register_savevm(qdev, "virtio-blk", virtio_blk_id++, 2,
+    register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
     bdrv_set_buffer_alignment(s->bs, s->conf->logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
 
-    add_boot_device_path(s->conf->bootindex, qdev, "/disk@0,0");
+    add_boot_device_path(s->conf->bootindex, dev, "/disk@0,0");
     return 0;
 }
 
