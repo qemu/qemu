@@ -891,8 +891,9 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
 
 static int virtio_serial_device_init(VirtIODevice *vdev)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    DeviceState *dev = DEVICE(vdev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
+    BusState *bus;
     uint32_t i, max_supported_ports;
 
     if (!vser->serial.max_virtserial_ports) {
@@ -912,8 +913,9 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
-                        qdev, vdev->bus_name);
-    vser->bus.qbus.allow_hotplug = 1;
+                        dev, vdev->bus_name);
+    bus = BUS(&vser->bus);
+    bus->allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
 
@@ -961,7 +963,7 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
-    register_savevm(qdev, "virtio-console", -1, 3, virtio_serial_save,
+    register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
 
     return 0;
