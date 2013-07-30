@@ -270,6 +270,14 @@ Physical memory map
 #define AVALANCHE_PHY2_BASE             0x1e200000      /* ??? */
 #define AVALANCHE_DISPLAY_BASE          0x1f000000      /* ??? */
 
+#define TYPE_AR7_STATE "ar7"
+#define TYPE_CPMAC_STATE "ar7-cpmac"
+
+#define AR7_STATE(obj) \
+     OBJECT_CHECK(AR7State, (obj), TYPE_AR7_STATE)
+#define CPMAC_STATE(obj) \
+     OBJECT_CHECK(CpmacState, (obj), TYPE_CPMAC_STATE)
+
 typedef struct {
     uint32_t next;
     uint32_t buff;
@@ -1566,7 +1574,7 @@ static void emac_update_interrupt(CpmacState *s)
 
 static void cpmac_reset(DeviceState *d)
 {
-    CpmacState *cpmac = DO_UPCAST(CpmacState, busdev.qdev, d);
+    CpmacState *cpmac = CPMAC_STATE(d);
     uint8_t *address = cpmac->addr;
     logout("%s:%u\n", __FILE__, __LINE__);
     memset(address, 0, sizeof(av.cpmac0));
@@ -3475,7 +3483,7 @@ static ssize_t ar7_nic_receive(NetClientState *ncs,
 
 static void ar7_nic_set_link_status(NetClientState *ncs)
 {
-    //~ CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    //~ CpmacState *s = qemu_get_nic_opaque(ncs);
     logout("%s:%u\n", __FILE__, __LINE__);
     MISSING();
 
@@ -3526,8 +3534,8 @@ static void ar7_nic_init(void)
             TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
             qemu_check_nic_model(nd, "ar7");
             if (n < 2) {
-                DeviceState *dev = qdev_create(NULL, "ar7-cpmac");
-                CpmacState *s = FROM_SYSBUS(CpmacState, SYS_BUS_DEVICE(dev));
+                DeviceState *dev = qdev_create(NULL, TYPE_CPMAC_STATE);
+                CpmacState *s = CPMAC_STATE(dev);
                 qdev_set_nic_properties(dev, nd);
                 qdev_init_nofail(dev);
                 sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
@@ -3610,7 +3618,7 @@ static void ar7_display_init(CPUMIPSState *env)
 static void ar7_reset(DeviceState *d)
 {
     /* TODO: fix code. */
-    //~ AR7State *s = container_of(d, AR7State, busdev.qdev);
+    //~ AR7State *s = AR7_STATE(d);
     //~ CPUMIPSState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
@@ -3857,12 +3865,12 @@ static void ar7_common_init(QEMUMachineInitArgs *args,
 
     qemu_register_reset(main_cpu_reset, env);
 
-    dev = qdev_create(NULL, "ar7");
+    dev = qdev_create(NULL, TYPE_AR7_STATE);
     //~ qdev_prop_set_uint32(dev, "memsz", args->ram_size / MiB);
     qdev_prop_set_uint8(dev, "phy addr", 31);
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
-    ar7 = s = container_of(dev, AR7State, busdev.qdev);
+    ar7 = s = AR7_STATE(dev);
 
 #if defined(CONFIG_VLYNQ) // TODO
     vlynq_bus0 = vlynq_create_bus(dev, "vlynq0");
@@ -3972,7 +3980,7 @@ static void ar7_common_init(QEMUMachineInitArgs *args,
 static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)
 {
     /* TODO */
-    //~ AR7State *s = FROM_SYSBUS(AR7State, sysbusdev);
+    //~ AR7State *s = AR7_STATE(sysbusdev);
     return 0;
 }
 
@@ -4206,15 +4214,16 @@ static const TypeInfo ar7_info = {
     .class_init = ar7_class_init,
 };
 
-static int cpmac_init(SysBusDevice *dev)
+static int cpmac_init(SysBusDevice *sbd)
 {
-    CpmacState *s = FROM_SYSBUS(CpmacState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    CpmacState *s = CPMAC_STATE(dev);
 
     logout("%s:%u\n", __FILE__, __LINE__);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->nic = qemu_new_nic(&ar7_net_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     return 0;
 }
 

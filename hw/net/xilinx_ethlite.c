@@ -47,9 +47,14 @@
 #define CTRL_P     0x2
 #define CTRL_S     0x1
 
+#define TYPE_XILINX_ETHLITE "xlnx.xps-ethernetlite"
+#define XILINX_ETHLITE(obj) \
+    OBJECT_CHECK(struct xlx_ethlite, (obj), TYPE_XILINX_ETHLITE)
+
 struct xlx_ethlite
 {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     qemu_irq irq;
     NICState *nic;
@@ -214,20 +219,21 @@ static NetClientInfo net_xilinx_ethlite_info = {
     .cleanup = eth_cleanup,
 };
 
-static int xilinx_ethlite_init(SysBusDevice *dev)
+static int xilinx_ethlite_init(SysBusDevice *sbd)
 {
-    struct xlx_ethlite *s = FROM_SYSBUS(typeof (*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    struct xlx_ethlite *s = XILINX_ETHLITE(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     s->rxbuf = 0;
 
     memory_region_init_io(&s->mmio, OBJECT(s), &eth_ops, s,
                           "xlnx.xps-ethernetlite", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     return 0;
 }
@@ -249,7 +255,7 @@ static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_ethlite_info = {
-    .name          = "xlnx.xps-ethernetlite",
+    .name          = TYPE_XILINX_ETHLITE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_ethlite),
     .class_init    = xilinx_ethlite_class_init,

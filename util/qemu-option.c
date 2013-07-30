@@ -173,8 +173,8 @@ static void parse_option_number(const char *name, const char *value,
     }
 }
 
-static void parse_option_size(const char *name, const char *value,
-                              uint64_t *ret, Error **errp)
+void parse_option_size(const char *name, const char *value,
+                       uint64_t *ret, Error **errp)
 {
     char *postfix;
     double sizef;

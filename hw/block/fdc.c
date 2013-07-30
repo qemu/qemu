@@ -544,7 +544,7 @@ struct FDCtrl {
     uint8_t timer1;
 };
 
-#define TYPE_SYSBUS_FDC "sysbus-fdc"
+#define TYPE_SYSBUS_FDC "base-sysbus-fdc"
 #define SYSBUS_FDC(obj) OBJECT_CHECK(FDCtrlSysBus, (obj), TYPE_SYSBUS_FDC)
 
 typedef struct FDCtrlSysBus {
@@ -2055,7 +2055,7 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     SysBusDevice *sbd;
     FDCtrlSysBus *sys;
 
-    dev = qdev_create(NULL, TYPE_SYSBUS_FDC);
+    dev = qdev_create(NULL, "sysbus-fdc");
     sys = SYSBUS_FDC(dev);
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
@@ -2153,60 +2153,49 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
 
 static void sysbus_fdc_initfn(Object *obj)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
 
-    memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_ops, fdctrl,
-                          "fdc", 0x08);
-}
-
-static void sysbus_fdc_realize(DeviceState *dev, Error **errp)
-{
-    FDCtrlSysBus *sys = SYSBUS_FDC(dev);
-    FDCtrl *fdctrl = &sys->state;
-    SysBusDevice *b = SYS_BUS_DEVICE(dev);
-    Error *err = NULL;
-
-    sysbus_init_mmio(b, &fdctrl->iomem);
-    sysbus_init_irq(b, &fdctrl->irq);
-    qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
     fdctrl->dma_chann = -1;
 
-    qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
-    fdctrl_realize_common(fdctrl, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
-        return;
-    }
+    memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_ops, fdctrl,
+                          "fdc", 0x08);
+    sysbus_init_mmio(sbd, &fdctrl->iomem);
 }
 
 static void sun4m_fdc_initfn(Object *obj)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
 
+    fdctrl->sun4m = 1;
+
     memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);
+    sysbus_init_mmio(sbd, &fdctrl->iomem);
 }
 
-static void sun4m_fdc_realize(DeviceState *dev, Error **errp)
+static void sysbus_fdc_common_initfn(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    FDCtrlSysBus *sys = SYSBUS_FDC(obj);
+    FDCtrl *fdctrl = &sys->state;
+
+    qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
+
+    sysbus_init_irq(sbd, &fdctrl->irq);
+    qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
+}
+
+static void sysbus_fdc_common_realize(DeviceState *dev, Error **errp)
 {
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    Error *err = NULL;
 
-    sysbus_init_mmio(sbd, &fdctrl->iomem);
-    sysbus_init_irq(sbd, &fdctrl->irq);
-    qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
-
-    fdctrl->sun4m = 1;
-    qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
-    fdctrl_realize_common(fdctrl, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
-        return;
-    }
+    fdctrl_realize_common(fdctrl, errp);
 }
 
 FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
@@ -2279,17 +2268,13 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = sysbus_fdc_realize;
-    dc->reset = fdctrl_external_reset_sysbus;
-    dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sysbus_fdc_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sysbus_fdc_info = {
-    .name          = TYPE_SYSBUS_FDC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FDCtrlSysBus),
+    .name          = "sysbus-fdc",
+    .parent        = TYPE_SYSBUS_FDC,
     .instance_init = sysbus_fdc_initfn,
     .class_init    = sysbus_fdc_class_init,
 };
@@ -2303,24 +2288,39 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = sun4m_fdc_realize;
-    dc->reset = fdctrl_external_reset_sysbus;
-    dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sun4m_fdc_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sun4m_fdc_info = {
     .name          = "SUNW,fdtwo",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FDCtrlSysBus),
+    .parent        = TYPE_SYSBUS_FDC,
     .instance_init = sun4m_fdc_initfn,
     .class_init    = sun4m_fdc_class_init,
+};
+
+static void sysbus_fdc_common_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = sysbus_fdc_common_realize;
+    dc->reset = fdctrl_external_reset_sysbus;
+    dc->vmsd = &vmstate_sysbus_fdc;
+}
+
+static const TypeInfo sysbus_fdc_type_info = {
+    .name          = TYPE_SYSBUS_FDC,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(FDCtrlSysBus),
+    .instance_init = sysbus_fdc_common_initfn,
+    .abstract      = true,
+    .class_init    = sysbus_fdc_common_class_init,
 };
 
 static void fdc_register_types(void)
 {
     type_register_static(&isa_fdc_info);
+    type_register_static(&sysbus_fdc_type_info);
     type_register_static(&sysbus_fdc_info);
     type_register_static(&sun4m_fdc_info);
 }

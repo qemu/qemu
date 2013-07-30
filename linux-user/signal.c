@@ -1546,7 +1546,7 @@ restore_sigcontext(CPUARMState *env, struct target_sigcontext *sc)
 static long do_sigreturn_v1(CPUARMState *env)
 {
         abi_ulong frame_addr;
-	struct sigframe_v1 *frame;
+        struct sigframe_v1 *frame = NULL;
 	target_sigset_t set;
         sigset_t host_set;
         int i;
@@ -1556,10 +1556,11 @@ static long do_sigreturn_v1(CPUARMState *env)
 	 * then 'sp' should be word aligned here.  If it's
 	 * not, then the user is trying to mess with us.
 	 */
-	if (env->regs[13] & 7)
-		goto badframe;
-
         frame_addr = env->regs[13];
+        if (frame_addr & 7) {
+            goto badframe;
+        }
+
 	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
                 goto badframe;
 
@@ -1687,17 +1688,18 @@ static int do_sigframe_return_v2(CPUARMState *env, target_ulong frame_addr,
 static long do_sigreturn_v2(CPUARMState *env)
 {
         abi_ulong frame_addr;
-	struct sigframe_v2 *frame;
+        struct sigframe_v2 *frame = NULL;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
 	 * not, then the user is trying to mess with us.
 	 */
-	if (env->regs[13] & 7)
-		goto badframe;
-
         frame_addr = env->regs[13];
+        if (frame_addr & 7) {
+            goto badframe;
+        }
+
 	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
                 goto badframe;
 
@@ -1725,7 +1727,7 @@ long do_sigreturn(CPUARMState *env)
 static long do_rt_sigreturn_v1(CPUARMState *env)
 {
         abi_ulong frame_addr;
-	struct rt_sigframe_v1 *frame;
+        struct rt_sigframe_v1 *frame = NULL;
         sigset_t host_set;
 
 	/*
@@ -1733,10 +1735,11 @@ static long do_rt_sigreturn_v1(CPUARMState *env)
 	 * then 'sp' should be word aligned here.  If it's
 	 * not, then the user is trying to mess with us.
 	 */
-	if (env->regs[13] & 7)
-		goto badframe;
-
         frame_addr = env->regs[13];
+        if (frame_addr & 7) {
+            goto badframe;
+        }
+
 	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
                 goto badframe;
 
@@ -1766,17 +1769,18 @@ badframe:
 static long do_rt_sigreturn_v2(CPUARMState *env)
 {
         abi_ulong frame_addr;
-	struct rt_sigframe_v2 *frame;
+        struct rt_sigframe_v2 *frame = NULL;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
 	 * not, then the user is trying to mess with us.
 	 */
-	if (env->regs[13] & 7)
-		goto badframe;
-
         frame_addr = env->regs[13];
+        if (frame_addr & 7) {
+            goto badframe;
+        }
+
 	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
                 goto badframe;
 
@@ -4597,7 +4601,7 @@ long do_sigreturn(CPUPPCState *env)
 {
     struct target_sigcontext *sc = NULL;
     struct target_mcontext *sr = NULL;
-    target_ulong sr_addr, sc_addr;
+    target_ulong sr_addr = 0, sc_addr;
     sigset_t blocked;
     target_sigset_t set;
 

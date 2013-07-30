@@ -26,8 +26,12 @@
 #include "trace.h"
 #include "hw/lm32/lm32_pic.h"
 
+#define TYPE_LM32_PIC "lm32-pic"
+#define LM32_PIC(obj) OBJECT_CHECK(LM32PicState, (obj), TYPE_LM32_PIC)
+
 struct LM32PicState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     qemu_irq parent_irq;
     uint32_t im;        /* interrupt mask */
     uint32_t ip;        /* interrupt pending */
@@ -99,7 +103,7 @@ static void irq_handler(void *opaque, int irq, int level)
 
 void lm32_pic_set_im(DeviceState *d, uint32_t im)
 {
-    LM32PicState *s = container_of(d, LM32PicState, busdev.qdev);
+    LM32PicState *s = LM32_PIC(d);
 
     trace_lm32_pic_set_im(im);
     s->im = im;
@@ -109,7 +113,7 @@ void lm32_pic_set_im(DeviceState *d, uint32_t im)
 
 void lm32_pic_set_ip(DeviceState *d, uint32_t ip)
 {
-    LM32PicState *s = container_of(d, LM32PicState, busdev.qdev);
+    LM32PicState *s = LM32_PIC(d);
 
     trace_lm32_pic_set_ip(ip);
 
@@ -121,7 +125,7 @@ void lm32_pic_set_ip(DeviceState *d, uint32_t ip)
 
 uint32_t lm32_pic_get_im(DeviceState *d)
 {
-    LM32PicState *s = container_of(d, LM32PicState, busdev.qdev);
+    LM32PicState *s = LM32_PIC(d);
 
     trace_lm32_pic_get_im(s->im);
     return s->im;
@@ -129,7 +133,7 @@ uint32_t lm32_pic_get_im(DeviceState *d)
 
 uint32_t lm32_pic_get_ip(DeviceState *d)
 {
-    LM32PicState *s = container_of(d, LM32PicState, busdev.qdev);
+    LM32PicState *s = LM32_PIC(d);
 
     trace_lm32_pic_get_ip(s->ip);
     return s->ip;
@@ -137,7 +141,7 @@ uint32_t lm32_pic_get_ip(DeviceState *d)
 
 static void pic_reset(DeviceState *d)
 {
-    LM32PicState *s = container_of(d, LM32PicState, busdev.qdev);
+    LM32PicState *s = LM32_PIC(d);
     int i;
 
     s->im = 0;
@@ -148,12 +152,13 @@ static void pic_reset(DeviceState *d)
     }
 }
 
-static int lm32_pic_init(SysBusDevice *dev)
+static int lm32_pic_init(SysBusDevice *sbd)
 {
-    LM32PicState *s = FROM_SYSBUS(typeof(*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    LM32PicState *s = LM32_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
-    sysbus_init_irq(dev, &s->parent_irq);
+    qdev_init_gpio_in(dev, irq_handler, 32);
+    sysbus_init_irq(sbd, &s->parent_irq);
 
     pic = s;
 
@@ -185,7 +190,7 @@ static void lm32_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lm32_pic_info = {
-    .name          = "lm32-pic",
+    .name          = TYPE_LM32_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32PicState),
     .class_init    = lm32_pic_class_init,

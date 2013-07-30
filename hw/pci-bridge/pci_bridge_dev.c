@@ -27,8 +27,15 @@
 #include "exec/memory.h"
 #include "hw/pci/pci_bus.h"
 
+#define TYPE_PCI_BRIDGE_DEV "pci-bridge"
+#define PCI_BRIDGE_DEV(obj) \
+    OBJECT_CHECK(PCIBridgeDev, (obj), TYPE_PCI_BRIDGE_DEV)
+
 struct PCIBridgeDev {
-    PCIBridge bridge;
+    /*< private >*/
+    PCIBridge parent_obj;
+    /*< public >*/
+
     MemoryRegion bar;
     uint8_t chassis_nr;
 #define PCI_BRIDGE_DEV_F_MSI_REQ 0
@@ -38,8 +45,8 @@ typedef struct PCIBridgeDev PCIBridgeDev;
 
 static int pci_bridge_dev_initfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
-    PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
+    PCIBridge *br = PCI_BRIDGE(dev);
+    PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     int err;
 
     err = pci_bridge_initfn(dev, TYPE_PCI_BUS);
@@ -81,8 +88,7 @@ bridge_error:
 
 static void pci_bridge_dev_exitfn(PCIDevice *dev)
 {
-    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
-    PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
+    PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     if (msi_present(dev)) {
         msi_uninit(dev);
     }
@@ -104,7 +110,7 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
 
 static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
 {
-    PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *dev = PCI_DEVICE(qdev);
 
     pci_bridge_reset(qdev);
     shpc_reset(dev);
@@ -120,8 +126,8 @@ static Property pci_bridge_dev_properties[] = {
 static const VMStateDescription pci_bridge_dev_vmstate = {
     .name = "pci_bridge",
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(bridge.dev, PCIBridgeDev),
-        SHPC_VMSTATE(bridge.dev.shpc, PCIBridgeDev),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+        SHPC_VMSTATE(shpc, PCIDevice),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -145,8 +151,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pci_bridge_dev_info = {
-    .name = "pci-bridge",
-    .parent        = TYPE_PCI_DEVICE,
+    .name          = TYPE_PCI_BRIDGE_DEV,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridgeDev),
     .class_init = pci_bridge_dev_class_init,
 };

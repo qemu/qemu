@@ -83,8 +83,12 @@ typedef struct M48t59ISAState {
     MemoryRegion io;
 } M48t59ISAState;
 
+#define SYSBUS_M48T59(obj) \
+    OBJECT_CHECK(M48t59SysBusState, (obj), TYPE_SYSBUS_M48T59)
+
 typedef struct M48t59SysBusState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     M48t59State state;
     MemoryRegion io;
 } M48t59SysBusState;
@@ -621,7 +625,7 @@ static void m48t59_reset_isa(DeviceState *d)
 
 static void m48t59_reset_sysbus(DeviceState *d)
 {
-    M48t59SysBusState *sys = container_of(d, M48t59SysBusState, busdev.qdev);
+    M48t59SysBusState *sys = SYSBUS_M48T59(d);
     M48t59State *NVRAM = &sys->state;
 
     m48t59_reset_common(NVRAM);
@@ -646,13 +650,13 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     M48t59SysBusState *d;
     M48t59State *state;
 
-    dev = qdev_create(NULL, "m48t59");
+    dev = qdev_create(NULL, TYPE_SYSBUS_M48T59);
     qdev_prop_set_uint32(dev, "model", model);
     qdev_prop_set_uint32(dev, "size", size);
     qdev_prop_set_uint32(dev, "io_base", io_base);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    d = FROM_SYSBUS(M48t59SysBusState, s);
+    d = SYSBUS_M48T59(dev);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);
     memory_region_init_io(&d->io, OBJECT(d), &m48t59_io_ops, state,
@@ -716,7 +720,7 @@ static void m48t59_isa_realize(DeviceState *dev, Error **errp)
 
 static int m48t59_init1(SysBusDevice *dev)
 {
-    M48t59SysBusState *d = FROM_SYSBUS(M48t59SysBusState, dev);
+    M48t59SysBusState *d = SYSBUS_M48T59(dev);
     M48t59State *s = &d->state;
     Error *err = NULL;
 
@@ -776,7 +780,7 @@ static void m48t59_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo m48t59_info = {
-    .name          = "m48t59",
+    .name          = TYPE_SYSBUS_M48T59,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(M48t59SysBusState),
     .class_init    = m48t59_class_init,

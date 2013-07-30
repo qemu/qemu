@@ -126,8 +126,12 @@
 #define IOMMU_PAGE_SIZE     (1 << IOMMU_PAGE_SHIFT)
 #define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
 
+#define TYPE_SUN4M_IOMMU "iommu"
+#define SUN4M_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4M_IOMMU)
+
 typedef struct IOMMUState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     uint32_t regs[IOMMU_NREGS];
     hwaddr iostart;
@@ -332,7 +336,7 @@ static const VMStateDescription vmstate_iommu = {
 
 static void iommu_reset(DeviceState *d)
 {
-    IOMMUState *s = container_of(d, IOMMUState, busdev.qdev);
+    IOMMUState *s = SUN4M_IOMMU(d);
 
     memset(s->regs, 0, IOMMU_NREGS * 4);
     s->iostart = 0;
@@ -345,7 +349,7 @@ static void iommu_reset(DeviceState *d)
 
 static int iommu_init1(SysBusDevice *dev)
 {
-    IOMMUState *s = FROM_SYSBUS(IOMMUState, dev);
+    IOMMUState *s = SUN4M_IOMMU(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -373,7 +377,7 @@ static void iommu_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo iommu_info = {
-    .name          = "iommu",
+    .name          = TYPE_SUN4M_IOMMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IOMMUState),
     .class_init    = iommu_class_init,

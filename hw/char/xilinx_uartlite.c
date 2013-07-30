@@ -46,9 +46,13 @@
 #define CONTROL_RST_RX    0x02
 #define CONTROL_IE        0x10
 
-struct xlx_uartlite
-{
-    SysBusDevice busdev;
+#define TYPE_XILINX_UARTLITE "xlnx.xps-uartlite"
+#define XILINX_UARTLITE(obj) \
+    OBJECT_CHECK(XilinxUARTLite, (obj), TYPE_XILINX_UARTLITE)
+
+typedef struct XilinxUARTLite {
+    SysBusDevice parent_obj;
+
     MemoryRegion mmio;
     CharDriverState *chr;
     qemu_irq irq;
@@ -58,9 +62,9 @@ struct xlx_uartlite
     unsigned int rx_fifo_len;
 
     uint32_t regs[R_MAX];
-};
+} XilinxUARTLite;
 
-static void uart_update_irq(struct xlx_uartlite *s)
+static void uart_update_irq(XilinxUARTLite *s)
 {
     unsigned int irq;
 
@@ -71,7 +75,7 @@ static void uart_update_irq(struct xlx_uartlite *s)
     qemu_set_irq(s->irq, irq);
 }
 
-static void uart_update_status(struct xlx_uartlite *s)
+static void uart_update_status(XilinxUARTLite *s)
 {
     uint32_t r;
 
@@ -86,7 +90,7 @@ static void uart_update_status(struct xlx_uartlite *s)
 static uint64_t
 uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct xlx_uartlite *s = opaque;
+    XilinxUARTLite *s = opaque;
     uint32_t r = 0;
     addr >>= 2;
     switch (addr)
@@ -113,7 +117,7 @@ static void
 uart_write(void *opaque, hwaddr addr,
            uint64_t val64, unsigned int size)
 {
-    struct xlx_uartlite *s = opaque;
+    XilinxUARTLite *s = opaque;
     uint32_t value = val64;
     unsigned char ch = value;
 
@@ -164,7 +168,7 @@ static const MemoryRegionOps uart_ops = {
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
 {
-    struct xlx_uartlite *s = opaque;
+    XilinxUARTLite *s = opaque;
 
     /* Got a byte.  */
     if (s->rx_fifo_len >= 8) {
@@ -182,7 +186,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
 
 static int uart_can_rx(void *opaque)
 {
-    struct xlx_uartlite *s = opaque;
+    XilinxUARTLite *s = opaque;
 
     return s->rx_fifo_len < sizeof(s->rx_fifo);
 }
@@ -194,7 +198,7 @@ static void uart_event(void *opaque, int event)
 
 static int xilinx_uartlite_init(SysBusDevice *dev)
 {
-    struct xlx_uartlite *s = FROM_SYSBUS(typeof (*s), dev);
+    XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -217,9 +221,9 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_uartlite_info = {
-    .name          = "xlnx.xps-uartlite",
+    .name          = TYPE_XILINX_UARTLITE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof (struct xlx_uartlite),
+    .instance_size = sizeof(XilinxUARTLite),
     .class_init    = xilinx_uartlite_class_init,
 };
 

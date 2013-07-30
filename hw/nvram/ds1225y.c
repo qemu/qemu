@@ -26,7 +26,6 @@
 #include "trace.h"
 
 typedef struct {
-    DeviceState qdev;
     MemoryRegion iomem;
     uint32_t chip_size;
     char *filename;
@@ -105,14 +104,19 @@ static const VMStateDescription vmstate_nvram = {
     }
 };
 
+#define TYPE_DS1225Y "ds1225y"
+#define DS1225Y(obj) OBJECT_CHECK(SysBusNvRamState, (obj), TYPE_DS1225Y)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     NvRamState nvram;
 } SysBusNvRamState;
 
 static int nvram_sysbus_initfn(SysBusDevice *dev)
 {
-    NvRamState *s = &FROM_SYSBUS(SysBusNvRamState, dev)->nvram;
+    SysBusNvRamState *sys = DS1225Y(dev);
+    NvRamState *s = &sys->nvram;
     FILE *file;
 
     s->contents = g_malloc0(s->chip_size);
@@ -152,7 +156,7 @@ static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo nvram_sysbus_info = {
-    .name          = "ds1225y",
+    .name          = TYPE_DS1225Y,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusNvRamState),
     .class_init    = nvram_sysbus_class_init,

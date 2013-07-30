@@ -23,8 +23,15 @@
 
 /* A15MP private memory region.  */
 
+#define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
+#define A15MPCORE_PRIV(obj) \
+    OBJECT_CHECK(A15MPPrivState, (obj), TYPE_A15MPCORE_PRIV)
+
 typedef struct A15MPPrivState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     uint32_t num_cpu;
     uint32_t num_irq;
     MemoryRegion container;
@@ -39,7 +46,7 @@ static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 
 static int a15mp_priv_init(SysBusDevice *dev)
 {
-    A15MPPrivState *s = FROM_SYSBUS(A15MPPrivState, dev);
+    A15MPPrivState *s = A15MPCORE_PRIV(dev);
     SysBusDevice *busdev;
     const char *gictype = "arm_gic";
 
@@ -58,7 +65,7 @@ static int a15mp_priv_init(SysBusDevice *dev)
     sysbus_pass_irq(dev, busdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, a15mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(DEVICE(dev), a15mp_priv_set_irq, s->num_irq - 32);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x0fff -- reserved
@@ -101,7 +108,7 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo a15mp_priv_info = {
-    .name  = "a15mpcore_priv",
+    .name  = TYPE_A15MPCORE_PRIV,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(A15MPPrivState),
     .class_init = a15mp_priv_class_init,

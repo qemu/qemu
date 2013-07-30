@@ -4,7 +4,7 @@
 #include "qemu/host-utils.h"
 
 #include "hw/lm32/lm32_pic.h"
-#include "hw/lm32/lm32_juart.h"
+#include "hw/char/lm32_juart.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #define MMUSUFFIX _mmu

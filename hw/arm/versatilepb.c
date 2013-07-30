@@ -25,15 +25,19 @@
 
 /* Primary interrupt controller.  */
 
-typedef struct vpb_sic_state
-{
-  SysBusDevice busdev;
-  MemoryRegion iomem;
-  uint32_t level;
-  uint32_t mask;
-  uint32_t pic_enable;
-  qemu_irq parent[32];
-  int irq;
+#define TYPE_VERSATILE_PB_SIC "versatilepb_sic"
+#define VERSATILE_PB_SIC(obj) \
+    OBJECT_CHECK(vpb_sic_state, (obj), TYPE_VERSATILE_PB_SIC)
+
+typedef struct vpb_sic_state {
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+    uint32_t level;
+    uint32_t mask;
+    uint32_t pic_enable;
+    qemu_irq parent[32];
+    int irq;
 } vpb_sic_state;
 
 static const VMStateDescription vmstate_vpb_sic = {
@@ -144,19 +148,20 @@ static const MemoryRegionOps vpb_sic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int vpb_sic_init(SysBusDevice *dev)
+static int vpb_sic_init(SysBusDevice *sbd)
 {
-    vpb_sic_state *s = FROM_SYSBUS(vpb_sic_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    vpb_sic_state *s = VERSATILE_PB_SIC(dev);
     int i;
 
-    qdev_init_gpio_in(&dev->qdev, vpb_sic_set_irq, 32);
+    qdev_init_gpio_in(dev, vpb_sic_set_irq, 32);
     for (i = 0; i < 32; i++) {
-        sysbus_init_irq(dev, &s->parent[i]);
+        sysbus_init_irq(sbd, &s->parent[i]);
     }
     s->irq = 31;
     memory_region_init_io(&s->iomem, OBJECT(s), &vpb_sic_ops, s,
                           "vpb-sic", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -213,7 +218,7 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     for (n = 0; n < 32; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
-    dev = sysbus_create_simple("versatilepb_sic", 0x10003000, NULL);
+    dev = sysbus_create_simple(TYPE_VERSATILE_PB_SIC, 0x10003000, NULL);
     for (n = 0; n < 32; n++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), n, pic[n]);
         sic[n] = qdev_get_gpio_in(dev, n);
@@ -393,7 +398,7 @@ static void vpb_sic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo vpb_sic_info = {
-    .name          = "versatilepb_sic",
+    .name          = TYPE_VERSATILE_PB_SIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(vpb_sic_state),
     .class_init    = vpb_sic_class_init,

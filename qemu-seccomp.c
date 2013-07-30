@@ -30,6 +30,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(sendto), 250 },
     { SCMP_SYS(socketcall), 250 },
     { SCMP_SYS(read), 249 },
+    { SCMP_SYS(io_submit), 249 },
     { SCMP_SYS(brk), 248 },
     { SCMP_SYS(clone), 247 },
     { SCMP_SYS(mmap), 247 },
@@ -214,8 +215,10 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(recvmmsg), 241 },
     { SCMP_SYS(prlimit64), 241 },
     { SCMP_SYS(waitid), 241 },
+    { SCMP_SYS(io_cancel), 241 },
     { SCMP_SYS(io_setup), 241 },
-    { SCMP_SYS(io_destroy), 241 }
+    { SCMP_SYS(io_destroy), 241 },
+    { SCMP_SYS(arch_prctl), 240 }
 };
 
 int seccomp_start(void)

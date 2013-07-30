@@ -9,8 +9,13 @@
 
 #include "hw/sysbus.h"
 
+#define TYPE_REALVIEW_GIC "realview_gic"
+#define REALVIEW_GIC(obj) \
+    OBJECT_CHECK(RealViewGICState, (obj), TYPE_REALVIEW_GIC)
+
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     DeviceState *gic;
     MemoryRegion container;
 } RealViewGICState;
@@ -21,9 +26,10 @@ static void realview_gic_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
-static int realview_gic_init(SysBusDevice *dev)
+static int realview_gic_init(SysBusDevice *sbd)
 {
-    RealViewGICState *s = FROM_SYSBUS(RealViewGICState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    RealViewGICState *s = REALVIEW_GIC(dev);
     SysBusDevice *busdev;
     /* The GICs on the RealView boards have a fixed nonconfigurable
      * number of interrupt lines, so we don't need to expose this as
@@ -38,10 +44,10 @@ static int realview_gic_init(SysBusDevice *dev)
     busdev = SYS_BUS_DEVICE(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, busdev);
+    sysbus_pass_irq(sbd, busdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, realview_gic_set_irq, numirq - 32);
+    qdev_init_gpio_in(dev, realview_gic_set_irq, numirq - 32);
 
     memory_region_init(&s->container, OBJECT(s),
                        "realview-gic-container", 0x2000);
@@ -49,7 +55,7 @@ static int realview_gic_init(SysBusDevice *dev)
                                 sysbus_mmio_get_region(busdev, 1));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(busdev, 0));
-    sysbus_init_mmio(dev, &s->container);
+    sysbus_init_mmio(sbd, &s->container);
     return 0;
 }
 
@@ -61,7 +67,7 @@ static void realview_gic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo realview_gic_info = {
-    .name          = "realview_gic",
+    .name          = TYPE_REALVIEW_GIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RealViewGICState),
     .class_init    = realview_gic_class_init,

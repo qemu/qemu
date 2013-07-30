@@ -114,15 +114,21 @@ static const MemoryRegionOps bitband_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+#define TYPE_BITBAND "ARM,bitband-memory"
+#define BITBAND(obj) OBJECT_CHECK(BitBandState, (obj), TYPE_BITBAND)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t base;
 } BitBandState;
 
 static int bitband_init(SysBusDevice *dev)
 {
-    BitBandState *s = FROM_SYSBUS(BitBandState, dev);
+    BitBandState *s = BITBAND(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bitband_ops, &s->base,
                           "bitband", 0x02000000);
@@ -134,12 +140,12 @@ static void armv7m_bitband_init(void)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "ARM,bitband-memory");
+    dev = qdev_create(NULL, TYPE_BITBAND);
     qdev_prop_set_uint32(dev, "base", 0x20000000);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x22000000);
 
-    dev = qdev_create(NULL, "ARM,bitband-memory");
+    dev = qdev_create(NULL, TYPE_BITBAND);
     qdev_prop_set_uint32(dev, "base", 0x40000000);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x42000000);
@@ -270,7 +276,7 @@ static void bitband_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo bitband_info = {
-    .name          = "ARM,bitband-memory",
+    .name          = TYPE_BITBAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BitBandState),
     .class_init    = bitband_class_init,

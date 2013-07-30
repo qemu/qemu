@@ -50,6 +50,10 @@
 #define COUNTER_RELOAD_OFFSET 0x04
 #define TIMER_BASE            0x10
 
+#define TYPE_GRLIB_GPTIMER "grlib,gptimer"
+#define GRLIB_GPTIMER(obj) \
+    OBJECT_CHECK(GPTimerUnit, (obj), TYPE_GRLIB_GPTIMER)
+
 typedef struct GPTimer     GPTimer;
 typedef struct GPTimerUnit GPTimerUnit;
 
@@ -68,7 +72,8 @@ struct GPTimer {
 };
 
 struct GPTimerUnit {
-    SysBusDevice  busdev;
+    SysBusDevice  parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t nr_timers;         /* Number of timers available */
@@ -314,7 +319,7 @@ static const MemoryRegionOps grlib_gptimer_ops = {
 
 static void grlib_gptimer_reset(DeviceState *d)
 {
-    GPTimerUnit *unit = container_of(d, GPTimerUnit, busdev.qdev);
+    GPTimerUnit *unit = GRLIB_GPTIMER(d);
     int          i    = 0;
 
     assert(unit != NULL);
@@ -343,7 +348,7 @@ static void grlib_gptimer_reset(DeviceState *d)
 
 static int grlib_gptimer_init(SysBusDevice *dev)
 {
-    GPTimerUnit  *unit = FROM_SYSBUS(typeof(*unit), dev);
+    GPTimerUnit  *unit = GRLIB_GPTIMER(dev);
     unsigned int  i;
 
     assert(unit->nr_timers > 0);
@@ -391,7 +396,7 @@ static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo grlib_gptimer_info = {
-    .name          = "grlib,gptimer",
+    .name          = TYPE_GRLIB_GPTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPTimerUnit),
     .class_init    = grlib_gptimer_class_init,

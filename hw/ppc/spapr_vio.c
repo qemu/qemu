@@ -39,10 +39,10 @@
 /* #define DEBUG_SPAPR */
 
 #ifdef DEBUG_SPAPR
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -201,7 +201,7 @@ static target_ulong h_reg_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     dev->crq.qsize = queue_len;
     dev->crq.qnext = 0;
 
-    dprintf("CRQ for dev 0x" TARGET_FMT_lx " registered at 0x"
+    DPRINTF("CRQ for dev 0x" TARGET_FMT_lx " registered at 0x"
             TARGET_FMT_lx "/0x" TARGET_FMT_lx "\n",
             reg, queue_addr, queue_len);
     return H_SUCCESS;
@@ -213,7 +213,7 @@ static target_ulong free_crq(VIOsPAPRDevice *dev)
     dev->crq.qsize = 0;
     dev->crq.qnext = 0;
 
-    dprintf("CRQ for dev 0x%" PRIx32 " freed\n", dev->reg);
+    DPRINTF("CRQ for dev 0x%" PRIx32 " freed\n", dev->reg);
 
     return H_SUCCESS;
 }

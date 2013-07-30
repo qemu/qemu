@@ -397,7 +397,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 
     pci_update_mappings(s);
     if (pc->is_bridge) {
-        PCIBridge *b = container_of(s, PCIBridge, dev);
+        PCIBridge *b = PCI_BRIDGE(s);
         pci_bridge_update_mappings(b);
     }
 

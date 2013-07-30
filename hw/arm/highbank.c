@@ -116,8 +116,15 @@ static const MemoryRegionOps hb_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+#define TYPE_HIGHBANK_REGISTERS "highbank-regs"
+#define HIGHBANK_REGISTERS(obj) \
+    OBJECT_CHECK(HighbankRegsState, (obj), TYPE_HIGHBANK_REGISTERS)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion *iomem;
     uint32_t regs[NUM_REGS];
 } HighbankRegsState;
@@ -135,8 +142,7 @@ static VMStateDescription vmstate_highbank_regs = {
 
 static void highbank_regs_reset(DeviceState *dev)
 {
-    SysBusDevice *sys_dev = SYS_BUS_DEVICE(dev);
-    HighbankRegsState *s = FROM_SYSBUS(HighbankRegsState, sys_dev);
+    HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
 
     s->regs[0x40] = 0x05F20121;
     s->regs[0x41] = 0x2;
@@ -146,7 +152,7 @@ static void highbank_regs_reset(DeviceState *dev)
 
 static int highbank_regs_init(SysBusDevice *dev)
 {
-    HighbankRegsState *s = FROM_SYSBUS(HighbankRegsState, dev);
+    HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
 
     s->iomem = g_new(MemoryRegion, 1);
     memory_region_init_io(s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
@@ -168,7 +174,7 @@ static void highbank_regs_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo highbank_regs_info = {
-    .name          = "highbank-regs",
+    .name          = TYPE_HIGHBANK_REGISTERS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HighbankRegsState),
     .class_init    = highbank_regs_class_init,

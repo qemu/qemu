@@ -96,8 +96,11 @@ typedef struct ChannelState {
     uint8_t rx, tx;
 } ChannelState;
 
+#define ESCC(obj) OBJECT_CHECK(ESCCState, (obj), TYPE_ESCC)
+
 typedef struct ESCCState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     struct ChannelState chn[2];
     uint32_t it_shift;
     MemoryRegion mmio;
@@ -309,7 +312,7 @@ static void escc_reset_chn(ChannelState *s)
 
 static void escc_reset(DeviceState *d)
 {
-    ESCCState *s = container_of(d, ESCCState, busdev.qdev);
+    ESCCState *s = ESCC(d);
 
     escc_reset_chn(&s->chn[0]);
     escc_reset_chn(&s->chn[1]);
@@ -534,7 +537,7 @@ static void escc_mem_write(void *opaque, hwaddr addr,
                 escc_reset_chn(&serial->chn[1]);
                 return;
             case MINTR_RST_ALL:
-                escc_reset(&serial->busdev.qdev);
+                escc_reset(DEVICE(serial));
                 return;
             }
             break;
@@ -691,7 +694,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
     SysBusDevice *s;
     ESCCState *d;
 
-    dev = qdev_create(NULL, "escc");
+    dev = qdev_create(NULL, TYPE_ESCC);
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", clock);
     qdev_prop_set_uint32(dev, "it_shift", it_shift);
@@ -707,7 +710,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
         sysbus_mmio_map(s, 0, base);
     }
 
-    d = FROM_SYSBUS(ESCCState, s);
+    d = ESCC(s);
     return &d->mmio;
 }
 
@@ -852,7 +855,7 @@ void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "escc");
+    dev = qdev_create(NULL, TYPE_ESCC);
     qdev_prop_set_uint32(dev, "disabled", disabled);
     qdev_prop_set_uint32(dev, "frequency", clock);
     qdev_prop_set_uint32(dev, "it_shift", it_shift);
@@ -869,7 +872,7 @@ void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
 
 static int escc_init1(SysBusDevice *dev)
 {
-    ESCCState *s = FROM_SYSBUS(ESCCState, dev);
+    ESCCState *s = ESCC(dev);
     unsigned int i;
 
     s->chn[0].disabled = s->disabled;
@@ -924,7 +927,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo escc_info = {
-    .name          = "escc",
+    .name          = TYPE_ESCC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ESCCState),
     .class_init    = escc_class_init,

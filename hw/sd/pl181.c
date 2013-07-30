@@ -22,8 +22,12 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 
 #define PL181_FIFO_LEN 16
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_PL181 "pl181"
+#define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
+
+typedef struct PL181State {
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     SDState *card;
     uint32_t clock;
@@ -50,29 +54,29 @@ typedef struct {
     qemu_irq irq[2];
     /* GPIO outputs for 'card is readonly' and 'card inserted' */
     qemu_irq cardstatus[2];
-} pl181_state;
+} PL181State;
 
 static const VMStateDescription vmstate_pl181 = {
     .name = "pl181",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(clock, pl181_state),
-        VMSTATE_UINT32(power, pl181_state),
-        VMSTATE_UINT32(cmdarg, pl181_state),
-        VMSTATE_UINT32(cmd, pl181_state),
-        VMSTATE_UINT32(datatimer, pl181_state),
-        VMSTATE_UINT32(datalength, pl181_state),
-        VMSTATE_UINT32(respcmd, pl181_state),
-        VMSTATE_UINT32_ARRAY(response, pl181_state, 4),
-        VMSTATE_UINT32(datactrl, pl181_state),
-        VMSTATE_UINT32(datacnt, pl181_state),
-        VMSTATE_UINT32(status, pl181_state),
-        VMSTATE_UINT32_ARRAY(mask, pl181_state, 2),
-        VMSTATE_INT32(fifo_pos, pl181_state),
-        VMSTATE_INT32(fifo_len, pl181_state),
-        VMSTATE_INT32(linux_hack, pl181_state),
-        VMSTATE_UINT32_ARRAY(fifo, pl181_state, PL181_FIFO_LEN),
+        VMSTATE_UINT32(clock, PL181State),
+        VMSTATE_UINT32(power, PL181State),
+        VMSTATE_UINT32(cmdarg, PL181State),
+        VMSTATE_UINT32(cmd, PL181State),
+        VMSTATE_UINT32(datatimer, PL181State),
+        VMSTATE_UINT32(datalength, PL181State),
+        VMSTATE_UINT32(respcmd, PL181State),
+        VMSTATE_UINT32_ARRAY(response, PL181State, 4),
+        VMSTATE_UINT32(datactrl, PL181State),
+        VMSTATE_UINT32(datacnt, PL181State),
+        VMSTATE_UINT32(status, PL181State),
+        VMSTATE_UINT32_ARRAY(mask, PL181State, 2),
+        VMSTATE_INT32(fifo_pos, PL181State),
+        VMSTATE_INT32(fifo_len, PL181State),
+        VMSTATE_INT32(linux_hack, PL181State),
+        VMSTATE_UINT32_ARRAY(fifo, PL181State, PL181_FIFO_LEN),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -125,7 +129,7 @@ static const VMStateDescription vmstate_pl181 = {
 static const unsigned char pl181_id[] =
 { 0x81, 0x11, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 
-static void pl181_update(pl181_state *s)
+static void pl181_update(PL181State *s)
 {
     int i;
     for (i = 0; i < 2; i++) {
@@ -133,7 +137,7 @@ static void pl181_update(pl181_state *s)
     }
 }
 
-static void pl181_fifo_push(pl181_state *s, uint32_t value)
+static void pl181_fifo_push(PL181State *s, uint32_t value)
 {
     int n;
 
@@ -147,7 +151,7 @@ static void pl181_fifo_push(pl181_state *s, uint32_t value)
     DPRINTF("FIFO push %08x\n", (int)value);
 }
 
-static uint32_t pl181_fifo_pop(pl181_state *s)
+static uint32_t pl181_fifo_pop(PL181State *s)
 {
     uint32_t value;
 
@@ -162,7 +166,7 @@ static uint32_t pl181_fifo_pop(pl181_state *s)
     return value;
 }
 
-static void pl181_send_command(pl181_state *s)
+static void pl181_send_command(PL181State *s)
 {
     SDRequest request;
     uint8_t response[16];
@@ -207,7 +211,7 @@ error:
    the FIFO holding 32-bit words and the card taking data in single byte
    chunks.  FIFO bytes are transferred in little-endian order.  */
 
-static void pl181_fifo_run(pl181_state *s)
+static void pl181_fifo_run(PL181State *s)
 {
     uint32_t bits;
     uint32_t value = 0;
@@ -288,7 +292,7 @@ static void pl181_fifo_run(pl181_state *s)
 static uint64_t pl181_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    pl181_state *s = (pl181_state *)opaque;
+    PL181State *s = (PL181State *)opaque;
     uint32_t tmp;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -372,7 +376,7 @@ static uint64_t pl181_read(void *opaque, hwaddr offset,
 static void pl181_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    pl181_state *s = (pl181_state *)opaque;
+    PL181State *s = (PL181State *)opaque;
 
     switch (offset) {
     case 0x00: /* Power */
@@ -449,7 +453,7 @@ static const MemoryRegionOps pl181_ops = {
 
 static void pl181_reset(DeviceState *d)
 {
-    pl181_state *s = DO_UPCAST(pl181_state, busdev.qdev, d);
+    PL181State *s = PL181(d);
 
     s->power = 0;
     s->cmdarg = 0;
@@ -474,16 +478,17 @@ static void pl181_reset(DeviceState *d)
     sd_set_cb(s->card, s->cardstatus[0], s->cardstatus[1]);
 }
 
-static int pl181_init(SysBusDevice *dev)
+static int pl181_init(SysBusDevice *sbd)
 {
-    pl181_state *s = FROM_SYSBUS(pl181_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    PL181State *s = PL181(dev);
     DriveInfo *dinfo;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl181_ops, s, "pl181", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq[0]);
-    sysbus_init_irq(dev, &s->irq[1]);
-    qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq[0]);
+    sysbus_init_irq(sbd, &s->irq[1]);
+    qdev_init_gpio_out(dev, s->cardstatus, 2);
     dinfo = drive_get_next(IF_SD);
     s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
     return 0;
@@ -501,9 +506,9 @@ static void pl181_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pl181_info = {
-    .name          = "pl181",
+    .name          = TYPE_PL181,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(pl181_state),
+    .instance_size = sizeof(PL181State),
     .class_init    = pl181_class_init,
 };
 

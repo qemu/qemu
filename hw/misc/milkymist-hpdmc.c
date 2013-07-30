@@ -40,8 +40,13 @@ enum {
     IODELAY_PLL2_LOCKED  = (1<<7),
 };
 
+#define TYPE_MILKYMIST_HPDMC "milkymist-hpdmc"
+#define MILKYMIST_HPDMC(obj) \
+    OBJECT_CHECK(MilkymistHpdmcState, (obj), TYPE_MILKYMIST_HPDMC)
+
 struct MilkymistHpdmcState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion regs_region;
 
     uint32_t regs[R_MAX];
@@ -111,7 +116,7 @@ static const MemoryRegionOps hpdmc_mmio_ops = {
 
 static void milkymist_hpdmc_reset(DeviceState *d)
 {
-    MilkymistHpdmcState *s = container_of(d, MilkymistHpdmcState, busdev.qdev);
+    MilkymistHpdmcState *s = MILKYMIST_HPDMC(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -125,7 +130,7 @@ static void milkymist_hpdmc_reset(DeviceState *d)
 
 static int milkymist_hpdmc_init(SysBusDevice *dev)
 {
-    MilkymistHpdmcState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistHpdmcState *s = MILKYMIST_HPDMC(dev);
 
     memory_region_init_io(&s->regs_region, OBJECT(dev), &hpdmc_mmio_ops, s,
             "milkymist-hpdmc", R_MAX * 4);
@@ -156,7 +161,7 @@ static void milkymist_hpdmc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_hpdmc_info = {
-    .name          = "milkymist-hpdmc",
+    .name          = TYPE_MILKYMIST_HPDMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistHpdmcState),
     .class_init    = milkymist_hpdmc_class_init,

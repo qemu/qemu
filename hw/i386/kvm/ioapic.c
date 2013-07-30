@@ -112,7 +112,7 @@ static void kvm_ioapic_put(IOAPICCommonState *s)
 
 static void kvm_ioapic_reset(DeviceState *dev)
 {
-    IOAPICCommonState *s = DO_UPCAST(IOAPICCommonState, busdev.qdev, dev);
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
     ioapic_reset_common(dev);
     kvm_ioapic_put(s);
@@ -131,7 +131,7 @@ static void kvm_ioapic_init(IOAPICCommonState *s, int instance_no)
 {
     memory_region_init_reservation(&s->io_memory, NULL, "kvm-ioapic", 0x1000);
 
-    qdev_init_gpio_in(&s->busdev.qdev, kvm_ioapic_set_irq, IOAPIC_NUM_PINS);
+    qdev_init_gpio_in(DEVICE(s), kvm_ioapic_set_irq, IOAPIC_NUM_PINS);
 }
 
 static Property kvm_ioapic_properties[] = {

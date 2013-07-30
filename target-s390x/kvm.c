@@ -40,10 +40,10 @@
 /* #define DEBUG_KVM */
 
 #ifdef DEBUG_KVM
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -581,7 +581,7 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
     uint16_t ipbh0 = (run->s390_sieic.ipb & 0xffff0000) >> 16;
     uint8_t ipb = run->s390_sieic.ipb & 0xff;
 
-    dprintf("KVM: PRIV: %d\n", ipa1);
+    DPRINTF("KVM: PRIV: %d\n", ipa1);
     switch (ipa1) {
         case PRIV_SCLP_CALL:
             r = kvm_sclp_service_call(cpu, run, ipbh0);
@@ -594,7 +594,7 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
                     r = 0;
                 }
             } else {
-                dprintf("KVM: unknown PRIV: 0x%x\n", ipa1);
+                DPRINTF("KVM: unknown PRIV: 0x%x\n", ipa1);
                 r = -1;
             }
             break;
@@ -627,7 +627,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
             sleep(10);
             break;
         default:
-            dprintf("KVM: unknown DIAG: 0x%x\n", ipb_code);
+            DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
             r = -1;
             break;
     }
@@ -640,7 +640,7 @@ static int s390_cpu_restart(S390CPU *cpu)
     kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
     s390_add_running_cpu(cpu);
     qemu_cpu_kick(CPU(cpu));
-    dprintf("DONE: SIGP cpu restart: %p\n", &cpu->env);
+    DPRINTF("DONE: SIGP cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
@@ -668,7 +668,7 @@ static int s390_cpu_initial_reset(S390CPU *cpu)
         env->regs[i] = 0;
     }
 
-    dprintf("DONE: SIGP initial reset: %p\n", env);
+    DPRINTF("DONE: SIGP initial reset: %p\n", env);
     return 0;
 }
 
@@ -737,7 +737,8 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     int ipb_code = (run->s390_sieic.ipb & 0x0fff0000) >> 16;
     int r = -1;
 
-    dprintf("handle_instruction 0x%x 0x%x\n", run->s390_sieic.ipa, run->s390_sieic.ipb);
+    DPRINTF("handle_instruction 0x%x 0x%x\n",
+            run->s390_sieic.ipa, run->s390_sieic.ipb);
     switch (ipa0) {
     case IPA0_B2:
     case IPA0_B9:
@@ -771,7 +772,7 @@ static int handle_intercept(S390CPU *cpu)
     int icpt_code = run->s390_sieic.icptcode;
     int r = 0;
 
-    dprintf("intercept: 0x%x (at 0x%lx)\n", icpt_code,
+    DPRINTF("intercept: 0x%x (at 0x%lx)\n", icpt_code,
             (long)cs->kvm_run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:

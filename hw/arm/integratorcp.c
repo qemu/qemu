@@ -15,8 +15,15 @@
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 
-typedef struct {
-    SysBusDevice busdev;
+#define TYPE_INTEGRATOR_CM "integrator_core"
+#define INTEGRATOR_CM(obj) \
+    OBJECT_CHECK(IntegratorCMState, (obj), TYPE_INTEGRATOR_CM)
+
+typedef struct IntegratorCMState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t memsz;
     MemoryRegion flash;
@@ -31,7 +38,7 @@ typedef struct {
     uint32_t int_level;
     uint32_t irq_enabled;
     uint32_t fiq_enabled;
-} integratorcm_state;
+} IntegratorCMState;
 
 static uint8_t integrator_spd[128] = {
    128, 8, 4, 11, 9, 1, 64, 0,  2, 0xa0, 0xa0, 0, 0, 8, 0, 1,
@@ -41,7 +48,7 @@ static uint8_t integrator_spd[128] = {
 static uint64_t integratorcm_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    integratorcm_state *s = (integratorcm_state *)opaque;
+    IntegratorCMState *s = opaque;
     if (offset >= 0x100 && offset < 0x200) {
         /* CM_SPD */
         if (offset >= 0x180)
@@ -108,7 +115,7 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
     }
 }
 
-static void integratorcm_do_remap(integratorcm_state *s)
+static void integratorcm_do_remap(IntegratorCMState *s)
 {
     /* Sync memory region state with CM_CTRL REMAP bit:
      * bit 0 => flash at address 0; bit 1 => RAM
@@ -116,7 +123,7 @@ static void integratorcm_do_remap(integratorcm_state *s)
     memory_region_set_enabled(&s->flash, !(s->cm_ctrl & 4));
 }
 
-static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
+static void integratorcm_set_ctrl(IntegratorCMState *s, uint32_t value)
 {
     if (value & 8) {
         qemu_system_reset_request();
@@ -133,7 +140,7 @@ static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
     integratorcm_do_remap(s);
 }
 
-static void integratorcm_update(integratorcm_state *s)
+static void integratorcm_update(IntegratorCMState *s)
 {
     /* ??? The CPU irq/fiq is raised when either the core module or base PIC
        are active.  */
@@ -144,7 +151,7 @@ static void integratorcm_update(integratorcm_state *s)
 static void integratorcm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    integratorcm_state *s = (integratorcm_state *)opaque;
+    IntegratorCMState *s = opaque;
     switch (offset >> 2) {
     case 2: /* CM_OSC */
         if (s->cm_lock == 0xa05f)
@@ -226,7 +233,7 @@ static const MemoryRegionOps integratorcm_ops = {
 
 static int integratorcm_init(SysBusDevice *dev)
 {
-    integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
+    IntegratorCMState *s = INTEGRATOR_CM(dev);
 
     s->cm_osc = 0x01000048;
     /* ??? What should the high bits of this value be?  */
@@ -264,15 +271,21 @@ static int integratorcm_init(SysBusDevice *dev)
 /* Integrator/CP hardware emulation.  */
 /* Primary interrupt controller.  */
 
-typedef struct icp_pic_state
-{
-  SysBusDevice busdev;
-  MemoryRegion iomem;
-  uint32_t level;
-  uint32_t irq_enabled;
-  uint32_t fiq_enabled;
-  qemu_irq parent_irq;
-  qemu_irq parent_fiq;
+#define TYPE_INTEGRATOR_PIC "integrator_pic"
+#define INTEGRATOR_PIC(obj) \
+   OBJECT_CHECK(icp_pic_state, (obj), TYPE_INTEGRATOR_PIC)
+
+typedef struct icp_pic_state {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    MemoryRegion iomem;
+    uint32_t level;
+    uint32_t irq_enabled;
+    uint32_t fiq_enabled;
+    qemu_irq parent_irq;
+    qemu_irq parent_fiq;
 } icp_pic_state;
 
 static void icp_pic_update(icp_pic_state *s)
@@ -367,16 +380,17 @@ static const MemoryRegionOps icp_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int icp_pic_init(SysBusDevice *dev)
+static int icp_pic_init(SysBusDevice *sbd)
 {
-    icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    icp_pic_state *s = INTEGRATOR_PIC(dev);
 
-    qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
-    sysbus_init_irq(dev, &s->parent_irq);
-    sysbus_init_irq(dev, &s->parent_fiq);
+    qdev_init_gpio_in(dev, icp_pic_set_irq, 32);
+    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(sbd, &s->parent_fiq);
     memory_region_init_io(&s->iomem, OBJECT(s), &icp_pic_ops, s,
                           "icp-pic", 0x00800000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 
@@ -474,19 +488,19 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
-    dev = qdev_create(NULL, "integrator_core");
+    dev = qdev_create(NULL, TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
     cpu_pic = arm_pic_init_cpu(cpu);
-    dev = sysbus_create_varargs("integrator_pic", 0x14000000,
+    dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
                                 cpu_pic[ARM_PIC_CPU_IRQ],
                                 cpu_pic[ARM_PIC_CPU_FIQ], NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sysbus_create_simple("integrator_pic", 0xca000000, pic[26]);
+    sysbus_create_simple(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
     sysbus_create_varargs("integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
@@ -524,7 +538,7 @@ static void integratorcp_machine_init(void)
 machine_init(integratorcp_machine_init);
 
 static Property core_properties[] = {
-    DEFINE_PROP_UINT32("memsz", integratorcm_state, memsz, 0),
+    DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -538,9 +552,9 @@ static void core_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo core_info = {
-    .name          = "integrator_core",
+    .name          = TYPE_INTEGRATOR_CM,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(integratorcm_state),
+    .instance_size = sizeof(IntegratorCMState),
     .class_init    = core_class_init,
 };
 
@@ -552,7 +566,7 @@ static void icp_pic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo icp_pic_info = {
-    .name          = "integrator_pic",
+    .name          = TYPE_INTEGRATOR_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pic_state),
     .class_init    = icp_pic_class_init,

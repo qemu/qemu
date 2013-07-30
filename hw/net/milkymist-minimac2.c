@@ -90,8 +90,13 @@ struct MilkymistMinimac2MdioState {
 };
 typedef struct MilkymistMinimac2MdioState MilkymistMinimac2MdioState;
 
+#define TYPE_MILKYMIST_MINIMAC2 "milkymist-minimac2"
+#define MILKYMIST_MINIMAC2(obj) \
+    OBJECT_CHECK(MilkymistMinimac2State, (obj), TYPE_MILKYMIST_MINIMAC2)
+
 struct MilkymistMinimac2State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     NICState *nic;
     NICConf conf;
     char *phy_model;
@@ -429,8 +434,7 @@ static void minimac2_cleanup(NetClientState *nc)
 
 static void milkymist_minimac2_reset(DeviceState *d)
 {
-    MilkymistMinimac2State *s =
-            container_of(d, MilkymistMinimac2State, busdev.qdev);
+    MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(d);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -453,17 +457,18 @@ static NetClientInfo net_milkymist_minimac2_info = {
     .cleanup = minimac2_cleanup,
 };
 
-static int milkymist_minimac2_init(SysBusDevice *dev)
+static int milkymist_minimac2_init(SysBusDevice *sbd)
 {
-    MilkymistMinimac2State *s = FROM_SYSBUS(typeof(*s), dev);
+    DeviceState *dev = DEVICE(sbd);
+    MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(dev);
     size_t buffers_size = TARGET_PAGE_ALIGN(3 * MINIMAC2_BUFFER_SIZE);
 
-    sysbus_init_irq(dev, &s->rx_irq);
-    sysbus_init_irq(dev, &s->tx_irq);
+    sysbus_init_irq(sbd, &s->rx_irq);
+    sysbus_init_irq(sbd, &s->tx_irq);
 
     memory_region_init_io(&s->regs_region, OBJECT(dev), &minimac2_ops, s,
                           "milkymist-minimac2", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->regs_region);
+    sysbus_init_mmio(sbd, &s->regs_region);
 
     /* register buffers memory */
     memory_region_init_ram(&s->buffers, OBJECT(dev), "milkymist-minimac2.buffers",
@@ -473,11 +478,11 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
     s->rx1_buf = s->rx0_buf + MINIMAC2_BUFFER_SIZE;
     s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
 
-    sysbus_init_mmio(dev, &s->buffers);
+    sysbus_init_mmio(sbd, &s->buffers);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
@@ -532,7 +537,7 @@ static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo milkymist_minimac2_info = {
-    .name          = "milkymist-minimac2",
+    .name          = TYPE_MILKYMIST_MINIMAC2,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMinimac2State),
     .class_init    = milkymist_minimac2_class_init,

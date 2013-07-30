@@ -97,9 +97,13 @@ typedef struct {
 
 } Exynos4210PWM;
 
+#define TYPE_EXYNOS4210_PWM "exynos4210.pwm"
+#define EXYNOS4210_PWM(obj) \
+    OBJECT_CHECK(Exynos4210PWMState, (obj), TYPE_EXYNOS4210_PWM)
 
 typedef struct Exynos4210PWMState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
 
     uint32_t    reg_tcfg[2];
@@ -352,7 +356,7 @@ static void exynos4210_pwm_write(void *opaque, hwaddr offset,
  */
 static void exynos4210_pwm_reset(DeviceState *d)
 {
-    Exynos4210PWMState *s = (Exynos4210PWMState *)d;
+    Exynos4210PWMState *s = EXYNOS4210_PWM(d);
     int i;
     s->reg_tcfg[0] = 0x0101;
     s->reg_tcfg[1] = 0x0;
@@ -378,7 +382,7 @@ static const MemoryRegionOps exynos4210_pwm_ops = {
  */
 static int exynos4210_pwm_init(SysBusDevice *dev)
 {
-    Exynos4210PWMState *s = FROM_SYSBUS(Exynos4210PWMState, dev);
+    Exynos4210PWMState *s = EXYNOS4210_PWM(dev);
     int i;
     QEMUBH *bh;
 
@@ -408,7 +412,7 @@ static void exynos4210_pwm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_pwm_info = {
-    .name          = "exynos4210.pwm",
+    .name          = TYPE_EXYNOS4210_PWM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PWMState),
     .class_init    = exynos4210_pwm_class_init,

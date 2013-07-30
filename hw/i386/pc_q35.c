@@ -131,6 +131,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     /* create pci host bus */
     q35_host = Q35_HOST_DEVICE(qdev_create(NULL, TYPE_Q35_HOST_DEVICE));
 
+    object_property_add_child(qdev_get_machine(), "q35", OBJECT(q35_host), NULL);
     q35_host->mch.ram_memory = ram_memory;
     q35_host->mch.pci_address_space = pci_memory;
     q35_host->mch.system_memory = get_system_memory();
