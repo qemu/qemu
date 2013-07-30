@@ -1172,15 +1172,21 @@ static int parse_size(DeviceState *dev, Property *prop, const char *str)
 
 static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char suffixes[] = {'T', 'G', 'M', 'K', 'B'};
-    int i = 0;
-    uint64_t div;
+    static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T' };
+    uint64_t div, val = *(uint64_t *)qdev_get_prop_ptr(dev, prop);
+    int i;
 
-    for (div = 1ULL << 40; !(*ptr / div) ; div >>= 10) {
-        i++;
+    /* Compute floor(log2(val)).  */
+    i = 64 - clz64(val);
+
+    /* Find the power of 1024 that we'll display as the units.  */
+    i /= 10;
+    if (i >= ARRAY_SIZE(suffixes)) {
+        i = ARRAY_SIZE(suffixes) - 1;
     }
-    return snprintf(dest, len, "%0.03f%c", (double)*ptr/div, suffixes[i]);
+    div = 1ULL << (i * 10);
+
+    return snprintf(dest, len, "%0.03f%c", (double)val/div, suffixes[i]);
 }
 
 PropertyInfo qdev_prop_size = {
