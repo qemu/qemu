@@ -337,9 +337,9 @@ static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int virtio_balloon_device_init(VirtIODevice *vdev)
+static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);
     int ret;
 
@@ -349,8 +349,9 @@ static int virtio_balloon_device_init(VirtIODevice *vdev)
                                    virtio_balloon_stat, s);
 
     if (ret < 0) {
+        error_setg(errp, "Adding balloon handler failed");
         virtio_cleanup(vdev);
-        return -1;
+        return;
     }
 
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
@@ -367,7 +368,6 @@ static int virtio_balloon_device_init(VirtIODevice *vdev)
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
                         NULL, s, NULL);
-    return 0;
 }
 
 static void virtio_balloon_device_exit(VirtIODevice *vdev)
@@ -388,9 +388,10 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
     dc->props = virtio_balloon_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->init = virtio_balloon_device_init;
+    vdc->realize = virtio_balloon_device_realize;
     vdc->exit = virtio_balloon_device_exit;
     vdc->get_config = virtio_balloon_get_config;
     vdc->set_config = virtio_balloon_set_config;
