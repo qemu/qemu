@@ -198,6 +198,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     dc->vmsd = &vmstate_vga_pci;
     dc->props = vga_pci_properties;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
 static const TypeInfo vga_info = {

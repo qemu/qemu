@@ -574,6 +574,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_hub_handle_control;
     uc->handle_data    = usb_hub_handle_data;
     uc->handle_destroy = usb_hub_handle_destroy;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "hub";
     dc->vmsd = &vmstate_usb_hub;
 }

@@ -32,6 +32,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
+#include "mmu-hash64.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"
@@ -126,6 +127,34 @@ int spapr_allocate_irq_block(int num, bool lsi)
     }
 
     return first;
+}
+
+static XICSState *try_create_xics(const char *type, int nr_servers,
+                                  int nr_irqs)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, type);
+    qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
+    qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
+    if (qdev_init(dev) < 0) {
+        return NULL;
+    }
+
+    return XICS(dev);
+}
+
+static XICSState *xics_system_init(int nr_servers, int nr_irqs)
+{
+    XICSState *icp = NULL;
+
+    icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    if (!icp) {
+        perror("Failed to create XICS\n");
+        abort();
+    }
+
+    return icp;
 }
 
 static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
@@ -666,7 +695,7 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
-    env->external_htab = spapr->htab;
+    env->external_htab = (uint8_t *)spapr->htab;
     env->htab_base = -1;
     env->htab_mask = HTAB_SIZE(spapr) - 1;
     // TODO: can next assignment to target_ulong loose significant bits?
@@ -710,6 +739,330 @@ static int spapr_vga_init(PCIBus *pci_bus)
         break;
     }
 }
+
+static const VMStateDescription vmstate_spapr = {
+    .name = "spapr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(next_irq, sPAPREnvironment),
+
+        /* RTC offset */
+        VMSTATE_UINT64(rtc_offset, sPAPREnvironment),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+#define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
+#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
+#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
+#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
+
+static int htab_save_setup(QEMUFile *f, void *opaque)
+{
+    sPAPREnvironment *spapr = opaque;
+
+    /* "Iteration" header */
+    qemu_put_be32(f, spapr->htab_shift);
+
+    if (spapr->htab) {
+        spapr->htab_save_index = 0;
+        spapr->htab_first_pass = true;
+    } else {
+        assert(kvm_enabled());
+
+        spapr->htab_fd = kvmppc_get_htab_fd(false);
+        if (spapr->htab_fd < 0) {
+            fprintf(stderr, "Unable to open fd for reading hash table from KVM: %s\n",
+                    strerror(errno));
+            return -1;
+        }
+    }
+
+
+    return 0;
+}
+
+static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
+                                 int64_t max_ns)
+{
+    int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
+    int index = spapr->htab_save_index;
+    int64_t starttime = qemu_get_clock_ns(rt_clock);
+
+    assert(spapr->htab_first_pass);
+
+    do {
+        int chunkstart;
+
+        /* Consume invalid HPTEs */
+        while ((index < htabslots)
+               && !HPTE_VALID(HPTE(spapr->htab, index))) {
+            index++;
+            CLEAN_HPTE(HPTE(spapr->htab, index));
+        }
+
+        /* Consume valid HPTEs */
+        chunkstart = index;
+        while ((index < htabslots)
+               && HPTE_VALID(HPTE(spapr->htab, index))) {
+            index++;
+            CLEAN_HPTE(HPTE(spapr->htab, index));
+        }
+
+        if (index > chunkstart) {
+            int n_valid = index - chunkstart;
+
+            qemu_put_be32(f, chunkstart);
+            qemu_put_be16(f, n_valid);
+            qemu_put_be16(f, 0);
+            qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
+                            HASH_PTE_SIZE_64 * n_valid);
+
+            if ((qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+                break;
+            }
+        }
+    } while ((index < htabslots) && !qemu_file_rate_limit(f));
+
+    if (index >= htabslots) {
+        assert(index == htabslots);
+        index = 0;
+        spapr->htab_first_pass = false;
+    }
+    spapr->htab_save_index = index;
+}
+
+static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
+                                int64_t max_ns)
+{
+    bool final = max_ns < 0;
+    int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
+    int examined = 0, sent = 0;
+    int index = spapr->htab_save_index;
+    int64_t starttime = qemu_get_clock_ns(rt_clock);
+
+    assert(!spapr->htab_first_pass);
+
+    do {
+        int chunkstart, invalidstart;
+
+        /* Consume non-dirty HPTEs */
+        while ((index < htabslots)
+               && !HPTE_DIRTY(HPTE(spapr->htab, index))) {
+            index++;
+            examined++;
+        }
+
+        chunkstart = index;
+        /* Consume valid dirty HPTEs */
+        while ((index < htabslots)
+               && HPTE_DIRTY(HPTE(spapr->htab, index))
+               && HPTE_VALID(HPTE(spapr->htab, index))) {
+            CLEAN_HPTE(HPTE(spapr->htab, index));
+            index++;
+            examined++;
+        }
+
+        invalidstart = index;
+        /* Consume invalid dirty HPTEs */
+        while ((index < htabslots)
+               && HPTE_DIRTY(HPTE(spapr->htab, index))
+               && !HPTE_VALID(HPTE(spapr->htab, index))) {
+            CLEAN_HPTE(HPTE(spapr->htab, index));
+            index++;
+            examined++;
+        }
+
+        if (index > chunkstart) {
+            int n_valid = invalidstart - chunkstart;
+            int n_invalid = index - invalidstart;
+
+            qemu_put_be32(f, chunkstart);
+            qemu_put_be16(f, n_valid);
+            qemu_put_be16(f, n_invalid);
+            qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
+                            HASH_PTE_SIZE_64 * n_valid);
+            sent += index - chunkstart;
+
+            if (!final && (qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+                break;
+            }
+        }
+
+        if (examined >= htabslots) {
+            break;
+        }
+
+        if (index >= htabslots) {
+            assert(index == htabslots);
+            index = 0;
+        }
+    } while ((examined < htabslots) && (!qemu_file_rate_limit(f) || final));
+
+    if (index >= htabslots) {
+        assert(index == htabslots);
+        index = 0;
+    }
+
+    spapr->htab_save_index = index;
+
+    return (examined >= htabslots) && (sent == 0) ? 1 : 0;
+}
+
+#define MAX_ITERATION_NS    5000000 /* 5 ms */
+#define MAX_KVM_BUF_SIZE    2048
+
+static int htab_save_iterate(QEMUFile *f, void *opaque)
+{
+    sPAPREnvironment *spapr = opaque;
+    int rc = 0;
+
+    /* Iteration header */
+    qemu_put_be32(f, 0);
+
+    if (!spapr->htab) {
+        assert(kvm_enabled());
+
+        rc = kvmppc_save_htab(f, spapr->htab_fd,
+                              MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
+        if (rc < 0) {
+            return rc;
+        }
+    } else  if (spapr->htab_first_pass) {
+        htab_save_first_pass(f, spapr, MAX_ITERATION_NS);
+    } else {
+        rc = htab_save_later_pass(f, spapr, MAX_ITERATION_NS);
+    }
+
+    /* End marker */
+    qemu_put_be32(f, 0);
+    qemu_put_be16(f, 0);
+    qemu_put_be16(f, 0);
+
+    return rc;
+}
+
+static int htab_save_complete(QEMUFile *f, void *opaque)
+{
+    sPAPREnvironment *spapr = opaque;
+
+    /* Iteration header */
+    qemu_put_be32(f, 0);
+
+    if (!spapr->htab) {
+        int rc;
+
+        assert(kvm_enabled());
+
+        rc = kvmppc_save_htab(f, spapr->htab_fd, MAX_KVM_BUF_SIZE, -1);
+        if (rc < 0) {
+            return rc;
+        }
+        close(spapr->htab_fd);
+        spapr->htab_fd = -1;
+    } else {
+        htab_save_later_pass(f, spapr, -1);
+    }
+
+    /* End marker */
+    qemu_put_be32(f, 0);
+    qemu_put_be16(f, 0);
+    qemu_put_be16(f, 0);
+
+    return 0;
+}
+
+static int htab_load(QEMUFile *f, void *opaque, int version_id)
+{
+    sPAPREnvironment *spapr = opaque;
+    uint32_t section_hdr;
+    int fd = -1;
+
+    if (version_id < 1 || version_id > 1) {
+        fprintf(stderr, "htab_load() bad version\n");
+        return -EINVAL;
+    }
+
+    section_hdr = qemu_get_be32(f);
+
+    if (section_hdr) {
+        /* First section, just the hash shift */
+        if (spapr->htab_shift != section_hdr) {
+            return -EINVAL;
+        }
+        return 0;
+    }
+
+    if (!spapr->htab) {
+        assert(kvm_enabled());
+
+        fd = kvmppc_get_htab_fd(true);
+        if (fd < 0) {
+            fprintf(stderr, "Unable to open fd to restore KVM hash table: %s\n",
+                    strerror(errno));
+        }
+    }
+
+    while (true) {
+        uint32_t index;
+        uint16_t n_valid, n_invalid;
+
+        index = qemu_get_be32(f);
+        n_valid = qemu_get_be16(f);
+        n_invalid = qemu_get_be16(f);
+
+        if ((index == 0) && (n_valid == 0) && (n_invalid == 0)) {
+            /* End of Stream */
+            break;
+        }
+
+        if ((index + n_valid + n_invalid) >
+            (HTAB_SIZE(spapr) / HASH_PTE_SIZE_64)) {
+            /* Bad index in stream */
+            fprintf(stderr, "htab_load() bad index %d (%hd+%hd entries) "
+                    "in htab stream (htab_shift=%d)\n", index, n_valid, n_invalid,
+                    spapr->htab_shift);
+            return -EINVAL;
+        }
+
+        if (spapr->htab) {
+            if (n_valid) {
+                qemu_get_buffer(f, HPTE(spapr->htab, index),
+                                HASH_PTE_SIZE_64 * n_valid);
+            }
+            if (n_invalid) {
+                memset(HPTE(spapr->htab, index + n_valid), 0,
+                       HASH_PTE_SIZE_64 * n_invalid);
+            }
+        } else {
+            int rc;
+
+            assert(fd >= 0);
+
+            rc = kvmppc_load_htab_chunk(f, fd, index, n_valid, n_invalid);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+
+    if (!spapr->htab) {
+        assert(fd >= 0);
+        close(fd);
+    }
+
+    return 0;
+}
+
+static SaveVMHandlers savevm_htab_handlers = {
+    .save_live_setup = htab_save_setup,
+    .save_live_iterate = htab_save_iterate,
+    .save_live_complete = htab_save_complete,
+    .load_state = htab_load,
+};
 
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(QEMUMachineInitArgs *args)
@@ -849,9 +1202,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
 
-    /* Set up IOMMU */
-    spapr_iommu_init();
-
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
@@ -953,6 +1303,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     g_free(filename);
 
     spapr->entry_point = 0x100;
+
+    vmstate_register(NULL, 0, &vmstate_spapr, spapr);
+    register_savevm_live(NULL, "spapr/htab", -1, 1,
+                         &savevm_htab_handlers, spapr);
 
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,

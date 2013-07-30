@@ -163,7 +163,9 @@ static struct {
 #define UNEXPECTED() logout("%s:%u unexpected, %s!!!\n", __FILE__, __LINE__, backtrace())
 #define backtrace() mips_backtrace()
 
+#if !defined(BIT)
 #define BIT(n) (1 << (n))
+#endif
 #define BITS(n, m) (((UINT32_MAX << (31 - n)) >> (31 - n + m)) << m)
 //~ #define MASK(hi, lo) (((~(~0 << (hi))) & (~0 << (lo))) | (1 << (hi)))
 

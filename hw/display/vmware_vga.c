@@ -1306,6 +1306,7 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     dc->reset = vmsvga_reset;
     dc->vmsd = &vmstate_vmware_vga;
     dc->props = vga_vmware_properties;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
 static const TypeInfo vmsvga_info = {

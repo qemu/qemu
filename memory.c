@@ -19,6 +19,7 @@
 #include "qemu/bitops.h"
 #include "qom/object.h"
 #include "sysemu/kvm.h"
+#include "trace.h"
 #include <assert.h>
 
 #include "exec/memory-internal.h"
@@ -386,6 +387,7 @@ static void memory_region_oldmmio_read_accessor(MemoryRegion *mr,
     uint64_t tmp;
 
     tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
+    trace_memory_region_ops_read(mr, addr, tmp, size);
     *value |= (tmp & mask) << shift;
 }
 
@@ -402,6 +404,7 @@ static void memory_region_read_accessor(MemoryRegion *mr,
         qemu_flush_coalesced_mmio_buffer();
     }
     tmp = mr->ops->read(mr->opaque, addr, size);
+    trace_memory_region_ops_read(mr, addr, tmp, size);
     *value |= (tmp & mask) << shift;
 }
 
@@ -415,6 +418,7 @@ static void memory_region_oldmmio_write_accessor(MemoryRegion *mr,
     uint64_t tmp;
 
     tmp = (*value >> shift) & mask;
+    trace_memory_region_ops_write(mr, addr, tmp, size);
     mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
 }
 
@@ -431,6 +435,7 @@ static void memory_region_write_accessor(MemoryRegion *mr,
         qemu_flush_coalesced_mmio_buffer();
     }
     tmp = (*value >> shift) & mask;
+    trace_memory_region_ops_write(mr, addr, tmp, size);
     mr->ops->write(mr->opaque, addr, tmp, size);
 }
 

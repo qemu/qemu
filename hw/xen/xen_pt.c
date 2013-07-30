@@ -756,7 +756,8 @@ static int xen_pt_initfn(PCIDevice *d)
 out:
     memory_listener_register(&s->memory_listener, &address_space_memory);
     memory_listener_register(&s->io_listener, &address_space_io);
-    XEN_PT_LOG(d, "Real physical device %02x:%02x.%d registered successfuly!\n",
+    XEN_PT_LOG(d,
+               "Real physical device %02x:%02x.%d registered successfully!\n",
                s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function);
 
     return 0;
@@ -829,6 +830,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     k->exit = xen_pt_unregister_device;
     k->config_read = xen_pt_pci_read_config;
     k->config_write = xen_pt_pci_write_config;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "Assign an host PCI device with Xen";
     dc->props = xen_pci_passthrough_properties;
 };

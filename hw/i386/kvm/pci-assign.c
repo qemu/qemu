@@ -1856,6 +1856,7 @@ static void assign_class_init(ObjectClass *klass, void *data)
     dc->props       = assigned_dev_properties;
     dc->vmsd        = &vmstate_assigned_device;
     dc->reset       = reset_assigned_device;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc        = "KVM-based PCI passthrough";
 }
 

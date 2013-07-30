@@ -583,7 +583,7 @@ static inline int64_t mipsdsp_mul_q31_q31(int32_t ac, uint32_t a, uint32_t b,
         temp = (0x01ull << 63) - 1;
         set_DSPControl_overflow_flag(1, 16 + ac, env);
     } else {
-        temp = ((uint64_t)a * (uint64_t)b) << 1;
+        temp = ((int64_t)(int32_t)a * (int32_t)b) << 1;
     }
 
     return temp;

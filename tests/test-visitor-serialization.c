@@ -136,7 +136,7 @@ static void visit_primitive_type(Visitor *v, void **native, Error **errp)
         visit_type_int64(v, &pt->value.s64, NULL, errp);
         break;
     case PTYPE_EOL:
-        g_assert(false);
+        g_assert_not_reached();
     }
 }
 
@@ -181,7 +181,7 @@ static void visit_primitive_list(Visitor *v, void **native, Error **errp)
         visit_type_uint64List(v, &pl->value.u64_integers, NULL, errp);
         break;
     default:
-        g_assert(false);
+        g_assert_not_reached();
     }
 }
 
@@ -500,7 +500,7 @@ static void test_primitive_lists(gconstpointer opaque)
             break;
         }
         default:
-            g_assert(0);
+            g_assert_not_reached();
         }
     }
 
@@ -656,7 +656,7 @@ static void test_primitive_lists(gconstpointer opaque)
             break;
         }
         default:
-            g_assert(0);
+            g_assert_not_reached();
         }
         i++;
     } while (cur_head);

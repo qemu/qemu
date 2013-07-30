@@ -74,6 +74,7 @@ static Property ipack_device_props[] = {
 static void ipack_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    set_bit(DEVICE_CATEGORY_INPUT, k->categories);
     k->bus_type = TYPE_IPACK_BUS;
     k->init = ipack_device_dev_init;
     k->exit = ipack_device_dev_exit;

@@ -32,7 +32,7 @@ static TPMDriverOps const *be_drivers[TPM_MAX_DRIVERS] = {
 };
 
 static enum TpmModel tpm_models[TPM_MAX_MODELS] = {
-    -1,
+    TPM_MODEL_MAX,
 };
 
 int tpm_register_model(enum TpmModel model)
@@ -40,7 +40,7 @@ int tpm_register_model(enum TpmModel model)
     int i;
 
     for (i = 0; i < TPM_MAX_MODELS; i++) {
-        if (tpm_models[i] == -1) {
+        if (tpm_models[i] == TPM_MODEL_MAX) {
             tpm_models[i] = model;
             return 0;
         }

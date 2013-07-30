@@ -669,8 +669,10 @@ static Property virtio_scsi_properties[] = {
 static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
 {
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     vdc->get_config = virtio_scsi_get_config;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static void virtio_scsi_class_init(ObjectClass *klass, void *data)
@@ -679,6 +681,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     dc->exit = virtio_scsi_device_exit;
     dc->props = virtio_scsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_scsi_device_init;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;

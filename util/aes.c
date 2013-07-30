@@ -30,12 +30,7 @@
 #include "qemu-common.h"
 #include "qemu/aes.h"
 
-#ifndef NDEBUG
-#define NDEBUG
-#endif
-
 typedef uint32_t u32;
-typedef uint16_t u16;
 typedef uint8_t u8;
 
 /* This controls loop-unrolling in aes_core.c */

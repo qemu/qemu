@@ -101,10 +101,11 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    S390CPU *cpu = S390_CPU(dev);
+    CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
     scc->parent_realize(dev, errp);
 }

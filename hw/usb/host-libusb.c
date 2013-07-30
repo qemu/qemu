@@ -1351,6 +1351,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->flush_ep_queue = usb_host_flush_ep_queue;
     dc->vmsd = &vmstate_usb_host;
     dc->props = usb_host_dev_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static TypeInfo usb_host_dev_info = {

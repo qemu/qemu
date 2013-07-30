@@ -2141,6 +2141,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x1000;
     dc->reset = lsi_scsi_reset;
     dc->vmsd = &vmstate_lsi_scsi;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo lsi_info = {

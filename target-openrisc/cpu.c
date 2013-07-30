@@ -66,10 +66,11 @@ static inline void set_feature(OpenRISCCPU *cpu, int feature)
 
 static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    OpenRISCCPU *cpu = OPENRISC_CPU(dev);
+    CPUState *cs = CPU(dev);
     OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
     occ->parent_realize(dev, errp);
 }

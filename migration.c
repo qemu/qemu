@@ -338,9 +338,9 @@ void remove_migration_state_change_notifier(Notifier *notify)
     notifier_remove(notify);
 }
 
-bool migration_is_active(MigrationState *s)
+bool migration_in_setup(MigrationState *s)
 {
-    return s->state == MIG_STATE_ACTIVE;
+    return s->state == MIG_STATE_SETUP;
 }
 
 bool migration_has_finished(MigrationState *s)
@@ -658,7 +658,9 @@ void migrate_fd_connect(MigrationState *s)
     qemu_file_set_rate_limit(s->file,
                              s->bandwidth_limit / XFER_LIMIT_RATIO);
 
+    /* Notify before starting migration thread */
+    notifier_list_notify(&migration_state_notifiers, s);
+
     qemu_thread_create(&s->thread, migration_thread, s,
                        QEMU_THREAD_JOINABLE);
-    notifier_list_notify(&migration_state_notifiers, s);
 }

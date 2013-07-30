@@ -264,6 +264,7 @@ static void mipsnet_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = mipsnet_sysbus_init;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MIPS Simulator network device";
     dc->reset = mipsnet_sysbus_reset;
     dc->vmsd = &vmstate_mipsnet;

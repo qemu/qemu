@@ -61,6 +61,7 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
 bool virtio_is_blk(struct subchannel_id schid);
 void virtio_setup_block(struct subchannel_id schid);
 int virtio_read(ulong sector, void *load_addr);
+int enable_mss_facility(void);
 
 /* bootmap.c */
 int zipl_load(void);

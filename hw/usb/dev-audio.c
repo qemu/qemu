@@ -673,6 +673,7 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd          = &vmstate_usb_audio;
     dc->props         = usb_audio_properties;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     k->product_desc   = "QEMU USB Audio Interface";
     k->usb_desc       = &desc_audio;
     k->init           = usb_audio_initfn;

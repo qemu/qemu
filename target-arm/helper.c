@@ -1653,7 +1653,7 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                                 "was %s, now %s\n", r2->cp, 32 + 32 * is64,
                                 r2->crn, r2->crm, r2->opc1, r2->opc2,
                                 oldreg->name, r2->name);
-                        assert(0);
+                        g_assert_not_reached();
                     }
                 }
                 g_hash_table_insert(cpu->cp_regs, key, r2);

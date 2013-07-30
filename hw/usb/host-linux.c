@@ -1530,6 +1530,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_destroy = usb_host_handle_destroy;
     dc->vmsd = &vmstate_usb_host;
     dc->props = usb_host_dev_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo usb_host_dev_info = {

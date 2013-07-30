@@ -141,6 +141,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->reset = qdev_pci_bridge_dev_reset;
     dc->props = pci_bridge_dev_properties;
     dc->vmsd = &pci_bridge_dev_vmstate;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pci_bridge_dev_info = {

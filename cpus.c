@@ -112,7 +112,7 @@ typedef struct TimersState {
     int64_t dummy;
 } TimersState;
 
-TimersState timers_state;
+static TimersState timers_state;
 
 /* Return the virtual CPU time, based on the instruction counter.  */
 int64_t cpu_get_icount(void)

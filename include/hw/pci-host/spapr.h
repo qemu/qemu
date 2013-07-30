@@ -52,14 +52,14 @@ typedef struct sPAPRPHBState {
     sPAPRTCETable *tcet;
     AddressSpace iommu_as;
 
-    struct {
+    struct spapr_pci_lsi {
         uint32_t irq;
     } lsi_table[PCI_NUM_PINS];
 
-    struct {
+    struct spapr_pci_msi {
         uint32_t config_addr;
         uint32_t irq;
-        int nvec;
+        uint32_t nvec;
     } msi_table[SPAPR_MSIX_MAX_DEVS];
 
     QLIST_ENTRY(sPAPRPHBState) list;

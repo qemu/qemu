@@ -93,6 +93,7 @@ struct XenBlkDev {
     char                *type;
     char                *dev;
     char                *devtype;
+    bool                directiosafe;
     const char          *fileproto;
     const char          *filename;
     int                 ring_ref;
@@ -701,6 +702,7 @@ static int blk_init(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int info = 0;
+    char *directiosafe = NULL;
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
@@ -733,6 +735,8 @@ static int blk_init(struct XenDevice *xendev)
     if (blkdev->devtype == NULL) {
         blkdev->devtype = xenstore_read_be_str(&blkdev->xendev, "device-type");
     }
+    directiosafe = xenstore_read_be_str(&blkdev->xendev, "direct-io-safe");
+    blkdev->directiosafe = (directiosafe && atoi(directiosafe));
 
     /* do we have all we need? */
     if (blkdev->params == NULL ||
@@ -760,6 +764,8 @@ static int blk_init(struct XenDevice *xendev)
     xenstore_write_be_int(&blkdev->xendev, "feature-flush-cache", 1);
     xenstore_write_be_int(&blkdev->xendev, "feature-persistent", 1);
     xenstore_write_be_int(&blkdev->xendev, "info", info);
+
+    g_free(directiosafe);
     return 0;
 
 out_error:
@@ -773,6 +779,8 @@ out_error:
     blkdev->dev = NULL;
     g_free(blkdev->devtype);
     blkdev->devtype = NULL;
+    g_free(directiosafe);
+    blkdev->directiosafe = false;
     return -1;
 }
 
@@ -783,7 +791,11 @@ static int blk_connect(struct XenDevice *xendev)
     bool readonly = true;
 
     /* read-only ? */
-    qflags = BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
+    if (blkdev->directiosafe) {
+        qflags = BDRV_O_NOCACHE | BDRV_O_NATIVE_AIO;
+    } else {
+        qflags = BDRV_O_CACHE_WB;
+    }
     if (strcmp(blkdev->mode, "w") == 0) {
         qflags |= BDRV_O_RDWR;
         readonly = false;

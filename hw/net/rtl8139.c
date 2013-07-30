@@ -3563,6 +3563,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
     dc->reset = rtl8139_reset;
     dc->vmsd = &vmstate_rtl8139;
     dc->props = rtl8139_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo rtl8139_info = {

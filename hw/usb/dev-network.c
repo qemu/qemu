@@ -1429,6 +1429,7 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_net_handle_control;
     uc->handle_data    = usb_net_handle_data;
     uc->handle_destroy = usb_net_handle_destroy;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "network";
     dc->vmsd = &vmstate_usb_net;
     dc->props = net_properties;

@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-blk.h"
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
 # include "dataplane/virtio-blk.h"
+# include "migration/migration.h"
 #endif
 #include "block/scsi.h"
 #ifdef __linux__
@@ -628,6 +629,34 @@ void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk)
     memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
 }
 
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+/* Disable dataplane thread during live migration since it does not
+ * update the dirty memory bitmap yet.
+ */
+static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
+{
+    VirtIOBlock *s = container_of(notifier, VirtIOBlock,
+                                  migration_state_notifier);
+    MigrationState *mig = data;
+
+    if (migration_in_setup(mig)) {
+        if (!s->dataplane) {
+            return;
+        }
+        virtio_blk_data_plane_destroy(s->dataplane);
+        s->dataplane = NULL;
+    } else if (migration_has_finished(mig) ||
+               migration_has_failed(mig)) {
+        if (s->dataplane) {
+            return;
+        }
+        bdrv_drain_all(); /* complete in-flight non-dataplane requests */
+        virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->blk,
+                                     &s->dataplane);
+    }
+}
+#endif /* CONFIG_VIRTIO_BLK_DATA_PLANE */
+
 static int virtio_blk_device_init(VirtIODevice *vdev)
 {
     DeviceState *qdev = DEVICE(vdev);
@@ -664,6 +693,8 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
         virtio_cleanup(vdev);
         return -1;
     }
+    s->migration_state_notifier.notify = virtio_blk_migration_state_changed;
+    add_migration_state_change_notifier(&s->migration_state_notifier);
 #endif
 
     s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
@@ -683,6 +714,7 @@ static int virtio_blk_device_exit(DeviceState *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    remove_migration_state_change_notifier(&s->migration_state_notifier);
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
 #endif
@@ -704,6 +736,7 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     dc->exit = virtio_blk_device_exit;
     dc->props = virtio_blk_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_blk_device_init;
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;

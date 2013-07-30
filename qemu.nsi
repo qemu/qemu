@@ -122,7 +122,9 @@ Section "${PRODUCT} (required)"
     File "${BINDIR}\openbios-*"
 
     File /r "${BINDIR}\keymaps"
+!ifdef CONFIG_GTK
     File /r "${BINDIR}\share"
+!endif
 
 !ifdef W64
     SetRegView 64
@@ -231,8 +233,12 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386}   "PC i386 system emulation."
     !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386w}  "PC i386 system emulation (GUI)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
+!ifdef DLLDIR
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDll}   "Runtime Libraries (DLL)."
+!endif
+!ifdef CONFIG_DOCUMENTATION
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDoc}   "Documentation."
+!endif
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionMenu}  "Menu entries."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 

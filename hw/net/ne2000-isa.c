@@ -98,6 +98,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = isa_ne2000_realizefn;
     dc->props = ne2000_isa_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo ne2000_isa_info = {

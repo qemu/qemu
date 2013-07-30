@@ -58,6 +58,7 @@ static void debug_exit_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = debug_exit_realizefn;
     dc->props = debug_exit_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo debug_exit_info = {

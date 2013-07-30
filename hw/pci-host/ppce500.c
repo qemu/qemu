@@ -407,6 +407,7 @@ static void e500_pcihost_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = e500_pcihost_initfn;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->props = pcihost_properties;
     dc->vmsd = &vmstate_ppce500_pci;
 }

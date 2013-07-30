@@ -101,11 +101,19 @@ static void icc_bridge_init(Object *obj)
     s->icc_bus.apic_address_space = &s->apic_container;
 }
 
+static void icc_bridge_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+}
+
 static const TypeInfo icc_bridge_info = {
     .name  = TYPE_ICC_BRIDGE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_init  = icc_bridge_init,
     .instance_size  = sizeof(ICCBridgeState),
+    .class_init = icc_bridge_class_init,
 };
 
 

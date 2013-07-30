@@ -652,6 +652,7 @@ static void tpci200_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     k->subsystem_vendor_id = PCI_VENDOR_ID_TEWS;
     k->subsystem_id = 0x300A;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "TEWS TPCI200 IndustryPack carrier";
     dc->vmsd = &vmstate_tpci200;
 }

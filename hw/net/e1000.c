@@ -1400,6 +1400,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     k->device_id = E1000_DEVID;
     k->revision = 0x03;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Intel Gigabit Ethernet";
     dc->reset = qdev_e1000_reset;
     dc->vmsd = &vmstate_e1000;

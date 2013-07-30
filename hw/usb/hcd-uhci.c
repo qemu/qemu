@@ -1315,6 +1315,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->no_hotplug = 1;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
+    set_bit(DEVICE_CATEGORY_USB, dc->categories);
     u->info = *info;
 }
 

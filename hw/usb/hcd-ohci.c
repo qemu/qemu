@@ -1917,6 +1917,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_APPLE_IPID_USB;
     k->class_id = PCI_CLASS_SERIAL_USB;
     k->no_hotplug = 1;
+    set_bit(DEVICE_CATEGORY_USB, dc->categories);
     dc->desc = "Apple USB Controller";
     dc->props = ohci_pci_properties;
 }
@@ -1939,6 +1940,7 @@ static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ohci_realize_pxa;
+    set_bit(DEVICE_CATEGORY_USB, dc->categories);
     dc->desc = "OHCI USB Controller";
     dc->props = ohci_sysbus_properties;
 }

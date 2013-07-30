@@ -316,7 +316,7 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
 static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
 {
     if (dev->tcet) {
-        spapr_tce_reset(dev->tcet);
+        device_reset(DEVICE(dev->tcet));
     }
     free_crq(dev);
 }
@@ -540,6 +540,26 @@ static const TypeInfo spapr_vio_bridge_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
     .class_init    = spapr_vio_bridge_class_init,
+};
+
+const VMStateDescription vmstate_spapr_vio = {
+    .name = "spapr_vio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        /* Sanity check */
+        VMSTATE_UINT32_EQUAL(reg, VIOsPAPRDevice),
+        VMSTATE_UINT32_EQUAL(irq, VIOsPAPRDevice),
+
+        /* General VIO device state */
+        VMSTATE_UINTTL(signal_state, VIOsPAPRDevice),
+        VMSTATE_UINT64(crq.qladdr, VIOsPAPRDevice),
+        VMSTATE_UINT32(crq.qsize, VIOsPAPRDevice),
+        VMSTATE_UINT32(crq.qnext, VIOsPAPRDevice),
+
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static void vio_spapr_device_class_init(ObjectClass *klass, void *data)

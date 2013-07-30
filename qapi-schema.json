@@ -3362,15 +3362,15 @@
                                  '*rows'   : 'int' } }
 
 ##
-# @ChardevMemory:
+# @ChardevRingbuf:
 #
-# Configuration info for memory chardevs
+# Configuration info for ring buffer chardevs.
 #
-# @size: #optional Ringbuffer size, must be power of two, default is 65536
+# @size: #optional ring buffer size, must be power of two, default is 65536
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevMemory', 'data': { '*size'  : 'int' } }
+{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
 
 ##
 # @ChardevBackend:
@@ -3397,7 +3397,9 @@
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',
-                                       'memory' : 'ChardevMemory' } }
+                                       'ringbuf': 'ChardevRingbuf',
+                                       # next one is just for compatibility
+                                       'memory' : 'ChardevRingbuf' } }
 
 ##
 # @ChardevReturn:

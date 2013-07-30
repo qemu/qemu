@@ -62,10 +62,11 @@ static void mips_cpu_reset(CPUState *s)
 
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    MIPSCPU *cpu = MIPS_CPU(dev);
+    CPUState *cs = CPU(dev);
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
 }

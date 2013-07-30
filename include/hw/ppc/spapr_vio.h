@@ -134,4 +134,9 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus);
 
 void spapr_vio_quiesce(void);
 
+extern const VMStateDescription vmstate_spapr_vio;
+
+#define VMSTATE_SPAPR_VIO(_f, _s) \
+    VMSTATE_STRUCT(_f, _s, 0, vmstate_spapr_vio, VIOsPAPRDevice)
+
 #endif /* _HW_SPAPR_VIO_H */

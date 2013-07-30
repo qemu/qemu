@@ -27,15 +27,77 @@
 #if !defined(__XICS_H__)
 #define __XICS_H__
 
+#include "hw/sysbus.h"
+
+#define TYPE_XICS "xics"
+#define XICS(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS)
+
 #define XICS_IPI        0x2
-#define XICS_IRQ_BASE   0x10
+#define XICS_BUID       0x1
+#define XICS_IRQ_BASE   (XICS_BUID << 12)
 
-struct icp_state;
+/*
+ * We currently only support one BUID which is our interrupt base
+ * (the kernel implementation supports more but we don't exploit
+ *  that yet)
+ */
+typedef struct XICSState XICSState;
+typedef struct ICPState ICPState;
+typedef struct ICSState ICSState;
+typedef struct ICSIRQState ICSIRQState;
 
-qemu_irq xics_get_qirq(struct icp_state *icp, int irq);
-void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi);
+struct XICSState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+    uint32_t nr_servers;
+    uint32_t nr_irqs;
+    ICPState *ss;
+    ICSState *ics;
+};
 
-struct icp_state *xics_system_init(int nr_servers, int nr_irqs);
-void xics_cpu_setup(struct icp_state *icp, PowerPCCPU *cpu);
+#define TYPE_ICP "icp"
+#define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
+
+struct ICPState {
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+    uint32_t xirr;
+    uint8_t pending_priority;
+    uint8_t mfrr;
+    qemu_irq output;
+};
+
+#define TYPE_ICS "ics"
+#define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
+
+struct ICSState {
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+    uint32_t nr_irqs;
+    uint32_t offset;
+    qemu_irq *qirqs;
+    bool *islsi;
+    ICSIRQState *irqs;
+    XICSState *icp;
+};
+
+struct ICSIRQState {
+    uint32_t server;
+    uint8_t priority;
+    uint8_t saved_priority;
+#define XICS_STATUS_ASSERTED           0x1
+#define XICS_STATUS_SENT               0x2
+#define XICS_STATUS_REJECTED           0x4
+#define XICS_STATUS_MASKED_PENDING     0x8
+    uint8_t status;
+};
+
+qemu_irq xics_get_qirq(XICSState *icp, int irq);
+void xics_set_irq_type(XICSState *icp, int irq, bool lsi);
+
+void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 
 #endif /* __XICS_H__ */

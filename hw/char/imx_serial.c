@@ -449,6 +449,7 @@ static void imx_serial_class_init(ObjectClass *klass, void *data)
     k->init = imx_serial_init;
     dc->vmsd = &vmstate_imx_serial;
     dc->reset = imx_serial_reset_at_boot;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "i.MX series UART";
     dc->props = imx32_serial_properties;
 }

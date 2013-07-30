@@ -90,10 +90,11 @@ static void mb_cpu_reset(CPUState *s)
 
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(dev);
+    CPUState *cs = CPU(dev);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
+    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
 }

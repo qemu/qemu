@@ -142,6 +142,21 @@ static Property spapr_vty_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_spapr_vty = {
+    .name = "spapr_vty",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVTYDevice),
+
+        VMSTATE_UINT32(in, VIOsPAPRVTYDevice),
+        VMSTATE_UINT32(out, VIOsPAPRVTYDevice),
+        VMSTATE_BUFFER(buf, VIOsPAPRVTYDevice),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void spapr_vty_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -152,6 +167,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
     k->dt_type = "serial";
     k->dt_compatible = "hvterm1";
     dc->props = spapr_vty_properties;
+    dc->vmsd = &vmstate_spapr_vty;
 }
 
 static const TypeInfo spapr_vty_info = {
