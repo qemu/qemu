@@ -1348,11 +1348,17 @@ typedef struct elf64_shdr {
 
 /* Notes used in ET_CORE */
 #define NT_PRSTATUS	1
+#define NT_FPREGSET     2
 #define NT_PRFPREG	2
 #define NT_PRPSINFO	3
 #define NT_TASKSTRUCT	4
 #define NT_AUXV		6
 #define NT_PRXFPREG     0x46e62b7f      /* copied from gdb5.1/include/elf/common.h */
+#define NT_S390_PREFIX  0x305           /* s390 prefix register */
+#define NT_S390_CTRS    0x304           /* s390 control registers */
+#define NT_S390_TODPREG 0x303           /* s390 TOD programmable register */
+#define NT_S390_TODCMP  0x302           /* s390 TOD clock comparator register */
+#define NT_S390_TIMER   0x301           /* s390 timer register */
 
 
 /* Note header in a PT_NOTE section */
