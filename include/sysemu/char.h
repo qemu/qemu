@@ -77,6 +77,7 @@ struct CharDriverState {
     int explicit_fe_open;
     int explicit_be_open;
     int avail_connections;
+    int is_mux;
     QemuOpts *opts;
     QTAILQ_ENTRY(CharDriverState) next;
 };
