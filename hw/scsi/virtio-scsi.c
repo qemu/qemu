@@ -594,7 +594,7 @@ int virtio_scsi_common_init(VirtIOSCSICommon *s)
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int i;
 
-    virtio_init(VIRTIO_DEVICE(s), "virtio-scsi", VIRTIO_ID_SCSI,
+    virtio_init(vdev, "virtio-scsi", VIRTIO_ID_SCSI,
                 sizeof(VirtIOSCSIConfig));
 
     s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));
@@ -615,9 +615,9 @@ int virtio_scsi_common_init(VirtIOSCSICommon *s)
 
 static int virtio_scsi_device_init(VirtIODevice *vdev)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    DeviceState *dev = DEVICE(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
+    VirtIOSCSI *s = VIRTIO_SCSI(dev);
     static int virtio_scsi_id;
     Error *err = NULL;
     int ret;
@@ -627,10 +627,10 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
         return ret;
     }
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), qdev,
+    scsi_bus_new(&s->bus, sizeof(s->bus), dev,
                  &virtio_scsi_scsi_info, vdev->bus_name);
 
-    if (!qdev->hotplugged) {
+    if (!dev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
             error_free(err);
@@ -638,7 +638,7 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
         }
     }
 
-    register_savevm(qdev, "virtio-scsi", virtio_scsi_id++, 1,
+    register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
                     virtio_scsi_save, virtio_scsi_load, s);
 
     return 0;
