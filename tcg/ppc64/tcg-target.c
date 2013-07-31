@@ -722,7 +722,6 @@ static void tcg_out_call(TCGContext *s, tcg_target_long arg, int const_arg)
 
     tcg_out32(s, LD | TAI(TCG_REG_R0, reg, 0));
     tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-    tcg_out32(s, LD | TAI(TCG_REG_R11, reg, 16));
     tcg_out32(s, LD | TAI(TCG_REG_R2, reg, 8));
     tcg_out32(s, BCCTR | BO_ALWAYS | LK);
 #endif
