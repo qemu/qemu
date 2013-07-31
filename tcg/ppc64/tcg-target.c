@@ -99,7 +99,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_R14,
+    TCG_REG_R14,  /* call saved registers */
     TCG_REG_R15,
     TCG_REG_R16,
     TCG_REG_R17,
@@ -109,29 +109,25 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R21,
     TCG_REG_R22,
     TCG_REG_R23,
+    TCG_REG_R24,
+    TCG_REG_R25,
+    TCG_REG_R26,
+    TCG_REG_R27,
     TCG_REG_R28,
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31,
-#ifdef __APPLE__
-    TCG_REG_R2,
-#endif
-    TCG_REG_R3,
-    TCG_REG_R4,
-    TCG_REG_R5,
-    TCG_REG_R6,
-    TCG_REG_R7,
-    TCG_REG_R8,
-    TCG_REG_R9,
-    TCG_REG_R10,
-#ifndef __APPLE__
+    TCG_REG_R12,  /* call clobbered, non-arguments */
     TCG_REG_R11,
-#endif
-    TCG_REG_R12,
-    TCG_REG_R24,
-    TCG_REG_R25,
-    TCG_REG_R26,
-    TCG_REG_R27
+    TCG_REG_R2,
+    TCG_REG_R10,  /* call clobbered, arguments */
+    TCG_REG_R9,
+    TCG_REG_R8,
+    TCG_REG_R7,
+    TCG_REG_R6,
+    TCG_REG_R5,
+    TCG_REG_R4,
+    TCG_REG_R3,
 };
 
 static const int tcg_target_call_iarg_regs[] = {
@@ -2133,9 +2129,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffffffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      (1 << TCG_REG_R0) |
-#ifdef __APPLE__
                      (1 << TCG_REG_R2) |
-#endif
                      (1 << TCG_REG_R3) |
                      (1 << TCG_REG_R4) |
                      (1 << TCG_REG_R5) |
@@ -2145,16 +2139,17 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_R9) |
                      (1 << TCG_REG_R10) |
                      (1 << TCG_REG_R11) |
-                     (1 << TCG_REG_R12)
-        );
+                     (1 << TCG_REG_R12));
 
     tcg_regset_clear(s->reserved_regs);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);
-#ifndef __APPLE__
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0); /* tcg temp */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1); /* stack pointer */
+#ifdef __APPLE__
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R11); /* ??? */
+#else
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2); /* toc */
 #endif
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13); /* thread pointer */
 
     tcg_add_target_add_op_defs(ppc_op_defs);
 }
