@@ -1254,15 +1254,16 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, block->fd, offset);
                 } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-                    flags |= MAP_SHARED | MAP_ANONYMOUS;
-                    area = mmap(vaddr, length, PROT_EXEC|PROT_READ|PROT_WRITE,
-                                flags, -1, 0);
-#else
+                    /*
+                     * Remap needs to match alloc.  Accelerators that
+                     * set phys_mem_alloc never remap.  If they did,
+                     * we'd need a remap hook here.
+                     */
+                    assert(phys_mem_alloc == qemu_anon_ram_alloc);
+
                     flags |= MAP_PRIVATE | MAP_ANONYMOUS;
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, -1, 0);
-#endif
                 }
                 if (area != vaddr) {
                     fprintf(stderr, "Could not remap addr: "
