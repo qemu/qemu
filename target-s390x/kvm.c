@@ -332,11 +332,7 @@ static void *legacy_s390_alloc(ram_addr_t size)
     mem = mmap((void *) 0x800000000ULL, size,
                PROT_EXEC|PROT_READ|PROT_WRITE,
                MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    if (mem == MAP_FAILED) {
-        fprintf(stderr, "Allocating RAM failed\n");
-        abort();
-    }
-    return mem;
+    return mem == MAP_FAILED ? NULL : mem;
 }
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)

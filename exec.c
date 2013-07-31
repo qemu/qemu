@@ -1150,6 +1150,11 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
         }
         if (!new_block->host) {
             new_block->host = phys_mem_alloc(size);
+            if (!new_block->host) {
+                fprintf(stderr, "Cannot set up guest memory '%s': %s\n",
+                        new_block->mr->name, strerror(errno));
+                exit(1);
+            }
             memory_try_enable_merging(new_block->host, size);
         }
     }
