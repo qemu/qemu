@@ -1099,6 +1099,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
+    new_block->fd = -1;
 
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
@@ -1203,17 +1204,9 @@ void qemu_ram_free(ram_addr_t addr)
                 ;
             } else if (xen_enabled()) {
                 xen_invalidate_map_cache_entry(block->host);
-            } else if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-                if (block->fd) {
-                    munmap(block->host, block->length);
-                    close(block->fd);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
-#else
-                abort();
-#endif
+            } else if (block->fd >= 0) {
+                munmap(block->host, block->length);
+                close(block->fd);
             } else {
                 qemu_anon_ram_free(block->host, block->length);
             }
@@ -1244,25 +1237,15 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
             } else {
                 flags = MAP_FIXED;
                 munmap(vaddr, length);
-                if (mem_path) {
-#if defined(__linux__) && !defined(TARGET_S390X)
-                    if (block->fd) {
+                if (block->fd >= 0) {
 #ifdef MAP_POPULATE
-                        flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
-                            MAP_PRIVATE;
+                    flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
+                        MAP_PRIVATE;
 #else
-                        flags |= MAP_PRIVATE;
+                    flags |= MAP_PRIVATE;
 #endif
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, block->fd, offset);
-                    } else {
-                        flags |= MAP_PRIVATE | MAP_ANONYMOUS;
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, -1, 0);
-                    }
-#else
-                    abort();
-#endif
+                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
+                                flags, block->fd, offset);
                 } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
                     flags |= MAP_SHARED | MAP_ANONYMOUS;
