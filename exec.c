@@ -1107,6 +1107,12 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     if (host) {
         new_block->host = host;
         new_block->flags |= RAM_PREALLOC_MASK;
+    } else if (xen_enabled()) {
+        if (mem_path) {
+            fprintf(stderr, "-mem-path not supported with Xen\n");
+            exit(1);
+        }
+        xen_ram_alloc(new_block->offset, size, mr);
     } else {
         if (mem_path) {
 #if defined (__linux__) && !defined(TARGET_S390X)
@@ -1120,9 +1126,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
             exit(1);
 #endif
         } else {
-            if (xen_enabled()) {
-                xen_ram_alloc(new_block->offset, size, mr);
-            } else if (kvm_enabled()) {
+            if (kvm_enabled()) {
                 /* some s390/kvm configurations have special constraints */
                 new_block->host = kvm_ram_alloc(size);
             } else {
@@ -1200,6 +1204,8 @@ void qemu_ram_free(ram_addr_t addr)
             ram_list.version++;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
+            } else if (xen_enabled()) {
+                xen_invalidate_map_cache_entry(block->host);
             } else if (mem_path) {
 #if defined (__linux__) && !defined(TARGET_S390X)
                 if (block->fd) {
@@ -1212,11 +1218,7 @@ void qemu_ram_free(ram_addr_t addr)
                 abort();
 #endif
             } else {
-                if (xen_enabled()) {
-                    xen_invalidate_map_cache_entry(block->host);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
+                qemu_anon_ram_free(block->host, block->length);
             }
             g_free(block);
             break;
@@ -1240,6 +1242,8 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
             vaddr = block->host + offset;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
+            } else if (xen_enabled()) {
+                abort();
             } else {
                 flags = MAP_FIXED;
                 munmap(vaddr, length);
