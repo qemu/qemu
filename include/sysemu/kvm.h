@@ -161,11 +161,6 @@ int kvm_cpu_exec(CPUState *cpu);
 
 #ifdef NEED_CPU_H
 
-#if !defined(CONFIG_USER_ONLY)
-void *kvm_ram_alloc(ram_addr_t size);
-void *kvm_arch_ram_alloc(ram_addr_t size);
-#endif
-
 void kvm_setup_guest_memory(void *start, size_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 

@@ -93,9 +93,15 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static int cap_sync_regs;
 
+static void *legacy_s390_alloc(ram_addr_t size);
+
 int kvm_arch_init(KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
+    if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
+        || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
+        phys_mem_set_alloc(legacy_s390_alloc);
+    }
     return 0;
 }
 
@@ -331,17 +337,6 @@ static void *legacy_s390_alloc(ram_addr_t size)
         abort();
     }
     return mem;
-}
-
-void *kvm_arch_ram_alloc(ram_addr_t size)
-{
-    /* Can we use the standard allocation ? */
-    if (kvm_check_extension(kvm_state, KVM_CAP_S390_GMAP) &&
-        kvm_check_extension(kvm_state, KVM_CAP_S390_COW)) {
-        return NULL;
-    } else {
-        return legacy_s390_alloc(size);
-    }
 }
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
