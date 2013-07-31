@@ -1117,15 +1117,12 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
         if (mem_path) {
 #if defined (__linux__) && !defined(TARGET_S390X)
             new_block->host = file_ram_alloc(new_block, size, mem_path);
-            if (!new_block->host) {
-                new_block->host = qemu_anon_ram_alloc(size);
-                memory_try_enable_merging(new_block->host, size);
-            }
 #else
             fprintf(stderr, "-mem-path option unsupported\n");
             exit(1);
 #endif
-        } else {
+        }
+        if (!new_block->host) {
             if (kvm_enabled()) {
                 /* some s390/kvm configurations have special constraints */
                 new_block->host = kvm_ram_alloc(size);
