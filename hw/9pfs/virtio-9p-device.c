@@ -49,7 +49,7 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     FsDriverEntry *fse;
     V9fsPath path;
 
-    virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
+    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P,
                 sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
 
     /* initialize pdu allocator */
