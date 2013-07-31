@@ -1395,7 +1395,6 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
 {
     XHCISlot *slot;
     XHCIEPContext *epctx;
-    USBDevice *dev;
 
     trace_usb_xhci_ep_reset(slotid, epid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
@@ -1431,8 +1430,8 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
         ep |= 0x80;
     }
 
-    dev = xhci->slots[slotid-1].uport->dev;
-    if (!dev) {
+    if (!xhci->slots[slotid-1].uport ||
+        !xhci->slots[slotid-1].uport->dev) {
         return CC_USB_TRANSACTION_ERROR;
     }
 
