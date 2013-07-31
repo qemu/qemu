@@ -892,7 +892,7 @@ void qemu_mutex_unlock_ramlist(void)
     qemu_mutex_unlock(&ram_list.mutex);
 }
 
-#if defined(__linux__) && !defined(TARGET_S390X)
+#ifdef __linux__
 
 #include <sys/vfs.h>
 
@@ -994,6 +994,14 @@ static void *file_ram_alloc(RAMBlock *block,
     }
     block->fd = fd;
     return area;
+}
+#else
+static void *file_ram_alloc(RAMBlock *block,
+                            ram_addr_t memory,
+                            const char *path)
+{
+    fprintf(stderr, "-mem-path not supported on this host\n");
+    exit(1);
 }
 #endif
 
@@ -1128,12 +1136,17 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
         xen_ram_alloc(new_block->offset, size, mr);
     } else {
         if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
+            if (phys_mem_alloc != qemu_anon_ram_alloc) {
+                /*
+                 * file_ram_alloc() needs to allocate just like
+                 * phys_mem_alloc, but we haven't bothered to provide
+                 * a hook there.
+                 */
+                fprintf(stderr,
+                        "-mem-path not supported with this accelerator\n");
+                exit(1);
+            }
             new_block->host = file_ram_alloc(new_block, size, mem_path);
-#else
-            fprintf(stderr, "-mem-path option unsupported\n");
-            exit(1);
-#endif
         }
         if (!new_block->host) {
             new_block->host = phys_mem_alloc(size);
