@@ -184,8 +184,6 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
 static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
                                   size_t len)
 {
-    ssize_t ret = 0;
-    const uint8_t *iov_offset;
     SCLPConsole *scon = DO_UPCAST(SCLPConsole, event, event);
 
     if (!scon->chr) {
@@ -193,21 +191,7 @@ static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
         return len;
     }
 
-    iov_offset = buf;
-    while (len > 0) {
-        ret = qemu_chr_fe_write(scon->chr, buf, len);
-        if (ret == 0) {
-            /* a pty doesn't seem to be connected - no error */
-            len = 0;
-        } else if (ret == -EAGAIN || (ret > 0 && ret < len)) {
-            len -= ret;
-            iov_offset += ret;
-        } else {
-            len = 0;
-        }
-    }
-
-    return ret;
+    return qemu_chr_fe_write_all(scon->chr, buf, len);
 }
 
 static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)

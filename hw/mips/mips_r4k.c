@@ -26,6 +26,7 @@
 #include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #define MAX_IDE_BUS 2
 
@@ -245,10 +246,9 @@ static void mips_init(QEMUMachineInitArgs *args)
                                    mips_rom / sector_len,
                                    4, 0, 0, 0, 0, env->bigendian)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
-        }
-    }
-    else {
-        /* not fatal */
+	}
+    } else if (!qtest_enabled()) {
+	/* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
 		bios_name);
     }

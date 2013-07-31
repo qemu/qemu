@@ -48,6 +48,7 @@
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
 #include "qemu/host-utils.h"
+#include "sysemu/qtest.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)
@@ -1019,7 +1020,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
             } else {
                 bios_size = -1;
             }
-            if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
+            if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
+                !kernel_filename && !qtest_enabled()) {
                 fprintf(stderr,
                         "qemu: Warning, could not load MIPS bios '%s', and no -kernel argument was specified\n",
                         bios_name);

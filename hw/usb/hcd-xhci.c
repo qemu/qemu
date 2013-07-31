@@ -1741,6 +1741,7 @@ static int xhci_complete_packet(XHCITransfer *xfer)
     trace_usb_xhci_xfer_error(xfer, xfer->packet.status);
     switch (xfer->packet.status) {
     case USB_RET_NODEV:
+    case USB_RET_IOERROR:
         xfer->status = CC_USB_TRANSACTION_ERROR;
         xhci_xfer_report(xfer);
         xhci_stall_ep(xfer);

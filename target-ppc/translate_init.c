@@ -7825,7 +7825,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
             error_setg(errp, "Unable to virtualize selected CPU with KVM");
             return;
         }
-    } else {
+    } else if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
             return;

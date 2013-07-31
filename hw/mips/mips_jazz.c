@@ -42,6 +42,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 enum jazz_model_e
 {
@@ -176,7 +177,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     } else {
         bios_size = -1;
     }
-    if (bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) {
+    if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) && !qtest_enabled()) {
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
                 bios_name);
     }
