@@ -185,6 +185,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->init = virtconsole_initfn;
+    k->exit = virtconsole_exitfn;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
     dc->props = virtserialport_properties;
