@@ -509,7 +509,9 @@ static const uint32_t tcg_to_isel[] = {
 static inline void tcg_out_mov(TCGContext *s, TCGType type,
                                TCGReg ret, TCGReg arg)
 {
-    tcg_out32(s, OR | SAB(arg, ret, arg));
+    if (ret != arg) {
+        tcg_out32(s, OR | SAB(arg, ret, arg));
+    }
 }
 
 static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
