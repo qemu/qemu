@@ -547,7 +547,6 @@ enum {
     CPU_POWERPC_POWER4P            = 0x00380000,
      /* XXX: missing 0x003A0201 */
     CPU_POWERPC_POWER5             = 0x003A0203,
-#define CPU_POWERPC_POWER5GR         CPU_POWERPC_POWER5
     CPU_POWERPC_POWER5P            = 0x003B0000,
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
