@@ -64,7 +64,10 @@ struct IPackDeviceClass {
 };
 
 struct IPackDevice {
-    DeviceState qdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     int32_t slot;
     /* IRQ objects for the IndustryPack INT0# and INT1# */
     qemu_irq *irq;
