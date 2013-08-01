@@ -231,6 +231,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
         info->has_status = true;
         info->status = g_strdup("completed");
+        info->has_total_time = true;
         info->total_time = s->total_time;
         info->has_downtime = true;
         info->downtime = s->downtime;
@@ -399,8 +400,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     MigrationParams params;
     const char *p;
 
-    params.blk = blk;
-    params.shared = inc;
+    params.blk = has_blk && blk;
+    params.shared = has_inc && inc;
 
     if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
