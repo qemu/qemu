@@ -38,10 +38,12 @@ typedef struct IPackDeviceClass IPackDeviceClass;
      OBJECT_GET_CLASS(IPackDeviceClass, (obj), TYPE_IPACK_DEVICE)
 
 struct IPackDeviceClass {
+    /*< private >*/
     DeviceClass parent_class;
+    /*< public >*/
 
-    int (*init)(IPackDevice *dev);
-    int (*exit)(IPackDevice *dev);
+    DeviceRealize realize;
+    DeviceUnrealize unrealize;
 
     uint16_t (*io_read)(IPackDevice *dev, uint8_t addr);
     void (*io_write)(IPackDevice *dev, uint8_t addr, uint16_t val);

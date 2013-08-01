@@ -534,9 +534,9 @@ static void hostdev_event(void *opaque, int event)
     }
 }
 
-static int ipoctal_init(IPackDevice *ip)
+static void ipoctal_realize(DeviceState *dev, Error **errp)
 {
-    IPOctalState *s = IPOCTAL(ip);
+    IPOctalState *s = IPOCTAL(dev);
     unsigned i;
 
     for (i = 0; i < N_CHANNELS; i++) {
@@ -552,8 +552,6 @@ static int ipoctal_init(IPackDevice *ip)
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);
         }
     }
-
-    return 0;
 }
 
 static Property ipoctal_properties[] = {
@@ -573,7 +571,7 @@ static void ipoctal_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
 
-    ic->init        = ipoctal_init;
+    ic->realize     = ipoctal_realize;
     ic->io_read     = io_read;
     ic->io_write    = io_write;
     ic->id_read     = id_read;
