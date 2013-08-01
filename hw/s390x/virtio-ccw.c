@@ -27,6 +27,38 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 
+static QTAILQ_HEAD(, IndAddr) indicator_addresses =
+    QTAILQ_HEAD_INITIALIZER(indicator_addresses);
+
+static IndAddr *get_indicator(hwaddr ind_addr, int len)
+{
+    IndAddr *indicator;
+
+    QTAILQ_FOREACH(indicator, &indicator_addresses, sibling) {
+        if (indicator->addr == ind_addr) {
+            indicator->refcnt++;
+            return indicator;
+        }
+    }
+    indicator = g_new0(IndAddr, 1);
+    indicator->addr = ind_addr;
+    indicator->len = len;
+    indicator->refcnt = 1;
+    QTAILQ_INSERT_TAIL(&indicator_addresses, indicator, sibling);
+    return indicator;
+}
+
+static void release_indicator(IndAddr *indicator)
+{
+    assert(indicator->refcnt > 0);
+    indicator->refcnt--;
+    if (indicator->refcnt > 0) {
+        return;
+    }
+    QTAILQ_REMOVE(&indicator_addresses, indicator, sibling);
+    g_free(indicator);
+}
+
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
@@ -445,7 +477,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             indicators = ldq_phys(&address_space_memory, ccw.cda);
-            dev->indicators = indicators;
+            dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
         }
@@ -465,7 +497,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             indicators = ldq_phys(&address_space_memory, ccw.cda);
-            dev->indicators2 = indicators;
+            dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
         }
@@ -517,8 +549,10 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 ret = -EFAULT;
             } else {
                 len = hw_len;
-                dev->summary_indicator = thinint->summary_indicator;
-                dev->indicators = thinint->device_indicator;
+                dev->summary_indicator =
+                    get_indicator(thinint->summary_indicator, sizeof(uint8_t));
+                dev->indicators = get_indicator(thinint->device_indicator,
+                                                thinint->ind_bit / 8 + 1);
                 dev->thinint_isc = thinint->isc;
                 dev->ind_bit = thinint->ind_bit;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
@@ -526,8 +560,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                               dev->thinint_isc, true, false,
                                               &dev->adapter_id);
                 assert(ret == 0);
-                sch->thinint_active = ((dev->indicators != 0) &&
-                                       (dev->summary_indicator != 0));
+                sch->thinint_active = ((dev->indicators != NULL) &&
+                                       (dev->summary_indicator != NULL));
                 sch->curr_status.scsw.count = ccw.count - len;
                 ret = 0;
             }
@@ -558,7 +592,7 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     sch->driver_data = dev;
     dev->sch = sch;
 
-    dev->indicators = 0;
+    dev->indicators = NULL;
 
     /* Initialize subchannel structure. */
     sch->channel_prog = 0x0;
@@ -697,7 +731,10 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
         css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
         g_free(sch);
     }
-    dev->indicators = 0;
+    if (dev->indicators) {
+        release_indicator(dev->indicators);
+        dev->indicators = NULL;
+    }
     return 0;
 }
 
@@ -954,17 +991,17 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
              * ind_bit indicates the start of the indicators in a big
              * endian notation.
              */
-            virtio_set_ind_atomic(sch, dev->indicators +
+            virtio_set_ind_atomic(sch, dev->indicators->addr +
                                   (dev->ind_bit + vector) / 8,
                                   0x80 >> ((dev->ind_bit + vector) % 8));
-            if (!virtio_set_ind_atomic(sch, dev->summary_indicator,
+            if (!virtio_set_ind_atomic(sch, dev->summary_indicator->addr,
                                        0x01)) {
                 css_adapter_interrupt(dev->thinint_isc);
             }
         } else {
-            indicators = ldq_phys(&address_space_memory, dev->indicators);
+            indicators = ldq_phys(&address_space_memory, dev->indicators->addr);
             indicators |= 1ULL << vector;
-            stq_phys(&address_space_memory, dev->indicators, indicators);
+            stq_phys(&address_space_memory, dev->indicators->addr, indicators);
             css_conditional_io_interrupt(sch);
         }
     } else {
@@ -972,9 +1009,9 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
             return;
         }
         vector = 0;
-        indicators = ldq_phys(&address_space_memory, dev->indicators2);
+        indicators = ldq_phys(&address_space_memory, dev->indicators2->addr);
         indicators |= 1ULL << vector;
-        stq_phys(&address_space_memory, dev->indicators2, indicators);
+        stq_phys(&address_space_memory, dev->indicators2->addr, indicators);
         css_conditional_io_interrupt(sch);
     }
 }
@@ -995,9 +1032,18 @@ static void virtio_ccw_reset(DeviceState *d)
     virtio_ccw_stop_ioeventfd(dev);
     virtio_reset(vdev);
     css_reset_sch(dev->sch);
-    dev->indicators = 0;
-    dev->indicators2 = 0;
-    dev->summary_indicator = 0;
+    if (dev->indicators) {
+        release_indicator(dev->indicators);
+        dev->indicators = NULL;
+    }
+    if (dev->indicators2) {
+        release_indicator(dev->indicators2);
+        dev->indicators2 = NULL;
+    }
+    if (dev->summary_indicator) {
+        release_indicator(dev->summary_indicator);
+        dev->summary_indicator = NULL;
+    }
 }
 
 static void virtio_ccw_vmstate_change(DeviceState *d, bool running)

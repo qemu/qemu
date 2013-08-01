@@ -75,6 +75,13 @@ typedef struct VirtIOCCWDeviceClass {
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT 1
 #define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
 
+typedef struct IndAddr {
+    hwaddr addr;
+    unsigned long refcnt;
+    int len;
+    QTAILQ_ENTRY(IndAddr) sibling;
+} IndAddr;
+
 struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
@@ -87,9 +94,9 @@ struct VirtioCcwDevice {
     uint8_t thinint_isc;
     uint32_t adapter_id;
     /* Guest provided values: */
-    hwaddr indicators;
-    hwaddr indicators2;
-    hwaddr summary_indicator;
+    IndAddr *indicators;
+    IndAddr *indicators2;
+    IndAddr *summary_indicator;
     uint64_t ind_bit;
 };
 
