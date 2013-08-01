@@ -1123,6 +1123,8 @@
 #endif
     POWERPC_DEF("POWER5+",       CPU_POWERPC_POWER5P,                POWER5P,
                 "POWER5+")
+    POWERPC_DEF("POWER5+_v2.1",  CPU_POWERPC_POWER5P_v21,            POWER5P,
+                "POWER5+ v2.1")
 #if defined(TODO)
     POWERPC_DEF("POWER6",        CPU_POWERPC_POWER6,                 POWER6,
                 "POWER6")
