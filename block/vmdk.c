@@ -1200,8 +1200,10 @@ static coroutine_fn int vmdk_co_read(BlockDriverState *bs, int64_t sector_num,
 /**
  * vmdk_write:
  * @zeroed:       buf is ignored (data is zero), use zeroed_grain GTE feature
- * if possible, otherwise return -ENOTSUP.
- * @zero_dry_run: used for zeroed == true only, don't update L2 table, just
+ *                if possible, otherwise return -ENOTSUP.
+ * @zero_dry_run: used for zeroed == true only, don't update L2 table, just try
+ *                with each cluster. By dry run we can find if the zero write
+ *                is possible without modifying image data.
  *
  * Returns: error code with 0 for success.
  */
@@ -1328,6 +1330,8 @@ static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
     int ret;
     BDRVVmdkState *s = bs->opaque;
     qemu_co_mutex_lock(&s->lock);
+    /* write zeroes could fail if sectors not aligned to cluster, test it with
+     * dry_run == true before really updating image */
     ret = vmdk_write(bs, sector_num, NULL, nb_sectors, true, true);
     if (!ret) {
         ret = vmdk_write(bs, sector_num, NULL, nb_sectors, true, false);
