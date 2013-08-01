@@ -2672,7 +2672,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
     xhci_port_notify(port, PORTSC_CSC);
 }
 
-static void xhci_port_reset(XHCIPort *port)
+static void xhci_port_reset(XHCIPort *port, bool warm_reset)
 {
     trace_usb_xhci_port_reset(port->portnr);
 
@@ -2683,6 +2683,11 @@ static void xhci_port_reset(XHCIPort *port)
     usb_device_reset(port->uport->dev);
 
     switch (port->uport->dev->speed) {
+    case USB_SPEED_SUPER:
+        if (warm_reset) {
+            port->portsc |= PORTSC_WRC;
+        }
+        /* fall through */
     case USB_SPEED_LOW:
     case USB_SPEED_FULL:
     case USB_SPEED_HIGH:
@@ -2845,8 +2850,12 @@ static void xhci_port_write(void *ptr, hwaddr reg,
     switch (reg) {
     case 0x00: /* PORTSC */
         /* write-1-to-start bits */
+        if (val & PORTSC_WPR) {
+            xhci_port_reset(port, true);
+            break;
+        }
         if (val & PORTSC_PR) {
-            xhci_port_reset(port);
+            xhci_port_reset(port, false);
             break;
         }
 
