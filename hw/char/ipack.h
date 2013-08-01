@@ -19,7 +19,9 @@ typedef struct IPackBus IPackBus;
 #define IPACK_BUS(obj) OBJECT_CHECK(IPackBus, (obj), TYPE_IPACK_BUS)
 
 struct IPackBus {
-    BusState qbus;
+    /*< private >*/
+    BusState parent_obj;
+
     /* All fields are private */
     uint8_t n_slots;
     uint8_t free_slot;
