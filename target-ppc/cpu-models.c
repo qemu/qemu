@@ -1121,10 +1121,8 @@
     POWERPC_DEF("POWER5",        CPU_POWERPC_POWER5,                 POWER5,
                 "POWER5")
 #endif
-#if defined(TODO)
     POWERPC_DEF("POWER5+",       CPU_POWERPC_POWER5P,                POWER5P,
                 "POWER5+")
-#endif
 #if defined(TODO)
     POWERPC_DEF("POWER6",        CPU_POWERPC_POWER6,                 POWER6,
                 "POWER6")
