@@ -249,10 +249,15 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              initrd_filename, cpu_model, 1, 1);
 }
 
-static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     pc_init_pci(args);
+}
+
+static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+{
+    pc_init_pci_1_6(args);
 }
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
@@ -340,7 +345,7 @@ static QEMUMachine pc_i440fx_machine_v1_6 = {
     .name = "pc-i440fx-1.6",
     .alias = "pc",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_6,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .is_default = 1,
