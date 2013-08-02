@@ -61,6 +61,8 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
 
     s->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
 
+    v9fs_path_init(&path);
+
     fse = get_fsdev_fsentry(s->fsconf.fsdev_id);
 
     if (!fse) {
@@ -111,7 +113,6 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
      * call back to do that. Since we are in the init path, we don't
      * use co-routines here.
      */
-    v9fs_path_init(&path);
     if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
         fprintf(stderr,
                 "error in converting name to path %s", strerror(errno));
