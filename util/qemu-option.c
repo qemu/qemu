@@ -928,6 +928,15 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
         get_opt_value(value, sizeof(value), p+4);
         id = value;
     }
+
+    /*
+     * This code doesn't work for defaults && !list->merge_lists: when
+     * params has no id=, and list has an element with !opts->id, it
+     * appends a new element instead of returning the existing opts.
+     * However, we got no use for this case.  Guard against possible
+     * (if unlikely) future misuse:
+     */
+    assert(!defaults || list->merge_lists);
     opts = qemu_opts_create(list, id, !defaults, &local_err);
     if (opts == NULL) {
         if (error_is_set(&local_err)) {
