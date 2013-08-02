@@ -912,20 +912,19 @@ static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id,
     X86CPU *cpu;
     Error *local_err = NULL;
 
-    cpu = cpu_x86_create(cpu_model, icc_bridge, errp);
-    if (!cpu) {
-        return cpu;
+    cpu = cpu_x86_create(cpu_model, icc_bridge, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return NULL;
     }
 
     object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
 
     if (local_err) {
-        if (cpu != NULL) {
-            object_unref(OBJECT(cpu));
-            cpu = NULL;
-        }
         error_propagate(errp, local_err);
+        object_unref(OBJECT(cpu));
+        cpu = NULL;
     }
     return cpu;
 }
