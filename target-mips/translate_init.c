@@ -274,14 +274,13 @@ static const mips_def_t mips_defs[] =
                        (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA) |
                        (1 << CP0C1_CA),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_VInt) | (1 << CP0C3_MT),
+        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_VInt) | (1 << CP0C3_MT) |
+                       (1 << CP0C3_DSPP),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 0,
         .SYNCI_Step = 32,
         .CCRes = 2,
-        /* No DSP implemented. */
-        .CP0_Status_rw_bitmask = 0x3678FF1F,
-        /* No DSP implemented. */
+        .CP0_Status_rw_bitmask = 0x3778FF1F,
         .CP0_TCStatus_rw_bitmask = (0 << CP0TCSt_TCU3) | (0 << CP0TCSt_TCU2) |
                     (1 << CP0TCSt_TCU1) | (1 << CP0TCSt_TCU0) |
                     (0 << CP0TCSt_TMX) | (1 << CP0TCSt_DT) |
