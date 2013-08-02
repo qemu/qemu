@@ -33,6 +33,8 @@
 #include "trace.h"
 #include "block/scsi.h"
 #include "qemu/iov.h"
+#include "sysemu/sysemu.h"
+#include "qmp-commands.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
@@ -922,8 +924,9 @@ static char *parse_initiator_name(const char *target)
 {
     QemuOptsList *list;
     QemuOpts *opts;
-    const char *name = NULL;
-    const char *iscsi_name = qemu_get_vm_name();
+    const char *name;
+    char *iscsi_name;
+    UuidInfo *uuid_info;
 
     list = qemu_find_opts("iscsi");
     if (list) {
@@ -933,16 +936,22 @@ static char *parse_initiator_name(const char *target)
         }
         if (opts) {
             name = qemu_opt_get(opts, "initiator-name");
+            if (name) {
+                return g_strdup(name);
+            }
         }
     }
 
-    if (name) {
-        return g_strdup(name);
+    uuid_info = qmp_query_uuid(NULL);
+    if (strcmp(uuid_info->UUID, UUID_NONE) == 0) {
+        name = qemu_get_vm_name();
     } else {
-        return g_strdup_printf("iqn.2008-11.org.linux-kvm%s%s",
-                               iscsi_name ? ":" : "",
-                               iscsi_name ? iscsi_name : "");
+        name = uuid_info->UUID;
     }
+    iscsi_name = g_strdup_printf("iqn.2008-11.org.linux-kvm%s%s",
+                                 name ? ":" : "", name ? name : "");
+    qapi_free_UuidInfo(uuid_info);
+    return iscsi_name;
 }
 
 #if defined(LIBISCSI_FEATURE_NOP_COUNTER)
