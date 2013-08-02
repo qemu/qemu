@@ -517,9 +517,9 @@ Object *piix4_pm_find(void)
     return o;
 }
 
-i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq, qemu_irq smi_irq,
-                       int kvm_enabled, FWCfgState *fw_cfg)
+I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                      qemu_irq sci_irq, qemu_irq smi_irq,
+                      int kvm_enabled, FWCfgState *fw_cfg)
 {
     DeviceState *dev;
     PIIX4PMState *s;

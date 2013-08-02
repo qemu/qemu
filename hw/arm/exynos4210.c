@@ -326,7 +326,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
-        s->i2c_if[n] = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
+        s->i2c_if[n] = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     }
 
 

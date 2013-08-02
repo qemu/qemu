@@ -308,7 +308,7 @@ static void z2_init(QEMUMachineInitArgs *args)
     DriveInfo *dinfo;
     int be;
     void *z2_lcd;
-    i2c_bus *bus;
+    I2CBus *bus;
     DeviceState *wm;
 
     if (!cpu_model) {

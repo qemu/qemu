@@ -83,7 +83,7 @@ typedef struct Exynos4210I2CState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
 
     uint8_t i2ccon;

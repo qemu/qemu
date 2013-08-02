@@ -194,7 +194,7 @@ static int tosa_dac_init(I2CSlave *i2c)
 
 static void tosa_tg_init(PXA2xxState *cpu)
 {
-    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
     i2c_create_slave(bus, "tosa_dac", DAC_BASE);
     ssi_create_slave(cpu->ssp[1], "tosa-ssp");
 }

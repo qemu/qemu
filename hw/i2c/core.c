@@ -9,7 +9,7 @@
 
 #include "hw/i2c/i2c.h"
 
-struct i2c_bus
+struct I2CBus
 {
     BusState qbus;
     I2CSlave *current_dev;
@@ -23,24 +23,24 @@ static Property i2c_props[] = {
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
-#define I2C_BUS(obj) OBJECT_CHECK(i2c_bus, (obj), TYPE_I2C_BUS)
+#define I2C_BUS(obj) OBJECT_CHECK(I2CBus, (obj), TYPE_I2C_BUS)
 
 static const TypeInfo i2c_bus_info = {
     .name = TYPE_I2C_BUS,
     .parent = TYPE_BUS,
-    .instance_size = sizeof(i2c_bus),
+    .instance_size = sizeof(I2CBus),
 };
 
 static void i2c_bus_pre_save(void *opaque)
 {
-    i2c_bus *bus = opaque;
+    I2CBus *bus = opaque;
 
     bus->saved_address = bus->current_dev ? bus->current_dev->address : -1;
 }
 
 static int i2c_bus_post_load(void *opaque, int version_id)
 {
-    i2c_bus *bus = opaque;
+    I2CBus *bus = opaque;
 
     /* The bus is loaded before attached devices, so load and save the
        current device id.  Devices will check themselves as loaded.  */
@@ -56,15 +56,15 @@ static const VMStateDescription vmstate_i2c_bus = {
     .pre_save = i2c_bus_pre_save,
     .post_load = i2c_bus_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT8(saved_address, i2c_bus),
+        VMSTATE_UINT8(saved_address, I2CBus),
         VMSTATE_END_OF_LIST()
     }
 };
 
 /* Create a new I2C bus.  */
-i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
+I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
 {
-    i2c_bus *bus;
+    I2CBus *bus;
 
     bus = I2C_BUS(qbus_create(TYPE_I2C_BUS, parent, name));
     vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
@@ -77,14 +77,14 @@ void i2c_set_slave_address(I2CSlave *dev, uint8_t address)
 }
 
 /* Return nonzero if bus is busy.  */
-int i2c_bus_busy(i2c_bus *bus)
+int i2c_bus_busy(I2CBus *bus)
 {
     return bus->current_dev != NULL;
 }
 
 /* Returns non-zero if the address is not valid.  */
 /* TODO: Make this handle multiple masters.  */
-int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
+int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 {
     BusChild *kid;
     I2CSlave *slave = NULL;
@@ -113,7 +113,7 @@ int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
     return 0;
 }
 
-void i2c_end_transfer(i2c_bus *bus)
+void i2c_end_transfer(I2CBus *bus)
 {
     I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
@@ -130,7 +130,7 @@ void i2c_end_transfer(i2c_bus *bus)
     bus->current_dev = NULL;
 }
 
-int i2c_send(i2c_bus *bus, uint8_t data)
+int i2c_send(I2CBus *bus, uint8_t data)
 {
     I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
@@ -147,7 +147,7 @@ int i2c_send(i2c_bus *bus, uint8_t data)
     return -1;
 }
 
-int i2c_recv(i2c_bus *bus)
+int i2c_recv(I2CBus *bus)
 {
     I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
@@ -164,7 +164,7 @@ int i2c_recv(i2c_bus *bus)
     return -1;
 }
 
-void i2c_nack(i2c_bus *bus)
+void i2c_nack(I2CBus *bus)
 {
     I2CSlave *dev = bus->current_dev;
     I2CSlaveClass *sc;
@@ -182,7 +182,7 @@ void i2c_nack(i2c_bus *bus)
 static int i2c_slave_post_load(void *opaque, int version_id)
 {
     I2CSlave *dev = opaque;
-    i2c_bus *bus;
+    I2CBus *bus;
     bus = I2C_BUS(qdev_get_parent_bus(DEVICE(dev)));
     if (bus->saved_address == dev->address) {
         bus->current_dev = dev;
@@ -210,7 +210,7 @@ static int i2c_slave_qdev_init(DeviceState *dev)
     return sc->init(s);
 }
 
-DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr)
+DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
 {
     DeviceState *dev;
 

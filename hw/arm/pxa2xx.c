@@ -1238,7 +1238,7 @@ struct PXA2xxI2CState {
 
     MemoryRegion iomem;
     PXA2xxI2CSlaveState *slave;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
     uint32_t offset;
     uint32_t region_size;
@@ -1482,7 +1482,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     DeviceState *dev;
     SysBusDevice *i2c_dev;
     PXA2xxI2CState *s;
-    i2c_bus *i2cbus;
+    I2CBus *i2cbus;
 
     dev = qdev_create(NULL, TYPE_PXA2XX_I2C);
     qdev_prop_set_uint32(dev, "size", region_size + 1);
@@ -1518,7 +1518,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *sbd)
     return 0;
 }
 
-i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
+I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
 {
     return s->bus;
 }

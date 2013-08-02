@@ -50,18 +50,18 @@ struct I2CSlave
     uint8_t address;
 };
 
-i2c_bus *i2c_init_bus(DeviceState *parent, const char *name);
+I2CBus *i2c_init_bus(DeviceState *parent, const char *name);
 void i2c_set_slave_address(I2CSlave *dev, uint8_t address);
-int i2c_bus_busy(i2c_bus *bus);
-int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv);
-void i2c_end_transfer(i2c_bus *bus);
-void i2c_nack(i2c_bus *bus);
-int i2c_send(i2c_bus *bus, uint8_t data);
-int i2c_recv(i2c_bus *bus);
+int i2c_bus_busy(I2CBus *bus);
+int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv);
+void i2c_end_transfer(I2CBus *bus);
+void i2c_nack(I2CBus *bus);
+int i2c_send(I2CBus *bus, uint8_t data);
+int i2c_recv(I2CBus *bus);
 
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
 
-DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr);
+DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr);
 
 /* wm8750.c */
 void wm8750_data_req_set(DeviceState *dev,

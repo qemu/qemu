@@ -108,7 +108,7 @@ static void ich9_smb_class_init(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
 }
 
-i2c_bus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
+I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
 {
     PCIDevice *d =
         pci_create_simple_multifunction(bus, devfn, true, TYPE_ICH9_SMB_DEVICE);

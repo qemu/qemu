@@ -900,7 +900,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     qemu_irq *isa_irq;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
-    i2c_bus *smbus;
+    I2CBus *smbus;
     int i;
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
