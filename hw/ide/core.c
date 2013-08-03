@@ -2215,55 +2215,6 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
     bus->dma = &ide_dma_nop;
 }
 
-/* TODO convert users to qdev and remove */
-void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
-                                    DriveInfo *hd1, qemu_irq irq)
-{
-    int i, trans;
-    DriveInfo *dinfo;
-    uint32_t cyls, heads, secs;
-
-    for(i = 0; i < 2; i++) {
-        dinfo = i == 0 ? hd0 : hd1;
-        ide_init1(bus, i);
-        if (dinfo) {
-            cyls  = dinfo->cyls;
-            heads = dinfo->heads;
-            secs  = dinfo->secs;
-            trans = dinfo->trans;
-            if (!cyls && !heads && !secs) {
-                hd_geometry_guess(dinfo->bdrv, &cyls, &heads, &secs, &trans);
-            } else if (trans == BIOS_ATA_TRANSLATION_AUTO) {
-                trans = hd_bios_chs_auto_trans(cyls, heads, secs);
-            }
-            if (cyls < 1 || cyls > 65535) {
-                error_report("cyls must be between 1 and 65535");
-                exit(1);
-            }
-            if (heads < 1 || heads > 16) {
-                error_report("heads must be between 1 and 16");
-                exit(1);
-            }
-            if (secs < 1 || secs > 255) {
-                error_report("secs must be between 1 and 255");
-                exit(1);
-            }
-            if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
-                               dinfo->media_cd ? IDE_CD : IDE_HD,
-                               NULL, dinfo->serial, NULL, 0,
-                               cyls, heads, secs, trans) < 0) {
-                error_report("Can't set up IDE drive %s", dinfo->id);
-                exit(1);
-            }
-            bdrv_attach_dev_nofail(dinfo->bdrv, &bus->ifs[i]);
-        } else {
-            ide_reset(&bus->ifs[i]);
-        }
-    }
-    bus->irq = irq;
-    bus->dma = &ide_dma_nop;
-}
-
 static const MemoryRegionPortio ide_portio_list[] = {
     { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
     { 0, 2, 2, .read = ide_data_readw, .write = ide_data_writew },

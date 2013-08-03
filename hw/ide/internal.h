@@ -553,8 +553,6 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
                    int chs_trans);
 void ide_init2(IDEBus *bus, qemu_irq irq);
-void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
-                                    DriveInfo *hd1, qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val);
