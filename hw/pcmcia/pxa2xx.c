@@ -11,19 +11,27 @@
  */
 
 #include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "hw/pcmcia.h"
 #include "hw/arm/pxa.h"
 
+#define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
+#define PXA2XX_PCMCIA(obj) \
+    OBJECT_CHECK(PXA2xxPCMCIAState, obj, TYPE_PXA2XX_PCMCIA)
 
 struct PXA2xxPCMCIAState {
+    SysBusDevice parent_obj;
+
     PCMCIASocket slot;
-    PCMCIACardState *card;
+    MemoryRegion container_mem;
     MemoryRegion common_iomem;
     MemoryRegion attr_iomem;
     MemoryRegion iomem;
 
     qemu_irq irq;
     qemu_irq cd_irq;
+
+    PCMCIACardState *card;
 };
 
 static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
@@ -134,15 +142,43 @@ static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
                                       hwaddr base)
 {
+    DeviceState *dev;
     PXA2xxPCMCIAState *s;
 
-    s = (PXA2xxPCMCIAState *)
-            g_malloc0(sizeof(PXA2xxPCMCIAState));
+    dev = qdev_create(NULL, TYPE_PXA2XX_PCMCIA);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    s = PXA2XX_PCMCIA(dev);
+
+    if (base == 0x30000000) {
+        s->slot.slot_string = "PXA PC Card Socket 1";
+    } else {
+        s->slot.slot_string = "PXA PC Card Socket 0";
+    }
+
+    qdev_init_nofail(dev);
+
+    return s;
+}
+
+static void pxa2xx_pcmcia_realize(DeviceState *dev, Error **errp)
+{
+    PXA2xxPCMCIAState *s = PXA2XX_PCMCIA(dev);
+
+    pcmcia_socket_register(&s->slot);
+}
+
+static void pxa2xx_pcmcia_initfn(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    PXA2xxPCMCIAState *s = PXA2XX_PCMCIA(obj);
+
+    memory_region_init(&s->container_mem, obj, "container", 0x10000000);
+    sysbus_init_mmio(sbd, &s->container_mem);
 
     /* Socket I/O Memory Space */
     memory_region_init_io(&s->iomem, NULL, &pxa2xx_pcmcia_io_ops, s,
                           "pxa2xx-pcmcia-io", 0x04000000);
-    memory_region_add_subregion(sysmem, base | 0x00000000,
+    memory_region_add_subregion(&s->container_mem, 0x00000000,
                                 &s->iomem);
 
     /* Then next 64 MB is reserved */
@@ -150,23 +186,19 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
     /* Socket Attribute Memory Space */
     memory_region_init_io(&s->attr_iomem, NULL, &pxa2xx_pcmcia_attr_ops, s,
                           "pxa2xx-pcmcia-attribute", 0x04000000);
-    memory_region_add_subregion(sysmem, base | 0x08000000,
+    memory_region_add_subregion(&s->container_mem, 0x08000000,
                                 &s->attr_iomem);
 
     /* Socket Common Memory Space */
     memory_region_init_io(&s->common_iomem, NULL, &pxa2xx_pcmcia_common_ops, s,
                           "pxa2xx-pcmcia-common", 0x04000000);
-    memory_region_add_subregion(sysmem, base | 0x0c000000,
+    memory_region_add_subregion(&s->container_mem, 0x0c000000,
                                 &s->common_iomem);
 
-    if (base == 0x30000000)
-        s->slot.slot_string = "PXA PC Card Socket 1";
-    else
-        s->slot.slot_string = "PXA PC Card Socket 0";
     s->slot.irq = qemu_allocate_irqs(pxa2xx_pcmcia_set_irq, s, 1)[0];
-    pcmcia_socket_register(&s->slot);
 
-    return s;
+    object_property_add_link(obj, "card", TYPE_PCMCIA_CARD,
+                             (Object **)&s->card, NULL);
 }
 
 /* Insert a new card into a slot */
@@ -227,3 +259,25 @@ void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq)
     s->irq = irq;
     s->cd_irq = cd_irq;
 }
+
+static void pxa2xx_pcmcia_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = pxa2xx_pcmcia_realize;
+}
+
+static const TypeInfo pxa2xx_pcmcia_type_info = {
+    .name = TYPE_PXA2XX_PCMCIA,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxPCMCIAState),
+    .instance_init = pxa2xx_pcmcia_initfn,
+    .class_init = pxa2xx_pcmcia_class_init,
+};
+
+static void pxa2xx_pcmcia_register_types(void)
+{
+    type_register_static(&pxa2xx_pcmcia_type_info);
+}
+
+type_init(pxa2xx_pcmcia_register_types)
