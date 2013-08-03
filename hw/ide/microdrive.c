@@ -103,10 +103,12 @@ static inline void md_interrupt_update(MicroDriveState *s)
 static void md_set_irq(void *opaque, int irq, int level)
 {
     MicroDriveState *s = opaque;
-    if (level)
+
+    if (level) {
         s->stat |= STAT_INT;
-    else
+    } else {
         s->stat &= ~STAT_INT;
+    }
 
     md_interrupt_update(s);
 }
@@ -142,10 +144,11 @@ static uint8_t md_attr_read(PCMCIACardState *card, uint32_t at)
     case 0x00:	/* Configuration Option Register */
         return s->opt;
     case 0x02:	/* Card Configuration Status Register */
-        if (s->ctrl & CTRL_IEN)
+        if (s->ctrl & CTRL_IEN) {
             return s->stat & ~STAT_INT;
-        else
+        } else {
             return s->stat;
+        }
     case 0x04:	/* Pin Replacement Register */
         return (s->pins & PINS_CRDY) | 0x0c;
     case 0x06:	/* Socket and Copy Register */
@@ -174,8 +177,9 @@ static void md_attr_write(PCMCIACardState *card, uint32_t at, uint8_t value)
         md_interrupt_update(s);
         break;
     case 0x02:	/* Card Configuration Status Register */
-        if ((s->stat ^ value) & STAT_PWRDWN)
+        if ((s->stat ^ value) & STAT_PWRDWN) {
             s->pins |= PINS_CRDY;
+        }
         s->stat &= 0x82;
         s->stat |= value & 0x74;
         md_interrupt_update(s);
@@ -201,23 +205,26 @@ static uint16_t md_common_read(PCMCIACardState *card, uint32_t at)
 
     switch (s->opt & OPT_MODE) {
     case OPT_MODE_MMAP:
-        if ((at & ~0x3ff) == 0x400)
+        if ((at & ~0x3ff) == 0x400) {
             at = 0;
+        }
         break;
     case OPT_MODE_IOMAP16:
         at &= 0xf;
         break;
     case OPT_MODE_IOMAP1:
-        if ((at & ~0xf) == 0x3f0)
+        if ((at & ~0xf) == 0x3f0) {
             at -= 0x3e8;
-        else if ((at & ~0xf) == 0x1f0)
+        } else if ((at & ~0xf) == 0x1f0) {
             at -= 0x1f0;
+        }
         break;
     case OPT_MODE_IOMAP2:
-        if ((at & ~0xf) == 0x370)
+        if ((at & ~0xf) == 0x370) {
             at -= 0x368;
-        else if ((at & ~0xf) == 0x170)
+        } else if ((at & ~0xf) == 0x170) {
             at -= 0x170;
+        }
     }
 
     switch (at) {
@@ -226,9 +233,9 @@ static uint16_t md_common_read(PCMCIACardState *card, uint32_t at)
         return ide_data_readw(&s->bus, 0);
 
         /* TODO: 8-bit accesses */
-        if (s->cycle)
+        if (s->cycle) {
             ret = s->io >> 8;
-        else {
+        } else {
             s->io = ide_data_readw(&s->bus, 0);
             ret = s->io & 0xff;
         }
@@ -240,10 +247,11 @@ static uint16_t md_common_read(PCMCIACardState *card, uint32_t at)
         return ide_ioport_read(&s->bus, 0x1);
     case 0xe:	/* Alternate Status */
         ifs = idebus_active_if(&s->bus);
-        if (ifs->bs)
+        if (ifs->bs) {
             return ifs->status;
-        else
+        } else {
             return 0;
+        }
     case 0xf:	/* Device Address */
         ifs = idebus_active_if(&s->bus);
         return 0xc2 | ((~ifs->select << 2) & 0x3c);
@@ -261,23 +269,26 @@ static void md_common_write(PCMCIACardState *card, uint32_t at, uint16_t value)
 
     switch (s->opt & OPT_MODE) {
     case OPT_MODE_MMAP:
-        if ((at & ~0x3ff) == 0x400)
+        if ((at & ~0x3ff) == 0x400) {
             at = 0;
+        }
         break;
     case OPT_MODE_IOMAP16:
         at &= 0xf;
         break;
     case OPT_MODE_IOMAP1:
-        if ((at & ~0xf) == 0x3f0)
+        if ((at & ~0xf) == 0x3f0) {
             at -= 0x3e8;
-        else if ((at & ~0xf) == 0x1f0)
+        } else if ((at & ~0xf) == 0x1f0) {
             at -= 0x1f0;
+        }
         break;
     case OPT_MODE_IOMAP2:
-        if ((at & ~0xf) == 0x370)
+        if ((at & ~0xf) == 0x370) {
             at -= 0x368;
-        else if ((at & ~0xf) == 0x170)
+        } else if ((at & ~0xf) == 0x170) {
             at -= 0x170;
+        }
     }
 
     switch (at) {
@@ -287,10 +298,11 @@ static void md_common_write(PCMCIACardState *card, uint32_t at, uint16_t value)
         break;
 
         /* TODO: 8-bit accesses */
-        if (s->cycle)
+        if (s->cycle) {
             ide_data_writew(&s->bus, 0, s->io | (value << 8));
-        else
+        } else {
             s->io = value & 0xff;
+        }
         s->cycle = !s->cycle;
         break;
     case 0x9:
@@ -546,8 +558,10 @@ static int dscm1xxxx_detach(PCMCIACardState *card)
 
 PCMCIACardState *dscm1xxxx_init(DriveInfo *dinfo)
 {
-    MicroDriveState *md = MICRODRIVE(object_new(TYPE_DSCM1XXXX));
-    PCMCIACardState *card = PCMCIA_CARD(md);
+    MicroDriveState *md;
+
+    md = MICRODRIVE(object_new(TYPE_DSCM1XXXX));
+    qdev_init_nofail(DEVICE(md));
 
     if (dinfo != NULL) {
         ide_create_drive(&md->bus, 0, dinfo);
@@ -556,7 +570,7 @@ PCMCIACardState *dscm1xxxx_init(DriveInfo *dinfo)
     md->bus.ifs[0].mdata_size = METADATA_SIZE;
     md->bus.ifs[0].mdata_storage = (uint8_t *) g_malloc0(METADATA_SIZE);
 
-    return card;
+    return PCMCIA_CARD(md);
 }
 
 static void dscm1xxxx_class_init(ObjectClass *oc, void *data)
