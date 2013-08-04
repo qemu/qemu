@@ -2097,6 +2097,8 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         rdma_destroy_event_channel(rdma->channel);
         rdma->channel = NULL;
     }
+    g_free(rdma->host);
+    rdma->host = NULL;
 }
 
 
