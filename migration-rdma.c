@@ -1933,10 +1933,21 @@ static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
 static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
                     uint64_t offset, uint64_t len)
 {
-    RDMALocalBlock *block =
-        &(rdma->local_ram_blocks.block[rdma->current_index]);
-    uint8_t *host_addr = block->local_host_addr + (offset - block->offset);
-    uint8_t *chunk_end = ram_chunk_end(block, rdma->current_chunk);
+    RDMALocalBlock *block;
+    uint8_t *host_addr;
+    uint8_t *chunk_end;
+
+    if (rdma->current_index < 0) {
+        return 0;
+    }
+
+    if (rdma->current_chunk < 0) {
+        return 0;
+    }
+
+    block = &(rdma->local_ram_blocks.block[rdma->current_index]);
+    host_addr = block->local_host_addr + (offset - block->offset);
+    chunk_end = ram_chunk_end(block, rdma->current_chunk);
 
     if (rdma->current_length == 0) {
         return 0;
@@ -1949,19 +1960,11 @@ static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
         return 0;
     }
 
-    if (rdma->current_index < 0) {
-        return 0;
-    }
-
     if (offset < block->offset) {
         return 0;
     }
 
     if ((offset + len) > (block->offset + block->length)) {
-        return 0;
-    }
-
-    if (rdma->current_chunk < 0) {
         return 0;
     }
 
