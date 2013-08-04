@@ -322,7 +322,7 @@ typedef struct RDMAContext {
     char *host;
     int port;
 
-    RDMAWorkRequestData wr_data[RDMA_WRID_MAX + 1];
+    RDMAWorkRequestData wr_data[RDMA_WRID_MAX];
 
     /*
      * This is used by *_exchange_send() to figure out whether or not
@@ -1399,7 +1399,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
                                        RDMAControlHeader *head)
 {
     int ret = 0;
-    RDMAWorkRequestData *wr = &rdma->wr_data[RDMA_WRID_MAX];
+    RDMAWorkRequestData *wr = &rdma->wr_data[RDMA_WRID_CONTROL];
     struct ibv_send_wr *bad_wr;
     struct ibv_sge sge = {
                            .addr = (uint64_t)(wr->control),
@@ -2054,7 +2054,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     g_free(rdma->block);
     rdma->block = NULL;
 
-    for (idx = 0; idx <= RDMA_WRID_MAX; idx++) {
+    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         if (rdma->wr_data[idx].control_mr) {
             rdma->total_registrations--;
             ibv_dereg_mr(rdma->wr_data[idx].control_mr);
@@ -2136,7 +2136,7 @@ static int qemu_rdma_source_init(RDMAContext *rdma, Error **errp, bool pin_all)
         goto err_rdma_source_init;
     }
 
-    for (idx = 0; idx <= RDMA_WRID_MAX; idx++) {
+    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         ret = qemu_rdma_reg_control(rdma, idx);
         if (ret) {
             ERROR(temp, "rdma migration: error registering %d control!",
@@ -2248,7 +2248,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     struct addrinfo *res;
     char port_str[16];
 
-    for (idx = 0; idx <= RDMA_WRID_MAX; idx++) {
+    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         rdma->wr_data[idx].control_len = 0;
         rdma->wr_data[idx].control_curr = NULL;
     }
@@ -2705,7 +2705,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         goto err_rdma_dest_wait;
     }
 
-    for (idx = 0; idx <= RDMA_WRID_MAX; idx++) {
+    for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         ret = qemu_rdma_reg_control(rdma, idx);
         if (ret) {
             fprintf(stderr, "rdma: error registering %d control!\n", idx);
