@@ -392,6 +392,7 @@ typedef struct RDMAContext {
     uint64_t unregistrations[RDMA_SIGNALED_SEND_MAX];
 
     GHashTable *blockmap;
+    bool ipv6;
 } RDMAContext;
 
 /*
@@ -744,6 +745,7 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
     char port_str[16];
     struct rdma_cm_event *cm_event;
     char ip[40] = "unknown";
+    int af = rdma->ipv6 ? PF_INET6 : PF_INET;
 
     if (rdma->host == NULL || !strcmp(rdma->host, "")) {
         ERROR(errp, "RDMA hostname has not been set\n");
@@ -773,7 +775,7 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
         goto err_resolve_get_addr;
     }
 
-    inet_ntop(AF_INET, &((struct sockaddr_in *) res->ai_addr)->sin_addr,
+    inet_ntop(af, &((struct sockaddr_in *) res->ai_addr)->sin_addr,
                                 ip, sizeof ip);
     DPRINTF("%s => %s\n", rdma->host, ip);
 
@@ -2236,9 +2238,12 @@ err_rdma_source_connect:
 static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 {
     int ret = -EINVAL, idx;
+    int af = rdma->ipv6 ? PF_INET6 : PF_INET;
     struct sockaddr_in sin;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
+    struct addrinfo *res;
+    char port_str[16];
 
     for (idx = 0; idx <= RDMA_WRID_MAX; idx++) {
         rdma->wr_data[idx].control_len = 0;
@@ -2266,27 +2271,30 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     }
 
     memset(&sin, 0, sizeof(sin));
-    sin.sin_family = AF_INET;
+    sin.sin_family = af;
     sin.sin_port = htons(rdma->port);
+    snprintf(port_str, 16, "%d", rdma->port);
+    port_str[15] = '\0';
 
     if (rdma->host && strcmp("", rdma->host)) {
-        struct hostent *dest_addr;
-        dest_addr = gethostbyname(rdma->host);
-        if (!dest_addr) {
-            ERROR(errp, "migration could not gethostbyname!\n");
-            ret = -EINVAL;
+        ret = getaddrinfo(rdma->host, port_str, NULL, &res);
+        if (ret < 0) {
+            ERROR(errp, "could not getaddrinfo address %s\n", rdma->host);
             goto err_dest_init_bind_addr;
         }
-        memcpy(&sin.sin_addr.s_addr, dest_addr->h_addr,
-                dest_addr->h_length);
-        inet_ntop(AF_INET, dest_addr->h_addr, ip, sizeof ip);
+
+
+        inet_ntop(af, &((struct sockaddr_in *) res->ai_addr)->sin_addr,
+                                    ip, sizeof ip);
     } else {
-        sin.sin_addr.s_addr = INADDR_ANY;
+        ERROR(errp, "migration host and port not specified!\n");
+        ret = -EINVAL;
+        goto err_dest_init_bind_addr;
     }
 
     DPRINTF("%s => %s\n", rdma->host, ip);
 
-    ret = rdma_bind_addr(listen_id, (struct sockaddr *)&sin);
+    ret = rdma_bind_addr(listen_id, res->ai_addr);
     if (ret) {
         ERROR(errp, "Error: could not rdma_bind_addr!\n");
         goto err_dest_init_bind_addr;
@@ -2321,6 +2329,7 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
         if (addr != NULL) {
             rdma->port = atoi(addr->port);
             rdma->host = g_strdup(addr->host);
+            rdma->ipv6 = addr->ipv6;
         } else {
             ERROR(errp, "bad RDMA migration address '%s'", host_port);
             g_free(rdma);
