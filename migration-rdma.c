@@ -2223,7 +2223,7 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
 
     rdma_ack_cm_event(cm_event);
 
-    ret = qemu_rdma_post_recv_control(rdma, 0);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
     if (ret) {
         ERROR(errp, "posting second control recv!");
         goto err_rdma_source_connect;
@@ -2735,7 +2735,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     rdma_ack_cm_event(cm_event);
 
-    ret = qemu_rdma_post_recv_control(rdma, 0);
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
     if (ret) {
         fprintf(stderr, "rdma migration: error posting second control recv!\n");
         goto err_rdma_dest_wait;
