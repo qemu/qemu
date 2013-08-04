@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -143,7 +144,7 @@ milkymist_init(QEMUMachineInitArgs *args)
     reset_info->bootstrap_pc = BIOS_OFFSET;
 
     /* if no kernel is given no valid bios rom is a fatal error */
-    if (!kernel_filename && !dinfo && !bios_filename) {
+    if (!kernel_filename && !dinfo && !bios_filename && !qtest_enabled()) {
         fprintf(stderr, "qemu: could not load Milkymist One bios '%s'\n",
                 bios_name);
         exit(1);
