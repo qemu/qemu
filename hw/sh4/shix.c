@@ -30,9 +30,11 @@
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000
@@ -72,10 +74,9 @@ static void shix_init(QEMUMachineInitArgs *args)
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     ret = load_image_targphys(bios_name, 0, 0x4000);
-    if (ret < 0) {		/* Check bios size */
-	fprintf(stderr, "qemu: could not load SHIX bios '%s'\n",
-		bios_name);
-	exit(1);
+    if (ret < 0 && !qtest_enabled()) {
+        error_report("Could not load SHIX bios '%s'", bios_name);
+        exit(1);
     }
 
     /* Register peripherals */
