@@ -27,6 +27,7 @@
 #include "cpu-models.h"
 #include "mmu-hash32.h"
 #include "mmu-hash64.h"
+#include "qemu/error-report.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -8281,7 +8282,7 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
     if (err != NULL) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_report("%s", error_get_pretty(err));
         error_free(err);
         object_unref(OBJECT(cpu));
         return NULL;

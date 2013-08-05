@@ -1852,7 +1852,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
 
 out:
     if (error) {
-        fprintf(stderr, "%s\n", error_get_pretty(error));
+        error_report("%s", error_get_pretty(error));
         error_free(error);
         if (cpu != NULL) {
             object_unref(OBJECT(cpu));

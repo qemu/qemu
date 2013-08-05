@@ -27,6 +27,7 @@
 #include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_SERIAL
 
@@ -696,7 +697,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->chr = chr;
     serial_realize_core(s, &err);
     if (err != NULL) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_report("%s", error_get_pretty(err));
         error_free(err);
         exit(1);
     }
@@ -760,7 +761,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     serial_realize_core(s, &err);
     if (err != NULL) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_report("%s", error_get_pretty(err));
         error_free(err);
         exit(1);
     }

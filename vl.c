@@ -2393,7 +2393,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
 
     qemu_chr_new_from_opts(opts, NULL, &local_err);
     if (error_is_set(&local_err)) {
-        fprintf(stderr, "%s\n", error_get_pretty(local_err));
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return -1;
     }
@@ -4375,8 +4375,8 @@ int main(int argc, char **argv, char **envp)
         vnc_display_init(ds);
         vnc_display_open(ds, vnc_display, &local_err);
         if (local_err != NULL) {
-            fprintf(stderr, "Failed to start VNC server on `%s': %s\n",
-                    vnc_display, error_get_pretty(local_err));
+            error_report("Failed to start VNC server on `%s': %s",
+                         vnc_display, error_get_pretty(local_err));
             error_free(local_err);
             exit(1);
         }
@@ -4419,7 +4419,8 @@ int main(int argc, char **argv, char **envp)
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
         if (local_err) {
-            fprintf(stderr, "-incoming %s: %s\n", incoming, error_get_pretty(local_err));
+            error_report("-incoming %s: %s", incoming,
+                         error_get_pretty(local_err));
             error_free(local_err);
             exit(1);
         }
