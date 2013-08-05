@@ -46,6 +46,7 @@
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 extern QemuOptsList qemu_common_drive_opts;
+extern QemuOptsList qemu_old_drive_opts;
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -744,6 +745,26 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
 DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
+
+    /*
+     * Check that only old options are used by copying into a QemuOpts with
+     * stricter checks. Going through a QDict seems to be the easiest way to
+     * achieve this...
+     */
+    QemuOpts* check_opts;
+    QDict *qdict;
+    Error *local_err = NULL;
+
+    qdict = qemu_opts_to_qdict(all_opts, NULL);
+    check_opts = qemu_opts_from_qdict(&qemu_old_drive_opts, qdict, &local_err);
+    QDECREF(qdict);
+
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return NULL;
+    }
+    qemu_opts_del(check_opts);
 
     /* Change legacy command line options into QMP ones */
     qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
@@ -1956,6 +1977,128 @@ QemuOptsList qemu_common_drive_opts = {
             .help = "limit read bytes per second",
         },{
             .name = "throttling.bps-write",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit write bytes per second",
+        },{
+            .name = "copy-on-read",
+            .type = QEMU_OPT_BOOL,
+            .help = "copy read data from backing file into image file",
+        },{
+            .name = "boot",
+            .type = QEMU_OPT_BOOL,
+            .help = "(deprecated, ignored)",
+        },
+        { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_old_drive_opts = {
+    .name = "drive",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_old_drive_opts.head),
+    .desc = {
+        {
+            .name = "bus",
+            .type = QEMU_OPT_NUMBER,
+            .help = "bus number",
+        },{
+            .name = "unit",
+            .type = QEMU_OPT_NUMBER,
+            .help = "unit number (i.e. lun for scsi)",
+        },{
+            .name = "if",
+            .type = QEMU_OPT_STRING,
+            .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
+        },{
+            .name = "index",
+            .type = QEMU_OPT_NUMBER,
+            .help = "index number",
+        },{
+            .name = "cyls",
+            .type = QEMU_OPT_NUMBER,
+            .help = "number of cylinders (ide disk geometry)",
+        },{
+            .name = "heads",
+            .type = QEMU_OPT_NUMBER,
+            .help = "number of heads (ide disk geometry)",
+        },{
+            .name = "secs",
+            .type = QEMU_OPT_NUMBER,
+            .help = "number of sectors (ide disk geometry)",
+        },{
+            .name = "trans",
+            .type = QEMU_OPT_STRING,
+            .help = "chs translation (auto, lba. none)",
+        },{
+            .name = "media",
+            .type = QEMU_OPT_STRING,
+            .help = "media type (disk, cdrom)",
+        },{
+            .name = "snapshot",
+            .type = QEMU_OPT_BOOL,
+            .help = "enable/disable snapshot mode",
+        },{
+            .name = "file",
+            .type = QEMU_OPT_STRING,
+            .help = "disk image",
+        },{
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
+        },{
+            .name = "cache",
+            .type = QEMU_OPT_STRING,
+            .help = "host cache usage (none, writeback, writethrough, "
+                    "directsync, unsafe)",
+        },{
+            .name = "aio",
+            .type = QEMU_OPT_STRING,
+            .help = "host AIO implementation (threads, native)",
+        },{
+            .name = "format",
+            .type = QEMU_OPT_STRING,
+            .help = "disk format (raw, qcow2, ...)",
+        },{
+            .name = "serial",
+            .type = QEMU_OPT_STRING,
+            .help = "disk serial number",
+        },{
+            .name = "rerror",
+            .type = QEMU_OPT_STRING,
+            .help = "read error action",
+        },{
+            .name = "werror",
+            .type = QEMU_OPT_STRING,
+            .help = "write error action",
+        },{
+            .name = "addr",
+            .type = QEMU_OPT_STRING,
+            .help = "pci address (virtio only)",
+        },{
+            .name = "readonly",
+            .type = QEMU_OPT_BOOL,
+            .help = "open drive file as read-only",
+        },{
+            .name = "iops",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit total I/O operations per second",
+        },{
+            .name = "iops_rd",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit read operations per second",
+        },{
+            .name = "iops_wr",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit write operations per second",
+        },{
+            .name = "bps",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit total bytes per second",
+        },{
+            .name = "bps_rd",
+            .type = QEMU_OPT_NUMBER,
+            .help = "limit read bytes per second",
+        },{
+            .name = "bps_wr",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write bytes per second",
         },{
