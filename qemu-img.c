@@ -396,6 +396,9 @@ static int img_create(int argc, char **argv)
         }
         img_size = (uint64_t)sval;
     }
+    if (optind != argc) {
+        help();
+    }
 
     if (options && is_help_option(options)) {
         return print_block_option_help(filename, fmt);
@@ -573,7 +576,7 @@ static int img_check(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) {
+    if (optind != argc - 1) {
         help();
     }
     filename = argv[optind++];
@@ -684,7 +687,7 @@ static int img_commit(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) {
+    if (optind != argc - 1) {
         help();
     }
     filename = argv[optind++];
@@ -930,7 +933,7 @@ static int img_compare(int argc, char **argv)
     }
 
 
-    if (optind > argc - 2) {
+    if (optind != argc - 2) {
         help();
     }
     filename1 = argv[optind++];
@@ -1741,7 +1744,7 @@ static int img_info(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) {
+    if (optind != argc - 1) {
         help();
     }
     filename = argv[optind++];
@@ -1842,7 +1845,7 @@ static int img_snapshot(int argc, char **argv)
         }
     }
 
-    if (optind >= argc) {
+    if (optind != argc - 1) {
         help();
     }
     filename = argv[optind++];
@@ -1953,7 +1956,7 @@ static int img_rebase(int argc, char **argv)
         progress = 0;
     }
 
-    if ((optind >= argc) || (!unsafe && !out_baseimg)) {
+    if ((optind != argc - 1) || (!unsafe && !out_baseimg)) {
         help();
     }
     filename = argv[optind++];
@@ -2232,7 +2235,7 @@ static int img_resize(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc) {
+    if (optind != argc - 1) {
         help();
     }
     filename = argv[optind++];
