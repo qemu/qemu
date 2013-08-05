@@ -18,7 +18,6 @@
 #include "exec/ioport.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
-#include "sysemu/kvm.h"
 #include "trace.h"
 #include <assert.h>
 
