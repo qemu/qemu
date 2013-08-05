@@ -305,14 +305,19 @@ static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
     tcg_temp_free(tmp);
 }
 
-static void gen_advance_ccount(DisasContext *dc)
+static void gen_advance_ccount_cond(DisasContext *dc)
 {
     if (dc->ccount_delta > 0) {
         TCGv_i32 tmp = tcg_const_i32(dc->ccount_delta);
-        dc->ccount_delta = 0;
         gen_helper_advance_ccount(cpu_env, tmp);
         tcg_temp_free(tmp);
     }
+}
+
+static void gen_advance_ccount(DisasContext *dc)
+{
+    gen_advance_ccount_cond(dc);
+    dc->ccount_delta = 0;
 }
 
 static void reset_used_window(DisasContext *dc)
@@ -491,7 +496,7 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
-static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
+static bool gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
 {
     if (!xtensa_option_bits_enabled(dc->config, sregnames[sr].opt_bits)) {
         if (sregnames[sr].name) {
@@ -500,6 +505,7 @@ static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
             qemu_log("SR %d is not implemented\n", sr);
         }
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+        return false;
     } else if (!(sregnames[sr].access & access)) {
         static const char * const access_text[] = {
             [SR_R] = "rsr",
@@ -510,7 +516,9 @@ static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
         qemu_log("SR %s is not available for %s\n", sregnames[sr].name,
                 access_text[access]);
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+        return false;
     }
+    return true;
 }
 
 static void gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
@@ -826,15 +834,27 @@ static void gen_window_check1(DisasContext *dc, unsigned r1)
     }
     if (option_enabled(dc, XTENSA_OPTION_WINDOWED_REGISTER) &&
             r1 / 4 > dc->used_window) {
-        TCGv_i32 pc = tcg_const_i32(dc->pc);
-        TCGv_i32 w = tcg_const_i32(r1 / 4);
+        int label = gen_new_label();
+        TCGv_i32 ws = tcg_temp_new_i32();
 
         dc->used_window = r1 / 4;
-        gen_advance_ccount(dc);
-        gen_helper_window_check(cpu_env, pc, w);
+        tcg_gen_deposit_i32(ws, cpu_SR[WINDOW_START], cpu_SR[WINDOW_START],
+                dc->config->nareg / 4, dc->config->nareg / 4);
+        tcg_gen_shr_i32(ws, ws, cpu_SR[WINDOW_BASE]);
+        tcg_gen_andi_i32(ws, ws, (2 << (r1 / 4)) - 2);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, ws, 0, label);
+        {
+            TCGv_i32 pc = tcg_const_i32(dc->pc);
+            TCGv_i32 w = tcg_const_i32(r1 / 4);
 
-        tcg_temp_free(w);
-        tcg_temp_free(pc);
+            gen_advance_ccount_cond(dc);
+            gen_helper_window_check(cpu_env, pc, w);
+
+            tcg_temp_free(w);
+            tcg_temp_free(pc);
+        }
+        gen_set_label(label);
+        tcg_temp_free(ws);
     }
 }
 
@@ -1482,9 +1502,9 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 break;
 
             case 6: /*XSR*/
-                {
+                if (gen_check_sr(dc, RSR_SR, SR_X)) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
-                    gen_check_sr(dc, RSR_SR, SR_X);
+
                     if (RSR_SR >= 64) {
                         gen_check_privilege(dc);
                     }
@@ -1707,21 +1727,23 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 3: /*RST3*/
             switch (OP2) {
             case 0: /*RSR*/
-                gen_check_sr(dc, RSR_SR, SR_R);
-                if (RSR_SR >= 64) {
-                    gen_check_privilege(dc);
+                if (gen_check_sr(dc, RSR_SR, SR_R)) {
+                    if (RSR_SR >= 64) {
+                        gen_check_privilege(dc);
+                    }
+                    gen_window_check1(dc, RRR_T);
+                    gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                 }
-                gen_window_check1(dc, RRR_T);
-                gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                 break;
 
             case 1: /*WSR*/
-                gen_check_sr(dc, RSR_SR, SR_W);
-                if (RSR_SR >= 64) {
-                    gen_check_privilege(dc);
+                if (gen_check_sr(dc, RSR_SR, SR_W)) {
+                    if (RSR_SR >= 64) {
+                        gen_check_privilege(dc);
+                    }
+                    gen_window_check1(dc, RRR_T);
+                    gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
                 }
-                gen_window_check1(dc, RRR_T);
-                gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
                 break;
 
             case 2: /*SEXTu*/
@@ -2918,8 +2940,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
 
     gen_tb_start();
 
-    if (cs->singlestep_enabled && env->exception_taken) {
-        env->exception_taken = 0;
+    if (tb->flags & XTENSA_TBFLAG_EXCEPTION) {
         tcg_gen_movi_i32(cpu_pc, dc.pc);
         gen_exception(&dc, EXCP_DEBUG);
     }
