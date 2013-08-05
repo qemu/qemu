@@ -42,7 +42,7 @@
 
 #define USE_FLASH_BIOS
 
-#define DEBUG_BOARD_INIT
+//#define DEBUG_BOARD_INIT
 
 /*****************************************************************************/
 /* PPC405EP reference board (IBM) */
@@ -353,9 +353,9 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
         bdloc = 0;
     }
 #ifdef DEBUG_BOARD_INIT
+    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
     printf("%s: Done\n", __func__);
 #endif
-    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
 }
 
 static QEMUMachine ref405ep_machine = {
