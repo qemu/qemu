@@ -814,9 +814,6 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
         if (rom->addr > end) {
             break;
         }
-        if (!rom->data) {
-            continue;
-        }
 
         d = dest + (rom->addr - addr);
         s = rom->data;
@@ -826,7 +823,9 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
             l = dest - d;
         }
 
-        memcpy(d, s, l);
+        if (l > 0) {
+            memcpy(d, s, l);
+        }
 
         if (rom->romsize > rom->datasize) {
             /* If datasize is less than romsize, it means that we didn't
