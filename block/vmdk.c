@@ -62,7 +62,7 @@ typedef struct {
     uint32_t cylinders;
     uint32_t heads;
     uint32_t sectors_per_track;
-} VMDK3Header;
+} QEMU_PACKED VMDK3Header;
 
 typedef struct {
     uint32_t version;
@@ -131,7 +131,7 @@ typedef struct VmdkGrainMarker {
     uint64_t lba;
     uint32_t size;
     uint8_t  data[0];
-} VmdkGrainMarker;
+} QEMU_PACKED VmdkGrainMarker;
 
 enum {
     MARKER_END_OF_STREAM    = 0,
