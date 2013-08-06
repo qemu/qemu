@@ -11061,6 +11061,36 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         }
         break;
 #endif
+    case 0x2a:
+        switch (minor & 3) {
+        case MADD_ACC:
+            gen_muldiv(ctx, OPC_MADD, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MADDU_ACC:
+            gen_muldiv(ctx, OPC_MADDU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MSUB_ACC:
+            gen_muldiv(ctx, OPC_MSUB, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MSUBU_ACC:
+            gen_muldiv(ctx, OPC_MSUBU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
+    case 0x32:
+        switch (minor & 3) {
+        case MULT_ACC:
+            gen_muldiv(ctx, OPC_MULT, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MULTU_ACC:
+            gen_muldiv(ctx, OPC_MULTU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
     case 0x2c:
         switch (minor) {
         case SEB:
@@ -11113,7 +11143,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             mips32_op = OPC_MSUBU;
         do_mul:
             check_insn(ctx, ISA_MIPS32);
-            gen_muldiv(ctx, mips32_op, (ctx->opcode >> 14) & 3, rs, rt);
+            gen_muldiv(ctx, mips32_op, 0, rs, rt);
             break;
         default:
             goto pool32axf_invalid;
@@ -11247,19 +11277,37 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             goto pool32axf_invalid;
         }
         break;
-    case 0x35:
+    case 0x01:
         switch (minor & 3) {
-        case MFHI32:
+        case MFHI_ACC:
             gen_HILO(ctx, OPC_MFHI, minor >> 2, rs);
             break;
-        case MFLO32:
+        case MFLO_ACC:
             gen_HILO(ctx, OPC_MFLO, minor >> 2, rs);
             break;
-        case MTHI32:
+        case MTHI_ACC:
             gen_HILO(ctx, OPC_MTHI, minor >> 2, rs);
             break;
-        case MTLO32:
+        case MTLO_ACC:
             gen_HILO(ctx, OPC_MTLO, minor >> 2, rs);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
+    case 0x35:
+        switch (minor) {
+        case MFHI32:
+            gen_HILO(ctx, OPC_MFHI, 0, rs);
+            break;
+        case MFLO32:
+            gen_HILO(ctx, OPC_MFLO, 0, rs);
+            break;
+        case MTHI32:
+            gen_HILO(ctx, OPC_MTHI, 0, rs);
+            break;
+        case MTLO32:
+            gen_HILO(ctx, OPC_MTLO, 0, rs);
             break;
         default:
             goto pool32axf_invalid;
