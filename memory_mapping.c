@@ -165,6 +165,23 @@ void memory_mapping_list_init(MemoryMappingList *list)
     QTAILQ_INIT(&list->head);
 }
 
+void guest_phys_blocks_free(GuestPhysBlockList *list)
+{
+    GuestPhysBlock *p, *q;
+
+    QTAILQ_FOREACH_SAFE(p, &list->head, next, q) {
+        QTAILQ_REMOVE(&list->head, p, next);
+        g_free(p);
+    }
+    list->num = 0;
+}
+
+void guest_phys_blocks_init(GuestPhysBlockList *list)
+{
+    list->num = 0;
+    QTAILQ_INIT(&list->head);
+}
+
 static CPUState *find_paging_enabled_cpu(CPUState *start_cpu)
 {
     CPUState *cpu;
