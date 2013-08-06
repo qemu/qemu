@@ -70,7 +70,7 @@ typedef struct DumpState {
     hwaddr memory_offset;
     int fd;
 
-    RAMBlock *block;
+    GuestPhysBlock *next_block;
     ram_addr_t start;
     bool has_filter;
     int64_t begin;
@@ -391,14 +391,14 @@ static int write_data(DumpState *s, void *buf, int length)
 }
 
 /* write the memroy to vmcore. 1 page per I/O. */
-static int write_memory(DumpState *s, RAMBlock *block, ram_addr_t start,
+static int write_memory(DumpState *s, GuestPhysBlock *block, ram_addr_t start,
                         int64_t size)
 {
     int64_t i;
     int ret;
 
     for (i = 0; i < size / TARGET_PAGE_SIZE; i++) {
-        ret = write_data(s, block->host + start + i * TARGET_PAGE_SIZE,
+        ret = write_data(s, block->host_addr + start + i * TARGET_PAGE_SIZE,
                          TARGET_PAGE_SIZE);
         if (ret < 0) {
             return ret;
@@ -406,7 +406,7 @@ static int write_memory(DumpState *s, RAMBlock *block, ram_addr_t start,
     }
 
     if ((size % TARGET_PAGE_SIZE) != 0) {
-        ret = write_data(s, block->host + start + i * TARGET_PAGE_SIZE,
+        ret = write_data(s, block->host_addr + start + i * TARGET_PAGE_SIZE,
                          size % TARGET_PAGE_SIZE);
         if (ret < 0) {
             return ret;
@@ -423,7 +423,7 @@ static void get_offset_range(hwaddr phys_addr,
                              hwaddr *p_offset,
                              hwaddr *p_filesz)
 {
-    RAMBlock *block;
+    GuestPhysBlock *block;
     hwaddr offset = s->memory_offset;
     int64_t size_in_block, start;
 
@@ -437,35 +437,34 @@ static void get_offset_range(hwaddr phys_addr,
         }
     }
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
         if (s->has_filter) {
-            if (block->offset >= s->begin + s->length ||
-                block->offset + block->length <= s->begin) {
+            if (block->target_start >= s->begin + s->length ||
+                block->target_end <= s->begin) {
                 /* This block is out of the range */
                 continue;
             }
 
-            if (s->begin <= block->offset) {
-                start = block->offset;
+            if (s->begin <= block->target_start) {
+                start = block->target_start;
             } else {
                 start = s->begin;
             }
 
-            size_in_block = block->length - (start - block->offset);
-            if (s->begin + s->length < block->offset + block->length) {
-                size_in_block -= block->offset + block->length -
-                                 (s->begin + s->length);
+            size_in_block = block->target_end - start;
+            if (s->begin + s->length < block->target_end) {
+                size_in_block -= block->target_end - (s->begin + s->length);
             }
         } else {
-            start = block->offset;
-            size_in_block = block->length;
+            start = block->target_start;
+            size_in_block = block->target_end - block->target_start;
         }
 
         if (phys_addr >= start && phys_addr < start + size_in_block) {
             *p_offset = phys_addr - start + offset;
 
             /* The offset range mapped from the vmcore file must not spill over
-             * the RAMBlock, clamp it. The rest of the mapping will be
+             * the GuestPhysBlock, clamp it. The rest of the mapping will be
              * zero-filled in memory at load time; see
              * <http://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html>.
              */
@@ -613,7 +612,7 @@ static int dump_completed(DumpState *s)
     return 0;
 }
 
-static int get_next_block(DumpState *s, RAMBlock *block)
+static int get_next_block(DumpState *s, GuestPhysBlock *block)
 {
     while (1) {
         block = QTAILQ_NEXT(block, next);
@@ -623,16 +622,16 @@ static int get_next_block(DumpState *s, RAMBlock *block)
         }
 
         s->start = 0;
-        s->block = block;
+        s->next_block = block;
         if (s->has_filter) {
-            if (block->offset >= s->begin + s->length ||
-                block->offset + block->length <= s->begin) {
+            if (block->target_start >= s->begin + s->length ||
+                block->target_end <= s->begin) {
                 /* This block is out of the range */
                 continue;
             }
 
-            if (s->begin > block->offset) {
-                s->start = s->begin - block->offset;
+            if (s->begin > block->target_start) {
+                s->start = s->begin - block->target_start;
             }
         }
 
@@ -643,18 +642,18 @@ static int get_next_block(DumpState *s, RAMBlock *block)
 /* write all memory to vmcore */
 static int dump_iterate(DumpState *s)
 {
-    RAMBlock *block;
+    GuestPhysBlock *block;
     int64_t size;
     int ret;
 
     while (1) {
-        block = s->block;
+        block = s->next_block;
 
-        size = block->length;
+        size = block->target_end - block->target_start;
         if (s->has_filter) {
             size -= s->start;
-            if (s->begin + s->length < block->offset + block->length) {
-                size -= block->offset + block->length - (s->begin + s->length);
+            if (s->begin + s->length < block->target_end) {
+                size -= block->target_end - (s->begin + s->length);
             }
         }
         ret = write_memory(s, block, s->start, size);
@@ -689,23 +688,23 @@ static int create_vmcore(DumpState *s)
 
 static ram_addr_t get_start_block(DumpState *s)
 {
-    RAMBlock *block;
+    GuestPhysBlock *block;
 
     if (!s->has_filter) {
-        s->block = QTAILQ_FIRST(&ram_list.blocks);
+        s->next_block = QTAILQ_FIRST(&s->guest_phys_blocks.head);
         return 0;
     }
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (block->offset >= s->begin + s->length ||
-            block->offset + block->length <= s->begin) {
+    QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
+        if (block->target_start >= s->begin + s->length ||
+            block->target_end <= s->begin) {
             /* This block is out of the range */
             continue;
         }
 
-        s->block = block;
-        if (s->begin > block->offset) {
-            s->start = s->begin - block->offset;
+        s->next_block = block;
+        if (s->begin > block->target_start) {
+            s->start = s->begin - block->target_start;
         } else {
             s->start = 0;
         }
@@ -758,7 +757,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
      * If the target architecture is not supported, cpu_get_dump_info() will
      * return -1.
      */
-    ret = cpu_get_dump_info(&s->dump_info);
+    ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
     if (ret < 0) {
         error_set(errp, QERR_UNSUPPORTED);
         goto cleanup;
@@ -774,13 +773,13 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
     /* get memory mapping */
     memory_mapping_list_init(&s->list);
     if (paging) {
-        qemu_get_guest_memory_mapping(&s->list, &err);
+        qemu_get_guest_memory_mapping(&s->list, &s->guest_phys_blocks, &err);
         if (err != NULL) {
             error_propagate(errp, err);
             goto cleanup;
         }
     } else {
-        qemu_get_guest_simple_memory_mapping(&s->list);
+        qemu_get_guest_simple_memory_mapping(&s->list, &s->guest_phys_blocks);
     }
 
     if (s->has_filter) {

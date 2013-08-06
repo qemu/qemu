@@ -279,10 +279,12 @@ static CPUState *find_paging_enabled_cpu(CPUState *start_cpu)
     return NULL;
 }
 
-void qemu_get_guest_memory_mapping(MemoryMappingList *list, Error **errp)
+void qemu_get_guest_memory_mapping(MemoryMappingList *list,
+                                   const GuestPhysBlockList *guest_phys_blocks,
+                                   Error **errp)
 {
     CPUState *cpu, *first_paging_enabled_cpu;
-    RAMBlock *block;
+    GuestPhysBlock *block;
     ram_addr_t offset, length;
 
     first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
@@ -302,19 +304,21 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list, Error **errp)
      * If the guest doesn't use paging, the virtual address is equal to physical
      * address.
      */
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        offset = block->offset;
-        length = block->length;
+    QTAILQ_FOREACH(block, &guest_phys_blocks->head, next) {
+        offset = block->target_start;
+        length = block->target_end - block->target_start;
         create_new_memory_mapping(list, offset, offset, length);
     }
 }
 
-void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list)
+void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list,
+                                   const GuestPhysBlockList *guest_phys_blocks)
 {
-    RAMBlock *block;
+    GuestPhysBlock *block;
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        create_new_memory_mapping(list, block->offset, 0, block->length);
+    QTAILQ_FOREACH(block, &guest_phys_blocks->head, next) {
+        create_new_memory_mapping(list, block->target_start, 0,
+                                  block->target_end - block->target_start);
     }
 }
 
