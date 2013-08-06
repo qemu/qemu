@@ -385,14 +385,21 @@ static int vmdk_parent_open(BlockDriverState *bs)
 
 /* Create and append extent to the extent array. Return the added VmdkExtent
  * address. return NULL if allocation failed. */
-static VmdkExtent *vmdk_add_extent(BlockDriverState *bs,
+static int vmdk_add_extent(BlockDriverState *bs,
                            BlockDriverState *file, bool flat, int64_t sectors,
                            int64_t l1_offset, int64_t l1_backup_offset,
                            uint32_t l1_size,
-                           int l2_size, unsigned int cluster_sectors)
+                           int l2_size, uint64_t cluster_sectors,
+                           VmdkExtent **new_extent)
 {
     VmdkExtent *extent;
     BDRVVmdkState *s = bs->opaque;
+
+    if (cluster_sectors > 0x200000) {
+        /* 0x200000 * 512Bytes = 1GB for one cluster is unrealistic */
+        error_report("invalid granularity, image may be corrupt");
+        return -EINVAL;
+    }
 
     s->extents = g_realloc(s->extents,
                               (s->num_extents + 1) * sizeof(VmdkExtent));
@@ -416,7 +423,10 @@ static VmdkExtent *vmdk_add_extent(BlockDriverState *bs,
         extent->end_sector = extent->sectors;
     }
     bs->total_sectors = extent->end_sector;
-    return extent;
+    if (new_extent) {
+        *new_extent = extent;
+    }
+    return 0;
 }
 
 static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent)
@@ -475,12 +485,17 @@ static int vmdk_open_vmdk3(BlockDriverState *bs,
     if (ret < 0) {
         return ret;
     }
-    extent = vmdk_add_extent(bs,
+
+    ret = vmdk_add_extent(bs,
                              bs->file, false,
                              le32_to_cpu(header.disk_sectors),
                              le32_to_cpu(header.l1dir_offset) << 9,
                              0, 1 << 6, 1 << 9,
-                             le32_to_cpu(header.granularity));
+                             le32_to_cpu(header.granularity),
+                             &extent);
+    if (ret < 0) {
+        return ret;
+    }
     ret = vmdk_init_tables(bs, extent);
     if (ret) {
         /* free extent allocated by vmdk_add_extent */
@@ -580,13 +595,17 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
-    extent = vmdk_add_extent(bs, file, false,
+    ret = vmdk_add_extent(bs, file, false,
                           le64_to_cpu(header.capacity),
                           le64_to_cpu(header.gd_offset) << 9,
                           l1_backup_offset,
                           l1_size,
                           le32_to_cpu(header.num_gtes_per_gte),
-                          le64_to_cpu(header.granularity));
+                          le64_to_cpu(header.granularity),
+                          &extent);
+    if (ret < 0) {
+        return ret;
+    }
     extent->compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
     extent->has_marker = le32_to_cpu(header.flags) & VMDK4_FLAG_MARKER;
@@ -702,8 +721,11 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             /* FLAT extent */
             VmdkExtent *extent;
 
-            extent = vmdk_add_extent(bs, extent_file, true, sectors,
-                            0, 0, 0, 0, sectors);
+            ret = vmdk_add_extent(bs, extent_file, true, sectors,
+                            0, 0, 0, 0, sectors, &extent);
+            if (ret < 0) {
+                return ret;
+            }
             extent->flat_start_offset = flat_offset << 9;
         } else if (!strcmp(type, "SPARSE")) {
             /* SPARSE extent */
