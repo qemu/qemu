@@ -71,7 +71,8 @@ typedef struct {
     uint64_t granularity;
     uint64_t desc_offset;
     uint64_t desc_size;
-    uint32_t num_gtes_per_gte;
+    /* Number of GrainTableEntries per GrainTable */
+    uint32_t num_gtes_per_gt;
     uint64_t rgd_offset;
     uint64_t gd_offset;
     uint64_t grain_offset;
@@ -585,12 +586,12 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
-    if (le32_to_cpu(header.num_gtes_per_gte) > 512) {
+    if (le32_to_cpu(header.num_gtes_per_gt) > 512) {
         error_report("L2 table size too big");
         return -EINVAL;
     }
 
-    l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
+    l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gt)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
         return -EINVAL;
@@ -613,7 +614,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
                           le64_to_cpu(header.gd_offset) << 9,
                           l1_backup_offset,
                           l1_size,
-                          le32_to_cpu(header.num_gtes_per_gte),
+                          le32_to_cpu(header.num_gtes_per_gt),
                           le64_to_cpu(header.granularity),
                           &extent);
     if (ret < 0) {
@@ -1411,12 +1412,12 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
     header.capacity = filesize / 512;
     header.granularity = 128;
-    header.num_gtes_per_gte = 512;
+    header.num_gtes_per_gt = 512;
 
     grains = (filesize / 512 + header.granularity - 1) / header.granularity;
-    gt_size = ((header.num_gtes_per_gte * sizeof(uint32_t)) + 511) >> 9;
+    gt_size = ((header.num_gtes_per_gt * sizeof(uint32_t)) + 511) >> 9;
     gt_count =
-        (grains + header.num_gtes_per_gte - 1) / header.num_gtes_per_gte;
+        (grains + header.num_gtes_per_gt - 1) / header.num_gtes_per_gt;
     gd_size = (gt_count * sizeof(uint32_t) + 511) >> 9;
 
     header.desc_offset = 1;
@@ -1432,7 +1433,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     header.flags = cpu_to_le32(header.flags);
     header.capacity = cpu_to_le64(header.capacity);
     header.granularity = cpu_to_le64(header.granularity);
-    header.num_gtes_per_gte = cpu_to_le32(header.num_gtes_per_gte);
+    header.num_gtes_per_gt = cpu_to_le32(header.num_gtes_per_gt);
     header.desc_offset = cpu_to_le64(header.desc_offset);
     header.desc_size = cpu_to_le64(header.desc_size);
     header.rgd_offset = cpu_to_le64(header.rgd_offset);
