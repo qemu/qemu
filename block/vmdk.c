@@ -597,6 +597,14 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     l1_size = (le64_to_cpu(header.capacity) + l1_entry_sectors - 1)
                 / l1_entry_sectors;
+    if (l1_size > 512 * 1024 * 1024) {
+        /* although with big capacity and small l1_entry_sectors, we can get a
+         * big l1_size, we don't want unbounded value to allocate the table.
+         * Limit it to 512M, which is 16PB for default cluster and L2 table
+         * size */
+        error_report("L1 size too big");
+        return -EFBIG;
+    }
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
