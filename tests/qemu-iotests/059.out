@@ -5,4 +5,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 invalid granularity, image may be corrupt
 qemu-io: can't open device TEST_DIR/t.vmdk
 no file open, try 'help open'
+=== Testing too big L2 table size ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+L2 table size too big
+qemu-io: can't open device TEST_DIR/t.vmdk
+no file open, try 'help open'
 *** done

@@ -585,6 +585,11 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
+    if (le32_to_cpu(header.num_gtes_per_gte) > 512) {
+        error_report("L2 table size too big");
+        return -EINVAL;
+    }
+
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
