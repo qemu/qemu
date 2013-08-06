@@ -67,14 +67,14 @@ typedef struct {
 typedef struct {
     uint32_t version;
     uint32_t flags;
-    int64_t capacity;
-    int64_t granularity;
-    int64_t desc_offset;
-    int64_t desc_size;
-    int32_t num_gtes_per_gte;
-    int64_t rgd_offset;
-    int64_t gd_offset;
-    int64_t grain_offset;
+    uint64_t capacity;
+    uint64_t granularity;
+    uint64_t desc_offset;
+    uint64_t desc_size;
+    uint32_t num_gtes_per_gte;
+    uint64_t rgd_offset;
+    uint64_t gd_offset;
+    uint64_t grain_offset;
     char filler[1];
     char check_bytes[4];
     uint16_t compressAlgorithm;
@@ -109,7 +109,7 @@ typedef struct VmdkExtent {
 
 typedef struct BDRVVmdkState {
     CoMutex lock;
-    int desc_offset;
+    uint64_t desc_offset;
     bool cid_updated;
     uint32_t parent_cid;
     int num_extents;
@@ -490,7 +490,7 @@ static int vmdk_open_vmdk3(BlockDriverState *bs,
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
-                               int64_t desc_offset);
+                               uint64_t desc_offset);
 
 static int vmdk_open_vmdk4(BlockDriverState *bs,
                            BlockDriverState *file,
@@ -508,7 +508,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         return ret;
     }
     if (header.capacity == 0) {
-        int64_t desc_offset = le64_to_cpu(header.desc_offset);
+        uint64_t desc_offset = le64_to_cpu(header.desc_offset);
         if (desc_offset) {
             return vmdk_open_desc_file(bs, flags, desc_offset << 9);
         }
@@ -728,7 +728,7 @@ next_line:
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
-                               int64_t desc_offset)
+                               uint64_t desc_offset)
 {
     int ret;
     char *buf = NULL;
