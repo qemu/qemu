@@ -842,16 +842,17 @@ static int get_whole_cluster(BlockDriverState *bs,
                 uint64_t offset,
                 bool allocate)
 {
-    /* 128 sectors * 512 bytes each = grain size 64KB */
-    uint8_t  whole_grain[extent->cluster_sectors * 512];
+    int ret = VMDK_OK;
+    uint8_t *whole_grain = NULL;
 
     /* we will be here if it's first write on non-exist grain(cluster).
      * try to read from parent image, if exist */
     if (bs->backing_hd) {
-        int ret;
-
+        whole_grain =
+            qemu_blockalign(bs, extent->cluster_sectors << BDRV_SECTOR_BITS);
         if (!vmdk_is_cid_valid(bs)) {
-            return VMDK_ERROR;
+            ret = VMDK_ERROR;
+            goto exit;
         }
 
         /* floor offset to cluster */
@@ -859,17 +860,21 @@ static int get_whole_cluster(BlockDriverState *bs,
         ret = bdrv_read(bs->backing_hd, offset >> 9, whole_grain,
                 extent->cluster_sectors);
         if (ret < 0) {
-            return VMDK_ERROR;
+            ret = VMDK_ERROR;
+            goto exit;
         }
 
         /* Write grain only into the active image */
         ret = bdrv_write(extent->file, cluster_offset, whole_grain,
                 extent->cluster_sectors);
         if (ret < 0) {
-            return VMDK_ERROR;
+            ret = VMDK_ERROR;
+            goto exit;
         }
     }
-    return VMDK_OK;
+exit:
+    qemu_vfree(whole_grain);
+    return ret;
 }
 
 static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data)
