@@ -746,7 +746,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
     s->length = length;
 
     guest_phys_blocks_init(&s->guest_phys_blocks);
-    /* FILL LIST */
+    guest_phys_blocks_append(&s->guest_phys_blocks);
 
     s->start = get_start_block(s);
     if (s->start == -1) {
