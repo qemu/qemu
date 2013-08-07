@@ -34,6 +34,12 @@ dd()
    fi
 }
 
+# poke_file 'test.img' 512 '\xff\xfe'
+poke_file()
+{
+    printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
+}
+
 # we need common.config
 if [ "$iam" != "check" ]
 then

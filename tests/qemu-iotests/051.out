@@ -23,11 +23,11 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=off
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=
@@ -51,72 +51,72 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on: Lazy ref
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on: could not open disk image TEST_DIR/t.qcow2: Invalid argument
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=off
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === No medium ===
 
 Testing: -drive if=floppy
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide,media=cdrom
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=scsi,media=cdrom
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Device needs media, but drive is empty
 QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device ide-hd failed
 
 Testing: -drive if=virtio
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
 QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
 QEMU_PROG: -drive if=scsi: Device initialization failed.
 QEMU_PROG: Device initialization failed.
 QEMU_PROG: Initialization of device lsi53c895a failed
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=none,id=disk -device ide-drive,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive if=none,id=disk -device ide-hd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device scsi-disk,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-disk,drive=disk: Device 'scsi-disk' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device scsi-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
@@ -125,77 +125,77 @@ QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
 === Read-only ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=floppy,readonly=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,media=cdrom,readonly=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: read-only not supported by this bus type
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-cd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-drive,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
 QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
 QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === Cache modes ===
 
 Testing: -drive media=cdrom,cache=none
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=directsync
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writeback
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=writethrough
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=unsafe
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive media=cdrom,cache=invalid_value
@@ -205,7 +205,7 @@ QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
 === Specifying the protocol layer ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=file
-QEMU 1.5.50 monitor - type 'help' for more information
+QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2

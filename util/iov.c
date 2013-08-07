@@ -202,6 +202,12 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
             return -1;
         }
 
+        if (ret == 0 && !do_send) {
+            /* recv returns 0 when the peer has performed an orderly
+             * shutdown. */
+            break;
+        }
+
         /* Prepare for the next iteration */
         offset += ret;
         total += ret;
