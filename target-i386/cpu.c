@@ -1824,7 +1824,11 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     }
 
 out:
-    error_propagate(errp, error);
+    if (error != NULL) {
+        error_propagate(errp, error);
+        object_unref(OBJECT(cpu));
+        cpu = NULL;
+    }
     g_strfreev(model_pieces);
     return cpu;
 }
