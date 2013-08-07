@@ -30,4 +30,4 @@ FILESUBTYPE VFT2_UNKNOWN
   }
 }
 
-IDI_ICON1 ICON "pc-bios/qemu-icon.ico"
+IDI_ICON1 ICON "pc-bios/qemu-nsis.ico"
