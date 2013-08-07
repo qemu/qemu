@@ -3568,8 +3568,11 @@ if test "$softmmu" = yes ; then
   fi
 fi
 if [ "$guest_agent" != "no" ]; then
-  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
       tools="qemu-ga\$(EXESUF) $tools"
+      if [ "$mingw32" = "yes" -a "$guest_agent_with_vss" = "yes" ]; then
+        tools="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb $tools"
+      fi
       guest_agent=yes
   elif [ "$guest_agent" != yes ]; then
       guest_agent=no
