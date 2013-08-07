@@ -252,6 +252,8 @@ for opt do
   ;;
   --cc=*) CC="$optarg"
   ;;
+  --cxx=*) CXX="$optarg"
+  ;;
   --source-path=*) source_path="$optarg"
   ;;
   --cpu=*) cpu="$optarg"
@@ -280,6 +282,12 @@ if test -z "${CC}${cross_prefix}"; then
   cc="$host_cc"
 else
   cc="${CC-${cross_prefix}gcc}"
+fi
+
+if test -z "${CXX}${cross_prefix}"; then
+  cxx="c++"
+else
+  cxx="${CXX-${cross_prefix}g++}"
 fi
 
 ar="${AR-${cross_prefix}ar}"
@@ -625,6 +633,8 @@ for opt do
   --cc=*)
   ;;
   --host-cc=*) host_cc="$optarg"
+  ;;
+  --cxx=*)
   ;;
   --objcc=*) objcc="$optarg"
   ;;
@@ -1032,6 +1042,7 @@ echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
 echo "                           build time"
+echo "  --cxx=CXX                use C++ compiler CXX [$cxx]"
 echo "  --objcc=OBJCC            use Objective-C compiler OBJCC [$objcc]"
 echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
@@ -3561,6 +3572,7 @@ fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
+echo "C++ compiler      $cxx"
 echo "Objective-C compiler $objcc"
 echo "CFLAGS            $CFLAGS"
 echo "QEMU_CFLAGS       $QEMU_CFLAGS"
@@ -4148,6 +4160,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
+echo "CXX=$cxx" >> $config_host_mak
 echo "OBJCC=$objcc" >> $config_host_mak
 echo "AR=$ar" >> $config_host_mak
 echo "AS=$as" >> $config_host_mak
