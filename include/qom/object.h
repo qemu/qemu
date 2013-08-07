@@ -249,7 +249,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     MyClass parent_class;
  *
  *     MyDoSomething parent_do_something;
- * } MyClass;
+ * } DerivedClass;
  *
  * static void derived_do_something(MyState *obj)
  * {
