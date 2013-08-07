@@ -119,6 +119,31 @@ bool vss_initialized(void)
     return !!provider_lib;
 }
 
+int ga_install_vss_provider(void)
+{
+    HRESULT hr;
+
+    if (!vss_init(false)) {
+        fprintf(stderr, "Installation of VSS provider is skipped. "
+                "fsfreeze will be disabled.\n");
+        return 0;
+    }
+    hr = call_vss_provider_func("COMRegister");
+    vss_deinit(false);
+
+    return SUCCEEDED(hr) ? 0 : EXIT_FAILURE;
+}
+
+void ga_uninstall_vss_provider(void)
+{
+    if (!vss_init(false)) {
+        fprintf(stderr, "Removal of VSS provider is skipped.\n");
+        return;
+    }
+    call_vss_provider_func("COMUnregister");
+    vss_deinit(false);
+}
+
 /* Call VSS requester and freeze/thaw filesystems and applications */
 void qga_vss_fsfreeze(int *nr_volume, Error **err, bool freeze)
 {
