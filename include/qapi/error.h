@@ -36,6 +36,15 @@ void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_
  */
 void error_set_errno(Error **err, int os_error, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(4, 5);
 
+#ifdef _WIN32
+/**
+ * Set an indirect pointer to an error given a ErrorClass value and a
+ * printf-style human message, followed by a g_win32_error_message() string if
+ * @win32_err is not zero.
+ */
+void error_set_win32(Error **err, int win32_err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(4, 5);
+#endif
+
 /**
  * Same as error_set(), but sets a generic error
  */
@@ -43,6 +52,10 @@ void error_set_errno(Error **err, int os_error, ErrorClass err_class, const char
     error_set(err, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
 #define error_setg_errno(err, os_error, fmt, ...) \
     error_set_errno(err, os_error, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+#ifdef _WIN32
+#define error_setg_win32(err, win32_err, fmt, ...) \
+    error_set_win32(err, win32_err, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+#endif
 
 /**
  * Helper for open() errors
