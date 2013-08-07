@@ -611,9 +611,19 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         tlb_flush(env, 1);
     }
 
+#ifdef TARGET_PPC64
+    if (excp_model == POWERPC_EXCP_POWER7) {
+        if (env->spr[SPR_LPCR] & LPCR_ILE) {
+            new_msr |= (target_ulong)1 << MSR_LE;
+        }
+    } else if (msr_ile) {
+        new_msr |= (target_ulong)1 << MSR_LE;
+    }
+#else
     if (msr_ile) {
         new_msr |= (target_ulong)1 << MSR_LE;
     }
+#endif
 
     /* Jump to handler */
     vector = env->excp_vectors[excp];
