@@ -82,6 +82,7 @@ fsdev/virtfs-proxy-helper.pod
 *.la
 *.pc
 .libs
+.sdk
 *.swp
 *.orig
 .pc

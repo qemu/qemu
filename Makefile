@@ -272,6 +272,7 @@ distclean: clean
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
+	rm -Rf .sdk
 	if test -f pixman/config.log; then make -C pixman distclean; fi
 	if test -f dtc/version_gen.h; then make $(DTC_MAKE_ARGS) clean; fi
 
