@@ -167,11 +167,8 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
-version.o: $(SRC_PATH)/version.rc config-host.h | version.lo
-version.lo: $(SRC_PATH)/version.rc config-host.h
-
-version-obj-$(CONFIG_WIN32) += version.o
-version-lobj-$(CONFIG_WIN32) += version.lo
+$(BUILD_DIR)/version.o: $(SRC_PATH)/version.rc $(BUILD_DIR)/config-host.h | $(BUILD_DIR)/version.lo
+$(BUILD_DIR)/version.lo: $(SRC_PATH)/version.rc $(BUILD_DIR)/config-host.h
 
 Makefile: $(version-obj-y) $(version-lobj-y)
 
