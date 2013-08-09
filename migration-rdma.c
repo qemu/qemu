@@ -707,15 +707,27 @@ static int __qemu_rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
  */
 static void qemu_rdma_dump_id(const char *who, struct ibv_context *verbs)
 {
+    struct ibv_port_attr port;
+
+    if (ibv_query_port(verbs, 1, &port)) {
+        fprintf(stderr, "FAILED TO QUERY PORT INFORMATION!\n");
+        return;
+    }
+
     printf("%s RDMA Device opened: kernel name %s "
            "uverbs device name %s, "
-           "infiniband_verbs class device path %s,"
-           " infiniband class device path %s\n",
+           "infiniband_verbs class device path %s, "
+           "infiniband class device path %s, "
+           "transport: (%d) %s\n",
                 who,
                 verbs->device->name,
                 verbs->device->dev_name,
                 verbs->device->dev_path,
-                verbs->device->ibdev_path);
+                verbs->device->ibdev_path,
+                port.link_layer,
+                (port.link_layer == IBV_LINK_LAYER_INFINIBAND) ? "Infiniband" :
+                 ((port.link_layer == IBV_LINK_LAYER_ETHERNET) 
+                    ? "Ethernet" : "Unknown"));
 }
 
 /*
@@ -733,6 +745,132 @@ static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
 }
 
 /*
+ * As of now, IPv6 over RoCE / iWARP is not supported by linux.
+ * We will try the next addrinfo struct, and fail if there are
+ * no other valid addresses to bind against.
+ *
+ * If user is listening on '[::]', then we will not have a opened a device
+ * yet and have no way of verifying if the device is RoCE or not.
+ *
+ * In this case, the source VM will throw an error for ALL types of
+ * connections (both IPv4 and IPv6) if the destination machine does not have
+ * a regular infiniband network available for use.
+ *
+ * The only way to gaurantee that an error is thrown for broken kernels is
+ * for the management software to choose a *specific* interface at bind time
+ * and validate what time of hardware it is.
+ *
+ * Unfortunately, this puts the user in a fix:
+ * 
+ *  If the source VM connects with an IPv4 address without knowing that the
+ *  destination has bound to '[::]' the migration will unconditionally fail
+ *  unless the management software is explicitly listening on the the IPv4
+ *  address while using a RoCE-based device.
+ *
+ *  If the source VM connects with an IPv6 address, then we're OK because we can
+ *  throw an error on the source (and similarly on the destination).
+ * 
+ *  But in mixed environments, this will be broken for a while until it is fixed
+ *  inside linux.
+ *
+ * We do provide a *tiny* bit of help in this function: We can list all of the
+ * devices in the system and check to see if all the devices are RoCE or
+ * Infiniband. 
+ *
+ * If we detect that we have a *pure* RoCE environment, then we can safely
+ * thrown an error even if the management sofware has specified '[::]' as the
+ * bind address.
+ *
+ * However, if there is are multiple hetergeneous devices, then we cannot make
+ * this assumption and the user just has to be sure they know what they are
+ * doing.
+ *
+ * Patches are being reviewed on linux-rdma.
+ */
+static int qemu_rdma_broken_ipv6_kernel(Error **errp, struct ibv_context *verbs)
+{
+    struct ibv_port_attr port_attr;
+
+    /* This bug only exists in linux, to our knowledge. */
+#ifdef CONFIG_LINUX
+
+    /* 
+     * Verbs are only NULL if management has bound to '[::]'.
+     * 
+     * Let's iterate through all the devices and see if there any pure IB
+     * devices (non-ethernet).
+     * 
+     * If not, then we can safely proceed with the migration.
+     * Otherwise, there are no gaurantees until the bug is fixed in linux.
+     */
+    if (!verbs) {
+	    int num_devices, x;
+        struct ibv_device ** dev_list = ibv_get_device_list(&num_devices);
+        bool roce_found = false;
+        bool ib_found = false;
+
+        for (x = 0; x < num_devices; x++) {
+            verbs = ibv_open_device(dev_list[x]);
+
+            if (ibv_query_port(verbs, 1, &port_attr)) {
+                ibv_close_device(verbs);
+                ERROR(errp, "Could not query initial IB port");
+                return -EINVAL;
+            }
+
+            if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND) {
+                ib_found = true;
+            } else if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET) {
+                roce_found = true;
+            }
+
+            ibv_close_device(verbs);
+
+        }
+
+        if (roce_found) {
+            if (ib_found) {
+                fprintf(stderr, "WARN: migrations may fail:"
+                                " IPv6 over RoCE / iWARP in linux"
+                                " is broken. But since you appear to have a"
+                                " mixed RoCE / IB environment, be sure to only"
+                                " migrate over the IB fabric until the kernel "
+                                " fixes the bug.\n");
+            } else {
+                ERROR(errp, "You only have RoCE / iWARP devices in your systems"
+                            " and your management software has specified '[::]'"
+                            ", but IPv6 over RoCE / iWARP is not supported in Linux.");
+                return -ENONET;
+            }
+        }
+
+        return 0;
+    }
+
+    /*
+     * If we have a verbs context, that means that some other than '[::]' was
+     * used by the management software for binding. In which case we can actually 
+     * warn the user about a potential broken kernel;
+     */
+
+    /* IB ports start with 1, not 0 */
+    if (ibv_query_port(verbs, 1, &port_attr)) {
+        ERROR(errp, "Could not query initial IB port");
+        return -EINVAL;
+    }
+
+    if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET) {
+        ERROR(errp, "Linux kernel's RoCE / iWARP does not support IPv6 "
+                    "(but patches on linux-rdma in progress)");
+        return -ENONET;
+    }
+
+#endif
+
+    return 0;
+}
+
+/*
  * Figure out which RDMA device corresponds to the requested IP hostname
  * Also create the initial connection manager identifiers for opening
  * the connection.
@@ -740,22 +878,22 @@ static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
 static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
 {
     int ret;
-    struct addrinfo *res;
+    struct rdma_addrinfo *res;
     char port_str[16];
     struct rdma_cm_event *cm_event;
     char ip[40] = "unknown";
-    struct addrinfo *e;
+    struct rdma_addrinfo *e;
 
     if (rdma->host == NULL || !strcmp(rdma->host, "")) {
         ERROR(errp, "RDMA hostname has not been set");
-        return -1;
+        return -EINVAL;
     }
 
     /* create CM channel */
     rdma->channel = rdma_create_event_channel();
     if (!rdma->channel) {
         ERROR(errp, "could not create CM channel");
-        return -1;
+        return -EINVAL;
     }
 
     /* create CM id */
@@ -768,21 +906,24 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
     snprintf(port_str, 16, "%d", rdma->port);
     port_str[15] = '\0';
 
-    ret = getaddrinfo(rdma->host, port_str, NULL, &res);
+    ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
     if (ret < 0) {
-        ERROR(errp, "could not getaddrinfo address %s", rdma->host);
+        ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
         goto err_resolve_get_addr;
     }
 
     for (e = res; e != NULL; e = e->ai_next) {
         inet_ntop(e->ai_family,
-            &((struct sockaddr_in *) e->ai_addr)->sin_addr, ip, sizeof ip);
+            &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
         DPRINTF("Trying %s => %s\n", rdma->host, ip);
 
-        /* resolve the first address */
-        ret = rdma_resolve_addr(rdma->cm_id, NULL, e->ai_addr,
+        ret = rdma_resolve_addr(rdma->cm_id, NULL, e->ai_dst_addr,
                 RDMA_RESOLVE_TIMEOUT_MS);
         if (!ret) {
+            ret = qemu_rdma_broken_ipv6_kernel(errp, rdma->cm_id->verbs);
+            if (ret) {
+                continue;
+            }
             goto route;
         }
     }
@@ -803,6 +944,7 @@ route:
         ERROR(errp, "result not equal to event_addr_resolved %s",
                 rdma_event_str(cm_event->event));
         perror("rdma_resolve_addr");
+        ret = -EINVAL;
         goto err_resolve_get_addr;
     }
     rdma_ack_cm_event(cm_event);
@@ -823,6 +965,7 @@ route:
         ERROR(errp, "result not equal to event_route_resolved: %s",
                         rdma_event_str(cm_event->event));
         rdma_ack_cm_event(cm_event);
+        ret = -EINVAL;
         goto err_resolve_get_addr;
     }
     rdma_ack_cm_event(cm_event);
@@ -837,8 +980,7 @@ err_resolve_get_addr:
 err_resolve_create_id:
     rdma_destroy_event_channel(rdma->channel);
     rdma->channel = NULL;
-
-    return -1;
+    return ret;
 }
 
 /*
@@ -2266,7 +2408,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     int ret = -EINVAL, idx;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
-    struct addrinfo *res;
+    struct rdma_addrinfo *res;
     char port_str[16];
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
@@ -2298,20 +2440,27 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     port_str[15] = '\0';
 
     if (rdma->host && strcmp("", rdma->host)) {
-        struct addrinfo *e;
+        struct rdma_addrinfo *e;
 
-        ret = getaddrinfo(rdma->host, port_str, NULL, &res);
+        ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
         if (ret < 0) {
-            ERROR(errp, "could not getaddrinfo address %s", rdma->host);
+            ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
             goto err_dest_init_bind_addr;
         }
 
         for (e = res; e != NULL; e = e->ai_next) {
             inet_ntop(e->ai_family,
-                &((struct sockaddr_in *) e->ai_addr)->sin_addr, ip, sizeof ip);
+                &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
             DPRINTF("Trying %s => %s\n", rdma->host, ip);
-            ret = rdma_bind_addr(listen_id, e->ai_addr);
+            ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
             if (!ret) {
+                if (e->ai_family == AF_INET6) {
+                    ret = qemu_rdma_broken_ipv6_kernel(errp, listen_id->verbs);
+                    if (ret) {
+                        continue;
+                    }
+                }
+                    
                 goto listen;
             }
         }
