@@ -110,6 +110,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
     guest_info->has_pci_info = has_pci_info;
+    guest_info->isapc_ram_fw = false;
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {

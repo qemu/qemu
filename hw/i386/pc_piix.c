@@ -128,6 +128,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
     guest_info->has_pci_info = has_pci_info;
+    guest_info->isapc_ram_fw = !pci_enabled;
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
@@ -742,11 +743,6 @@ static QEMUMachine isapc_machine = {
     .init = pc_init_isa,
     .max_cpus = 1,
     .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "pc-sysfw",
-            .property = "isapc_ram_fw",
-            .value    = stringify(1),
-        },
         { /* end of list */ }
     },
     DEFAULT_MACHINE_OPTIONS,

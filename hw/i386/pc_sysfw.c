@@ -165,26 +165,15 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
                                 bios);
 }
 
-void pc_system_firmware_init(MemoryRegion *rom_memory)
+void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     DriveInfo *pflash_drv;
-    PcSysFwDevice *sysfw_dev;
-
-    /*
-     * TODO This device exists only so that users can switch between
-     * use of flash and ROM for the BIOS.  The ability to switch was
-     * created because flash doesn't work with KVM.  Once it does, we
-     * should drop this device.
-     */
-    sysfw_dev = (PcSysFwDevice*) qdev_create(NULL, "pc-sysfw");
-
-    qdev_init_nofail(DEVICE(sysfw_dev));
 
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
 
-    if (sysfw_dev->isapc_ram_fw || pflash_drv == NULL) {
+    if (isapc_ram_fw || pflash_drv == NULL) {
         /* When a pflash drive is not found, use rom-mode */
-        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
+        old_pc_system_rom_init(rom_memory, isapc_ram_fw);
         return;
     }
 
@@ -197,38 +186,3 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 
     pc_system_flash_init(rom_memory, pflash_drv);
 }
-
-static Property pcsysfw_properties[] = {
-    DEFINE_PROP_UINT8("isapc_ram_fw", PcSysFwDevice, isapc_ram_fw, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static int pcsysfw_init(DeviceState *dev)
-{
-    return 0;
-}
-
-static void pcsysfw_class_init (ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->desc = "PC System Firmware";
-    dc->init = pcsysfw_init;
-    dc->props = pcsysfw_properties;
-}
-
-static const TypeInfo pcsysfw_info = {
-    .name          = "pc-sysfw",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof (PcSysFwDevice),
-    .class_init    = pcsysfw_class_init,
-};
-
-static void pcsysfw_register (void)
-{
-    type_register_static (&pcsysfw_info);
-}
-
-type_init (pcsysfw_register);
-
