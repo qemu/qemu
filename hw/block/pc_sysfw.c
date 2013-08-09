@@ -38,7 +38,6 @@
 
 typedef struct PcSysFwDevice {
     SysBusDevice busdev;
-    uint8_t rom_only;
     uint8_t isapc_ram_fw;
 } PcSysFwDevice;
 
@@ -74,39 +73,6 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
            isa_bios_size);
 
     memory_region_set_readonly(isa_bios, true);
-}
-
-static void pc_fw_add_pflash_drv(void)
-{
-    QemuOpts *opts;
-    QEMUMachine *machine;
-    char *filename;
-
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_report("Can't open BIOS image %s", bios_name);
-        exit(1);
-    }
-
-    opts = drive_add(IF_PFLASH, -1, filename, "readonly=on");
-
-    g_free(filename);
-
-    if (opts == NULL) {
-      return;
-    }
-
-    machine = find_default_machine();
-    if (machine == NULL) {
-      return;
-    }
-
-    if (!drive_init(opts, machine->block_default_type)) {
-        qemu_opts_del(opts);
-    }
 }
 
 static void pc_system_flash_init(MemoryRegion *rom_memory,
@@ -216,40 +182,24 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
 
-    if (pflash_drv == NULL) {
+    if (sysfw_dev->isapc_ram_fw || pflash_drv == NULL) {
         /* When a pflash drive is not found, use rom-mode */
-        sysfw_dev->rom_only = 1;
-    } else if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
+        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
+        return;
+    }
+
+    if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
         /* Older KVM cannot execute from device memory. So, flash memory
          * cannot be used unless the readonly memory kvm capability is present. */
         fprintf(stderr, "qemu: pflash with kvm requires KVM readonly memory support\n");
         exit(1);
     }
 
-    /* If rom-mode is active, use the old pc system rom initialization. */
-    if (sysfw_dev->rom_only) {
-        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
-        return;
-    }
-
-    /* If a pflash drive is not found, then create one using
-       the bios filename. */
-    if (pflash_drv == NULL) {
-        pc_fw_add_pflash_drv();
-        pflash_drv = drive_get(IF_PFLASH, 0, 0);
-    }
-
-    if (pflash_drv != NULL) {
-        pc_system_flash_init(rom_memory, pflash_drv);
-    } else {
-        fprintf(stderr, "qemu: PC system firmware (pflash) not available\n");
-        exit(1);
-    }
+    pc_system_flash_init(rom_memory, pflash_drv);
 }
 
 static Property pcsysfw_properties[] = {
     DEFINE_PROP_UINT8("isapc_ram_fw", PcSysFwDevice, isapc_ram_fw, 0),
-    DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

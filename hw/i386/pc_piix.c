@@ -496,10 +496,6 @@ static QEMUMachine pc_machine_v1_1 = {
 #define PC_COMPAT_1_0 \
         PC_COMPAT_1_1,\
         {\
-            .driver   = "pc-sysfw",\
-            .property = "rom_only",\
-            .value    = stringify(1),\
-        }, {\
             .driver   = TYPE_ISA_FDC,\
             .property = "check_media_rate",\
             .value    = "off",\
@@ -746,11 +742,6 @@ static QEMUMachine isapc_machine = {
     .init = pc_init_isa,
     .max_cpus = 1,
     .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "pc-sysfw",
-            .property = "rom_only",
-            .value    = stringify(1),
-        },
         {
             .driver   = "pc-sysfw",
             .property = "isapc_ram_fw",
