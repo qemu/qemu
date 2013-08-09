@@ -1424,6 +1424,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
      * The copy makes the RDMAControlHeader simpler to manipulate
      * for the time being.
      */
+    assert(head->len <= RDMA_CONTROL_MAX_BUFFER - sizeof(*head));
     memcpy(wr->control, head, sizeof(RDMAControlHeader));
     control_to_network((void *) wr->control);
 
@@ -1503,6 +1504,10 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
                 control_desc[expecting], expecting,
                 control_desc[head->type], head->type, head->len);
         return -EIO;
+    }
+    if (head->len > RDMA_CONTROL_MAX_BUFFER - sizeof(*head)) {
+        fprintf(stderr, "too long length: %d\n", head->len);
+        return -EINVAL;
     }
 
     return 0;
