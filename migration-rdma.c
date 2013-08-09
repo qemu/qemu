@@ -3045,10 +3045,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
             return ret;
         }
 
-        qemu_rdma_move_header(rdma, reg_result_idx, &resp);
-        memcpy(rdma->block,
-            rdma->wr_data[reg_result_idx].control_curr, resp.len);
-
         nb_remote_blocks = resp.len / sizeof(RDMARemoteBlock);
 
         /*
@@ -3070,6 +3066,9 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
             return -EINVAL;
         }
 
+        qemu_rdma_move_header(rdma, reg_result_idx, &resp);
+        memcpy(rdma->block,
+            rdma->wr_data[reg_result_idx].control_curr, resp.len);
         for (i = 0; i < nb_remote_blocks; i++) {
             network_to_remote_block(&rdma->block[i]);
 
