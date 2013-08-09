@@ -1214,7 +1214,8 @@ static void qemu_rdma_signal_unregister(RDMAContext *rdma, uint64_t index,
  * (of any kind) has completed.
  * Return the work request ID that completed.
  */
-static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out)
+static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out,
+                               uint32_t *byte_len)
 {
     int ret;
     struct ibv_wc wc;
@@ -1285,6 +1286,9 @@ static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out)
     }
 
     *wr_id_out = wc.wr_id;
+    if (byte_len) {
+        *byte_len = wc.byte_len;
+    }
 
     return  0;
 }
@@ -1302,7 +1306,8 @@ static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out)
  * completions only need to be recorded, but do not actually
  * need further processing.
  */
-static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested)
+static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
+                                    uint32_t *byte_len)
 {
     int num_cq_events = 0, ret = 0;
     struct ibv_cq *cq;
@@ -1314,7 +1319,7 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested)
     }
     /* poll cq first */
     while (wr_id != wrid_requested) {
-        ret = qemu_rdma_poll(rdma, &wr_id_in);
+        ret = qemu_rdma_poll(rdma, &wr_id_in, byte_len);
         if (ret < 0) {
             return ret;
         }
@@ -1356,7 +1361,7 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested)
         }
 
         while (wr_id != wrid_requested) {
-            ret = qemu_rdma_poll(rdma, &wr_id_in);
+            ret = qemu_rdma_poll(rdma, &wr_id_in, byte_len);
             if (ret < 0) {
                 goto err_block_for_wrid;
             }
@@ -1442,7 +1447,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
         return ret;
     }
 
-    ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_SEND_CONTROL);
+    ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_SEND_CONTROL, NULL);
     if (ret < 0) {
         fprintf(stderr, "rdma migration: send polling control error!\n");
     }
@@ -1483,7 +1488,9 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
 static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
                 RDMAControlHeader *head, int expecting, int idx)
 {
-    int ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RECV_CONTROL + idx);
+    uint32_t byte_len;
+    int ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RECV_CONTROL + idx,
+                                       &byte_len);
 
     if (ret < 0) {
         fprintf(stderr, "rdma migration: recv polling control error!\n");
@@ -1507,6 +1514,11 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
     }
     if (head->len > RDMA_CONTROL_MAX_BUFFER - sizeof(*head)) {
         fprintf(stderr, "too long length: %d\n", head->len);
+        return -EINVAL;
+    }
+    if (sizeof(*head) + head->len != byte_len) {
+        fprintf(stderr, "Malformed length: %d byte_len %d\n",
+                head->len, byte_len);
         return -EINVAL;
     }
 
@@ -1738,7 +1750,7 @@ retry:
                 count++, current_index, chunk,
                 sge.addr, length, rdma->nb_sent, block->nb_chunks);
 
-        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE);
+        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
 
         if (ret < 0) {
             fprintf(stderr, "Failed to Wait for previous write to complete "
@@ -1882,7 +1894,7 @@ retry:
 
     if (ret == ENOMEM) {
         DDPRINTF("send queue is full. wait a little....\n");
-        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE);
+        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
             fprintf(stderr, "rdma migration: failed to make "
                             "room in full send queue! %d\n", ret);
@@ -2471,7 +2483,7 @@ static int qemu_rdma_drain_cq(QEMUFile *f, RDMAContext *rdma)
     }
 
     while (rdma->nb_sent) {
-        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE);
+        ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RDMA_WRITE, NULL);
         if (ret < 0) {
             fprintf(stderr, "rdma migration: complete polling error!\n");
             return -EIO;
@@ -2607,7 +2619,7 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
      */
     while (1) {
         uint64_t wr_id, wr_id_in;
-        int ret = qemu_rdma_poll(rdma, &wr_id_in);
+        int ret = qemu_rdma_poll(rdma, &wr_id_in, NULL);
         if (ret < 0) {
             fprintf(stderr, "rdma migration: polling error! %d\n", ret);
             goto err;
