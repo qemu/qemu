@@ -812,12 +812,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
 
     pci_dev->bus = bus;
-    if (bus->iommu_fn) {
-        dma_as = bus->iommu_fn(bus, bus->iommu_opaque, devfn);
-    } else {
-        /* FIXME: inherit memory region from bus creator */
-        dma_as = &address_space_memory;
-    }
+    dma_as = pci_device_iommu_address_space(pci_dev);
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
                              OBJECT(pci_dev), "bus master",
@@ -2237,6 +2232,23 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
     k->exit = pci_unregister_device;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
+}
+
+AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
+{
+    PCIBus *bus = PCI_BUS(dev->bus);
+
+    if (bus->iommu_fn) {
+        return bus->iommu_fn(bus, bus->iommu_opaque, dev->devfn);
+    }
+
+    if (bus->parent_dev) {
+        /** We are ignoring the bus master DMA bit of the bridge
+         *  as it would complicate things such as VFIO for no good reason */
+        return pci_device_iommu_address_space(bus->parent_dev);
+    }
+
+    return &address_space_memory;
 }
 
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
