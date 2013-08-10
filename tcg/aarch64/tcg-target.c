@@ -113,6 +113,7 @@ static inline void patch_reloc(uint8_t *code_ptr, int type,
 #define TCG_CT_CONST_IS32 0x100
 #define TCG_CT_CONST_AIMM 0x200
 #define TCG_CT_CONST_LIMM 0x400
+#define TCG_CT_CONST_ZERO 0x800
 
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct,
@@ -145,6 +146,9 @@ static int target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'L': /* Valid for logical immediate.  */
         ct->ct |= TCG_CT_CONST_LIMM;
+        break;
+    case 'Z': /* zero */
+        ct->ct |= TCG_CT_CONST_ZERO;
         break;
     default:
         return -1;
@@ -195,6 +199,9 @@ static int tcg_target_const_match(tcg_target_long val,
         return 1;
     }
     if ((ct & TCG_CT_CONST_LIMM) && is_limm(val)) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     }
 
@@ -275,6 +282,10 @@ typedef enum {
 
     /* Add/subtract shifted register instructions (with a shift).  */
     I3502S_ADD_LSL  = I3502_ADD,
+
+    /* Conditional select instructions.  */
+    I3506_CSEL      = 0x1a800000,
+    I3506_CSINC     = 0x1a800400,
 
     /* Data-processing (2 source) instructions.  */
     I3508_LSLV      = 0x1ac02000,
@@ -420,6 +431,13 @@ static void tcg_out_insn_3502(TCGContext *s, AArch64Insn insn, TCGType ext,
 #define tcg_out_insn_3503  tcg_out_insn_3502
 #define tcg_out_insn_3508  tcg_out_insn_3502
 #define tcg_out_insn_3510  tcg_out_insn_3502
+
+static void tcg_out_insn_3506(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, TCGReg rn, TCGReg rm, TCGCond c)
+{
+    tcg_out32(s, insn | ext << 31 | rm << 16 | rn << 5 | rd
+              | tcg_cond_to_aarch64[c] << 12);
+}
 
 
 static inline void tcg_out_ldst_9(TCGContext *s,
@@ -1154,6 +1172,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a2 = args[2];
     int c2 = const_args[2];
 
+    /* Some operands are defined with "rZ" constraint, a register or
+       the zero register.  These need not actually test args[I] == 0.  */
+#define REG0(I)  (const_args[I] ? TCG_REG_XZR : (TCGReg)args[I])
+
     switch (opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_X0, a0);
@@ -1372,6 +1394,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_cset(s, 0, a0, args[3]);
         break;
 
+    case INDEX_op_movcond_i32:
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_movcond_i64:
+        tcg_out_cmp(s, ext, a1, a2, c2);
+        tcg_out_insn(s, 3506, CSEL, ext, a0, REG0(3), REG0(4), args[5]);
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0 | 0);
         break;
@@ -1454,6 +1484,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* Opcode not implemented.  */
         tcg_abort();
     }
+
+#undef REG0
 }
 
 static const TCGTargetOpDef aarch64_op_defs[] = {
@@ -1528,6 +1560,8 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_brcond_i64, { "r", "rA" } },
     { INDEX_op_setcond_i32, { "r", "r", "rwA" } },
     { INDEX_op_setcond_i64, { "r", "r", "rA" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rwA", "rZ", "rZ" } },
+    { INDEX_op_movcond_i64, { "r", "r", "rA", "rZ", "rZ" } },
 
     { INDEX_op_qemu_ld8u, { "r", "l" } },
     { INDEX_op_qemu_ld8s, { "r", "l" } },
