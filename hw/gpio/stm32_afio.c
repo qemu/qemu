@@ -55,7 +55,9 @@ struct Stm32Afio {
     MemoryRegion iomem;
 
     Stm32Rcc *stm32_rcc;
-    Stm32Exti *stm32_exti;
+
+    Stm32Gpio *gpio[STM32_GPIO_COUNT];
+    Stm32Exti *exti;
 
     uint32_t
         USART1_REMAP,
@@ -113,10 +115,14 @@ static void stm32_afio_AFIO_EXTICR_write(Stm32Afio *s, unsigned index,
 
         if(!init) {
             old_gpio_index = (s->AFIO_EXTICR[index] >> start) & 0xf;
-            stm32_exti_reset_gpio(s->stm32_exti, exti_line, STM32_GPIO_PERIPH_FROM_INDEX(old_gpio_index));
+            sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio[old_gpio_index]),
+                               exti_line,
+                               NULL);
         }
         new_gpio_index = (new_value >> start) & 0xf;
-        stm32_exti_set_gpio(s->stm32_exti, exti_line, STM32_GPIO_PERIPH_FROM_INDEX(new_gpio_index));
+        sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio[new_gpio_index]),
+                           exti_line,
+                           qdev_get_gpio_in(DEVICE(s->exti), exti_line));
     }
 
     s->AFIO_EXTICR[index] = new_value;
@@ -178,7 +184,7 @@ static uint64_t stm32_afio_read(void *opaque, hwaddr offset,
 {
     Stm32Afio *s = (Stm32Afio *)opaque;
 
-    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO);
+    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
 
     switch(size) {
         case 4:
@@ -194,7 +200,7 @@ static void stm32_afio_write(void *opaque, hwaddr offset,
 {
     Stm32Afio *s = (Stm32Afio *)opaque;
 
-    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO);
+    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
 
     switch(size) {
         case 4:
@@ -252,10 +258,9 @@ uint32_t stm32_afio_get_periph_map(Stm32Afio *s, stm32_periph_t periph)
 
 static int stm32_afio_init(SysBusDevice *dev)
 {
-    Stm32Afio *s = FROM_SYSBUS(Stm32Afio, dev);
+    Stm32Afio *s = STM32_AFIO(dev);
 
     s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
-    s->stm32_exti = (Stm32Exti *)s->stm32_exti_prop;
 
     memory_region_init_io(&s->iomem, &stm32_afio_ops, s,
                           "afio", 0x03ff);
@@ -266,9 +271,31 @@ static int stm32_afio_init(SysBusDevice *dev)
 
 static Property stm32_afio_properties[] = {
     DEFINE_PROP_PTR("stm32_rcc", Stm32Afio, stm32_rcc_prop),
-    DEFINE_PROP_PTR("stm32_exti", Stm32Afio, stm32_exti_prop),
     DEFINE_PROP_END_OF_LIST()
 };
+
+static void add_gpio_link(Stm32Afio *s, int gpio_index, const char *link_name)
+{
+    object_property_add_link(OBJECT(s), link_name, TYPE_STM32_GPIO,
+                                     (Object **)&s->gpio[gpio_index], NULL);
+}
+
+static void stm32_afio_instance_init(Object *obj)
+{
+    Stm32Afio *s = STM32_AFIO(obj);
+
+    add_gpio_link(s, 0, "gpio[a]");
+    add_gpio_link(s, 1, "gpio[b]");
+    add_gpio_link(s, 2, "gpio[c]");
+    add_gpio_link(s, 3, "gpio[d]");
+    add_gpio_link(s, 4, "gpio[e]");
+    add_gpio_link(s, 5, "gpio[f]");
+    add_gpio_link(s, 6, "gpio[g]");
+
+    object_property_add_link(obj, "exti", TYPE_STM32_EXTI,
+                                     (Object **)&s->exti, NULL);
+
+}
 
 static void stm32_afio_class_init(ObjectClass *klass, void *data)
 {
@@ -281,9 +308,10 @@ static void stm32_afio_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo stm32_afio_info = {
-    .name  = "stm32-afio",
+    .name  = TYPE_STM32_AFIO,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(Stm32Afio),
+    .instance_init = stm32_afio_instance_init,
     .class_init = stm32_afio_class_init
 };
 

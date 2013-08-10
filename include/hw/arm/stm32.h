@@ -95,7 +95,7 @@ typedef int32_t stm32_periph_t;
 #define STM32_GPIOE 5
 #define STM32_GPIOF 6
 #define STM32_GPIOG 7
-#define STM32_AFIO 8
+#define STM32_AFIO_PERIPH 8
 #define STM32_UART1 9
 #define STM32_UART2 10
 #define STM32_UART3 11
@@ -196,6 +196,9 @@ const char *stm32_periph_name(stm32_periph_t periph);
 
 
 /* AFIO */
+#define TYPE_STM32_AFIO "stm32-afio"
+#define STM32_AFIO(obj) OBJECT_CHECK(Stm32Afio, (obj), TYPE_STM32_AFIO)
+
 typedef struct Stm32Afio Stm32Afio;
 
 /* AFIO Peripheral Mapping */
@@ -220,11 +223,7 @@ uint32_t stm32_afio_get_periph_map(Stm32Afio *s, int32_t periph_num);
 /* EXTI */
 typedef struct Stm32Exti Stm32Exti;
 
-/* Assigns the specified EXTI line to the specified GPIO. */
-void stm32_exti_set_gpio(Stm32Exti *s, unsigned exti_line, stm32_periph_t gpio);
-
-/* Unassigns the specified EXTI line from the specified GPIO. */
-void stm32_exti_reset_gpio(Stm32Exti *s, unsigned exti_line, stm32_periph_t gpio);
+#define TYPE_STM32_EXTI "stm32-exti"
 
 
 
@@ -236,10 +235,7 @@ typedef struct Stm32Gpio Stm32Gpio;
 #define STM32_GPIO_COUNT (STM32_GPIOG - STM32_GPIOA + 1)
 #define STM32_GPIO_PIN_COUNT 16
 
-/* Sets the EXTI IRQ for the specified pin.  When a change occurs
- * on this pin, and interrupt will be generated on this IRQ.
- */
-void stm32_gpio_set_exti_irq(Stm32Gpio *s, unsigned pin, qemu_irq in_irq);
+#define TYPE_STM32_GPIO "stm32-gpio"
 
 /* GPIO pin mode */
 #define STM32_GPIO_MODE_IN 0

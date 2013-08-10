@@ -394,7 +394,7 @@ static void stm32_rcc_RCC_APB2ENR_write(Stm32Rcc *s, uint32_t new_value,
                             RCC_APB2ENR_IOPBEN_BIT);
     stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOA,
                             RCC_APB2ENR_IOPAEN_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_AFIO,
+    stm32_rcc_periph_enable(s, new_value, init, STM32_AFIO_PERIPH,
                             RCC_APB2ENR_AFIOEN_BIT);
     stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOG,
                             RCC_APB2ENR_IOPGEN_BIT);
@@ -727,7 +727,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
     s->PERIPHCLK[STM32_GPIOF] = clktree_create_clk("GPIOF", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
     s->PERIPHCLK[STM32_GPIOG] = clktree_create_clk("GPIOG", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 
-    s->PERIPHCLK[STM32_AFIO] = clktree_create_clk("AFIO", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_AFIO_PERIPH] = clktree_create_clk("AFIO", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 
     s->PERIPHCLK[STM32_UART1] = clktree_create_clk("UART1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
     s->PERIPHCLK[STM32_UART2] = clktree_create_clk("UART2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
