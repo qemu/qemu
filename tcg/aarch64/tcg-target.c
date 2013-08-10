@@ -1128,47 +1128,57 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, int opc,
    slow path for the failure case, which will be patched later when finalizing
    the slow path. Generated code returns the host addend in X1,
    clobbers X0,X2,X3,TMP. */
-static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
-            int s_bits, uint8_t **label_ptr, int mem_index, int is_read)
+static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, int s_bits,
+                             uint8_t **label_ptr, int mem_index, bool is_read)
 {
     TCGReg base = TCG_AREG0;
     int tlb_offset = is_read ?
         offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
+
     /* Extract the TLB index from the address into X0.
        X0<CPU_TLB_BITS:0> =
        addr_reg<TARGET_PAGE_BITS+CPU_TLB_BITS:TARGET_PAGE_BITS> */
-    tcg_out_ubfm(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, addr_reg,
+    tcg_out_ubfm(s, TARGET_LONG_BITS == 64, TCG_REG_X0, addr_reg,
                  TARGET_PAGE_BITS, TARGET_PAGE_BITS + CPU_TLB_BITS);
+
     /* Store the page mask part of the address and the low s_bits into X3.
        Later this allows checking for equality and alignment at the same time.
        X3 = addr_reg & (PAGE_MASK | ((1 << s_bits) - 1)) */
     tcg_out_logicali(s, I3404_ANDI, TARGET_LONG_BITS == 64, TCG_REG_X3,
                      addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+
     /* Add any "high bits" from the tlb offset to the env address into X2,
        to take advantage of the LSL12 form of the ADDI instruction.
        X2 = env + (tlb_offset & 0xfff000) */
-    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_X2, base,
-                 tlb_offset & 0xfff000);
+    if (tlb_offset & 0xfff000) {
+        tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_X2, base,
+                     tlb_offset & 0xfff000);
+        base = TCG_REG_X2;
+    }
+
     /* Merge the tlb index contribution into X2.
        X2 = X2 + (X0 << CPU_TLB_ENTRY_BITS) */
-    tcg_out_insn(s, 3502S, ADD_LSL, 1, TCG_REG_X2, TCG_REG_X2,
+    tcg_out_insn(s, 3502S, ADD_LSL, TCG_TYPE_I64, TCG_REG_X2, base,
                  TCG_REG_X0, CPU_TLB_ENTRY_BITS);
+
     /* Merge "low bits" from tlb offset, load the tlb comparator into X0.
        X0 = load [X2 + (tlb_offset & 0x000fff)] */
     tcg_out_ldst(s, TARGET_LONG_BITS == 64 ? LDST_64 : LDST_32,
-                 LDST_LD, TCG_REG_X0, TCG_REG_X2,
-                 (tlb_offset & 0xfff));
+                 LDST_LD, TCG_REG_X0, TCG_REG_X2, tlb_offset & 0xfff);
+
     /* Load the tlb addend. Do that early to avoid stalling.
        X1 = load [X2 + (tlb_offset & 0xfff) + offsetof(addend)] */
     tcg_out_ldst(s, LDST_64, LDST_LD, TCG_REG_X1, TCG_REG_X2,
                  (tlb_offset & 0xfff) + (offsetof(CPUTLBEntry, addend)) -
                  (is_read ? offsetof(CPUTLBEntry, addr_read)
                   : offsetof(CPUTLBEntry, addr_write)));
+
     /* Perform the address comparison. */
     tcg_out_cmp(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, TCG_REG_X3, 0);
-    *label_ptr = s->code_ptr;
+
     /* If not equal, we jump to the slow path. */
+    *label_ptr = s->code_ptr;
     tcg_out_goto_cond_noaddr(s, TCG_COND_NE);
 }
 
