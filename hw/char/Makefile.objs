@@ -25,3 +25,5 @@ common-obj-$(CONFIG_MILKYMIST) += milkymist-uart.o
 common-obj-$(CONFIG_SCLPCONSOLE) += sclpconsole.o
 
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o
+
+obj-y += stm32_uart.o
