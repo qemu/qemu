@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "hw/arm/stm32.h"
 #include "sysemu/char.h"
+#include "qemu/bitops.h"
 
 
 
@@ -625,146 +626,31 @@ static void stm32_uart_reset(DeviceState *dev)
     stm32_uart_update_irq(s);
 }
 
-
-static uint64_t stm32_uart_readw(Stm32Uart *s, hwaddr offset)
-{
-    uint32_t value;
-
-    switch (offset) {
-        case USART_SR_OFFSET:
-            return stm32_uart_USART_SR_read(s);
-        case USART_DR_OFFSET:
-            stm32_uart_USART_DR_read(s, &value);
-            return value;
-        case USART_BRR_OFFSET:
-            return s->USART_BRR;
-        case USART_CR1_OFFSET:
-            return s->USART_CR1;
-        case USART_CR2_OFFSET:
-            return s->USART_CR2;
-        case USART_CR3_OFFSET:
-            return s->USART_CR3;
-        case USART_GTPR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 4);
-            return 0;
-        default:
-            STM32_BAD_REG(offset, 4);
-            return 0;
-    }
-}
-
-static void stm32_uart_writew(
-        Stm32Uart *s,
-        hwaddr offset,
-        uint64_t value)
-{
-    switch (offset) {
-        case USART_SR_OFFSET:
-            stm32_uart_USART_SR_write(s, value);
-            break;
-        case USART_DR_OFFSET:
-            stm32_uart_USART_DR_write(s, value);
-            break;
-        case USART_BRR_OFFSET:
-            stm32_uart_USART_BRR_write(s, value, false);
-            break;
-        case USART_CR1_OFFSET:
-            stm32_uart_USART_CR1_write(s, value, false);
-            break;
-        case USART_CR2_OFFSET:
-            stm32_uart_USART_CR2_write(s, value, false);
-            break;
-        case USART_CR3_OFFSET:
-            stm32_uart_USART_CR3_write(s, value, false);
-            break;
-        case USART_GTPR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 4);
-            break;
-        default:
-            STM32_BAD_REG(offset, 4);
-            break;
-    }
-}
-
-
-static uint64_t stm32_uart_readh(Stm32Uart *s, hwaddr offset)
-{
-    uint32_t value;
-
-    switch (offset) {
-        case USART_SR_OFFSET:
-            return STM32_REG_READH_VALUE(offset, stm32_uart_USART_SR_read(s));
-        case USART_DR_OFFSET:
-            stm32_uart_USART_DR_read(s, &value);
-            return STM32_REG_READH_VALUE(offset, value);
-        case USART_BRR_OFFSET:
-            return STM32_REG_READH_VALUE(offset, s->USART_BRR);
-        case USART_CR1_OFFSET:
-            return STM32_REG_READH_VALUE(offset, s->USART_CR1);
-        case USART_CR2_OFFSET:
-            return STM32_REG_READH_VALUE(offset, s->USART_CR2);
-        case USART_CR3_OFFSET:
-            return STM32_REG_READH_VALUE(offset, s->USART_CR3);
-        case USART_GTPR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 2);
-            return 0;
-        default:
-            STM32_BAD_REG(offset, 2);
-            return 0;
-    }
-}
-
-static void stm32_uart_writeh(
-        Stm32Uart *s,
-        hwaddr offset,
-        uint64_t value)
-{
-    switch (offset) {
-        case USART_SR_OFFSET:
-            /* The SR register only has bits in the first halfword, so no need to do
-             * anything special.
-             */
-            stm32_uart_USART_SR_write(s, value);
-            break;
-        case USART_DR_OFFSET:
-            stm32_uart_USART_DR_write(s,
-                    STM32_REG_WRITEH_VALUE(offset, 0, value));
-            break;
-        case USART_BRR_OFFSET:
-            stm32_uart_USART_BRR_write(s,
-                    STM32_REG_WRITEH_VALUE(offset, s->USART_BRR, value), false);
-            break;
-        case USART_CR1_OFFSET:
-            stm32_uart_USART_CR1_write(s,
-                    STM32_REG_WRITEH_VALUE(offset, s->USART_CR1, value), false);
-            break;
-        case USART_CR2_OFFSET:
-            stm32_uart_USART_CR2_write(s,
-                    STM32_REG_WRITEH_VALUE(offset, s->USART_CR2, value), false);
-            break;
-        case USART_CR3_OFFSET:
-            stm32_uart_USART_CR3_write(s,
-                    STM32_REG_WRITEH_VALUE(offset, s->USART_CR3, value), false);
-            break;
-        case USART_GTPR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 2);
-            break;
-        default:
-            STM32_BAD_REG(offset, 2);
-            break;
-    }
-}
-
 static uint64_t stm32_uart_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     Stm32Uart *s = (Stm32Uart *)opaque;
+    uint32_t value;
+    int start = (offset & 3) * 8;
+    int length = size * 8;
 
-    switch(size) {
-        case HALFWORD_ACCESS_SIZE:
-            return stm32_uart_readh(s, offset);
-        case WORD_ACCESS_SIZE:
-            return stm32_uart_readw(s, offset);
+    switch (offset & 0xfffffffc) {
+        case USART_SR_OFFSET:
+            return extract64(stm32_uart_USART_SR_read(s), start, length);
+        case USART_DR_OFFSET:
+            stm32_uart_USART_DR_read(s, &value);
+            return extract64(value, start, length);
+        case USART_BRR_OFFSET:
+            return extract64(s->USART_BRR, start, length);
+        case USART_CR1_OFFSET:
+            return extract64(s->USART_CR1, start, length);
+        case USART_CR2_OFFSET:
+            return extract64(s->USART_CR2, start, length);
+        case USART_CR3_OFFSET:
+            return extract64(s->USART_CR3, start, length);
+        case USART_GTPR_OFFSET:
+            STM32_NOT_IMPL_REG(offset, size);
+            return 0;
         default:
             STM32_BAD_REG(offset, size);
             return 0;
@@ -775,18 +661,41 @@ static void stm32_uart_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     Stm32Uart *s = (Stm32Uart *)opaque;
+    int start = (offset & 3) * 8;
+    int length = size * 8;
 
     stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, s->periph);
 
-    switch(size) {
-        case HALFWORD_ACCESS_SIZE:
-            stm32_uart_writeh(s, offset, value);
+    switch (offset & 0xfffffffc) {
+        case USART_SR_OFFSET:
+            stm32_uart_USART_SR_write(s,
+                  deposit64(stm32_uart_USART_SR_read(s), start, length, value));
             break;
-        case WORD_ACCESS_SIZE:
-            stm32_uart_writew(s, offset, value);
+        case USART_DR_OFFSET:
+            stm32_uart_USART_DR_write(s,
+                  deposit64(0, start, length, value));
+            break;
+        case USART_BRR_OFFSET:
+            stm32_uart_USART_BRR_write(s,
+                  deposit64(s->USART_BRR, start, length, value), false);
+            break;
+        case USART_CR1_OFFSET:
+            stm32_uart_USART_CR1_write(s,
+                  deposit64(s->USART_CR1, start, length, value), false);
+            break;
+        case USART_CR2_OFFSET:
+            stm32_uart_USART_CR2_write(s,
+                  deposit64(s->USART_CR2, start, length, value), false);
+            break;
+        case USART_CR3_OFFSET:
+            stm32_uart_USART_CR3_write(s,
+                  deposit64(s->USART_CR3, start, length, value), false);
+            break;
+        case USART_GTPR_OFFSET:
+            STM32_NOT_IMPL_REG(offset, 2);
             break;
         default:
-            STM32_BAD_REG(offset, size);
+            STM32_BAD_REG(offset, 2);
             break;
     }
 }
@@ -794,6 +703,8 @@ static void stm32_uart_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps stm32_uart_ops = {
     .read = stm32_uart_read,
     .write = stm32_uart_write,
+    .valid.min_access_size = 2,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 

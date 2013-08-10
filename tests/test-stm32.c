@@ -253,7 +253,9 @@ static void test_uart(void)
     // Note that half-word memory accesses are only supported in the UART
     // if they are word (32 bit) address aligned.
     writew(UART2_BASE_ADDR + 0x0c, 0);
+    writew(UART2_BASE_ADDR + 0x0e, 0);
     g_assert_cmpint(readw(UART2_BASE_ADDR + 0x0c), ==, 0);
+    g_assert_cmpint(readw(UART2_BASE_ADDR + 0x0e), ==, 0);
     writew(UART2_BASE_ADDR + 0x0c, 0x200c);
     g_assert_cmpint(readw(UART2_BASE_ADDR + 0x0c), ==, 0x200c);
 
