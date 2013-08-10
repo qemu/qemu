@@ -128,9 +128,13 @@ static void stm32_afio_AFIO_EXTICR_write(Stm32Afio *s, unsigned index,
     s->AFIO_EXTICR[index] = new_value;
 }
 
-
-static uint64_t stm32_afio_readw(Stm32Afio *s, hwaddr offset)
+static uint64_t stm32_afio_read(void *opaque, hwaddr offset,
+                          unsigned size)
 {
+    Stm32Afio *s = (Stm32Afio *)opaque;
+
+    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
+
     switch (offset) {
         case AFIO_EVCR_OFFSET:
             STM32_NOT_IMPL_REG(offset, WORD_ACCESS_SIZE);
@@ -151,9 +155,13 @@ static uint64_t stm32_afio_readw(Stm32Afio *s, hwaddr offset)
     }
 }
 
-static void stm32_afio_writew(Stm32Afio *s, hwaddr offset,
-                          uint64_t value)
+static void stm32_afio_write(void *opaque, hwaddr offset,
+                       uint64_t value, unsigned size)
 {
+    Stm32Afio *s = (Stm32Afio *)opaque;
+
+    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
+
     switch (offset) {
         case AFIO_EVCR_OFFSET:
             STM32_NOT_IMPL_REG(offset, WORD_ACCESS_SIZE);
@@ -179,42 +187,11 @@ static void stm32_afio_writew(Stm32Afio *s, hwaddr offset,
     }
 }
 
-static uint64_t stm32_afio_read(void *opaque, hwaddr offset,
-                          unsigned size)
-{
-    Stm32Afio *s = (Stm32Afio *)opaque;
-
-    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
-
-    switch(size) {
-        case 4:
-            return stm32_afio_readw(opaque, offset);
-        default:
-            STM32_BAD_REG(offset, size);
-            return 0;
-    }
-}
-
-static void stm32_afio_write(void *opaque, hwaddr offset,
-                       uint64_t value, unsigned size)
-{
-    Stm32Afio *s = (Stm32Afio *)opaque;
-
-    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, STM32_AFIO_PERIPH);
-
-    switch(size) {
-        case 4:
-            stm32_afio_writew(opaque, offset, value);
-            break;
-        default:
-            STM32_BAD_REG(offset, size);
-            break;
-    }
-}
-
 static const MemoryRegionOps stm32_afio_ops = {
     .read = stm32_afio_read,
     .write = stm32_afio_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 

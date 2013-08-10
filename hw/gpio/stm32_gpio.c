@@ -223,9 +223,13 @@ static void stm32_gpio_GPIOx_BRR_write(Stm32Gpio *s, uint32_t new_value)
             false);
 }
 
-
-static uint64_t stm32_gpio_readw(Stm32Gpio *s, hwaddr offset)
+static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
+                          unsigned size)
 {
+    Stm32Gpio *s = (Stm32Gpio *)opaque;
+
+    assert(size == 4);
+
     switch (offset) {
         case GPIOx_CRL_OFFSET: /* GPIOx_CRL */
             return s->GPIOx_CRy[GPIOx_CRL_INDEX];
@@ -252,10 +256,14 @@ static uint64_t stm32_gpio_readw(Stm32Gpio *s, hwaddr offset)
     }
 }
 
-static void stm32_gpio_writew(Stm32Gpio *s, hwaddr offset,
-                          uint64_t value)
+static void stm32_gpio_write(void *opaque, hwaddr offset,
+                       uint64_t value, unsigned size)
 {
+    Stm32Gpio *s = (Stm32Gpio *)opaque;
 
+    assert(size == 4);
+
+    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, s->periph);
 
     switch (offset) {
         case GPIOx_CRL_OFFSET: /* GPIOx_CRL */
@@ -286,42 +294,11 @@ static void stm32_gpio_writew(Stm32Gpio *s, hwaddr offset,
     }
 }
 
-
-
-static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
-                          unsigned size)
-{
-    Stm32Gpio *s = (Stm32Gpio *)opaque;
-
-    switch(size) {
-        case WORD_ACCESS_SIZE:
-            return stm32_gpio_readw(s, offset);
-        default:
-            STM32_BAD_REG(offset, size);
-            return 0;
-    }
-}
-
-static void stm32_gpio_write(void *opaque, hwaddr offset,
-                       uint64_t value, unsigned size)
-{
-    Stm32Gpio *s = (Stm32Gpio *)opaque;
-
-    stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, s->periph);
-
-    switch(size) {
-        case WORD_ACCESS_SIZE:
-            stm32_gpio_writew(s, offset, value);
-            break;
-        default:
-            STM32_BAD_REG(offset, size);
-            break;
-    }
-}
-
 static const MemoryRegionOps stm32_gpio_ops = {
     .read = stm32_gpio_read,
     .write = stm32_gpio_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 
