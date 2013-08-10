@@ -294,6 +294,10 @@ typedef enum {
     I3405_MOVZ      = 0x52800000,
     I3405_MOVK      = 0x72800000,
 
+    /* PC relative addressing instructions.  */
+    I3406_ADR       = 0x10000000,
+    I3406_ADRP      = 0x90000000,
+
     /* Add/subtract shifted register instructions (without a shift).  */
     I3502_ADD       = 0x0b000000,
     I3502_ADDS      = 0x2b000000,
@@ -457,6 +461,12 @@ static void tcg_out_insn_3405(TCGContext *s, AArch64Insn insn, TCGType ext,
     tcg_out32(s, insn | ext << 31 | shift << (21 - 4) | half << 5 | rd);
 }
 
+static void tcg_out_insn_3406(TCGContext *s, AArch64Insn insn,
+                              TCGReg rd, int64_t disp)
+{
+    tcg_out32(s, insn | (disp & 3) << 29 | (disp & 0x1ffffc) << (5 - 2) | rd);
+}
+
 /* This function is for both 3.5.2 (Add/Subtract shifted register), for
    the rare occasion when we actually want to supply a shift amount.  */
 static inline void tcg_out_insn_3502S(TCGContext *s, AArch64Insn insn,
@@ -594,6 +604,19 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
     if (is_limm(svalue)) {
         tcg_out_logicali(s, I3404_ORRI, type, rd, TCG_REG_XZR, svalue);
         return;
+    }
+
+    /* Look for host pointer values within 4G of the PC.  This happens
+       often when loading pointers to QEMU's own data structures.  */
+    if (type == TCG_TYPE_I64) {
+        tcg_target_long disp = (value >> 12) - ((intptr_t)s->code_ptr >> 12);
+        if (disp == sextract64(disp, 0, 21)) {
+            tcg_out_insn(s, 3406, ADRP, rd, disp);
+            if (value & 0xfff) {
+                tcg_out_insn(s, 3401, ADDI, type, rd, rd, value & 0xfff);
+            }
+            return;
+        }
     }
 
     /* Would it take fewer insns to begin with MOVN?  For the value and its
