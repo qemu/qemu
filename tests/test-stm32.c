@@ -249,6 +249,15 @@ static void test_uart(void)
     sent_byte = read_serial_port_byte(uart2_socket_num);
     g_assert_cmpint(sent_byte, ==, 'F');
 
+    // Test half-word (16 bit) memory accesses.
+    // Note that half-word memory accesses are only supported in the UART
+    // if they are word (32 bit) address aligned.
+    writew(UART2_BASE_ADDR + 0x0c, 0);
+    g_assert_cmpint(readw(UART2_BASE_ADDR + 0x0c), ==, 0);
+    writew(UART2_BASE_ADDR + 0x0c, 0x200c);
+    g_assert_cmpint(readw(UART2_BASE_ADDR + 0x0c), ==, 0x200c);
+
+
     // To do: test TXE interrupt, overflow, simulated delays, TC clearing
     // These get tough to do because they involve race conditions.
     // Maybe we can add a property for testing to tell the uart to pause
