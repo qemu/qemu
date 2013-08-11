@@ -181,13 +181,11 @@ static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
             return s->in;
         case GPIOx_ODR_OFFSET:
             return s->GPIOx_ODR;
-        /* Note that documentation says BSRR and BRR are write-only, but reads
-         * work on real hardware.  We follow the documentation.*/
         case GPIOx_BSRR_OFFSET:
-            STM32_WO_REG(offset);
+            STM32_WARN_WO_REG(offset);
             return 0;
         case GPIOx_BRR_OFFSET:
-            STM32_WO_REG(offset);
+            STM32_WARN_WO_REG(offset);
             return 0;
         case GPIOx_LCKR_OFFSET:
             /* Locking is not yet implemented */
@@ -218,7 +216,7 @@ static void stm32_gpio_write(void *opaque, hwaddr offset,
             stm32_gpio_update_dir(s, 1);
             break;
         case GPIOx_IDR_OFFSET:
-            STM32_RO_REG(offset);
+            STM32_WARN_RO_REG(offset);
             break;
         case GPIOx_ODR_OFFSET:
             stm32_gpio_GPIOx_ODR_write(s, value);
