@@ -97,29 +97,24 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
     PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
+    FWCfgState *fw_cfg = fw_cfg_find();
+    uint16_t *pvpanic_port;
+
+    if (!fw_cfg) {
+        return;
+    }
+
+    pvpanic_port = g_malloc(sizeof(*pvpanic_port));
+    *pvpanic_port = cpu_to_le16(s->ioport);
+    fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
+                    sizeof(*pvpanic_port));
 
     isa_register_ioport(d, &s->io, s->ioport);
 }
 
-static void pvpanic_fw_cfg(ISADevice *dev, FWCfgState *fw_cfg)
-{
-    PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
-    uint16_t *pvpanic_port = g_malloc(sizeof(*pvpanic_port));
-    *pvpanic_port = cpu_to_le16(s->ioport);
-
-    fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
-                    sizeof(*pvpanic_port));
-}
-
 void pvpanic_init(ISABus *bus)
 {
-    ISADevice *dev;
-    FWCfgState *fw_cfg = fw_cfg_find();
-    if (!fw_cfg) {
-        return;
-    }
-    dev = isa_create_simple (bus, TYPE_ISA_PVPANIC_DEVICE);
-    pvpanic_fw_cfg(dev, fw_cfg);
+    isa_create_simple(bus, TYPE_ISA_PVPANIC_DEVICE);
 }
 
 static Property pvpanic_isa_properties[] = {
@@ -132,8 +127,8 @@ static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pvpanic_isa_realizefn;
-    dc->no_user = 1;
     dc->props = pvpanic_isa_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static TypeInfo pvpanic_isa_info = {
