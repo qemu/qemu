@@ -23,6 +23,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/arm/stm32.h"
+#include "qemu/bitops.h"
 
 
 
@@ -37,9 +38,6 @@
 #define GPIOx_BRR_OFFSET 0x14
 #define GPIOx_LCKR_OFFSET 0x18
 
-#define GPIOx_CRL_INDEX 0
-#define GPIOx_CRH_INDEX 1
-
 struct Stm32Gpio {
     /* Inherited */
     SysBusDevice busdev;
@@ -53,17 +51,12 @@ struct Stm32Gpio {
 
     Stm32Rcc *stm32_rcc;
 
-    /* CRL = 0
-     * CRH = 1
-     */
-    uint32_t GPIOx_CRy[2];
 
-    /* 0 = input
-     * 1 = output
-     */
-    uint16_t dir_mask;
-
+    uint32_t GPIOx_CRy[2]; /* CRL = 0, CRH = 1 */
     uint32_t GPIOx_ODR;
+
+    uint16_t in;
+    uint16_t dir_mask; /* input = 0, output = 1 */
 
     /* IRQs used to communicate with the machine implementation.
      * There is one IRQ for each pin.  Note that for pins configured
@@ -72,9 +65,7 @@ struct Stm32Gpio {
      */
     qemu_irq out_irq[STM32_GPIO_PIN_COUNT];
 
-    uint16_t in;
-
-    /* EXTI IRQ to notify on input change - there is one EXTI IRQ per pin. */
+    /* IRQs which relay input pin changes to other STM32 peripherals */
     qemu_irq in_irq[STM32_GPIO_PIN_COUNT];
 };
 
@@ -107,23 +98,12 @@ static void stm32_gpio_in_trigger(void *opaque, int irq, int level)
  * register.
  */
 static uint8_t stm32_gpio_get_pin_config(Stm32Gpio *s, unsigned pin) {
-    unsigned reg_index, reg_pin;
-    unsigned reg_start_bit;
-
-    assert(pin < STM32_GPIO_PIN_COUNT);
-
-    /* Determine the register (CRL or CRH). */
-    reg_index = pin / 8;
-    assert((reg_index == GPIOx_CRL_INDEX) || (reg_index == GPIOx_CRH_INDEX));
-
-    /* Get the pin within the register. */
-    reg_pin = pin % 8;
-
-    /* Get the start position of the config bits in the register (each
-     * pin config takes 4 bits). */
-    reg_start_bit = reg_pin * 4;
-
-    return (s->GPIOx_CRy[reg_index] >> reg_start_bit) & 0xf;
+    /* Simplify extract logic by combining both 32 bit regiters into
+     * one 64 bit value.
+     */
+    uint64_t cr_64 = ((uint64_t)s->GPIOx_CRy[1] << 32) |
+                      s->GPIOx_CRy[0];
+    return extract64(cr_64, pin * 4, 4);
 }
 
 
@@ -133,17 +113,15 @@ static uint8_t stm32_gpio_get_pin_config(Stm32Gpio *s, unsigned pin) {
 /* REGISTER IMPLEMENTATION */
 
 /* Update the CRL or CRH Configuration Register */
-static void stm32_gpio_GPIOx_CRy_write(Stm32Gpio *s, int cr_index,
-                                        uint32_t new_value, bool init)
+static void stm32_gpio_update_dir(Stm32Gpio *s, int cr_index)
 {
-    unsigned pin, pin_dir;
+    unsigned start_pin, pin, pin_dir;
 
-    assert((cr_index == GPIOx_CRL_INDEX) || (cr_index == GPIOx_CRH_INDEX));
-
-    s->GPIOx_CRy[cr_index] = new_value;
+    assert((cr_index == 0) || (cr_index == 1));
 
     /* Update the direction mask */
-    for(pin=0; pin < STM32_GPIO_PIN_COUNT; pin++) {
+    start_pin = cr_index * 8;
+    for(pin=start_pin; pin < start_pin + 8; pin++) {
         pin_dir = stm32_gpio_get_mode_bits(s, pin);
         /* If the mode is 0, the pin is input.  Otherwise, it
          * is output.
@@ -156,8 +134,7 @@ static void stm32_gpio_GPIOx_CRy_write(Stm32Gpio *s, int cr_index,
  * Propagates the changes to the output IRQs.
  * Perhaps we should also update the input to match the output for
  * pins configured as outputs... */
-static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value,
-                                            bool init)
+static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value)
 {
     uint32_t old_value;
     uint16_t changed, changed_out;
@@ -189,40 +166,6 @@ static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value,
     }
 }
 
-/* Write the Bit Set/Reset Register.
- * Setting a bit sets or resets the corresponding bit in the output
- * register.  The lower 16 bits perform resets, and the upper 16 bits
- * perform sets.  Register is write-only and so does not need to store
- * a value.
- */
-static void stm32_gpio_GPIOx_BSRR_write(Stm32Gpio *s, uint32_t new_value)
-{
-    uint32_t new_ODR;
-
-    new_ODR = s->GPIOx_ODR;
-
-    /* Perform sets with upper halfword. */
-    new_ODR |= new_value & 0x0000ffff;
-
-    /* Perform resets. */
-    new_ODR &= ~(new_value >> 16) & 0x0000ffff;
-
-    stm32_gpio_GPIOx_ODR_write(s, new_value, false);
-}
-
-/* Update the Bit Reset Register.
- * Setting a bit resets the corresponding bit in the output
- * register.  Register is write-only and so does not need to store
- * a value.
- */
-static void stm32_gpio_GPIOx_BRR_write(Stm32Gpio *s, uint32_t new_value)
-{
-    stm32_gpio_GPIOx_ODR_write(
-            s,
-            s->GPIOx_ODR & (~new_value & 0x0000ffff),
-            false);
-}
-
 static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
@@ -231,23 +174,23 @@ static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
     assert(size == 4);
 
     switch (offset) {
-        case GPIOx_CRL_OFFSET: /* GPIOx_CRL */
-            return s->GPIOx_CRy[GPIOx_CRL_INDEX];
-        case GPIOx_CRH_OFFSET: /* GPIOx_CRH */
-            return s->GPIOx_CRy[GPIOx_CRH_INDEX];
+        case GPIOx_CRL_OFFSET:
+            return s->GPIOx_CRy[0];
+        case GPIOx_CRH_OFFSET:
+            return s->GPIOx_CRy[1];
         case GPIOx_IDR_OFFSET:
             return s->in;
         case GPIOx_ODR_OFFSET:
             return s->GPIOx_ODR;
         /* Note that documentation says BSRR and BRR are write-only, but reads
          * work on real hardware.  We follow the documentation.*/
-        case GPIOx_BSRR_OFFSET: /* GPIOC_BSRR */
+        case GPIOx_BSRR_OFFSET:
             STM32_WO_REG(offset);
             return 0;
-        case GPIOx_BRR_OFFSET: /* GPIOC_BRR */
+        case GPIOx_BRR_OFFSET:
             STM32_WO_REG(offset);
             return 0;
-        case GPIOx_LCKR_OFFSET: /* GPIOx_LCKR */
+        case GPIOx_LCKR_OFFSET:
             /* Locking is not yet implemented */
             return 0;
         default:
@@ -259,6 +202,7 @@ static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
 static void stm32_gpio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
+    uint32_t set_mask, reset_mask;
     Stm32Gpio *s = (Stm32Gpio *)opaque;
 
     assert(size == 4);
@@ -266,25 +210,40 @@ static void stm32_gpio_write(void *opaque, hwaddr offset,
     stm32_rcc_check_periph_clk((Stm32Rcc *)s->stm32_rcc, s->periph);
 
     switch (offset) {
-        case GPIOx_CRL_OFFSET: /* GPIOx_CRL */
-            stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRL_INDEX, value, false);
+        case GPIOx_CRL_OFFSET:
+            s->GPIOx_CRy[0] = value;
+            stm32_gpio_update_dir(s, 0);
             break;
-        case GPIOx_CRH_OFFSET: /* GPIOx_CRH */
-            stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRH_INDEX, value, false);
+        case GPIOx_CRH_OFFSET:
+            s->GPIOx_CRy[1] = value;
+            stm32_gpio_update_dir(s, 1);
             break;
         case GPIOx_IDR_OFFSET:
             STM32_RO_REG(offset);
             break;
-        case GPIOx_ODR_OFFSET: /* GPIOx_ODR */
-            stm32_gpio_GPIOx_ODR_write(s, value, false);
+        case GPIOx_ODR_OFFSET:
+            stm32_gpio_GPIOx_ODR_write(s, value);
             break;
-        case GPIOx_BSRR_OFFSET: /* GPIOx_BSRR */
-            stm32_gpio_GPIOx_BSRR_write(s, value);
+        case GPIOx_BSRR_OFFSET:
+            /* Setting a bit sets or resets the corresponding bit in the output
+             * register.  The lower 16 bits perform resets, and the upper 16
+             * bits perform sets.  Register is write-only and so does not need
+             * to store a value.  Sets take priority over resets, so we do
+             * resets first.
+             */
+            set_mask = value & 0x0000ffff;
+            reset_mask = ~(value >> 16) & 0x0000ffff;
+            stm32_gpio_GPIOx_ODR_write(s,
+                    (s->GPIOx_ODR & reset_mask) | set_mask);
             break;
-        case GPIOx_BRR_OFFSET: /* GPIOx_BRR */
-            stm32_gpio_GPIOx_BRR_write(s, value);
+        case GPIOx_BRR_OFFSET:
+            /* Setting a bit resets the corresponding bit in the output
+             * register.  Register is write-only and so does not need to store
+             * a value. */
+            reset_mask = ~value & 0x0000ffff;
+            stm32_gpio_GPIOx_ODR_write(s, s->GPIOx_ODR & reset_mask);
             break;
-        case GPIOx_LCKR_OFFSET: /* GPIOx_LCKR */
+        case GPIOx_LCKR_OFFSET:
             /* Locking is not implemented */
             STM32_NOT_IMPL_REG(offset, 4);
             break;
@@ -304,11 +263,20 @@ static const MemoryRegionOps stm32_gpio_ops = {
 
 static void stm32_gpio_reset(DeviceState *dev)
 {
-    Stm32Gpio *s = FROM_SYSBUS(Stm32Gpio, SYS_BUS_DEVICE(dev));
+    int pin;
+    Stm32Gpio *s = STM32_GPIO(dev);
 
-    stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRL_INDEX, 0x44444444, true);
-    stm32_gpio_GPIOx_CRy_write(s, GPIOx_CRH_INDEX, 0x44444444, true);
-    stm32_gpio_GPIOx_ODR_write(s, 0x00000000, true);
+    s->GPIOx_CRy[0] = 0x44444444;
+    s->GPIOx_CRy[1] = 0x44444444;
+    s->GPIOx_ODR = 0;
+    s->dir_mask = 0; /* input = 0, output = 1 */
+
+    for(pin = 0; pin < STM32_GPIO_PIN_COUNT; pin++) {
+        qemu_irq_lower(s->out_irq[pin]);
+    }
+
+    /* Leave input state as it is - only outputs and config are affected
+     * by the GPIO reset. */
 }
 
 

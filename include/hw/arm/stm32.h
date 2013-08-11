@@ -221,6 +221,7 @@ typedef struct Stm32Gpio Stm32Gpio;
 #define STM32_GPIO_PIN_COUNT 16
 
 #define TYPE_STM32_GPIO "stm32-gpio"
+#define STM32_GPIO(obj) OBJECT_CHECK(Stm32Gpio, (obj), TYPE_STM32_GPIO)
 
 /* GPIO pin mode */
 #define STM32_GPIO_MODE_IN 0
