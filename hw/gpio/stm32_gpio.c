@@ -19,7 +19,6 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-/* use PL061 for inspiration. */
 
 #include "hw/sysbus.h"
 #include "hw/arm/stm32.h"
