@@ -46,7 +46,7 @@
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
 
-static bool has_pvpanic = true;
+static bool has_pvpanic;
 static bool has_pci_info = true;
 
 /* PC hardware initialisation */
@@ -221,6 +221,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
+    has_pvpanic = true;
     pc_q35_init(args);
 }
 
@@ -231,9 +232,9 @@ static void pc_q35_init_1_5(QEMUMachineInitArgs *args)
 
 static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    pc_q35_init_1_5(args);
+    has_pci_info = false;
+    pc_q35_init(args);
 }
 
 static QEMUMachine pc_q35_machine_v1_6 = {

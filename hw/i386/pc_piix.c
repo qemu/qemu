@@ -56,7 +56,7 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
-static bool has_pvpanic = true;
+static bool has_pvpanic;
 static bool has_pci_info = true;
 
 /* PC hardware initialisation */
@@ -253,6 +253,7 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
+    has_pvpanic = true;
     pc_init_pci(args);
 }
 
@@ -263,9 +264,9 @@ static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    pc_init_pci_1_5(args);
+    has_pci_info = false;
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
@@ -296,7 +297,6 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
     const char *boot_device = args->boot_device;
-    has_pvpanic = false;
     has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
@@ -315,7 +315,6 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
     const char *boot_device = args->boot_device;
-    has_pvpanic = false;
     has_pci_info = false;
     if (cpu_model == NULL)
         cpu_model = "486";
