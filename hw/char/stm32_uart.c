@@ -466,14 +466,14 @@ static void stm32_uart_USART_SR_write(Stm32Uart *s, uint32_t new_value)
 {
     uint32_t new_TC, new_RXNE;
 
-    new_TC = GET_BIT_VALUE(new_value, USART_SR_TC_BIT);
+    new_TC = extract32(new_value, USART_SR_TC_BIT, 1);
     /* The Transmit Complete flag can be cleared, but not set. */
     if(new_TC) {
         hw_error("Software attempted to set USART TC bit\n");
     }
     s->USART_SR_TC = new_TC;
 
-    new_RXNE = GET_BIT_VALUE(new_value, USART_SR_RXNE_BIT);
+    new_RXNE = extract32(new_value, USART_SR_RXNE_BIT, 1);
     /* The Read Data Register Not Empty flag can be cleared, but not set. */
     if(new_RXNE) {
         hw_error("Software attempted to set USART RXNE bit\n");
@@ -569,7 +569,7 @@ static void stm32_uart_USART_BRR_write(Stm32Uart *s, uint32_t new_value,
 static void stm32_uart_USART_CR1_write(Stm32Uart *s, uint32_t new_value,
                                         bool init)
 {
-    s->USART_CR1_UE = GET_BIT_VALUE(new_value, USART_CR1_UE_BIT);
+    s->USART_CR1_UE = extract32(new_value, USART_CR1_UE_BIT, 1);
     if(s->USART_CR1_UE) {
         /* Check to make sure the correct mapping is selected when enabling the
          * USART.
@@ -579,12 +579,12 @@ static void stm32_uart_USART_CR1_write(Stm32Uart *s, uint32_t new_value,
         }
     }
 
-    s->USART_CR1_TXEIE = GET_BIT_VALUE(new_value, USART_CR1_TXEIE_BIT);
-    s->USART_CR1_TCIE = GET_BIT_VALUE(new_value, USART_CR1_TCIE_BIT);
-    s->USART_CR1_RXNEIE = GET_BIT_VALUE(new_value, USART_CR1_RXNEIE_BIT);
+    s->USART_CR1_TXEIE = extract32(new_value, USART_CR1_TXEIE_BIT, 1);
+    s->USART_CR1_TCIE = extract32(new_value, USART_CR1_TCIE_BIT, 1);
+    s->USART_CR1_RXNEIE = extract32(new_value, USART_CR1_RXNEIE_BIT, 1);
 
-    s->USART_CR1_TE = GET_BIT_VALUE(new_value, USART_CR1_TE_BIT);
-    s->USART_CR1_RE = GET_BIT_VALUE(new_value, USART_CR1_RE_BIT);
+    s->USART_CR1_TE = extract32(new_value, USART_CR1_TE_BIT, 1);
+    s->USART_CR1_RE = extract32(new_value, USART_CR1_RE_BIT, 1);
 
     s->USART_CR1 = new_value & 0x00003fff;
 

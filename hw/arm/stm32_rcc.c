@@ -22,6 +22,7 @@
 
 #include "hw/arm/stm32.h"
 #include "hw/arm/stm32_clktree.h"
+#include "qemu/bitops.h"
 #include <stdio.h>
 
 
@@ -65,7 +66,7 @@
 #define RCC_CFGR_USBPRE_BIT      22
 #define RCC_CFGR_OTGFSPRE_CL_BIT 22
 #define RCC_CFGR_PLLMUL_START    18
-#define RCC_CFGR_PLLMUL_MASK     0x003c0000
+#define RCC_CFGR_PLLMUL_LENGTH   4
 #define RCC_CFGR_PLLXTPRE_BIT    17
 #define RCC_CFGR_PLLSRC_BIT      16
 #define RCC_CFGR_ADCPRE_START    14
@@ -216,9 +217,9 @@ static void stm32_rcc_periph_enable(
                     uint32_t new_value,
                     bool init,
                     int periph,
-                    uint32_t bit_mask)
+                    uint32_t bit_pos)
 {
-    clktree_set_enabled(s->PERIPHCLK[periph], IS_BIT_SET(new_value, bit_mask));
+    clktree_set_enabled(s->PERIPHCLK[periph], new_value & BIT(bit_pos));
 }
 
 
@@ -231,19 +232,19 @@ static void stm32_rcc_periph_enable(
 static uint32_t stm32_rcc_RCC_CR_read(Stm32Rcc *s)
 {
     /* Get the status of the clocks. */
-    bool PLLON = clktree_is_enabled(s->PLLCLK);
-    bool HSEON = clktree_is_enabled(s->HSECLK);
-    bool HSION = clktree_is_enabled(s->HSICLK);
+    int pllon_bit = clktree_is_enabled(s->PLLCLK) ? 1 : 0;
+    int hseon_bit = clktree_is_enabled(s->HSECLK) ? 1 : 0;
+    int hsion_bit = clktree_is_enabled(s->HSICLK) ? 1 : 0;
 
     /* build the register value based on the clock states.  If a clock is on,
      * then its ready bit is always set.
      */
-    return GET_BIT_MASK(RCC_CR_PLLRDY_BIT, PLLON) |
-           GET_BIT_MASK(RCC_CR_PLLON_BIT, PLLON) |
-           GET_BIT_MASK(RCC_CR_HSERDY_BIT, HSEON) |
-           GET_BIT_MASK(RCC_CR_HSEON_BIT, HSEON) |
-           GET_BIT_MASK(RCC_CR_HSIRDY_BIT, HSION) |
-           GET_BIT_MASK(RCC_CR_HSION_BIT, HSION);
+    return pllon_bit << RCC_CR_PLLRDY_BIT |
+           pllon_bit << RCC_CR_PLLON_BIT |
+           hseon_bit << RCC_CR_HSERDY_BIT |
+           hseon_bit << RCC_CR_HSEON_BIT |
+           hsion_bit << RCC_CR_HSIRDY_BIT |
+           hsion_bit << RCC_CR_HSION_BIT;
 }
 
 /* Write the Configuration Register.
@@ -253,34 +254,34 @@ static uint32_t stm32_rcc_RCC_CR_read(Stm32Rcc *s)
  */
 static void stm32_rcc_RCC_CR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
-    bool new_PLLON, new_HSEON, new_HSION;
+    bool new_pllon, new_hseon, new_hsion;
 
-    new_PLLON = IS_BIT_SET(new_value, RCC_CR_PLLON_BIT);
-    if((clktree_is_enabled(s->PLLCLK) && !new_PLLON) &&
+    new_pllon = new_value & BIT(RCC_CR_PLLON_BIT);
+    if((clktree_is_enabled(s->PLLCLK) && !new_pllon) &&
        s->RCC_CFGR_SW == SW_PLL_SELECTED) {
         stm32_hw_warn("PLL cannot be disabled while it is selected as the system clock.");
     }
-    clktree_set_enabled(s->PLLCLK, new_PLLON);
+    clktree_set_enabled(s->PLLCLK, new_pllon);
 
-    new_HSEON = IS_BIT_SET(new_value, RCC_CR_HSEON_BIT);
-    if((clktree_is_enabled(s->HSECLK) && !new_HSEON) &&
+    new_hseon = new_value & BIT(RCC_CR_HSEON_BIT);
+    if((clktree_is_enabled(s->HSECLK) && !new_hseon) &&
        (s->RCC_CFGR_SW == SW_HSE_SELECTED ||
         (s->RCC_CFGR_SW == SW_PLL_SELECTED && s->RCC_CFGR_PLLSRC == PLLSRC_HSE_SELECTED)
        )
       ) {
         stm32_hw_warn("HSE oscillator cannot be disabled while it is driving the system clock.");
     }
-    clktree_set_enabled(s->HSECLK, new_HSEON);
+    clktree_set_enabled(s->HSECLK, new_hseon);
 
-    new_HSION = IS_BIT_SET(new_value, RCC_CR_HSION_BIT);
-    if((clktree_is_enabled(s->HSECLK) && !new_HSEON) &&
+    new_hsion = new_value & BIT(RCC_CR_HSION_BIT);
+    if((clktree_is_enabled(s->HSECLK) && !new_hseon) &&
        (s->RCC_CFGR_SW == SW_HSI_SELECTED ||
         (s->RCC_CFGR_SW == SW_PLL_SELECTED && s->RCC_CFGR_PLLSRC == PLLSRC_HSI_SELECTED)
        )
       ) {
         stm32_hw_warn("HSI oscillator cannot be disabled while it is driving the system clock.");
     }
-    clktree_set_enabled(s->HSICLK, new_HSION);
+    clktree_set_enabled(s->HSICLK, new_hsion);
 }
 
 
@@ -302,7 +303,9 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
     uint32_t new_PLLMUL, new_PLLXTPRE, new_PLLSRC;
 
     /* PLLMUL */
-    new_PLLMUL = (new_value & RCC_CFGR_PLLMUL_MASK) >> RCC_CFGR_PLLMUL_START;
+    new_PLLMUL = extract32(new_value,
+                           RCC_CFGR_PLLMUL_START,
+                           RCC_CFGR_PLLMUL_LENGTH);
     if(!init) {
           if(clktree_is_enabled(s->PLLCLK) &&
            (new_PLLMUL != s->RCC_CFGR_PLLMUL)) {
@@ -318,7 +321,7 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
     s->RCC_CFGR_PLLMUL = new_PLLMUL;
 
     /* PLLXTPRE */
-    new_PLLXTPRE = GET_BIT_VALUE(new_value, RCC_CFGR_PLLXTPRE_BIT);
+    new_PLLXTPRE = extract32(new_value, RCC_CFGR_PLLXTPRE_BIT, 1);
     if(!init) {
         if(clktree_is_enabled(s->PLLCLK) &&
            (new_PLLXTPRE != s->RCC_CFGR_PLLXTPRE)) {
@@ -329,7 +332,7 @@ static void stm32_rcc_RCC_CFGR_write(Stm32Rcc *s, uint32_t new_value, bool init)
     s->RCC_CFGR_PLLXTPRE = new_PLLXTPRE;
 
     /* PLLSRC */
-    new_PLLSRC = GET_BIT_VALUE(new_value, RCC_CFGR_PLLSRC_BIT);
+    new_PLLSRC = extract32(new_value, RCC_CFGR_PLLSRC_BIT, 1);
     if(!init) {
         if(clktree_is_enabled(s->PLLCLK) &&
            (new_PLLSRC != s->RCC_CFGR_PLLSRC)) {
@@ -423,30 +426,30 @@ static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
 
 static uint32_t stm32_rcc_RCC_BDCR_read(Stm32Rcc *s)
 {
-    bool lseon = clktree_is_enabled(s->LSECLK);
+    int lseon_bit = clktree_is_enabled(s->LSECLK) ? 1 : 0;
 
-    return GET_BIT_MASK(RCC_BDCR_LSERDY_BIT, lseon) |
-           GET_BIT_MASK(RCC_BDCR_LSEON_BIT, lseon);
+    return lseon_bit << RCC_BDCR_LSERDY_BIT |
+           lseon_bit << RCC_BDCR_LSEON_BIT;
 }
 
 static void stm32_rcc_RCC_BDCR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
-    clktree_set_enabled(s->LSECLK, IS_BIT_SET(new_value, RCC_BDCR_LSEON_BIT));
+    clktree_set_enabled(s->LSECLK, new_value & BIT(RCC_BDCR_LSEON_BIT));
 }
 
 /* Works the same way as stm32_rcc_RCC_CR_read */
 static uint32_t stm32_rcc_RCC_CSR_read(Stm32Rcc *s)
 {
-    bool lseon = clktree_is_enabled(s->LSICLK);
+    int lseon_bit = clktree_is_enabled(s->LSICLK) ? 1 : 0;
 
-    return GET_BIT_MASK(RCC_CSR_LSIRDY_BIT, lseon) |
-           GET_BIT_MASK(RCC_CSR_LSION_BIT, lseon);
+    return lseon_bit << RCC_CSR_LSIRDY_BIT |
+           lseon_bit << RCC_CSR_LSION_BIT;
 }
 
 /* Works the same way as stm32_rcc_RCC_CR_write */
 static void stm32_rcc_RCC_CSR_write(Stm32Rcc *s, uint32_t new_value, bool init)
 {
-    clktree_set_enabled(s->LSICLK, IS_BIT_SET(new_value, RCC_CSR_LSION_BIT));
+    clktree_set_enabled(s->LSICLK, new_value & BIT(RCC_CSR_LSION_BIT));
 }
 
 

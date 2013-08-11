@@ -27,39 +27,8 @@
 #include "qemu-common.h"
 #include "hw/sysbus.h"
 
-
-
-/* COMMON */
-#define BYTE_ACCESS_SIZE 1
-#define HALFWORD_ACCESS_SIZE 2
-#define WORD_ACCESS_SIZE 4
-
-
-/* VALUE_BETWEEN is inclusive */
-#define VALUE_BETWEEN(value, start, end) ((value >= start) && (value <= end))
-
-#define GET_BIT_MASK(position, value) ((value ? 1 : 0) << position)
-#define GET_BIT_MASK_ONE(position) (1 << position)
-#define GET_BIT_MASK_ZERO(position) (~(1 << position))
-#define GET_BIT_VALUE(value, position) \
-                ((value & GET_BIT_MASK_ONE(position)) >> position)
-#define IS_BIT_SET(value, position) ((value & GET_BIT_MASK_ONE(position)) != 0)
-#define IS_BIT_RESET(value, position) ((value & GET_BIT_MASK_ONE(position)) ==0)
-#define SET_BIT(var, position)   var |= GET_BIT_MASK_ONE(position)
-#define RESET_BIT(var, position) var &= GET_BIT_MASK_ZERO(position)
-
-/* Can be true, false, 0, or 1 */
-#define CHANGE_BIT(var, position, new_value) \
-            var = new_value ? \
-                    (var | GET_BIT_MASK_ONE(position)) : \
-                    (var & GET_BIT_MASK_ZERO(position))
-#define CHANGE_BITS(var, start, mask, new_value) \
-            var = (var & ~mask) | ((new_value << start) & mask)
-
 void stm32_hw_warn(const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 1, 2)));
-
-
 
 
 

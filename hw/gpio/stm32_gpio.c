@@ -83,7 +83,7 @@ static void stm32_gpio_in_trigger(void *opaque, int irq, int level)
     assert(pin < STM32_GPIO_PIN_COUNT);
 
     /* Update internal pin state. */
-    CHANGE_BIT(s->in, pin, level);
+    s->in |= (level ? 1 : 0) << pin;
 
     /* Propagate the trigger to the input IRQs. */
     qemu_set_irq(s->in_irq[pin], level);
@@ -125,7 +125,7 @@ static void stm32_gpio_update_dir(Stm32Gpio *s, int cr_index)
         /* If the mode is 0, the pin is input.  Otherwise, it
          * is output.
          */
-        CHANGE_BIT(s->dir_mask, pin, pin_dir);
+        s->dir_mask |= (pin_dir ? 1 : 0) << pin;
     }
 }
 
@@ -156,10 +156,10 @@ static void stm32_gpio_GPIOx_ODR_write(Stm32Gpio *s, uint32_t new_value)
             /* If the value of this pin has changed, then update
              * the output IRQ.
              */
-            if (IS_BIT_SET(changed_out, pin)) {
+            if (changed_out & BIT(pin)) {
                 qemu_set_irq(
                         DEVICE(s)->gpio_out[pin],
-                        IS_BIT_SET(s->GPIOx_ODR, pin) ? 1 : 0);
+                        (s->GPIOx_ODR & BIT(pin)) ? 1 : 0);
             }
         }
     }
@@ -193,7 +193,7 @@ static uint64_t stm32_gpio_read(void *opaque, hwaddr offset,
             /* Locking is not yet implemented */
             return 0;
         default:
-            STM32_BAD_REG(offset, WORD_ACCESS_SIZE);
+            STM32_BAD_REG(offset, size);
             return 0;
     }
 }
@@ -244,10 +244,10 @@ static void stm32_gpio_write(void *opaque, hwaddr offset,
             break;
         case GPIOx_LCKR_OFFSET:
             /* Locking is not implemented */
-            STM32_NOT_IMPL_REG(offset, 4);
+            STM32_NOT_IMPL_REG(offset, size);
             break;
         default:
-            STM32_BAD_REG(offset, 4);
+            STM32_BAD_REG(offset, size);
             break;
     }
 }

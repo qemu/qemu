@@ -20,6 +20,7 @@
  */
 
 #include "hw/arm/stm32.h"
+#include "qemu/bitops.h"
 
 
 
@@ -74,7 +75,7 @@ static void stm32_exti_change_EXTI_PR_bit(Stm32Exti *s, unsigned pos,
 static void stm32_exti_trigger(Stm32Exti *s, int line)
 {
     /* Make sure the interrupt for this EXTI line has been enabled. */
-    if(IS_BIT_SET(s->EXTI_IMR, line)) {
+    if(s->EXTI_IMR & BIT(line)) {
         /* Set the Pending flag for this line, which will trigger the interrupt
          * (if the flag isn't already set). */
         stm32_exti_change_EXTI_PR_bit(s, line, 1);
@@ -94,8 +95,8 @@ static void stm32_exti_gpio_in_handler(void *opaque, int n, int level)
      * corresponding Rising Trigger Selection Register flag is set.  Otherwise,
      * trigger if the Falling Trigger Selection Register flag is set.
      */
-    if((level  && GET_BIT_VALUE(s->EXTI_RTSR, pin)) ||
-       (!level && GET_BIT_VALUE(s->EXTI_FTSR, pin))) {
+    if((level  && (s->EXTI_RTSR & BIT(pin))) ||
+       (!level && (s->EXTI_FTSR & BIT(pin)))) {
         stm32_exti_trigger(s, pin);
     }
 }
@@ -114,12 +115,12 @@ static void update_TSR_bit(Stm32Exti *s, uint32_t *tsr_register, unsigned pos,
     assert((new_bit_value == 0) || (new_bit_value == 1));
     assert(pos < EXTI_LINE_COUNT);
 
-    if(new_bit_value != GET_BIT_VALUE(*tsr_register, pos)) {
+    if(new_bit_value != extract32(*tsr_register, pos, 1)) {
         /* According to the documentation, the Pending register is cleared when
          * the "sensitivity of the edge detector changes.  Is this right??? */
         stm32_exti_change_EXTI_PR_bit(s, pos, 0);
     }
-    CHANGE_BIT(*tsr_register, pos, new_bit_value);
+    *tsr_register = deposit32(*tsr_register, pos, 1, new_bit_value);
 }
 
 /* Update the Pending Register.  This will trigger an interrupt if a bit is
@@ -133,7 +134,7 @@ static void stm32_exti_change_EXTI_PR_bit(Stm32Exti *s, unsigned pos,
     assert((new_bit_value == 0) || (new_bit_value == 1));
     assert(pos < EXTI_LINE_COUNT);
 
-    old_bit_value = GET_BIT_VALUE(s->EXTI_PR, pos);
+    old_bit_value = extract32(s->EXTI_PR, pos, 1);
 
     /* Only continue if the PR bit is actually changing value. */
     if(new_bit_value != old_bit_value) {
@@ -141,7 +142,7 @@ static void stm32_exti_change_EXTI_PR_bit(Stm32Exti *s, unsigned pos,
          * Register bit is automatically reset.
          */
         if(!new_bit_value) {
-            RESET_BIT(s->EXTI_SWIER, pos);
+            s->EXTI_SWIER &= ~BIT(pos);
         }
 
         /* Update the IRQ for this EXTI line.  Some lines share the same
@@ -170,7 +171,7 @@ static void stm32_exti_change_EXTI_PR_bit(Stm32Exti *s, unsigned pos,
         }
 
         /* Update the register. */
-        CHANGE_BIT(s->EXTI_PR, pos, new_bit_value);
+        s->EXTI_PR = deposit32(s->EXTI_PR, pos, 1, new_bit_value);
     }
 }
 
@@ -196,7 +197,7 @@ static uint64_t stm32_exti_read(void *opaque, hwaddr offset,
         case EXTI_PR_OFFSET:
             return s->EXTI_PR;
         default:
-            STM32_BAD_REG(offset, WORD_ACCESS_SIZE);
+            STM32_BAD_REG(offset, size);
             return 0;
     }
 }
@@ -219,7 +220,7 @@ static void stm32_exti_write(void *opaque, hwaddr offset,
                  * But we don't want to throw an error. */
                 break;
             default:
-                STM32_BAD_REG(offset, WORD_ACCESS_SIZE);
+                STM32_BAD_REG(offset, size);
                 break;
         }
     } else {
@@ -228,7 +229,7 @@ static void stm32_exti_write(void *opaque, hwaddr offset,
          * register.
          */
         for(pos = 0; pos < EXTI_LINE_COUNT; pos++) {
-            bit_value = GET_BIT_VALUE(value, pos);
+            bit_value = extract32(value, pos, 1);
 
             switch (offset) {
                 case EXTI_RTSR_OFFSET:
@@ -242,8 +243,8 @@ static void stm32_exti_write(void *opaque, hwaddr offset,
                      * from 0 to 1, trigger an interrupt.  Changing the
                      * bit to 0 does nothing. */
                     if(bit_value == 1) {
-                        if(GET_BIT_VALUE(s->EXTI_SWIER, pos) == 0) {
-                            SET_BIT(s->EXTI_SWIER, pos);
+                        if((s->EXTI_SWIER & BIT(pos)) == 0) {
+                            s->EXTI_SWIER |= BIT(pos);
                             stm32_exti_trigger(s, pos);
                         }
                     }
@@ -256,7 +257,7 @@ static void stm32_exti_write(void *opaque, hwaddr offset,
                     }
                     break;
                 default:
-                    STM32_BAD_REG(offset, WORD_ACCESS_SIZE);
+                    STM32_BAD_REG(offset, size);
                     break;
             }
         }
