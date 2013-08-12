@@ -37,6 +37,7 @@
 #include "elf.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 static struct _loaderparams {
     int ram_size;
@@ -191,9 +192,9 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     }
     if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
-        fprintf(stderr,
-                "qemu: Warning, could not load MIPS bios '%s', and no -kernel argument was specified\n",
-                filename);
+        error_report("Could not load MIPS bios '%s', and no "
+                     "-kernel argument was specified", filename);
+        exit(1);
     } else {
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;

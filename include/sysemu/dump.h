@@ -20,7 +20,9 @@ typedef struct ArchDumpInfo {
     int d_class;    /* ELFCLASS32 or ELFCLASS64 */
 } ArchDumpInfo;
 
-int cpu_get_dump_info(ArchDumpInfo *info);
+struct GuestPhysBlockList; /* memory_mapping.h */
+int cpu_get_dump_info(ArchDumpInfo *info,
+                      const struct GuestPhysBlockList *guest_phys_blocks);
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
 
 #endif

@@ -128,6 +128,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
     guest_info->has_pci_info = has_pci_info;
+    guest_info->isapc_ram_fw = !pci_enabled;
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
@@ -249,10 +250,15 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              initrd_filename, cpu_model, 1, 1);
 }
 
-static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     pc_init_pci(args);
+}
+
+static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+{
+    pc_init_pci_1_6(args);
 }
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
@@ -340,7 +346,7 @@ static QEMUMachine pc_i440fx_machine_v1_6 = {
     .name = "pc-i440fx-1.6",
     .alias = "pc",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_6,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .is_default = 1,
@@ -491,10 +497,6 @@ static QEMUMachine pc_machine_v1_1 = {
 #define PC_COMPAT_1_0 \
         PC_COMPAT_1_1,\
         {\
-            .driver   = "pc-sysfw",\
-            .property = "rom_only",\
-            .value    = stringify(1),\
-        }, {\
             .driver   = TYPE_ISA_FDC,\
             .property = "check_media_rate",\
             .value    = "off",\
@@ -741,16 +743,6 @@ static QEMUMachine isapc_machine = {
     .init = pc_init_isa,
     .max_cpus = 1,
     .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "pc-sysfw",
-            .property = "rom_only",
-            .value    = stringify(1),
-        },
-        {
-            .driver   = "pc-sysfw",
-            .property = "isapc_ram_fw",
-            .value    = stringify(1),
-        },
         { /* end of list */ }
     },
     DEFAULT_MACHINE_OPTIONS,

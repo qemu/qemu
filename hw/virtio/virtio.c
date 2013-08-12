@@ -673,10 +673,16 @@ hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
 
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
 {
-    if (num <= VIRTQUEUE_MAX_SIZE) {
-        vdev->vq[n].vring.num = num;
-        virtqueue_init(&vdev->vq[n]);
+    /* Don't allow guest to flip queue between existent and
+     * nonexistent states, or to set it to an invalid size.
+     */
+    if (!!num != !!vdev->vq[n].vring.num ||
+        num > VIRTQUEUE_MAX_SIZE ||
+        num < 0) {
+        return;
     }
+    vdev->vq[n].vring.num = num;
+    virtqueue_init(&vdev->vq[n]);
 }
 
 int virtio_queue_get_num(VirtIODevice *vdev, int n)
@@ -1057,6 +1063,11 @@ uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
 void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 {
     vdev->vq[n].last_avail_idx = idx;
+}
+
+void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].signalled_used_valid = false;
 }
 
 VirtQueue *virtio_get_queue(VirtIODevice *vdev, int n)

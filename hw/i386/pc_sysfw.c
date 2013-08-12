@@ -38,7 +38,6 @@
 
 typedef struct PcSysFwDevice {
     SysBusDevice busdev;
-    uint8_t rom_only;
     uint8_t isapc_ram_fw;
 } PcSysFwDevice;
 
@@ -74,39 +73,6 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
            isa_bios_size);
 
     memory_region_set_readonly(isa_bios, true);
-}
-
-static void pc_fw_add_pflash_drv(void)
-{
-    QemuOpts *opts;
-    QEMUMachine *machine;
-    char *filename;
-
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_report("Can't open BIOS image %s", bios_name);
-        exit(1);
-    }
-
-    opts = drive_add(IF_PFLASH, -1, filename, "readonly=on");
-
-    g_free(filename);
-
-    if (opts == NULL) {
-      return;
-    }
-
-    machine = find_default_machine();
-    if (machine == NULL) {
-      return;
-    }
-
-    if (!drive_init(opts, machine->block_default_type)) {
-        qemu_opts_del(opts);
-    }
 }
 
 static void pc_system_flash_init(MemoryRegion *rom_memory,
@@ -199,110 +165,24 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
                                 bios);
 }
 
-/*
- * Bug-compatible flash vs. ROM selection enabled?
- * A few older machines enable this.
- */
-bool pc_sysfw_flash_vs_rom_bug_compatible;
-
-void pc_system_firmware_init(MemoryRegion *rom_memory)
+void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     DriveInfo *pflash_drv;
-    PcSysFwDevice *sysfw_dev;
-
-    /*
-     * TODO This device exists only so that users can switch between
-     * use of flash and ROM for the BIOS.  The ability to switch was
-     * created because flash doesn't work with KVM.  Once it does, we
-     * should drop this device.
-     */
-    sysfw_dev = (PcSysFwDevice*) qdev_create(NULL, "pc-sysfw");
-
-    qdev_init_nofail(DEVICE(sysfw_dev));
 
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
 
-    if (pc_sysfw_flash_vs_rom_bug_compatible) {
-        /*
-         * This is a Bad Idea, because it makes enabling/disabling KVM
-         * guest-visible.  Do it only in bug-compatibility mode.
-         */
-        if (kvm_enabled()) {
-            if (pflash_drv != NULL) {
-                fprintf(stderr, "qemu: pflash cannot be used with kvm enabled\n");
-                exit(1);
-            } else {
-                /* In old pc_sysfw_flash_vs_rom_bug_compatible mode, we assume
-                 * that KVM cannot execute from device memory. In this case, we
-                 * use old rom based firmware initialization for KVM. But, since
-                 * this is different from non-kvm mode, this behavior is
-                 * undesirable */
-                sysfw_dev->rom_only = 1;
-            }
-        }
-    } else if (pflash_drv == NULL) {
+    if (isapc_ram_fw || pflash_drv == NULL) {
         /* When a pflash drive is not found, use rom-mode */
-        sysfw_dev->rom_only = 1;
-    } else if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
+        old_pc_system_rom_init(rom_memory, isapc_ram_fw);
+        return;
+    }
+
+    if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
         /* Older KVM cannot execute from device memory. So, flash memory
          * cannot be used unless the readonly memory kvm capability is present. */
         fprintf(stderr, "qemu: pflash with kvm requires KVM readonly memory support\n");
         exit(1);
     }
 
-    /* If rom-mode is active, use the old pc system rom initialization. */
-    if (sysfw_dev->rom_only) {
-        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
-        return;
-    }
-
-    /* If a pflash drive is not found, then create one using
-       the bios filename. */
-    if (pflash_drv == NULL) {
-        pc_fw_add_pflash_drv();
-        pflash_drv = drive_get(IF_PFLASH, 0, 0);
-    }
-
-    if (pflash_drv != NULL) {
-        pc_system_flash_init(rom_memory, pflash_drv);
-    } else {
-        fprintf(stderr, "qemu: PC system firmware (pflash) not available\n");
-        exit(1);
-    }
+    pc_system_flash_init(rom_memory, pflash_drv);
 }
-
-static Property pcsysfw_properties[] = {
-    DEFINE_PROP_UINT8("isapc_ram_fw", PcSysFwDevice, isapc_ram_fw, 0),
-    DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static int pcsysfw_init(DeviceState *dev)
-{
-    return 0;
-}
-
-static void pcsysfw_class_init (ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->desc = "PC System Firmware";
-    dc->init = pcsysfw_init;
-    dc->props = pcsysfw_properties;
-}
-
-static const TypeInfo pcsysfw_info = {
-    .name          = "pc-sysfw",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof (PcSysFwDevice),
-    .class_init    = pcsysfw_class_init,
-};
-
-static void pcsysfw_register (void)
-{
-    type_register_static (&pcsysfw_info);
-}
-
-type_init (pcsysfw_register);
-

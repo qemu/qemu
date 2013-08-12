@@ -99,6 +99,11 @@ common-obj-y += qom/
 common-obj-y += disas/
 
 ######################################################################
+# Resource file for Windows executables
+version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
+version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
+
+######################################################################
 # guest agent
 
 # FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed

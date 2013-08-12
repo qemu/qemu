@@ -762,6 +762,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
         fflush(stderr);
     }
     virtio_queue_set_last_avail_idx(vdev, idx, state.num);
+    virtio_queue_invalidate_signalled_used(vdev, idx);
     assert (r >= 0);
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
                               0, virtio_queue_get_ring_size(vdev, idx));

@@ -2621,6 +2621,12 @@ The main json-object contains the following:
 - "total-time": total amount of ms since migration started.  If
                 migration has ended, it returns the total migration
                 time (json-int)
+- "setup-time" amount of setup time in milliseconds _before_ the
+               iterations begin but _after_ the QMP command is issued.
+               This is designed to provide an accounting of any activities
+               (such as RDMA pinning) which may be expensive, but do not 
+               actually occur during the iterative migration rounds 
+               themselves. (json-int)
 - "downtime": only present when migration has finished correctly
               total amount in ms for downtime that happened (json-int)
 - "expected-downtime": only present while migration is active
@@ -2674,6 +2680,7 @@ Examples:
           "remaining":123,
           "total":246,
           "total-time":12345,
+          "setup-time":12345,
           "downtime":12345,
           "duplicate":123,
           "normal":123,
@@ -2698,6 +2705,7 @@ Examples:
             "remaining":123,
             "total":246,
             "total-time":12345,
+            "setup-time":12345,
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
@@ -2717,6 +2725,7 @@ Examples:
             "remaining":1053304,
             "transferred":3720,
             "total-time":12345,
+            "setup-time":12345,
             "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
@@ -2742,6 +2751,7 @@ Examples:
             "remaining":1053304,
             "transferred":3720,
             "total-time":12345,
+            "setup-time":12345,
             "expected-downtime":12345,
             "duplicate":10,
             "normal":3333,

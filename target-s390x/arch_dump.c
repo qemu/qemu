@@ -176,7 +176,8 @@ int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     return s390x_write_all_elf64_notes("CORE", f, cpu, cpuid, opaque);
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info)
+int cpu_get_dump_info(ArchDumpInfo *info,
+                      const struct GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_S390;
     info->d_endian = ELFDATA2MSB;
