@@ -152,6 +152,7 @@ struct kvm_run;
  * @current_tb: Currently executing TB.
  * @gdb_regs: Additional GDB registers.
  * @gdb_num_regs: Number of total registers accessible to GDB.
+ * @gdb_num_g_regs: Number of registers in GDB 'g' packets.
  * @next_cpu: Next CPU sharing TB cache.
  * @kvm_fd: vCPU file descriptor for KVM.
  *
@@ -188,6 +189,7 @@ struct CPUState {
     struct TranslationBlock *current_tb;
     struct GDBRegisterState *gdb_regs;
     int gdb_num_regs;
+    int gdb_num_g_regs;
     CPUState *next_cpu;
 
     int kvm_fd;
