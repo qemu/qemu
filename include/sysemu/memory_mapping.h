@@ -17,6 +17,25 @@
 #include "qemu/queue.h"
 #include "qemu/typedefs.h"
 
+typedef struct GuestPhysBlock {
+    /* visible to guest, reflects PCI hole, etc */
+    hwaddr target_start;
+
+    /* implies size */
+    hwaddr target_end;
+
+    /* points into host memory */
+    uint8_t *host_addr;
+
+    QTAILQ_ENTRY(GuestPhysBlock) next;
+} GuestPhysBlock;
+
+/* point-in-time snapshot of guest-visible physical mappings */
+typedef struct GuestPhysBlockList {
+    unsigned num;
+    QTAILQ_HEAD(GuestPhysBlockHead, GuestPhysBlock) head;
+} GuestPhysBlockList;
+
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {
     hwaddr phys_addr;
@@ -45,10 +64,17 @@ void memory_mapping_list_free(MemoryMappingList *list);
 
 void memory_mapping_list_init(MemoryMappingList *list);
 
-void qemu_get_guest_memory_mapping(MemoryMappingList *list, Error **errp);
+void guest_phys_blocks_free(GuestPhysBlockList *list);
+void guest_phys_blocks_init(GuestPhysBlockList *list);
+void guest_phys_blocks_append(GuestPhysBlockList *list);
+
+void qemu_get_guest_memory_mapping(MemoryMappingList *list,
+                                   const GuestPhysBlockList *guest_phys_blocks,
+                                   Error **errp);
 
 /* get guest's memory mapping without do paging(virtual address is 0). */
-void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list);
+void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list,
+                                  const GuestPhysBlockList *guest_phys_blocks);
 
 void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
                            int64_t length);
