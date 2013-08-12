@@ -1400,6 +1400,13 @@ int kvm_init(void)
         goto err;
     }
 
+    if (max_cpus > max_vcpus) {
+        ret = -EINVAL;
+        fprintf(stderr, "Number of hotpluggable cpus requested (%d) exceeds max cpus "
+                "supported by KVM (%d)\n", max_cpus, max_vcpus);
+        goto err;
+    }
+
     s->vmfd = kvm_ioctl(s, KVM_CREATE_VM, 0);
     if (s->vmfd < 0) {
 #ifdef TARGET_S390X
