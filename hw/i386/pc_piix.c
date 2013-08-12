@@ -103,7 +103,6 @@ static void pc_init1(MemoryRegion *system_memory,
                               OBJECT(icc_bridge), NULL);
 
     pc_cpus_init(cpu_model, icc_bridge);
-    pc_acpi_init("acpi-dsdt.aml");
 
     if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
