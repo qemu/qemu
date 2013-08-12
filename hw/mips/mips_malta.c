@@ -50,6 +50,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
+#include "hw/empty_slot.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -907,6 +908,11 @@ void mips_malta_init(QEMUMachineInitArgs *args)
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
     MaltaState *s = MIPS_MALTA(dev);
+
+    /* The whole address space decoded by the GT-64120A doesn't generate
+       exception when accessing invalid memory. Create an empty slot to
+       emulate this feature. */
+    empty_slot_init(0, 0x20000000);
 
     qdev_init_nofail(dev);
 
