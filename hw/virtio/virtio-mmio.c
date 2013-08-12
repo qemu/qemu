@@ -151,6 +151,9 @@ static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
         }
         return proxy->host_features;
     case VIRTIO_MMIO_QUEUENUMMAX:
+        if (!virtio_queue_get_num(vdev, vdev->queue_sel)) {
+            return 0;
+        }
         return VIRTQUEUE_MAX_SIZE;
     case VIRTIO_MMIO_QUEUEPFN:
         return virtio_queue_get_addr(vdev, vdev->queue_sel)
