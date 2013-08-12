@@ -621,6 +621,8 @@ void gdb_register_coprocessor(CPUState *cpu,
         if (g_pos != s->base_reg) {
             fprintf(stderr, "Error: Bad gdb register numbering for '%s'\n"
                     "Expected %d got %d\n", xml, g_pos, s->base_reg);
+        } else {
+            cpu->gdb_num_g_regs = cpu->gdb_num_regs;
         }
     }
 }
@@ -902,7 +904,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'g':
         cpu_synchronize_state(s->g_cpu);
         len = 0;
-        for (addr = 0; addr < s->g_cpu->gdb_num_regs; addr++) {
+        for (addr = 0; addr < s->g_cpu->gdb_num_g_regs; addr++) {
             reg_size = gdb_read_register(s->g_cpu, mem_buf + len, addr);
             len += reg_size;
         }
@@ -914,7 +916,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         registers = mem_buf;
         len = strlen(p) / 2;
         hextomem((uint8_t *)registers, p, len);
-        for (addr = 0; addr < s->g_cpu->gdb_num_regs && len > 0; addr++) {
+        for (addr = 0; addr < s->g_cpu->gdb_num_g_regs && len > 0; addr++) {
             reg_size = gdb_write_register(s->g_cpu, registers, addr);
             len -= reg_size;
             registers += reg_size;
