@@ -1070,6 +1070,13 @@ static const void * const qemu_st_helpers[4] = {
     helper_ret_stq_mmu,
 };
 
+static inline void tcg_out_adr(TCGContext *s, TCGReg rd, uintptr_t addr)
+{
+    addr -= (uintptr_t)s->code_ptr;
+    assert(addr == sextract64(addr, 0, 21));
+    tcg_out_insn(s, 3406, ADR, rd, addr);
+}
+
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGMemOp opc = lb->opc;
@@ -1080,7 +1087,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, TCG_TYPE_I64, TCG_REG_X0, TCG_AREG0);
     tcg_out_movr(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X3, (intptr_t)lb->raddr);
+    tcg_out_adr(s, TCG_REG_X3, (intptr_t)lb->raddr);
     tcg_out_call(s, (intptr_t)qemu_ld_helpers[size]);
     if (opc & MO_SIGN) {
         tcg_out_sxt(s, TCG_TYPE_I64, size, lb->datalo_reg, TCG_REG_X0);
@@ -1101,7 +1108,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movr(s, size == MO_64, TCG_REG_X2, lb->datalo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X3, lb->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X4, (intptr_t)lb->raddr);
+    tcg_out_adr(s, TCG_REG_X4, (intptr_t)lb->raddr);
     tcg_out_call(s, (intptr_t)qemu_st_helpers[size]);
     tcg_out_goto(s, (intptr_t)lb->raddr);
 }
