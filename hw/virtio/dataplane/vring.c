@@ -52,6 +52,7 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
 void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
 {
     virtio_queue_set_last_avail_idx(vdev, n, vring->last_avail_idx);
+    virtio_queue_invalidate_signalled_used(vdev, n);
 
     hostmem_finalize(&vring->hostmem);
 }

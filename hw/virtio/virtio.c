@@ -1065,6 +1065,11 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
     vdev->vq[n].last_avail_idx = idx;
 }
 
+void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].signalled_used_valid = false;
+}
+
 VirtQueue *virtio_get_queue(VirtIODevice *vdev, int n)
 {
     return vdev->vq + n;
