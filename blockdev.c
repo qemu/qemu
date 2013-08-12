@@ -340,6 +340,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     QDict *bs_opts;
     const char *id;
     bool has_driver_specific_opts;
+    BlockDriver *drv = NULL;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
@@ -485,7 +486,11 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
             return NULL;
         }
 
-        qdict_put(bs_opts, "driver", qstring_from_str(buf));
+        drv = bdrv_find_whitelisted_format(buf, ro);
+        if (!drv) {
+            error_report("'%s' invalid format", buf);
+            return NULL;
+        }
     }
 
     /* disk I/O throttling */
@@ -700,12 +705,13 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     }
 
     QINCREF(bs_opts);
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, NULL);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
 
     if (ret < 0) {
         if (ret == -EMEDIUMTYPE) {
             error_report("could not open disk image %s: not in %s format",
-                         file ?: dinfo->id, qdict_get_str(bs_opts, "driver"));
+                         file ?: dinfo->id, drv ? drv->format_name :
+                         qdict_get_str(bs_opts, "driver"));
         } else {
             error_report("could not open disk image %s: %s",
                          file ?: dinfo->id, strerror(-ret));
