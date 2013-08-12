@@ -13,12 +13,6 @@ QEMU_CFLAGS += -I.. -I$(SRC_PATH)/target-$(TARGET_BASE_ARCH) -DNEED_CPU_H
 
 QEMU_CFLAGS+=-I$(SRC_PATH)/include
 
-version.o: $(SRC_PATH)/version.rc ../config-host.h
-
-version-obj-$(CONFIG_WIN32) += version.o
-
-Makefile: $(version-obj-y)
-
 ifdef CONFIG_USER_ONLY
 # user emulator name
 QEMU_PROG=qemu-$(TARGET_NAME)
