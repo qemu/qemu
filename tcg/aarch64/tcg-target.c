@@ -209,6 +209,12 @@ enum aarch64_ldst_op_type { /* type of operation */
    use the section number of the architecture reference manual in which the
    instruction group is described.  */
 typedef enum {
+    /* Add/subtract immediate instructions.  */
+    I3401_ADDI      = 0x11000000,
+    I3401_ADDSI     = 0x31000000,
+    I3401_SUBI      = 0x51000000,
+    I3401_SUBSI     = 0x71000000,
+
     /* Add/subtract shifted register instructions (without a shift).  */
     I3502_ADD       = 0x0b000000,
     I3502_ADDS      = 0x2b000000,
@@ -312,6 +318,18 @@ static inline uint32_t tcg_in32(TCGContext *s)
 /* Emit an opcode with "type-checking" of the format.  */
 #define tcg_out_insn(S, FMT, OP, ...) \
     glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+
+static void tcg_out_insn_3401(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, TCGReg rn, uint64_t aimm)
+{
+    if (aimm > 0xfff) {
+        assert((aimm & 0xfff) == 0);
+        aimm >>= 12;
+        assert(aimm <= 0xfff);
+        aimm |= 1 << 12;  /* apply LSL 12 */
+    }
+    tcg_out32(s, insn | ext << 31 | aimm << 10 | rn << 5 | rd);
+}
 
 /* This function is for both 3.5.2 (Add/Subtract shifted register), for
    the rare occasion when we actually want to supply a shift amount.  */
@@ -736,46 +754,6 @@ static inline void tcg_out_uxt(TCGContext *s, int s_bits,
     tcg_out_ubfm(s, 0, rd, rn, 0, bits);
 }
 
-static inline void tcg_out_addi(TCGContext *s, TCGType ext,
-                                TCGReg rd, TCGReg rn, unsigned int aimm)
-{
-    /* add immediate aimm unsigned 12bit value (with LSL 0 or 12) */
-    /* using ADD 0x11000000 | (ext) | (aimm << 10) | (rn << 5) | rd */
-    unsigned int base = ext ? 0x91000000 : 0x11000000;
-
-    if (aimm <= 0xfff) {
-        aimm <<= 10;
-    } else {
-        /* we can only shift left by 12, on assert we cannot represent */
-        assert(!(aimm & 0xfff));
-        assert(aimm <= 0xfff000);
-        base |= 1 << 22; /* apply LSL 12 */
-        aimm >>= 2;
-    }
-
-    tcg_out32(s, base | aimm | (rn << 5) | rd);
-}
-
-static inline void tcg_out_subi(TCGContext *s, TCGType ext,
-                                TCGReg rd, TCGReg rn, unsigned int aimm)
-{
-    /* sub immediate aimm unsigned 12bit value (with LSL 0 or 12) */
-    /* using SUB 0x51000000 | (ext) | (aimm << 10) | (rn << 5) | rd */
-    unsigned int base = ext ? 0xd1000000 : 0x51000000;
-
-    if (aimm <= 0xfff) {
-        aimm <<= 10;
-    } else {
-        /* we can only shift left by 12, on assert we cannot represent */
-        assert(!(aimm & 0xfff));
-        assert(aimm <= 0xfff000);
-        base |= 1 << 22; /* apply LSL 12 */
-        aimm >>= 2;
-    }
-
-    tcg_out32(s, base | aimm | (rn << 5) | rd);
-}
-
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -871,9 +849,10 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
                  (TARGET_LONG_BITS - TARGET_PAGE_BITS) + s_bits,
                  (TARGET_LONG_BITS - TARGET_PAGE_BITS));
     /* Add any "high bits" from the tlb offset to the env address into X2,
-       to take advantage of the LSL12 form of the addi instruction.
+       to take advantage of the LSL12 form of the ADDI instruction.
        X2 = env + (tlb_offset & 0xfff000) */
-    tcg_out_addi(s, 1, TCG_REG_X2, base, tlb_offset & 0xfff000);
+    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_X2, base,
+                 tlb_offset & 0xfff000);
     /* Merge the tlb index contribution into X2.
        X2 = X2 + (X0 << CPU_TLB_ENTRY_BITS) */
     tcg_out_insn(s, 3502S, ADD_LSL, 1, TCG_REG_X2, TCG_REG_X2,
@@ -1476,9 +1455,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
         tcg_out_store_pair(s, TCG_REG_FP, r, r + 1, idx);
     }
 
-    /* make stack space for TCG locals */
-    tcg_out_subi(s, 1, TCG_REG_SP, TCG_REG_SP,
+    /* Make stack space for TCG locals.  */
+    tcg_out_insn(s, 3401, SUBI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
                  frame_size_tcg_locals * TCG_TARGET_STACK_ALIGN);
+
     /* inform TCG about how to find TCG locals with register, offset, size */
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
@@ -1495,8 +1475,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tb_ret_addr = s->code_ptr;
 
-    /* remove TCG locals stack space */
-    tcg_out_addi(s, 1, TCG_REG_SP, TCG_REG_SP,
+    /* Remove TCG locals stack space.  */
+    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
                  frame_size_tcg_locals * TCG_TARGET_STACK_ALIGN);
 
     /* restore registers x19..x28.
