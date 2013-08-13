@@ -203,16 +203,27 @@ enum aarch64_ldst_op_type { /* type of operation */
     LDST_LD_S_W = 0xc,  /* load and sign-extend into Wt */
 };
 
-enum aarch64_arith_opc {
-    ARITH_AND = 0x0a,
-    ARITH_ADD = 0x0b,
-    ARITH_OR = 0x2a,
-    ARITH_ADDS = 0x2b,
-    ARITH_XOR = 0x4a,
-    ARITH_SUB = 0x4b,
-    ARITH_ANDS = 0x6a,
-    ARITH_SUBS = 0x6b,
-};
+/* We encode the format of the insn into the beginning of the name, so that
+   we can have the preprocessor help "typecheck" the insn vs the output
+   function.  Arm didn't provide us with nice names for the formats, so we
+   use the section number of the architecture reference manual in which the
+   instruction group is described.  */
+typedef enum {
+    /* Add/subtract shifted register instructions (without a shift).  */
+    I3502_ADD       = 0x0b000000,
+    I3502_ADDS      = 0x2b000000,
+    I3502_SUB       = 0x4b000000,
+    I3502_SUBS      = 0x6b000000,
+
+    /* Add/subtract shifted register instructions (with a shift).  */
+    I3502S_ADD_LSL  = I3502_ADD,
+
+    /* Logical shifted register instructions (without a shift).  */
+    I3510_AND       = 0x0a000000,
+    I3510_ORR       = 0x2a000000,
+    I3510_EOR       = 0x4a000000,
+    I3510_ANDS      = 0x6a000000,
+} AArch64Insn;
 
 enum aarch64_srr_opc {
     SRR_SHL = 0x0,
@@ -298,6 +309,34 @@ static inline uint32_t tcg_in32(TCGContext *s)
     uint32_t v = *(uint32_t *)s->code_ptr;
     return v;
 }
+
+/* Emit an opcode with "type-checking" of the format.  */
+#define tcg_out_insn(S, FMT, OP, ...) \
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+
+/* This function is for both 3.5.2 (Add/Subtract shifted register), for
+   the rare occasion when we actually want to supply a shift amount.  */
+static inline void tcg_out_insn_3502S(TCGContext *s, AArch64Insn insn,
+                                      TCGType ext, TCGReg rd, TCGReg rn,
+                                      TCGReg rm, int imm6)
+{
+    tcg_out32(s, insn | ext << 31 | rm << 16 | imm6 << 10 | rn << 5 | rd);
+}
+
+/* This function is for 3.5.2 (Add/subtract shifted register),
+   and 3.5.10 (Logical shifted register), for the vast majorty of cases
+   when we don't want to apply a shift.  Thus it can also be used for
+   3.5.3 (Add/subtract with carry) and 3.5.8 (Data processing 2 source).  */
+static void tcg_out_insn_3502(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, TCGReg rn, TCGReg rm)
+{
+    tcg_out32(s, insn | ext << 31 | rm << 16 | rn << 5 | rd);
+}
+
+#define tcg_out_insn_3503  tcg_out_insn_3502
+#define tcg_out_insn_3508  tcg_out_insn_3502
+#define tcg_out_insn_3510  tcg_out_insn_3502
+
 
 static inline void tcg_out_ldst_9(TCGContext *s,
                                   enum aarch64_ldst_op_data op_data,
@@ -432,23 +471,6 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
                  arg, arg1, arg2);
 }
 
-static inline void tcg_out_arith(TCGContext *s, enum aarch64_arith_opc opc,
-                                 TCGType ext, TCGReg rd, TCGReg rn, TCGReg rm,
-                                 int shift_imm)
-{
-    /* Using shifted register arithmetic operations */
-    /* if extended register operation (64bit) just OR with 0x80 << 24 */
-    unsigned int shift, base = ext ? (0x80 | opc) << 24 : opc << 24;
-    if (shift_imm == 0) {
-        shift = 0;
-    } else if (shift_imm > 0) {
-        shift = shift_imm << 10 | 1 << 22;
-    } else /* (shift_imm < 0) */ {
-        shift = (-shift_imm) << 10;
-    }
-    tcg_out32(s, base | rm << 16 | shift | rn << 5 | rd);
-}
-
 static inline void tcg_out_mul(TCGContext *s, TCGType ext,
                                TCGReg rd, TCGReg rn, TCGReg rm)
 {
@@ -532,7 +554,7 @@ static inline void tcg_out_rotl(TCGContext *s, TCGType ext,
 static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg rn, TCGReg rm)
 {
     /* Using CMP alias SUBS wzr, Wn, Wm */
-    tcg_out_arith(s, ARITH_SUBS, ext, TCG_REG_XZR, rn, rm, 0);
+    tcg_out_insn(s, 3502, SUBS, ext, TCG_REG_XZR, rn, rm);
 }
 
 static inline void tcg_out_cset(TCGContext *s, TCGType ext,
@@ -864,8 +886,8 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
     tcg_out_addi(s, 1, TCG_REG_X2, base, tlb_offset & 0xfff000);
     /* Merge the tlb index contribution into X2.
        X2 = X2 + (X0 << CPU_TLB_ENTRY_BITS) */
-    tcg_out_arith(s, ARITH_ADD, 1, TCG_REG_X2, TCG_REG_X2,
-                  TCG_REG_X0, -CPU_TLB_ENTRY_BITS);
+    tcg_out_insn(s, 3502S, ADD_LSL, 1, TCG_REG_X2, TCG_REG_X2,
+                 TCG_REG_X0, CPU_TLB_ENTRY_BITS);
     /* Merge "low bits" from tlb offset, load the tlb comparator into X0.
        X0 = load [X2 + (tlb_offset & 0x000fff)] */
     tcg_out_ldst(s, TARGET_LONG_BITS == 64 ? LDST_64 : LDST_32,
@@ -1141,27 +1163,27 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_add_i64:
     case INDEX_op_add_i32:
-        tcg_out_arith(s, ARITH_ADD, ext, a0, a1, a2, 0);
+        tcg_out_insn(s, 3502, ADD, ext, a0, a1, a2);
         break;
 
     case INDEX_op_sub_i64:
     case INDEX_op_sub_i32:
-        tcg_out_arith(s, ARITH_SUB, ext, a0, a1, a2, 0);
+        tcg_out_insn(s, 3502, SUB, ext, a0, a1, a2);
         break;
 
     case INDEX_op_and_i64:
     case INDEX_op_and_i32:
-        tcg_out_arith(s, ARITH_AND, ext, a0, a1, a2, 0);
+        tcg_out_insn(s, 3510, AND, ext, a0, a1, a2);
         break;
 
     case INDEX_op_or_i64:
     case INDEX_op_or_i32:
-        tcg_out_arith(s, ARITH_OR, ext, a0, a1, a2, 0);
+        tcg_out_insn(s, 3510, ORR, ext, a0, a1, a2);
         break;
 
     case INDEX_op_xor_i64:
     case INDEX_op_xor_i32:
-        tcg_out_arith(s, ARITH_XOR, ext, a0, a1, a2, 0);
+        tcg_out_insn(s, 3510, EOR, ext, a0, a1, a2);
         break;
 
     case INDEX_op_mul_i64:
@@ -1210,7 +1232,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (c2) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
             tcg_out_rotl(s, ext, a0, a1, a2);
         } else {
-            tcg_out_arith(s, ARITH_SUB, 0, TCG_REG_TMP, TCG_REG_XZR, a2, 0);
+            tcg_out_insn(s, 3502, SUB, 0, TCG_REG_TMP, TCG_REG_XZR, a2);
             tcg_out_shiftrot_reg(s, SRR_ROR, ext, a0, a1, TCG_REG_TMP);
         }
         break;
