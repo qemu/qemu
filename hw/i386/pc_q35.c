@@ -221,12 +221,12 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
-    has_pvpanic = true;
     pc_q35_init(args);
 }
 
 static void pc_q35_init_1_5(QEMUMachineInitArgs *args)
 {
+    has_pvpanic = true;
     pc_q35_init_1_6(args);
 }
 

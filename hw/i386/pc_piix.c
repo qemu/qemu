@@ -252,12 +252,12 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
-    has_pvpanic = true;
     pc_init_pci(args);
 }
 
 static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
 {
+    has_pvpanic = true;
     pc_init_pci_1_6(args);
 }
 
