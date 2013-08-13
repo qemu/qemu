@@ -1508,32 +1508,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        if (direction == KVM_EXIT_IO_IN) {
-            switch (size) {
-            case 1:
-                stb_p(ptr, cpu_inb(port));
-                break;
-            case 2:
-                stw_p(ptr, cpu_inw(port));
-                break;
-            case 4:
-                stl_p(ptr, cpu_inl(port));
-                break;
-            }
-        } else {
-            switch (size) {
-            case 1:
-                cpu_outb(port, ldub_p(ptr));
-                break;
-            case 2:
-                cpu_outw(port, lduw_p(ptr));
-                break;
-            case 4:
-                cpu_outl(port, ldl_p(ptr));
-                break;
-            }
-        }
-
+        address_space_rw(&address_space_io, port, ptr, size,
+                         direction == KVM_EXIT_IO_OUT);
         ptr += size;
     }
 }
