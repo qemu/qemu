@@ -376,13 +376,16 @@ static inline void tcg_out_ldst_12(TCGContext *s,
               | op_type << 20 | scaled_uimm << 10 | rn << 5 | rd);
 }
 
-static inline void tcg_out_movr(TCGContext *s, TCGType ext,
-                                TCGReg rd, TCGReg src)
+/* Register to register move using ORR (shifted register with no shift). */
+static void tcg_out_movr(TCGContext *s, TCGType ext, TCGReg rd, TCGReg rm)
 {
-    /* register to register move using MOV (shifted register with no shift) */
-    /* using MOV 0x2a0003e0 | (shift).. */
-    unsigned int base = ext ? 0xaa0003e0 : 0x2a0003e0;
-    tcg_out32(s, base | src << 16 | rd);
+    tcg_out_insn(s, 3510, ORR, ext, rd, TCG_REG_XZR, rm);
+}
+
+/* Register to register move using ADDI (move to/from SP).  */
+static void tcg_out_movr_sp(TCGContext *s, TCGType ext, TCGReg rd, TCGReg rn)
+{
+    tcg_out_insn(s, 3401, ADDI, ext, rd, rn, 0);
 }
 
 static inline void tcg_out_movi_aux(TCGContext *s,
@@ -455,15 +458,6 @@ static inline void tcg_out_ldst(TCGContext *s, enum aarch64_ldst_op_data data,
     /* worst-case scenario, move offset to temp register, use reg offset */
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, offset);
     tcg_out_ldst_r(s, data, type, rd, rn, TCG_REG_TMP);
-}
-
-/* mov alias implemented with add immediate, useful to move to/from SP */
-static inline void tcg_out_movr_sp(TCGContext *s, TCGType ext,
-                                   TCGReg rd, TCGReg rn)
-{
-    /* using ADD 0x11000000 | (ext) | rn << 5 | rd */
-    unsigned int base = ext ? 0x91000000 : 0x11000000;
-    tcg_out32(s, base | rn << 5 | rd);
 }
 
 static inline void tcg_out_mov(TCGContext *s,
