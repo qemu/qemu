@@ -218,19 +218,18 @@ typedef enum {
     /* Add/subtract shifted register instructions (with a shift).  */
     I3502S_ADD_LSL  = I3502_ADD,
 
+    /* Data-processing (2 source) instructions.  */
+    I3508_LSLV      = 0x1ac02000,
+    I3508_LSRV      = 0x1ac02400,
+    I3508_ASRV      = 0x1ac02800,
+    I3508_RORV      = 0x1ac02c00,
+
     /* Logical shifted register instructions (without a shift).  */
     I3510_AND       = 0x0a000000,
     I3510_ORR       = 0x2a000000,
     I3510_EOR       = 0x4a000000,
     I3510_ANDS      = 0x6a000000,
 } AArch64Insn;
-
-enum aarch64_srr_opc {
-    SRR_SHL = 0x0,
-    SRR_SHR = 0x4,
-    SRR_SAR = 0x8,
-    SRR_ROR = 0xc
-};
 
 static inline enum aarch64_ldst_op_data
 aarch64_ldst_get_data(TCGOpcode tcg_op)
@@ -477,15 +476,6 @@ static inline void tcg_out_mul(TCGContext *s, TCGType ext,
     /* Using MADD 0x1b000000 with Ra = wzr alias MUL 0x1b007c00 */
     unsigned int base = ext ? 0x9b007c00 : 0x1b007c00;
     tcg_out32(s, base | rm << 16 | rn << 5 | rd);
-}
-
-static inline void tcg_out_shiftrot_reg(TCGContext *s,
-                                        enum aarch64_srr_opc opc, TCGType ext,
-                                        TCGReg rd, TCGReg rn, TCGReg rm)
-{
-    /* using 2-source data processing instructions 0x1ac02000 */
-    unsigned int base = ext ? 0x9ac02000 : 0x1ac02000;
-    tcg_out32(s, base | rm << 16 | opc << 8 | rn << 5 | rd);
 }
 
 static inline void tcg_out_ubfm(TCGContext *s, TCGType ext, TCGReg rd,
@@ -1193,47 +1183,47 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_shl_i64:
     case INDEX_op_shl_i32:
-        if (c2) {    /* LSL / UBFM Wd, Wn, (32 - m) */
+        if (c2) {
             tcg_out_shl(s, ext, a0, a1, a2);
-        } else {                /* LSL / LSLV */
-            tcg_out_shiftrot_reg(s, SRR_SHL, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3508, LSLV, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_shr_i64:
     case INDEX_op_shr_i32:
-        if (c2) {    /* LSR / UBFM Wd, Wn, m, 31 */
+        if (c2) {
             tcg_out_shr(s, ext, a0, a1, a2);
-        } else {                /* LSR / LSRV */
-            tcg_out_shiftrot_reg(s, SRR_SHR, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3508, LSRV, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_sar_i64:
     case INDEX_op_sar_i32:
-        if (c2) {    /* ASR / SBFM Wd, Wn, m, 31 */
+        if (c2) {
             tcg_out_sar(s, ext, a0, a1, a2);
-        } else {                /* ASR / ASRV */
-            tcg_out_shiftrot_reg(s, SRR_SAR, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3508, ASRV, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_rotr_i64:
     case INDEX_op_rotr_i32:
-        if (c2) {    /* ROR / EXTR Wd, Wm, Wm, m */
+        if (c2) {
             tcg_out_rotr(s, ext, a0, a1, a2);
-        } else {                /* ROR / RORV */
-            tcg_out_shiftrot_reg(s, SRR_ROR, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3508, RORV, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_rotl_i64:
-    case INDEX_op_rotl_i32:     /* same as rotate right by (32 - m) */
-        if (c2) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
+    case INDEX_op_rotl_i32:
+        if (c2) {
             tcg_out_rotl(s, ext, a0, a1, a2);
         } else {
             tcg_out_insn(s, 3502, SUB, 0, TCG_REG_TMP, TCG_REG_XZR, a2);
-            tcg_out_shiftrot_reg(s, SRR_ROR, ext, a0, a1, TCG_REG_TMP);
+            tcg_out_insn(s, 3508, RORV, ext, a0, a1, TCG_REG_TMP);
         }
         break;
 
