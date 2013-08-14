@@ -114,6 +114,7 @@ static inline void patch_reloc(uint8_t *code_ptr, int type,
 #define TCG_CT_CONST_AIMM 0x200
 #define TCG_CT_CONST_LIMM 0x400
 #define TCG_CT_CONST_ZERO 0x800
+#define TCG_CT_CONST_MONE 0x1000
 
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct,
@@ -146,6 +147,9 @@ static int target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'L': /* Valid for logical immediate.  */
         ct->ct |= TCG_CT_CONST_LIMM;
+        break;
+    case 'M': /* minus one */
+        ct->ct |= TCG_CT_CONST_MONE;
         break;
     case 'Z': /* zero */
         ct->ct |= TCG_CT_CONST_ZERO;
@@ -202,6 +206,9 @@ static int tcg_target_const_match(tcg_target_long val,
         return 1;
     }
     if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_MONE) && val == -1) {
         return 1;
     }
 
@@ -290,6 +297,10 @@ typedef enum {
 
     /* Add/subtract shifted register instructions (with a shift).  */
     I3502S_ADD_LSL  = I3502_ADD,
+
+    /* Add/subtract with carry instructions.  */
+    I3503_ADC       = 0x1a000000,
+    I3503_SBC       = 0x5a000000,
 
     /* Conditional select instructions.  */
     I3506_CSEL      = 0x1a800000,
@@ -860,6 +871,47 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
     }
 
     tcg_out_insn_3404(s, insn, ext, rd, rn, ext, r, c);
+}
+
+static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
+                                   TCGReg rh, TCGReg al, TCGReg ah,
+                                   tcg_target_long bl, tcg_target_long bh,
+                                   bool const_bl, bool const_bh, bool sub)
+{
+    TCGReg orig_rl = rl;
+    AArch64Insn insn;
+
+    if (rl == ah || (!const_bh && rl == bh)) {
+        rl = TCG_REG_TMP;
+    }
+
+    if (const_bl) {
+        insn = I3401_ADDSI;
+        if ((bl < 0) ^ sub) {
+            insn = I3401_SUBSI;
+            bl = -bl;
+        }
+        tcg_out_insn_3401(s, insn, ext, rl, al, bl);
+    } else {
+        tcg_out_insn_3502(s, sub ? I3502_SUBS : I3502_ADDS, ext, rl, al, bl);
+    }
+
+    insn = I3503_ADC;
+    if (const_bh) {
+        /* Note that the only two constants we support are 0 and -1, and
+           that SBC = rn + ~rm + c, so adc -1 is sbc 0, and vice-versa.  */
+        if ((bh != 0) ^ sub) {
+            insn = I3503_SBC;
+        }
+        bh = TCG_REG_XZR;
+    } else if (sub) {
+        insn = I3503_SBC;
+    }
+    tcg_out_insn_3503(s, insn, ext, rh, ah, bh);
+
+    if (rl != orig_rl) {
+        tcg_out_movr(s, ext, orig_rl, rl);
+    }
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -1494,6 +1546,25 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_dep(s, ext, a0, REG0(2), args[3], args[4]);
         break;
 
+    case INDEX_op_add2_i32:
+        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, REG0(2), REG0(3),
+                        (int32_t)args[4], args[5], const_args[4],
+                        const_args[5], false);
+        break;
+    case INDEX_op_add2_i64:
+        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, REG0(2), REG0(3), args[4],
+                        args[5], const_args[4], const_args[5], false);
+        break;
+    case INDEX_op_sub2_i32:
+        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, REG0(2), REG0(3),
+                        (int32_t)args[4], args[5], const_args[4],
+                        const_args[5], true);
+        break;
+    case INDEX_op_sub2_i64:
+        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, REG0(2), REG0(3), args[4],
+                        args[5], const_args[4], const_args[5], true);
+        break;
+
     case INDEX_op_mov_i64:
     case INDEX_op_mov_i32:
     case INDEX_op_movi_i64:
@@ -1617,6 +1688,11 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
+
+    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rwA", "rwMZ" } },
+    { INDEX_op_add2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rwA", "rwMZ" } },
+    { INDEX_op_sub2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
 
     { -1 },
 };
