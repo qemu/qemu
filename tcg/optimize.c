@@ -304,6 +304,25 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
         muls64(&l64, &h64, x, y);
         return h64;
 
+    case INDEX_op_div_i32:
+        /* Avoid crashing on divide by zero, otherwise undefined.  */
+        return (int32_t)x / ((int32_t)y ? : 1);
+    case INDEX_op_divu_i32:
+        return (uint32_t)x / ((uint32_t)y ? : 1);
+    case INDEX_op_div_i64:
+        return (int64_t)x / ((int64_t)y ? : 1);
+    case INDEX_op_divu_i64:
+        return (uint64_t)x / ((uint64_t)y ? : 1);
+
+    case INDEX_op_rem_i32:
+        return (int32_t)x % ((int32_t)y ? : 1);
+    case INDEX_op_remu_i32:
+        return (uint32_t)x % ((uint32_t)y ? : 1);
+    case INDEX_op_rem_i64:
+        return (int64_t)x % ((int64_t)y ? : 1);
+    case INDEX_op_remu_i64:
+        return (uint64_t)x % ((uint64_t)y ? : 1);
+
     default:
         fprintf(stderr,
                 "Unrecognized operation %d in do_constant_folding.\n", op);
@@ -902,6 +921,10 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(nor):
         CASE_OP_32_64(muluh):
         CASE_OP_32_64(mulsh):
+        CASE_OP_32_64(div):
+        CASE_OP_32_64(divu):
+        CASE_OP_32_64(rem):
+        CASE_OP_32_64(remu):
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 s->gen_opc_buf[op_index] = op_to_movi(op);
