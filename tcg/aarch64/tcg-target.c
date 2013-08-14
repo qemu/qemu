@@ -110,6 +110,9 @@ static inline void patch_reloc(uint8_t *code_ptr, int type,
     }
 }
 
+#define TCG_CT_CONST_IS32 0x100
+#define TCG_CT_CONST_AIMM 0x200
+
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct,
                                    const char **pct_str)
@@ -133,6 +136,12 @@ static int target_parse_constraint(TCGArgConstraint *ct,
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_X3);
 #endif
         break;
+    case 'w': /* The operand should be considered 32-bit.  */
+        ct->ct |= TCG_CT_CONST_IS32;
+        break;
+    case 'A': /* Valid for arithmetic immediate (positive or negative).  */
+        ct->ct |= TCG_CT_CONST_AIMM;
+        break;
     default:
         return -1;
     }
@@ -142,12 +151,23 @@ static int target_parse_constraint(TCGArgConstraint *ct,
     return 0;
 }
 
-static inline int tcg_target_const_match(tcg_target_long val,
-                                         const TCGArgConstraint *arg_ct)
+static inline bool is_aimm(uint64_t val)
+{
+    return (val & ~0xfff) == 0 || (val & ~0xfff000) == 0;
+}
+
+static int tcg_target_const_match(tcg_target_long val,
+                                  const TCGArgConstraint *arg_ct)
 {
     int ct = arg_ct->ct;
 
     if (ct & TCG_CT_CONST) {
+        return 1;
+    }
+    if (ct & TCG_CT_CONST_IS32) {
+        val = (int32_t)val;
+    }
+    if ((ct & TCG_CT_CONST_AIMM) && (is_aimm(val) || is_aimm(-val))) {
         return 1;
     }
 
@@ -553,10 +573,20 @@ static inline void tcg_out_rotl(TCGContext *s, TCGType ext,
     tcg_out_extr(s, ext, rd, rn, rn, bits - (m & max));
 }
 
-static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg rn, TCGReg rm)
+static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg a,
+                        tcg_target_long b, bool const_b)
 {
-    /* Using CMP alias SUBS wzr, Wn, Wm */
-    tcg_out_insn(s, 3502, SUBS, ext, TCG_REG_XZR, rn, rm);
+    if (const_b) {
+        /* Using CMP or CMN aliases.  */
+        if (b >= 0) {
+            tcg_out_insn(s, 3401, SUBSI, ext, TCG_REG_XZR, a, b);
+        } else {
+            tcg_out_insn(s, 3401, ADDSI, ext, TCG_REG_XZR, a, -b);
+        }
+    } else {
+        /* Using CMP alias SUBS wzr, Wn, Wm */
+        tcg_out_insn(s, 3502, SUBS, ext, TCG_REG_XZR, a, b);
+    }
 }
 
 static inline void tcg_out_cset(TCGContext *s, TCGType ext,
@@ -748,6 +778,16 @@ static inline void tcg_out_uxt(TCGContext *s, int s_bits,
     tcg_out_ubfm(s, 0, rd, rn, 0, bits);
 }
 
+static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
+                            TCGReg rn, int64_t aimm)
+{
+    if (aimm >= 0) {
+        tcg_out_insn(s, 3401, ADDI, ext, rd, rn, aimm);
+    } else {
+        tcg_out_insn(s, 3401, SUBI, ext, rd, rn, -aimm);
+    }
+}
+
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -863,7 +903,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
                  (is_read ? offsetof(CPUTLBEntry, addr_read)
                   : offsetof(CPUTLBEntry, addr_write)));
     /* Perform the address comparison. */
-    tcg_out_cmp(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, TCG_REG_X3);
+    tcg_out_cmp(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, TCG_REG_X3, 0);
     *label_ptr = s->code_ptr;
     /* If not equal, we jump to the slow path. */
     tcg_out_goto_cond_noaddr(s, TCG_COND_NE);
@@ -1124,14 +1164,26 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                      a0, a1, a2);
         break;
 
-    case INDEX_op_add_i64:
     case INDEX_op_add_i32:
-        tcg_out_insn(s, 3502, ADD, ext, a0, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_add_i64:
+        if (c2) {
+            tcg_out_addsubi(s, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3502, ADD, ext, a0, a1, a2);
+        }
         break;
 
-    case INDEX_op_sub_i64:
     case INDEX_op_sub_i32:
-        tcg_out_insn(s, 3502, SUB, ext, a0, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_sub_i64:
+        if (c2) {
+            tcg_out_addsubi(s, ext, a0, a1, -a2);
+        } else {
+            tcg_out_insn(s, 3502, SUB, ext, a0, a1, a2);
+        }
         break;
 
     case INDEX_op_and_i64:
@@ -1200,15 +1252,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    case INDEX_op_brcond_i64:
     case INDEX_op_brcond_i32:
-        tcg_out_cmp(s, ext, a0, a1);
+        a1 = (int32_t)a1;
+        /* FALLTHRU */
+    case INDEX_op_brcond_i64:
+        tcg_out_cmp(s, ext, a0, a1, const_args[1]);
         tcg_out_goto_label_cond(s, a2, args[3]);
         break;
 
-    case INDEX_op_setcond_i64:
     case INDEX_op_setcond_i32:
-        tcg_out_cmp(s, ext, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_setcond_i64:
+        tcg_out_cmp(s, ext, a1, a2, c2);
         tcg_out_cset(s, 0, a0, args[3]);
         break;
 
@@ -1329,10 +1385,10 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_st32_i64, { "r", "r" } },
     { INDEX_op_st_i64, { "r", "r" } },
 
-    { INDEX_op_add_i32, { "r", "r", "r" } },
-    { INDEX_op_add_i64, { "r", "r", "r" } },
-    { INDEX_op_sub_i32, { "r", "r", "r" } },
-    { INDEX_op_sub_i64, { "r", "r", "r" } },
+    { INDEX_op_add_i32, { "r", "r", "rwA" } },
+    { INDEX_op_add_i64, { "r", "r", "rA" } },
+    { INDEX_op_sub_i32, { "r", "r", "rwA" } },
+    { INDEX_op_sub_i64, { "r", "r", "rA" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mul_i64, { "r", "r", "r" } },
     { INDEX_op_and_i32, { "r", "r", "r" } },
@@ -1353,10 +1409,10 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_rotl_i64, { "r", "r", "ri" } },
     { INDEX_op_rotr_i64, { "r", "r", "ri" } },
 
-    { INDEX_op_brcond_i32, { "r", "r" } },
-    { INDEX_op_setcond_i32, { "r", "r", "r" } },
-    { INDEX_op_brcond_i64, { "r", "r" } },
-    { INDEX_op_setcond_i64, { "r", "r", "r" } },
+    { INDEX_op_brcond_i32, { "r", "rwA" } },
+    { INDEX_op_brcond_i64, { "r", "rA" } },
+    { INDEX_op_setcond_i32, { "r", "r", "rwA" } },
+    { INDEX_op_setcond_i64, { "r", "r", "rA" } },
 
     { INDEX_op_qemu_ld8u, { "r", "l" } },
     { INDEX_op_qemu_ld8s, { "r", "l" } },
