@@ -121,14 +121,16 @@ static inline void tcg_out8(TCGContext *s, uint8_t v)
 
 static inline void tcg_out16(TCGContext *s, uint16_t v)
 {
-    *(uint16_t *)s->code_ptr = v;
-    s->code_ptr += 2;
+    uint8_t *p = s->code_ptr;
+    *(uint16_t *)p = v;
+    s->code_ptr = p + 2;
 }
 
 static inline void tcg_out32(TCGContext *s, uint32_t v)
 {
-    *(uint32_t *)s->code_ptr = v;
-    s->code_ptr += 4;
+    uint8_t *p = s->code_ptr;
+    *(uint32_t *)p = v;
+    s->code_ptr = p + 4;
 }
 
 /* label relocation processing */
