@@ -313,6 +313,12 @@ typedef enum {
     I3508_RORV      = 0x1ac02c00,
     I3508_SMULH     = 0x9b407c00,
     I3508_UMULH     = 0x9bc07c00,
+    I3508_UDIV      = 0x1ac00800,
+    I3508_SDIV      = 0x1ac00c00,
+
+    /* Data-processing (3 source) instructions.  */
+    I3509_MADD      = 0x1b000000,
+    I3509_MSUB      = 0x1b008000,
 
     /* Logical shifted register instructions (without a shift).  */
     I3510_AND       = 0x0a000000,
@@ -467,6 +473,12 @@ static void tcg_out_insn_3506(TCGContext *s, AArch64Insn insn, TCGType ext,
               | tcg_cond_to_aarch64[c] << 12);
 }
 
+static void tcg_out_insn_3509(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, TCGReg rn, TCGReg rm, TCGReg ra)
+{
+    tcg_out32(s, insn | ext << 31 | rm << 16 | ra << 10 | rn << 5 | rd);
+}
+
 
 static inline void tcg_out_ldst_9(TCGContext *s,
                                   enum aarch64_ldst_op_data op_data,
@@ -593,14 +605,6 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_ST,
                  arg, arg1, arg2);
-}
-
-static inline void tcg_out_mul(TCGContext *s, TCGType ext,
-                               TCGReg rd, TCGReg rn, TCGReg rm)
-{
-    /* Using MADD 0x1b000000 with Ra = wzr alias MUL 0x1b007c00 */
-    unsigned int base = ext ? 0x9b007c00 : 0x1b007c00;
-    tcg_out32(s, base | rm << 16 | rn << 5 | rd);
 }
 
 static inline void tcg_out_bfm(TCGContext *s, TCGType ext, TCGReg rd,
@@ -1395,7 +1399,27 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_mul_i64:
     case INDEX_op_mul_i32:
-        tcg_out_mul(s, ext, a0, a1, a2);
+        tcg_out_insn(s, 3509, MADD, ext, a0, a1, a2, TCG_REG_XZR);
+        break;
+
+    case INDEX_op_div_i64:
+    case INDEX_op_div_i32:
+        tcg_out_insn(s, 3508, SDIV, ext, a0, a1, a2);
+        break;
+    case INDEX_op_divu_i64:
+    case INDEX_op_divu_i32:
+        tcg_out_insn(s, 3508, UDIV, ext, a0, a1, a2);
+        break;
+
+    case INDEX_op_rem_i64:
+    case INDEX_op_rem_i32:
+        tcg_out_insn(s, 3508, SDIV, ext, TCG_REG_TMP, a1, a2);
+        tcg_out_insn(s, 3509, MSUB, ext, a0, TCG_REG_TMP, a2, a1);
+        break;
+    case INDEX_op_remu_i64:
+    case INDEX_op_remu_i32:
+        tcg_out_insn(s, 3508, UDIV, ext, TCG_REG_TMP, a1, a2);
+        tcg_out_insn(s, 3509, MSUB, ext, a0, TCG_REG_TMP, a2, a1);
         break;
 
     case INDEX_op_shl_i64:
@@ -1626,6 +1650,14 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_sub_i64, { "r", "r", "rA" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mul_i64, { "r", "r", "r" } },
+    { INDEX_op_div_i32, { "r", "r", "r" } },
+    { INDEX_op_div_i64, { "r", "r", "r" } },
+    { INDEX_op_divu_i32, { "r", "r", "r" } },
+    { INDEX_op_divu_i64, { "r", "r", "r" } },
+    { INDEX_op_rem_i32, { "r", "r", "r" } },
+    { INDEX_op_rem_i64, { "r", "r", "r" } },
+    { INDEX_op_remu_i32, { "r", "r", "r" } },
+    { INDEX_op_remu_i64, { "r", "r", "r" } },
     { INDEX_op_and_i32, { "r", "r", "rwL" } },
     { INDEX_op_and_i64, { "r", "r", "rL" } },
     { INDEX_op_or_i32, { "r", "r", "rwL" } },
