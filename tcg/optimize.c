@@ -198,6 +198,8 @@ static TCGOpcode op_to_mov(TCGOpcode op)
 
 static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
 {
+    uint64_t l64, h64;
+
     switch (op) {
     CASE_OP_32_64(add):
         return x + y;
@@ -289,6 +291,18 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
 
     case INDEX_op_ext32u_i64:
         return (uint32_t)x;
+
+    case INDEX_op_muluh_i32:
+        return ((uint64_t)(uint32_t)x * (uint32_t)y) >> 32;
+    case INDEX_op_mulsh_i32:
+        return ((int64_t)(int32_t)x * (int32_t)y) >> 32;
+
+    case INDEX_op_muluh_i64:
+        mulu64(&l64, &h64, x, y);
+        return h64;
+    case INDEX_op_mulsh_i64:
+        muls64(&l64, &h64, x, y);
+        return h64;
 
     default:
         fprintf(stderr,
@@ -531,6 +545,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(eqv):
         CASE_OP_32_64(nand):
         CASE_OP_32_64(nor):
+        CASE_OP_32_64(muluh):
+        CASE_OP_32_64(mulsh):
             swap_commutative(args[0], &args[1], &args[2]);
             break;
         CASE_OP_32_64(brcond):
@@ -771,6 +787,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         switch (op) {
         CASE_OP_32_64(and):
         CASE_OP_32_64(mul):
+        CASE_OP_32_64(muluh):
+        CASE_OP_32_64(mulsh):
             if ((temps[args[2]].state == TCG_TEMP_CONST
                 && temps[args[2]].val == 0)) {
                 s->gen_opc_buf[op_index] = op_to_movi(op);
@@ -882,6 +900,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(eqv):
         CASE_OP_32_64(nand):
         CASE_OP_32_64(nor):
+        CASE_OP_32_64(muluh):
+        CASE_OP_32_64(mulsh):
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 s->gen_opc_buf[op_index] = op_to_movi(op);

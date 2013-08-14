@@ -1252,12 +1252,13 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
 static void tcg_liveness_analysis(TCGContext *s)
 {
     int i, op_index, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
-    TCGOpcode op, op_new;
+    TCGOpcode op, op_new, op_new2;
     TCGArg *args;
     const TCGOpDef *def;
     uint8_t *dead_temps, *mem_temps;
     uint16_t dead_args;
     uint8_t sync_args;
+    bool have_op_new2;
     
     s->gen_opc_ptr++; /* skip end */
 
@@ -1394,29 +1395,52 @@ static void tcg_liveness_analysis(TCGContext *s)
             goto do_not_remove;
 
         case INDEX_op_mulu2_i32:
+            op_new = INDEX_op_mul_i32;
+            op_new2 = INDEX_op_muluh_i32;
+            have_op_new2 = TCG_TARGET_HAS_muluh_i32;
+            goto do_mul2;
         case INDEX_op_muls2_i32:
             op_new = INDEX_op_mul_i32;
+            op_new2 = INDEX_op_mulsh_i32;
+            have_op_new2 = TCG_TARGET_HAS_mulsh_i32;
             goto do_mul2;
         case INDEX_op_mulu2_i64:
+            op_new = INDEX_op_mul_i64;
+            op_new2 = INDEX_op_muluh_i64;
+            have_op_new2 = TCG_TARGET_HAS_muluh_i64;
+            goto do_mul2;
         case INDEX_op_muls2_i64:
             op_new = INDEX_op_mul_i64;
+            op_new2 = INDEX_op_mulsh_i64;
+            have_op_new2 = TCG_TARGET_HAS_mulsh_i64;
+            goto do_mul2;
         do_mul2:
             args -= 4;
             nb_iargs = 2;
             nb_oargs = 2;
-            /* Likewise, test for the high part of the operation dead.  */
             if (dead_temps[args[1]] && !mem_temps[args[1]]) {
                 if (dead_temps[args[0]] && !mem_temps[args[0]]) {
+                    /* Both parts of the operation are dead.  */
                     goto do_remove;
                 }
+                /* The high part of the operation is dead; generate the low. */
                 s->gen_opc_buf[op_index] = op = op_new;
                 args[1] = args[2];
                 args[2] = args[3];
-                assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
-                tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 1);
-                /* Fall through and mark the single-word operation live.  */
-                nb_oargs = 1;
+            } else if (have_op_new2 && dead_temps[args[0]]
+                       && !mem_temps[args[0]]) {
+                /* The low part of the operation is dead; generate the high.  */
+                s->gen_opc_buf[op_index] = op = op_new2;
+                args[0] = args[1];
+                args[1] = args[2];
+                args[2] = args[3];
+            } else {
+                goto do_not_remove;
             }
+            assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
+            tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 1);
+            /* Mark the single-word operation live.  */
+            nb_oargs = 1;
             goto do_not_remove;
 
         default:

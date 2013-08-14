@@ -89,6 +89,8 @@ typedef enum {
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_muls2_i32        1
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
 
 /* optional instructions only implemented on MIPS4, MIPS32 and Loongson 2 */
 #if (defined(__mips_isa_rev) && (__mips_isa_rev >= 1)) || \
