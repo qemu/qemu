@@ -289,6 +289,11 @@ typedef enum {
     I3404_ORRI      = 0x32000000,
     I3404_EORI      = 0x52000000,
 
+    /* Move wide immediate instructions.  */
+    I3405_MOVN      = 0x12800000,
+    I3405_MOVZ      = 0x52800000,
+    I3405_MOVK      = 0x72800000,
+
     /* Add/subtract shifted register instructions (without a shift).  */
     I3502_ADD       = 0x0b000000,
     I3502_ADDS      = 0x2b000000,
@@ -443,6 +448,15 @@ static void tcg_out_insn_3403(TCGContext *s, AArch64Insn insn, TCGType ext,
               | rn << 5 | rd);
 }
 
+/* This function is used for the Move (wide immediate) instruction group.
+   Note that SHIFT is a full shift count, not the 2 bit HW field. */
+static void tcg_out_insn_3405(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, uint16_t half, unsigned shift)
+{
+    assert((shift & ~0x30) == 0);
+    tcg_out32(s, insn | ext << 31 | shift << (21 - 4) | half << 5 | rd);
+}
+
 /* This function is for both 3.5.2 (Add/Subtract shifted register), for
    the rare occasion when we actually want to supply a shift amount.  */
 static inline void tcg_out_insn_3502S(TCGContext *s, AArch64Insn insn,
@@ -513,36 +527,28 @@ static void tcg_out_movr_sp(TCGContext *s, TCGType ext, TCGReg rd, TCGReg rn)
     tcg_out_insn(s, 3401, ADDI, ext, rd, rn, 0);
 }
 
-static inline void tcg_out_movi_aux(TCGContext *s,
-                                    TCGReg rd, uint64_t value)
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
+                         tcg_target_long value)
 {
-    uint32_t half, base, shift, movk = 0;
-    /* construct halfwords of the immediate with MOVZ/MOVK with LSL */
-    /* using MOVZ 0x52800000 | extended reg.. */
-    base = (value > 0xffffffff) ? 0xd2800000 : 0x52800000;
+    AArch64Insn insn;
+
+    if (type == TCG_TYPE_I32) {
+        value = (uint32_t)value;
+    }
+
     /* count trailing zeros in 16 bit steps, mapping 64 to 0. Emit the
        first MOVZ with the half-word immediate skipping the zeros, with a shift
-       (LSL) equal to this number. Then morph all next instructions into MOVKs.
+       (LSL) equal to this number. Then all next instructions use MOVKs.
        Zero the processed half-word in the value, continue until empty.
        We build the final result 16bits at a time with up to 4 instructions,
        but do not emit instructions for 16bit zero holes. */
+    insn = I3405_MOVZ;
     do {
-        shift = ctz64(value) & (63 & -16);
-        half = (value >> shift) & 0xffff;
-        tcg_out32(s, base | movk | shift << 17 | half << 5 | rd);
-        movk = 0x20000000; /* morph next MOVZs into MOVKs */
+        unsigned shift = ctz64(value) & (63 & -16);
+        tcg_out_insn_3405(s, insn, shift >= 32, rd, value >> shift, shift);
         value &= ~(0xffffUL << shift);
+        insn = I3405_MOVK;
     } while (value);
-}
-
-static inline void tcg_out_movi(TCGContext *s, TCGType type,
-                                TCGReg rd, tcg_target_long value)
-{
-    if (type == TCG_TYPE_I64) {
-        tcg_out_movi_aux(s, rd, value);
-    } else {
-        tcg_out_movi_aux(s, rd, value & 0xffffffff);
-    }
 }
 
 static inline void tcg_out_ldst_r(TCGContext *s,
