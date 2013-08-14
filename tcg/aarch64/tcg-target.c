@@ -112,6 +112,7 @@ static inline void patch_reloc(uint8_t *code_ptr, int type,
 
 #define TCG_CT_CONST_IS32 0x100
 #define TCG_CT_CONST_AIMM 0x200
+#define TCG_CT_CONST_LIMM 0x400
 
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct,
@@ -142,6 +143,9 @@ static int target_parse_constraint(TCGArgConstraint *ct,
     case 'A': /* Valid for arithmetic immediate (positive or negative).  */
         ct->ct |= TCG_CT_CONST_AIMM;
         break;
+    case 'L': /* Valid for logical immediate.  */
+        ct->ct |= TCG_CT_CONST_LIMM;
+        break;
     default:
         return -1;
     }
@@ -156,6 +160,26 @@ static inline bool is_aimm(uint64_t val)
     return (val & ~0xfff) == 0 || (val & ~0xfff000) == 0;
 }
 
+static inline bool is_limm(uint64_t val)
+{
+    /* Taking a simplified view of the logical immediates for now, ignoring
+       the replication that can happen across the field.  Match bit patterns
+       of the forms
+           0....01....1
+           0..01..10..0
+       and their inverses.  */
+
+    /* Make things easier below, by testing the form with msb clear. */
+    if ((int64_t)val < 0) {
+        val = ~val;
+    }
+    if (val == 0) {
+        return false;
+    }
+    val += val & -val;
+    return (val & (val - 1)) == 0;
+}
+
 static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct)
 {
@@ -168,6 +192,9 @@ static int tcg_target_const_match(tcg_target_long val,
         val = (int32_t)val;
     }
     if ((ct & TCG_CT_CONST_AIMM) && (is_aimm(val) || is_aimm(-val))) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_LIMM) && is_limm(val)) {
         return 1;
     }
 
@@ -234,6 +261,11 @@ typedef enum {
     I3401_ADDSI     = 0x31000000,
     I3401_SUBI      = 0x51000000,
     I3401_SUBSI     = 0x71000000,
+
+    /* Logical immediate instructions.  */
+    I3404_ANDI      = 0x12000000,
+    I3404_ORRI      = 0x32000000,
+    I3404_EORI      = 0x52000000,
 
     /* Add/subtract shifted register instructions (without a shift).  */
     I3502_ADD       = 0x0b000000,
@@ -350,6 +382,18 @@ static void tcg_out_insn_3401(TCGContext *s, AArch64Insn insn, TCGType ext,
     }
     tcg_out32(s, insn | ext << 31 | aimm << 10 | rn << 5 | rd);
 }
+
+/* This function can be used for both 3.4.2 (Bitfield) and 3.4.4
+   (Logical immediate).  Both insn groups have N, IMMR and IMMS fields
+   that feed the DecodeBitMasks pseudo function.  */
+static void tcg_out_insn_3402(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rd, TCGReg rn, int n, int immr, int imms)
+{
+    tcg_out32(s, insn | ext << 31 | n << 22 | immr << 16 | imms << 10
+              | rn << 5 | rd);
+}
+
+#define tcg_out_insn_3404  tcg_out_insn_3402
 
 /* This function is for both 3.5.2 (Add/Subtract shifted register), for
    the rare occasion when we actually want to supply a shift amount.  */
@@ -665,40 +709,6 @@ static inline void tcg_out_call(TCGContext *s, intptr_t target)
     }
 }
 
-/* encode a logical immediate, mapping user parameter
-   M=set bits pattern length to S=M-1 */
-static inline unsigned int
-aarch64_limm(unsigned int m, unsigned int r)
-{
-    assert(m > 0);
-    return r << 16 | (m - 1) << 10;
-}
-
-/* test a register against an immediate bit pattern made of
-   M set bits rotated right by R.
-   Examples:
-   to test a 32/64 reg against 0x00000007, pass M = 3,  R = 0.
-   to test a 32/64 reg against 0x000000ff, pass M = 8,  R = 0.
-   to test a 32bit reg against 0xff000000, pass M = 8,  R = 8.
-   to test a 32bit reg against 0xff0000ff, pass M = 16, R = 8.
- */
-static inline void tcg_out_tst(TCGContext *s, TCGType ext, TCGReg rn,
-                               unsigned int m, unsigned int r)
-{
-    /* using TST alias of ANDS XZR, Xn,#bimm64 0x7200001f */
-    unsigned int base = ext ? 0xf240001f : 0x7200001f;
-    tcg_out32(s, base | aarch64_limm(m, r) | rn << 5);
-}
-
-/* and a register with a bit pattern, similarly to TST, no flags change */
-static inline void tcg_out_andi(TCGContext *s, TCGType ext, TCGReg rd,
-                                TCGReg rn, unsigned int m, unsigned int r)
-{
-    /* using AND 0x12000000 */
-    unsigned int base = ext ? 0x92400000 : 0x12000000;
-    tcg_out32(s, base | aarch64_limm(m, r) | rn << 5 | rd);
-}
-
 static inline void tcg_out_ret(TCGContext *s)
 {
     /* emit RET { LR } */
@@ -786,6 +796,37 @@ static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
     } else {
         tcg_out_insn(s, 3401, SUBI, ext, rd, rn, -aimm);
     }
+}
+
+/* This function is used for the Logical (immediate) instruction group.
+   The value of LIMM must satisfy IS_LIMM.  See the comment above about
+   only supporting simplified logical immediates.  */
+static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
+                             TCGReg rd, TCGReg rn, uint64_t limm)
+{
+    unsigned h, l, r, c;
+
+    assert(is_limm(limm));
+
+    h = clz64(limm);
+    l = ctz64(limm);
+    if (l == 0) {
+        r = 0;                  /* form 0....01....1 */
+        c = ctz64(~limm) - 1;
+        if (h == 0) {
+            r = clz64(~limm);   /* form 1..10..01..1 */
+            c += r;
+        }
+    } else {
+        r = 64 - l;             /* form 1....10....0 or 0..01..10..0 */
+        c = r - h - 1;
+    }
+    if (ext == TCG_TYPE_I32) {
+        r &= 31;
+        c &= 31;
+    }
+
+    tcg_out_insn_3404(s, insn, ext, rd, rn, ext, r, c);
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -879,9 +920,8 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
     /* Store the page mask part of the address and the low s_bits into X3.
        Later this allows checking for equality and alignment at the same time.
        X3 = addr_reg & (PAGE_MASK | ((1 << s_bits) - 1)) */
-    tcg_out_andi(s, (TARGET_LONG_BITS == 64), TCG_REG_X3, addr_reg,
-                 (TARGET_LONG_BITS - TARGET_PAGE_BITS) + s_bits,
-                 (TARGET_LONG_BITS - TARGET_PAGE_BITS));
+    tcg_out_logicali(s, I3404_ANDI, TARGET_LONG_BITS == 64, TCG_REG_X3,
+                     addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
     /* Add any "high bits" from the tlb offset to the env address into X2,
        to take advantage of the LSL12 form of the ADDI instruction.
        X2 = env + (tlb_offset & 0xfff000) */
@@ -1186,19 +1226,37 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    case INDEX_op_and_i64:
     case INDEX_op_and_i32:
-        tcg_out_insn(s, 3510, AND, ext, a0, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_and_i64:
+        if (c2) {
+            tcg_out_logicali(s, I3404_ANDI, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3510, AND, ext, a0, a1, a2);
+        }
         break;
 
-    case INDEX_op_or_i64:
     case INDEX_op_or_i32:
-        tcg_out_insn(s, 3510, ORR, ext, a0, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_or_i64:
+        if (c2) {
+            tcg_out_logicali(s, I3404_ORRI, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3510, ORR, ext, a0, a1, a2);
+        }
         break;
 
-    case INDEX_op_xor_i64:
     case INDEX_op_xor_i32:
-        tcg_out_insn(s, 3510, EOR, ext, a0, a1, a2);
+        a2 = (int32_t)a2;
+        /* FALLTHRU */
+    case INDEX_op_xor_i64:
+        if (c2) {
+            tcg_out_logicali(s, I3404_EORI, ext, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, 3510, EOR, ext, a0, a1, a2);
+        }
         break;
 
     case INDEX_op_mul_i64:
@@ -1391,12 +1449,12 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_sub_i64, { "r", "r", "rA" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mul_i64, { "r", "r", "r" } },
-    { INDEX_op_and_i32, { "r", "r", "r" } },
-    { INDEX_op_and_i64, { "r", "r", "r" } },
-    { INDEX_op_or_i32, { "r", "r", "r" } },
-    { INDEX_op_or_i64, { "r", "r", "r" } },
-    { INDEX_op_xor_i32, { "r", "r", "r" } },
-    { INDEX_op_xor_i64, { "r", "r", "r" } },
+    { INDEX_op_and_i32, { "r", "r", "rwL" } },
+    { INDEX_op_and_i64, { "r", "r", "rL" } },
+    { INDEX_op_or_i32, { "r", "r", "rwL" } },
+    { INDEX_op_or_i64, { "r", "r", "rL" } },
+    { INDEX_op_xor_i32, { "r", "r", "rwL" } },
+    { INDEX_op_xor_i64, { "r", "r", "rL" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
