@@ -311,6 +311,8 @@ typedef enum {
     I3508_LSRV      = 0x1ac02400,
     I3508_ASRV      = 0x1ac02800,
     I3508_RORV      = 0x1ac02c00,
+    I3508_SMULH     = 0x9b407c00,
+    I3508_UMULH     = 0x9bc07c00,
 
     /* Logical shifted register instructions (without a shift).  */
     I3510_AND       = 0x0a000000,
@@ -1565,6 +1567,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         args[5], const_args[4], const_args[5], true);
         break;
 
+    case INDEX_op_muluh_i64:
+        tcg_out_insn(s, 3508, UMULH, TCG_TYPE_I64, a0, a1, a2);
+        break;
+    case INDEX_op_mulsh_i64:
+        tcg_out_insn(s, 3508, SMULH, TCG_TYPE_I64, a0, a1, a2);
+        break;
+
     case INDEX_op_mov_i64:
     case INDEX_op_mov_i32:
     case INDEX_op_movi_i64:
@@ -1693,6 +1702,9 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_add2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rwA", "rwMZ" } },
     { INDEX_op_sub2_i64, { "r", "r", "rZ", "rZ", "rA", "rMZ" } },
+
+    { INDEX_op_muluh_i64, { "r", "r", "r" } },
+    { INDEX_op_mulsh_i64, { "r", "r", "r" } },
 
     { -1 },
 };
