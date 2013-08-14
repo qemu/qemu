@@ -1423,6 +1423,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
         tcg_out_opc_reg(s, OPC_MFHI, args[1], 0, 0);
         break;
+    case INDEX_op_mulsh_i32:
+        tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
+        break;
+    case INDEX_op_muluh_i32:
+        tcg_out_opc_reg(s, OPC_MULTU, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
+        break;
     case INDEX_op_div_i32:
         tcg_out_opc_reg(s, OPC_DIV, 0, args[1], args[2]);
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
@@ -1602,6 +1610,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
+    { INDEX_op_mulsh_i32, { "r", "rZ", "rZ" } },
+    { INDEX_op_muluh_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },
