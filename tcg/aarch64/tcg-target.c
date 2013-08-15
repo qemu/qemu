@@ -23,10 +23,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%x0", "%x1", "%x2", "%x3", "%x4", "%x5", "%x6", "%x7",
     "%x8", "%x9", "%x10", "%x11", "%x12", "%x13", "%x14", "%x15",
     "%x16", "%x17", "%x18", "%x19", "%x20", "%x21", "%x22", "%x23",
-    "%x24", "%x25", "%x26", "%x27", "%x28",
-    "%fp", /* frame pointer */
-    "%lr", /* link register */
-    "%sp",  /* stack pointer */
+    "%x24", "%x25", "%x26", "%x27", "%x28", "%fp", "%x30", "%sp",
 };
 #endif /* NDEBUG */
 
@@ -41,16 +38,17 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_X24, TCG_REG_X25, TCG_REG_X26, TCG_REG_X27,
     TCG_REG_X28, /* we will reserve this for GUEST_BASE if configured */
 
-    TCG_REG_X9, TCG_REG_X10, TCG_REG_X11, TCG_REG_X12,
-    TCG_REG_X13, TCG_REG_X14, TCG_REG_X15,
+    TCG_REG_X8, TCG_REG_X9, TCG_REG_X10, TCG_REG_X11,
+    TCG_REG_X12, TCG_REG_X13, TCG_REG_X14, TCG_REG_X15,
     TCG_REG_X16, TCG_REG_X17,
-
-    TCG_REG_X18, TCG_REG_X19, /* will not use these, see tcg_target_init */
 
     TCG_REG_X0, TCG_REG_X1, TCG_REG_X2, TCG_REG_X3,
     TCG_REG_X4, TCG_REG_X5, TCG_REG_X6, TCG_REG_X7,
 
-    TCG_REG_X8, /* will not use, see tcg_target_init */
+    /* X18 reserved by system */
+    /* X19 reserved for AREG0 */
+    /* X29 reserved as fp */
+    /* X30 reserved as temporary */
 };
 
 static const int tcg_target_call_iarg_regs[8] = {
@@ -61,13 +59,13 @@ static const int tcg_target_call_oarg_regs[1] = {
     TCG_REG_X0
 };
 
-#define TCG_REG_TMP TCG_REG_X8
+#define TCG_REG_TMP TCG_REG_X30
 
 #ifndef CONFIG_SOFTMMU
-# if defined(CONFIG_USE_GUEST_BASE)
-# define TCG_REG_GUEST_BASE TCG_REG_X28
+# ifdef CONFIG_USE_GUEST_BASE
+#  define TCG_REG_GUEST_BASE TCG_REG_X28
 # else
-# define TCG_REG_GUEST_BASE TCG_REG_XZR
+#  define TCG_REG_GUEST_BASE TCG_REG_XZR
 # endif
 #endif
 
@@ -1871,7 +1869,7 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_X12) | (1 << TCG_REG_X13) |
                      (1 << TCG_REG_X14) | (1 << TCG_REG_X15) |
                      (1 << TCG_REG_X16) | (1 << TCG_REG_X17) |
-                     (1 << TCG_REG_X18));
+                     (1 << TCG_REG_X18) | (1 << TCG_REG_X30));
 
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);
@@ -1902,13 +1900,13 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_push_pair(s, TCG_REG_SP,
                       TCG_REG_FP, TCG_REG_LR, frame_size_callee_saved);
 
-    /* FP -> callee_saved */
+    /* Set up frame pointer for canonical unwinding.  */
     tcg_out_movr_sp(s, TCG_TYPE_I64, TCG_REG_FP, TCG_REG_SP);
 
-    /* store callee-preserved regs x19..x28 using FP -> callee_saved */
+    /* Store callee-preserved regs x19..x28.  */
     for (r = TCG_REG_X19; r <= TCG_REG_X27; r += 2) {
         int idx = (r - TCG_REG_X19) / 2 + 1;
-        tcg_out_store_pair(s, TCG_REG_FP, r, r + 1, idx);
+        tcg_out_store_pair(s, TCG_REG_SP, r, r + 1, idx);
     }
 
     /* Make stack space for TCG locals.  */
@@ -1939,7 +1937,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
        FP must be preserved, so it still points to callee_saved area */
     for (r = TCG_REG_X19; r <= TCG_REG_X27; r += 2) {
         int idx = (r - TCG_REG_X19) / 2 + 1;
-        tcg_out_load_pair(s, TCG_REG_FP, r, r + 1, idx);
+        tcg_out_load_pair(s, TCG_REG_SP, r, r + 1, idx);
     }
 
     /* pop (FP, LR), restore SP to previous frame, return */
