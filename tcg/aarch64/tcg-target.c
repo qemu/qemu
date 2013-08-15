@@ -1081,8 +1081,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X3, (intptr_t)lb->raddr);
-    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, (intptr_t)qemu_ld_helpers[size]);
-    tcg_out_callr(s, TCG_REG_TMP);
+    tcg_out_call(s, (intptr_t)qemu_ld_helpers[size]);
     if (opc & MO_SIGN) {
         tcg_out_sxt(s, TCG_TYPE_I64, size, lb->datalo_reg, TCG_REG_X0);
     } else {
@@ -1103,8 +1102,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, size == MO_64, TCG_REG_X2, lb->datalo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X3, lb->mem_index);
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X4, (intptr_t)lb->raddr);
-    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, (intptr_t)qemu_st_helpers[size]);
-    tcg_out_callr(s, TCG_REG_TMP);
+    tcg_out_call(s, (intptr_t)qemu_st_helpers[size]);
     tcg_out_goto(s, (intptr_t)lb->raddr);
 }
 
