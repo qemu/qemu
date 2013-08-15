@@ -270,6 +270,18 @@ enum aarch64_ldst_op_type { /* type of operation */
    use the section number of the architecture reference manual in which the
    instruction group is described.  */
 typedef enum {
+    /* Conditional branch (immediate).  */
+    I3202_B_C       = 0x54000000,
+
+    /* Unconditional branch (immediate).  */
+    I3206_B         = 0x14000000,
+    I3206_BL        = 0x94000000,
+
+    /* Unconditional branch (register).  */
+    I3207_BR        = 0xd61f0000,
+    I3207_BLR       = 0xd63f0000,
+    I3207_RET       = 0xd65f0000,
+
     /* Add/subtract immediate instructions.  */
     I3401_ADDI      = 0x11000000,
     I3401_ADDSI     = 0x31000000,
@@ -420,6 +432,22 @@ static inline uint32_t tcg_in32(TCGContext *s)
 /* Emit an opcode with "type-checking" of the format.  */
 #define tcg_out_insn(S, FMT, OP, ...) \
     glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+
+static void tcg_out_insn_3202(TCGContext *s, AArch64Insn insn,
+                              TCGCond c, int imm19)
+{
+    tcg_out32(s, insn | tcg_cond_to_aarch64[c] | (imm19 & 0x7ffff) << 5);
+}
+
+static void tcg_out_insn_3206(TCGContext *s, AArch64Insn insn, int imm26)
+{
+    tcg_out32(s, insn | (imm26 & 0x03ffffff));
+}
+
+static void tcg_out_insn_3207(TCGContext *s, AArch64Insn insn, TCGReg rn)
+{
+    tcg_out32(s, insn | rn << 5);
+}
 
 static void tcg_out_insn_3401(TCGContext *s, AArch64Insn insn, TCGType ext,
                               TCGReg rd, TCGReg rn, uint64_t aimm)
@@ -817,28 +845,24 @@ static inline void tcg_out_goto(TCGContext *s, intptr_t target)
         tcg_abort();
     }
 
-    tcg_out32(s, 0x14000000 | (offset & 0x03ffffff));
+    tcg_out_insn(s, 3206, B, offset);
 }
 
 static inline void tcg_out_goto_noaddr(TCGContext *s)
 {
-    /* We pay attention here to not modify the branch target by
-       reading from the buffer. This ensure that caches and memory are
-       kept coherent during retranslation.
-       Mask away possible garbage in the high bits for the first translation,
-       while keeping the offset bits for retranslation. */
-    uint32_t insn;
-    insn = (tcg_in32(s) & 0x03ffffff) | 0x14000000;
-    tcg_out32(s, insn);
+    /* We pay attention here to not modify the branch target by reading from
+       the buffer. This ensure that caches and memory are kept coherent during
+       retranslation.  Mask away possible garbage in the high bits for the
+       first translation, while keeping the offset bits for retranslation. */
+    uint32_t old = tcg_in32(s);
+    tcg_out_insn(s, 3206, B, old);
 }
 
 static inline void tcg_out_goto_cond_noaddr(TCGContext *s, TCGCond c)
 {
-    /* see comments in tcg_out_goto_noaddr */
-    uint32_t insn;
-    insn = tcg_in32(s) & (0x07ffff << 5);
-    insn |= 0x54000000 | tcg_cond_to_aarch64[c];
-    tcg_out32(s, insn);
+    /* See comments in tcg_out_goto_noaddr.  */
+    uint32_t old = tcg_in32(s) >> 5;
+    tcg_out_insn(s, 3202, B_C, c, old);
 }
 
 static inline void tcg_out_goto_cond(TCGContext *s, TCGCond c, intptr_t target)
@@ -850,18 +874,12 @@ static inline void tcg_out_goto_cond(TCGContext *s, TCGCond c, intptr_t target)
         tcg_abort();
     }
 
-    offset &= 0x7ffff;
-    tcg_out32(s, 0x54000000 | tcg_cond_to_aarch64[c] | offset << 5);
+    tcg_out_insn(s, 3202, B_C, c, offset);
 }
 
 static inline void tcg_out_callr(TCGContext *s, TCGReg reg)
 {
-    tcg_out32(s, 0xd63f0000 | reg << 5);
-}
-
-static inline void tcg_out_gotor(TCGContext *s, TCGReg reg)
-{
-    tcg_out32(s, 0xd61f0000 | reg << 5);
+    tcg_out_insn(s, 3207, BLR, reg);
 }
 
 static inline void tcg_out_call(TCGContext *s, intptr_t target)
@@ -872,14 +890,8 @@ static inline void tcg_out_call(TCGContext *s, intptr_t target)
         tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, target);
         tcg_out_callr(s, TCG_REG_TMP);
     } else {
-        tcg_out32(s, 0x94000000 | (offset & 0x03ffffff));
+        tcg_out_insn(s, 3206, BL, offset);
     }
-}
-
-static inline void tcg_out_ret(TCGContext *s)
-{
-    /* emit RET { LR } */
-    tcg_out32(s, 0xd65f03c0);
 }
 
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
@@ -1899,7 +1911,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 #endif
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
-    tcg_out_gotor(s, tcg_target_call_iarg_regs[1]);
+    tcg_out_insn(s, 3207, BR, tcg_target_call_iarg_regs[1]);
 
     tb_ret_addr = s->code_ptr;
 
@@ -1917,5 +1929,5 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* pop (FP, LR), restore SP to previous frame, return */
     tcg_out_pop_pair(s, TCG_REG_SP,
                      TCG_REG_FP, TCG_REG_LR, frame_size_callee_saved);
-    tcg_out_ret(s);
+    tcg_out_insn(s, 3207, RET, TCG_REG_LR);
 }
