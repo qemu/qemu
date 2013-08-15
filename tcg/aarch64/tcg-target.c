@@ -531,24 +531,61 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long value)
 {
     AArch64Insn insn;
+    int i, wantinv, shift;
+    tcg_target_long svalue = value;
+    tcg_target_long ivalue = ~value;
+    tcg_target_long imask;
 
-    if (type == TCG_TYPE_I32) {
+    /* For 32-bit values, discard potential garbage in value.  For 64-bit
+       values within [2**31, 2**32-1], we can create smaller sequences by
+       interpreting this as a negative 32-bit number, while ensuring that
+       the high 32 bits are cleared by setting SF=0.  */
+    if (type == TCG_TYPE_I32 || (value & ~0xffffffffull) == 0) {
+        svalue = (int32_t)value;
         value = (uint32_t)value;
+        ivalue = (uint32_t)ivalue;
+        type = TCG_TYPE_I32;
     }
 
-    /* count trailing zeros in 16 bit steps, mapping 64 to 0. Emit the
-       first MOVZ with the half-word immediate skipping the zeros, with a shift
-       (LSL) equal to this number. Then all next instructions use MOVKs.
-       Zero the processed half-word in the value, continue until empty.
-       We build the final result 16bits at a time with up to 4 instructions,
-       but do not emit instructions for 16bit zero holes. */
+    /* Would it take fewer insns to begin with MOVN?  For the value and its
+       inverse, count the number of 16-bit lanes that are 0.  */
+    for (i = wantinv = imask = 0; i < 64; i += 16) {
+        tcg_target_long mask = 0xffffull << i;
+        if ((value & mask) == 0) {
+            wantinv -= 1;
+        }
+        if ((ivalue & mask) == 0) {
+            wantinv += 1;
+            imask |= mask;
+        }
+    }
+
+    /* If we had more 0xffff than 0x0000, invert VALUE and use MOVN.  */
     insn = I3405_MOVZ;
-    do {
-        unsigned shift = ctz64(value) & (63 & -16);
-        tcg_out_insn_3405(s, insn, shift >= 32, rd, value >> shift, shift);
+    if (wantinv > 0) {
+        value = ivalue;
+        insn = I3405_MOVN;
+    }
+
+    /* Find the lowest lane that is not 0x0000.  */
+    shift = ctz64(value) & (63 & -16);
+    tcg_out_insn_3405(s, insn, type, rd, value >> shift, shift);
+
+    if (wantinv > 0) {
+        /* Re-invert the value, so MOVK sees non-inverted bits.  */
+        value = ~value;
+        /* Clear out all the 0xffff lanes.  */
+        value ^= imask;
+    }
+    /* Clear out the lane that we just set.  */
+    value &= ~(0xffffUL << shift);
+
+    /* Iterate until all lanes have been set, and thus cleared from VALUE.  */
+    while (value) {
+        shift = ctz64(value) & (63 & -16);
+        tcg_out_insn(s, 3405, MOVK, type, rd, value >> shift, shift);
         value &= ~(0xffffUL << shift);
-        insn = I3405_MOVK;
-    } while (value);
+    }
 }
 
 static inline void tcg_out_ldst_r(TCGContext *s,
