@@ -1157,18 +1157,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                      args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_mov_i64:
-    case INDEX_op_mov_i32:
-        tcg_out_movr(s, ext, args[0], args[1]);
-        break;
-
-    case INDEX_op_movi_i64:
-        tcg_out_movi(s, TCG_TYPE_I64, args[0], args[1]);
-        break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
-
     case INDEX_op_add_i64:
     case INDEX_op_add_i32:
         tcg_out_arith(s, ARITH_ADD, ext, args[0], args[1], args[2], 0);
@@ -1332,8 +1320,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_movr(s, 0, args[0], args[1]);
         break;
 
+    case INDEX_op_mov_i64:
+    case INDEX_op_mov_i32:
+    case INDEX_op_movi_i64:
+    case INDEX_op_movi_i32:
+        /* Always implemented with tcg_out_mov/i, never with tcg_out_op.  */
     default:
-        tcg_abort(); /* opcode not implemented */
+        /* Opcode not implemented.  */
+        tcg_abort();
     }
 }
 
