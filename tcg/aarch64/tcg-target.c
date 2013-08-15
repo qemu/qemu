@@ -1098,15 +1098,22 @@ static inline void tcg_out_load_pair(TCGContext *s, TCGReg addr,
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                       const TCGArg *args, const int *const_args)
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     /* 99% of the time, we can signal the use of extension registers
        by looking to see if the opcode handles 64-bit data.  */
     TCGType ext = (tcg_op_defs[opc].flags & TCG_OPF_64BIT) != 0;
 
+    /* Hoist the loads of the most common arguments.  */
+    TCGArg a0 = args[0];
+    TCGArg a1 = args[1];
+    TCGArg a2 = args[2];
+    int c2 = const_args[2];
+
     switch (opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_X0, args[0]);
+        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_X0, a0);
         tcg_out_goto(s, (tcg_target_long)tb_ret_addr);
         break;
 
@@ -1115,23 +1122,23 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #error "USE_DIRECT_JUMP required for aarch64"
 #endif
         assert(s->tb_jmp_offset != NULL); /* consistency for USE_DIRECT_JUMP */
-        s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
+        s->tb_jmp_offset[a0] = s->code_ptr - s->code_buf;
         /* actual branch destination will be patched by
            aarch64_tb_set_jmp_target later, beware retranslation. */
         tcg_out_goto_noaddr(s);
-        s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
+        s->tb_next_offset[a0] = s->code_ptr - s->code_buf;
         break;
 
     case INDEX_op_call:
         if (const_args[0]) {
-            tcg_out_call(s, args[0]);
+            tcg_out_call(s, a0);
         } else {
-            tcg_out_callr(s, args[0]);
+            tcg_out_callr(s, a0);
         }
         break;
 
     case INDEX_op_br:
-        tcg_out_goto_label(s, args[0]);
+        tcg_out_goto_label(s, a0);
         break;
 
     case INDEX_op_ld_i32:
@@ -1154,97 +1161,95 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_st16_i64:
     case INDEX_op_st32_i64:
         tcg_out_ldst(s, aarch64_ldst_get_data(opc), aarch64_ldst_get_type(opc),
-                     args[0], args[1], args[2]);
+                     a0, a1, a2);
         break;
 
     case INDEX_op_add_i64:
     case INDEX_op_add_i32:
-        tcg_out_arith(s, ARITH_ADD, ext, args[0], args[1], args[2], 0);
+        tcg_out_arith(s, ARITH_ADD, ext, a0, a1, a2, 0);
         break;
 
     case INDEX_op_sub_i64:
     case INDEX_op_sub_i32:
-        tcg_out_arith(s, ARITH_SUB, ext, args[0], args[1], args[2], 0);
+        tcg_out_arith(s, ARITH_SUB, ext, a0, a1, a2, 0);
         break;
 
     case INDEX_op_and_i64:
     case INDEX_op_and_i32:
-        tcg_out_arith(s, ARITH_AND, ext, args[0], args[1], args[2], 0);
+        tcg_out_arith(s, ARITH_AND, ext, a0, a1, a2, 0);
         break;
 
     case INDEX_op_or_i64:
     case INDEX_op_or_i32:
-        tcg_out_arith(s, ARITH_OR, ext, args[0], args[1], args[2], 0);
+        tcg_out_arith(s, ARITH_OR, ext, a0, a1, a2, 0);
         break;
 
     case INDEX_op_xor_i64:
     case INDEX_op_xor_i32:
-        tcg_out_arith(s, ARITH_XOR, ext, args[0], args[1], args[2], 0);
+        tcg_out_arith(s, ARITH_XOR, ext, a0, a1, a2, 0);
         break;
 
     case INDEX_op_mul_i64:
     case INDEX_op_mul_i32:
-        tcg_out_mul(s, ext, args[0], args[1], args[2]);
+        tcg_out_mul(s, ext, a0, a1, a2);
         break;
 
     case INDEX_op_shl_i64:
     case INDEX_op_shl_i32:
-        if (const_args[2]) {    /* LSL / UBFM Wd, Wn, (32 - m) */
-            tcg_out_shl(s, ext, args[0], args[1], args[2]);
+        if (c2) {    /* LSL / UBFM Wd, Wn, (32 - m) */
+            tcg_out_shl(s, ext, a0, a1, a2);
         } else {                /* LSL / LSLV */
-            tcg_out_shiftrot_reg(s, SRR_SHL, ext, args[0], args[1], args[2]);
+            tcg_out_shiftrot_reg(s, SRR_SHL, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_shr_i64:
     case INDEX_op_shr_i32:
-        if (const_args[2]) {    /* LSR / UBFM Wd, Wn, m, 31 */
-            tcg_out_shr(s, ext, args[0], args[1], args[2]);
+        if (c2) {    /* LSR / UBFM Wd, Wn, m, 31 */
+            tcg_out_shr(s, ext, a0, a1, a2);
         } else {                /* LSR / LSRV */
-            tcg_out_shiftrot_reg(s, SRR_SHR, ext, args[0], args[1], args[2]);
+            tcg_out_shiftrot_reg(s, SRR_SHR, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_sar_i64:
     case INDEX_op_sar_i32:
-        if (const_args[2]) {    /* ASR / SBFM Wd, Wn, m, 31 */
-            tcg_out_sar(s, ext, args[0], args[1], args[2]);
+        if (c2) {    /* ASR / SBFM Wd, Wn, m, 31 */
+            tcg_out_sar(s, ext, a0, a1, a2);
         } else {                /* ASR / ASRV */
-            tcg_out_shiftrot_reg(s, SRR_SAR, ext, args[0], args[1], args[2]);
+            tcg_out_shiftrot_reg(s, SRR_SAR, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_rotr_i64:
     case INDEX_op_rotr_i32:
-        if (const_args[2]) {    /* ROR / EXTR Wd, Wm, Wm, m */
-            tcg_out_rotr(s, ext, args[0], args[1], args[2]);
+        if (c2) {    /* ROR / EXTR Wd, Wm, Wm, m */
+            tcg_out_rotr(s, ext, a0, a1, a2);
         } else {                /* ROR / RORV */
-            tcg_out_shiftrot_reg(s, SRR_ROR, ext, args[0], args[1], args[2]);
+            tcg_out_shiftrot_reg(s, SRR_ROR, ext, a0, a1, a2);
         }
         break;
 
     case INDEX_op_rotl_i64:
     case INDEX_op_rotl_i32:     /* same as rotate right by (32 - m) */
-        if (const_args[2]) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
-            tcg_out_rotl(s, ext, args[0], args[1], args[2]);
+        if (c2) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
+            tcg_out_rotl(s, ext, a0, a1, a2);
         } else {
-            tcg_out_arith(s, ARITH_SUB, 0,
-                          TCG_REG_TMP, TCG_REG_XZR, args[2], 0);
-            tcg_out_shiftrot_reg(s, SRR_ROR, ext,
-                                 args[0], args[1], TCG_REG_TMP);
+            tcg_out_arith(s, ARITH_SUB, 0, TCG_REG_TMP, TCG_REG_XZR, a2, 0);
+            tcg_out_shiftrot_reg(s, SRR_ROR, ext, a0, a1, TCG_REG_TMP);
         }
         break;
 
     case INDEX_op_brcond_i64:
-    case INDEX_op_brcond_i32: /* CMP 0, 1, cond(2), label 3 */
-        tcg_out_cmp(s, ext, args[0], args[1], 0);
-        tcg_out_goto_label_cond(s, args[2], args[3]);
+    case INDEX_op_brcond_i32:
+        tcg_out_cmp(s, ext, a0, a1, 0);
+        tcg_out_goto_label_cond(s, a2, args[3]);
         break;
 
     case INDEX_op_setcond_i64:
     case INDEX_op_setcond_i32:
-        tcg_out_cmp(s, ext, args[1], args[2], 0);
-        tcg_out_cset(s, 0, args[0], args[3]);
+        tcg_out_cmp(s, ext, a1, a2, 0);
+        tcg_out_cset(s, 0, a0, args[3]);
         break;
 
     case INDEX_op_qemu_ld8u:
@@ -1290,34 +1295,34 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* FALLTHRU */
     case INDEX_op_bswap64_i64:
     case INDEX_op_bswap32_i32:
-        tcg_out_rev(s, ext, args[0], args[1]);
+        tcg_out_rev(s, ext, a0, a1);
         break;
     case INDEX_op_bswap16_i64:
     case INDEX_op_bswap16_i32:
-        tcg_out_rev16(s, 0, args[0], args[1]);
+        tcg_out_rev16(s, 0, a0, a1);
         break;
 
     case INDEX_op_ext8s_i64:
     case INDEX_op_ext8s_i32:
-        tcg_out_sxt(s, ext, 0, args[0], args[1]);
+        tcg_out_sxt(s, ext, 0, a0, a1);
         break;
     case INDEX_op_ext16s_i64:
     case INDEX_op_ext16s_i32:
-        tcg_out_sxt(s, ext, 1, args[0], args[1]);
+        tcg_out_sxt(s, ext, 1, a0, a1);
         break;
     case INDEX_op_ext32s_i64:
-        tcg_out_sxt(s, 1, 2, args[0], args[1]);
+        tcg_out_sxt(s, 1, 2, a0, a1);
         break;
     case INDEX_op_ext8u_i64:
     case INDEX_op_ext8u_i32:
-        tcg_out_uxt(s, 0, args[0], args[1]);
+        tcg_out_uxt(s, 0, a0, a1);
         break;
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext16u_i32:
-        tcg_out_uxt(s, 1, args[0], args[1]);
+        tcg_out_uxt(s, 1, a0, a1);
         break;
     case INDEX_op_ext32u_i64:
-        tcg_out_movr(s, 0, args[0], args[1]);
+        tcg_out_movr(s, 0, a0, a1);
         break;
 
     case INDEX_op_mov_i64:
