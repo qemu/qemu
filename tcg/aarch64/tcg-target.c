@@ -284,6 +284,10 @@ typedef enum {
     I3207_BLR       = 0xd63f0000,
     I3207_RET       = 0xd65f0000,
 
+    /* Load/store register pair instructions.  */
+    I3314_LDP       = 0x28400000,
+    I3314_STP       = 0x28000000,
+
     /* Add/subtract immediate instructions.  */
     I3401_ADDI      = 0x11000000,
     I3401_ADDSI     = 0x31000000,
@@ -455,6 +459,20 @@ static void tcg_out_insn_3206(TCGContext *s, AArch64Insn insn, int imm26)
 static void tcg_out_insn_3207(TCGContext *s, AArch64Insn insn, TCGReg rn)
 {
     tcg_out32(s, insn | rn << 5);
+}
+
+static void tcg_out_insn_3314(TCGContext *s, AArch64Insn insn,
+                              TCGReg r1, TCGReg r2, TCGReg rn,
+                              tcg_target_long ofs, bool pre, bool w)
+{
+    insn |= 1u << 31; /* ext */
+    insn |= pre << 24;
+    insn |= w << 23;
+
+    assert(ofs >= -0x200 && ofs < 0x200 && (ofs & 7) == 0);
+    insn |= (ofs & (0x7f << 3)) << (15 - 3);
+
+    tcg_out32(s, insn | r2 << 10 | rn << 5 | r1);
 }
 
 static void tcg_out_insn_3401(TCGContext *s, AArch64Insn insn, TCGType ext,
@@ -1292,56 +1310,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 
 static uint8_t *tb_ret_addr;
 
-/* callee stack use example:
-   stp     x29, x30, [sp,#-32]!
-   mov     x29, sp
-   stp     x1, x2, [sp,#16]
-   ...
-   ldp     x1, x2, [sp,#16]
-   ldp     x29, x30, [sp],#32
-   ret
-*/
-
-/* push r1 and r2, and alloc stack space for a total of
-   alloc_n elements (1 element=16 bytes, must be between 1 and 31. */
-static inline void tcg_out_push_pair(TCGContext *s, TCGReg addr,
-                                     TCGReg r1, TCGReg r2, int alloc_n)
-{
-    /* using indexed scaled simm7 STP 0x28800000 | (ext) | 0x01000000 (pre-idx)
-       | alloc_n * (-1) << 16 | r2 << 10 | addr << 5 | r1 */
-    assert(alloc_n > 0 && alloc_n < 0x20);
-    alloc_n = (-alloc_n) & 0x3f;
-    tcg_out32(s, 0xa9800000 | alloc_n << 16 | r2 << 10 | addr << 5 | r1);
-}
-
-/* dealloc stack space for a total of alloc_n elements and pop r1, r2.  */
-static inline void tcg_out_pop_pair(TCGContext *s, TCGReg addr,
-                                    TCGReg r1, TCGReg r2, int alloc_n)
-{
-    /* using indexed scaled simm7 LDP 0x28c00000 | (ext) | nothing (post-idx)
-       | alloc_n << 16 | r2 << 10 | addr << 5 | r1 */
-    assert(alloc_n > 0 && alloc_n < 0x20);
-    tcg_out32(s, 0xa8c00000 | alloc_n << 16 | r2 << 10 | addr << 5 | r1);
-}
-
-static inline void tcg_out_store_pair(TCGContext *s, TCGReg addr,
-                                      TCGReg r1, TCGReg r2, int idx)
-{
-    /* using register pair offset simm7 STP 0x29000000 | (ext)
-       | idx << 16 | r2 << 10 | addr << 5 | r1 */
-    assert(idx > 0 && idx < 0x20);
-    tcg_out32(s, 0xa9000000 | idx << 16 | r2 << 10 | addr << 5 | r1);
-}
-
-static inline void tcg_out_load_pair(TCGContext *s, TCGReg addr,
-                                     TCGReg r1, TCGReg r2, int idx)
-{
-    /* using register pair offset simm7 LDP 0x29400000 | (ext)
-       | idx << 16 | r2 << 10 | addr << 5 | r1 */
-    assert(idx > 0 && idx < 0x20);
-    tcg_out32(s, 0xa9400000 | idx << 16 | r2 << 10 | addr << 5 | r1);
-}
-
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1887,33 +1855,32 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     TCGReg r;
 
     /* save pairs             (FP, LR) and (X19, X20) .. (X27, X28) */
-    frame_size_callee_saved = (1) + (TCG_REG_X28 - TCG_REG_X19) / 2 + 1;
+    frame_size_callee_saved = 16 + (TCG_REG_X28 - TCG_REG_X19 + 1) * 8;
 
     /* frame size requirement for TCG local variables */
     frame_size_tcg_locals = TCG_STATIC_CALL_ARGS_SIZE
         + CPU_TEMP_BUF_NLONGS * sizeof(long)
         + (TCG_TARGET_STACK_ALIGN - 1);
     frame_size_tcg_locals &= ~(TCG_TARGET_STACK_ALIGN - 1);
-    frame_size_tcg_locals /= TCG_TARGET_STACK_ALIGN;
 
-    /* push (FP, LR) and update sp */
-    tcg_out_push_pair(s, TCG_REG_SP,
-                      TCG_REG_FP, TCG_REG_LR, frame_size_callee_saved);
+    /* Push (FP, LR) and allocate space for all saved registers.  */
+    tcg_out_insn(s, 3314, STP, TCG_REG_FP, TCG_REG_LR,
+                 TCG_REG_SP, -frame_size_callee_saved, 1, 1);
 
     /* Set up frame pointer for canonical unwinding.  */
     tcg_out_movr_sp(s, TCG_TYPE_I64, TCG_REG_FP, TCG_REG_SP);
 
     /* Store callee-preserved regs x19..x28.  */
     for (r = TCG_REG_X19; r <= TCG_REG_X27; r += 2) {
-        int idx = (r - TCG_REG_X19) / 2 + 1;
-        tcg_out_store_pair(s, TCG_REG_SP, r, r + 1, idx);
+        int ofs = (r - TCG_REG_X19 + 2) * 8;
+        tcg_out_insn(s, 3314, STP, r, r + 1, TCG_REG_SP, ofs, 1, 0);
     }
 
     /* Make stack space for TCG locals.  */
     tcg_out_insn(s, 3401, SUBI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
-                 frame_size_tcg_locals * TCG_TARGET_STACK_ALIGN);
+                 frame_size_tcg_locals);
 
-    /* inform TCG about how to find TCG locals with register, offset, size */
+    /* Inform TCG about how to find TCG locals with register, offset, size.  */
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
@@ -1931,17 +1898,16 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Remove TCG locals stack space.  */
     tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
-                 frame_size_tcg_locals * TCG_TARGET_STACK_ALIGN);
+                 frame_size_tcg_locals);
 
-    /* restore registers x19..x28.
-       FP must be preserved, so it still points to callee_saved area */
+    /* Restore registers x19..x28.  */
     for (r = TCG_REG_X19; r <= TCG_REG_X27; r += 2) {
-        int idx = (r - TCG_REG_X19) / 2 + 1;
-        tcg_out_load_pair(s, TCG_REG_SP, r, r + 1, idx);
+        int ofs = (r - TCG_REG_X19 + 2) * 8;
+        tcg_out_insn(s, 3314, LDP, r, r + 1, TCG_REG_SP, ofs, 1, 0);
     }
 
-    /* pop (FP, LR), restore SP to previous frame, return */
-    tcg_out_pop_pair(s, TCG_REG_SP,
-                     TCG_REG_FP, TCG_REG_LR, frame_size_callee_saved);
+    /* Pop (FP, LR), restore SP to previous frame.  */
+    tcg_out_insn(s, 3314, LDP, TCG_REG_FP, TCG_REG_LR,
+                 TCG_REG_SP, frame_size_callee_saved, 0, 1);
     tcg_out_insn(s, 3207, RET, TCG_REG_LR);
 }
