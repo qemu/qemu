@@ -13,6 +13,11 @@
 #include "tcg-be-ldst.h"
 #include "qemu/bitops.h"
 
+/* We're going to re-use TCGType in setting of the SF bit, which controls
+   the size of the operation performed.  If we know the values match, it
+   makes things much cleaner.  */
+QEMU_BUILD_BUG_ON(TCG_TYPE_I32 != 0 || TCG_TYPE_I64 != 1);
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%x0", "%x1", "%x2", "%x3", "%x4", "%x5", "%x6", "%x7",
@@ -327,7 +332,8 @@ static inline void tcg_out_ldst_12(TCGContext *s,
               | op_type << 20 | scaled_uimm << 10 | rn << 5 | rd);
 }
 
-static inline void tcg_out_movr(TCGContext *s, int ext, TCGReg rd, TCGReg src)
+static inline void tcg_out_movr(TCGContext *s, TCGType ext,
+                                TCGReg rd, TCGReg src)
 {
     /* register to register move using MOV (shifted register with no shift) */
     /* using MOV 0x2a0003e0 | (shift).. */
@@ -408,7 +414,8 @@ static inline void tcg_out_ldst(TCGContext *s, enum aarch64_ldst_op_data data,
 }
 
 /* mov alias implemented with add immediate, useful to move to/from SP */
-static inline void tcg_out_movr_sp(TCGContext *s, int ext, TCGReg rd, TCGReg rn)
+static inline void tcg_out_movr_sp(TCGContext *s, TCGType ext,
+                                   TCGReg rd, TCGReg rn)
 {
     /* using ADD 0x11000000 | (ext) | rn << 5 | rd */
     unsigned int base = ext ? 0x91000000 : 0x11000000;
@@ -438,7 +445,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 }
 
 static inline void tcg_out_arith(TCGContext *s, enum aarch64_arith_opc opc,
-                                 int ext, TCGReg rd, TCGReg rn, TCGReg rm,
+                                 TCGType ext, TCGReg rd, TCGReg rn, TCGReg rm,
                                  int shift_imm)
 {
     /* Using shifted register arithmetic operations */
@@ -454,7 +461,7 @@ static inline void tcg_out_arith(TCGContext *s, enum aarch64_arith_opc opc,
     tcg_out32(s, base | rm << 16 | shift | rn << 5 | rd);
 }
 
-static inline void tcg_out_mul(TCGContext *s, int ext,
+static inline void tcg_out_mul(TCGContext *s, TCGType ext,
                                TCGReg rd, TCGReg rn, TCGReg rm)
 {
     /* Using MADD 0x1b000000 with Ra = wzr alias MUL 0x1b007c00 */
@@ -463,7 +470,7 @@ static inline void tcg_out_mul(TCGContext *s, int ext,
 }
 
 static inline void tcg_out_shiftrot_reg(TCGContext *s,
-                                        enum aarch64_srr_opc opc, int ext,
+                                        enum aarch64_srr_opc opc, TCGType ext,
                                         TCGReg rd, TCGReg rn, TCGReg rm)
 {
     /* using 2-source data processing instructions 0x1ac02000 */
@@ -471,23 +478,23 @@ static inline void tcg_out_shiftrot_reg(TCGContext *s,
     tcg_out32(s, base | rm << 16 | opc << 8 | rn << 5 | rd);
 }
 
-static inline void tcg_out_ubfm(TCGContext *s, int ext, TCGReg rd, TCGReg rn,
-                                unsigned int a, unsigned int b)
+static inline void tcg_out_ubfm(TCGContext *s, TCGType ext, TCGReg rd,
+                                TCGReg rn, unsigned int a, unsigned int b)
 {
     /* Using UBFM 0x53000000 Wd, Wn, a, b */
     unsigned int base = ext ? 0xd3400000 : 0x53000000;
     tcg_out32(s, base | a << 16 | b << 10 | rn << 5 | rd);
 }
 
-static inline void tcg_out_sbfm(TCGContext *s, int ext, TCGReg rd, TCGReg rn,
-                                unsigned int a, unsigned int b)
+static inline void tcg_out_sbfm(TCGContext *s, TCGType ext, TCGReg rd,
+                                TCGReg rn, unsigned int a, unsigned int b)
 {
     /* Using SBFM 0x13000000 Wd, Wn, a, b */
     unsigned int base = ext ? 0x93400000 : 0x13000000;
     tcg_out32(s, base | a << 16 | b << 10 | rn << 5 | rd);
 }
 
-static inline void tcg_out_extr(TCGContext *s, int ext, TCGReg rd,
+static inline void tcg_out_extr(TCGContext *s, TCGType ext, TCGReg rd,
                                 TCGReg rn, TCGReg rm, unsigned int a)
 {
     /* Using EXTR 0x13800000 Wd, Wn, Wm, a */
@@ -495,7 +502,7 @@ static inline void tcg_out_extr(TCGContext *s, int ext, TCGReg rd,
     tcg_out32(s, base | rm << 16 | a << 10 | rn << 5 | rd);
 }
 
-static inline void tcg_out_shl(TCGContext *s, int ext,
+static inline void tcg_out_shl(TCGContext *s, TCGType ext,
                                TCGReg rd, TCGReg rn, unsigned int m)
 {
     int bits, max;
@@ -504,28 +511,28 @@ static inline void tcg_out_shl(TCGContext *s, int ext,
     tcg_out_ubfm(s, ext, rd, rn, bits - (m & max), max - (m & max));
 }
 
-static inline void tcg_out_shr(TCGContext *s, int ext,
+static inline void tcg_out_shr(TCGContext *s, TCGType ext,
                                TCGReg rd, TCGReg rn, unsigned int m)
 {
     int max = ext ? 63 : 31;
     tcg_out_ubfm(s, ext, rd, rn, m & max, max);
 }
 
-static inline void tcg_out_sar(TCGContext *s, int ext,
+static inline void tcg_out_sar(TCGContext *s, TCGType ext,
                                TCGReg rd, TCGReg rn, unsigned int m)
 {
     int max = ext ? 63 : 31;
     tcg_out_sbfm(s, ext, rd, rn, m & max, max);
 }
 
-static inline void tcg_out_rotr(TCGContext *s, int ext,
+static inline void tcg_out_rotr(TCGContext *s, TCGType ext,
                                 TCGReg rd, TCGReg rn, unsigned int m)
 {
     int max = ext ? 63 : 31;
     tcg_out_extr(s, ext, rd, rn, rn, m & max);
 }
 
-static inline void tcg_out_rotl(TCGContext *s, int ext,
+static inline void tcg_out_rotl(TCGContext *s, TCGType ext,
                                 TCGReg rd, TCGReg rn, unsigned int m)
 {
     int bits, max;
@@ -534,14 +541,15 @@ static inline void tcg_out_rotl(TCGContext *s, int ext,
     tcg_out_extr(s, ext, rd, rn, rn, bits - (m & max));
 }
 
-static inline void tcg_out_cmp(TCGContext *s, int ext, TCGReg rn, TCGReg rm,
-                               int shift_imm)
+static inline void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg rn,
+                               TCGReg rm, int shift_imm)
 {
     /* Using CMP alias SUBS wzr, Wn, Wm */
     tcg_out_arith(s, ARITH_SUBS, ext, TCG_REG_XZR, rn, rm, shift_imm);
 }
 
-static inline void tcg_out_cset(TCGContext *s, int ext, TCGReg rd, TCGCond c)
+static inline void tcg_out_cset(TCGContext *s, TCGType ext,
+                                TCGReg rd, TCGCond c)
 {
     /* Using CSET alias of CSINC 0x1a800400 Xd, XZR, XZR, invert(cond) */
     unsigned int base = ext ? 0x9a9f07e0 : 0x1a9f07e0;
@@ -638,7 +646,7 @@ aarch64_limm(unsigned int m, unsigned int r)
    to test a 32bit reg against 0xff000000, pass M = 8,  R = 8.
    to test a 32bit reg against 0xff0000ff, pass M = 16, R = 8.
  */
-static inline void tcg_out_tst(TCGContext *s, int ext, TCGReg rn,
+static inline void tcg_out_tst(TCGContext *s, TCGType ext, TCGReg rn,
                                unsigned int m, unsigned int r)
 {
     /* using TST alias of ANDS XZR, Xn,#bimm64 0x7200001f */
@@ -647,8 +655,8 @@ static inline void tcg_out_tst(TCGContext *s, int ext, TCGReg rn,
 }
 
 /* and a register with a bit pattern, similarly to TST, no flags change */
-static inline void tcg_out_andi(TCGContext *s, int ext, TCGReg rd, TCGReg rn,
-                                unsigned int m, unsigned int r)
+static inline void tcg_out_andi(TCGContext *s, TCGType ext, TCGReg rd,
+                                TCGReg rn, unsigned int m, unsigned int r)
 {
     /* using AND 0x12000000 */
     unsigned int base = ext ? 0x92400000 : 0x12000000;
@@ -701,21 +709,23 @@ static inline void tcg_out_goto_label_cond(TCGContext *s,
     }
 }
 
-static inline void tcg_out_rev(TCGContext *s, int ext, TCGReg rd, TCGReg rm)
+static inline void tcg_out_rev(TCGContext *s, TCGType ext,
+                               TCGReg rd, TCGReg rm)
 {
     /* using REV 0x5ac00800 */
     unsigned int base = ext ? 0xdac00c00 : 0x5ac00800;
     tcg_out32(s, base | rm << 5 | rd);
 }
 
-static inline void tcg_out_rev16(TCGContext *s, int ext, TCGReg rd, TCGReg rm)
+static inline void tcg_out_rev16(TCGContext *s, TCGType ext,
+                                 TCGReg rd, TCGReg rm)
 {
     /* using REV16 0x5ac00400 */
     unsigned int base = ext ? 0xdac00400 : 0x5ac00400;
     tcg_out32(s, base | rm << 5 | rd);
 }
 
-static inline void tcg_out_sxt(TCGContext *s, int ext, int s_bits,
+static inline void tcg_out_sxt(TCGContext *s, TCGType ext, int s_bits,
                                TCGReg rd, TCGReg rn)
 {
     /* using ALIASes SXTB 0x13001c00, SXTH 0x13003c00, SXTW 0x93407c00
@@ -733,7 +743,7 @@ static inline void tcg_out_uxt(TCGContext *s, int s_bits,
     tcg_out_ubfm(s, 0, rd, rn, 0, bits);
 }
 
-static inline void tcg_out_addi(TCGContext *s, int ext,
+static inline void tcg_out_addi(TCGContext *s, TCGType ext,
                                 TCGReg rd, TCGReg rn, unsigned int aimm)
 {
     /* add immediate aimm unsigned 12bit value (with LSL 0 or 12) */
@@ -753,7 +763,7 @@ static inline void tcg_out_addi(TCGContext *s, int ext,
     tcg_out32(s, base | aimm | (rn << 5) | rd);
 }
 
-static inline void tcg_out_subi(TCGContext *s, int ext,
+static inline void tcg_out_subi(TCGContext *s, TCGType ext,
                                 TCGReg rd, TCGReg rn, unsigned int aimm)
 {
     /* sub immediate aimm unsigned 12bit value (with LSL 0 or 12) */
@@ -1092,7 +1102,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 {
     /* ext will be set in the switch below, which will fall through to the
        common code. It triggers the use of extended regs where appropriate. */
-    int ext = 0;
+    TCGType ext = 0;
 
     switch (opc) {
     case INDEX_op_exit_tb:
