@@ -1515,10 +1515,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext8s_i32:
-        tcg_out_ext8s(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_SEB, args[0], 0, args[1]);
         break;
     case INDEX_op_ext16s_i32:
-        tcg_out_ext16s(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_SEH, args[0], 0, args[1]);
         break;
 
     case INDEX_op_deposit_i32:
