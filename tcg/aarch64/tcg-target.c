@@ -1100,9 +1100,9 @@ static inline void tcg_out_load_pair(TCGContext *s, TCGReg addr,
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg *args, const int *const_args)
 {
-    /* ext will be set in the switch below, which will fall through to the
-       common code. It triggers the use of extended regs where appropriate. */
-    TCGType ext = 0;
+    /* 99% of the time, we can signal the use of extension registers
+       by looking to see if the opcode handles 64-bit data.  */
+    TCGType ext = (tcg_op_defs[opc].flags & TCG_OPF_64BIT) != 0;
 
     switch (opc) {
     case INDEX_op_exit_tb:
@@ -1158,7 +1158,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_mov_i64:
-        ext = 1; /* fall through */
     case INDEX_op_mov_i32:
         tcg_out_movr(s, ext, args[0], args[1]);
         break;
@@ -1171,43 +1170,36 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_add_i64:
-        ext = 1; /* fall through */
     case INDEX_op_add_i32:
         tcg_out_arith(s, ARITH_ADD, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_sub_i64:
-        ext = 1; /* fall through */
     case INDEX_op_sub_i32:
         tcg_out_arith(s, ARITH_SUB, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_and_i64:
-        ext = 1; /* fall through */
     case INDEX_op_and_i32:
         tcg_out_arith(s, ARITH_AND, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_or_i64:
-        ext = 1; /* fall through */
     case INDEX_op_or_i32:
         tcg_out_arith(s, ARITH_OR, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_xor_i64:
-        ext = 1; /* fall through */
     case INDEX_op_xor_i32:
         tcg_out_arith(s, ARITH_XOR, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_mul_i64:
-        ext = 1; /* fall through */
     case INDEX_op_mul_i32:
         tcg_out_mul(s, ext, args[0], args[1], args[2]);
         break;
 
     case INDEX_op_shl_i64:
-        ext = 1; /* fall through */
     case INDEX_op_shl_i32:
         if (const_args[2]) {    /* LSL / UBFM Wd, Wn, (32 - m) */
             tcg_out_shl(s, ext, args[0], args[1], args[2]);
@@ -1217,7 +1209,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_shr_i64:
-        ext = 1; /* fall through */
     case INDEX_op_shr_i32:
         if (const_args[2]) {    /* LSR / UBFM Wd, Wn, m, 31 */
             tcg_out_shr(s, ext, args[0], args[1], args[2]);
@@ -1227,7 +1218,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_sar_i64:
-        ext = 1; /* fall through */
     case INDEX_op_sar_i32:
         if (const_args[2]) {    /* ASR / SBFM Wd, Wn, m, 31 */
             tcg_out_sar(s, ext, args[0], args[1], args[2]);
@@ -1237,7 +1227,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_rotr_i64:
-        ext = 1; /* fall through */
     case INDEX_op_rotr_i32:
         if (const_args[2]) {    /* ROR / EXTR Wd, Wm, Wm, m */
             tcg_out_rotr(s, ext, args[0], args[1], args[2]);
@@ -1247,7 +1236,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_rotl_i64:
-        ext = 1; /* fall through */
     case INDEX_op_rotl_i32:     /* same as rotate right by (32 - m) */
         if (const_args[2]) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
             tcg_out_rotl(s, ext, args[0], args[1], args[2]);
@@ -1260,14 +1248,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i64:
-        ext = 1; /* fall through */
     case INDEX_op_brcond_i32: /* CMP 0, 1, cond(2), label 3 */
         tcg_out_cmp(s, ext, args[0], args[1], 0);
         tcg_out_goto_label_cond(s, args[2], args[3]);
         break;
 
     case INDEX_op_setcond_i64:
-        ext = 1; /* fall through */
     case INDEX_op_setcond_i32:
         tcg_out_cmp(s, ext, args[1], args[2], 0);
         tcg_out_cset(s, 0, args[0], args[3]);
@@ -1310,9 +1296,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, 3);
         break;
 
-    case INDEX_op_bswap64_i64:
-        ext = 1; /* fall through */
     case INDEX_op_bswap32_i64:
+        /* Despite the _i64, this is a 32-bit bswap.  */
+        ext = 0;
+        /* FALLTHRU */
+    case INDEX_op_bswap64_i64:
     case INDEX_op_bswap32_i32:
         tcg_out_rev(s, ext, args[0], args[1]);
         break;
@@ -1322,12 +1310,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext8s_i64:
-        ext = 1; /* fall through */
     case INDEX_op_ext8s_i32:
         tcg_out_sxt(s, ext, 0, args[0], args[1]);
         break;
     case INDEX_op_ext16s_i64:
-        ext = 1; /* fall through */
     case INDEX_op_ext16s_i32:
         tcg_out_sxt(s, ext, 1, args[0], args[1]);
         break;
