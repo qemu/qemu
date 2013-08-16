@@ -16,7 +16,6 @@
 #include "qemu/option.h"
 
 void smbios_entry_add(QemuOpts *opts);
-void smbios_add_field(int type, int offset, const void *data, size_t len);
 uint8_t *smbios_get_table(size_t *length);
 
 /*

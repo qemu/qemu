@@ -47,12 +47,24 @@ struct smbios_table {
 static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
 static int smbios_type4_count = 0;
+static bool smbios_immutable;
 
 static struct {
     bool seen;
     int headertype;
     Location loc;
 } first_opt[2];
+
+static struct {
+    const char *vendor, *version, *date;
+    bool have_major_minor;
+    uint8_t major, minor;
+} type0;
+
+static struct {
+    const char *manufacturer, *product, *version, *serial, *sku, *family;
+    /* uuid is in qemu_uuid[] */
+} type1;
 
 static QemuOptsList qemu_smbios_opts = {
     .name = "smbios",
@@ -152,13 +164,6 @@ static void smbios_validate_table(void)
     }
 }
 
-uint8_t *smbios_get_table(size_t *length)
-{
-    smbios_validate_table();
-    *length = smbios_entries_len;
-    return smbios_entries;
-}
-
 /*
  * To avoid unresolvable overlaps in data, don't allow both
  * tables and fields for the same smbios type.
@@ -182,11 +187,9 @@ static void smbios_check_collision(int type, int entry)
     }
 }
 
-void smbios_add_field(int type, int offset, const void *data, size_t len)
+static void smbios_add_field(int type, int offset, const void *data, size_t len)
 {
     struct smbios_field *field;
-
-    smbios_check_collision(type, SMBIOS_FIELD_ENTRY);
 
     if (!smbios_entries) {
         smbios_entries_len = sizeof(uint16_t);
@@ -207,82 +210,81 @@ void smbios_add_field(int type, int offset, const void *data, size_t len)
             cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
 }
 
-static void smbios_build_type_0_fields(QemuOpts *opts)
+static void smbios_build_type_0_fields(void)
 {
-    const char *val;
-    unsigned char major, minor;
-
-    val = qemu_opt_get(opts, "vendor");
-    if (val) {
+    if (type0.vendor) {
         smbios_add_field(0, offsetof(struct smbios_type_0, vendor_str),
-                         val, strlen(val) + 1);
+                         type0.vendor, strlen(type0.vendor) + 1);
     }
-    val = qemu_opt_get(opts, "version");
-    if (val) {
+    if (type0.version) {
         smbios_add_field(0, offsetof(struct smbios_type_0, bios_version_str),
-                         val, strlen(val) + 1);
+                         type0.version, strlen(type0.version) + 1);
     }
-    val = qemu_opt_get(opts, "date");
-    if (val) {
+    if (type0.date) {
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      bios_release_date_str),
-                         val, strlen(val) + 1);
+                         type0.date, strlen(type0.date) + 1);
     }
-    val = qemu_opt_get(opts, "release");
-    if (val) {
-        if (sscanf(val, "%hhu.%hhu", &major, &minor) != 2) {
-            error_report("Invalid release");
-            exit(1);
-        }
+    if (type0.have_major_minor) {
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      system_bios_major_release),
-                         &major, 1);
+                         &type0.major, 1);
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      system_bios_minor_release),
-                         &minor, 1);
+                         &type0.minor, 1);
     }
 }
 
-static void smbios_build_type_1_fields(QemuOpts *opts)
+static void smbios_build_type_1_fields(void)
 {
-    const char *val;
-
-    val = qemu_opt_get(opts, "manufacturer");
-    if (val) {
+    if (type1.manufacturer) {
         smbios_add_field(1, offsetof(struct smbios_type_1, manufacturer_str),
-                         val, strlen(val) + 1);
+                         type1.manufacturer, strlen(type1.manufacturer) + 1);
     }
-    val = qemu_opt_get(opts, "product");
-    if (val) {
+    if (type1.product) {
         smbios_add_field(1, offsetof(struct smbios_type_1, product_name_str),
-                         val, strlen(val) + 1);
+                         type1.product, strlen(type1.product) + 1);
     }
-    val = qemu_opt_get(opts, "version");
-    if (val) {
+    if (type1.version) {
         smbios_add_field(1, offsetof(struct smbios_type_1, version_str),
-                         val, strlen(val) + 1);
+                         type1.version, strlen(type1.version) + 1);
     }
-    val = qemu_opt_get(opts, "serial");
-    if (val) {
+    if (type1.serial) {
         smbios_add_field(1, offsetof(struct smbios_type_1, serial_number_str),
-                         val, strlen(val) + 1);
+                         type1.serial, strlen(type1.serial) + 1);
     }
-    val = qemu_opt_get(opts, "uuid");
-    if (val) {
-        if (qemu_uuid_parse(val, qemu_uuid) != 0) {
-            error_report("Invalid UUID");
-            exit(1);
-        }
-    }
-    val = qemu_opt_get(opts, "sku");
-    if (val) {
+    if (type1.sku) {
         smbios_add_field(1, offsetof(struct smbios_type_1, sku_number_str),
-                         val, strlen(val) + 1);
+                         type1.sku, strlen(type1.sku) + 1);
     }
-    val = qemu_opt_get(opts, "family");
-    if (val) {
+    if (type1.family) {
         smbios_add_field(1, offsetof(struct smbios_type_1, family_str),
-                         val, strlen(val) + 1);
+                         type1.family, strlen(type1.family) + 1);
+    }
+    if (qemu_uuid_set) {
+        smbios_add_field(1, offsetof(struct smbios_type_1, uuid),
+                         qemu_uuid, 16);
+    }
+}
+
+uint8_t *smbios_get_table(size_t *length)
+{
+    if (!smbios_immutable) {
+        smbios_build_type_0_fields();
+        smbios_build_type_1_fields();
+        smbios_validate_table();
+        smbios_immutable = true;
+    }
+    *length = smbios_entries_len;
+    return smbios_entries;
+}
+
+static void save_opt(const char **dest, QemuOpts *opts, const char *name)
+{
+    const char *val = qemu_opt_get(opts, name);
+
+    if (val) {
+        *dest = val;
     }
 }
 
@@ -291,6 +293,7 @@ void smbios_entry_add(QemuOpts *opts)
     Error *local_err = NULL;
     const char *val;
 
+    assert(!smbios_immutable);
     val = qemu_opt_get(opts, "file");
     if (val) {
         struct smbios_structure_header *header;
@@ -341,6 +344,8 @@ void smbios_entry_add(QemuOpts *opts)
     if (val) {
         unsigned long type = strtoul(val, NULL, 0);
 
+        smbios_check_collision(type, SMBIOS_FIELD_ENTRY);
+
         switch (type) {
         case 0:
             qemu_opts_validate(opts, qemu_smbios_type0_opts, &local_err);
@@ -348,7 +353,18 @@ void smbios_entry_add(QemuOpts *opts)
                 error_report("%s", error_get_pretty(local_err));
                 exit(1);
             }
-            smbios_build_type_0_fields(opts);
+            save_opt(&type0.vendor, opts, "vendor");
+            save_opt(&type0.version, opts, "version");
+            save_opt(&type0.date, opts, "date");
+
+            val = qemu_opt_get(opts, "release");
+            if (val) {
+                if (sscanf(val, "%hhu.%hhu", &type0.major, &type0.minor) != 2) {
+                    error_report("Invalid release");
+                    exit(1);
+                }
+                type0.have_major_minor = true;
+            }
             return;
         case 1:
             qemu_opts_validate(opts, qemu_smbios_type1_opts, &local_err);
@@ -356,7 +372,21 @@ void smbios_entry_add(QemuOpts *opts)
                 error_report("%s", error_get_pretty(local_err));
                 exit(1);
             }
-            smbios_build_type_1_fields(opts);
+            save_opt(&type1.manufacturer, opts, "manufacturer");
+            save_opt(&type1.product, opts, "product");
+            save_opt(&type1.version, opts, "version");
+            save_opt(&type1.serial, opts, "serial");
+            save_opt(&type1.sku, opts, "sku");
+            save_opt(&type1.family, opts, "family");
+
+            val = qemu_opt_get(opts, "uuid");
+            if (val) {
+                if (qemu_uuid_parse(val, qemu_uuid) != 0) {
+                    error_report("Invalid UUID");
+                    exit(1);
+                }
+                qemu_uuid_set = true;
+            }
             return;
         default:
             error_report("Don't know how to build fields for SMBIOS type %ld",
