@@ -48,6 +48,12 @@ static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
 static int smbios_type4_count = 0;
 
+static struct {
+    bool seen;
+    int headertype;
+    Location loc;
+} first_opt[2];
+
 static QemuOptsList qemu_smbios_opts = {
     .name = "smbios",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_smbios_opts.head),
@@ -159,35 +165,20 @@ uint8_t *smbios_get_table(size_t *length)
  */
 static void smbios_check_collision(int type, int entry)
 {
-    uint16_t *num_entries = (uint16_t *)smbios_entries;
-    struct smbios_header *header;
-    char *p;
-    int i;
-
-    if (!num_entries)
-        return;
-
-    p = (char *)(num_entries + 1);
-
-    for (i = 0; i < *num_entries; i++) {
-        header = (struct smbios_header *)p;
-        if (entry == SMBIOS_TABLE_ENTRY && header->type == SMBIOS_FIELD_ENTRY) {
-            struct smbios_field *field = (void *)header;
-            if (type == field->type) {
-                error_report("SMBIOS type %d field already defined, "
-                             "cannot add table", type);
+    if (type < ARRAY_SIZE(first_opt)) {
+        if (first_opt[type].seen) {
+            if (first_opt[type].headertype != entry) {
+                error_report("Can't mix file= and type= for same type");
+                loc_push_restore(&first_opt[type].loc);
+                error_report("This is the conflicting setting");
+                loc_pop(&first_opt[type].loc);
                 exit(1);
             }
-        } else if (entry == SMBIOS_FIELD_ENTRY &&
-                   header->type == SMBIOS_TABLE_ENTRY) {
-            struct smbios_structure_header *table = (void *)(header + 1);
-            if (type == table->type) {
-                error_report("SMBIOS type %d table already defined, "
-                             "cannot add field", type);
-                exit(1);
-            }
+        } else {
+            first_opt[type].seen = true;
+            first_opt[type].headertype = entry;
+            loc_save(&first_opt[type].loc);
         }
-        p += le16_to_cpu(header->length);
     }
 }
 
