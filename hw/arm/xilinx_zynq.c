@@ -233,7 +233,6 @@ static QEMUMachine zynq_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = 1,
     .no_sdcard = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void zynq_machine_init(void)

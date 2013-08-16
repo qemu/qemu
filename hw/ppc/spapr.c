@@ -1071,7 +1071,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    const char *boot_device = args->boot_order;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     PCIHostState *phb;
@@ -1325,7 +1325,7 @@ static QEMUMachine spapr_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
-    .boot_order = NULL,
+    .default_boot_order = NULL,
 };
 
 static void spapr_machine_init(void)

@@ -200,7 +200,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
                                     0xb100),
                       8, NULL, 0);
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_device,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_order,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
@@ -260,7 +260,7 @@ static QEMUMachine pc_q35_machine_v1_6 = {
     .init = pc_q35_init_1_6,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "cad",
 };
 
 static QEMUMachine pc_q35_machine_v1_5 = {
@@ -269,11 +269,11 @@ static QEMUMachine pc_q35_machine_v1_5 = {
     .init = pc_q35_init_1_5,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
+    .default_boot_order = "cad",
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_5,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine pc_q35_machine_v1_4 = {
@@ -281,11 +281,11 @@ static QEMUMachine pc_q35_machine_v1_4 = {
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init_1_4,
     .max_cpus = 255,
+    .default_boot_order = "cad",
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void pc_q35_machine_init(void)

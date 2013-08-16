@@ -881,7 +881,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                                     &kernel_addr, &kernel_entry);
 
     sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", args->ram_size,
-                           args->boot_device,
+                           args->boot_order,
                            kernel_addr, kernel_size,
                            args->kernel_cmdline,
                            initrd_addr, initrd_size,
@@ -906,7 +906,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_device[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_order[0]);
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_HEIGHT, graphic_height);
@@ -969,7 +969,7 @@ static QEMUMachine sun4u_machine = {
     .init = sun4u_init,
     .max_cpus = 1, // XXX for now
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine sun4v_machine = {
@@ -977,7 +977,7 @@ static QEMUMachine sun4v_machine = {
     .desc = "Sun4v platform",
     .init = sun4v_init,
     .max_cpus = 1, // XXX for now
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine niagara_machine = {
@@ -985,7 +985,7 @@ static QEMUMachine niagara_machine = {
     .desc = "Sun4v platform, Niagara",
     .init = niagara_init,
     .max_cpus = 1, // XXX for now
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static void sun4u_register_types(void)

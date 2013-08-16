@@ -51,7 +51,6 @@ static QEMUMachine e500plat_machine = {
     .desc = "generic paravirt e500 platform",
     .init = e500plat_init,
     .max_cpus = 32,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void e500plat_machine_init(void)

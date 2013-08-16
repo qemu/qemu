@@ -251,7 +251,6 @@ static QEMUMachine tosapda_machine = {
     .name = "tosa",
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void tosapda_machine_init(void)

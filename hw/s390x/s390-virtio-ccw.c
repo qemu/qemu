@@ -126,7 +126,6 @@ static QEMUMachine ccw_machine = {
     .no_sdcard = 1,
     .use_sclp = 1,
     .max_cpus = 255,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ccw_machine_init(void)
