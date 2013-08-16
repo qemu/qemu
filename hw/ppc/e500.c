@@ -124,13 +124,14 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
 }
 
 static int ppce500_load_device_tree(CPUPPCState *env,
+                                    QEMUMachineInitArgs *args,
                                     PPCE500Params *params,
                                     hwaddr addr,
                                     hwaddr initrd_base,
                                     hwaddr initrd_size)
 {
     int ret = -1;
-    uint64_t mem_reg_property[] = { 0, cpu_to_be64(params->ram_size) };
+    uint64_t mem_reg_property[] = { 0, cpu_to_be64(args->ram_size) };
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
@@ -205,7 +206,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     }
 
     ret = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
-                                      params->kernel_cmdline);
+                                      args->kernel_cmdline);
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
@@ -559,7 +560,7 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     return mpic;
 }
 
-void ppce500_init(PPCE500Params *params)
+void ppce500_init(QEMUMachineInitArgs *args, PPCE500Params *params)
 {
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -584,8 +585,8 @@ void ppce500_init(PPCE500Params *params)
     PPCE500CCSRState *ccsr;
 
     /* Setup CPUs */
-    if (params->cpu_model == NULL) {
-        params->cpu_model = "e500v2_v30";
+    if (args->cpu_model == NULL) {
+        args->cpu_model = "e500v2_v30";
     }
 
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
@@ -595,7 +596,7 @@ void ppce500_init(PPCE500Params *params)
         CPUState *cs;
         qemu_irq *input;
 
-        cpu = cpu_ppc_init(params->cpu_model);
+        cpu = cpu_ppc_init(args->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to initialize CPU!\n");
             exit(1);
@@ -634,7 +635,7 @@ void ppce500_init(PPCE500Params *params)
 
     /* Fixup Memory size on a alignment boundary */
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
-    params->ram_size = ram_size;
+    args->ram_size = ram_size;
 
     /* Register Memory */
     memory_region_init_ram(ram, NULL, "mpc8544ds.ram", ram_size);
@@ -701,11 +702,11 @@ void ppce500_init(PPCE500Params *params)
     sysbus_create_simple("e500-spin", MPC8544_SPIN_BASE, NULL);
 
     /* Load kernel. */
-    if (params->kernel_filename) {
-        kernel_size = load_uimage(params->kernel_filename, &entry,
+    if (args->kernel_filename) {
+        kernel_size = load_uimage(args->kernel_filename, &entry,
                                   &loadaddr, NULL);
         if (kernel_size < 0) {
-            kernel_size = load_elf(params->kernel_filename, NULL, NULL,
+            kernel_size = load_elf(args->kernel_filename, NULL, NULL,
                                    &elf_entry, &elf_lowaddr, NULL, 1,
                                    ELF_MACHINE, 0);
             entry = elf_entry;
@@ -714,7 +715,7 @@ void ppce500_init(PPCE500Params *params)
         /* XXX try again as binary */
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    params->kernel_filename);
+                    args->kernel_filename);
             exit(1);
         }
 
@@ -726,14 +727,14 @@ void ppce500_init(PPCE500Params *params)
     }
 
     /* Load initrd. */
-    if (params->initrd_filename) {
+    if (args->initrd_filename) {
         initrd_base = (cur_base + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
-        initrd_size = load_image_targphys(params->initrd_filename, initrd_base,
+        initrd_size = load_image_targphys(args->initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    params->initrd_filename);
+                    args->initrd_filename);
             exit(1);
         }
 
@@ -741,12 +742,12 @@ void ppce500_init(PPCE500Params *params)
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */
-    if (params->kernel_filename) {
+    if (args->kernel_filename) {
         struct boot_info *boot_info;
         int dt_size;
 
-        dt_size = ppce500_load_device_tree(env, params, dt_base, initrd_base,
-                                           initrd_size);
+        dt_size = ppce500_load_device_tree(env, args, params, dt_base,
+                                           initrd_base, initrd_size);
         if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
