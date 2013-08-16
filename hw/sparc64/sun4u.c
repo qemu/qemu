@@ -811,10 +811,7 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 }
 
 static void sun4uv_init(MemoryRegion *address_space_mem,
-                        ram_addr_t RAM_size,
-                        const char *boot_devices,
-                        const char *kernel_filename, const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model,
+                        QEMUMachineInitArgs *args,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
@@ -829,10 +826,10 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     FWCfgState *fw_cfg;
 
     /* init CPUs */
-    cpu = cpu_devinit(cpu_model, hwdef);
+    cpu = cpu_devinit(args->cpu_model, hwdef);
 
     /* set up devices */
-    ram_init(0, RAM_size);
+    ram_init(0, args->ram_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
@@ -878,13 +875,15 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     initrd_size = 0;
     initrd_addr = 0;
-    kernel_size = sun4u_load_kernel(kernel_filename, initrd_filename,
+    kernel_size = sun4u_load_kernel(args->kernel_filename,
+                                    args->initrd_filename,
                                     ram_size, &initrd_size, &initrd_addr,
                                     &kernel_addr, &kernel_entry);
 
-    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", RAM_size, boot_devices,
+    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", args->ram_size,
+                           args->boot_device,
                            kernel_addr, kernel_size,
-                           kernel_cmdline,
+                           args->kernel_cmdline,
                            initrd_addr, initrd_size,
                            /* XXX: need an option to load a NVRAM image */
                            0,
@@ -898,16 +897,16 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
     fw_cfg_add_i64(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_entry);
     fw_cfg_add_i64(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
-    if (kernel_cmdline) {
+    if (args->kernel_cmdline) {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                       strlen(kernel_cmdline) + 1);
-        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
+                       strlen(args->kernel_cmdline) + 1);
+        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, args->kernel_cmdline);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, 0);
     }
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
     fw_cfg_add_i64(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, boot_devices[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_device[0]);
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_HEIGHT, graphic_height);
@@ -949,40 +948,19 @@ static const struct hwdef hwdefs[] = {
 /* Sun4u hardware initialisation */
 static void sun4u_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[0]);
+    sun4uv_init(get_system_memory(), args, &hwdefs[0]);
 }
 
 /* Sun4v hardware initialisation */
 static void sun4v_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[1]);
+    sun4uv_init(get_system_memory(), args, &hwdefs[1]);
 }
 
 /* Niagara hardware initialisation */
 static void niagara_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_devices = args->boot_device;
-    sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[2]);
+    sun4uv_init(get_system_memory(), args, &hwdefs[2]);
 }
 
 static QEMUMachine sun4u_machine = {
