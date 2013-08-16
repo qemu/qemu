@@ -1134,10 +1134,10 @@ void do_acpitable_option(const QemuOpts *opts)
 #endif
 }
 
-void do_smbios_option(const char *optarg)
+void do_smbios_option(QemuOpts *opts)
 {
 #ifdef TARGET_I386
-    smbios_entry_add(optarg);
+    smbios_entry_add(opts);
 #endif
 }
 

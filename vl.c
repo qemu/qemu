@@ -3491,7 +3491,8 @@ int main(int argc, char **argv, char **envp)
                 do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
-                do_smbios_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("smbios"), optarg, 0);
+                do_smbios_option(opts);
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
