@@ -210,21 +210,22 @@ static void smbios_add_field(int type, int offset, const void *data, size_t len)
             cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
 }
 
+static void smbios_maybe_add_str(int type, int offset, const char *data)
+{
+    if (data) {
+        smbios_add_field(type, offset, data, strlen(data) + 1);
+    }
+}
+
 static void smbios_build_type_0_fields(void)
 {
-    if (type0.vendor) {
-        smbios_add_field(0, offsetof(struct smbios_type_0, vendor_str),
-                         type0.vendor, strlen(type0.vendor) + 1);
-    }
-    if (type0.version) {
-        smbios_add_field(0, offsetof(struct smbios_type_0, bios_version_str),
-                         type0.version, strlen(type0.version) + 1);
-    }
-    if (type0.date) {
-        smbios_add_field(0, offsetof(struct smbios_type_0,
+    smbios_maybe_add_str(0, offsetof(struct smbios_type_0, vendor_str),
+                         type0.vendor);
+    smbios_maybe_add_str(0, offsetof(struct smbios_type_0, bios_version_str),
+                         type0.version);
+    smbios_maybe_add_str(0, offsetof(struct smbios_type_0,
                                      bios_release_date_str),
-                         type0.date, strlen(type0.date) + 1);
-    }
+                         type0.date);
     if (type0.have_major_minor) {
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      system_bios_major_release),
@@ -237,30 +238,18 @@ static void smbios_build_type_0_fields(void)
 
 static void smbios_build_type_1_fields(void)
 {
-    if (type1.manufacturer) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, manufacturer_str),
-                         type1.manufacturer, strlen(type1.manufacturer) + 1);
-    }
-    if (type1.product) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, product_name_str),
-                         type1.product, strlen(type1.product) + 1);
-    }
-    if (type1.version) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, version_str),
-                         type1.version, strlen(type1.version) + 1);
-    }
-    if (type1.serial) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, serial_number_str),
-                         type1.serial, strlen(type1.serial) + 1);
-    }
-    if (type1.sku) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, sku_number_str),
-                         type1.sku, strlen(type1.sku) + 1);
-    }
-    if (type1.family) {
-        smbios_add_field(1, offsetof(struct smbios_type_1, family_str),
-                         type1.family, strlen(type1.family) + 1);
-    }
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, manufacturer_str),
+                         type1.manufacturer);
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, product_name_str),
+                         type1.product);
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, version_str),
+                         type1.version);
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, serial_number_str),
+                         type1.serial);
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, sku_number_str),
+                         type1.sku);
+    smbios_maybe_add_str(1, offsetof(struct smbios_type_1, family_str),
+                         type1.family);
     if (qemu_uuid_set) {
         smbios_add_field(1, offsetof(struct smbios_type_1, uuid),
                          qemu_uuid, 16);
