@@ -34,7 +34,7 @@ extern int tlb_flush_count;
 void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
 
 MemoryRegionSection *
-address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr, hwaddr *xlat,
                                   hwaddr *plen);
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section,

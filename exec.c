@@ -401,11 +401,12 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 }
 
 MemoryRegionSection *
-address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
-                                  hwaddr *plen)
+address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
+                                  hwaddr *xlat, hwaddr *plen)
 {
     MemoryRegionSection *section;
-    section = address_space_translate_internal(as->dispatch, addr, xlat, plen, false);
+    section = address_space_translate_internal(cpu->memory_dispatch,
+                                               addr, xlat, plen, false);
 
     assert(!section->mr->iommu_ops);
     return section;
@@ -1961,9 +1962,11 @@ static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
     return phys_section_add(map, &section);
 }
 
-MemoryRegion *iotlb_to_region(AddressSpace *as, hwaddr index)
+MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index)
 {
-    return as->dispatch->map.sections[index & ~TARGET_PAGE_MASK].mr;
+    MemoryRegionSection *sections = cpu->memory_dispatch->map.sections;
+
+    return sections[index & ~TARGET_PAGE_MASK].mr;
 }
 
 static void io_mem_init(void)

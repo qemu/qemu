@@ -24,6 +24,8 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
+#include "exec/address-spaces.h"
+#include "exec/memory-internal.h"
 
 /* -icount align implementation. */
 
@@ -144,7 +146,9 @@ void cpu_resume_from_signal(CPUState *cpu, void *puc)
 
 void cpu_reload_memory_map(CPUState *cpu)
 {
-    /* The TLB is protected by the iothread lock.  */
+    /* The CPU and TLB are protected by the iothread lock.  */
+    AddressSpaceDispatch *d = cpu->as->dispatch;
+    cpu->memory_dispatch = d;
     tlb_flush(cpu, 1);
 }
 #endif
