@@ -1137,9 +1137,7 @@ void do_acpitable_option(const QemuOpts *opts)
 void do_smbios_option(const char *optarg)
 {
 #ifdef TARGET_I386
-    if (smbios_entry_add(optarg) < 0) {
-        exit(1);
-    }
+    smbios_entry_add(optarg);
 #endif
 }
 

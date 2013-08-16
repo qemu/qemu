@@ -183,7 +183,7 @@ static void smbios_build_type_1_fields(const char *t)
                          buf, strlen(buf) + 1);
 }
 
-int smbios_entry_add(const char *t)
+void smbios_entry_add(const char *t)
 {
     char buf[1024];
 
@@ -222,7 +222,7 @@ int smbios_entry_add(const char *t)
         smbios_entries_len += sizeof(*table) + size;
         (*(uint16_t *)smbios_entries) =
                 cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
-        return 0;
+        return;
     }
 
     if (get_param_value(buf, sizeof(buf), "type", t)) {
@@ -230,10 +230,10 @@ int smbios_entry_add(const char *t)
         switch (type) {
         case 0:
             smbios_build_type_0_fields(t);
-            return 0;
+            return;
         case 1:
             smbios_build_type_1_fields(t);
-            return 0;
+            return;
         default:
             error_report("Don't know how to build fields for SMBIOS type %ld",
                          type);
@@ -242,5 +242,5 @@ int smbios_entry_add(const char *t)
     }
 
     error_report("Must specify type= or file=");
-    return -1;
+    exit(1);
 }
