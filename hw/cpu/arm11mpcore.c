@@ -93,7 +93,7 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
     SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
     memory_region_init(&s->container, OBJECT(s),
-                       "mpcode-priv-container", 0x2000);
+                       "mpcore-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, OBJECT(s),
                           &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
