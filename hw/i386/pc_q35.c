@@ -234,8 +234,8 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
 {
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
-    has_pci_info = false;
-    pc_q35_init(args);
+    /* 1.5 was special - it enabled pvpanic in builtin machine */
+    pc_q35_init_1_6(args);
 }
 
 static QEMUMachine pc_q35_machine_v1_6 = {
