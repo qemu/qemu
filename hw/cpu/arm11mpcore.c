@@ -7,33 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-#include "hw/misc/arm11scu.h"
-#include "hw/intc/arm_gic.h"
+#include "hw/cpu/arm11mpcore.h"
 #include "hw/intc/realview_gic.h"
-#include "hw/timer/arm_mptimer.h"
-#include "qemu/timer.h"
-
-/* MPCore private memory region.  */
-
-#define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
-#define ARM11MPCORE_PRIV(obj) \
-    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
-
-typedef struct ARM11MPCorePriveState {
-    SysBusDevice parent_obj;
-
-    uint32_t num_cpu;
-    MemoryRegion container;
-    uint32_t num_irq;
-
-    ARM11SCUState scu;
-    GICState gic;
-    ARMMPTimerState mptimer;
-    ARMMPTimerState wdtimer;
-} ARM11MPCorePriveState;
-
-/* Per-CPU private memory mapped IO.  */
 
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
