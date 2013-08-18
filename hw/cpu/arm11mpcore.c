@@ -20,8 +20,6 @@ typedef struct ARM11MPCorePriveState {
     SysBusDevice parent_obj;
 
     uint32_t scu_control;
-    int iomemtype;
-    uint32_t old_timer_status[8];
     uint32_t num_cpu;
     MemoryRegion iomem;
     MemoryRegion container;
