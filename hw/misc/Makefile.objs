@@ -11,6 +11,7 @@ obj-$(CONFIG_VMPORT) += vmport.o
 # ARM devices
 common-obj-$(CONFIG_PL310) += arm_l2x0.o
 common-obj-$(CONFIG_INTEGRATOR_DEBUG) += arm_integrator_debug.o
+common-obj-$(CONFIG_A9SCU) += a9scu.o
 
 # PKUnity SoC devices
 common-obj-$(CONFIG_PUV3) += puv3_pm.o
@@ -23,7 +24,6 @@ obj-$(CONFIG_LINUX) += vfio.o
 endif
 
 obj-$(CONFIG_REALVIEW) += arm_sysctl.o
-obj-$(CONFIG_A9SCU) += a9scu.o
 obj-$(CONFIG_NSERIES) += cbus.o
 obj-$(CONFIG_ECCMEMCTL) += eccmemctl.o
 obj-$(CONFIG_EXYNOS4) += exynos4210_pmu.o
