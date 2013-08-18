@@ -8,6 +8,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "hw/misc/arm11scu.h"
 #include "qemu/timer.h"
 
 /* MPCore private memory region.  */
@@ -19,64 +20,18 @@
 typedef struct ARM11MPCorePriveState {
     SysBusDevice parent_obj;
 
-    uint32_t scu_control;
     uint32_t num_cpu;
-    MemoryRegion iomem;
     MemoryRegion container;
     DeviceState *mptimer;
     DeviceState *wdtimer;
     DeviceState *gic;
     uint32_t num_irq;
+
+    ARM11SCUState scu;
 } ARM11MPCorePriveState;
 
 /* Per-CPU private memory mapped IO.  */
 
-static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
-                                unsigned size)
-{
-    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    int id;
-    /* SCU */
-    switch (offset) {
-    case 0x00: /* Control.  */
-        return s->scu_control;
-    case 0x04: /* Configuration.  */
-        id = ((1 << s->num_cpu) - 1) << 4;
-        return id | (s->num_cpu - 1);
-    case 0x08: /* CPU status.  */
-        return 0;
-    case 0x0c: /* Invalidate all.  */
-        return 0;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "mpcore_priv_read: Bad offset %x\n", (int)offset);
-        return 0;
-    }
-}
-
-static void mpcore_scu_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
-{
-    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    /* SCU */
-    switch (offset) {
-    case 0: /* Control register.  */
-        s->scu_control = value & 1;
-        break;
-    case 0x0c: /* Invalidate all.  */
-        /* This is a no-op as cache is not emulated.  */
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "mpcore_priv_read: Bad offset %x\n", (int)offset);
-    }
-}
-
-static const MemoryRegionOps mpcore_scu_ops = {
-    .read = mpcore_scu_read,
-    .write = mpcore_scu_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
@@ -87,12 +42,13 @@ static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
+    SysBusDevice *scubusdev = SYS_BUS_DEVICE(&s->scu);
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
     SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
     SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
-    memory_region_init_io(&s->iomem, OBJECT(s),
-                          &mpcore_scu_ops, s, "mpcore-scu", 0x100);
-    memory_region_add_subregion(&s->container, 0, &s->iomem);
+
+    memory_region_add_subregion(&s->container, 0,
+                                sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interfaces: "current CPU" at 0x100, then specific CPUs
      * at 0x200, 0x300...
      */
@@ -130,6 +86,10 @@ static int mpcore_priv_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
     ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(dev);
+    DeviceState *scudev = DEVICE(&s->scu);
+
+    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    qdev_init_nofail(scudev);
 
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
@@ -164,6 +124,9 @@ static void mpcore_priv_initfn(Object *obj)
     memory_region_init(&s->container, OBJECT(s),
                        "mpcore-priv-container", 0x2000);
     sysbus_init_mmio(sbd, &s->container);
+
+    object_initialize(&s->scu, sizeof(s->scu), TYPE_ARM11_SCU);
+    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
 }
 
 #define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
