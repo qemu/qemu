@@ -40,8 +40,9 @@ extern bool rom_file_in_ram;
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex);
-int rom_add_blob(const char *name, const void *blob, size_t len,
-                 hwaddr addr);
+void *rom_add_blob(const char *name, const void *blob, size_t len,
+                   hwaddr addr, const char *fw_file_name,
+                   FWCfgReadCallback fw_callback, void *callback_opaque);
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
                         size_t romsize, hwaddr addr);
 int rom_load_all(void);
@@ -53,7 +54,7 @@ void do_info_roms(Monitor *mon, const QDict *qdict);
 #define rom_add_file_fixed(_f, _a, _i)          \
     rom_add_file(_f, NULL, _a, _i)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
-    rom_add_blob(_f, _b, _l, _a)
+    (rom_add_blob(_f, _b, _l, _a, NULL, NULL, NULL) ? 0 : -1)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000
