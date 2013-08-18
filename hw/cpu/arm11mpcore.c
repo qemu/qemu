@@ -90,8 +90,6 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
     SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
     SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
-    memory_region_init(&s->container, OBJECT(s),
-                       "mpcore-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, OBJECT(s),
                           &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
@@ -155,8 +153,17 @@ static int mpcore_priv_init(SysBusDevice *sbd)
     qdev_init_nofail(s->wdtimer);
 
     mpcore_priv_map_setup(s);
-    sysbus_init_mmio(sbd, &s->container);
     return 0;
+}
+
+static void mpcore_priv_initfn(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(obj);
+
+    memory_region_init(&s->container, OBJECT(s),
+                       "mpcore-priv-container", 0x2000);
+    sysbus_init_mmio(sbd, &s->container);
 }
 
 #define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
@@ -277,6 +284,7 @@ static const TypeInfo mpcore_priv_info = {
     .name          = TYPE_ARM11MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARM11MPCorePriveState),
+    .instance_init = mpcore_priv_initfn,
     .class_init    = mpcore_priv_class_init,
 };
 
