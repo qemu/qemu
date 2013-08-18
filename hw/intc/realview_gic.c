@@ -7,20 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-#include "hw/intc/arm_gic.h"
-
-#define TYPE_REALVIEW_GIC "realview_gic"
-#define REALVIEW_GIC(obj) \
-    OBJECT_CHECK(RealViewGICState, (obj), TYPE_REALVIEW_GIC)
-
-typedef struct RealViewGICState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion container;
-
-    GICState gic;
-} RealViewGICState;
+#include "hw/intc/realview_gic.h"
 
 static void realview_gic_set_irq(void *opaque, int irq, int level)
 {
