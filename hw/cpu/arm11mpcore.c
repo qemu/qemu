@@ -10,6 +10,7 @@
 #include "hw/sysbus.h"
 #include "hw/misc/arm11scu.h"
 #include "hw/intc/arm_gic.h"
+#include "hw/intc/realview_gic.h"
 #include "hw/timer/arm_mptimer.h"
 #include "qemu/timer.h"
 
@@ -168,10 +169,12 @@ static void mpcore_priv_initfn(Object *obj)
 typedef struct {
     SysBusDevice parent_obj;
 
-    SysBusDevice *priv;
     qemu_irq cpuic[32];
     qemu_irq rvic[4][64];
     uint32_t num_cpu;
+
+    ARM11MPCorePriveState priv;
+    RealViewGICState gic[4];
 } mpcore_rirq_state;
 
 /* Map baseboard IRQs onto CPU IRQ lines.  */
@@ -198,34 +201,61 @@ static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static int realview_mpcore_init(SysBusDevice *sbd)
+static void realview_mpcore_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     mpcore_rirq_state *s = REALVIEW_MPCORE_RIRQ(dev);
+    DeviceState *priv = DEVICE(&s->priv);
     DeviceState *gic;
-    DeviceState *priv;
+    SysBusDevice *gicbusdev;
+    Error *err = NULL;
     int n;
     int i;
 
-    priv = qdev_create(NULL, TYPE_ARM11MPCORE_PRIV);
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
-    qdev_init_nofail(priv);
-    s->priv = SYS_BUS_DEVICE(priv);
-    sysbus_pass_irq(sbd, s->priv);
+    object_property_set_bool(OBJECT(&s->priv), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->priv));
     for (i = 0; i < 32; i++) {
         s->cpuic[i] = qdev_get_gpio_in(priv, i);
     }
     /* ??? IRQ routing is hardcoded to "normal" mode.  */
     for (n = 0; n < 4; n++) {
-        gic = sysbus_create_simple("realview_gic", 0x10040000 + n * 0x10000,
-                                   s->cpuic[10 + n]);
+        object_property_set_bool(OBJECT(&s->gic[n]), true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        gic = DEVICE(&s->gic[n]);
+        gicbusdev = SYS_BUS_DEVICE(&s->gic[n]);
+        sysbus_mmio_map(gicbusdev, 0, 0x10040000 + n * 0x10000);
+        sysbus_connect_irq(gicbusdev, 0, s->cpuic[10 + n]);
         for (i = 0; i < 64; i++) {
             s->rvic[n][i] = qdev_get_gpio_in(gic, i);
         }
     }
     qdev_init_gpio_in(dev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio(sbd, sysbus_mmio_get_region(s->priv, 0));
-    return 0;
+}
+
+static void mpcore_rirq_init(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    mpcore_rirq_state *s = REALVIEW_MPCORE_RIRQ(obj);
+    SysBusDevice *privbusdev;
+    int i;
+
+    object_initialize(&s->priv, sizeof(s->priv), TYPE_ARM11MPCORE_PRIV);
+    qdev_set_parent_bus(DEVICE(&s->priv), sysbus_get_default());
+    privbusdev = SYS_BUS_DEVICE(&s->priv);
+    sysbus_init_mmio(sbd, sysbus_mmio_get_region(privbusdev, 0));
+
+    for (i = 0; i < 4; i++) {
+        object_initialize(&s->gic[i], sizeof(s->gic[i]), TYPE_REALVIEW_GIC);
+        qdev_set_parent_bus(DEVICE(&s->gic[i]), sysbus_get_default());
+    }
 }
 
 static Property mpcore_rirq_properties[] = {
@@ -236,9 +266,8 @@ static Property mpcore_rirq_properties[] = {
 static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = realview_mpcore_init;
+    dc->realize = realview_mpcore_realize;
     dc->props = mpcore_rirq_properties;
 }
 
@@ -246,6 +275,7 @@ static const TypeInfo mpcore_rirq_info = {
     .name          = TYPE_REALVIEW_MPCORE_RIRQ,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mpcore_rirq_state),
+    .instance_init = mpcore_rirq_init,
     .class_init    = mpcore_rirq_class_init,
 };
 
