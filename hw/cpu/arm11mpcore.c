@@ -9,6 +9,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/misc/arm11scu.h"
+#include "hw/intc/arm_gic.h"
+#include "hw/timer/arm_mptimer.h"
 #include "qemu/timer.h"
 
 /* MPCore private memory region.  */
@@ -22,12 +24,12 @@ typedef struct ARM11MPCorePriveState {
 
     uint32_t num_cpu;
     MemoryRegion container;
-    DeviceState *mptimer;
-    DeviceState *wdtimer;
-    DeviceState *gic;
     uint32_t num_irq;
 
     ARM11SCUState scu;
+    GICState gic;
+    ARMMPTimerState mptimer;
+    ARMMPTimerState wdtimer;
 } ARM11MPCorePriveState;
 
 /* Per-CPU private memory mapped IO.  */
@@ -36,16 +38,18 @@ typedef struct ARM11MPCorePriveState {
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
     ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
 static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
     SysBusDevice *scubusdev = SYS_BUS_DEVICE(&s->scu);
-    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
-    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
-    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
+    DeviceState *gicdev = DEVICE(&s->gic);
+    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(&s->gic);
+    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
+    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(&s->wdtimer);
 
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(scubusdev, 0));
@@ -76,44 +80,58 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
         sysbus_connect_irq(timerbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 29));
+                           qdev_get_gpio_in(gicdev, ppibase + 29));
         sysbus_connect_irq(wdtbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 30));
+                           qdev_get_gpio_in(gicdev, ppibase + 30));
     }
 }
 
-static int mpcore_priv_init(SysBusDevice *sbd)
+static void mpcore_priv_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(dev);
     DeviceState *scudev = DEVICE(&s->scu);
+    DeviceState *gicdev = DEVICE(&s->gic);
+    DeviceState *mptimerdev = DEVICE(&s->mptimer);
+    DeviceState *wdtimerdev = DEVICE(&s->wdtimer);
+    Error *err = NULL;
 
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    qdev_init_nofail(scudev);
+    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
-    s->gic = qdev_create(NULL, "arm_gic");
-    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
-    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
-    /* Request the legacy 11MPCore GIC behaviour: */
-    qdev_prop_set_uint32(s->gic, "revision", 0);
-    qdev_init_nofail(s->gic);
+    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(s->gic));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->gic));
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
-    s->mptimer = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->mptimer);
+    qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->mptimer), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
-    s->wdtimer = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->wdtimer, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->wdtimer);
+    qdev_prop_set_uint32(wdtimerdev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->wdtimer), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     mpcore_priv_map_setup(s);
-    return 0;
 }
 
 static void mpcore_priv_initfn(Object *obj)
@@ -127,6 +145,17 @@ static void mpcore_priv_initfn(Object *obj)
 
     object_initialize(&s->scu, sizeof(s->scu), TYPE_ARM11_SCU);
     qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+    /* Request the legacy 11MPCore GIC behaviour: */
+    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 0);
+
+    object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
+
+    object_initialize(&s->wdtimer, sizeof(s->wdtimer), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->wdtimer), sysbus_get_default());
 }
 
 #define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
@@ -237,9 +266,8 @@ static Property mpcore_priv_properties[] = {
 static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mpcore_priv_init;
+    dc->realize = mpcore_priv_realize;
     dc->props = mpcore_priv_properties;
 }
 
