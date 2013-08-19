@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
+#include "hw/loader.h"
 #include "sysemu/arch_init.h"
 #include "hw/i2c/smbus.h"
 #include "hw/boards.h"
@@ -221,6 +222,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
+    rom_file_in_ram = false;
     pc_q35_init(args);
 }
 

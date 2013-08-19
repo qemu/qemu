@@ -25,6 +25,7 @@
 #include <glib.h>
 
 #include "hw/hw.h"
+#include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
 #include "hw/pci/pci.h"
@@ -252,6 +253,7 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
+    rom_file_in_ram = false;
     pc_init_pci(args);
 }
 
