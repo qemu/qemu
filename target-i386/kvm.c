@@ -1073,6 +1073,26 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
     entry->data = value;
 }
 
+static int kvm_put_tscdeadline_msr(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    struct kvm_msr_entry *msrs = msr_data.entries;
+
+    if (!has_msr_tsc_deadline) {
+        return 0;
+    }
+
+    kvm_msr_entry_set(&msrs[0], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
+
+    msr_data.info.nmsrs = 1;
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -1095,9 +1115,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
     if (has_msr_tsc_adjust) {
         kvm_msr_entry_set(&msrs[n++], MSR_TSC_ADJUST, env->tsc_adjust);
-    }
-    if (has_msr_tsc_deadline) {
-        kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
     }
     if (has_msr_misc_enable) {
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_MISC_ENABLE,
@@ -1808,6 +1825,12 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
             return ret;
         }
     }
+
+    ret = kvm_put_tscdeadline_msr(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
