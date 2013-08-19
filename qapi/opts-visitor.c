@@ -384,7 +384,9 @@ opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
             str = endptr + 1;
             val2 = strtoll(str, &endptr, 0);
             if (errno == 0 && endptr > str && *endptr == '\0' &&
-                INT64_MIN <= val2 && val2 <= INT64_MAX && val <= val2) {
+                INT64_MIN <= val2 && val2 <= INT64_MAX && val <= val2 &&
+                (val > INT64_MAX - OPTS_VISITOR_RANGE_MAX ||
+                 val2 < val + OPTS_VISITOR_RANGE_MAX)) {
                 ov->range_next.s = val;
                 ov->range_limit.s = val2;
                 ov->list_mode = LM_SIGNED_INTERVAL;
@@ -435,7 +437,8 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
             str = endptr + 1;
             if (parse_uint_full(str, &val2, 0) == 0 &&
-                val2 <= UINT64_MAX && val <= val2) {
+                val2 <= UINT64_MAX && val <= val2 &&
+                val2 - val < OPTS_VISITOR_RANGE_MAX) {
                 ov->range_next.u = val;
                 ov->range_limit.u = val2;
                 ov->list_mode = LM_UNSIGNED_INTERVAL;
