@@ -1,7 +1,7 @@
 #include "hw/hw.h"
-#include "hw/sh.h"
-#include "hw/sh7750_regs.h"
-#include "hw/sh7750_regnames.h"
+#include "hw/sh4/sh.h"
+#include "sh7750_regs.h"
+#include "sh7750_regnames.h"
 
 #define REGNAME(r) {r, #r},
 

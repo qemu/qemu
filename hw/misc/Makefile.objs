@@ -1,0 +1,43 @@
+common-obj-$(CONFIG_APPLESMC) += applesmc.o
+common-obj-$(CONFIG_MAX111X) += max111x.o
+common-obj-$(CONFIG_TMP105) += tmp105.o
+common-obj-$(CONFIG_ISA_DEBUG) += debugexit.o
+common-obj-$(CONFIG_SGA) += sga.o
+common-obj-$(CONFIG_ISA_TESTDEV) += pc-testdev.o
+common-obj-$(CONFIG_PCI_TESTDEV) += pci-testdev.o
+
+obj-$(CONFIG_VMPORT) += vmport.o
+
+# ARM devices
+common-obj-$(CONFIG_PL310) += arm_l2x0.o
+
+# PKUnity SoC devices
+common-obj-$(CONFIG_PUV3) += puv3_pm.o
+
+common-obj-$(CONFIG_MACIO) += macio/
+
+ifeq ($(CONFIG_PCI), y)
+obj-$(CONFIG_KVM) += ivshmem.o
+obj-$(CONFIG_LINUX) += vfio.o
+endif
+
+obj-$(CONFIG_REALVIEW) += arm_sysctl.o
+obj-$(CONFIG_A9SCU) += a9scu.o
+obj-$(CONFIG_NSERIES) += cbus.o
+obj-$(CONFIG_ECCMEMCTL) += eccmemctl.o
+obj-$(CONFIG_EXYNOS4) += exynos4210_pmu.o
+obj-$(CONFIG_IMX) += imx_ccm.o
+obj-$(CONFIG_LM32) += lm32_sys.o
+obj-$(CONFIG_MILKYMIST) += milkymist-hpdmc.o
+obj-$(CONFIG_MILKYMIST) += milkymist-pfpu.o
+obj-$(CONFIG_MAINSTONE) += mst_fpga.o
+obj-$(CONFIG_OMAP) += omap_clk.o
+obj-$(CONFIG_OMAP) += omap_gpmc.o
+obj-$(CONFIG_OMAP) += omap_l4.o
+obj-$(CONFIG_OMAP) += omap_sdrc.o
+obj-$(CONFIG_OMAP) += omap_tap.o
+obj-$(CONFIG_PXA2XX) += pxa2xx_pcmcia.o
+obj-$(CONFIG_SLAVIO) += slavio_misc.o
+obj-$(CONFIG_ZYNQ) += zynq_slcr.o
+
+obj-$(CONFIG_PVPANIC) += pvpanic.o

@@ -28,18 +28,18 @@
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "net/net.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "exec/address-spaces.h"
 #include "hw/ssi.h"
 
-#include "hw/microblaze_boot.h"
-#include "hw/microblaze_pic_cpu.h"
+#include "boot.h"
+#include "pic_cpu.h"
 
 #include "hw/stream.h"
 
@@ -79,6 +79,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
+    Object *ds, *cs;
     MicroBlazeCPU *cpu;
     SysBusDevice *busdev;
     CPUMBState *env;
@@ -97,12 +98,12 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
-    memory_region_init_ram(phys_lmb_bram, "petalogix_ml605.lmb_bram",
+    memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
                            LMB_BRAM_SIZE);
     vmstate_register_ram_global(phys_lmb_bram);
     memory_region_add_subregion(address_space_mem, 0x00000000, phys_lmb_bram);
 
-    memory_region_init_ram(phys_ram, "petalogix_ml605.ram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ddr_base, phys_ram);
 
@@ -134,14 +135,25 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     dma = qdev_create(NULL, "xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
-    object_property_add_child(container_get(qdev_get_machine(), "/unattached"),
-                                  "xilinx-dma", OBJECT(dma), NULL);
+    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0),
+                              NULL);
+    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma),
+                              NULL);
 
-    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(dma),
-                                   0x82780000, irq[3], 0x1000, 0x1000);
+    ds = object_property_get_link(OBJECT(dma),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(dma),
+                                  "axistream-control-connected-target", NULL);
+    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(ds),
+                            STREAM_SLAVE(cs), 0x82780000, irq[3], 0x1000,
+                            0x1000);
 
-    xilinx_axidma_init(dma, STREAM_SLAVE(eth0), 0x84600000, irq[1], irq[0],
-                       100 * 1000000);
+    ds = object_property_get_link(OBJECT(eth0),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(eth0),
+                                  "axistream-control-connected-target", NULL);
+    xilinx_axidma_init(dma, STREAM_SLAVE(ds), STREAM_SLAVE(cs), 0x84600000,
+                       irq[1], irq[0], 100 * 1000000);
 
     {
         SSIBus *spi;
@@ -158,8 +170,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         for (i = 0; i < NUM_SPI_FLASHES; i++) {
             qemu_irq cs_line;
 
-            dev = ssi_create_slave_no_init(spi, "n25q128");
-            qdev_init_nofail(dev);
+            dev = ssi_create_slave(spi, "n25q128");
             cs_line = qdev_get_gpio_in(dev, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
         }

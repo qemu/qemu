@@ -23,13 +23,12 @@
 
 #include <hw/hw.h>
 #include <hw/pci/msi.h>
-#include <hw/pc.h>
+#include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
 #include <hw/sysbus.h>
 
 #include "monitor/monitor.h"
 #include "sysemu/dma.h"
-#include "exec/cpu-common.h"
 #include "internal.h"
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
@@ -118,12 +117,13 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 
 static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    PCIDevice *pci_dev = PCI_DEVICE(d);
 
     DPRINTF(0, "raise irq\n");
 
-    if (msi_enabled(&d->card)) {
-        msi_notify(&d->card, 0);
+    if (msi_enabled(pci_dev)) {
+        msi_notify(pci_dev, 0);
     } else {
         qemu_irq_raise(s->irq);
     }
@@ -131,11 +131,11 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 
 static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
 
     DPRINTF(0, "lower irq\n");
 
-    if (!msi_enabled(&d->card)) {
+    if (!msi_enabled(PCI_DEVICE(d))) {
         qemu_irq_lower(s->irq);
     }
 }
@@ -598,7 +598,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     if (!cmd_fis) {
         /* map cmd_fis */
         uint64_t tbl_addr = le64_to_cpu(ad->cur_cmd->tbl_addr);
-        cmd_fis = dma_memory_map(ad->hba->dma, tbl_addr, &cmd_len,
+        cmd_fis = dma_memory_map(ad->hba->as, tbl_addr, &cmd_len,
                                  DMA_DIRECTION_TO_DEVICE);
         cmd_mapped = 1;
     }
@@ -631,7 +631,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
 
     if (cmd_mapped) {
-        dma_memory_unmap(ad->hba->dma, cmd_fis, cmd_len,
+        dma_memory_unmap(ad->hba->as, cmd_fis, cmd_len,
                          DMA_DIRECTION_TO_DEVICE, cmd_len);
     }
 }
@@ -651,6 +651,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     int off_idx = -1;
     int off_pos = -1;
     int tbl_entry_size;
+    IDEBus *bus = &ad->port;
+    BusState *qbus = BUS(bus);
 
     if (!sglist_alloc_hint) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
@@ -658,7 +660,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     }
 
     /* map PRDT */
-    if (!(prdt = dma_memory_map(ad->hba->dma, prdt_addr, &prdt_len,
+    if (!(prdt = dma_memory_map(ad->hba->as, prdt_addr, &prdt_len,
                                 DMA_DIRECTION_TO_DEVICE))){
         DPRINTF(ad->port_no, "map failed\n");
         return -1;
@@ -692,7 +694,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
             goto out;
         }
 
-        qemu_sglist_init(sglist, (sglist_alloc_hint - off_idx), ad->hba->dma);
+        qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
+                         ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr + off_pos),
                         le32_to_cpu(tbl[off_idx].flags_size) + 1 - off_pos);
 
@@ -704,7 +707,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     }
 
 out:
-    dma_memory_unmap(ad->hba->dma, prdt, prdt_len,
+    dma_memory_unmap(ad->hba->as, prdt, prdt_len,
                      DMA_DIRECTION_TO_DEVICE, prdt_len);
     return r;
 }
@@ -837,7 +840,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
     tbl_addr = le64_to_cpu(cmd->tbl_addr);
 
     cmd_len = 0x80;
-    cmd_fis = dma_memory_map(s->dma, tbl_addr, &cmd_len,
+    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
                              DMA_DIRECTION_FROM_DEVICE);
 
     if (!cmd_fis) {
@@ -964,7 +967,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
     }
 
 out:
-    dma_memory_unmap(s->dma, cmd_fis, cmd_len, DMA_DIRECTION_FROM_DEVICE,
+    dma_memory_unmap(s->as, cmd_fis, cmd_len, DMA_DIRECTION_FROM_DEVICE,
                      cmd_len);
 
     if (s->dev[port].port.ifs[0].status & (BUSY_STAT|DRQ_STAT)) {
@@ -1105,9 +1108,14 @@ static int ahci_dma_add_status(IDEDMA *dma, int status)
 
 static int ahci_dma_set_inactive(IDEDMA *dma)
 {
+    return 0;
+}
+
+static int ahci_async_cmd_done(IDEDMA *dma)
+{
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
-    DPRINTF(ad->port_no, "dma done\n");
+    DPRINTF(ad->port_no, "async cmd done\n");
 
     /* update d2h status */
     ahci_write_fis_d2h(ad, NULL);
@@ -1142,29 +1150,32 @@ static const IDEDMAOps ahci_dma_ops = {
     .set_unit = ahci_dma_set_unit,
     .add_status = ahci_dma_add_status,
     .set_inactive = ahci_dma_set_inactive,
+    .async_cmd_done = ahci_async_cmd_done,
     .restart_cb = ahci_dma_restart_cb,
     .reset = ahci_dma_reset,
 };
 
-void ahci_init(AHCIState *s, DeviceState *qdev, DMAContext *dma, int ports)
+void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
 {
     qemu_irq *irqs;
     int i;
 
-    s->dma = dma;
+    s->as = as;
     s->ports = ports;
     s->dev = g_malloc0(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", AHCI_MEM_BAR_SIZE);
-    memory_region_init_io(&s->idp, &ahci_idp_ops, s, "ahci-idp", 32);
+    memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,
+                          "ahci", AHCI_MEM_BAR_SIZE);
+    memory_region_init_io(&s->idp, OBJECT(qdev), &ahci_idp_ops, s,
+                          "ahci-idp", 32);
 
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
 
     for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
-        ide_bus_new(&ad->port, qdev, i);
+        ide_bus_new(&ad->port, qdev, i, 1);
         ide_init2(&ad->port, irqs[i]);
 
         ad->hba = s;
@@ -1275,8 +1286,14 @@ const VMStateDescription vmstate_ahci = {
     },
 };
 
+#define TYPE_SYSBUS_AHCI "sysbus-ahci"
+#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
+
 typedef struct SysbusAHCIState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     AHCIState ahci;
     uint32_t num_ports;
 } SysbusAHCIState;
@@ -1292,19 +1309,20 @@ static const VMStateDescription vmstate_sysbus_ahci = {
 
 static void sysbus_ahci_reset(DeviceState *dev)
 {
-    SysbusAHCIState *s = DO_UPCAST(SysbusAHCIState, busdev.qdev, dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
     ahci_reset(&s->ahci);
 }
 
-static int sysbus_ahci_init(SysBusDevice *dev)
+static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
-    SysbusAHCIState *s = FROM_SYSBUS(SysbusAHCIState, dev);
-    ahci_init(&s->ahci, &dev->qdev, NULL, s->num_ports);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    sysbus_init_mmio(dev, &s->ahci.mem);
-    sysbus_init_irq(dev, &s->ahci.irq);
-    return 0;
+    ahci_init(&s->ahci, dev, NULL, s->num_ports);
+
+    sysbus_init_mmio(sbd, &s->ahci.mem);
+    sysbus_init_irq(sbd, &s->ahci.irq);
 }
 
 static Property sysbus_ahci_properties[] = {
@@ -1314,17 +1332,17 @@ static Property sysbus_ahci_properties[] = {
 
 static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sbc->init = sysbus_ahci_init;
+    dc->realize = sysbus_ahci_realize;
     dc->vmsd = &vmstate_sysbus_ahci;
     dc->props = sysbus_ahci_properties;
     dc->reset = sysbus_ahci_reset;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sysbus_ahci_info = {
-    .name          = "sysbus-ahci",
+    .name          = TYPE_SYSBUS_AHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysbusAHCIState),
     .class_init    = sysbus_ahci_class_init,

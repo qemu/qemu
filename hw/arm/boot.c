@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -128,7 +128,7 @@ static void set_kernel_args(const struct arm_boot_info *info)
         int cmdline_size;
 
         cmdline_size = strlen(info->kernel_cmdline);
-        cpu_physical_memory_write(p + 8, (void *)info->kernel_cmdline,
+        cpu_physical_memory_write(p + 8, info->kernel_cmdline,
                                   cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
         WRITE_WORD(p, cmdline_size + 2);
@@ -219,7 +219,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
     s = info->kernel_cmdline;
     if (s) {
-        cpu_physical_memory_write(p, (void *)s, strlen(s) + 1);
+        cpu_physical_memory_write(p, s, strlen(s) + 1);
     } else {
         WRITE_WORD(p, 0);
     }
@@ -227,25 +227,22 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
 
 static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 {
-#ifdef CONFIG_FDT
-    uint32_t *mem_reg_property;
-    uint32_t mem_reg_propsize;
     void *fdt = NULL;
     char *filename;
     int size, rc;
-    uint32_t acells, scells, hival;
+    uint32_t acells, scells;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, binfo->dtb_filename);
     if (!filename) {
         fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
-        return -1;
+        goto fail;
     }
 
     fdt = load_device_tree(filename, &size);
     if (!fdt) {
         fprintf(stderr, "Couldn't open dtb file %s\n", filename);
         g_free(filename);
-        return -1;
+        goto fail;
     }
     g_free(filename);
 
@@ -253,34 +250,24 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
     if (acells == 0 || scells == 0) {
         fprintf(stderr, "dtb file invalid (#address-cells or #size-cells 0)\n");
-        return -1;
+        goto fail;
     }
 
-    mem_reg_propsize = acells + scells;
-    mem_reg_property = g_new0(uint32_t, mem_reg_propsize);
-    mem_reg_property[acells - 1] = cpu_to_be32(binfo->loader_start);
-    hival = cpu_to_be32(binfo->loader_start >> 32);
-    if (acells > 1) {
-        mem_reg_property[acells - 2] = hival;
-    } else if (hival != 0) {
-        fprintf(stderr, "qemu: dtb file not compatible with "
-                "RAM start address > 4GB\n");
-        exit(1);
-    }
-    mem_reg_property[acells + scells - 1] = cpu_to_be32(binfo->ram_size);
-    hival = cpu_to_be32(binfo->ram_size >> 32);
-    if (scells > 1) {
-        mem_reg_property[acells + scells - 2] = hival;
-    } else if (hival != 0) {
+    if (scells < 2 && binfo->ram_size >= (1ULL << 32)) {
+        /* This is user error so deserves a friendlier error message
+         * than the failure of setprop_sized_cells would provide
+         */
         fprintf(stderr, "qemu: dtb file not compatible with "
                 "RAM size > 4GB\n");
-        exit(1);
+        goto fail;
     }
 
-    rc = qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
-                              mem_reg_propsize * sizeof(uint32_t));
+    rc = qemu_devtree_setprop_sized_cells(fdt, "/memory", "reg",
+                                          acells, binfo->loader_start,
+                                          scells, binfo->ram_size);
     if (rc < 0) {
         fprintf(stderr, "couldn't set /memory/reg\n");
+        goto fail;
     }
 
     if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
@@ -288,6 +275,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
                                           binfo->kernel_cmdline);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/bootargs\n");
+            goto fail;
         }
     }
 
@@ -296,24 +284,32 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
                 binfo->initrd_start);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+            goto fail;
         }
 
         rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                     binfo->initrd_start + binfo->initrd_size);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+            goto fail;
         }
     }
 
+    if (binfo->modify_dtb) {
+        binfo->modify_dtb(binfo, fdt);
+    }
+
+    qemu_devtree_dumpdtb(fdt, size);
+
     cpu_physical_memory_write(addr, fdt, size);
+
+    g_free(fdt);
 
     return 0;
 
-#else
-    fprintf(stderr, "Device tree requested, "
-                "but qemu was compiled without fdt support\n");
+fail:
+    g_free(fdt);
     return -1;
-#endif
 }
 
 static void do_cpu_reset(void *opaque)
@@ -329,7 +325,7 @@ static void do_cpu_reset(void *opaque)
             env->regs[15] = info->entry & 0xfffffffe;
             env->thumb = info->entry & 1;
         } else {
-            if (env == first_cpu) {
+            if (CPU(cpu) == first_cpu) {
                 env->regs[15] = info->loader_start;
                 if (!info->dtb_filename) {
                     if (old_param) {
@@ -347,7 +343,7 @@ static void do_cpu_reset(void *opaque)
 
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
-    CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     int kernel_size;
     int initrd_size;
     int n;
@@ -355,7 +351,6 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     uint64_t elf_entry;
     hwaddr entry;
     int big_endian;
-    QemuOpts *machine_opts;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -363,12 +358,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         exit(1);
     }
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        info->dtb_filename = qemu_opt_get(machine_opts, "dtb");
-    } else {
-        info->dtb_filename = NULL;
-    }
+    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
 
     if (!info->secondary_cpu_reset_hook) {
         info->secondary_cpu_reset_hook = default_reset_secondary;
@@ -421,10 +411,16 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     info->entry = entry;
     if (is_linux) {
         if (info->initrd_filename) {
-            initrd_size = load_image_targphys(info->initrd_filename,
-                                              info->initrd_start,
-                                              info->ram_size -
-                                              info->initrd_start);
+            initrd_size = load_ramdisk(info->initrd_filename,
+                                       info->initrd_start,
+                                       info->ram_size -
+                                       info->initrd_start);
+            if (initrd_size < 0) {
+                initrd_size = load_image_targphys(info->initrd_filename,
+                                                  info->initrd_start,
+                                                  info->ram_size -
+                                                  info->initrd_start);
+            }
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
                         info->initrd_filename);
@@ -472,9 +468,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     info->is_linux = is_linux;
 
-    for (; env; env = env->next_cpu) {
-        cpu = arm_env_get_cpu(env);
-        env->boot_info = info;
+    for (; cs; cs = cs->next_cpu) {
+        cpu = ARM_CPU(cs);
+        cpu->env.boot_info = info;
         qemu_register_reset(do_cpu_reset, cpu);
     }
 }

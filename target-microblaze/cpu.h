@@ -331,20 +331,6 @@ int cpu_mb_handle_mmu_fault(CPUMBState *env, target_ulong address, int rw,
                             int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mb_handle_mmu_fault
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[R_SP] = newsp;
-    env->regs[3] = 0;
-}
-#endif
-
-static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
-{
-    env->regs[21] = newtls;
-}
-
 static inline int cpu_interrupts_enabled(CPUMBState *env)
 {
     return env->sregs[SR_MSR] & MSR_IE;
@@ -367,8 +353,9 @@ static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
-                           int is_write, int is_exec, int is_asi, int size);
+void mb_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                              bool is_write, bool is_exec, int is_asi,
+                              unsigned size);
 #endif
 
 static inline bool cpu_has_work(CPUState *cpu)
@@ -377,10 +364,5 @@ static inline bool cpu_has_work(CPUState *cpu)
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUMBState *env, TranslationBlock *tb)
-{
-    env->sregs[SR_PC] = tb->pc;
-}
 
 #endif

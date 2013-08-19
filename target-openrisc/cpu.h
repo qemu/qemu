@@ -335,7 +335,7 @@ typedef struct OpenRISCCPU {
 
 static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 {
-    return OPENRISC_CPU(container_of(env, OpenRISCCPU, env));
+    return container_of(env, OpenRISCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
@@ -347,6 +347,11 @@ OpenRISCCPU *cpu_openrisc_init(const char *cpu_model);
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_openrisc_exec(CPUOpenRISCState *s);
 void openrisc_cpu_do_interrupt(CPUState *cpu);
+void openrisc_cpu_dump_state(CPUState *cpu, FILE *f,
+                             fprintf_function cpu_fprintf, int flags);
+hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int openrisc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int openrisc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void openrisc_translate_init(void);
 int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address,
@@ -360,6 +365,8 @@ int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_signal_handler cpu_openrisc_signal_handler
 
 #ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_openrisc_cpu;
+
 /* hw/openrisc_pic.c */
 void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
 
@@ -389,16 +396,6 @@ static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
     }
     return NULL;
 }
-
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->gpr[1] = newsp;
-    }
-    env->gpr[2] = 0;
-}
-#endif
 
 #include "exec/cpu-all.h"
 
@@ -432,11 +429,6 @@ static inline bool cpu_has_work(CPUState *cpu)
 static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
 {
     return env->pc;
-}
-
-static inline void cpu_pc_from_tb(CPUOpenRISCState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
 }
 
 #endif /* CPU_OPENRISC_H */

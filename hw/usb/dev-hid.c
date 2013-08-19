@@ -27,7 +27,7 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "qemu/timer.h"
-#include "hw/hid.h"
+#include "hw/input/hid.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101
@@ -236,7 +236,7 @@ static const USBDescDevice desc_device_tablet2 = {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
             .iConfiguration        = STR_CONFIG_TABLET,
-            .bmAttributes          = 0xa0,
+            .bmAttributes          = 0x80,
             .bMaxPower             = 50,
             .nif = 1,
             .ifs = &desc_iface_tablet2,
@@ -560,6 +560,9 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
+    if (dev->serial) {
+        usb_desc_set_string(dev, STR_SERIALNUMBER, dev->serial);
+    }
     usb_desc_init(dev);
     us->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     hid_init(&us->hid, kind, usb_hid_changed);
@@ -655,6 +658,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
     dc->props = usb_tablet_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo usb_tablet_info = {
@@ -674,6 +678,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Mouse";
     uc->usb_desc       = &desc_mouse;
     dc->vmsd = &vmstate_usb_ptr;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo usb_mouse_info = {
@@ -693,6 +698,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Keyboard";
     uc->usb_desc       = &desc_keyboard;
     dc->vmsd = &vmstate_usb_kbd;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo usb_keyboard_info = {

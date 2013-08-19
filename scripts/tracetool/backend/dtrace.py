@@ -16,6 +16,9 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 from tracetool import out
 
 
+PUBLIC = True
+
+
 PROBEPREFIX = None
 
 def _probeprefix():

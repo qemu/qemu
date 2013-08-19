@@ -136,6 +136,24 @@ Example:
 Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
 event.
 
+DEVICE_DELETED
+-----------------
+
+Emitted whenever the device removal completion is acknowledged
+by the guest.
+At this point, it's safe to reuse the specified device ID.
+Device removal can be initiated by the guest or by HMP/QMP commands.
+
+Data:
+
+- "device": device name (json-string, optional)
+- "path": device path (json-string)
+
+{ "event": "DEVICE_DELETED",
+  "data": { "device": "virtio-net-pci-0",
+            "path": "/machine/peripheral/virtio-net-pci-0" },
+  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
 DEVICE_TRAY_MOVED
 -----------------
 
@@ -153,6 +171,23 @@ Data:
             "tray-open": true
   },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+NIC_RX_FILTER_CHANGED
+-----------------
+
+The event is emitted once until the query command is executed,
+the first event will always be emitted.
+
+Data:
+
+- "name": net client name (json-string)
+- "path": device path (json-string)
+
+{ "event": "NIC_RX_FILTER_CHANGED",
+  "data": { "name": "vnet0",
+            "path": "/machine/peripheral/vnet0/virtio-backend" },
+  "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+}
 
 RESET
 -----
@@ -185,7 +220,8 @@ Emitted when the guest changes the RTC time.
 
 Data:
 
-- "offset": delta against the host UTC in seconds (json-number)
+- "offset": Offset between base RTC clock (as specified by -rtc base), and
+new RTC clock value (json-number)
 
 Example:
 
@@ -428,3 +464,17 @@ Example:
 
 Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 followed respectively by the RESET, SHUTDOWN, or STOP events.
+
+GUEST_PANICKED
+--------------
+
+Emitted when guest OS panic is detected.
+
+Data:
+
+- "action": Action that has been taken (json-string, currently always "pause").
+
+Example:
+
+{ "event": "GUEST_PANICKED",
+     "data": { "action": "pause" } }

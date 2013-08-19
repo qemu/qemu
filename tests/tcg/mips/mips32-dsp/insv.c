@@ -19,5 +19,18 @@ int main()
         );
     assert(rt == result);
 
+    dsp    = 0x1000;
+    rt     = 0xF0F0F0F0;
+    rs     = 0xA5A5A5A5;
+    result = 0xA5A5A5A5;
+
+    __asm
+        ("wrdsp %2\n\t"
+         "insv  %0, %1\n\t"
+         : "+r"(rt)
+         : "r"(rs), "r"(dsp)
+        );
+    assert(rt == result);
+
     return 0;
 }

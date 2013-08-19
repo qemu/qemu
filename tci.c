@@ -51,11 +51,6 @@ typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong);
 #endif
 
-/* TCI can optionally use a global register variable for env. */
-#if !defined(AREG0)
-CPUArchState *env;
-#endif
-
 /* Targets which don't use GETPC also don't need tci_tb_ptr
    which makes them a little faster. */
 #if defined(GETPC)
@@ -117,6 +112,7 @@ static void tci_write_reg(TCGReg index, tcg_target_ulong value)
 {
     assert(index < ARRAY_SIZE(tci_reg));
     assert(index != TCG_AREG0);
+    assert(index != TCG_REG_CALL_STACK);
     tci_reg[index] = value;
 }
 
@@ -182,10 +178,18 @@ static tcg_target_ulong tci_read_i(uint8_t **tb_ptr)
     return value;
 }
 
-/* Read constant (32 bit) from bytecode. */
+/* Read unsigned constant (32 bit) from bytecode. */
 static uint32_t tci_read_i32(uint8_t **tb_ptr)
 {
     uint32_t value = *(uint32_t *)(*tb_ptr);
+    *tb_ptr += sizeof(value);
+    return value;
+}
+
+/* Read signed constant (32 bit) from bytecode. */
+static int32_t tci_read_s32(uint8_t **tb_ptr)
+{
+    int32_t value = *(int32_t *)(*tb_ptr);
     *tb_ptr += sizeof(value);
     return value;
 }
@@ -430,18 +434,17 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 /* Interpret pseudo code in tb. */
-tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
+tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 {
+    long tcg_temps[CPU_TEMP_BUF_NLONGS];
+    uintptr_t sp_value = (uintptr_t)(tcg_temps + CPU_TEMP_BUF_NLONGS);
     tcg_target_ulong next_tb = 0;
 
-    env = cpustate;
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
+    tci_reg[TCG_REG_CALL_STACK] = sp_value;
     assert(tb_ptr);
 
     for (;;) {
-#if defined(GETPC)
-        tci_tb_ptr = (uintptr_t)tb_ptr;
-#endif
         TCGOpcode opc = tb_ptr[0];
 #if !defined(NDEBUG)
         uint8_t op_size = tb_ptr[1];
@@ -462,6 +465,10 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         uint64_t tmp64;
 #if TCG_TARGET_REG_BITS == 32
         uint64_t v64;
+#endif
+
+#if defined(GETPC)
+        tci_tb_ptr = (uintptr_t)tb_ptr;
 #endif
 
         /* Skip opcode and size entry. */
@@ -550,7 +557,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_ld8u_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg8(t0, *(uint8_t *)(t1 + t2));
             break;
         case INDEX_op_ld8s_i32:
@@ -563,25 +570,26 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_ld_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg32(t0, *(uint32_t *)(t1 + t2));
             break;
         case INDEX_op_st8_i32:
             t0 = tci_read_r8(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             *(uint8_t *)(t1 + t2) = t0;
             break;
         case INDEX_op_st16_i32:
             t0 = tci_read_r16(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             *(uint16_t *)(t1 + t2) = t0;
             break;
         case INDEX_op_st_i32:
             t0 = tci_read_r32(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
+            assert(t1 != sp_value || (int32_t)t2 < 0);
             *(uint32_t *)(t1 + t2) = t0;
             break;
 
@@ -818,7 +826,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_ld8u_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg8(t0, *(uint8_t *)(t1 + t2));
             break;
         case INDEX_op_ld8s_i64:
@@ -829,43 +837,44 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_ld32u_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg32(t0, *(uint32_t *)(t1 + t2));
             break;
         case INDEX_op_ld32s_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg32s(t0, *(int32_t *)(t1 + t2));
             break;
         case INDEX_op_ld_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             tci_write_reg64(t0, *(uint64_t *)(t1 + t2));
             break;
         case INDEX_op_st8_i64:
             t0 = tci_read_r8(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             *(uint8_t *)(t1 + t2) = t0;
             break;
         case INDEX_op_st16_i64:
             t0 = tci_read_r16(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             *(uint16_t *)(t1 + t2) = t0;
             break;
         case INDEX_op_st32_i64:
             t0 = tci_read_r32(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
             *(uint32_t *)(t1 + t2) = t0;
             break;
         case INDEX_op_st_i64:
             t0 = tci_read_r64(&tb_ptr);
             t1 = tci_read_r(&tb_ptr);
-            t2 = tci_read_i32(&tb_ptr);
+            t2 = tci_read_s32(&tb_ptr);
+            assert(t1 != sp_value || (int32_t)t2 < 0);
             *(uint64_t *)(t1 + t2) = t0;
             break;
 

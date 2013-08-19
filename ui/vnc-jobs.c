@@ -183,7 +183,6 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
 {
     local->vnc_encoding = orig->vnc_encoding;
     local->features = orig->features;
-    local->ds = orig->ds;
     local->vd = orig->vd;
     local->lossy_rect = orig->lossy_rect;
     local->write_pixels = orig->write_pixels;

@@ -295,7 +295,10 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
 
 typedef struct TestStructList
 {
-    TestStruct *value;
+    union {
+        TestStruct *value;
+        uint64_t padding;
+    };
     struct TestStructList *next;
 } TestStructList;
 
@@ -431,6 +434,314 @@ static void test_visitor_out_union(TestOutputVisitorData *data,
     QDECREF(qdict);
 }
 
+static void init_native_list(UserDefNativeListUnion *cvalue)
+{
+    int i;
+    switch (cvalue->kind) {
+    case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER: {
+        intList **list = &cvalue->integer;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(intList, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S8: {
+        int8List **list = &cvalue->s8;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(int8List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S16: {
+        int16List **list = &cvalue->s16;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(int16List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S32: {
+        int32List **list = &cvalue->s32;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(int32List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S64: {
+        int64List **list = &cvalue->s64;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(int64List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U8: {
+        uint8List **list = &cvalue->u8;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(uint8List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U16: {
+        uint16List **list = &cvalue->u16;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(uint16List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U32: {
+        uint32List **list = &cvalue->u32;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(uint32List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U64: {
+        uint64List **list = &cvalue->u64;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(uint64List, 1);
+            (*list)->value = i;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN: {
+        boolList **list = &cvalue->boolean;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(boolList, 1);
+            (*list)->value = (i % 3 == 0);
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_STRING: {
+        strList **list = &cvalue->string;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(strList, 1);
+            (*list)->value = g_strdup_printf("%d", i);
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    case USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER: {
+        numberList **list = &cvalue->number;
+        for (i = 0; i < 32; i++) {
+            *list = g_new0(numberList, 1);
+            (*list)->value = (double)i / 3;
+            (*list)->next = NULL;
+            list = &(*list)->next;
+        }
+        break;
+    }
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void check_native_list(QObject *qobj,
+                              UserDefNativeListUnionKind kind)
+{
+    QDict *qdict;
+    QList *qlist;
+    int i;
+
+    g_assert(qobj);
+    g_assert(qobject_type(qobj) == QTYPE_QDICT);
+    qdict = qobject_to_qdict(qobj);
+    g_assert(qdict);
+    g_assert(qdict_haskey(qdict, "data"));
+    qlist = qlist_copy(qobject_to_qlist(qdict_get(qdict, "data")));
+
+    switch (kind) {
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S8:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S16:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S32:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S64:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U8:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U16:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U32:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_U64:
+        /* all integer elements in JSON arrays get stored into QInts when
+         * we convert to QObjects, so we can check them all in the same
+         * fashion, so simply fall through here
+         */
+    case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER:
+        for (i = 0; i < 32; i++) {
+            QObject *tmp;
+            QInt *qvalue;
+            tmp = qlist_peek(qlist);
+            g_assert(tmp);
+            qvalue = qobject_to_qint(tmp);
+            g_assert_cmpint(qint_get_int(qvalue), ==, i);
+            qobject_decref(qlist_pop(qlist));
+        }
+        break;
+    case USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN:
+        for (i = 0; i < 32; i++) {
+            QObject *tmp;
+            QBool *qvalue;
+            tmp = qlist_peek(qlist);
+            g_assert(tmp);
+            qvalue = qobject_to_qbool(tmp);
+            g_assert_cmpint(qbool_get_int(qvalue), ==, (i % 3 == 0) ? 1 : 0);
+            qobject_decref(qlist_pop(qlist));
+        }
+        break;
+    case USER_DEF_NATIVE_LIST_UNION_KIND_STRING:
+        for (i = 0; i < 32; i++) {
+            QObject *tmp;
+            QString *qvalue;
+            gchar str[8];
+            tmp = qlist_peek(qlist);
+            g_assert(tmp);
+            qvalue = qobject_to_qstring(tmp);
+            sprintf(str, "%d", i);
+            g_assert_cmpstr(qstring_get_str(qvalue), ==, str);
+            qobject_decref(qlist_pop(qlist));
+        }
+        break;
+    case USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER:
+        for (i = 0; i < 32; i++) {
+            QObject *tmp;
+            QFloat *qvalue;
+            GString *double_expected = g_string_new("");
+            GString *double_actual = g_string_new("");
+
+            tmp = qlist_peek(qlist);
+            g_assert(tmp);
+            qvalue = qobject_to_qfloat(tmp);
+            g_string_printf(double_expected, "%.6f", (double)i / 3);
+            g_string_printf(double_actual, "%.6f", qfloat_get_double(qvalue));
+            g_assert_cmpstr(double_actual->str, ==, double_expected->str);
+
+            qobject_decref(qlist_pop(qlist));
+            g_string_free(double_expected, true);
+            g_string_free(double_actual, true);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    QDECREF(qlist);
+}
+
+static void test_native_list(TestOutputVisitorData *data,
+                             const void *unused,
+                             UserDefNativeListUnionKind kind)
+{
+    UserDefNativeListUnion *cvalue = g_new0(UserDefNativeListUnion, 1);
+    Error *err = NULL;
+    QObject *obj;
+
+    cvalue->kind = kind;
+    init_native_list(cvalue);
+
+    visit_type_UserDefNativeListUnion(data->ov, &cvalue, NULL, &err);
+    g_assert(err == NULL);
+
+    obj = qmp_output_get_qobject(data->qov);
+    check_native_list(obj, cvalue->kind);
+    qapi_free_UserDefNativeListUnion(cvalue);
+    qobject_decref(obj);
+}
+
+static void test_visitor_out_native_list_int(TestOutputVisitorData *data,
+                                             const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER);
+}
+
+static void test_visitor_out_native_list_int8(TestOutputVisitorData *data,
+                                              const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_S8);
+}
+
+static void test_visitor_out_native_list_int16(TestOutputVisitorData *data,
+                                               const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_S16);
+}
+
+static void test_visitor_out_native_list_int32(TestOutputVisitorData *data,
+                                               const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_S32);
+}
+
+static void test_visitor_out_native_list_int64(TestOutputVisitorData *data,
+                                               const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_S64);
+}
+
+static void test_visitor_out_native_list_uint8(TestOutputVisitorData *data,
+                                               const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_U8);
+}
+
+static void test_visitor_out_native_list_uint16(TestOutputVisitorData *data,
+                                                const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_U16);
+}
+
+static void test_visitor_out_native_list_uint32(TestOutputVisitorData *data,
+                                                const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_U32);
+}
+
+static void test_visitor_out_native_list_uint64(TestOutputVisitorData *data,
+                                                const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_U64);
+}
+
+static void test_visitor_out_native_list_bool(TestOutputVisitorData *data,
+                                              const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN);
+}
+
+static void test_visitor_out_native_list_str(TestOutputVisitorData *data,
+                                              const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_STRING);
+}
+
+static void test_visitor_out_native_list_number(TestOutputVisitorData *data,
+                                                const void *unused)
+{
+    test_native_list(data, unused, USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER);
+}
+
 static void output_visitor_test_add(const char *testpath,
                                     TestOutputVisitorData *data,
                                     void (*test_func)(TestOutputVisitorData *data, const void *user_data))
@@ -471,6 +782,30 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list_qapi_free);
     output_visitor_test_add("/visitor/output/union",
                             &out_visitor_data, test_visitor_out_union);
+    output_visitor_test_add("/visitor/output/native_list/int",
+                            &out_visitor_data, test_visitor_out_native_list_int);
+    output_visitor_test_add("/visitor/output/native_list/int8",
+                            &out_visitor_data, test_visitor_out_native_list_int8);
+    output_visitor_test_add("/visitor/output/native_list/int16",
+                            &out_visitor_data, test_visitor_out_native_list_int16);
+    output_visitor_test_add("/visitor/output/native_list/int32",
+                            &out_visitor_data, test_visitor_out_native_list_int32);
+    output_visitor_test_add("/visitor/output/native_list/int64",
+                            &out_visitor_data, test_visitor_out_native_list_int64);
+    output_visitor_test_add("/visitor/output/native_list/uint8",
+                            &out_visitor_data, test_visitor_out_native_list_uint8);
+    output_visitor_test_add("/visitor/output/native_list/uint16",
+                            &out_visitor_data, test_visitor_out_native_list_uint16);
+    output_visitor_test_add("/visitor/output/native_list/uint32",
+                            &out_visitor_data, test_visitor_out_native_list_uint32);
+    output_visitor_test_add("/visitor/output/native_list/uint64",
+                            &out_visitor_data, test_visitor_out_native_list_uint64);
+    output_visitor_test_add("/visitor/output/native_list/bool",
+                            &out_visitor_data, test_visitor_out_native_list_bool);
+    output_visitor_test_add("/visitor/output/native_list/string",
+                            &out_visitor_data, test_visitor_out_native_list_str);
+    output_visitor_test_add("/visitor/output/native_list/number",
+                            &out_visitor_data, test_visitor_out_native_list_number);
 
     g_test_run();
 

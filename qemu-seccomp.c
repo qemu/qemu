@@ -26,13 +26,11 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(timer_gettime), 254 },
     { SCMP_SYS(futex), 253 },
     { SCMP_SYS(select), 252 },
-#if defined(__x86_64__)
     { SCMP_SYS(recvfrom), 251 },
     { SCMP_SYS(sendto), 250 },
-#elif defined(__i386__)
     { SCMP_SYS(socketcall), 250 },
-#endif
     { SCMP_SYS(read), 249 },
+    { SCMP_SYS(io_submit), 249 },
     { SCMP_SYS(brk), 248 },
     { SCMP_SYS(clone), 247 },
     { SCMP_SYS(mmap), 247 },
@@ -40,7 +38,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(execve), 245 },
     { SCMP_SYS(open), 245 },
     { SCMP_SYS(ioctl), 245 },
-#if defined(__x86_64__)
     { SCMP_SYS(socket), 245 },
     { SCMP_SYS(setsockopt), 245 },
     { SCMP_SYS(recvmsg), 245 },
@@ -51,9 +48,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(bind), 245 },
     { SCMP_SYS(listen), 245 },
     { SCMP_SYS(semget), 245 },
-#elif defined(__i386__)
     { SCMP_SYS(ipc), 245 },
-#endif
     { SCMP_SYS(gettimeofday), 245 },
     { SCMP_SYS(readlink), 245 },
     { SCMP_SYS(access), 245 },
@@ -64,7 +59,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(statfs), 245 },
     { SCMP_SYS(unlink), 245 },
     { SCMP_SYS(wait4), 245 },
-#if defined(__i386__)
     { SCMP_SYS(fcntl64), 245 },
     { SCMP_SYS(fstat64), 245 },
     { SCMP_SYS(stat64), 245 },
@@ -77,7 +71,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(_llseek), 245 },
     { SCMP_SYS(mmap2), 245 },
     { SCMP_SYS(sigprocmask), 245 },
-#endif
     { SCMP_SYS(sched_getparam), 245 },
     { SCMP_SYS(sched_getscheduler), 245 },
     { SCMP_SYS(fstat), 245 },
@@ -87,6 +80,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(stat), 245 },
     { SCMP_SYS(uname), 245 },
     { SCMP_SYS(eventfd2), 245 },
+    { SCMP_SYS(io_getevents), 245 },
     { SCMP_SYS(dup), 245 },
     { SCMP_SYS(dup2), 245 },
     { SCMP_SYS(dup3), 245 },
@@ -115,7 +109,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(lseek), 245 },
     { SCMP_SYS(pselect6), 245 },
     { SCMP_SYS(fork), 245 },
-    { SCMP_SYS(eventfd), 245 },
     { SCMP_SYS(rt_sigprocmask), 245 },
     { SCMP_SYS(write), 244 },
     { SCMP_SYS(fcntl), 243 },
@@ -144,21 +137,17 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(epoll_create), 242 },
     { SCMP_SYS(epoll_ctl), 242 },
     { SCMP_SYS(epoll_wait), 242 },
-#if defined(__i386__)
     { SCMP_SYS(waitpid), 242 },
-#elif defined(__x86_64__)
     { SCMP_SYS(getsockname), 242 },
     { SCMP_SYS(getpeername), 242 },
     { SCMP_SYS(accept4), 242 },
     { SCMP_SYS(newfstatat), 241 },
     { SCMP_SYS(shutdown), 241 },
     { SCMP_SYS(getsockopt), 241 },
-    { SCMP_SYS(semctl), 241 },
     { SCMP_SYS(semop), 241 },
     { SCMP_SYS(semtimedop), 241 },
     { SCMP_SYS(epoll_ctl_old), 241 },
     { SCMP_SYS(epoll_wait_old), 241 },
-#endif
     { SCMP_SYS(epoll_pwait), 241 },
     { SCMP_SYS(epoll_create1), 241 },
     { SCMP_SYS(ppoll), 241 },
@@ -173,7 +162,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(getresuid), 241 },
     { SCMP_SYS(getresgid), 241 },
     { SCMP_SYS(getgroups), 241 },
-#if defined(__i386__)
     { SCMP_SYS(getresuid32), 241 },
     { SCMP_SYS(getresgid32), 241 },
     { SCMP_SYS(getgroups32), 241 },
@@ -192,7 +180,6 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(lstat64), 241 },
     { SCMP_SYS(sendfile64), 241 },
     { SCMP_SYS(ugetrlimit), 241 },
-#endif
     { SCMP_SYS(alarm), 241 },
     { SCMP_SYS(rt_sigsuspend), 241 },
     { SCMP_SYS(rt_sigqueueinfo), 241 },
@@ -204,12 +191,10 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(lchown), 241 },
     { SCMP_SYS(fchownat), 241 },
     { SCMP_SYS(fstatfs), 241 },
-    { SCMP_SYS(sendfile), 241 },
     { SCMP_SYS(getitimer), 241 },
     { SCMP_SYS(syncfs), 241 },
     { SCMP_SYS(fsync), 241 },
     { SCMP_SYS(fchdir), 241 },
-    { SCMP_SYS(flock), 241 },
     { SCMP_SYS(msync), 241 },
     { SCMP_SYS(sched_setparam), 241 },
     { SCMP_SYS(sched_setscheduler), 241 },
@@ -229,7 +214,11 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(sendmmsg), 241 },
     { SCMP_SYS(recvmmsg), 241 },
     { SCMP_SYS(prlimit64), 241 },
-    { SCMP_SYS(waitid), 241 }
+    { SCMP_SYS(waitid), 241 },
+    { SCMP_SYS(io_cancel), 241 },
+    { SCMP_SYS(io_setup), 241 },
+    { SCMP_SYS(io_destroy), 241 },
+    { SCMP_SYS(arch_prctl), 240 }
 };
 
 int seccomp_start(void)

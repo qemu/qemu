@@ -35,9 +35,9 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "net/net.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "sysemu/blockdev.h"

@@ -143,7 +143,7 @@ print_signal(abi_ulong arg, int last)
     case TARGET_SIGTTOU: signal_name = "SIGTTOU"; break;
     }
     if (signal_name == NULL) {
-        print_raw_param("%ld", arg, 1);
+        print_raw_param("%ld", arg, last);
         return;
     }
     gemu_log("%s%s", signal_name, get_comma(last));

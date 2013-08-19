@@ -8,14 +8,14 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
-#include "hw/primecell.h"
+#include "hw/arm/arm.h"
+#include "hw/arm/primecell.h"
 #include "hw/devices.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
@@ -59,7 +59,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     qemu_irq *irqp;
     qemu_irq pic[64];
     qemu_irq mmc_irq[2];
-    PCIBus *pci_bus;
+    PCIBus *pci_bus = NULL;
     NICInfo *nd;
     i2c_bus *i2c;
     int n;
@@ -114,18 +114,18 @@ static void realview_init(QEMUMachineInitArgs *args,
         /* Core tile RAM.  */
         low_ram_size = ram_size - 0x20000000;
         ram_size = 0x20000000;
-        memory_region_init_ram(ram_lo, "realview.lowmem", low_ram_size);
+        memory_region_init_ram(ram_lo, NULL, "realview.lowmem", low_ram_size);
         vmstate_register_ram_global(ram_lo);
         memory_region_add_subregion(sysmem, 0x20000000, ram_lo);
     }
 
-    memory_region_init_ram(ram_hi, "realview.highmem", ram_size);
+    memory_region_init_ram(ram_hi, NULL, "realview.highmem", ram_size);
     vmstate_register_ram_global(ram_hi);
     low_ram_size = ram_size;
     if (low_ram_size > 0x10000000)
       low_ram_size = 0x10000000;
     /* SDRAM at address zero.  */
-    memory_region_init_alias(ram_alias, "realview.alias",
+    memory_region_init_alias(ram_alias, NULL, "realview.alias",
                              ram_hi, 0, low_ram_size);
     memory_region_add_subregion(sysmem, 0, ram_alias);
     if (is_pb) {
@@ -217,9 +217,13 @@ static void realview_init(QEMUMachineInitArgs *args,
         dev = qdev_create(NULL, "realview_pci");
         busdev = SYS_BUS_DEVICE(dev);
         qdev_init_nofail(dev);
-        sysbus_mmio_map(busdev, 0, 0x61000000); /* PCI self-config */
-        sysbus_mmio_map(busdev, 1, 0x62000000); /* PCI config */
-        sysbus_mmio_map(busdev, 2, 0x63000000); /* PCI I/O */
+        sysbus_mmio_map(busdev, 0, 0x10019000); /* PCI controller registers */
+        sysbus_mmio_map(busdev, 1, 0x60000000); /* PCI self-config */
+        sysbus_mmio_map(busdev, 2, 0x61000000); /* PCI config */
+        sysbus_mmio_map(busdev, 3, 0x62000000); /* PCI I/O */
+        sysbus_mmio_map(busdev, 4, 0x63000000); /* PCI memory window 1 */
+        sysbus_mmio_map(busdev, 5, 0x64000000); /* PCI memory window 2 */
+        sysbus_mmio_map(busdev, 6, 0x68000000); /* PCI memory window 3 */
         sysbus_connect_irq(busdev, 0, pic[48]);
         sysbus_connect_irq(busdev, 1, pic[49]);
         sysbus_connect_irq(busdev, 2, pic[50]);
@@ -246,7 +250,9 @@ static void realview_init(QEMUMachineInitArgs *args,
             }
             done_nic = 1;
         } else {
-            pci_nic_init_nofail(nd, "rtl8139", NULL);
+            if (pci_bus) {
+                pci_nic_init_nofail(nd, pci_bus, "rtl8139", NULL);
+            }
         }
     }
 
@@ -303,18 +309,18 @@ static void realview_init(QEMUMachineInitArgs *args,
     /*  0x58000000 PISMO.  */
     /*  0x5c000000 PISMO.  */
     /* 0x60000000 PCI.  */
-    /* 0x61000000 PCI Self Config.  */
-    /* 0x62000000 PCI Config.  */
-    /* 0x63000000 PCI IO.  */
-    /* 0x64000000 PCI mem 0.  */
-    /* 0x68000000 PCI mem 1.  */
-    /* 0x6c000000 PCI mem 2.  */
+    /* 0x60000000 PCI Self Config.  */
+    /* 0x61000000 PCI Config.  */
+    /* 0x62000000 PCI IO.  */
+    /* 0x63000000 PCI mem 0.  */
+    /* 0x64000000 PCI mem 1.  */
+    /* 0x68000000 PCI mem 2.  */
 
     /* ??? Hack to map an additional page of ram for the secondary CPU
        startup code.  I guess this works on real hardware because the
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
-    memory_region_init_ram(ram_hack, "realview.hack", 0x1000);
+    memory_region_init_ram(ram_hack, NULL, "realview.hack", 0x1000);
     vmstate_register_ram_global(ram_hack);
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
@@ -325,7 +331,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     realview_binfo.nb_cpus = smp_cpus;
     realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &realview_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &realview_binfo);
 }
 
 static void realview_eb_init(QEMUMachineInitArgs *args)

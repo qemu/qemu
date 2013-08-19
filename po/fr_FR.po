@@ -1,0 +1,62 @@
+# French translation for QEMU.
+# This file is put in the public domain.
+#
+# Aurelien Jarno <aurelien@aurel32.net>, 2013.
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 1.4.50\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2013-07-05 22:36+0200\n"
+"PO-Revision-Date: 2013-03-31 19:39+0200\n"
+"Last-Translator: Aurelien Jarno <aurelien@aurel32.net>\n"
+"Language-Team: French <FR@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Lokalize 1.4\n"
+
+#: ui/gtk.c:214
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr "- Appuyer sur Ctrl+Alt+G pour arrêter la capture"
+
+#: ui/gtk.c:218
+msgid " [Paused]"
+msgstr " [En pause]"
+
+#: ui/gtk.c:1318
+msgid "_Pause"
+msgstr "_Pause"
+
+#: ui/gtk.c:1324
+msgid "_Reset"
+msgstr "_Réinitialiser"
+
+#: ui/gtk.c:1327
+msgid "Power _Down"
+msgstr "_Éteindre"
+
+#: ui/gtk.c:1381
+msgid "Zoom To _Fit"
+msgstr "Zoomer pour _ajuster"
+
+#: ui/gtk.c:1387
+msgid "Grab On _Hover"
+msgstr "Capturer en _survolant"
+
+#: ui/gtk.c:1390
+msgid "_Grab Input"
+msgstr "_Capturer les entrées"
+
+#: ui/gtk.c:1416
+msgid "Show _Tabs"
+msgstr "Montrer les _onglets"
+
+#: ui/gtk.c:1430
+msgid "_Machine"
+msgstr "_Machine"
+
+#: ui/gtk.c:1435
+msgid "_View"
+msgstr "_Vue"

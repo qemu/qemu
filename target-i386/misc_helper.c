@@ -122,11 +122,12 @@ void helper_cpuid(CPUX86State *env)
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_CPUID, 0);
 
-    cpu_x86_cpuid(env, (uint32_t)EAX, (uint32_t)ECX, &eax, &ebx, &ecx, &edx);
-    EAX = eax;
-    EBX = ebx;
-    ECX = ecx;
-    EDX = edx;
+    cpu_x86_cpuid(env, (uint32_t)env->regs[R_EAX], (uint32_t)env->regs[R_ECX],
+                  &eax, &ebx, &ecx, &edx);
+    env->regs[R_EAX] = eax;
+    env->regs[R_EBX] = ebx;
+    env->regs[R_ECX] = ecx;
+    env->regs[R_EDX] = edx;
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -234,14 +235,14 @@ void helper_rdtsc(CPUX86State *env)
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDTSC, 0);
 
     val = cpu_get_tsc(env) + env->tsc_offset;
-    EAX = (uint32_t)(val);
-    EDX = (uint32_t)(val >> 32);
+    env->regs[R_EAX] = (uint32_t)(val);
+    env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
 void helper_rdtscp(CPUX86State *env)
 {
     helper_rdtsc(env);
-    ECX = (uint32_t)(env->tsc_aux);
+    env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
 void helper_rdpmc(CPUX86State *env)
@@ -271,9 +272,10 @@ void helper_wrmsr(CPUX86State *env)
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1);
 
-    val = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
+    val = ((uint32_t)env->regs[R_EAX]) |
+        ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
 
-    switch ((uint32_t)ECX) {
+    switch ((uint32_t)env->regs[R_ECX]) {
     case MSR_IA32_SYSENTER_CS:
         env->sysenter_cs = val & 0xffff;
         break;
@@ -291,22 +293,22 @@ void helper_wrmsr(CPUX86State *env)
             uint64_t update_mask;
 
             update_mask = 0;
-            if (env->cpuid_ext2_features & CPUID_EXT2_SYSCALL) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_SYSCALL) {
                 update_mask |= MSR_EFER_SCE;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_LM) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
                 update_mask |= MSR_EFER_LME;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_FFXSR) {
                 update_mask |= MSR_EFER_FFXSR;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_NX) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_NX) {
                 update_mask |= MSR_EFER_NXE;
             }
-            if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
+            if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
                 update_mask |= MSR_EFER_SVME;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_FFXSR) {
                 update_mask |= MSR_EFER_FFXSR;
             }
             cpu_load_efer(env, (env->efer & ~update_mask) |
@@ -350,7 +352,8 @@ void helper_wrmsr(CPUX86State *env)
     case MSR_MTRRphysBase(5):
     case MSR_MTRRphysBase(6):
     case MSR_MTRRphysBase(7):
-        env->mtrr_var[((uint32_t)ECX - MSR_MTRRphysBase(0)) / 2].base = val;
+        env->mtrr_var[((uint32_t)env->regs[R_ECX] -
+                       MSR_MTRRphysBase(0)) / 2].base = val;
         break;
     case MSR_MTRRphysMask(0):
     case MSR_MTRRphysMask(1):
@@ -360,14 +363,17 @@ void helper_wrmsr(CPUX86State *env)
     case MSR_MTRRphysMask(5):
     case MSR_MTRRphysMask(6):
     case MSR_MTRRphysMask(7):
-        env->mtrr_var[((uint32_t)ECX - MSR_MTRRphysMask(0)) / 2].mask = val;
+        env->mtrr_var[((uint32_t)env->regs[R_ECX] -
+                       MSR_MTRRphysMask(0)) / 2].mask = val;
         break;
     case MSR_MTRRfix64K_00000:
-        env->mtrr_fixed[(uint32_t)ECX - MSR_MTRRfix64K_00000] = val;
+        env->mtrr_fixed[(uint32_t)env->regs[R_ECX] -
+                        MSR_MTRRfix64K_00000] = val;
         break;
     case MSR_MTRRfix16K_80000:
     case MSR_MTRRfix16K_A0000:
-        env->mtrr_fixed[(uint32_t)ECX - MSR_MTRRfix16K_80000 + 1] = val;
+        env->mtrr_fixed[(uint32_t)env->regs[R_ECX] -
+                        MSR_MTRRfix16K_80000 + 1] = val;
         break;
     case MSR_MTRRfix4K_C0000:
     case MSR_MTRRfix4K_C8000:
@@ -377,7 +383,8 @@ void helper_wrmsr(CPUX86State *env)
     case MSR_MTRRfix4K_E8000:
     case MSR_MTRRfix4K_F0000:
     case MSR_MTRRfix4K_F8000:
-        env->mtrr_fixed[(uint32_t)ECX - MSR_MTRRfix4K_C0000 + 3] = val;
+        env->mtrr_fixed[(uint32_t)env->regs[R_ECX] -
+                        MSR_MTRRfix4K_C0000 + 3] = val;
         break;
     case MSR_MTRRdefType:
         env->mtrr_deftype = val;
@@ -398,9 +405,10 @@ void helper_wrmsr(CPUX86State *env)
         env->msr_ia32_misc_enable = val;
         break;
     default:
-        if ((uint32_t)ECX >= MSR_MC0_CTL
-            && (uint32_t)ECX < MSR_MC0_CTL + (4 * env->mcg_cap & 0xff)) {
-            uint32_t offset = (uint32_t)ECX - MSR_MC0_CTL;
+        if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
+            && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
+            (4 * env->mcg_cap & 0xff)) {
+            uint32_t offset = (uint32_t)env->regs[R_ECX] - MSR_MC0_CTL;
             if ((offset & 0x3) != 0
                 || (val == 0 || val == ~(uint64_t)0)) {
                 env->mce_banks[offset] = val;
@@ -418,7 +426,7 @@ void helper_rdmsr(CPUX86State *env)
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 0);
 
-    switch ((uint32_t)ECX) {
+    switch ((uint32_t)env->regs[R_ECX]) {
     case MSR_IA32_SYSENTER_CS:
         val = env->sysenter_cs;
         break;
@@ -480,7 +488,8 @@ void helper_rdmsr(CPUX86State *env)
     case MSR_MTRRphysBase(5):
     case MSR_MTRRphysBase(6):
     case MSR_MTRRphysBase(7):
-        val = env->mtrr_var[((uint32_t)ECX - MSR_MTRRphysBase(0)) / 2].base;
+        val = env->mtrr_var[((uint32_t)env->regs[R_ECX] -
+                             MSR_MTRRphysBase(0)) / 2].base;
         break;
     case MSR_MTRRphysMask(0):
     case MSR_MTRRphysMask(1):
@@ -490,14 +499,16 @@ void helper_rdmsr(CPUX86State *env)
     case MSR_MTRRphysMask(5):
     case MSR_MTRRphysMask(6):
     case MSR_MTRRphysMask(7):
-        val = env->mtrr_var[((uint32_t)ECX - MSR_MTRRphysMask(0)) / 2].mask;
+        val = env->mtrr_var[((uint32_t)env->regs[R_ECX] -
+                             MSR_MTRRphysMask(0)) / 2].mask;
         break;
     case MSR_MTRRfix64K_00000:
         val = env->mtrr_fixed[0];
         break;
     case MSR_MTRRfix16K_80000:
     case MSR_MTRRfix16K_A0000:
-        val = env->mtrr_fixed[(uint32_t)ECX - MSR_MTRRfix16K_80000 + 1];
+        val = env->mtrr_fixed[(uint32_t)env->regs[R_ECX] -
+                              MSR_MTRRfix16K_80000 + 1];
         break;
     case MSR_MTRRfix4K_C0000:
     case MSR_MTRRfix4K_C8000:
@@ -507,13 +518,14 @@ void helper_rdmsr(CPUX86State *env)
     case MSR_MTRRfix4K_E8000:
     case MSR_MTRRfix4K_F0000:
     case MSR_MTRRfix4K_F8000:
-        val = env->mtrr_fixed[(uint32_t)ECX - MSR_MTRRfix4K_C0000 + 3];
+        val = env->mtrr_fixed[(uint32_t)env->regs[R_ECX] -
+                              MSR_MTRRfix4K_C0000 + 3];
         break;
     case MSR_MTRRdefType:
         val = env->mtrr_deftype;
         break;
     case MSR_MTRRcap:
-        if (env->cpuid_features & CPUID_MTRR) {
+        if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
             val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT |
                 MSR_MTRRcap_WC_SUPPORTED;
         } else {
@@ -538,9 +550,10 @@ void helper_rdmsr(CPUX86State *env)
         val = env->msr_ia32_misc_enable;
         break;
     default:
-        if ((uint32_t)ECX >= MSR_MC0_CTL
-            && (uint32_t)ECX < MSR_MC0_CTL + (4 * env->mcg_cap & 0xff)) {
-            uint32_t offset = (uint32_t)ECX - MSR_MC0_CTL;
+        if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
+            && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
+            (4 * env->mcg_cap & 0xff)) {
+            uint32_t offset = (uint32_t)env->regs[R_ECX] - MSR_MC0_CTL;
             val = env->mce_banks[offset];
             break;
         }
@@ -548,8 +561,8 @@ void helper_rdmsr(CPUX86State *env)
         val = 0;
         break;
     }
-    EAX = (uint32_t)(val);
-    EDX = (uint32_t)(val >> 32);
+    env->regs[R_EAX] = (uint32_t)(val);
+    env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 #endif
 
@@ -569,14 +582,14 @@ void helper_hlt(CPUX86State *env, int next_eip_addend)
     X86CPU *cpu = x86_env_get_cpu(env);
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0);
-    EIP += next_eip_addend;
+    env->eip += next_eip_addend;
 
     do_hlt(cpu);
 }
 
 void helper_monitor(CPUX86State *env, target_ulong ptr)
 {
-    if ((uint32_t)ECX != 0) {
+    if ((uint32_t)env->regs[R_ECX] != 0) {
         raise_exception(env, EXCP0D_GPF);
     }
     /* XXX: store address? */
@@ -588,16 +601,16 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     CPUState *cs;
     X86CPU *cpu;
 
-    if ((uint32_t)ECX != 0) {
+    if ((uint32_t)env->regs[R_ECX] != 0) {
         raise_exception(env, EXCP0D_GPF);
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
-    EIP += next_eip_addend;
+    env->eip += next_eip_addend;
 
     cpu = x86_env_get_cpu(env);
     cs = CPU(cpu);
     /* XXX: not complete but not completely erroneous */
-    if (cs->cpu_index != 0 || env->next_cpu != NULL) {
+    if (cs->cpu_index != 0 || cs->next_cpu != NULL) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {

@@ -96,6 +96,9 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {
     env->exception_index = excp;
+    if (excp == EXCP_DEBUG) {
+        env->exception_taken = 0;
+    }
     cpu_loop_exit(env);
 }
 
@@ -368,7 +371,9 @@ void HELPER(wsr_lend)(CPUXtensaState *env, uint32_t v)
 
 void HELPER(dump_state)(CPUXtensaState *env)
 {
-    cpu_dump_state(env, stderr, fprintf, 0);
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
 }
 
 void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
@@ -446,8 +451,10 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
     switch (access & PAGE_CACHE_MASK) {
     case PAGE_CACHE_WB:
         atomctl >>= 2;
+        /* fall through */
     case PAGE_CACHE_WT:
         atomctl >>= 2;
+        /* fall through */
     case PAGE_CACHE_BYPASS:
         if ((atomctl & 0x3) == 0) {
             HELPER(exception_cause_vaddr)(env, pc,

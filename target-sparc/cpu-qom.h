@@ -68,7 +68,7 @@ typedef struct SPARCCPU {
 
 static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
 {
-    return SPARC_CPU(container_of(env, SPARCCPU, env));
+    return container_of(env, SPARCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))
@@ -76,5 +76,10 @@ static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
 #define ENV_OFFSET offsetof(SPARCCPU, env)
 
 void sparc_cpu_do_interrupt(CPUState *cpu);
+void sparc_cpu_dump_state(CPUState *cpu, FILE *f,
+                          fprintf_function cpu_fprintf, int flags);
+hwaddr sparc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int sparc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int sparc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 #endif

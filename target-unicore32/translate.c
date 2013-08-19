@@ -1876,9 +1876,11 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
-        TranslationBlock *tb, int search_pc)
+static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
+        TranslationBlock *tb, bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
     uint16_t *gen_opc_end;
@@ -1899,7 +1901,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
@@ -1933,7 +1935,6 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
                        invalidate this TB.  */
                     dc->pc += 2; /* FIXME */
                     goto done_generating;
-                    break;
                 }
             }
         }
@@ -1971,7 +1972,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
          * ensures prefetch aborts occur at the right place.  */
         num_insns++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
@@ -1988,7 +1989,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             if (dc->is_jmp == DISAS_SYSCALL) {
@@ -2066,12 +2067,12 @@ done_generating:
 
 void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUUniCore32State *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, true);
 }
 
 static const char *cpu_mode_names[16] = {
@@ -2114,9 +2115,11 @@ static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
 #define cpu_dump_state_ucf64(env, file, pr, flags)      do { } while (0)
 #endif
 
-void cpu_dump_state(CPUUniCore32State *env, FILE *f,
-        fprintf_function cpu_fprintf, int flags)
+void uc32_cpu_dump_state(CPUState *cs, FILE *f,
+                         fprintf_function cpu_fprintf, int flags)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
     int i;
     uint32_t psr;
 

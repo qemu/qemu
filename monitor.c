@@ -26,14 +26,14 @@
 #include "monitor/qdev.h"
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
-#include "hw/watchdog.h"
+#include "sysemu/watchdog.h"
 #include "hw/loader.h"
 #include "exec/gdbstub.h"
 #include "net/net.h"
 #include "net/slirp.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
@@ -47,7 +47,7 @@
 #include "migration/migration.h"
 #include "sysemu/kvm.h"
 #include "qemu/acl.h"
-#include "tpm/tpm.h"
+#include "sysemu/tpm.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qlist.h"
@@ -63,7 +63,6 @@
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
-#include "ui/qemu-spice.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
 #include "hmp.h"
@@ -71,9 +70,9 @@
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
-#include "hw/sun4m.h"
+#include "hw/sparc/sun4m.h"
 #endif
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -94,10 +93,10 @@
  * 'M'          Non-negative target long (32 or 64 bit), in user mode the
  *              value is multiplied by 2^20 (think Mebibyte)
  * 'o'          octets (aka bytes)
- *              user mode accepts an optional T, t, G, g, M, m, K, k
- *              suffix, which multiplies the value by 2^40 for
- *              suffixes T and t, 2^30 for suffixes G and g, 2^20 for
- *              M and m, 2^10 for K and k
+ *              user mode accepts an optional E, e, P, p, T, t, G, g, M, m,
+ *              K, k suffix, which multiplies the value by 2^60 for suffixes E
+ *              and e, 2^50 for suffixes P and p, 2^40 for suffixes T and t,
+ *              2^30 for suffixes G and g, 2^20 for M and m, 2^10 for K and k
  * 'T'          double
  *              user mode accepts an optional ms, us, ns suffix,
  *              which divides the value by 1e3, 1e6, 1e9, respectively
@@ -188,11 +187,12 @@ struct Monitor {
     int reset_seen;
     int flags;
     int suspend_cnt;
-    uint8_t outbuf[1024];
-    int outbuf_index;
+    bool skip_flush;
+    QString *outbuf;
+    guint watch;
     ReadLineState *rs;
     MonitorControl *mc;
-    CPUArchState *mon_cpu;
+    CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
     QError *error;
@@ -261,36 +261,72 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
     }
 }
 
+static gboolean monitor_unblocked(GIOChannel *chan, GIOCondition cond,
+                                  void *opaque)
+{
+    Monitor *mon = opaque;
+
+    mon->watch = 0;
+    monitor_flush(mon);
+    return FALSE;
+}
+
 void monitor_flush(Monitor *mon)
 {
-    if (mon && mon->outbuf_index != 0 && !mon->mux_out) {
-        qemu_chr_fe_write(mon->chr, mon->outbuf, mon->outbuf_index);
-        mon->outbuf_index = 0;
+    int rc;
+    size_t len;
+    const char *buf;
+
+    if (mon->skip_flush) {
+        return;
+    }
+
+    buf = qstring_get_str(mon->outbuf);
+    len = qstring_get_length(mon->outbuf);
+
+    if (len && !mon->mux_out) {
+        rc = qemu_chr_fe_write(mon->chr, (const uint8_t *) buf, len);
+        if (rc == len) {
+            /* all flushed */
+            QDECREF(mon->outbuf);
+            mon->outbuf = qstring_new();
+            return;
+        }
+        if (rc > 0) {
+            /* partinal write */
+            QString *tmp = qstring_from_str(buf + rc);
+            QDECREF(mon->outbuf);
+            mon->outbuf = tmp;
+        }
+        if (mon->watch == 0) {
+            mon->watch = qemu_chr_fe_add_watch(mon->chr, G_IO_OUT,
+                                               monitor_unblocked, mon);
+        }
     }
 }
 
-/* flush at every end of line or if the buffer is full */
+/* flush at every end of line */
 static void monitor_puts(Monitor *mon, const char *str)
 {
     char c;
 
     for(;;) {
-        assert(mon->outbuf_index < sizeof(mon->outbuf) - 1);
         c = *str++;
         if (c == '\0')
             break;
-        if (c == '\n')
-            mon->outbuf[mon->outbuf_index++] = '\r';
-        mon->outbuf[mon->outbuf_index++] = c;
-        if (mon->outbuf_index >= (sizeof(mon->outbuf) - 1)
-            || c == '\n')
+        if (c == '\n') {
+            qstring_append_chr(mon->outbuf, '\r');
+        }
+        qstring_append_chr(mon->outbuf, c);
+        if (c == '\n') {
             monitor_flush(mon);
+        }
     }
 }
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
-    char buf[4096];
+    char *buf;
 
     if (!mon)
         return;
@@ -299,8 +335,9 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
         return;
     }
 
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    buf = g_strdup_vprintf(fmt, ap);
     monitor_puts(mon, buf);
+    g_free(buf);
 }
 
 void monitor_printf(Monitor *mon, const char *fmt, ...)
@@ -458,12 +495,15 @@ static const char *monitor_event_names[] = {
     [QEVENT_BLOCK_JOB_CANCELLED] = "BLOCK_JOB_CANCELLED",
     [QEVENT_BLOCK_JOB_ERROR] = "BLOCK_JOB_ERROR",
     [QEVENT_BLOCK_JOB_READY] = "BLOCK_JOB_READY",
+    [QEVENT_DEVICE_DELETED] = "DEVICE_DELETED",
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
+    [QEVENT_NIC_RX_FILTER_CHANGED] = "NIC_RX_FILTER_CHANGED",
     [QEVENT_SUSPEND] = "SUSPEND",
     [QEVENT_SUSPEND_DISK] = "SUSPEND_DISK",
     [QEVENT_WAKEUP] = "WAKEUP",
     [QEVENT_BALLOON_CHANGE] = "BALLOON_CHANGE",
     [QEVENT_SPICE_MIGRATE_COMPLETED] = "SPICE_MIGRATE_COMPLETED",
+    [QEVENT_GUEST_PANICKED] = "GUEST_PANICKED",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
@@ -648,11 +688,10 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
 {
     char *output = NULL;
     Monitor *old_mon, hmp;
-    CharDriverState mchar;
 
     memset(&hmp, 0, sizeof(hmp));
-    qemu_chr_init_mem(&mchar);
-    hmp.chr = &mchar;
+    hmp.outbuf = qstring_new();
+    hmp.skip_flush = true;
 
     old_mon = cur_mon;
     cur_mon = &hmp;
@@ -670,16 +709,14 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     handle_user_command(&hmp, command_line);
     cur_mon = old_mon;
 
-    if (qemu_chr_mem_osize(hmp.chr) > 0) {
-        QString *str = qemu_chr_mem_to_qs(hmp.chr);
-        output = g_strdup(qstring_get_str(str));
-        QDECREF(str);
+    if (qstring_get_length(hmp.outbuf) > 0) {
+        output = g_strdup(qstring_get_str(hmp.outbuf));
     } else {
         output = g_strdup("");
     }
 
 out:
-    qemu_chr_close_mem(hmp.chr);
+    QDECREF(hmp.outbuf);
     return output;
 }
 
@@ -741,9 +778,18 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
-    int ret = trace_event_set_state(tp_name, new_state);
 
-    if (!ret) {
+    bool found = false;
+    TraceEvent *ev = NULL;
+    while ((ev = trace_event_pattern(tp_name, ev)) != NULL) {
+        found = true;
+        if (!trace_event_get_state_static(ev)) {
+            monitor_printf(mon, "event \"%s\" is not traceable\n", tp_name);
+        } else {
+            trace_event_set_state_dynamic(ev, new_state);
+        }
+    }
+    if (!trace_event_is_pattern(tp_name) && !found) {
         monitor_printf(mon, "unknown event name \"%s\"\n", tp_name);
     }
 }
@@ -862,7 +908,7 @@ int monitor_set_cpu(int cpu_index)
     if (cpu == NULL) {
         return -1;
     }
-    cur_mon->mon_cpu = cpu->env_ptr;
+    cur_mon->mon_cpu = cpu;
     return 0;
 }
 
@@ -872,7 +918,7 @@ static CPUArchState *mon_get_cpu(void)
         monitor_set_cpu(0);
     }
     cpu_synchronize_state(cur_mon->mon_cpu);
-    return cur_mon->mon_cpu;
+    return cur_mon->mon_cpu->env_ptr;
 }
 
 int monitor_get_cpu_index(void)
@@ -883,9 +929,11 @@ int monitor_get_cpu_index(void)
 
 static void do_info_registers(Monitor *mon, const QDict *qdict)
 {
+    CPUState *cpu;
     CPUArchState *env;
     env = mon_get_cpu();
-    cpu_dump_state(env, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
+    cpu = ENV_GET_CPU(env);
+    cpu_dump_state(cpu, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
 static void do_info_jit(Monitor *mon, const QDict *qdict)
@@ -910,16 +958,15 @@ static void do_info_history(Monitor *mon, const QDict *qdict)
     }
 }
 
-#if defined(TARGET_PPC)
-/* XXX: not implemented in other targets */
 static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
 {
+    CPUState *cpu;
     CPUArchState *env;
 
     env = mon_get_cpu();
-    cpu_dump_statistics(env, (FILE *)mon, &monitor_fprintf, 0);
+    cpu = ENV_GET_CPU(env);
+    cpu_dump_statistics(cpu, (FILE *)mon, &monitor_fprintf, 0);
 }
-#endif
 
 static void do_trace_print_events(Monitor *mon, const QDict *qdict)
 {
@@ -1117,7 +1164,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
             cpu_physical_memory_read(addr, buf, l);
         } else {
             env = mon_get_cpu();
-            if (cpu_memory_rw_debug(env, addr, buf, l, 0) < 0) {
+            if (cpu_memory_rw_debug(ENV_GET_CPU(env), addr, buf, l, 0) < 0) {
                 monitor_printf(mon, " Cannot access memory\n");
                 break;
             }
@@ -1767,14 +1814,12 @@ static void do_info_mtree(Monitor *mon, const QDict *qdict)
 static void do_info_numa(Monitor *mon, const QDict *qdict)
 {
     int i;
-    CPUArchState *env;
     CPUState *cpu;
 
     monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
     for (i = 0; i < nb_numa_nodes; i++) {
         monitor_printf(mon, "node %d cpus:", i);
-        for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            cpu = ENV_GET_CPU(env);
+        for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
             if (cpu->numa_node == i) {
                 monitor_printf(mon, " %d", cpu->cpu_index);
             }
@@ -1824,7 +1869,6 @@ static void do_info_capture(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef HAS_AUDIO
 static void do_stop_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
@@ -1865,7 +1909,6 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
     }
     QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
-#endif
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
 {
@@ -1977,7 +2020,6 @@ static void do_acl_remove(Monitor *mon, const QDict *qdict)
 static void do_inject_mce(Monitor *mon, const QDict *qdict)
 {
     X86CPU *cpu;
-    CPUX86State *cenv;
     CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
     int bank = qdict_get_int(qdict, "bank");
@@ -1990,14 +2032,11 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     if (qdict_get_try_bool(qdict, "broadcast", 0)) {
         flags |= MCE_INJECT_BROADCAST;
     }
-    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
-        cpu = x86_env_get_cpu(cenv);
-        cs = CPU(cpu);
-        if (cs->cpu_index == cpu_index) {
-            cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
-                               flags);
-            break;
-        }
+    cs = qemu_get_cpu(cpu_index);
+    if (cs != NULL) {
+        cpu = X86_CPU(cs);
+        cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
+                           flags);
     }
 }
 #endif
@@ -2436,9 +2475,10 @@ static mon_cmd_t info_cmds[] = {
     },
     {
         .name       = "block",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the block devices",
+        .args_type  = "verbose:-v,device:B?",
+        .params     = "[-v] [device]",
+        .help       = "show info of one block device or all block devices "
+                      "(and details of images with -v option)",
         .mhandler.cmd = hmp_info_block,
     },
     {
@@ -2645,7 +2685,6 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show the current VM UUID",
         .mhandler.cmd = hmp_info_uuid,
     },
-#if defined(TARGET_PPC)
     {
         .name       = "cpustats",
         .args_type  = "",
@@ -2653,7 +2692,6 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show CPU statistics",
         .mhandler.cmd = do_info_cpu_stats,
     },
-#endif
 #if defined(CONFIG_SLIRP)
     {
         .name       = "usernet",
@@ -2941,10 +2979,6 @@ static const MonitorDef monitor_defs[] = {
     { "xer", 0, &monitor_get_xer, },
     { "tbu", 0, &monitor_get_tbu, },
     { "tbl", 0, &monitor_get_tbl, },
-#if defined(TARGET_PPC64)
-    /* Address space register */
-    { "asr", offsetof(CPUPPCState, asr) },
-#endif
     /* Segment registers */
     { "sdr1", offsetof(CPUPPCState, spr[SPR_SDR1]) },
     { "sr0", offsetof(CPUPPCState, sr[0]) },
@@ -3541,10 +3575,10 @@ static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
  * If @cmdline is blank, return NULL.
  * If it can't be parsed, report to @mon, and return NULL.
  * Else, insert command arguments into @qdict, and return the command.
- * If sub-command table exist, and if @cmdline contains addtional string for
- * sub-command, this function will try search sub-command table. if no
- * addtional string for sub-command exist, this function will return the found
- * one in @table.
+ * If a sub-command table exists, and if @cmdline contains an additional string
+ * for a sub-command, this function will try to search the sub-command table.
+ * If no additional string for a sub-command is present, this function will
+ * return the command found in @table.
  * Do not assume the returned command points into @table!  It doesn't
  * when the command is a sub-command.
  */
@@ -4717,6 +4751,7 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     mon = g_malloc0(sizeof(*mon));
+    mon->outbuf = qstring_new();
 
     mon->chr = chr;
     mon->flags = flags;

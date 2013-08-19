@@ -2,109 +2,189 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
+# Copyright (c) 2013 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPLv2.
 # See the COPYING.LIB file in the top-level directory.
 
 from ordereddict import OrderedDict
+import sys
 
-def tokenize(data):
-    while len(data):
-        ch = data[0]
-        data = data[1:]
-        if ch in ['{', '}', ':', ',', '[', ']']:
-            yield ch
-        elif ch in ' \n':
-            None
-        elif ch == "'":
-            string = ''
-            esc = False
-            while True:
-                if (data == ''):
-                    raise Exception("Mismatched quotes")
-                ch = data[0]
-                data = data[1:]
-                if esc:
-                    string += ch
-                    esc = False
-                elif ch == "\\":
-                    esc = True
-                elif ch == "'":
-                    break
-                else:
-                    string += ch
-            yield string
+builtin_types = [
+    'str', 'int', 'number', 'bool',
+    'int8', 'int16', 'int32', 'int64',
+    'uint8', 'uint16', 'uint32', 'uint64'
+]
 
-def parse(tokens):
-    if tokens[0] == '{':
-        ret = OrderedDict()
-        tokens = tokens[1:]
-        while tokens[0] != '}':
-            key = tokens[0]
-            tokens = tokens[1:]
+builtin_type_qtypes = {
+    'str':      'QTYPE_QSTRING',
+    'int':      'QTYPE_QINT',
+    'number':   'QTYPE_QFLOAT',
+    'bool':     'QTYPE_QBOOL',
+    'int8':     'QTYPE_QINT',
+    'int16':    'QTYPE_QINT',
+    'int32':    'QTYPE_QINT',
+    'int64':    'QTYPE_QINT',
+    'uint8':    'QTYPE_QINT',
+    'uint16':   'QTYPE_QINT',
+    'uint32':   'QTYPE_QINT',
+    'uint64':   'QTYPE_QINT',
+}
 
-            tokens = tokens[1:] # :
+class QAPISchemaError(Exception):
+    def __init__(self, schema, msg):
+        self.fp = schema.fp
+        self.msg = msg
+        self.line = self.col = 1
+        for ch in schema.src[0:schema.pos]:
+            if ch == '\n':
+                self.line += 1
+                self.col = 1
+            elif ch == '\t':
+                self.col = (self.col + 7) % 8 + 1
+            else:
+                self.col += 1
 
-            value, tokens = parse(tokens)
+    def __str__(self):
+        return "%s:%s:%s: %s" % (self.fp.name, self.line, self.col, self.msg)
 
-            if tokens[0] == ',':
-                tokens = tokens[1:]
+class QAPISchema:
 
-            ret[key] = value
-        tokens = tokens[1:]
-        return ret, tokens
-    elif tokens[0] == '[':
-        ret = []
-        tokens = tokens[1:]
-        while tokens[0] != ']':
-            value, tokens = parse(tokens)
-            if tokens[0] == ',':
-                tokens = tokens[1:]
-            ret.append(value)
-        tokens = tokens[1:]
-        return ret, tokens
-    else:
-        return tokens[0], tokens[1:]
+    def __init__(self, fp):
+        self.fp = fp
+        self.src = fp.read()
+        if self.src == '' or self.src[-1] != '\n':
+            self.src += '\n'
+        self.cursor = 0
+        self.exprs = []
+        self.accept()
 
-def evaluate(string):
-    return parse(map(lambda x: x, tokenize(string)))[0]
+        while self.tok != None:
+            self.exprs.append(self.get_expr(False))
+
+    def accept(self):
+        while True:
+            self.tok = self.src[self.cursor]
+            self.pos = self.cursor
+            self.cursor += 1
+            self.val = None
+
+            if self.tok == '#':
+                self.cursor = self.src.find('\n', self.cursor)
+            elif self.tok in ['{', '}', ':', ',', '[', ']']:
+                return
+            elif self.tok == "'":
+                string = ''
+                esc = False
+                while True:
+                    ch = self.src[self.cursor]
+                    self.cursor += 1
+                    if ch == '\n':
+                        raise QAPISchemaError(self,
+                                              'Missing terminating "\'"')
+                    if esc:
+                        string += ch
+                        esc = False
+                    elif ch == "\\":
+                        esc = True
+                    elif ch == "'":
+                        self.val = string
+                        return
+                    else:
+                        string += ch
+            elif self.tok == '\n':
+                if self.cursor == len(self.src):
+                    self.tok = None
+                    return
+            elif not self.tok.isspace():
+                raise QAPISchemaError(self, 'Stray "%s"' % self.tok)
+
+    def get_members(self):
+        expr = OrderedDict()
+        if self.tok == '}':
+            self.accept()
+            return expr
+        if self.tok != "'":
+            raise QAPISchemaError(self, 'Expected string or "}"')
+        while True:
+            key = self.val
+            self.accept()
+            if self.tok != ':':
+                raise QAPISchemaError(self, 'Expected ":"')
+            self.accept()
+            expr[key] = self.get_expr(True)
+            if self.tok == '}':
+                self.accept()
+                return expr
+            if self.tok != ',':
+                raise QAPISchemaError(self, 'Expected "," or "}"')
+            self.accept()
+            if self.tok != "'":
+                raise QAPISchemaError(self, 'Expected string')
+
+    def get_values(self):
+        expr = []
+        if self.tok == ']':
+            self.accept()
+            return expr
+        if not self.tok in [ '{', '[', "'" ]:
+            raise QAPISchemaError(self, 'Expected "{", "[", "]" or string')
+        while True:
+            expr.append(self.get_expr(True))
+            if self.tok == ']':
+                self.accept()
+                return expr
+            if self.tok != ',':
+                raise QAPISchemaError(self, 'Expected "," or "]"')
+            self.accept()
+
+    def get_expr(self, nested):
+        if self.tok != '{' and not nested:
+            raise QAPISchemaError(self, 'Expected "{"')
+        if self.tok == '{':
+            self.accept()
+            expr = self.get_members()
+        elif self.tok == '[':
+            self.accept()
+            expr = self.get_values()
+        elif self.tok == "'":
+            expr = self.val
+            self.accept()
+        else:
+            raise QAPISchemaError(self, 'Expected "{", "[" or string')
+        return expr
 
 def parse_schema(fp):
+    try:
+        schema = QAPISchema(fp)
+    except QAPISchemaError as e:
+        print >>sys.stderr, e
+        exit(1)
+
     exprs = []
-    expr = ''
-    expr_eval = None
 
-    for line in fp:
-        if line.startswith('#') or line == '\n':
-            continue
-
-        if line.startswith(' '):
-            expr += line
-        elif expr:
-            expr_eval = evaluate(expr)
-            if expr_eval.has_key('enum'):
-                add_enum(expr_eval['enum'])
-            elif expr_eval.has_key('union'):
-                add_enum('%sKind' % expr_eval['union'])
-            exprs.append(expr_eval)
-            expr = line
-        else:
-            expr += line
-
-    if expr:
-        expr_eval = evaluate(expr)
-        if expr_eval.has_key('enum'):
-            add_enum(expr_eval['enum'])
-        elif expr_eval.has_key('union'):
-            add_enum('%sKind' % expr_eval['union'])
-        exprs.append(expr_eval)
+    for expr in schema.exprs:
+        if expr.has_key('enum'):
+            add_enum(expr['enum'])
+        elif expr.has_key('union'):
+            add_union(expr)
+            add_enum('%sKind' % expr['union'])
+        elif expr.has_key('type'):
+            add_struct(expr)
+        exprs.append(expr)
 
     return exprs
 
 def parse_args(typeinfo):
+    if isinstance(typeinfo, basestring):
+        struct = find_struct(typeinfo)
+        assert struct != None
+        typeinfo = struct['data']
+
     for member in typeinfo:
         argname = member
         argentry = typeinfo[member]
@@ -174,6 +254,30 @@ def type_name(name):
     return name
 
 enum_types = []
+struct_types = []
+union_types = []
+
+def add_struct(definition):
+    global struct_types
+    struct_types.append(definition)
+
+def find_struct(name):
+    global struct_types
+    for struct in struct_types:
+        if struct['type'] == name:
+            return struct
+    return None
+
+def add_union(definition):
+    global union_types
+    union_types.append(definition)
+
+def find_union(name):
+    global union_types
+    for union in union_types:
+        if union['union'] == name:
+            return union
+    return None
 
 def add_enum(name):
     global enum_types
@@ -242,3 +346,20 @@ def guardname(filename):
     for substr in [".", " ", "-"]:
         guard = guard.replace(substr, "_")
     return guard.upper() + '_H'
+
+def guardstart(name):
+    return mcgen('''
+
+#ifndef %(name)s
+#define %(name)s
+
+''',
+                 name=guardname(name))
+
+def guardend(name):
+    return mcgen('''
+
+#endif /* %(name)s */
+
+''',
+                 name=guardname(name))

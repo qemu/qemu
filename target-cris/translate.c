@@ -3161,10 +3161,12 @@ static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
  */
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
-gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
-                               int search_pc)
+static inline void
+gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUCRISState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
     unsigned int insn_len;
@@ -3196,7 +3198,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->ppc = pc_start;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->flags_uptodate = 1;
     dc->flagx_known = 1;
     dc->flags_x = tb->flags & X_FLAG;
@@ -3336,7 +3338,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
 
         /* If we are rexecuting a branch due to exceptions on
            delay slots dont break.  */
-        if (!(tb->pc & 1) && env->singlestep_enabled) {
+        if (!(tb->pc & 1) && cs->singlestep_enabled) {
             break;
         }
     } while (!dc->is_jmp && !dc->cpustate_changed
@@ -3369,7 +3371,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
 
     cris_evaluate_flags(dc);
 
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         if (dc->is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(env_pc, npc);
         }
@@ -3419,17 +3421,19 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
 
 void gen_intermediate_code (CPUCRISState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUCRISState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, true);
 }
 
-void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     int i;
     uint32_t srs;
 

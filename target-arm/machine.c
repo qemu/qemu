@@ -1,237 +1,279 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
-void cpu_save(QEMUFile *f, void *opaque)
+static bool vfp_needed(void *opaque)
 {
-    int i;
-    CPUARMState *env = (CPUARMState *)opaque;
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
 
-    for (i = 0; i < 16; i++) {
-        qemu_put_be32(f, env->regs[i]);
-    }
-    qemu_put_be32(f, cpsr_read(env));
-    qemu_put_be32(f, env->spsr);
-    for (i = 0; i < 6; i++) {
-        qemu_put_be32(f, env->banked_spsr[i]);
-        qemu_put_be32(f, env->banked_r13[i]);
-        qemu_put_be32(f, env->banked_r14[i]);
-    }
-    for (i = 0; i < 5; i++) {
-        qemu_put_be32(f, env->usr_regs[i]);
-        qemu_put_be32(f, env->fiq_regs[i]);
-    }
-    qemu_put_be32(f, env->cp15.c0_cpuid);
-    qemu_put_be32(f, env->cp15.c0_cssel);
-    qemu_put_be32(f, env->cp15.c1_sys);
-    qemu_put_be32(f, env->cp15.c1_coproc);
-    qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
-    qemu_put_be32(f, env->cp15.c1_scr);
-    qemu_put_be32(f, env->cp15.c2_base0);
-    qemu_put_be32(f, env->cp15.c2_base0_hi);
-    qemu_put_be32(f, env->cp15.c2_base1);
-    qemu_put_be32(f, env->cp15.c2_base1_hi);
-    qemu_put_be32(f, env->cp15.c2_control);
-    qemu_put_be32(f, env->cp15.c2_mask);
-    qemu_put_be32(f, env->cp15.c2_base_mask);
-    qemu_put_be32(f, env->cp15.c2_data);
-    qemu_put_be32(f, env->cp15.c2_insn);
-    qemu_put_be32(f, env->cp15.c3);
-    qemu_put_be32(f, env->cp15.c5_insn);
-    qemu_put_be32(f, env->cp15.c5_data);
-    for (i = 0; i < 8; i++) {
-        qemu_put_be32(f, env->cp15.c6_region[i]);
-    }
-    qemu_put_be32(f, env->cp15.c6_insn);
-    qemu_put_be32(f, env->cp15.c6_data);
-    qemu_put_be32(f, env->cp15.c7_par);
-    qemu_put_be32(f, env->cp15.c7_par_hi);
-    qemu_put_be32(f, env->cp15.c9_insn);
-    qemu_put_be32(f, env->cp15.c9_data);
-    qemu_put_be32(f, env->cp15.c9_pmcr);
-    qemu_put_be32(f, env->cp15.c9_pmcnten);
-    qemu_put_be32(f, env->cp15.c9_pmovsr);
-    qemu_put_be32(f, env->cp15.c9_pmxevtyper);
-    qemu_put_be32(f, env->cp15.c9_pmuserenr);
-    qemu_put_be32(f, env->cp15.c9_pminten);
-    qemu_put_be32(f, env->cp15.c13_fcse);
-    qemu_put_be32(f, env->cp15.c13_context);
-    qemu_put_be32(f, env->cp15.c13_tls1);
-    qemu_put_be32(f, env->cp15.c13_tls2);
-    qemu_put_be32(f, env->cp15.c13_tls3);
-    qemu_put_be32(f, env->cp15.c15_cpar);
-    qemu_put_be32(f, env->cp15.c15_power_control);
-    qemu_put_be32(f, env->cp15.c15_diagnostic);
-    qemu_put_be32(f, env->cp15.c15_power_diagnostic);
-
-    qemu_put_be64(f, env->features);
-
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
-        for (i = 0;  i < 16; i++) {
-            CPU_DoubleU u;
-            u.d = env->vfp.regs[i];
-            qemu_put_be32(f, u.l.upper);
-            qemu_put_be32(f, u.l.lower);
-        }
-        for (i = 0; i < 16; i++) {
-            qemu_put_be32(f, env->vfp.xregs[i]);
-        }
-
-        /* TODO: Should use proper FPSCR access functions.  */
-        qemu_put_be32(f, env->vfp.vec_len);
-        qemu_put_be32(f, env->vfp.vec_stride);
-
-        if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            for (i = 16;  i < 32; i++) {
-                CPU_DoubleU u;
-                u.d = env->vfp.regs[i];
-                qemu_put_be32(f, u.l.upper);
-                qemu_put_be32(f, u.l.lower);
-            }
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-        for (i = 0; i < 16; i++) {
-            qemu_put_be64(f, env->iwmmxt.regs[i]);
-        }
-        for (i = 0; i < 16; i++) {
-            qemu_put_be32(f, env->iwmmxt.cregs[i]);
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        qemu_put_be32(f, env->v7m.other_sp);
-        qemu_put_be32(f, env->v7m.vecbase);
-        qemu_put_be32(f, env->v7m.basepri);
-        qemu_put_be32(f, env->v7m.control);
-        qemu_put_be32(f, env->v7m.current_sp);
-        qemu_put_be32(f, env->v7m.exception);
-    }
-
-    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
-        qemu_put_be32(f, env->teecr);
-        qemu_put_be32(f, env->teehbr);
-    }
+    return arm_feature(env, ARM_FEATURE_VFP);
 }
 
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
+static int get_fpscr(QEMUFile *f, void *opaque, size_t size)
 {
-    CPUARMState *env = (CPUARMState *)opaque;
-    int i;
-    uint32_t val;
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+    uint32_t val = qemu_get_be32(f);
 
-    if (version_id != CPU_SAVE_VERSION)
-        return -EINVAL;
+    vfp_set_fpscr(env, val);
+    return 0;
+}
 
-    for (i = 0; i < 16; i++) {
-        env->regs[i] = qemu_get_be32(f);
+static void put_fpscr(QEMUFile *f, void *opaque, size_t size)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    qemu_put_be32(f, vfp_get_fpscr(env));
+}
+
+static const VMStateInfo vmstate_fpscr = {
+    .name = "fpscr",
+    .get = get_fpscr,
+    .put = put_fpscr,
+};
+
+static const VMStateDescription vmstate_vfp = {
+    .name = "cpu/vfp",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 32),
+        /* The xregs array is a little awkward because element 1 (FPSCR)
+         * requires a specific accessor, so we have to split it up in
+         * the vmstate:
+         */
+        VMSTATE_UINT32(env.vfp.xregs[0], ARMCPU),
+        VMSTATE_UINT32_SUB_ARRAY(env.vfp.xregs, ARMCPU, 2, 14),
+        {
+            .name = "fpscr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_fpscr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
+        VMSTATE_END_OF_LIST()
     }
-    val = qemu_get_be32(f);
-    /* Avoid mode switch when restoring CPSR.  */
+};
+
+static bool iwmmxt_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_IWMMXT);
+}
+
+static const VMStateDescription vmstate_iwmmxt = {
+    .name = "cpu/iwmmxt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
+        VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool m_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_M);
+}
+
+const VMStateDescription vmstate_m = {
+    .name = "cpu/m",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
+        VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
+        VMSTATE_UINT32(env.v7m.basepri, ARMCPU),
+        VMSTATE_UINT32(env.v7m.control, ARMCPU),
+        VMSTATE_INT32(env.v7m.current_sp, ARMCPU),
+        VMSTATE_INT32(env.v7m.exception, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool thumb2ee_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_THUMB2EE);
+}
+
+static const VMStateDescription vmstate_thumb2ee = {
+    .name = "cpu/thumb2ee",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.teecr, ARMCPU),
+        VMSTATE_UINT32(env.teehbr, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int get_cpsr(QEMUFile *f, void *opaque, size_t size)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+    uint32_t val = qemu_get_be32(f);
+
+    /* Avoid mode switch when restoring CPSR */
     env->uncached_cpsr = val & CPSR_M;
     cpsr_write(env, val, 0xffffffff);
-    env->spsr = qemu_get_be32(f);
-    for (i = 0; i < 6; i++) {
-        env->banked_spsr[i] = qemu_get_be32(f);
-        env->banked_r13[i] = qemu_get_be32(f);
-        env->banked_r14[i] = qemu_get_be32(f);
-    }
-    for (i = 0; i < 5; i++) {
-        env->usr_regs[i] = qemu_get_be32(f);
-        env->fiq_regs[i] = qemu_get_be32(f);
-    }
-    env->cp15.c0_cpuid = qemu_get_be32(f);
-    env->cp15.c0_cssel = qemu_get_be32(f);
-    env->cp15.c1_sys = qemu_get_be32(f);
-    env->cp15.c1_coproc = qemu_get_be32(f);
-    env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
-    env->cp15.c1_scr = qemu_get_be32(f);
-    env->cp15.c2_base0 = qemu_get_be32(f);
-    env->cp15.c2_base0_hi = qemu_get_be32(f);
-    env->cp15.c2_base1 = qemu_get_be32(f);
-    env->cp15.c2_base1_hi = qemu_get_be32(f);
-    env->cp15.c2_control = qemu_get_be32(f);
-    env->cp15.c2_mask = qemu_get_be32(f);
-    env->cp15.c2_base_mask = qemu_get_be32(f);
-    env->cp15.c2_data = qemu_get_be32(f);
-    env->cp15.c2_insn = qemu_get_be32(f);
-    env->cp15.c3 = qemu_get_be32(f);
-    env->cp15.c5_insn = qemu_get_be32(f);
-    env->cp15.c5_data = qemu_get_be32(f);
-    for (i = 0; i < 8; i++) {
-        env->cp15.c6_region[i] = qemu_get_be32(f);
-    }
-    env->cp15.c6_insn = qemu_get_be32(f);
-    env->cp15.c6_data = qemu_get_be32(f);
-    env->cp15.c7_par = qemu_get_be32(f);
-    env->cp15.c7_par_hi = qemu_get_be32(f);
-    env->cp15.c9_insn = qemu_get_be32(f);
-    env->cp15.c9_data = qemu_get_be32(f);
-    env->cp15.c9_pmcr = qemu_get_be32(f);
-    env->cp15.c9_pmcnten = qemu_get_be32(f);
-    env->cp15.c9_pmovsr = qemu_get_be32(f);
-    env->cp15.c9_pmxevtyper = qemu_get_be32(f);
-    env->cp15.c9_pmuserenr = qemu_get_be32(f);
-    env->cp15.c9_pminten = qemu_get_be32(f);
-    env->cp15.c13_fcse = qemu_get_be32(f);
-    env->cp15.c13_context = qemu_get_be32(f);
-    env->cp15.c13_tls1 = qemu_get_be32(f);
-    env->cp15.c13_tls2 = qemu_get_be32(f);
-    env->cp15.c13_tls3 = qemu_get_be32(f);
-    env->cp15.c15_cpar = qemu_get_be32(f);
-    env->cp15.c15_power_control = qemu_get_be32(f);
-    env->cp15.c15_diagnostic = qemu_get_be32(f);
-    env->cp15.c15_power_diagnostic = qemu_get_be32(f);
+    return 0;
+}
 
-    env->features = qemu_get_be64(f);
+static void put_cpsr(QEMUFile *f, void *opaque, size_t size)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
 
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
-        for (i = 0;  i < 16; i++) {
-            CPU_DoubleU u;
-            u.l.upper = qemu_get_be32(f);
-            u.l.lower = qemu_get_be32(f);
-            env->vfp.regs[i] = u.d;
+    qemu_put_be32(f, cpsr_read(env));
+}
+
+static const VMStateInfo vmstate_cpsr = {
+    .name = "cpsr",
+    .get = get_cpsr,
+    .put = put_cpsr,
+};
+
+static void cpu_pre_save(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    if (kvm_enabled()) {
+        if (!write_kvmstate_to_list(cpu)) {
+            /* This should never fail */
+            abort();
         }
-        for (i = 0; i < 16; i++) {
-            env->vfp.xregs[i] = qemu_get_be32(f);
-        }
-
-        /* TODO: Should use proper FPSCR access functions.  */
-        env->vfp.vec_len = qemu_get_be32(f);
-        env->vfp.vec_stride = qemu_get_be32(f);
-
-        if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            for (i = 16;  i < 32; i++) {
-                CPU_DoubleU u;
-                u.l.upper = qemu_get_be32(f);
-                u.l.lower = qemu_get_be32(f);
-                env->vfp.regs[i] = u.d;
-            }
+    } else {
+        if (!write_cpustate_to_list(cpu)) {
+            /* This should never fail. */
+            abort();
         }
     }
 
-    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-        for (i = 0; i < 16; i++) {
-            env->iwmmxt.regs[i] = qemu_get_be64(f);
+    cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+    memcpy(cpu->cpreg_vmstate_indexes, cpu->cpreg_indexes,
+           cpu->cpreg_array_len * sizeof(uint64_t));
+    memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
+           cpu->cpreg_array_len * sizeof(uint64_t));
+}
+
+static int cpu_post_load(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+    int i, v;
+
+    /* Update the values list from the incoming migration data.
+     * Anything in the incoming data which we don't know about is
+     * a migration failure; anything we know about but the incoming
+     * data doesn't specify retains its current (reset) value.
+     * The indexes list remains untouched -- we only inspect the
+     * incoming migration index list so we can match the values array
+     * entries with the right slots in our own values array.
+     */
+
+    for (i = 0, v = 0; i < cpu->cpreg_array_len
+             && v < cpu->cpreg_vmstate_array_len; i++) {
+        if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
+            /* register in our list but not incoming : skip it */
+            continue;
         }
-        for (i = 0; i < 16; i++) {
-            env->iwmmxt.cregs[i] = qemu_get_be32(f);
+        if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
+            /* register in their list but not ours: fail migration */
+            return -1;
         }
+        /* matching register, copy the value over */
+        cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+        v++;
     }
 
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        env->v7m.other_sp = qemu_get_be32(f);
-        env->v7m.vecbase = qemu_get_be32(f);
-        env->v7m.basepri = qemu_get_be32(f);
-        env->v7m.control = qemu_get_be32(f);
-        env->v7m.current_sp = qemu_get_be32(f);
-        env->v7m.exception = qemu_get_be32(f);
-    }
-
-    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
-        env->teecr = qemu_get_be32(f);
-        env->teehbr = qemu_get_be32(f);
+    if (kvm_enabled()) {
+        if (!write_list_to_kvmstate(cpu)) {
+            return -1;
+        }
+        /* Note that it's OK for the TCG side not to know about
+         * every register in the list; KVM is authoritative if
+         * we're using it.
+         */
+        write_list_to_cpustate(cpu);
+    } else {
+        if (!write_list_to_cpustate(cpu)) {
+            return -1;
+        }
     }
 
     return 0;
 }
+
+const VMStateDescription vmstate_arm_cpu = {
+    .name = "cpu",
+    .version_id = 12,
+    .minimum_version_id = 12,
+    .minimum_version_id_old = 12,
+    .pre_save = cpu_pre_save,
+    .post_load = cpu_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
+        {
+            .name = "cpsr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_cpsr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
+        VMSTATE_UINT32(env.spsr, ARMCPU),
+        VMSTATE_UINT32_ARRAY(env.banked_spsr, ARMCPU, 6),
+        VMSTATE_UINT32_ARRAY(env.banked_r13, ARMCPU, 6),
+        VMSTATE_UINT32_ARRAY(env.banked_r14, ARMCPU, 6),
+        VMSTATE_UINT32_ARRAY(env.usr_regs, ARMCPU, 5),
+        VMSTATE_UINT32_ARRAY(env.fiq_regs, ARMCPU, 5),
+        /* The length-check must come before the arrays to avoid
+         * incoming data possibly overflowing the array.
+         */
+        VMSTATE_INT32_LE(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
+                             cpreg_vmstate_array_len,
+                             0, vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_INT32(cpreg_vmstate_values, ARMCPU,
+                             cpreg_vmstate_array_len,
+                             0, vmstate_info_uint64, uint64_t),
+        VMSTATE_UINT32(env.exclusive_addr, ARMCPU),
+        VMSTATE_UINT32(env.exclusive_val, ARMCPU),
+        VMSTATE_UINT32(env.exclusive_high, ARMCPU),
+        VMSTATE_UINT64(env.features, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_vfp,
+            .needed = vfp_needed,
+        } , {
+            .vmsd = &vmstate_iwmmxt,
+            .needed = iwmmxt_needed,
+        } , {
+            .vmsd = &vmstate_m,
+            .needed = m_needed,
+        } , {
+            .vmsd = &vmstate_thumb2ee,
+            .needed = thumb2ee_needed,
+        } , {
+            /* empty */
+        }
+    }
+};

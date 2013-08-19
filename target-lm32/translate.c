@@ -22,7 +22,7 @@
 #include "helper.h"
 #include "tcg-op.h"
 
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 
 #define GEN_HELPER 1
 #include "helper.h"
@@ -324,10 +324,20 @@ static inline void gen_compare(DisasContext *dc, int cond)
     int rX = (dc->format == OP_FMT_RR) ? dc->r2 : dc->r1;
     int rY = (dc->format == OP_FMT_RR) ? dc->r0 : dc->r0;
     int rZ = (dc->format == OP_FMT_RR) ? dc->r1 : -1;
+    int i;
 
     if (dc->format == OP_FMT_RI) {
-        tcg_gen_setcondi_tl(cond, cpu_R[rX], cpu_R[rY],
-                sign_extend(dc->imm16, 16));
+        switch (cond) {
+        case TCG_COND_GEU:
+        case TCG_COND_GTU:
+            i = zero_extend(dc->imm16, 16);
+            break;
+        default:
+            i = sign_extend(dc->imm16, 16);
+            break;
+        }
+
+        tcg_gen_setcondi_tl(cond, cpu_R[rX], cpu_R[rY], i);
     } else {
         tcg_gen_setcond_tl(cond, cpu_R[rX], cpu_R[rY], cpu_R[rZ]);
     }
@@ -373,7 +383,7 @@ static void dec_cmpgeu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
         LOG_DIS("cmpgeui r%d, r%d, %d\n", dc->r0, dc->r1,
-                sign_extend(dc->imm16, 16));
+                zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgeu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
@@ -385,7 +395,7 @@ static void dec_cmpgu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
         LOG_DIS("cmpgui r%d, r%d, %d\n", dc->r0, dc->r1,
-                sign_extend(dc->imm16, 16));
+                zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
@@ -1001,9 +1011,12 @@ static void check_breakpoint(CPULM32State *env, DisasContext *dc)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void gen_intermediate_code_internal(CPULM32State *env,
-        TranslationBlock *tb, int search_pc)
+static inline
+void gen_intermediate_code_internal(LM32CPU *cpu,
+                                    TranslationBlock *tb, bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPULM32State *env = &cpu->env;
     struct DisasContext ctx, *dc = &ctx;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
@@ -1020,16 +1033,11 @@ static void gen_intermediate_code_internal(CPULM32State *env,
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->nr_nops = 0;
 
     if (pc_start & 3) {
         cpu_abort(env, "LM32: unaligned PC=%x\n", pc_start);
-    }
-
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log("-----------------------------------------\n");
-        log_cpu_state(env, 0);
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -1070,7 +1078,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
 
     } while (!dc->is_jmp
          && tcg_ctx.gen_opc_ptr < gen_opc_end
-         && !env->singlestep_enabled
+         && !cs->singlestep_enabled
          && !singlestep
          && (dc->pc < next_page_start)
          && num_insns < max_insns);
@@ -1079,7 +1087,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
         gen_io_end();
     }
 
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         if (dc->is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
         }
@@ -1128,17 +1136,19 @@ static void gen_intermediate_code_internal(CPULM32State *env,
 
 void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, true);
 }
 
-void cpu_dump_state(CPULM32State *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
     int i;
 
     if (!env || !f) {

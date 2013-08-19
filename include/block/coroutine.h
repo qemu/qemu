@@ -130,12 +130,17 @@ void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue);
  *
  * Returns true if a coroutine was restarted, false if the queue is empty.
  */
-bool qemu_co_queue_next(CoQueue *queue);
+bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
 
 /**
  * Restarts all coroutines in the CoQueue and leaves the queue empty.
  */
-void qemu_co_queue_restart_all(CoQueue *queue);
+void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
+
+/**
+ * Enter the next coroutine in the queue
+ */
+bool qemu_co_enter_next(CoQueue *queue);
 
 /**
  * Checks if the CoQueue is empty.
@@ -209,4 +214,10 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
  */
 void coroutine_fn co_sleep_ns(QEMUClock *clock, int64_t ns);
 
+/**
+ * Yield until a file descriptor becomes readable
+ *
+ * Note that this function clobbers the handlers for the file descriptor.
+ */
+void coroutine_fn yield_until_fd_readable(int fd);
 #endif /* QEMU_COROUTINE_H */

@@ -336,11 +336,11 @@ int tcp_fconnect(struct socket *so)
     int opt, s=so->s;
     struct sockaddr_in addr;
 
-    socket_set_nonblock(s);
+    qemu_set_nonblock(s);
     opt = 1;
-    setsockopt(s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(opt ));
+    qemu_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     opt = 1;
-    setsockopt(s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(opt ));
+    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
 
     addr.sin_family = AF_INET;
     if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
@@ -425,11 +425,11 @@ void tcp_connect(struct socket *inso)
         tcp_close(sototcpcb(so)); /* This will sofree() as well */
         return;
     }
-    socket_set_nonblock(s);
+    qemu_set_nonblock(s);
     opt = 1;
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+    qemu_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
     opt = 1;
-    setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
+    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     socket_set_nodelay(s);
 
     so->so_fport = addr.sin_port;
@@ -647,7 +647,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			n4 =  (laddr & 0xff);
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-                        m->m_len += snprintf(bptr, m->m_hdr.mh_size - m->m_len,
+                        m->m_len += snprintf(bptr, m->m_size - m->m_len,
                                              "ORT %d,%d,%d,%d,%d,%d\r\n%s",
                                              n1, n2, n3, n4, n5, n6, x==7?buff:"");
 			return 1;
@@ -680,7 +680,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			n4 =  (laddr & 0xff);
 
 			m->m_len = bptr - m->m_data; /* Adjust length */
-			m->m_len += snprintf(bptr, m->m_hdr.mh_size - m->m_len,
+			m->m_len += snprintf(bptr, m->m_size - m->m_len,
                                              "27 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n%s",
                                              n1, n2, n3, n4, n5, n6, x==7?buff:"");
 
@@ -706,7 +706,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 		if (m->m_data[m->m_len-1] == '\0' && lport != 0 &&
 		    (so = tcp_listen(slirp, INADDR_ANY, 0, so->so_laddr.s_addr,
 		                     htons(lport), SS_FACCEPTONCE)) != NULL)
-                    m->m_len = snprintf(m->m_data, m->m_hdr.mh_size, "%d",
+                    m->m_len = snprintf(m->m_data, m->m_size, "%d",
                                         ntohs(so->so_fport)) + 1;
 		return 1;
 
@@ -726,7 +726,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				return 1;
 			}
 			m->m_len = bptr - m->m_data; /* Adjust length */
-                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                        m->m_len += snprintf(bptr, m->m_size,
                                              "DCC CHAT chat %lu %u%c\n",
                                              (unsigned long)ntohl(so->so_faddr.s_addr),
                                              ntohs(so->so_fport), 1);
@@ -737,7 +737,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				return 1;
 			}
 			m->m_len = bptr - m->m_data; /* Adjust length */
-                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                        m->m_len += snprintf(bptr, m->m_size,
                                              "DCC SEND %s %lu %u %u%c\n", buff,
                                              (unsigned long)ntohl(so->so_faddr.s_addr),
                                              ntohs(so->so_fport), n1, 1);
@@ -748,7 +748,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				return 1;
 			}
 			m->m_len = bptr - m->m_data; /* Adjust length */
-                        m->m_len += snprintf(bptr, m->m_hdr.mh_size,
+                        m->m_len += snprintf(bptr, m->m_size,
                                              "DCC MOVE %s %lu %u %u%c\n", buff,
                                              (unsigned long)ntohl(so->so_faddr.s_addr),
                                              ntohs(so->so_fport), n1, 1);

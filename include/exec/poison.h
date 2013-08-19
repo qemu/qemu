@@ -36,13 +36,11 @@
 #pragma GCC poison TARGET_PAGE_ALIGN
 
 #pragma GCC poison CPUArchState
-#pragma GCC poison env
 
 #pragma GCC poison lduw_phys
 #pragma GCC poison ldl_phys
 #pragma GCC poison ldq_phys
 #pragma GCC poison stl_phys_notdirty
-#pragma GCC poison stq_phys_notdirty
 #pragma GCC poison stw_phys
 #pragma GCC poison stl_phys
 #pragma GCC poison stq_phys

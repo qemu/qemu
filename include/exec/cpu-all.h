@@ -20,9 +20,9 @@
 #define CPU_ALL_H
 
 #include "qemu-common.h"
-#include "qemu/tls.h"
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
+#include "qom/cpu.h"
 
 /* some important defines:
  *
@@ -210,11 +210,15 @@ extern unsigned long reserved_va;
 })
 #endif
 
-#define h2g(x) ({ \
+#define h2g_nocheck(x) ({ \
     unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
+    (abi_ulong)__ret; \
+})
+
+#define h2g(x) ({ \
     /* Check if given address fits target address space */ \
     assert(h2g_valid(x)); \
-    (abi_ulong)__ret; \
+    h2g_nocheck(x); \
 })
 
 #define saddr(x) g2h(x)
@@ -355,21 +359,8 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 
 CPUArchState *cpu_copy(CPUArchState *env);
 
-#define CPU_DUMP_CODE 0x00010000
-#define CPU_DUMP_FPU 0x00020000 /* dump FPU register state, not just integer */
-/* dump info about TCG QEMU's condition code optimization state */
-#define CPU_DUMP_CCOP 0x00040000
-
-void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags);
-void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
-                         int flags);
-
 void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-extern CPUArchState *first_cpu;
-DECLARE_TLS(CPUArchState *,cpu_single_env);
-#define cpu_single_env tls_var(cpu_single_env)
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
 
@@ -421,8 +412,6 @@ DECLARE_TLS(CPUArchState *,cpu_single_env);
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
-void cpu_exit(CPUArchState *s);
-
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
 #define BP_MEM_WRITE          0x02
@@ -444,22 +433,10 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
 void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
-#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
-#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
-#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
-
-void cpu_single_step(CPUArchState *env, int enabled);
-
 #if !defined(CONFIG_USER_ONLY)
-
-/* Return the physical page corresponding to a virtual one. Use it
-   only for debugging because no protection checks are done. Return -1
-   if no page found. */
-hwaddr cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
 /* memory API */
 
-extern int phys_ram_fd;
 extern ram_addr_t ram_size;
 
 /* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
@@ -511,7 +488,7 @@ void qemu_mutex_lock_ramlist(void);
 void qemu_mutex_unlock_ramlist(void);
 #endif /* !CONFIG_USER_ONLY */
 
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
 #endif /* CPU_ALL_H */

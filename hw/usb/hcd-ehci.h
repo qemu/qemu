@@ -40,11 +40,7 @@
 #define MMIO_SIZE        0x1000
 #define CAPA_SIZE        0x10
 
-#define PORTSC               0x0044
-#define PORTSC_BEGIN         PORTSC
-#define PORTSC_END           (PORTSC + 4 * NB_PORTS)
-
-#define NB_PORTS         6        /* Number of downstream ports */
+#define NB_PORTS         6        /* Max. Number of downstream ports */
 
 typedef struct EHCIPacket EHCIPacket;
 typedef struct EHCIQueue EHCIQueue;
@@ -261,13 +257,15 @@ struct EHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
-    DMAContext *dma;
+    AddressSpace *as;
     MemoryRegion mem_caps;
     MemoryRegion mem_opreg;
     MemoryRegion mem_ports;
     int companion_count;
     uint16_t capsbase;
     uint16_t opregbase;
+    uint16_t portscbase;
+    uint16_t portnr;
 
     /* properties */
     uint32_t maxframes;
@@ -278,7 +276,7 @@ struct EHCIState {
      */
     uint8_t caps[CAPA_SIZE];
     union {
-        uint32_t opreg[PORTSC_BEGIN/sizeof(uint32_t)];
+        uint32_t opreg[0x44/sizeof(uint32_t)];
         struct {
             uint32_t usbcmd;
             uint32_t usbsts;
@@ -322,7 +320,8 @@ struct EHCIState {
 
 extern const VMStateDescription vmstate_ehci;
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev);
+void usb_ehci_init(EHCIState *s, DeviceState *dev);
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp);
 
 #define TYPE_PCI_EHCI "pci-ehci-usb"
 #define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
@@ -338,6 +337,8 @@ typedef struct EHCIPCIState {
 
 #define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
 #define TYPE_EXYNOS4210_EHCI "exynos4210-ehci-usb"
+#define TYPE_TEGRA2_EHCI "tegra2-ehci-usb"
+#define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
@@ -361,6 +362,19 @@ typedef struct SysBusEHCIClass {
 
     uint16_t capsbase;
     uint16_t opregbase;
+    uint16_t portscbase;
+    uint16_t portnr;
 } SysBusEHCIClass;
+
+#define FUSBH200_EHCI(obj) \
+    OBJECT_CHECK(FUSBH200EHCIState, (obj), TYPE_FUSBH200_EHCI)
+
+typedef struct FUSBH200EHCIState {
+    /*< private >*/
+    EHCISysBusState parent_obj;
+    /*< public >*/
+
+    MemoryRegion mem_vendor;
+} FUSBH200EHCIState;
 
 #endif

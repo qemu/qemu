@@ -1,11 +1,12 @@
 #ifndef QEMU_OSDEP_H
 #define QEMU_OSDEP_H
 
+#include "config-host.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>
-#ifdef __OpenBSD__
 #include <sys/types.h>
+#ifdef __OpenBSD__
 #include <sys/signal.h>
 #endif
 
@@ -67,6 +68,10 @@ typedef signed int              int_fast16_t;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef ROUND_UP
+#define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
+#endif
+
 #ifndef DIV_ROUND_UP
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #endif
@@ -91,8 +96,9 @@ typedef signed int              int_fast16_t;
 
 int qemu_daemon(int nochdir, int noclose);
 void *qemu_memalign(size_t alignment, size_t size);
-void *qemu_vmalloc(size_t size);
+void *qemu_anon_ram_alloc(size_t size);
 void qemu_vfree(void *ptr);
+void qemu_anon_ram_free(void *ptr, size_t size);
 
 #define QEMU_MADV_INVALID -1
 
@@ -157,6 +163,22 @@ int qemu_close(int fd);
 int qemu_create_pidfile(const char *filename);
 int qemu_get_thread_id(void);
 
+#ifndef CONFIG_IOVEC
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+/*
+ * Use the same value as Linux for now.
+ */
+#define IOV_MAX 1024
+
+ssize_t readv(int fd, const struct iovec *iov, int iov_cnt);
+ssize_t writev(int fd, const struct iovec *iov, int iov_cnt);
+#else
+#include <sys/uio.h>
+#endif
+
 #ifdef _WIN32
 static inline void qemu_timersub(const struct timeval *val1,
                                  const struct timeval *val2,
@@ -181,5 +203,16 @@ const char *qemu_get_version(void);
 
 void fips_set_state(bool requested);
 bool fips_get_state(void);
+
+/* Return a dynamically allocated pathname denoting a file or directory that is
+ * appropriate for storing local state.
+ *
+ * @relative_pathname need not start with a directory separator; one will be
+ * added automatically.
+ *
+ * The caller is responsible for releasing the value returned with g_free()
+ * after use.
+ */
+char *qemu_get_local_state_pathname(const char *relative_pathname);
 
 #endif

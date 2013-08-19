@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/rng-random.h"
-#include "qemu/rng.h"
+#include "sysemu/rng-random.h"
+#include "sysemu/rng.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
 
@@ -41,6 +41,9 @@ static void entropy_available(void *opaque)
     ssize_t len;
 
     len = read(s->fd, buffer, s->size);
+    if (len < 0 && errno == EAGAIN) {
+        return;
+    }
     g_assert(len != -1);
 
     s->receive_func(s->opaque, buffer, len);
@@ -75,9 +78,8 @@ static void rng_random_opened(RngBackend *b, Error **errp)
                   "filename", "a valid filename");
     } else {
         s->fd = qemu_open(s->filename, O_RDONLY | O_NONBLOCK);
-
         if (s->fd == -1) {
-            error_set(errp, QERR_OPEN_FILE_FAILED, s->filename);
+            error_setg_file_open(errp, errno, s->filename);
         }
     }
 }

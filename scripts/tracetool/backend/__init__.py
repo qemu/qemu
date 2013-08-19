@@ -17,6 +17,16 @@ considered its short description.
 All backends must generate their contents through the 'tracetool.out' routine.
 
 
+Backend attributes
+------------------
+
+========= ====================================================================
+Attribute Description
+========= ====================================================================
+PUBLIC    If exists and is set to 'True', the backend is considered "public".
+========= ====================================================================
+
+
 Backend functions
 -----------------
 
@@ -42,7 +52,7 @@ import os
 import tracetool
 
 
-def get_list():
+def get_list(only_public = False):
     """Get a list of (name, description) pairs."""
     res = [("nop", "Tracing disabled.")]
     modnames = []
@@ -56,6 +66,10 @@ def get_list():
         if not module[0]:
             continue
         module = module[1]
+
+        public = getattr(module, "PUBLIC", False)
+        if only_public and not public:
+            continue
 
         doc = module.__doc__
         if doc is None:

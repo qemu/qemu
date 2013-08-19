@@ -254,13 +254,16 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-hwaddr cpu_get_phys_page_debug(CPUMIPSState *env, target_ulong addr)
+hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
     hwaddr phys_addr;
     int prot;
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT) != 0)
+    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr, 0,
+                             ACCESS_INT) != 0) {
         return -1;
+    }
     return phys_addr;
 }
 #endif
@@ -276,7 +279,7 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     int ret = 0;
 
 #if 0
-    log_cpu_state(env, 0);
+    log_cpu_state(CPU(mips_env_get_cpu(env)), 0);
 #endif
     qemu_log("%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
@@ -366,8 +369,7 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_CACHE] = "cache error",
 };
 
-#if !defined(CONFIG_USER_ONLY)
-static target_ulong exception_resume_pc (CPUMIPSState *env)
+target_ulong exception_resume_pc (CPUMIPSState *env)
 {
     target_ulong bad_pc;
     target_ulong isa_mode;
@@ -383,6 +385,7 @@ static target_ulong exception_resume_pc (CPUMIPSState *env)
     return bad_pc;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 static void set_hflags_for_handler (CPUMIPSState *env)
 {
     /* Exception handlers are entered in 32-bit mode.  */

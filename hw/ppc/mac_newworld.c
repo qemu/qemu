@@ -47,18 +47,18 @@
  *
  */
 #include "hw/hw.h"
-#include "hw/ppc.h"
+#include "hw/ppc/ppc.h"
 #include "hw/ppc/mac.h"
-#include "hw/adb.h"
-#include "hw/mac_dbdma.h"
-#include "hw/nvram.h"
+#include "hw/input/adb.h"
+#include "hw/ppc/mac_dbdma.h"
+#include "hw/timer/m48t59.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/fw_cfg.h"
-#include "hw/escc.h"
-#include "hw/openpic.h"
+#include "hw/nvram/fw_cfg.h"
+#include "hw/char/escc.h"
+#include "hw/ppc/openpic.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -71,6 +71,7 @@
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
+#define TBFREQ (100UL * 1000UL * 1000UL)
 
 /* debug UniNorth */
 //#define DEBUG_UNIN
@@ -87,6 +88,9 @@ static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
+    if (addr == 0x0) {
+        *(int*)opaque = value;
+    }
 }
 
 static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
@@ -94,6 +98,11 @@ static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t value;
 
     value = 0;
+    switch (addr) {
+    case 0:
+        value = *(int*)opaque;
+    }
+
     UNIN_DPRINTF("readl addr " TARGET_FMT_plx " val %x\n", addr, value);
 
     return value;
@@ -126,6 +135,8 @@ static void ppc_core99_reset(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     cpu_reset(CPU(cpu));
+    /* 970 CPUs want to get their initial IP as part of their boot protocol */
+    cpu->env.nip = PROM_ADDR + 0x100;
 }
 
 /* PowerPC Mac99 hardware initialisation */
@@ -141,7 +152,9 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
+    MemoryRegion *unin2_memory = g_new(MemoryRegion, 1);
     int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
@@ -160,6 +173,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev;
+    int *token = g_new(int, 1);
 
     linux_boot = (kernel_filename != NULL);
 
@@ -179,17 +193,17 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */
-        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        cpu_ppc_tb_init(env, TBFREQ);
         qemu_register_reset(ppc_core99_reset, cpu);
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "ppc_core99.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "ppc_core99.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_core99.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE);
     vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
@@ -275,11 +289,16 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     }
 
     /* Register 8 MB of ISA IO space */
-    isa_mmio_init(0xf2000000, 0x00800000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00800000);
+    memory_region_add_subregion(get_system_memory(), 0xf2000000, isa);
 
-    /* UniN init */
-    memory_region_init_io(unin_memory, &unin_ops, NULL, "unin", 0x1000);
+    /* UniN init: XXX should be a real device */
+    memory_region_init_io(unin_memory, NULL, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
+
+    memory_region_init_io(unin2_memory, NULL, &unin_ops, token, "unin", 0x1000);
+    memory_region_add_subregion(get_system_memory(), 0xf3000000, unin2_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
@@ -327,7 +346,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
 
     pic = g_new(qemu_irq, 64);
 
-    dev = qdev_create(NULL, "openpic");
+    dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_RAVEN);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
@@ -356,11 +375,11 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
 
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
-    memory_region_init_alias(escc_bar, "escc-bar",
+    memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
     ide_drive_get(hd, MAX_IDE_BUS);
 
@@ -445,8 +464,10 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
     } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
+    /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, 266000000);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
@@ -456,9 +477,6 @@ static QEMUMachine core99_machine = {
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
-#ifdef TARGET_PPC64
-    .is_default = 1,
-#endif
     DEFAULT_MACHINE_OPTIONS,
 };
 

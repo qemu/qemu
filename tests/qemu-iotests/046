@@ -66,7 +66,7 @@ function backing_io()
     done
 }
 
-backing_io 0 16 write | $QEMU_IO $TEST_IMG | _filter_qemu_io
+backing_io 0 32 write | $QEMU_IO $TEST_IMG | _filter_qemu_io
 
 mv $TEST_IMG $TEST_IMG.base
 
@@ -153,6 +153,36 @@ aio_write -P 101 0xaa000 0xe000
 resume A
 aio_flush
 EOF
+
+# Reverse sequential write
+cat  <<EOF
+break write_aio A
+aio_write -P 121 0xdc000 0x2000
+wait_break A
+aio_write -P 120 0xc4000 0x18000
+resume A
+aio_flush
+EOF
+
+# Reverse sequential write with a gap
+cat  <<EOF
+break write_aio A
+aio_write -P 141 0xfc000 0x2000
+wait_break A
+aio_write -P 140 0xe4000 0x14000
+resume A
+aio_flush
+EOF
+
+# Allocate an area in the middle and then overwrite with a larger request
+cat  <<EOF
+break write_aio A
+aio_write -P 161 0x10c000 0x8000
+wait_break A
+aio_write -P 160 0x104000 0x18000
+resume A
+aio_flush
+EOF
 }
 
 overlay_io | $QEMU_IO blkdebug::$TEST_IMG | _filter_qemu_io |\
@@ -203,6 +233,23 @@ function verify_io()
     echo read -P 10  0xa8000 0x2000
     echo read -P 101 0xaa000 0xe000
     echo read -P 110 0xb8000 0x8000
+
+    echo read -P 12  0xc0000 0x4000
+    echo read -P 120 0xc4000 0x18000
+    echo read -P 121 0xdc000 0x2000
+    echo read -P 13  0xde000 0x2000
+
+    echo read -P 14  0xe0000 0x4000
+    echo read -P 140 0xe4000 0x14000
+    echo read -P 15  0xf8000 0x4000
+    echo read -P 141 0xfc000 0x2000
+    echo read -P 15  0xfe000 0x2000
+
+    echo read -P 16  0x100000 0x4000
+    echo read -P 160 0x104000 0x8000
+    # Undefined content for 0x10c000 0x8000
+    echo read -P 160 0x114000 0x8000
+    echo read -P 17  0x11c000 0x4000
 }
 
 verify_io | $QEMU_IO $TEST_IMG | _filter_qemu_io

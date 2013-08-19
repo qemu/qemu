@@ -35,20 +35,20 @@
 #include "qemu/bitmap.h"
 #include "sysemu/arch_init.h"
 #include "audio/audio.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
-#include "hw/audiodev.h"
+#include "hw/audio/audio.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
-#include "exec/gdbstub.h"
-#include "hw/smbios.h"
+#include "hw/i386/smbios.h"
 #include "exec/address-spaces.h"
-#include "hw/pcspk.h"
+#include "hw/audio/pcspk.h"
 #include "migration/page_cache.h"
 #include "qemu/config-file.h"
 #include "qmp-commands.h"
 #include "trace.h"
 #include "exec/cpu-all.h"
+#include "hw/acpi/acpi.h"
 
 #ifdef DEBUG_ARCH_INIT
 #define DPRINTF(fmt, ...) \
@@ -65,7 +65,7 @@ int graphic_depth = 8;
 #else
 int graphic_width = 800;
 int graphic_height = 600;
-int graphic_depth = 15;
+int graphic_depth = 32;
 #endif
 
 
@@ -85,6 +85,8 @@ int graphic_depth = 15;
 #define QEMU_ARCH QEMU_ARCH_MICROBLAZE
 #elif defined(TARGET_MIPS)
 #define QEMU_ARCH QEMU_ARCH_MIPS
+#elif defined(TARGET_MOXIE)
+#define QEMU_ARCH QEMU_ARCH_MOXIE
 #elif defined(TARGET_OPENRISC)
 #define QEMU_ARCH QEMU_ARCH_OPENRISC
 #elif defined(TARGET_PPC)
@@ -102,6 +104,9 @@ int graphic_depth = 15;
 #endif
 
 const uint32_t arch_type = QEMU_ARCH;
+static bool mig_throttle_on;
+static int dirty_rate_high_cnt;
+static void check_guest_throttling(void);
 
 /***********************************************************/
 /* ram save/restore */
@@ -113,26 +118,7 @@ const uint32_t arch_type = QEMU_ARCH;
 #define RAM_SAVE_FLAG_EOS      0x10
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 #define RAM_SAVE_FLAG_XBZRLE   0x40
-
-#ifdef __ALTIVEC__
-#include <altivec.h>
-#define VECTYPE        vector unsigned char
-#define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
-#define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
-/* altivec.h may redefine the bool macro as vector type.
- * Reset it to POSIX semantics. */
-#undef bool
-#define bool _Bool
-#elif defined __SSE2__
-#include <emmintrin.h>
-#define VECTYPE        __m128i
-#define SPLAT(p)       _mm_set1_epi8(*(p))
-#define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
-#else
-#define VECTYPE        unsigned long
-#define SPLAT(p)       (*(p) * (~0UL / 255))
-#define ALL_EQ(v1, v2) ((v1) == (v2))
-#endif
+/* 0x80 is reserved in migration.h start with 0x100 next */
 
 
 static struct defconfig_file {
@@ -141,7 +127,7 @@ static struct defconfig_file {
     bool userconfig;
 } default_config_files[] = {
     { CONFIG_QEMU_CONFDIR "/qemu.conf",                   true },
-    { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", true },
+    { CONFIG_QEMU_CONFDIR "/target-" TARGET_NAME ".conf", true },
     { NULL }, /* end of list */
 };
 
@@ -160,23 +146,14 @@ int qemu_read_default_config_files(bool userconfig)
             return ret;
         }
     }
-    
+
     return 0;
 }
 
-static int is_dup_page(uint8_t *page)
+static inline bool is_zero_page(uint8_t *p)
 {
-    VECTYPE *p = (VECTYPE *)page;
-    VECTYPE val = SPLAT(page);
-    int i;
-
-    for (i = 0; i < TARGET_PAGE_SIZE / sizeof(VECTYPE); i++) {
-        if (!ALL_EQ(val, p[i])) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return buffer_find_nonzero_offset(p, TARGET_PAGE_SIZE) ==
+        TARGET_PAGE_SIZE;
 }
 
 /* struct contains XBZRLE cache and a static page
@@ -210,6 +187,7 @@ int64_t xbzrle_cache_resize(int64_t new_size)
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
     uint64_t dup_pages;
+    uint64_t skipped_pages;
     uint64_t norm_pages;
     uint64_t iterations;
     uint64_t xbzrle_bytes;
@@ -233,6 +211,16 @@ uint64_t dup_mig_bytes_transferred(void)
 uint64_t dup_mig_pages_transferred(void)
 {
     return acct_info.dup_pages;
+}
+
+uint64_t skipped_mig_bytes_transferred(void)
+{
+    return acct_info.skipped_pages * TARGET_PAGE_SIZE;
+}
+
+uint64_t skipped_mig_pages_transferred(void)
+{
+    return acct_info.skipped_pages;
 }
 
 uint64_t norm_mig_bytes_transferred(void)
@@ -346,6 +334,7 @@ static ram_addr_t last_offset;
 static unsigned long *migration_bitmap;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
+static bool ram_bulk_stage;
 
 static inline
 ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
@@ -355,7 +344,13 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
     unsigned long size = base + (int128_get64(mr->size) >> TARGET_PAGE_BITS);
 
-    unsigned long next = find_next_bit(migration_bitmap, size, nr);
+    unsigned long next;
+
+    if (ram_bulk_stage && nr > base) {
+        next = nr + 1;
+    } else {
+        next = find_next_bit(migration_bitmap, size, nr);
+    }
 
     if (next < size) {
         clear_bit(next, migration_bitmap);
@@ -387,15 +382,21 @@ static void migration_bitmap_sync(void)
     uint64_t num_dirty_pages_init = migration_dirty_pages;
     MigrationState *s = migrate_get_current();
     static int64_t start_time;
+    static int64_t bytes_xfer_prev;
     static int64_t num_dirty_pages_period;
     int64_t end_time;
+    int64_t bytes_xfer_now;
+
+    if (!bytes_xfer_prev) {
+        bytes_xfer_prev = ram_bytes_transferred();
+    }
 
     if (!start_time) {
         start_time = qemu_get_clock_ms(rt_clock);
     }
 
     trace_migration_bitmap_sync_start();
-    memory_global_sync_dirty_bitmap(get_system_memory());
+    address_space_sync_dirty_bitmap(&address_space_memory);
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
@@ -413,6 +414,25 @@ static void migration_bitmap_sync(void)
 
     /* more than 1 second = 1000 millisecons */
     if (end_time > start_time + 1000) {
+        if (migrate_auto_converge()) {
+            /* The following detection logic can be refined later. For now:
+               Check to see if the dirtied bytes is 50% more than the approx.
+               amount of bytes that just got transferred since the last time we
+               were in this routine. If that happens >N times (for now N==4)
+               we turn on the throttle down logic */
+            bytes_xfer_now = ram_bytes_transferred();
+            if (s->dirty_pages_rate &&
+               (num_dirty_pages_period * TARGET_PAGE_SIZE >
+                   (bytes_xfer_now - bytes_xfer_prev)/2) &&
+               (dirty_rate_high_cnt++ > 4)) {
+                    trace_migration_throttle();
+                    mig_throttle_on = true;
+                    dirty_rate_high_cnt = 0;
+             }
+             bytes_xfer_prev = bytes_xfer_now;
+        } else {
+             mig_throttle_on = false;
+        }
         s->dirty_pages_rate = num_dirty_pages_period * 1000
             / (end_time - start_time);
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
@@ -453,8 +473,10 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
             if (!block) {
                 block = QTAILQ_FIRST(&ram_list.blocks);
                 complete_round = true;
+                ram_bulk_stage = false;
             }
         } else {
+            int ret;
             uint8_t *p;
             int cont = (block == last_sent_block) ?
                 RAM_SAVE_FLAG_CONTINUE : 0;
@@ -463,13 +485,24 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
             /* In doubt sent page as normal */
             bytes_sent = -1;
-            if (is_dup_page(p)) {
+            ret = ram_control_save_page(f, block->offset,
+                               offset, TARGET_PAGE_SIZE, &bytes_sent);
+
+            if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
+                if (ret != RAM_SAVE_CONTROL_DELAYED) {
+                    if (bytes_sent > 0) {
+                        acct_info.norm_pages++;
+                    } else if (bytes_sent == 0) {
+                        acct_info.dup_pages++;
+                    }
+                }
+            } else if (is_zero_page(p)) {
                 acct_info.dup_pages++;
                 bytes_sent = save_block_hdr(f, block, offset, cont,
                                             RAM_SAVE_FLAG_COMPRESS);
-                qemu_put_byte(f, *p);
-                bytes_sent += 1;
-            } else if (migrate_use_xbzrle()) {
+                qemu_put_byte(f, 0);
+                bytes_sent++;
+            } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
                 current_addr = block->offset + offset;
                 bytes_sent = save_xbzrle_page(f, p, current_addr, block,
                                               offset, cont, last_stage);
@@ -481,7 +514,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
             /* XBZRLE overflow or normal page */
             if (bytes_sent == -1) {
                 bytes_sent = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
-                qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
+                qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
                 bytes_sent += TARGET_PAGE_SIZE;
                 acct_info.norm_pages++;
             }
@@ -500,6 +533,18 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 }
 
 static uint64_t bytes_transferred;
+
+void acct_update_position(QEMUFile *f, size_t size, bool zero)
+{
+    uint64_t pages = size / TARGET_PAGE_SIZE;
+    if (zero) {
+        acct_info.dup_pages += pages;
+    } else {
+        acct_info.norm_pages += pages;
+        bytes_transferred += size;
+        qemu_update_position(f, size);
+    }
+}
 
 static ram_addr_t ram_save_remaining(void)
 {
@@ -556,6 +601,7 @@ static void reset_ram_globals(void)
     last_sent_block = NULL;
     last_offset = 0;
     last_version = ram_list.version;
+    ram_bulk_stage = true;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -568,6 +614,8 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     migration_bitmap = bitmap_new(ram_pages);
     bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
+    mig_throttle_on = false;
+    dirty_rate_high_cnt = 0;
 
     if (migrate_use_xbzrle()) {
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
@@ -600,6 +648,10 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     }
 
     qemu_mutex_unlock_ramlist();
+
+    ram_control_before_iterate(f, RAM_CONTROL_SETUP);
+    ram_control_after_iterate(f, RAM_CONTROL_SETUP);
+
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return 0;
@@ -618,6 +670,8 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         reset_ram_globals();
     }
 
+    ram_control_before_iterate(f, RAM_CONTROL_ROUND);
+
     t0 = qemu_get_clock_ns(rt_clock);
     i = 0;
     while ((ret = qemu_file_rate_limit(f)) == 0) {
@@ -630,6 +684,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         total_sent += bytes_sent;
         acct_info.iterations++;
+        check_guest_throttling();
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some
@@ -648,6 +703,12 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     qemu_mutex_unlock_ramlist();
 
+    /*
+     * Must occur before EOS (or any QEMUFile operation)
+     * because of RDMA protocol.
+     */
+    ram_control_after_iterate(f, RAM_CONTROL_ROUND);
+
     if (ret < 0) {
         bytes_transferred += total_sent;
         return ret;
@@ -665,6 +726,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     qemu_mutex_lock_ramlist();
     migration_bitmap_sync();
 
+    ram_control_before_iterate(f, RAM_CONTROL_FINISH);
+
     /* try transferring iterative blocks of memory */
 
     /* flush all remaining blocks regardless of rate limiting */
@@ -678,6 +741,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         }
         bytes_transferred += bytes_sent;
     }
+
+    ram_control_after_iterate(f, RAM_CONTROL_FINISH);
     migration_end();
 
     qemu_mutex_unlock_ramlist();
@@ -772,6 +837,24 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     return NULL;
 }
 
+/*
+ * If a page (or a whole RDMA chunk) has been
+ * determined to be zero, then zap it.
+ */
+void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
+{
+    if (ch != 0 || !is_zero_page(host)) {
+        memset(host, ch, size);
+#ifndef _WIN32
+        if (ch == 0 &&
+            (!kvm_enabled() || kvm_has_sync_mmu()) &&
+            getpagesize() <= TARGET_PAGE_SIZE) {
+            qemu_madvise(host, TARGET_PAGE_SIZE, QEMU_MADV_DONTNEED);
+        }
+#endif
+    }
+}
+
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
@@ -810,6 +893,10 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                         if (!strncmp(id, block->idstr, sizeof(id))) {
                             if (block->length != length) {
+                                fprintf(stderr,
+                                        "Length mismatch: %s: " RAM_ADDR_FMT
+                                        " in != " RAM_ADDR_FMT "\n", id, length,
+                                        block->length);
                                 ret =  -EINVAL;
                                 goto done;
                             }
@@ -839,14 +926,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             }
 
             ch = qemu_get_byte(f);
-            memset(host, ch, TARGET_PAGE_SIZE);
-#ifndef _WIN32
-            if (ch == 0 &&
-                (!kvm_enabled() || kvm_has_sync_mmu()) &&
-                getpagesize() <= TARGET_PAGE_SIZE) {
-                qemu_madvise(host, TARGET_PAGE_SIZE, QEMU_MADV_DONTNEED);
-            }
-#endif
+            ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_PAGE) {
             void *host;
 
@@ -866,6 +946,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 goto done;
             }
+        } else if (flags & RAM_SAVE_FLAG_HOOK) {
+            ram_control_load_hook(f, flags);
         }
         error = qemu_file_get_error(f);
         if (error) {
@@ -889,7 +971,6 @@ SaveVMHandlers savevm_ram_handlers = {
     .cancel = ram_migration_cancel,
 };
 
-#ifdef HAS_AUDIO
 struct soundhw {
     const char *name;
     const char *descr;
@@ -901,96 +982,30 @@ struct soundhw {
     } init;
 };
 
-static struct soundhw soundhw[] = {
-#ifdef HAS_AUDIO_CHOICE
-#ifdef CONFIG_PCSPK
-    {
-        "pcspk",
-        "PC speaker",
-        0,
-        1,
-        { .init_isa = pcspk_audio_init }
-    },
-#endif
+static struct soundhw soundhw[9];
+static int soundhw_count;
 
-#ifdef CONFIG_SB16
-    {
-        "sb16",
-        "Creative Sound Blaster 16",
-        0,
-        1,
-        { .init_isa = SB16_init }
-    },
-#endif
+void isa_register_soundhw(const char *name, const char *descr,
+                          int (*init_isa)(ISABus *bus))
+{
+    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
+    soundhw[soundhw_count].name = name;
+    soundhw[soundhw_count].descr = descr;
+    soundhw[soundhw_count].isa = 1;
+    soundhw[soundhw_count].init.init_isa = init_isa;
+    soundhw_count++;
+}
 
-#ifdef CONFIG_CS4231A
-    {
-        "cs4231a",
-        "CS4231A",
-        0,
-        1,
-        { .init_isa = cs4231a_init }
-    },
-#endif
-
-#ifdef CONFIG_ADLIB
-    {
-        "adlib",
-#ifdef HAS_YMF262
-        "Yamaha YMF262 (OPL3)",
-#else
-        "Yamaha YM3812 (OPL2)",
-#endif
-        0,
-        1,
-        { .init_isa = Adlib_init }
-    },
-#endif
-
-#ifdef CONFIG_GUS
-    {
-        "gus",
-        "Gravis Ultrasound GF1",
-        0,
-        1,
-        { .init_isa = GUS_init }
-    },
-#endif
-
-#ifdef CONFIG_AC97
-    {
-        "ac97",
-        "Intel 82801AA AC97 Audio",
-        0,
-        0,
-        { .init_pci = ac97_init }
-    },
-#endif
-
-#ifdef CONFIG_ES1370
-    {
-        "es1370",
-        "ENSONIQ AudioPCI ES1370",
-        0,
-        0,
-        { .init_pci = es1370_init }
-    },
-#endif
-
-#ifdef CONFIG_HDA
-    {
-        "hda",
-        "Intel HD Audio",
-        0,
-        0,
-        { .init_pci = intel_hda_and_codec_init }
-    },
-#endif
-
-#endif /* HAS_AUDIO_CHOICE */
-
-    { NULL, NULL, 0, 0, { NULL } }
-};
+void pci_register_soundhw(const char *name, const char *descr,
+                          int (*init_pci)(PCIBus *bus))
+{
+    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
+    soundhw[soundhw_count].name = name;
+    soundhw[soundhw_count].descr = descr;
+    soundhw[soundhw_count].isa = 0;
+    soundhw[soundhw_count].init.init_pci = init_pci;
+    soundhw_count++;
+}
 
 void select_soundhw(const char *optarg)
 {
@@ -999,16 +1014,16 @@ void select_soundhw(const char *optarg)
     if (is_help_option(optarg)) {
     show_valid_cards:
 
-#ifdef HAS_AUDIO_CHOICE
-        printf("Valid sound card names (comma separated):\n");
-        for (c = soundhw; c->name; ++c) {
-            printf ("%-11s %s\n", c->name, c->descr);
+        if (soundhw_count) {
+             printf("Valid sound card names (comma separated):\n");
+             for (c = soundhw; c->name; ++c) {
+                 printf ("%-11s %s\n", c->name, c->descr);
+             }
+             printf("\n-soundhw all will enable all of the above\n");
+        } else {
+             printf("Machine has no user-selectable audio hardware "
+                    "(it may or may not have always-present audio hardware).\n");
         }
-        printf("\n-soundhw all will enable all of the above\n");
-#else
-        printf("Machine has no user-selectable audio hardware "
-               "(it may or may not have always-present audio hardware).\n");
-#endif
         exit(!is_help_option(optarg));
     }
     else {
@@ -1056,32 +1071,30 @@ void select_soundhw(const char *optarg)
     }
 }
 
-void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
+void audio_init(void)
 {
     struct soundhw *c;
+    ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
+    PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
 
     for (c = soundhw; c->name; ++c) {
         if (c->enabled) {
             if (c->isa) {
-                if (isa_bus) {
-                    c->init.init_isa(isa_bus);
+                if (!isa_bus) {
+                    fprintf(stderr, "ISA bus not available for %s\n", c->name);
+                    exit(1);
                 }
+                c->init.init_isa(isa_bus);
             } else {
-                if (pci_bus) {
-                    c->init.init_pci(pci_bus);
+                if (!pci_bus) {
+                    fprintf(stderr, "PCI bus not available for %s\n", c->name);
+                    exit(1);
                 }
+                c->init.init_pci(pci_bus);
             }
         }
     }
 }
-#else
-void select_soundhw(const char *optarg)
-{
-}
-void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
-{
-}
-#endif
 
 int qemu_uuid_parse(const char *str, uint8_t *uuid)
 {
@@ -1100,16 +1113,21 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
         return -1;
     }
 #ifdef TARGET_I386
-    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), 16, uuid);
+    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), uuid, 16);
 #endif
     return 0;
 }
 
-void do_acpitable_option(const char *optarg)
+void do_acpitable_option(const QemuOpts *opts)
 {
 #ifdef TARGET_I386
-    if (acpi_table_add(optarg) < 0) {
-        fprintf(stderr, "Wrong acpi table provided\n");
+    Error *err = NULL;
+
+    acpi_table_add(opts, &err);
+    if (err) {
+        fprintf(stderr, "Wrong acpi table provided: %s\n",
+                error_get_pretty(err));
+        error_free(err);
         exit(1);
     }
 #endif
@@ -1119,7 +1137,6 @@ void do_smbios_option(const char *optarg)
 {
 #ifdef TARGET_I386
     if (smbios_entry_add(optarg) < 0) {
-        fprintf(stderr, "Wrong smbios provided\n");
         exit(1);
     }
 #endif
@@ -1129,15 +1146,6 @@ void cpudef_init(void)
 {
 #if defined(cpudef_setup)
     cpudef_setup(); /* parse cpu definitions in target config file */
-#endif
-}
-
-int audio_available(void)
-{
-#ifdef HAS_AUDIO
-    return 1;
-#else
-    return 0;
 #endif
 }
 
@@ -1169,7 +1177,57 @@ TargetInfo *qmp_query_target(Error **errp)
 {
     TargetInfo *info = g_malloc0(sizeof(*info));
 
-    info->arch = TARGET_TYPE;
+    info->arch = g_strdup(TARGET_NAME);
 
     return info;
+}
+
+/* Stub function that's gets run on the vcpu when its brought out of the
+   VM to run inside qemu via async_run_on_cpu()*/
+static void mig_sleep_cpu(void *opq)
+{
+    qemu_mutex_unlock_iothread();
+    g_usleep(30*1000);
+    qemu_mutex_lock_iothread();
+}
+
+/* To reduce the dirty rate explicitly disallow the VCPUs from spending
+   much time in the VM. The migration thread will try to catchup.
+   Workload will experience a performance drop.
+*/
+static void mig_throttle_cpu_down(CPUState *cpu, void *data)
+{
+    async_run_on_cpu(cpu, mig_sleep_cpu, NULL);
+}
+
+static void mig_throttle_guest_down(void)
+{
+    qemu_mutex_lock_iothread();
+    qemu_for_each_cpu(mig_throttle_cpu_down, NULL);
+    qemu_mutex_unlock_iothread();
+}
+
+static void check_guest_throttling(void)
+{
+    static int64_t t0;
+    int64_t        t1;
+
+    if (!mig_throttle_on) {
+        return;
+    }
+
+    if (!t0)  {
+        t0 = qemu_get_clock_ns(rt_clock);
+        return;
+    }
+
+    t1 = qemu_get_clock_ns(rt_clock);
+
+    /* If it has been more than 40 ms since the last time the guest
+     * was throttled then do it again.
+     */
+    if (40 < (t1-t0)/1000000) {
+        mig_throttle_guest_down();
+        t0 = t1;
+    }
 }

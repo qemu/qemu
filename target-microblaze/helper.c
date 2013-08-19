@@ -39,8 +39,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
 int cpu_mb_handle_mmu_fault(CPUMBState * env, target_ulong address, int rw,
                             int mmu_idx)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+
     env->exception_index = 0xaa;
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
     return 1;
 }
 
@@ -150,9 +152,9 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           "hw exception at pc=%x ear=%x esr=%x iflags=%x\n",
                           env->sregs[SR_PC], env->sregs[SR_EAR],
                           env->sregs[SR_ESR], env->iflags);
-            log_cpu_state_mask(CPU_LOG_INT, env, 0);
+            log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_MMU:
@@ -173,7 +175,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                                   "bimm exception at pc=%x iflags=%x\n",
                                   env->sregs[SR_PC], env->iflags);
                     env->regs[17] -= 4;
-                    log_cpu_state_mask(CPU_LOG_INT, env, 0);
+                    log_cpu_state_mask(CPU_LOG_INT, cs, 0);
                 }
             } else if (env->iflags & IMM_FLAG) {
                 D(qemu_log("IMM_FLAG set at exception\n"));
@@ -190,9 +192,9 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                           "exception at pc=%x ear=%x iflags=%x\n",
                           env->sregs[SR_PC], env->sregs[SR_EAR], env->iflags);
-            log_cpu_state_mask(CPU_LOG_INT, env, 0);
+            log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_IRQ:
@@ -220,7 +222,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                          env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags,
                          sym);
 
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cs, 0);
                 }
             }
 #endif
@@ -233,8 +235,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] |= t;
 
             env->regs[14] = env->sregs[SR_PC];
-            env->sregs[SR_PC] = 0x10;
-            //log_cpu_state_mask(CPU_LOG_INT, env, 0);
+            env->sregs[SR_PC] = cpu->base_vectors + 0x10;
+            //log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             break;
 
         case EXCP_BREAK:
@@ -245,14 +247,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT,
                         "break at pc=%x msr=%x %x iflags=%x\n",
                         env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags);
-            log_cpu_state_mask(CPU_LOG_INT, env, 0);
+            log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             env->sregs[SR_MSR] |= t;
             env->sregs[SR_MSR] |= MSR_BIP;
             if (env->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->sregs[SR_PC];
                 env->sregs[SR_MSR] |= MSR_BIP;
-                env->sregs[SR_PC] = 0x18;
+                env->sregs[SR_PC] = cpu->base_vectors + 0x18;
             } else
                 env->sregs[SR_PC] = env->btarget;
             break;
@@ -263,8 +265,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-hwaddr cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
+hwaddr mb_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;
     unsigned int hit;

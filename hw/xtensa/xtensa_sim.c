@@ -32,9 +32,11 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 
-static uint64_t translate_phys_addr(void *env, uint64_t addr)
+static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
-    return cpu_get_phys_page_debug(env, addr);
+    XtensaCPU *cpu = opaque;
+
+    return cpu_get_phys_page_debug(CPU(cpu), addr);
 }
 
 static void sim_reset(void *opaque)
@@ -75,12 +77,12 @@ static void xtensa_sim_init(QEMUMachineInitArgs *args)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "xtensa.sram", ram_size);
+    memory_region_init_ram(ram, NULL, "xtensa.sram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     rom = g_malloc(sizeof(*rom));
-    memory_region_init_ram(rom, "xtensa.rom", 0x1000);
+    memory_region_init_ram(rom, NULL, "xtensa.rom", 0x1000);
     vmstate_register_ram_global(rom);
     memory_region_add_subregion(get_system_memory(), 0xfe000000, rom);
 
@@ -88,10 +90,10 @@ static void xtensa_sim_init(QEMUMachineInitArgs *args)
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
 #ifdef TARGET_WORDS_BIGENDIAN
-        int success = load_elf(kernel_filename, translate_phys_addr, env,
+        int success = load_elf(kernel_filename, translate_phys_addr, cpu,
                 &elf_entry, &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
 #else
-        int success = load_elf(kernel_filename, translate_phys_addr, env,
+        int success = load_elf(kernel_filename, translate_phys_addr, cpu,
                 &elf_entry, &elf_lowaddr, NULL, 0, ELF_MACHINE, 0);
 #endif
         if (success > 0) {

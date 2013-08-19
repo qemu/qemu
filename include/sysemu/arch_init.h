@@ -2,6 +2,7 @@
 #define QEMU_ARCH_INIT_H
 
 #include "qmp-commands.h"
+#include "qemu/option.h"
 
 enum {
     QEMU_ARCH_ALL = -1,
@@ -20,16 +21,16 @@ enum {
     QEMU_ARCH_XTENSA = 4096,
     QEMU_ARCH_OPENRISC = 8192,
     QEMU_ARCH_UNICORE32 = 0x4000,
+    QEMU_ARCH_MOXIE = 0x8000,
 };
 
 extern const uint32_t arch_type;
 
 void select_soundhw(const char *optarg);
-void do_acpitable_option(const char *optarg);
+void do_acpitable_option(const QemuOpts *opts);
 void do_smbios_option(const char *optarg);
 void cpudef_init(void);
-int audio_available(void);
-void audio_init(ISABus *isa_bus, PCIBus *pci_bus);
+void audio_init(void);
 int tcg_available(void);
 int kvm_available(void);
 int xen_available(void);

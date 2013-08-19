@@ -23,9 +23,9 @@
  * THE SOFTWARE.
  */
 #include <hw/hw.h>
-#include <hw/pc.h>
+#include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
-#include <hw/isa.h>
+#include <hw/isa/isa.h>
 #include "block/block.h"
 #include "sysemu/dma.h"
 
@@ -56,13 +56,14 @@ static int bmdma_prepare_buf(IDEDMA *dma, int is_write)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
     IDEState *s = bmdma_active_if(bm);
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
     struct {
         uint32_t addr;
         uint32_t size;
     } prd;
     int l, len;
 
-    pci_dma_sglist_init(&s->sg, &bm->pci_dev->dev,
+    pci_dma_sglist_init(&s->sg, pci_dev,
                         s->nsector / (BMDMA_PAGE_SIZE / 512) + 1);
     s->io_buffer_size = 0;
     for(;;) {
@@ -71,7 +72,7 @@ static int bmdma_prepare_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return s->io_buffer_size != 0;
-            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, &prd, 8);
+            pci_dma_read(pci_dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);
@@ -98,6 +99,7 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
     IDEState *s = bmdma_active_if(bm);
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
     struct {
         uint32_t addr;
         uint32_t size;
@@ -113,7 +115,7 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return 0;
-            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, &prd, 8);
+            pci_dma_read(pci_dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);
@@ -128,10 +130,10 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
             l = bm->cur_prd_len;
         if (l > 0) {
             if (is_write) {
-                pci_dma_write(&bm->pci_dev->dev, bm->cur_prd_addr,
+                pci_dma_write(pci_dev, bm->cur_prd_addr,
                               s->io_buffer + s->io_buffer_index, l);
             } else {
-                pci_dma_read(&bm->pci_dev->dev, bm->cur_prd_addr,
+                pci_dma_read(pci_dev, bm->cur_prd_addr,
                              s->io_buffer + s->io_buffer_index, l);
             }
             bm->cur_prd_addr += l;
@@ -312,6 +314,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
                 bdrv_drain_all();
                 assert(bm->bus->dma->aiocb == NULL);
             }
+            bm->status &= ~BM_STATUS_DMAING;
         } else {
             bm->cur_addr = bm->addr;
             if (!(bm->status & BM_STATUS_DMAING)) {
@@ -479,7 +482,7 @@ const VMStateDescription vmstate_ide_pci = {
     .minimum_version_id_old = 0,
     .post_load = ide_pci_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, PCIIDEState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIIDEState),
         VMSTATE_STRUCT_ARRAY(bmdma, PCIIDEState, 2, 0,
                              vmstate_bmdma, BMDMAState),
         VMSTATE_IDE_BUS_ARRAY(bus, PCIIDEState, 2),
@@ -491,7 +494,7 @@ const VMStateDescription vmstate_ide_pci = {
 
 void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table)
 {
-    PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
+    PCIIDEState *d = PCI_IDE(dev);
     static const int bus[4]  = { 0, 0, 1, 1 };
     static const int unit[4] = { 0, 1, 0, 1 };
     int i;
@@ -530,3 +533,17 @@ void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
     bus->irq = *irq;
     bm->pci_dev = d;
 }
+
+static const TypeInfo pci_ide_type_info = {
+    .name = TYPE_PCI_IDE,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIIDEState),
+    .abstract = true,
+};
+
+static void pci_ide_register_types(void)
+{
+    type_register_static(&pci_ide_type_info);
+}
+
+type_init(pci_ide_register_types)

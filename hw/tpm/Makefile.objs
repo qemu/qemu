@@ -1,0 +1,2 @@
+common-obj-$(CONFIG_TPM_TIS) += tpm_tis.o
+common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o

@@ -15,10 +15,13 @@ The memory model provides support for
  - setting up coalesced memory for kvm
  - setting up ioeventfd regions for kvm
 
-Memory is modelled as a tree (really acyclic graph) of MemoryRegion objects.
-The root of the tree is memory as seen from the CPU's viewpoint (the system
-bus).  Nodes in the tree represent other buses, memory controllers, and
-memory regions that have been rerouted.  Leaves are RAM and MMIO regions.
+Memory is modelled as an acyclic graph of MemoryRegion objects.  Sinks
+(leaves) are RAM and MMIO regions, while other nodes represent
+buses, memory controllers, and memory regions that have been rerouted.
+
+In addition to MemoryRegion objects, the memory API provides AddressSpace
+objects for every root and possibly for intermediate MemoryRegions too.
+These represent memory as seen from the CPU or a device's viewpoint.
 
 Types of regions
 ----------------

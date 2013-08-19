@@ -21,7 +21,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "elf.h"
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "net/net.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
@@ -82,7 +82,7 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
         }
 
         if (kernel_size < 0) {
-            qemu_log("QEMU: couldn't load the kernel '%s'\n",
+            fprintf(stderr, "QEMU: couldn't load the kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
@@ -96,7 +96,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
-   OpenRISCCPU *cpu = NULL;
+    OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
     int n;
 
@@ -107,7 +107,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_openrisc_init(cpu_model);
         if (cpu == NULL) {
-            qemu_log("Unable to find CPU definition!\n");
+            fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
         }
         qemu_register_reset(main_cpu_reset, cpu);
@@ -115,7 +115,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "openrisc.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "openrisc.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 

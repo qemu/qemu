@@ -24,7 +24,7 @@ information see the specification:
  Revision 1.1
  April 22rd, 2005
 
-Smartcard are used for authentication, single sign on, decryption in
+Smartcards are used for authentication, single sign on, decryption in
 public/private schemes and digital signatures. A smartcard reader on the client
 cannot be used on a guest with simple usb passthrough since it will then not be
 available on the client, possibly locking the computer when it is "removed". On

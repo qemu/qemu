@@ -507,12 +507,12 @@ static void mirror_complete(BlockJob *job, Error **errp)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     int ret;
 
-    ret = bdrv_open_backing_file(s->target);
+    ret = bdrv_open_backing_file(s->target, NULL);
     if (ret < 0) {
         char backing_filename[PATH_MAX];
         bdrv_get_full_backing_filename(s->target, backing_filename,
                                        sizeof(backing_filename));
-        error_set(errp, QERR_OPEN_FILE_FAILED, backing_filename);
+        error_setg_file_open(errp, -ret, backing_filename);
         return;
     }
     if (!s->synced) {
@@ -524,7 +524,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_resume(job);
 }
 
-static BlockJobType mirror_job_type = {
+static const BlockJobType mirror_job_type = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = "mirror",
     .set_speed     = mirror_set_speed,

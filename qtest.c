@@ -13,7 +13,7 @@
 
 #include "sysemu/qtest.h"
 #include "hw/qdev.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
 #include "hw/irq.h"
@@ -191,7 +191,7 @@ static void GCC_FMT_ATTR(2, 3) qtest_send(CharDriverState *chr,
     len = vsnprintf(buffer, sizeof(buffer), fmt, ap);
     va_end(ap);
 
-    qemu_chr_fe_write(chr, (uint8_t *)buffer, len);
+    qemu_chr_fe_write_all(chr, (uint8_t *)buffer, len);
     if (qtest_log_fp && qtest_opened) {
         fprintf(qtest_log_fp, "%s", buffer);
     }
@@ -271,8 +271,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         uint32_t value;
 
         g_assert(words[1] && words[2]);
-        addr = strtol(words[1], NULL, 0);
-        value = strtol(words[2], NULL, 0);
+        addr = strtoul(words[1], NULL, 0);
+        value = strtoul(words[2], NULL, 0);
 
         if (words[0][3] == 'b') {
             cpu_outb(addr, value);
@@ -290,7 +290,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         uint32_t value = -1U;
 
         g_assert(words[1]);
-        addr = strtol(words[1], NULL, 0);
+        addr = strtoul(words[1], NULL, 0);
 
         if (words[0][2] == 'b') {
             value = cpu_inb(addr);
@@ -472,7 +472,12 @@ static void qtest_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        qemu_system_reset(false);
+        /*
+         * We used to call qemu_system_reset() here, hoping we could
+         * use the same process for multiple tests that way.  Never
+         * used.  Injects an extra reset even when it's not used, and
+         * that can mess up tests, e.g. -boot once.
+         */
         for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
             irq_levels[i] = 0;
         }

@@ -92,7 +92,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     }
 }
 
@@ -511,6 +511,7 @@ static void flush_windows(CPUSPARCState *env)
 
 void cpu_loop(CPUSPARCState *env)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     int trapnr, ret, syscall_nr;
     //target_siginfo_t info;
 
@@ -642,7 +643,7 @@ void cpu_loop(CPUSPARCState *env)
             {
                 int sig;
 
-                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
 #if 0
                 if (sig)
                   {
@@ -659,7 +660,7 @@ void cpu_loop(CPUSPARCState *env)
         badtrap:
 #endif
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -670,8 +671,8 @@ void cpu_loop(CPUSPARCState *env)
 
 static void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
+    printf("qemu-" TARGET_NAME " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
+           "usage: qemu-" TARGET_NAME " [options] program [arguments...]\n"
            "BSD CPU emulator (compiled for %s emulation)\n"
            "\n"
            "Standard options:\n"
@@ -706,13 +707,13 @@ static void usage(void)
            "Note that if you provide several changes to single variable\n"
            "last change will stay in effect.\n"
            ,
-           TARGET_ARCH,
+           TARGET_NAME,
            interp_prefix,
            x86_stack_size);
     exit(1);
 }
 
-THREAD CPUArchState *thread_env;
+THREAD CPUState *thread_cpu;
 
 /* Assumes contents are already zeroed.  */
 void init_task_state(TaskState *ts)
@@ -737,6 +738,7 @@ int main(int argc, char **argv)
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
     CPUArchState *env;
+    CPUState *cpu;
     int optind;
     const char *r;
     int gdbstub_port = 0;
@@ -911,10 +913,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    cpu = ENV_GET_CPU(env);
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_reset(ENV_GET_CPU(env));
+    cpu_reset(cpu);
 #endif
-    thread_env = env;
+    thread_cpu = cpu;
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;
@@ -1004,13 +1007,13 @@ int main(int argc, char **argv)
 
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
     env->hflags |= HF_PE_MASK;
-    if (env->cpuid_features & CPUID_SSE) {
+    if (env->features[FEAT_1_EDX] & CPUID_SSE) {
         env->cr[4] |= CR4_OSFXSR_MASK;
         env->hflags |= HF_OSFXSR_MASK;
     }
 #ifndef TARGET_ABI32
     /* enable 64 bit mode if possible */
-    if (!(env->cpuid_ext2_features & CPUID_EXT2_LM)) {
+    if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
         fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
         exit(1);
     }
@@ -1133,7 +1136,7 @@ int main(int argc, char **argv)
 
     if (gdbstub_port) {
         gdbserver_start (gdbstub_port);
-        gdb_handlesig(env, 0);
+        gdb_handlesig(cpu, 0);
     }
     cpu_loop(env);
     /* never exits */

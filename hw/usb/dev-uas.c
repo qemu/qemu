@@ -16,8 +16,8 @@
 
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "hw/scsi.h"
-#include "hw/scsi-defs.h"
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -888,7 +888,7 @@ static int usb_uas_init(USBDevice *dev)
     QTAILQ_INIT(&uas->requests);
     uas->status_bh = qemu_bh_new(usb_uas_send_status_bh, uas);
 
-    scsi_bus_new(&uas->bus, &uas->dev.qdev, &usb_uas_scsi_info);
+    scsi_bus_new(&uas->bus, &uas->dev.qdev, &usb_uas_scsi_info, NULL);
 
     return 0;
 }
@@ -916,6 +916,7 @@ static void usb_uas_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_uas_handle_control;
     uc->handle_data    = usb_uas_handle_data;
     uc->handle_destroy = usb_uas_handle_destroy;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
     dc->vmsd = &vmstate_usb_uas;
 }

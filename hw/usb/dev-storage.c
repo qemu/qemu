@@ -12,7 +12,7 @@
 #include "qemu/config-file.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "hw/scsi.h"
+#include "hw/scsi/scsi.h"
 #include "ui/console.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
@@ -58,7 +58,6 @@ typedef struct {
     USBPacket *packet;
     /* usb-storage only */
     BlockConf conf;
-    char *serial;
     uint32_t removable;
 } MSDState;
 
@@ -596,13 +595,14 @@ static int usb_msd_initfn_storage(USBDevice *dev)
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
     BlockDriverState *bs = s->conf.bs;
     SCSIDevice *scsi_dev;
+    Error *err = NULL;
 
     if (!bs) {
         error_report("drive property not set");
         return -1;
     }
 
-    blkconf_serial(&s->conf, &s->serial);
+    blkconf_serial(&s->conf, &dev->serial);
 
     /*
      * Hack alert: this pretends to be a block device, but it's really
@@ -616,16 +616,12 @@ static int usb_msd_initfn_storage(USBDevice *dev)
     bdrv_detach_dev(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
-    if (s->serial) {
-        usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
-    } else {
-        usb_desc_create_serial(dev);
-    }
-
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
-    scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info_storage);
+    scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info_storage, NULL);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable,
-                                            s->conf.bootindex);
+                                         s->conf.bootindex, dev->serial,
+                                         &err);
     if (!scsi_dev) {
         return -1;
     }
@@ -650,7 +646,7 @@ static int usb_msd_initfn_bot(USBDevice *dev)
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
-    scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info_bot);
+    scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info_bot, NULL);
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 
@@ -734,7 +730,6 @@ static const VMStateDescription vmstate_usb_msd = {
 
 static Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
-    DEFINE_PROP_STRING("serial", MSDState, serial),
     DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -751,6 +746,7 @@ static void usb_msd_class_initfn_common(ObjectClass *klass)
     uc->handle_reset   = usb_msd_handle_reset;
     uc->handle_control = usb_msd_handle_control;
     uc->handle_data    = usb_msd_handle_data;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
     dc->vmsd = &vmstate_usb_msd;
 }

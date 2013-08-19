@@ -128,7 +128,7 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 
 #if defined(__arm__) || defined(_ARCH_PPC) \
     || defined(__x86_64__) || defined(__i386__) \
-    || defined(__sparc__) \
+    || defined(__sparc__) || defined(__aarch64__) \
     || defined(CONFIG_TCG_INTERPRETER)
 #define USE_DIRECT_JUMP
 #endif
@@ -230,6 +230,9 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
+#elif defined(__aarch64__)
+void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
+#define tb_set_jmp_target1 aarch64_tb_set_jmp_target
 #elif defined(__arm__)
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
@@ -338,6 +341,37 @@ extern uintptr_t tci_tb_ptr;
 # elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
 #  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
+# elif defined(__arm__)
+/* We define two insns between the return address and the branch back to
+   straight-line.  Find and decode that branch insn.  */
+#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
+#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
+static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+{
+    int32_t b;
+    ra += 8;                    /* skip the two insns */
+    b = *(int32_t *)ra;         /* load the branch insn */
+    b = (b << 8) >> (8 - 2);    /* extract the displacement */
+    ra += 8;                    /* branches are relative to pc+8 */
+    ra += b;                    /* apply the displacement */
+    ra -= 4;                    /* return a pointer into the current opcode,
+                                   not the start of the next opcode  */
+    return ra;
+}
+#elif defined(__aarch64__)
+#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
+#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
+static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+{
+    int32_t b;
+    ra += 4;                    /* skip one instruction */
+    b = *(int32_t *)ra;         /* load the branch insn */
+    b = (b << 6) >> (6 - 2);    /* extract the displacement */
+    ra += b;                    /* apply the displacement  */
+    ra -= 4;                    /* return a pointer into the current opcode,
+                                   not the start of the next opcode  */
+    return ra;
+}
 # else
 #  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif
@@ -350,9 +384,9 @@ bool is_tcg_gen_code(uintptr_t pc_ptr);
 #if !defined(CONFIG_USER_ONLY)
 
 struct MemoryRegion *iotlb_to_region(hwaddr index);
-uint64_t io_mem_read(struct MemoryRegion *mr, hwaddr addr,
-                     unsigned size);
-void io_mem_write(struct MemoryRegion *mr, hwaddr addr,
+bool io_mem_read(struct MemoryRegion *mr, hwaddr addr,
+                 uint64_t *pvalue, unsigned size);
+bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
                   uint64_t value, unsigned size);
 
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,

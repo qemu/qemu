@@ -4,14 +4,17 @@
 int main()
 {
     int rs, rt, dsp;
-    int ach = 5, acl = 5;
+    int ach, acl;
     int resulth, resultl, resultdsp;
 
+    ach = 0x00000005;
+    acl = 0x00000005;
     rs     = 0x00FF00FF;
     rt     = 0x00010002;
     resulth = 0x00;
     resultl = 0x7FFFFFFF;
     resultdsp = 0x01;
+    dsp = 0;
     __asm
         ("wrdsp %2\n\t"
          "mthi  %0, $ac1\n\t"
@@ -27,13 +30,14 @@ int main()
     assert(ach == resulth);
     assert(acl == resultl);
 
-    ach = 9;
-    acl = 0xb;
+    ach = 0x00000009;
+    acl = 0x0000000B;
     rs     = 0x800000FF;
     rt     = 0x00018000;
     resulth = 0x00;
-    resultl = 0x7fffffff;
+    resultl = 0x7FFFFFFF;
     resultdsp = 0x01;
+    dsp = 0;
     __asm
         ("wrdsp %2\n\t"
          "mthi  %0, $ac1\n\t"

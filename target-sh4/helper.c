@@ -26,7 +26,7 @@
 #include "cpu.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "hw/sh_intc.h"
+#include "hw/sh4/sh_intc.h"
 #endif
 
 #if defined(CONFIG_USER_ONLY)
@@ -159,7 +159,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 	}
 	qemu_log("exception 0x%03x [%s] raised\n",
 		  irq_vector, expname);
-	log_cpu_state(env, 0);
+        log_cpu_state(cs, 0);
     }
 
     env->ssr = env->sr;
@@ -508,12 +508,13 @@ int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
     return 0;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUSH4State * env, target_ulong addr)
+hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
     target_ulong physical;
     int prot;
 
-    get_physical_address(env, &physical, &prot, addr, 0, 0);
+    get_physical_address(&cpu->env, &physical, &prot, addr, 0, 0);
     return physical;
 }
 

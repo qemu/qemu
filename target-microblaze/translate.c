@@ -1317,6 +1317,23 @@ static void dec_br(DisasContext *dc)
     /* Memory barrier.  */
     mbar = (dc->ir >> 16) & 31;
     if (mbar == 2 && dc->imm == 4) {
+        /* mbar IMM & 16 decodes to sleep.  */
+        if (dc->rd & 16) {
+            TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
+            TCGv_i32 tmp_1 = tcg_const_i32(1);
+
+            LOG_DIS("sleep\n");
+
+            t_sync_flags(dc);
+            tcg_gen_st_i32(tmp_1, cpu_env,
+                           -offsetof(MicroBlazeCPU, env)
+                           +offsetof(CPUState, halted));
+            tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc + 4);
+            gen_helper_raise_exception(cpu_env, tmp_hlt);
+            tcg_temp_free_i32(tmp_hlt);
+            tcg_temp_free_i32(tmp_1);
+            return;
+        }
         LOG_DIS("mbar %d\n", dc->rd);
         /* Break the TB.  */
         dc->cpustate_changed = 1;
@@ -1720,10 +1737,12 @@ static void check_breakpoint(CPUMBState *env, DisasContext *dc)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
-gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
-                               int search_pc)
+static inline void
+gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUMBState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
     int j, lj;
@@ -1748,7 +1767,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         dc->jmp = JMP_INDIRECT;
     }
     dc->pc = pc_start;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->nr_nops = 0;
@@ -1759,7 +1778,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 #if !SIM_COMPAT
         qemu_log("--------------\n");
-        log_cpu_state(env, 0);
+        log_cpu_state(CPU(cpu), 0);
 #endif
     }
 
@@ -1841,8 +1860,9 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
                 break;
             }
         }
-        if (env->singlestep_enabled)
+        if (cs->singlestep_enabled) {
             break;
+        }
     } while (!dc->is_jmp && !dc->cpustate_changed
          && tcg_ctx.gen_opc_ptr < gen_opc_end
                  && !singlestep
@@ -1869,7 +1889,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     }
     t_sync_flags(dc);
 
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {
@@ -1924,17 +1944,19 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
 
 void gen_intermediate_code (CPUMBState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(mb_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUMBState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(mb_env_get_cpu(env), tb, true);
 }
 
-void cpu_dump_state (CPUMBState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                       int flags)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     int i;
 
     if (!env || !f)

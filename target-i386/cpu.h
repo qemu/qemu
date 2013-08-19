@@ -185,7 +185,7 @@
 #define HF2_VINTR_SHIFT      3 /* value of V_INTR_MASKING bit */
 
 #define HF2_GIF_MASK          (1 << HF2_GIF_SHIFT)
-#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT) 
+#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT)
 #define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
 #define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
 
@@ -803,6 +803,7 @@ typedef struct CPUX86State {
 #endif
     uint64_t system_time_msr;
     uint64_t wall_clock_msr;
+    uint64_t steal_time_msr;
     uint64_t async_pf_en_msr;
     uint64_t pv_eoi_en_msr;
 
@@ -835,22 +836,15 @@ typedef struct CPUX86State {
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;
+    uint32_t cpuid_xlevel;
+    uint32_t cpuid_xlevel2;
     uint32_t cpuid_vendor1;
     uint32_t cpuid_vendor2;
     uint32_t cpuid_vendor3;
     uint32_t cpuid_version;
-    uint32_t cpuid_features;
-    uint32_t cpuid_ext_features;
-    uint32_t cpuid_xlevel;
+    FeatureWordArray features;
     uint32_t cpuid_model[12];
-    uint32_t cpuid_ext2_features;
-    uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
-    /* Store the results of Centaur's CPUID instructions */
-    uint32_t cpuid_xlevel2;
-    uint32_t cpuid_ext4_features;
-    /* Flags from CPUID[EAX=7,ECX=0].EBX */
-    uint32_t cpuid_7_0_ebx_features;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -864,8 +858,6 @@ typedef struct CPUX86State {
     uint8_t soft_interrupt;
     uint8_t has_error_code;
     uint32_t sipi_vector;
-    uint32_t cpuid_kvm_features;
-    uint32_t cpuid_svm_features;
     bool tsc_valid;
     int tsc_khz;
     void *kvm_xsave_buf;
@@ -896,6 +888,8 @@ typedef struct CPUX86State {
 #include "cpu-qom.h"
 
 X86CPU *cpu_x86_init(const char *cpu_model);
+X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
+                       Error **errp);
 int cpu_x86_exec(CPUX86State *s);
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void x86_cpudef_setup(void);
@@ -1107,26 +1101,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
         ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
 }
 
-#undef EAX
-#define EAX (env->regs[R_EAX])
-#undef ECX
-#define ECX (env->regs[R_ECX])
-#undef EDX
-#define EDX (env->regs[R_EDX])
-#undef EBX
-#define EBX (env->regs[R_EBX])
-#undef ESP
-#define ESP (env->regs[R_ESP])
-#undef EBP
-#define EBP (env->regs[R_EBP])
-#undef ESI
-#define ESI (env->regs[R_ESI])
-#undef EDI
-#define EDI (env->regs[R_EDI])
-#undef EIP
-#define EIP (env->eip)
-#define DF  (env->df)
-
 #define CC_DST  (env->cc_dst)
 #define CC_SRC  (env->cc_src)
 #define CC_SRC2 (env->cc_src2)
@@ -1151,20 +1125,11 @@ static inline target_long lshift(target_long x, int n)
 /* translate.c */
 void optimize_flags_init(void);
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[R_ESP] = newsp;
-    env->regs[R_EAX] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 #include "svm.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "hw/apic.h"
+#include "hw/i386/apic.h"
 #endif
 
 static inline bool cpu_has_work(CPUState *cs)
@@ -1182,11 +1147,6 @@ static inline bool cpu_has_work(CPUState *cs)
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUX86State *env, TranslationBlock *tb)
-{
-    env->eip = tb->pc - tb->cs_base;
-}
 
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -1220,7 +1180,7 @@ uint32_t cpu_cc_compute_all(CPUX86State *env1, int op);
 
 static inline uint32_t cpu_compute_eflags(CPUX86State *env)
 {
-    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (DF & DF_MASK);
+    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
 }
 
 /* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
@@ -1228,7 +1188,7 @@ static inline void cpu_load_eflags(CPUX86State *env, int eflags,
                                    int update_mask)
 {
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((eflags >> 10) & 1));
+    env->df = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
         (eflags & update_mask) | 0x2;
 }
@@ -1255,16 +1215,23 @@ void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
-void do_smm_enter(CPUX86State *env1);
+void do_smm_enter(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
 void disable_kvm_pv_eoi(void);
+
+void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
+                                 uint32_t feat_add, uint32_t feat_remove);
+
 
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
 
 uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
 void enable_compat_apic_id_mode(void);
+
+#define APIC_DEFAULT_ADDRESS 0xfee00000
+#define APIC_SPACE_SIZE      0x100000
 
 #endif /* CPU_I386_H */

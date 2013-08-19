@@ -99,15 +99,15 @@ static pid_t qtest_qemu_pid(QTestState *s)
         if (fgets(buffer, sizeof(buffer), f)) {
             pid = atoi(buffer);
         }
+        fclose(f);
     }
-    fclose(f);
     return pid;
 }
 
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
-    int sock, qmpsock, ret, i;
+    int sock, qmpsock, i;
     gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
@@ -136,10 +136,8 @@ QTestState *qtest_init(const char *extra_args)
                                   "%s", qemu_binary, s->socket_path,
                                   s->qmp_socket_path, pid_file,
                                   extra_args ?: "");
-
-        ret = system(command);
-        exit(ret);
-        g_free(command);
+        execlp("/bin/sh", "sh", "-c", command, NULL);
+        exit(1);
     }
 
     s->fd = socket_accept(sock);
@@ -169,17 +167,20 @@ void qtest_quit(QTestState *s)
 
     pid_t pid = qtest_qemu_pid(s);
     if (pid != -1) {
-        /* kill QEMU, but wait for the child created by us to run system() */
         kill(pid, SIGTERM);
-        waitpid(s->child_pid, &status, 0);
+        waitpid(pid, &status, 0);
     }
 
+    close(s->fd);
+    close(s->qmp_fd);
+    g_string_free(s->rx, true);
     unlink(s->pid_file);
     unlink(s->socket_path);
     unlink(s->qmp_socket_path);
     g_free(s->pid_file);
     g_free(s->socket_path);
     g_free(s->qmp_socket_path);
+    g_free(s);
 }
 
 static void socket_sendf(int fd, const char *fmt, va_list ap)

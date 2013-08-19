@@ -297,13 +297,21 @@ typedef struct AHCIState {
     uint32_t idp_index;     /* Current IDP index */
     int32_t ports;
     qemu_irq irq;
-    DMAContext *dma;
+    AddressSpace *as;
 } AHCIState;
 
 typedef struct AHCIPCIState {
-    PCIDevice card;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     AHCIState ahci;
 } AHCIPCIState;
+
+#define TYPE_ICH9_AHCI "ich9-ahci"
+
+#define ICH_AHCI(obj) \
+    OBJECT_CHECK(AHCIPCIState, (obj), TYPE_ICH9_AHCI)
 
 extern const VMStateDescription vmstate_ahci;
 
@@ -338,7 +346,7 @@ typedef struct NCQFrame {
     uint8_t reserved10;
 } QEMU_PACKED NCQFrame;
 
-void ahci_init(AHCIState *s, DeviceState *qdev, DMAContext *dma, int ports);
+void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);

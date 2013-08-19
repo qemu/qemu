@@ -35,10 +35,35 @@
 
 static struct XtensaConfigList *xtensa_cores;
 
+static void xtensa_core_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
+    const XtensaConfig *config = data;
+
+    xcc->config = config;
+
+    /* Use num_core_regs to see only non-privileged registers in an unmodified
+     * gdb. Use num_regs to see all registers. gdb modification is required
+     * for that: reset bit 0 in the 'flags' field of the registers definitions
+     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
+     */
+    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
+}
+
 void xtensa_register_core(XtensaConfigList *node)
 {
+    TypeInfo type = {
+        .parent = TYPE_XTENSA_CPU,
+        .class_init = xtensa_core_class_init,
+        .class_data = (void *)node->config,
+    };
+
     node->next = xtensa_cores;
     xtensa_cores = node;
+    type.name = g_strdup_printf("%s-" TYPE_XTENSA_CPU, node->config->name);
+    type_register(&type);
+    g_free((gpointer)type.name);
 }
 
 static uint32_t check_hw_breakpoints(CPUXtensaState *env)
@@ -72,24 +97,17 @@ void xtensa_breakpoint_handler(CPUXtensaState *env)
 
 XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 {
+    ObjectClass *oc;
     XtensaCPU *cpu;
     CPUXtensaState *env;
-    const XtensaConfig *config = NULL;
-    XtensaConfigList *core = xtensa_cores;
 
-    for (; core; core = core->next)
-        if (strcmp(core->config->name, cpu_model) == 0) {
-            config = core->config;
-            break;
-        }
-
-    if (config == NULL) {
+    oc = cpu_class_by_name(TYPE_XTENSA_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
 
-    cpu = XTENSA_CPU(object_new(TYPE_XTENSA_CPU));
+    cpu = XTENSA_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-    env->config = config;
 
     xtensa_irq_init(env);
 
@@ -108,17 +126,18 @@ void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     }
 }
 
-hwaddr cpu_get_phys_page_debug(CPUXtensaState *env, target_ulong addr)
+hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
 
-    if (xtensa_get_physical_addr(env, false, addr, 0, 0,
+    if (xtensa_get_physical_addr(&cpu->env, false, addr, 0, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }
-    if (xtensa_get_physical_addr(env, false, addr, 2, 0,
+    if (xtensa_get_physical_addr(&cpu->env, false, addr, 2, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }

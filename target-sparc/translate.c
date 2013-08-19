@@ -5219,9 +5219,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-static inline void gen_intermediate_code_internal(TranslationBlock * tb,
-                                                  int spc, CPUSPARCState *env)
+static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
+                                                  TranslationBlock *tb,
+                                                  bool spc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
@@ -5242,7 +5245,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->def = env->def;
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
-    dc->singlestep = (env->singlestep_enabled || singlestep);
+    dc->singlestep = (cs->singlestep_enabled || singlestep);
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     num_insns = 0;
@@ -5347,12 +5350,12 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
 
 void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 0, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 1, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, true);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)

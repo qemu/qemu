@@ -8,24 +8,25 @@
  * the standard PC ISA addresses.
 */
 #include "hw/hw.h"
-#include "hw/mips.h"
-#include "hw/mips_cpudevs.h"
-#include "hw/pc.h"
-#include "hw/serial.h"
-#include "hw/isa.h"
+#include "hw/mips/mips.h"
+#include "hw/mips/cpudevs.h"
+#include "hw/i386/pc.h"
+#include "hw/char/serial.h"
+#include "hw/isa/isa.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "qemu/log.h"
-#include "hw/mips-bios.h"
+#include "hw/mips/bios.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "hw/mc146818rtc.h"
-#include "hw/i8254.h"
+#include "hw/timer/mc146818rtc.h"
+#include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #define MAX_IDE_BUS 2
 
@@ -102,7 +103,7 @@ static int64_t load_kernel(void)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
@@ -164,6 +165,7 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     int bios_size;
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -202,12 +204,12 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    memory_region_init_ram(ram, "mips_r4k.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "mips_r4k.ram", ram_size);
     vmstate_register_ram_global(ram);
 
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    memory_region_init_io(iomem, &mips_qemu_ops, NULL, "mips-qemu", 0x10000);
+    memory_region_init_io(iomem, NULL, &mips_qemu_ops, NULL, "mips-qemu", 0x10000);
     memory_region_add_subregion(address_space_mem, 0x1fbf0000, iomem);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
@@ -229,7 +231,7 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
 #endif
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, "mips_r4k.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, NULL, "mips_r4k.bios", BIOS_SIZE);
         vmstate_register_ram_global(bios);
         memory_region_set_readonly(bios, true);
         memory_region_add_subregion(get_system_memory(), 0x1fc00000, bios);
@@ -243,8 +245,7 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
-    }
-    else {
+    } else if (!qtest_enabled()) {
 	/* not fatal */
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
 		bios_name);
@@ -273,7 +274,10 @@ void mips_r4k_init(QEMUMachineInitArgs *args)
     rtc_init(isa_bus, 2000, NULL);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
-    isa_mmio_init(0x14000000, 0x00010000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00010000);
+    memory_region_add_subregion(get_system_memory(), 0x14000000, isa);
+
     isa_mem_base = 0x10000000;
 
     pit = pit_init(isa_bus, 0x40, 0, NULL);

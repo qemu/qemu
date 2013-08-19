@@ -247,20 +247,6 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_cris_handle_mmu_fault
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUCRISState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[14] = newsp;
-    env->regs[10] = 0;
-}
-#endif
-
-static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
-{
-	env->pregs[PR_PID] = (env->pregs[PR_PID] & 0xff) | newtls;
-}
-
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
 #define SFR_RW_MM_CFG      env->pregs[PR_SRS]][0
@@ -293,8 +279,4 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUCRISState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 #endif

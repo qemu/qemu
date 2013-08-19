@@ -25,17 +25,17 @@
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "hw/devices.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
-#include "hw/sh7750_regs.h"
+#include "sh7750_regs.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "hw/usb.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
@@ -186,7 +186,7 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 
     s->irl = irl;
 
-    memory_region_init_io(&s->iomem, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
+    memory_region_init_io(&s->iomem, NULL, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
@@ -236,6 +236,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     DeviceState *dev;
     SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
+    PCIBus *pci_bus;
 
     if (cpu_model == NULL) {
         cpu_model = "SH7751R";
@@ -254,16 +255,17 @@ static void r2d_init(QEMUMachineInitArgs *args)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, "r2d.sdram", SDRAM_SIZE);
+    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE);
     vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
-    s = sh7750_init(env, address_space_mem);
+    s = sh7750_init(cpu, address_space_mem);
     irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
 
     dev = qdev_create(NULL, "sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
     sysbus_connect_irq(busdev, 0, irq[PCI_INTA]);
@@ -295,7 +297,8 @@ static void r2d_init(QEMUMachineInitArgs *args)
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus,
+                            "rtl8139", i==0 ? "2" : NULL);
 
     /* USB keyboard */
     usbdevice_create("keyboard");

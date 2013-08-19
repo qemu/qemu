@@ -28,7 +28,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
-#include "hw/adb.h"
+#include "hw/input/adb.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -131,6 +131,9 @@ typedef struct MACIOIDEState {
     MemoryRegion mem;
     IDEBus bus;
     BlockDriverAIOCB *aiocb;
+    IDEDMA dma;
+    void *dbdma;
+    bool dma_active;
 } MACIOIDEState;
 
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);

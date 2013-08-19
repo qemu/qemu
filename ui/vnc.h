@@ -142,15 +142,14 @@ struct VncDisplay
     QTAILQ_HEAD(, VncState) clients;
     int num_exclusive;
     VncSharePolicy share_policy;
-    QEMUTimer *timer;
-    int timer_interval;
     int lsock;
 #ifdef CONFIG_VNC_WS
     int lwebsock;
     bool websocket;
     char *ws_display;
 #endif
-    DisplayState *ds;
+    DisplaySurface *ds;
+    DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
     QemuMutex mutex;
@@ -247,7 +246,6 @@ struct VncState
 {
     int csock;
 
-    DisplayState *ds;
     DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
     uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
                            * vnc-jobs-async.c */
@@ -278,9 +276,12 @@ struct VncState
     VncStateSASL sasl;
 #endif
 #ifdef CONFIG_VNC_WS
+#ifdef CONFIG_VNC_TLS
+    VncStateTLS ws_tls;
+#endif /* CONFIG_VNC_TLS */
     bool encode_ws;
     bool websocket;
-#endif
+#endif /* CONFIG_VNC_WS */
 
     QObject *info;
 
@@ -386,6 +387,7 @@ enum {
 #define VNC_ENCODING_EXT_KEY_EVENT        0XFFFFFEFE /* -258 */
 #define VNC_ENCODING_AUDIO                0XFFFFFEFD /* -259 */
 #define VNC_ENCODING_TIGHT_PNG            0xFFFFFEFC /* -260 */
+#define VNC_ENCODING_LED_STATE            0XFFFFFEFB /* -261 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 
 /*****************************************************************************
@@ -424,6 +426,7 @@ enum {
 #define VNC_FEATURE_TIGHT_PNG                8
 #define VNC_FEATURE_ZRLE                     9
 #define VNC_FEATURE_ZYWRLE                  10
+#define VNC_FEATURE_LED_STATE               11
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -436,6 +439,7 @@ enum {
 #define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
 #define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
 #define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
+#define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
 
 
 /* Client -> Server message IDs */

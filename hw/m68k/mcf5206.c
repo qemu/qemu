@@ -6,7 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "hw/hw.h"
-#include "hw/mcf.h"
+#include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"
@@ -532,7 +532,7 @@ qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
 
     s = (m5206_mbar_state *)g_malloc0(sizeof(m5206_mbar_state));
 
-    memory_region_init_io(&s->iomem, &m5206_mbar_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &m5206_mbar_ops, s,
                           "mbar", 0x00001000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 

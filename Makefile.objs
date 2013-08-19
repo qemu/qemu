@@ -13,19 +13,11 @@ block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
 block-obj-y += qapi-types.o qapi-visit.o
+block-obj-y += qemu-io-cmds.o
 
 block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 block-obj-y += qemu-coroutine-sleep.o
-ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
-block-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
-else
-ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
-block-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
-else
-block-obj-$(CONFIG_POSIX) += coroutine-gthread.o
-endif
-endif
-block-obj-$(CONFIG_WIN32) += coroutine-win32.o
+block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
@@ -41,6 +33,7 @@ libcacard-y += libcacard/vcard.o libcacard/vreader.o
 libcacard-y += libcacard/vcard_emul_nss.o
 libcacard-y += libcacard/vcard_emul_type.o
 libcacard-y += libcacard/card_7816.o
+libcacard-y += libcacard/vcardt.o
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
@@ -58,6 +51,7 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration.o migration-tcp.o
+common-obj-$(CONFIG_RDMA) += migration-rdma.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o
 common-obj-y += page_cache.o xbzrle.o
@@ -74,7 +68,7 @@ common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
-common-obj-y += tpm/
+common-obj-y += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
@@ -87,9 +81,14 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 ######################################################################
 # qapi
 
-common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
+common-obj-y += qmp-marshal.o
 common-obj-y += qmp.o hmp.o
 endif
+
+######################################################################
+# some qapi visitors are used by both system and user emulation:
+
+common-obj-y += qapi-visit.o qapi-types.o
 
 #######################################################################
 # Target-independent parts used in system and user emulation
@@ -98,6 +97,11 @@ common-obj-y += tcg-runtime.o
 common-obj-y += hw/
 common-obj-y += qom/
 common-obj-y += disas/
+
+######################################################################
+# Resource file for Windows executables
+version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
+version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
 
 ######################################################################
 # guest agent

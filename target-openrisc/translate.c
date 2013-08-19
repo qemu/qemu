@@ -1662,6 +1662,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
                                                   TranslationBlock *tb,
                                                   int search_pc)
 {
+    CPUState *cs = CPU(cpu);
     struct DisasContext ctx, *dc = &ctx;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
@@ -1681,10 +1682,10 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     dc->mem_idx = cpu_mmu_index(&cpu->env);
     dc->synced_flags = dc->tb_flags = tb->flags;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
-    dc->singlestep_enabled = cpu->env.singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("-----------------------------------------\n");
-        log_cpu_state(&cpu->env, 0);
+        log_cpu_state(CPU(cpu), 0);
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -1743,7 +1744,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         }
     } while (!dc->is_jmp
              && tcg_ctx.gen_opc_ptr < gen_opc_end
-             && !cpu->env.singlestep_enabled
+             && !cs->singlestep_enabled
              && !singlestep
              && (dc->pc < next_page_start)
              && num_insns < max_insns);
@@ -1755,7 +1756,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         dc->is_jmp = DISAS_UPDATE;
         tcg_gen_movi_tl(cpu_pc, dc->pc);
     }
-    if (unlikely(cpu->env.singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         if (dc->is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
         }
@@ -1814,15 +1815,17 @@ void gen_intermediate_code_pc(CPUOpenRISCState *env,
     gen_intermediate_code_internal(openrisc_env_get_cpu(env), tb, 1);
 }
 
-void cpu_dump_state(CPUOpenRISCState *env, FILE *f,
-                    fprintf_function cpu_fprintf,
-                    int flags)
+void openrisc_cpu_dump_state(CPUState *cs, FILE *f,
+                             fprintf_function cpu_fprintf,
+                             int flags)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    CPUOpenRISCState *env = &cpu->env;
     int i;
-    uint32_t *regs = env->gpr;
+
     cpu_fprintf(f, "PC=%08x\n", env->pc);
     for (i = 0; i < 32; ++i) {
-        cpu_fprintf(f, "R%02d=%08x%c", i, regs[i],
+        cpu_fprintf(f, "R%02d=%08x%c", i, env->gpr[i],
                     (i % 4) == 3 ? '\n' : ' ');
     }
 }

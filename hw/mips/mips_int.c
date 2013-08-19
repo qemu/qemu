@@ -21,7 +21,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/mips_cpudevs.h"
+#include "hw/mips/cpudevs.h"
 #include "cpu.h"
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)

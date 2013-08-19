@@ -27,13 +27,17 @@ void pcie_port_init_reg(PCIDevice *d)
     pci_set_word(d->config + PCI_STATUS, 0);
     pci_set_word(d->config + PCI_SEC_STATUS, 0);
 
-    /* Unlike conventional pci bridge, some bits are hardwired to 0. */
-    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
-                 PCI_BRIDGE_CTL_PARITY |
-                 PCI_BRIDGE_CTL_ISA |
-                 PCI_BRIDGE_CTL_VGA |
-                 PCI_BRIDGE_CTL_SERR |
-                 PCI_BRIDGE_CTL_BUS_RESET);
+    /*
+     * Unlike conventional pci bridge, for some bits the spec states:
+     * Does not apply to PCI Express and must be hardwired to 0.
+     */
+    pci_word_test_and_clear_mask(d->wmask + PCI_BRIDGE_CONTROL,
+                                 PCI_BRIDGE_CTL_MASTER_ABORT |
+                                 PCI_BRIDGE_CTL_FAST_BACK |
+                                 PCI_BRIDGE_CTL_DISCARD |
+                                 PCI_BRIDGE_CTL_SEC_DISCARD |
+                                 PCI_BRIDGE_CTL_DISCARD_STATUS |
+                                 PCI_BRIDGE_CTL_DISCARD_SERR);
 }
 
 /**************************************************************************
@@ -112,3 +116,55 @@ void pcie_chassis_del_slot(PCIESlot *s)
 {
     QLIST_REMOVE(s, next);
 }
+
+static Property pcie_port_props[] = {
+    DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
+    DEFINE_PROP_UINT16("aer_log_max", PCIEPort,
+                       parent_obj.parent_obj.exp.aer_log.log_max,
+                       PCIE_AER_LOG_MAX_DEFAULT),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void pcie_port_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->props = pcie_port_props;
+}
+
+static const TypeInfo pcie_port_type_info = {
+    .name = TYPE_PCIE_PORT,
+    .parent = TYPE_PCI_BRIDGE,
+    .instance_size = sizeof(PCIEPort),
+    .abstract = true,
+    .class_init = pcie_port_class_init,
+};
+
+static Property pcie_slot_props[] = {
+    DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
+    DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void pcie_slot_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->props = pcie_slot_props;
+}
+
+static const TypeInfo pcie_slot_type_info = {
+    .name = TYPE_PCIE_SLOT,
+    .parent = TYPE_PCIE_PORT,
+    .instance_size = sizeof(PCIESlot),
+    .abstract = true,
+    .class_init = pcie_slot_class_init,
+};
+
+static void pcie_port_register_types(void)
+{
+    type_register_static(&pcie_port_type_info);
+    type_register_static(&pcie_slot_type_info);
+}
+
+type_init(pcie_port_register_types)

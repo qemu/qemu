@@ -40,7 +40,7 @@ typedef struct NetSocketState {
     unsigned int index;
     unsigned int packet_len;
     unsigned int send_index;      /* number of bytes sent (only SOCK_STREAM) */
-    uint8_t buf[4096];
+    uint8_t buf[NET_BUFSIZE];
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
     IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
     bool read_poll;               /* waiting to receive data? */
@@ -146,7 +146,7 @@ static void net_socket_send(void *opaque)
     NetSocketState *s = opaque;
     int size, err;
     unsigned l;
-    uint8_t buf1[4096];
+    uint8_t buf1[NET_BUFSIZE];
     const uint8_t *buf;
 
     size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
@@ -262,8 +262,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
     }
 
     val = 1;
-    ret=setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-                   (const char *)&val, sizeof(val));
+    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
     if (ret < 0) {
         perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
         goto fail;
@@ -283,8 +282,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
         imr.imr_interface.s_addr = htonl(INADDR_ANY);
     }
 
-    ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                     (const char *)&imr, sizeof(struct ip_mreq));
+    ret = qemu_setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                          &imr, sizeof(struct ip_mreq));
     if (ret < 0) {
         perror("setsockopt(IP_ADD_MEMBERSHIP)");
         goto fail;
@@ -292,8 +291,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
 
     /* Force mcast msgs to loopback (eg. several QEMUs in same host */
     loop = 1;
-    ret=setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
-                   (const char *)&loop, sizeof(loop));
+    ret = qemu_setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+                          &loop, sizeof(loop));
     if (ret < 0) {
         perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
         goto fail;
@@ -301,15 +300,15 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
 
     /* If a bind address is given, only send packets from that address */
     if (localaddr != NULL) {
-        ret = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         (const char *)localaddr, sizeof(*localaddr));
+        ret = qemu_setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
+                              localaddr, sizeof(*localaddr));
         if (ret < 0) {
             perror("setsockopt(IP_MULTICAST_IF)");
             goto fail;
         }
     }
 
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
     return fd;
 fail:
     if (fd >= 0)
@@ -439,6 +438,9 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
     s->fd = fd;
     s->listen_fd = -1;
 
+    /* Disable Nagle algorithm on TCP sockets to reduce latency */
+    socket_set_nodelay(fd);
+
     if (is_connected) {
         net_socket_connect(s);
     } else {
@@ -517,11 +519,11 @@ static int net_socket_listen_init(NetClientState *peer,
         perror("socket");
         return -1;
     }
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
 
     /* allow fast reuse */
     val = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
+    qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
@@ -563,7 +565,7 @@ static int net_socket_connect_init(NetClientState *peer,
         perror("socket");
         return -1;
     }
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
 
     connected = 0;
     for(;;) {
@@ -659,8 +661,8 @@ static int net_socket_udp_init(NetClientState *peer,
         return -1;
     }
     val = 1;
-    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-                   (const char *)&val, sizeof(val));
+    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                          &val, sizeof(val));
     if (ret < 0) {
         perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
         closesocket(fd);
@@ -672,6 +674,7 @@ static int net_socket_udp_init(NetClientState *peer,
         closesocket(fd);
         return -1;
     }
+    qemu_set_nonblock(fd);
 
     s = net_socket_fd_init(peer, model, name, fd, 0);
     if (!s) {
@@ -710,7 +713,11 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         int fd;
 
         fd = monitor_handle_fd_param(cur_mon, sock->fd);
-        if (fd == -1 || !net_socket_fd_init(peer, "socket", name, fd, 1)) {
+        if (fd == -1) {
+            return -1;
+        }
+        qemu_set_nonblock(fd);
+        if (!net_socket_fd_init(peer, "socket", name, fd, 1)) {
             return -1;
         }
         return 0;

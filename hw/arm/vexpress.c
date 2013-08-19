@@ -22,21 +22,26 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
-#include "hw/primecell.h"
+#include "hw/arm/arm.h"
+#include "hw/arm/primecell.h"
 #include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "sysemu/blockdev.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
+#include "sysemu/device_tree.h"
+#include <libfdt.h>
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
 #define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
 
-static struct arm_boot_info vexpress_binfo;
+/* Number of virtio transports to create (0..8; limited by
+ * number of available IRQ lines).
+ */
+#define NUM_VIRTIO_TRANSPORTS 4
 
 /* Address maps for peripherals:
  * the Versatile Express motherboard has two possible maps,
@@ -67,11 +72,13 @@ enum {
     VE_CLCD,
     VE_NORFLASH0,
     VE_NORFLASH1,
+    VE_NORFLASHALIAS,
     VE_SRAM,
     VE_VIDEORAM,
     VE_ETHERNET,
     VE_USB,
     VE_DAPROM,
+    VE_VIRTIO,
 };
 
 static hwaddr motherboard_legacy_map[] = {
@@ -90,6 +97,7 @@ static hwaddr motherboard_legacy_map[] = {
     [VE_WDT] = 0x1000f000,
     [VE_TIMER01] = 0x10011000,
     [VE_TIMER23] = 0x10012000,
+    [VE_VIRTIO] = 0x10013000,
     [VE_SERIALDVI] = 0x10016000,
     [VE_RTC] = 0x10017000,
     [VE_COMPACTFLASH] = 0x1001a000,
@@ -104,9 +112,11 @@ static hwaddr motherboard_legacy_map[] = {
     [VE_VIDEORAM] = 0x4c000000,
     [VE_ETHERNET] = 0x4e000000,
     [VE_USB] = 0x4f000000,
+    [VE_NORFLASHALIAS] = -1, /* not present */
 };
 
 static hwaddr motherboard_aseries_map[] = {
+    [VE_NORFLASHALIAS] = 0,
     /* CS0: 0x08000000 .. 0x0c000000 */
     [VE_NORFLASH0] = 0x08000000,
     /* CS4: 0x0c000000 .. 0x10000000 */
@@ -134,6 +144,7 @@ static hwaddr motherboard_aseries_map[] = {
     [VE_WDT] = 0x1c0f0000,
     [VE_TIMER01] = 0x1c110000,
     [VE_TIMER23] = 0x1c120000,
+    [VE_VIRTIO] = 0x1c130000,
     [VE_SERIALDVI] = 0x1c160000,
     [VE_RTC] = 0x1c170000,
     [VE_COMPACTFLASH] = 0x1c1a0000,
@@ -147,19 +158,25 @@ typedef struct VEDBoardInfo VEDBoardInfo;
 typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           ram_addr_t ram_size,
                           const char *cpu_model,
-                          qemu_irq *pic, uint32_t *proc_id);
+                          qemu_irq *pic);
 
 struct VEDBoardInfo {
+    struct arm_boot_info bootinfo;
     const hwaddr *motherboard_map;
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
+    uint32_t proc_id;
+    uint32_t num_voltage_sensors;
+    const uint32_t *voltages;
+    uint32_t num_clocks;
+    const uint32_t *clocks;
     DBoardInitFn *init;
 };
 
 static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   ram_addr_t ram_size,
                                   const char *cpu_model,
-                                  qemu_irq *pic, uint32_t *proc_id)
+                                  qemu_irq *pic)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -174,8 +191,6 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
-
-    *proc_id = 0x0c000191;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu = cpu_arm_init(cpu_model);
@@ -193,7 +208,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
         exit(1);
     }
 
-    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
     vmstate_register_ram_global(ram);
     low_ram_size = ram_size;
     if (low_ram_size > 0x4000000) {
@@ -203,7 +218,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
      * address space should in theory be remappable to various
      * things including ROM or RAM; we always map the RAM there.
      */
-    memory_region_init_alias(lowram, "vexpress.lowmem", ram, 0, low_ram_size);
+    memory_region_init_alias(lowram, NULL, "vexpress.lowmem", ram, 0, low_ram_size);
     memory_region_add_subregion(sysmem, 0x0, lowram);
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
@@ -247,17 +262,41 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     sysbus_create_varargs("l2x0", 0x1e00a000, NULL);
 }
 
-static const VEDBoardInfo a9_daughterboard = {
+/* Voltage values for SYS_CFG_VOLT daughterboard registers;
+ * values are in microvolts.
+ */
+static const uint32_t a9_voltages[] = {
+    1000000, /* VD10 : 1.0V : SoC internal logic voltage */
+    1000000, /* VD10_S2 : 1.0V : PL310, L2 cache, RAM, non-PL310 logic */
+    1000000, /* VD10_S3 : 1.0V : Cortex-A9, cores, MPEs, SCU, PL310 logic */
+    1800000, /* VCC1V8 : 1.8V : DDR2 SDRAM, test chip DDR2 I/O supply */
+    900000, /* DDR2VTT : 0.9V : DDR2 SDRAM VTT termination voltage */
+    3300000, /* VCC3V3 : 3.3V : local board supply for misc external logic */
+};
+
+/* Reset values for daughterboard oscillators (in Hz) */
+static const uint32_t a9_clocks[] = {
+    45000000, /* AMBA AXI ACLK: 45MHz */
+    23750000, /* daughterboard CLCD clock: 23.75MHz */
+    66670000, /* Test chip reference clock: 66.67MHz */
+};
+
+static VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
+    .proc_id = 0x0c000191,
+    .num_voltage_sensors = ARRAY_SIZE(a9_voltages),
+    .voltages = a9_voltages,
+    .num_clocks = ARRAY_SIZE(a9_clocks),
+    .clocks = a9_clocks,
     .init = a9_daughterboard_init,
 };
 
 static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    ram_addr_t ram_size,
                                    const char *cpu_model,
-                                   qemu_irq *pic, uint32_t *proc_id)
+                                   qemu_irq *pic)
 {
     int n;
     MemoryRegion *sysmem = get_system_memory();
@@ -270,8 +309,6 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a15";
     }
-
-    *proc_id = 0x14000237;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu;
@@ -298,7 +335,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
         }
     }
 
-    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
     vmstate_register_ram_global(ram);
     /* RAM is from 0x80000000 upwards; there is no low-memory alias for it. */
     memory_region_add_subregion(sysmem, 0x80000000, ram);
@@ -332,7 +369,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     /* 0x2b060000: SP805 watchdog: not modelled */
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
-    memory_region_init_ram(sram, "vexpress.a15sram", 0x10000);
+    memory_region_init_ram(sram, NULL, "vexpress.a15sram", 0x10000);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0x2e000000, sram);
 
@@ -340,29 +377,131 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     /* 0x7ffd0000: PL354 static memory controller: not modelled */
 }
 
-static const VEDBoardInfo a15_daughterboard = {
+static const uint32_t a15_voltages[] = {
+    900000, /* Vcore: 0.9V : CPU core voltage */
+};
+
+static const uint32_t a15_clocks[] = {
+    60000000, /* OSCCLK0: 60MHz : CPU_CLK reference */
+    0, /* OSCCLK1: reserved */
+    0, /* OSCCLK2: reserved */
+    0, /* OSCCLK3: reserved */
+    40000000, /* OSCCLK4: 40MHz : external AXI master clock */
+    23750000, /* OSCCLK5: 23.75MHz : HDLCD PLL reference */
+    50000000, /* OSCCLK6: 50MHz : static memory controller clock */
+    60000000, /* OSCCLK7: 60MHz : SYSCLK reference */
+    40000000, /* OSCCLK8: 40MHz : DDR2 PLL reference */
+};
+
+static VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
+    .proc_id = 0x14000237,
+    .num_voltage_sensors = ARRAY_SIZE(a15_voltages),
+    .voltages = a15_voltages,
+    .num_clocks = ARRAY_SIZE(a15_clocks),
+    .clocks = a15_clocks,
     .init = a15_daughterboard_init,
 };
 
-static void vexpress_common_init(const VEDBoardInfo *daughterboard,
+static int add_virtio_mmio_node(void *fdt, uint32_t acells, uint32_t scells,
+                                hwaddr addr, hwaddr size, uint32_t intc,
+                                int irq)
+{
+    /* Add a virtio_mmio node to the device tree blob:
+     *   virtio_mmio@ADDRESS {
+     *       compatible = "virtio,mmio";
+     *       reg = <ADDRESS, SIZE>;
+     *       interrupt-parent = <&intc>;
+     *       interrupts = <0, irq, 1>;
+     *   }
+     * (Note that the format of the interrupts property is dependent on the
+     * interrupt controller that interrupt-parent points to; these are for
+     * the ARM GIC and indicate an SPI interrupt, rising-edge-triggered.)
+     */
+    int rc;
+    char *nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, addr);
+
+    rc = qemu_devtree_add_subnode(fdt, nodename);
+    rc |= qemu_devtree_setprop_string(fdt, nodename,
+                                      "compatible", "virtio,mmio");
+    rc |= qemu_devtree_setprop_sized_cells(fdt, nodename, "reg",
+                                           acells, addr, scells, size);
+    qemu_devtree_setprop_cells(fdt, nodename, "interrupt-parent", intc);
+    qemu_devtree_setprop_cells(fdt, nodename, "interrupts", 0, irq, 1);
+    g_free(nodename);
+    if (rc) {
+        return -1;
+    }
+    return 0;
+}
+
+static uint32_t find_int_controller(void *fdt)
+{
+    /* Find the FDT node corresponding to the interrupt controller
+     * for virtio-mmio devices. We do this by scanning the fdt for
+     * a node with the right compatibility, since we know there is
+     * only one GIC on a vexpress board.
+     * We return the phandle of the node, or 0 if none was found.
+     */
+    const char *compat = "arm,cortex-a9-gic";
+    int offset;
+
+    offset = fdt_node_offset_by_compatible(fdt, -1, compat);
+    if (offset >= 0) {
+        return fdt_get_phandle(fdt, offset);
+    }
+    return 0;
+}
+
+static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    uint32_t acells, scells, intc;
+    const VEDBoardInfo *daughterboard = (const VEDBoardInfo *)info;
+
+    acells = qemu_devtree_getprop_cell(fdt, "/", "#address-cells");
+    scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
+    intc = find_int_controller(fdt);
+    if (!intc) {
+        /* Not fatal, we just won't provide virtio. This will
+         * happen with older device tree blobs.
+         */
+        fprintf(stderr, "QEMU: warning: couldn't find interrupt controller in "
+                "dtb; will not include virtio-mmio devices in the dtb.\n");
+    } else {
+        int i;
+        const hwaddr *map = daughterboard->motherboard_map;
+
+        /* We iterate backwards here because adding nodes
+         * to the dtb puts them in last-first.
+         */
+        for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
+            add_virtio_mmio_node(fdt, acells, scells,
+                                 map[VE_VIRTIO] + 0x200 * i,
+                                 0x200, intc, 40 + i);
+        }
+    }
+}
+
+static void vexpress_common_init(VEDBoardInfo *daughterboard,
                                  QEMUMachineInitArgs *args)
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
-    uint32_t proc_id;
     uint32_t sys_id;
     DriveInfo *dinfo;
+    pflash_t *pflash0;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+    MemoryRegion *flashalias = g_new(MemoryRegion, 1);
+    MemoryRegion *flash0mem;
     const hwaddr *map = daughterboard->motherboard_map;
+    int i;
 
-    daughterboard->init(daughterboard, args->ram_size, args->cpu_model,
-                        pic, &proc_id);
+    daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -372,7 +511,21 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
-    qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
+    qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
+    qdev_prop_set_uint32(sysctl, "len-db-voltage",
+                         daughterboard->num_voltage_sensors);
+    for (i = 0; i < daughterboard->num_voltage_sensors; i++) {
+        char *propname = g_strdup_printf("db-voltage[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->voltages[i]);
+        g_free(propname);
+    }
+    qdev_prop_set_uint32(sysctl, "len-db-clock",
+                         daughterboard->num_clocks);
+    for (i = 0; i < daughterboard->num_clocks; i++) {
+        char *propname = g_strdup_printf("db-clock[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->clocks[i]);
+        g_free(propname);
+    }
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
@@ -412,13 +565,22 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
     dinfo = drive_get_next(IF_PFLASH);
-    if (!pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
+    pflash0 = pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
             VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
             VEXPRESS_FLASH_SECT_SIZE,
             VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
-            0x00, 0x89, 0x00, 0x18, 0)) {
+            0x00, 0x89, 0x00, 0x18, 0);
+    if (!pflash0) {
         fprintf(stderr, "vexpress: error registering flash 0.\n");
         exit(1);
+    }
+
+    if (map[VE_NORFLASHALIAS] != -1) {
+        /* Map flash 0 as an alias into low memory */
+        flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
+        memory_region_init_alias(flashalias, NULL, "vexpress.flashalias",
+                                 flash0mem, 0, VEXPRESS_FLASH_SIZE);
+        memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], flashalias);
     }
 
     dinfo = drive_get_next(IF_PFLASH);
@@ -432,12 +594,12 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     }
 
     sram_size = 0x2000000;
-    memory_region_init_ram(sram, "vexpress.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
 
     vram_size = 0x800000;
-    memory_region_init_ram(vram, "vexpress.vram", vram_size);
+    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size);
     vmstate_register_ram_global(vram);
     memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
 
@@ -450,17 +612,27 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_DAPROM: not modelled */
 
-    vexpress_binfo.ram_size = args->ram_size;
-    vexpress_binfo.kernel_filename = args->kernel_filename;
-    vexpress_binfo.kernel_cmdline = args->kernel_cmdline;
-    vexpress_binfo.initrd_filename = args->initrd_filename;
-    vexpress_binfo.nb_cpus = smp_cpus;
-    vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
-    vexpress_binfo.loader_start = daughterboard->loader_start;
-    vexpress_binfo.smp_loader_start = map[VE_SRAM];
-    vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
-    vexpress_binfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &vexpress_binfo);
+    /* Create mmio transports, so the user can create virtio backends
+     * (which will be automatically plugged in to the transports). If
+     * no backend is created the transport will just sit harmlessly idle.
+     */
+    for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+        sysbus_create_simple("virtio-mmio", map[VE_VIRTIO] + 0x200 * i,
+                             pic[40 + i]);
+    }
+
+    daughterboard->bootinfo.ram_size = args->ram_size;
+    daughterboard->bootinfo.kernel_filename = args->kernel_filename;
+    daughterboard->bootinfo.kernel_cmdline = args->kernel_cmdline;
+    daughterboard->bootinfo.initrd_filename = args->initrd_filename;
+    daughterboard->bootinfo.nb_cpus = smp_cpus;
+    daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
+    daughterboard->bootinfo.loader_start = daughterboard->loader_start;
+    daughterboard->bootinfo.smp_loader_start = map[VE_SRAM];
+    daughterboard->bootinfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
+    daughterboard->bootinfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
+    daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
+    arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
 static void vexpress_a9_init(QEMUMachineInitArgs *args)

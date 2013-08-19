@@ -2971,9 +2971,11 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 
 /* generate intermediate code for basic block 'tb'.  */
 static inline void
-gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
-                               int search_pc)
+gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
@@ -2994,7 +2996,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
     dc->cc_op = CC_OP_DYNAMIC;
-    dc->singlestep_enabled = env->singlestep_enabled;
+    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->is_mem = 0;
@@ -3037,14 +3039,14 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
 	disas_m68k_insn(env, dc);
         num_insns++;
     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled &&
+             !cs->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (unlikely(env->singlestep_enabled)) {
+    if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
             gen_flush_cc_op(dc);
@@ -3096,17 +3098,19 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
 
 void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUM68KState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, true);
 }
 
-void cpu_dump_state(CPUM68KState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
     int i;
     uint16_t sr;
     CPU_DoubleU u;

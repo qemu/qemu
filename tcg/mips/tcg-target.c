@@ -1413,6 +1413,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
 #endif
         break;
+    case INDEX_op_muls2_i32:
+        tcg_out_opc_reg(s, OPC_MULT, 0, args[2], args[3]);
+        tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
+        tcg_out_opc_reg(s, OPC_MFHI, args[1], 0, 0);
+        break;
     case INDEX_op_mulu2_i32:
         tcg_out_opc_reg(s, OPC_MULTU, 0, args[2], args[3]);
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
@@ -1595,6 +1600,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
 
     { INDEX_op_add_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
+    { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
@@ -1611,19 +1617,29 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
     { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
+#if TCG_TARGET_HAS_rot_i32
     { INDEX_op_rotr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_rotl_i32, { "r", "rZ", "ri" } },
+#endif
 
+#if TCG_TARGET_HAS_bswap16_i32
     { INDEX_op_bswap16_i32, { "r", "r" } },
+#endif
+#if TCG_TARGET_HAS_bswap32_i32
     { INDEX_op_bswap32_i32, { "r", "r" } },
+#endif
 
     { INDEX_op_ext8s_i32, { "r", "rZ" } },
     { INDEX_op_ext16s_i32, { "r", "rZ" } },
 
+#if TCG_TARGET_HAS_deposit_i32
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+#endif
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
+#if TCG_TARGET_HAS_movcond_i32
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
+#endif
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 

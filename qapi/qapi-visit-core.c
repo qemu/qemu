@@ -12,6 +12,7 @@
  */
 
 #include "qemu-common.h"
+#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
@@ -43,6 +44,22 @@ void visit_end_struct(Visitor *v, Error **errp)
 {
     assert(!error_is_set(errp));
     v->end_struct(v, errp);
+}
+
+void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
+                                 Error **errp)
+{
+    if (!error_is_set(errp) && v->start_implicit_struct) {
+        v->start_implicit_struct(v, obj, size, errp);
+    }
+}
+
+void visit_end_implicit_struct(Visitor *v, Error **errp)
+{
+    assert(!error_is_set(errp));
+    if (v->end_implicit_struct) {
+        v->end_implicit_struct(v, errp);
+    }
 }
 
 void visit_start_list(Visitor *v, const char *name, Error **errp)
@@ -79,6 +96,14 @@ void visit_end_optional(Visitor *v, Error **errp)
 {
     if (!error_is_set(errp) && v->end_optional) {
         v->end_optional(v, errp);
+    }
+}
+
+void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
+                         const char *name, Error **errp)
+{
+    if (!error_is_set(errp) && v->get_next_type) {
+        v->get_next_type(v, obj, qtypes, name, errp);
     }
 }
 
@@ -238,8 +263,17 @@ void visit_type_int64(Visitor *v, int64_t *obj, const char *name, Error **errp)
 
 void visit_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 {
+    int64_t value;
     if (!error_is_set(errp)) {
-        (v->type_size ? v->type_size : v->type_uint64)(v, obj, name, errp);
+        if (v->type_size) {
+            v->type_size(v, obj, name, errp);
+        } else if (v->type_uint64) {
+            v->type_uint64(v, obj, name, errp);
+        } else {
+            value = *obj;
+            v->type_int(v, &value, name, errp);
+            *obj = value;
+        }
     }
 }
 

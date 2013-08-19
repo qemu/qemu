@@ -31,6 +31,9 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
     if (!sch || !css_subch_visible(sch)) {
         return -EINVAL;
     }
+    if (queue >= VIRTIO_PCI_QUEUE_MAX) {
+        return -EINVAL;
+    }
     virtio_queue_notify(virtio_ccw_get_vdev(sch), queue);
     return 0;
 
@@ -73,20 +76,20 @@ static void ccw_init(QEMUMachineInitArgs *args)
     }
     my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
 
-    /* lets propagate the changed ram size into the global variable. */
+    /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_sclp_init();
     s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
-                      args->initrd_filename);
+                      args->initrd_filename, "s390-ccw.img");
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "s390.ram", my_ram_size);
+    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 

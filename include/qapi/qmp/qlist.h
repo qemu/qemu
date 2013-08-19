@@ -15,7 +15,6 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qemu/queue.h"
-#include "qemu/queue.h"
 
 typedef struct QListEntry {
     QObject *value;

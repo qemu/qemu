@@ -92,7 +92,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         }
 
         qemu_log("%6d: %s (v=%04x)\n", count, name, intno);
-        log_cpu_state(env, 0);
+        log_cpu_state(cs, 0);
 #if 0
         {
             int i;

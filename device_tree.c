@@ -21,6 +21,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -213,7 +214,7 @@ uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
     uint32_t r;
 
     r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
-    if (r <= 0) {
+    if (r == 0) {
         fprintf(stderr, "%s: Couldn't get phandle for %s: %s\n", __func__,
                 path, fdt_strerror(r));
         exit(1);
@@ -239,15 +240,8 @@ uint32_t qemu_devtree_alloc_phandle(void *fdt)
      * which phandle id to start allocting phandles.
      */
     if (!phandle) {
-        QemuOpts *machine_opts;
-        machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-        if (machine_opts) {
-            const char *phandle_start;
-            phandle_start = qemu_opt_get(machine_opts, "phandle_start");
-            if (phandle_start) {
-                phandle = strtoul(phandle_start, NULL, 0);
-            }
-        }
+        phandle = qemu_opt_get_number(qemu_get_machine_opts(),
+                                      "phandle_start", 0);
     }
 
     if (!phandle) {
@@ -307,15 +301,43 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
 
 void qemu_devtree_dumpdtb(void *fdt, int size)
 {
-    QemuOpts *machine_opts;
+    const char *dumpdtb = qemu_opt_get(qemu_get_machine_opts(), "dumpdtb");
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        const char *dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
-        if (dumpdtb) {
-            /* Dump the dtb to a file and quit */
-            exit(g_file_set_contents(dumpdtb, fdt, size, NULL) ? 0 : 1);
+    if (dumpdtb) {
+        /* Dump the dtb to a file and quit */
+        exit(g_file_set_contents(dumpdtb, fdt, size, NULL) ? 0 : 1);
+    }
+}
+
+int qemu_devtree_setprop_sized_cells_from_array(void *fdt,
+                                                const char *node_path,
+                                                const char *property,
+                                                int numvalues,
+                                                uint64_t *values)
+{
+    uint32_t *propcells;
+    uint64_t value;
+    int cellnum, vnum, ncells;
+    uint32_t hival;
+
+    propcells = g_new0(uint32_t, numvalues * 2);
+
+    cellnum = 0;
+    for (vnum = 0; vnum < numvalues; vnum++) {
+        ncells = values[vnum * 2];
+        if (ncells != 1 && ncells != 2) {
+            return -1;
         }
+        value = values[vnum * 2 + 1];
+        hival = cpu_to_be32(value >> 32);
+        if (ncells > 1) {
+            propcells[cellnum++] = hival;
+        } else if (hival != 0) {
+            return -1;
+        }
+        propcells[cellnum++] = cpu_to_be32(value);
     }
 
+    return qemu_devtree_setprop(fdt, node_path, property, propcells,
+                                cellnum * sizeof(uint32_t));
 }

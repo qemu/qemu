@@ -157,8 +157,7 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 /**
  * Generate a name for net client
  *
- * Only net clients created with the legacy -net option need this.  Naming is
- * mandatory for net clients created with -netdev.
+ * Only net clients created with the legacy -net option and NICs need this.
  */
 static char *assign_name(NetClientState *nc1, const char *model)
 {
@@ -170,9 +169,7 @@ static char *assign_name(NetClientState *nc1, const char *model)
         if (nc == nc1) {
             continue;
         }
-        /* For compatibility only bump id for net clients on a vlan */
-        if (strcmp(nc->model, model) == 0 &&
-            net_hub_id_for_client(nc, NULL) == 0) {
+        if (strcmp(nc->model, model) == 0) {
             id++;
         }
     }
@@ -497,7 +494,7 @@ ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size)
 static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
                                int iovcnt)
 {
-    uint8_t buffer[4096];
+    uint8_t buffer[NET_BUFSIZE];
     size_t offset;
 
     offset = iov_to_buf(iov, iovcnt, 0, buffer, sizeof(buffer));
@@ -962,6 +959,54 @@ void print_net_client(Monitor *mon, NetClientState *nc)
                    nc->queue_index,
                    NetClientOptionsKind_lookup[nc->info->type],
                    nc->info_str);
+}
+
+RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
+                                      Error **errp)
+{
+    NetClientState *nc;
+    RxFilterInfoList *filter_list = NULL, *last_entry = NULL;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        RxFilterInfoList *entry;
+        RxFilterInfo *info;
+
+        if (has_name && strcmp(nc->name, name) != 0) {
+            continue;
+        }
+
+        /* only query rx-filter information of NIC */
+        if (nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC) {
+            if (has_name) {
+                error_setg(errp, "net client(%s) isn't a NIC", name);
+                break;
+            }
+            continue;
+        }
+
+        if (nc->info->query_rx_filter) {
+            info = nc->info->query_rx_filter(nc);
+            entry = g_malloc0(sizeof(*entry));
+            entry->value = info;
+
+            if (!filter_list) {
+                filter_list = entry;
+            } else {
+                last_entry->next = entry;
+            }
+            last_entry = entry;
+        } else if (has_name) {
+            error_setg(errp, "net client(%s) doesn't support"
+                       " rx-filter querying", name);
+            break;
+        }
+    }
+
+    if (filter_list == NULL && !error_is_set(errp) && has_name) {
+        error_setg(errp, "invalid net client name: %s", name);
+    }
+
+    return filter_list;
 }
 
 void do_info_network(Monitor *mon, const QDict *qdict)

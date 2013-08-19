@@ -1,0 +1,352 @@
+CPUs perform independent memory operations effectively in random order.
+but this can be a problem for CPU-CPU interaction (including interactions
+between QEMU and the guest).  Multi-threaded programs use various tools
+to instruct the compiler and the CPU to restrict the order to something
+that is consistent with the expectations of the programmer.
+
+The most basic tool is locking.  Mutexes, condition variables and
+semaphores are used in QEMU, and should be the default approach to
+synchronization.  Anything else is considerably harder, but it's
+also justified more often than one would like.  The two tools that
+are provided by qemu/atomic.h are memory barriers and atomic operations.
+
+Macros defined by qemu/atomic.h fall in three camps:
+
+- compiler barriers: barrier();
+
+- weak atomic access and manual memory barriers: atomic_read(),
+  atomic_set(), smp_rmb(), smp_wmb(), smp_mb(), smp_read_barrier_depends();
+
+- sequentially consistent atomic access: everything else.
+
+
+COMPILER MEMORY BARRIER
+=======================
+
+barrier() prevents the compiler from moving the memory accesses either
+side of it to the other side.  The compiler barrier has no direct effect
+on the CPU, which may then reorder things however it wishes.
+
+barrier() is mostly used within qemu/atomic.h itself.  On some
+architectures, CPU guarantees are strong enough that blocking compiler
+optimizations already ensures the correct order of execution.  In this
+case, qemu/atomic.h will reduce stronger memory barriers to simple
+compiler barriers.
+
+Still, barrier() can be useful when writing code that can be interrupted
+by signal handlers.
+
+
+SEQUENTIALLY CONSISTENT ATOMIC ACCESS
+=====================================
+
+Most of the operations in the qemu/atomic.h header ensure *sequential
+consistency*, where "the result of any execution is the same as if the
+operations of all the processors were executed in some sequential order,
+and the operations of each individual processor appear in this sequence
+in the order specified by its program".
+
+qemu/atomic.h provides the following set of atomic read-modify-write
+operations:
+
+    void atomic_inc(ptr)
+    void atomic_dec(ptr)
+    void atomic_add(ptr, val)
+    void atomic_sub(ptr, val)
+    void atomic_and(ptr, val)
+    void atomic_or(ptr, val)
+
+    typeof(*ptr) atomic_fetch_inc(ptr)
+    typeof(*ptr) atomic_fetch_dec(ptr)
+    typeof(*ptr) atomic_fetch_add(ptr, val)
+    typeof(*ptr) atomic_fetch_sub(ptr, val)
+    typeof(*ptr) atomic_fetch_and(ptr, val)
+    typeof(*ptr) atomic_fetch_or(ptr, val)
+    typeof(*ptr) atomic_xchg(ptr, val
+    typeof(*ptr) atomic_cmpxchg(ptr, old, new)
+
+all of which return the old value of *ptr.  These operations are
+polymorphic; they operate on any type that is as wide as an int.
+
+Sequentially consistent loads and stores can be done using:
+
+    atomic_fetch_add(ptr, 0) for loads
+    atomic_xchg(ptr, val) for stores
+
+However, they are quite expensive on some platforms, notably POWER and
+ARM.  Therefore, qemu/atomic.h provides two primitives with slightly
+weaker constraints:
+
+    typeof(*ptr) atomic_mb_read(ptr)
+    void         atomic_mb_set(ptr, val)
+
+The semantics of these primitives map to Java volatile variables,
+and are strongly related to memory barriers as used in the Linux
+kernel (see below).
+
+As long as you use atomic_mb_read and atomic_mb_set, accesses cannot
+be reordered with each other, and it is also not possible to reorder
+"normal" accesses around them.
+
+However, and this is the important difference between
+atomic_mb_read/atomic_mb_set and sequential consistency, it is important
+for both threads to access the same volatile variable.  It is not the
+case that everything visible to thread A when it writes volatile field f
+becomes visible to thread B after it reads volatile field g. The store
+and load have to "match" (i.e., be performed on the same volatile
+field) to achieve the right semantics.
+
+
+These operations operate on any type that is as wide as an int or smaller.
+
+
+WEAK ATOMIC ACCESS AND MANUAL MEMORY BARRIERS
+=============================================
+
+Compared to sequentially consistent atomic access, programming with
+weaker consistency models can be considerably more complicated.
+In general, if the algorithm you are writing includes both writes
+and reads on the same side, it is generally simpler to use sequentially
+consistent primitives.
+
+When using this model, variables are accessed with atomic_read() and
+atomic_set(), and restrictions to the ordering of accesses is enforced
+using the smp_rmb(), smp_wmb(), smp_mb() and smp_read_barrier_depends()
+memory barriers.
+
+atomic_read() and atomic_set() prevents the compiler from using
+optimizations that might otherwise optimize accesses out of existence
+on the one hand, or that might create unsolicited accesses on the other.
+In general this should not have any effect, because the same compiler
+barriers are already implied by memory barriers.  However, it is useful
+to do so, because it tells readers which variables are shared with
+other threads, and which are local to the current thread or protected
+by other, more mundane means.
+
+Memory barriers control the order of references to shared memory.
+They come in four kinds:
+
+- smp_rmb() guarantees that all the LOAD operations specified before
+  the barrier will appear to happen before all the LOAD operations
+  specified after the barrier with respect to the other components of
+  the system.
+
+  In other words, smp_rmb() puts a partial ordering on loads, but is not
+  required to have any effect on stores.
+
+- smp_wmb() guarantees that all the STORE operations specified before
+  the barrier will appear to happen before all the STORE operations
+  specified after the barrier with respect to the other components of
+  the system.
+
+  In other words, smp_wmb() puts a partial ordering on stores, but is not
+  required to have any effect on loads.
+
+- smp_mb() guarantees that all the LOAD and STORE operations specified
+  before the barrier will appear to happen before all the LOAD and
+  STORE operations specified after the barrier with respect to the other
+  components of the system.
+
+  smp_mb() puts a partial ordering on both loads and stores.  It is
+  stronger than both a read and a write memory barrier; it implies both
+  smp_rmb() and smp_wmb(), but it also prevents STOREs coming before the
+  barrier from overtaking LOADs coming after the barrier and vice versa.
+
+- smp_read_barrier_depends() is a weaker kind of read barrier.  On
+  most processors, whenever two loads are performed such that the
+  second depends on the result of the first (e.g., the first load
+  retrieves the address to which the second load will be directed),
+  the processor will guarantee that the first LOAD will appear to happen
+  before the second with respect to the other components of the system.
+  However, this is not always true---for example, it was not true on
+  Alpha processors.  Whenever this kind of access happens to shared
+  memory (that is not protected by a lock), a read barrier is needed,
+  and smp_read_barrier_depends() can be used instead of smp_rmb().
+
+  Note that the first load really has to have a _data_ dependency and not
+  a control dependency.  If the address for the second load is dependent
+  on the first load, but the dependency is through a conditional rather
+  than actually loading the address itself, then it's a _control_
+  dependency and a full read barrier or better is required.
+
+
+This is the set of barriers that is required *between* two atomic_read()
+and atomic_set() operations to achieve sequential consistency:
+
+                    |               2nd operation             |
+                    |-----------------------------------------|
+     1st operation  | (after last) | atomic_read | atomic_set |
+     ---------------+--------------+-------------+------------|
+     (before first) |              | none        | smp_wmb()  |
+     ---------------+--------------+-------------+------------|
+     atomic_read    | smp_rmb()    | smp_rmb()*  | **         |
+     ---------------+--------------+-------------+------------|
+     atomic_set     | none         | smp_mb()*** | smp_wmb()  |
+     ---------------+--------------+-------------+------------|
+
+       * Or smp_read_barrier_depends().
+
+      ** This requires a load-store barrier.  How to achieve this varies
+         depending on the machine, but in practice smp_rmb()+smp_wmb()
+         should have the desired effect.  For example, on PowerPC the
+         lwsync instruction is a combined load-load, load-store and
+         store-store barrier.
+
+     *** This requires a store-load barrier.  On most machines, the only
+         way to achieve this is a full barrier.
+
+
+You can see that the two possible definitions of atomic_mb_read()
+and atomic_mb_set() are the following:
+
+    1) atomic_mb_read(p)   = atomic_read(p); smp_rmb()
+       atomic_mb_set(p, v) = smp_wmb(); atomic_set(p, v); smp_mb()
+
+    2) atomic_mb_read(p)   = smp_mb() atomic_read(p); smp_rmb()
+       atomic_mb_set(p, v) = smp_wmb(); atomic_set(p, v);
+
+Usually the former is used, because smp_mb() is expensive and a program
+normally has more reads than writes.  Therefore it makes more sense to
+make atomic_mb_set() the more expensive operation.
+
+There are two common cases in which atomic_mb_read and atomic_mb_set
+generate too many memory barriers, and thus it can be useful to manually
+place barriers instead:
+
+- when a data structure has one thread that is always a writer
+  and one thread that is always a reader, manual placement of
+  memory barriers makes the write side faster.  Furthermore,
+  correctness is easy to check for in this case using the "pairing"
+  trick that is explained below:
+
+     thread 1                                thread 1
+     -------------------------               ------------------------
+     (other writes)
+                                             smp_wmb()
+     atomic_mb_set(&a, x)                    atomic_set(&a, x)
+                                             smp_wmb()
+     atomic_mb_set(&b, y)                    atomic_set(&b, y)
+
+                                       =>
+     thread 2                                thread 2
+     -------------------------               ------------------------
+     y = atomic_mb_read(&b)                  y = atomic_read(&b)
+                                             smp_rmb()
+     x = atomic_mb_read(&a)                  x = atomic_read(&a)
+                                             smp_rmb()
+
+- sometimes, a thread is accessing many variables that are otherwise
+  unrelated to each other (for example because, apart from the current
+  thread, exactly one other thread will read or write each of these
+  variables).  In this case, it is possible to "hoist" the implicit
+  barriers provided by atomic_mb_read() and atomic_mb_set() outside
+  a loop.  For example, the above definition atomic_mb_read() gives
+  the following transformation:
+
+     n = 0;                                  n = 0;
+     for (i = 0; i < 10; i++)          =>    for (i = 0; i < 10; i++)
+       n += atomic_mb_read(&a[i]);             n += atomic_read(&a[i]);
+                                             smp_rmb();
+
+  Similarly, atomic_mb_set() can be transformed as follows:
+  smp_mb():
+
+                                             smp_wmb();
+     for (i = 0; i < 10; i++)          =>    for (i = 0; i < 10; i++)
+       atomic_mb_set(&a[i], false);            atomic_set(&a[i], false);
+                                             smp_mb();
+
+
+The two tricks can be combined.  In this case, splitting a loop in
+two lets you hoist the barriers out of the loops _and_ eliminate the
+expensive smp_mb():
+
+                                             smp_wmb();
+     for (i = 0; i < 10; i++) {        =>    for (i = 0; i < 10; i++)
+       atomic_mb_set(&a[i], false);            atomic_set(&a[i], false);
+       atomic_mb_set(&b[i], false);          smb_wmb();
+     }                                       for (i = 0; i < 10; i++)
+                                               atomic_set(&a[i], false);
+                                             smp_mb();
+
+  The other thread can still use atomic_mb_read()/atomic_mb_set()
+
+
+Memory barrier pairing
+----------------------
+
+A useful rule of thumb is that memory barriers should always, or almost
+always, be paired with another barrier.  In the case of QEMU, however,
+note that the other barrier may actually be in a driver that runs in
+the guest!
+
+For the purposes of pairing, smp_read_barrier_depends() and smp_rmb()
+both count as read barriers.  A read barriers shall pair with a write
+barrier or a full barrier; a write barrier shall pair with a read
+barrier or a full barrier.  A full barrier can pair with anything.
+For example:
+
+        thread 1             thread 2
+        ===============      ===============
+        a = 1;
+        smp_wmb();
+        b = 2;               x = b;
+                             smp_rmb();
+                             y = a;
+
+Note that the "writing" thread are accessing the variables in the
+opposite order as the "reading" thread.  This is expected: stores
+before the write barrier will normally match the loads after the
+read barrier, and vice versa.  The same is true for more than 2
+access and for data dependency barriers:
+
+        thread 1             thread 2
+        ===============      ===============
+        b[2] = 1;
+        smp_wmb();
+        x->i = 2;
+        smp_wmb();
+        a = x;               x = a;
+                             smp_read_barrier_depends();
+                             y = x->i;
+                             smp_read_barrier_depends();
+                             z = b[y];
+
+smp_wmb() also pairs with atomic_mb_read(), and smp_rmb() also pairs
+with atomic_mb_set().
+
+
+COMPARISON WITH LINUX KERNEL MEMORY BARRIERS
+============================================
+
+Here is a list of differences between Linux kernel atomic operations
+and memory barriers, and the equivalents in QEMU:
+
+- atomic operations in Linux are always on a 32-bit int type and
+  use a boxed atomic_t type; atomic operations in QEMU are polymorphic
+  and use normal C types.
+
+- atomic_read and atomic_set in Linux give no guarantee at all;
+  atomic_read and atomic_set in QEMU include a compiler barrier
+  (similar to the ACCESS_ONCE macro in Linux).
+
+- most atomic read-modify-write operations in Linux return void;
+  in QEMU, all of them return the old value of the variable.
+
+- different atomic read-modify-write operations in Linux imply
+  a different set of memory barriers; in QEMU, all of them enforce
+  sequential consistency, which means they imply full memory barriers
+  before and after the operation.
+
+- Linux does not have an equivalent of atomic_mb_read() and
+  atomic_mb_set().  In particular, note that set_mb() is a little
+  weaker than atomic_mb_set().
+
+
+SOURCES
+=======
+
+* Documentation/memory-barriers.txt from the Linux kernel
+
+* "The JSR-133 Cookbook for Compiler Writers", available at
+  http://g.oswego.edu/dl/jmm/cookbook.html

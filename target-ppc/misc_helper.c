@@ -35,12 +35,6 @@ void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
              env->spr[sprn]);
 }
 #if !defined(CONFIG_USER_ONLY)
-#if defined(TARGET_PPC64)
-void helper_store_asr(CPUPPCState *env, target_ulong val)
-{
-    ppc_store_asr(env, val);
-}
-#endif
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 {

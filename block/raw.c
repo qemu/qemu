@@ -1,3 +1,26 @@
+/*
+ * Block driver for RAW format
+ *
+ * Copyright (c) 2006 Fabrice Bellard
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
 #include "qemu-common.h"
 #include "block/block_int.h"
@@ -40,6 +63,13 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
                                             int nb_sectors, int *pnum)
 {
     return bdrv_co_is_allocated(bs->file, sector_num, nb_sectors, pnum);
+}
+
+static int coroutine_fn raw_co_write_zeroes(BlockDriverState *bs,
+                                            int64_t sector_num,
+                                            int nb_sectors)
+{
+    return bdrv_co_write_zeroes(bs->file, sector_num, nb_sectors);
 }
 
 static int64_t raw_getlength(BlockDriverState *bs)
@@ -114,6 +144,11 @@ static int raw_has_zero_init(BlockDriverState *bs)
     return bdrv_has_zero_init(bs->file);
 }
 
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    return bdrv_get_info(bs->file, bdi);
+}
+
 static BlockDriver bdrv_raw = {
     .format_name        = "raw",
 
@@ -128,10 +163,12 @@ static BlockDriver bdrv_raw = {
     .bdrv_co_readv          = raw_co_readv,
     .bdrv_co_writev         = raw_co_writev,
     .bdrv_co_is_allocated   = raw_co_is_allocated,
+    .bdrv_co_write_zeroes   = raw_co_write_zeroes,
     .bdrv_co_discard        = raw_co_discard,
 
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
+    .bdrv_get_info      = raw_get_info,
     .bdrv_truncate      = raw_truncate,
 
     .bdrv_is_inserted   = raw_is_inserted,

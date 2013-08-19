@@ -16,10 +16,10 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 
 #undef DEBUG_PUV3
-#include "hw/puv3.h"
+#include "hw/unicore32/puv3.h"
 
 #define KERNEL_LOAD_ADDR        0x03000000
 #define KERNEL_MAX_SIZE         0x00800000 /* Just a guess */
@@ -73,10 +73,12 @@ static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
     MemoryRegion *ram_memory = g_new(MemoryRegion, 1);
 
     /* SDRAM at address zero.  */
-    memory_region_init_ram(ram_memory, "puv3.ram", ram_size);
+    memory_region_init_ram(ram_memory, NULL, "puv3.ram", ram_size);
     vmstate_register_ram_global(ram_memory);
     memory_region_add_subregion(get_system_memory(), 0, ram_memory);
 }
+
+static const GraphicHwOps no_ops;
 
 static void puv3_load_kernel(const char *kernel_filename)
 {
@@ -92,7 +94,7 @@ static void puv3_load_kernel(const char *kernel_filename)
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
-    graphic_console_init(NULL, NULL, NULL, NULL, NULL);
+    graphic_console_init(NULL, &no_ops, NULL);
 }
 
 static void puv3_init(QEMUMachineInitArgs *args)

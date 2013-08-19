@@ -39,6 +39,9 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "qemu/bitops.h"
+#include "qemu/iov.h"
+#include "block/snapshot.h"
+#include "block/qapi.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -113,11 +116,11 @@ void qemu_announce_self(void)
 /* savevm/loadvm support */
 
 #define IO_BUF_SIZE 32768
+#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
 
 struct QEMUFile {
     const QEMUFileOps *ops;
     void *opaque;
-    int is_write;
 
     int64_t bytes_xfer;
     int64_t xfer_limit;
@@ -127,6 +130,9 @@ struct QEMUFile {
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
+
+    struct iovec iov[MAX_IOV_SIZE];
+    unsigned int iovcnt;
 
     int last_error;
 };
@@ -143,32 +149,18 @@ typedef struct QEMUFileSocket
     QEMUFile *file;
 } QEMUFileSocket;
 
-typedef struct {
-    Coroutine *co;
-    int fd;
-} FDYieldUntilData;
-
-static void fd_coroutine_enter(void *opaque)
+static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                    int64_t pos)
 {
-    FDYieldUntilData *data = opaque;
-    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
-    qemu_coroutine_enter(data->co, NULL);
-}
+    QEMUFileSocket *s = opaque;
+    ssize_t len;
+    ssize_t size = iov_size(iov, iovcnt);
 
-/**
- * Yield until a file descriptor becomes readable
- *
- * Note that this function clobbers the handlers for the file descriptor.
- */
-static void coroutine_fn yield_until_fd_readable(int fd)
-{
-    FDYieldUntilData data;
-
-    assert(qemu_in_coroutine());
-    data.co = qemu_coroutine_self();
-    data.fd = fd;
-    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
-    qemu_coroutine_yield();
+    len = iov_send(s->fd, iov, iovcnt, 0, size);
+    if (len < size) {
+        len = -socket_error();
+    }
+    return len;
 }
 
 static int socket_get_fd(void *opaque)
@@ -196,18 +188,6 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     }
 
     if (len == -1) {
-        len = -socket_error();
-    }
-    return len;
-}
-
-static int socket_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
-{
-    QEMUFileSocket *s = opaque;
-    ssize_t len;
-
-    len = qemu_send_full(s->fd, buf, size, 0);
-    if (len < size) {
         len = -socket_error();
     }
     return len;
@@ -275,7 +255,7 @@ static int stdio_fclose(void *opaque)
     QEMUFileStdio *s = opaque;
     int ret = 0;
 
-    if (s->file->ops->put_buffer) {
+    if (s->file->ops->put_buffer || s->file->ops->writev_buffer) {
         int fd = fileno(s->stdio_file);
         struct stat st;
 
@@ -316,13 +296,13 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
     FILE *stdio_file;
     QEMUFileStdio *s;
 
-    stdio_file = popen(command, mode);
-    if (stdio_file == NULL) {
+    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
+        fprintf(stderr, "qemu_popen: Argument validity check failed\n");
         return NULL;
     }
 
-    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
-        fprintf(stderr, "qemu_popen: Argument validity check failed\n");
+    stdio_file = popen(command, mode);
+    if (stdio_file == NULL) {
         return NULL;
     }
 
@@ -350,9 +330,94 @@ static const QEMUFileOps stdio_file_write_ops = {
     .close =      stdio_fclose
 };
 
+static ssize_t unix_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                  int64_t pos)
+{
+    QEMUFileSocket *s = opaque;
+    ssize_t len, offset;
+    ssize_t size = iov_size(iov, iovcnt);
+    ssize_t total = 0;
+
+    assert(iovcnt > 0);
+    offset = 0;
+    while (size > 0) {
+        /* Find the next start position; skip all full-sized vector elements  */
+        while (offset >= iov[0].iov_len) {
+            offset -= iov[0].iov_len;
+            iov++, iovcnt--;
+        }
+
+        /* skip `offset' bytes from the (now) first element, undo it on exit */
+        assert(iovcnt > 0);
+        iov[0].iov_base += offset;
+        iov[0].iov_len -= offset;
+
+        do {
+            len = writev(s->fd, iov, iovcnt);
+        } while (len == -1 && errno == EINTR);
+        if (len == -1) {
+            return -errno;
+        }
+
+        /* Undo the changes above */
+        iov[0].iov_base -= offset;
+        iov[0].iov_len += offset;
+
+        /* Prepare for the next iteration */
+        offset += len;
+        total += len;
+        size -= len;
+    }
+
+    return total;
+}
+
+static int unix_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileSocket *s = opaque;
+    ssize_t len;
+
+    for (;;) {
+        len = read(s->fd, buf, size);
+        if (len != -1) {
+            break;
+        }
+        if (errno == EAGAIN) {
+            yield_until_fd_readable(s->fd);
+        } else if (errno != EINTR) {
+            break;
+        }
+    }
+
+    if (len == -1) {
+        len = -errno;
+    }
+    return len;
+}
+
+static int unix_close(void *opaque)
+{
+    QEMUFileSocket *s = opaque;
+    close(s->fd);
+    g_free(s);
+    return 0;
+}
+
+static const QEMUFileOps unix_read_ops = {
+    .get_fd =     socket_get_fd,
+    .get_buffer = unix_get_buffer,
+    .close =      unix_close
+};
+
+static const QEMUFileOps unix_write_ops = {
+    .get_fd =     socket_get_fd,
+    .writev_buffer = unix_writev_buffer,
+    .close =      unix_close
+};
+
 QEMUFile *qemu_fdopen(int fd, const char *mode)
 {
-    QEMUFileStdio *s;
+    QEMUFileSocket *s;
 
     if (mode == NULL ||
 	(mode[0] != 'r' && mode[0] != 'w') ||
@@ -361,21 +426,15 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
-    s->stdio_file = fdopen(fd, mode);
-    if (!s->stdio_file)
-        goto fail;
+    s = g_malloc0(sizeof(QEMUFileSocket));
+    s->fd = fd;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, &stdio_file_read_ops);
+        s->file = qemu_fopen_ops(s, &unix_read_ops);
     } else {
-        s->file = qemu_fopen_ops(s, &stdio_file_write_ops);
+        s->file = qemu_fopen_ops(s, &unix_write_ops);
     }
     return s->file;
-
-fail:
-    g_free(s);
-    return NULL;
 }
 
 static const QEMUFileOps socket_read_ops = {
@@ -386,24 +445,34 @@ static const QEMUFileOps socket_read_ops = {
 
 static const QEMUFileOps socket_write_ops = {
     .get_fd =     socket_get_fd,
-    .put_buffer = socket_put_buffer,
+    .writev_buffer = socket_writev_buffer,
     .close =      socket_close
 };
 
-QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+bool qemu_file_mode_is_not_valid(const char *mode)
 {
-    QEMUFileSocket *s = g_malloc0(sizeof(QEMUFileSocket));
-
     if (mode == NULL ||
         (mode[0] != 'r' && mode[0] != 'w') ||
         mode[1] != 'b' || mode[2] != 0) {
         fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+        return true;
+    }
+
+    return false;
+}
+
+QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+{
+    QEMUFileSocket *s;
+
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
+    s = g_malloc0(sizeof(QEMUFileSocket));
     s->fd = fd;
     if (mode[0] == 'w') {
-        socket_set_block(s->fd);
+        qemu_set_block(s->fd);
         s->file = qemu_fopen_ops(s, &socket_write_ops);
     } else {
         s->file = qemu_fopen_ops(s, &socket_read_ops);
@@ -415,10 +484,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
     QEMUFileStdio *s;
 
-    if (mode == NULL ||
-	(mode[0] != 'r' && mode[0] != 'w') ||
-	mode[1] != 'b' || mode[2] != 0) {
-        fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
@@ -437,6 +503,21 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
 fail:
     g_free(s);
     return NULL;
+}
+
+static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                   int64_t pos)
+{
+    int ret;
+    QEMUIOVector qiov;
+
+    qemu_iovec_init_external(&qiov, iov, iovcnt);
+    ret = bdrv_writev_vmstate(opaque, &qiov, pos);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return qiov.size;
 }
 
 static int block_put_buffer(void *opaque, const uint8_t *buf,
@@ -462,8 +543,9 @@ static const QEMUFileOps bdrv_read_ops = {
 };
 
 static const QEMUFileOps bdrv_write_ops = {
-    .put_buffer = block_put_buffer,
-    .close =      bdrv_fclose
+    .put_buffer     = block_put_buffer,
+    .writev_buffer  = block_writev_buffer,
+    .close          = bdrv_fclose
 };
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
@@ -481,7 +563,6 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
 
     f->opaque = opaque;
     f->ops = ops;
-    f->is_write = 0;
     return f;
 }
 
@@ -497,26 +578,101 @@ static void qemu_file_set_error(QEMUFile *f, int ret)
     }
 }
 
-/** Flushes QEMUFile buffer
- *
- */
-static void qemu_fflush(QEMUFile *f)
+static inline bool qemu_file_is_writable(QEMUFile *f)
 {
-    int ret = 0;
+    return f->ops->writev_buffer || f->ops->put_buffer;
+}
 
-    if (!f->ops->put_buffer) {
+/**
+ * Flushes QEMUFile buffer
+ *
+ * If there is writev_buffer QEMUFileOps it uses it otherwise uses
+ * put_buffer ops.
+ */
+void qemu_fflush(QEMUFile *f)
+{
+    ssize_t ret = 0;
+
+    if (!qemu_file_is_writable(f)) {
         return;
     }
-    if (f->is_write && f->buf_index > 0) {
-        ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
-        if (ret >= 0) {
-            f->pos += f->buf_index;
+
+    if (f->ops->writev_buffer) {
+        if (f->iovcnt > 0) {
+            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
         }
-        f->buf_index = 0;
+    } else {
+        if (f->buf_index > 0) {
+            ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
+        }
     }
+    if (ret >= 0) {
+        f->pos += ret;
+    }
+    f->buf_index = 0;
+    f->iovcnt = 0;
     if (ret < 0) {
         qemu_file_set_error(f, ret);
     }
+}
+
+void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->before_ram_iterate) {
+        ret = f->ops->before_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->after_ram_iterate) {
+        ret = f->ops->after_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_load_hook(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->hook_ram_load) {
+        ret = f->ops->hook_ram_load(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    } else {
+        qemu_file_set_error(f, ret);
+    }
+}
+
+size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                         ram_addr_t offset, size_t size, int *bytes_sent)
+{
+    if (f->ops->save_page) {
+        int ret = f->ops->save_page(f, f->opaque, block_offset,
+                                    offset, size, bytes_sent);
+
+        if (ret != RAM_SAVE_CONTROL_DELAYED) {
+            if (bytes_sent && *bytes_sent > 0) {
+                qemu_update_position(f, *bytes_sent);
+            } else if (ret < 0) {
+                qemu_file_set_error(f, ret);
+            }
+        }
+
+        return ret;
+    }
+
+    return RAM_SAVE_CONTROL_NOT_SUPP;
 }
 
 static void qemu_fill_buffer(QEMUFile *f)
@@ -524,11 +680,7 @@ static void qemu_fill_buffer(QEMUFile *f)
     int len;
     int pending;
 
-    if (!f->ops->get_buffer)
-        return;
-
-    if (f->is_write)
-        abort();
+    assert(!qemu_file_is_writable(f));
 
     pending = f->buf_size - f->buf_index;
     if (pending > 0) {
@@ -554,6 +706,11 @@ int qemu_get_fd(QEMUFile *f)
         return f->ops->get_fd(f->opaque);
     }
     return -1;
+}
+
+void qemu_update_position(QEMUFile *f, size_t size)
+{
+    f->pos += size;
 }
 
 /** Closes the file
@@ -586,6 +743,37 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
+static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
+{
+    /* check for adjacent buffer and coalesce them */
+    if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
+        f->iov[f->iovcnt - 1].iov_len) {
+        f->iov[f->iovcnt - 1].iov_len += size;
+    } else {
+        f->iov[f->iovcnt].iov_base = (uint8_t *)buf;
+        f->iov[f->iovcnt++].iov_len = size;
+    }
+
+    if (f->iovcnt >= MAX_IOV_SIZE) {
+        qemu_fflush(f);
+    }
+}
+
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
+{
+    if (!f->ops->writev_buffer) {
+        qemu_put_buffer(f, buf, size);
+        return;
+    }
+
+    if (f->last_error) {
+        return;
+    }
+
+    f->bytes_xfer += size;
+    add_to_iovec(f, buf, size);
+}
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
@@ -594,28 +782,24 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         return;
     }
 
-    if (f->is_write == 0 && f->buf_index > 0) {
-        fprintf(stderr,
-                "Attempted to write to buffer while read buffer is not empty\n");
-        abort();
-    }
-
     while (size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
-        f->is_write = 1;
+        f->bytes_xfer += size;
+        if (f->ops->writev_buffer) {
+            add_to_iovec(f, f->buf + f->buf_index, l);
+        }
         f->buf_index += l;
-        f->bytes_xfer += l;
+        if (f->buf_index == IO_BUF_SIZE) {
+            qemu_fflush(f);
+        }
+        if (qemu_file_get_error(f)) {
+            break;
+        }
         buf += l;
         size -= l;
-        if (f->buf_index >= IO_BUF_SIZE) {
-            qemu_fflush(f);
-            if (qemu_file_get_error(f)) {
-                break;
-            }
-        }
     }
 }
 
@@ -625,15 +809,13 @@ void qemu_put_byte(QEMUFile *f, int v)
         return;
     }
 
-    if (f->is_write == 0 && f->buf_index > 0) {
-        fprintf(stderr,
-                "Attempted to write to buffer while read buffer is not empty\n");
-        abort();
+    f->buf[f->buf_index] = v;
+    f->bytes_xfer++;
+    if (f->ops->writev_buffer) {
+        add_to_iovec(f, f->buf + f->buf_index, 1);
     }
-
-    f->buf[f->buf_index++] = v;
-    f->is_write = 1;
-    if (f->buf_index >= IO_BUF_SIZE) {
+    f->buf_index++;
+    if (f->buf_index == IO_BUF_SIZE) {
         qemu_fflush(f);
     }
 }
@@ -650,9 +832,7 @@ static int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
     int pending;
     int index;
 
-    if (f->is_write) {
-        abort();
-    }
+    assert(!qemu_file_is_writable(f));
 
     index = f->buf_index + offset;
     pending = f->buf_size - index;
@@ -697,9 +877,7 @@ static int qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
 
-    if (f->is_write) {
-        abort();
-    }
+    assert(!qemu_file_is_writable(f));
 
     if (index >= f->buf_size) {
         qemu_fill_buffer(f);
@@ -1072,6 +1250,27 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* 64 bit unsigned int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint64_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+    uint64_t v2;
+    qemu_get_be64s(f, &v2);
+
+    if (*v == v2) {
+        return 0;
+    }
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint64_equal = {
+    .name = "int64 equal",
+    .get  = get_uint64_equal,
+    .put  = put_uint64,
+};
+
 /* 8 bit int. See that the received value is the same than the one
    in the field */
 
@@ -1110,6 +1309,29 @@ const VMStateInfo vmstate_info_uint16_equal = {
     .name = "uint16 equal",
     .get  = get_uint16_equal,
     .put  = put_uint16,
+};
+
+/* floating point */
+
+static int get_float64(QEMUFile *f, void *pv, size_t size)
+{
+    float64 *v = pv;
+
+    *v = make_float64(qemu_get_be64(f));
+    return 0;
+}
+
+static void put_float64(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+
+    qemu_put_be64(f, float64_val(*v));
+}
+
+const VMStateInfo vmstate_info_float64 = {
+    .name = "float64",
+    .get  = get_float64,
+    .put  = put_float64,
 };
 
 /* timers  */
@@ -2085,26 +2307,15 @@ out:
     return ret;
 }
 
-static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
-                              const char *name)
+static BlockDriverState *find_vmstate_bs(void)
 {
-    QEMUSnapshotInfo *sn_tab, *sn;
-    int nb_sns, i, ret;
-
-    ret = -ENOENT;
-    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
-    if (nb_sns < 0)
-        return ret;
-    for(i = 0; i < nb_sns; i++) {
-        sn = &sn_tab[i];
-        if (!strcmp(sn->id_str, name) || !strcmp(sn->name, name)) {
-            *sn_info = *sn;
-            ret = 0;
-            break;
+    BlockDriverState *bs = NULL;
+    while ((bs = bdrv_next(bs))) {
+        if (bdrv_can_snapshot(bs)) {
+            return bs;
         }
     }
-    g_free(sn_tab);
-    return ret;
+    return NULL;
 }
 
 /*
@@ -2161,7 +2372,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     }
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
@@ -2242,7 +2453,7 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
 
     f = qemu_fopen(filename, "wb");
     if (!f) {
-        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+        error_setg_file_open(errp, errno, filename);
         goto the_end;
     }
     ret = qemu_save_device_state(f);
@@ -2263,7 +2474,7 @@ int load_vmstate(const char *name)
     QEMUFile *f;
     int ret;
 
-    bs_vm_state = bdrv_snapshots();
+    bs_vm_state = find_vmstate_bs();
     if (!bs_vm_state) {
         error_report("No block device supports snapshots");
         return -ENOTSUP;
@@ -2342,7 +2553,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     int ret;
     const char *name = qdict_get_str(qdict, "name");
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No block device supports snapshots\n");
         return;
@@ -2372,9 +2583,8 @@ void do_info_snapshots(Monitor *mon, const QDict *qdict)
     int nb_sns, i, ret, available;
     int total;
     int *available_snapshots;
-    char buf[256];
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
@@ -2415,10 +2625,12 @@ void do_info_snapshots(Monitor *mon, const QDict *qdict)
     }
 
     if (total > 0) {
-        monitor_printf(mon, "%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+        bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
+        monitor_printf(mon, "\n");
         for (i = 0; i < total; i++) {
             sn = &sn_tab[available_snapshots[i]];
-            monitor_printf(mon, "%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
+            bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, sn);
+            monitor_printf(mon, "\n");
         }
     } else {
         monitor_printf(mon, "There is no suitable snapshot available\n");

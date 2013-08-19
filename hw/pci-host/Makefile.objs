@@ -1,0 +1,17 @@
+common-obj-y += pam.o
+
+# PPC devices
+common-obj-$(CONFIG_PREP_PCI) += prep.o
+common-obj-$(CONFIG_GRACKLE_PCI) += grackle.o
+# NewWorld PowerMac
+common-obj-$(CONFIG_UNIN_PCI) += uninorth.o
+# PowerPC E500 boards
+common-obj-$(CONFIG_PPCE500_PCI) += ppce500.o
+
+# ARM devices
+common-obj-$(CONFIG_VERSATILE_PCI) += versatile.o
+
+common-obj-$(CONFIG_PCI_APB) += apb.o
+common-obj-$(CONFIG_FULONG) += bonito.o
+common-obj-$(CONFIG_PCI_PIIX) += piix.o
+common-obj-$(CONFIG_PCI_Q35) += q35.o

@@ -817,9 +817,9 @@ void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
     qdict = qobject_to_qdict(data);
 
     devfn = (int)qdict_get_int(qdict, "devfn");
-    monitor_printf(mon, "OK id: %s domain: %x, bus: %x devfn: %x.%x\n",
+    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
                    qdict_get_str(qdict, "id"),
-                   (int) qdict_get_int(qdict, "domain"),
+                   qdict_get_str(qdict, "root_bus"),
                    (int) qdict_get_int(qdict, "bus"),
                    PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
@@ -1020,10 +1020,9 @@ int do_pcie_aer_inject_error(Monitor *mon,
 
     ret = pcie_aer_inject_error(dev, &err);
     *ret_data = qobject_from_jsonf("{'id': %s, "
-                                   "'domain': %d, 'bus': %d, 'devfn': %d, "
+                                   "'root_bus': %s, 'bus': %d, 'devfn': %d, "
                                    "'ret': %d}",
-                                   id,
-                                   pci_find_domain(dev->bus),
+                                   id, pci_root_bus_path(dev),
                                    pci_bus_num(dev->bus), dev->devfn,
                                    ret);
     assert(*ret_data);

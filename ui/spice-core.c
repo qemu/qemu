@@ -48,6 +48,7 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 int using_spice = 0;
+int spice_displays;
 
 static QemuThread me;
 
@@ -446,6 +447,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "disable-copy-paste",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "disable-agent-file-xfer",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "sasl",
             .type = QEMU_OPT_BOOL,
         },{
@@ -560,7 +564,7 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
 
-    if (migration_is_active(s)) {
+    if (migration_in_setup(s)) {
         spice_server_migrate_start(spice_server);
     } else if (migration_has_finished(s)) {
         spice_server_migrate_end(spice_server, true);
@@ -739,6 +743,16 @@ void qemu_spice_init(void)
         spice_server_set_agent_copypaste(spice_server, false);
     }
 
+    if (qemu_opt_get_bool(opts, "disable-agent-file-xfer", 0)) {
+#if SPICE_SERVER_VERSION >= 0x000c04
+        spice_server_set_agent_file_xfer(spice_server, false);
+#else
+        error_report("this qemu build does not support the "
+                     "\"disable-agent-file-xfer\" option");
+        exit(1);
+#endif
+    }
+
     compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
     str = qemu_opt_get(opts, "image-compression");
     if (str) {
@@ -821,6 +835,10 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
         spice_server = spice_server_new();
         spice_server_init(spice_server, &core_interface);
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+    }
+
+    if (strcmp(sin->sif->type, SPICE_INTERFACE_QXL) == 0) {
+        spice_displays++;
     }
 
     return spice_server_add_interface(spice_server, sin);

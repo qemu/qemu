@@ -457,9 +457,9 @@ uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env);
 void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 #ifndef CONFIG_USER_ONLY
 void swap_shadow_regs(CPUAlphaState *env);
-QEMU_NORETURN void cpu_unassigned_access(CPUAlphaState *env1,
-                                         hwaddr addr, int is_write,
-                                         int is_exec, int unused, int size);
+QEMU_NORETURN void alpha_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                               bool is_write, bool is_exec,
+                                               int unused, unsigned size);
 #endif
 
 /* Bits in TB->FLAGS that control how translation is processed.  */
@@ -498,22 +498,6 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUAlphaState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->ir[IR_SP] = newsp;
-    }
-    env->ir[IR_V0] = 0;
-    env->ir[IR_A3] = 0;
-}
-
-static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
-{
-    env->unique = newtls;
-}
-#endif
-
 static inline bool cpu_has_work(CPUState *cpu)
 {
     /* Here we are checking to see if the CPU should wake up from HALT.
@@ -530,10 +514,5 @@ static inline bool cpu_has_work(CPUState *cpu)
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUAlphaState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 #endif /* !defined (__CPU_ALPHA_H__) */

@@ -42,19 +42,14 @@
 
 #include "net/tap.h"
 
-#include "hw/vhost_net.h"
-
-/* Maximum GSO packet size (64k) plus plenty of room for
- * the ethernet and virtio_net headers
- */
-#define TAP_BUFSIZE (4096 + 65536)
+#include "net/vhost_net.h"
 
 typedef struct TAPState {
     NetClientState nc;
     int fd;
     char down_script[1024];
     char down_script_arg[128];
-    uint8_t buf[TAP_BUFSIZE];
+    uint8_t buf[NET_BUFSIZE];
     bool read_poll;
     bool write_poll;
     bool using_vnet_hdr;
@@ -628,7 +623,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
         int vhostfd;
 
-        if (tap->has_vhostfd) {
+        if (tap->has_vhostfd || tap->has_vhostfds) {
             vhostfd = monitor_handle_fd_param(cur_mon, vhostfdname);
             if (vhostfd == -1) {
                 return -1;
@@ -696,16 +691,17 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     /* QEMU vlans does not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
     if (peer && (tap->has_queues || tap->has_fds || tap->has_vhostfds)) {
-        error_report("Multiqueue tap cannnot be used with QEMU vlans");
+        error_report("Multiqueue tap cannot be used with QEMU vlans");
         return -1;
     }
 
     if (tap->has_fd) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
-            tap->has_fds) {
+            tap->has_fds || tap->has_vhostfds) {
             error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, and fds= are invalid with fd=");
+                         "helper=, queues=, fds=, and vhostfds= "
+                         "are invalid with fd=");
             return -1;
         }
 
@@ -730,9 +726,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
-            tap->has_fd) {
+            tap->has_vhostfd) {
             error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, and fd= are invalid with fds=");
+                         "helper=, queues=, and vhostfd= "
+                         "are invalid with fds=");
             return -1;
         }
 
@@ -770,9 +767,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         }
     } else if (tap->has_helper) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
-            tap->has_vnet_hdr || tap->has_queues || tap->has_fds) {
+            tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
             error_report("ifname=, script=, downscript=, and vnet_hdr= "
-                         "queues=, and fds= are invalid with helper=");
+                         "queues=, and vhostfds= are invalid with helper=");
             return -1;
         }
 
@@ -790,6 +787,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             return -1;
         }
     } else {
+        if (tap->has_vhostfds) {
+            error_report("vhostfds= is invalid if fds= wasn't specified");
+            return -1;
+        }
         script = tap->has_script ? tap->script : DEFAULT_NETWORK_SCRIPT;
         downscript = tap->has_downscript ? tap->downscript :
             DEFAULT_NETWORK_DOWN_SCRIPT;

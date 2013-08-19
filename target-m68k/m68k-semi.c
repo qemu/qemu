@@ -161,8 +161,11 @@ static void m68k_semi_return_u64(CPUM68KState *env, uint64_t ret, uint32_t err)
 
 static int m68k_semi_is_fseek;
 
-static void m68k_semi_cb(CPUM68KState *env, target_ulong ret, target_ulong err)
+static void m68k_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     if (m68k_semi_is_fseek) {
         /* FIXME: We've already lost the high bits of the fseek
            return value.  */

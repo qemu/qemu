@@ -39,7 +39,7 @@ target_read_memory (bfd_vma memaddr,
 {
     CPUDebug *s = container_of(info, CPUDebug, info);
 
-    cpu_memory_rw_debug(s->env, memaddr, myaddr, length, 0);
+    cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     return 0;
 }
 
@@ -227,6 +227,7 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
         s.info.mach = bfd_mach_ppc;
 #endif
     }
+    s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
     print_insn = print_insn_m68k;
@@ -256,6 +257,9 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
 #elif defined(TARGET_MICROBLAZE)
     s.info.mach = bfd_arch_microblaze;
     print_insn = print_insn_microblaze;
+#elif defined(TARGET_MOXIE)
+    s.info.mach = bfd_arch_moxie;
+    print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;
@@ -322,6 +326,7 @@ void disas(FILE *out, void *code, unsigned long size)
     s.info.mach = bfd_mach_x86_64;
     print_insn = print_insn_i386;
 #elif defined(_ARCH_PPC)
+    s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
 #elif defined(__alpha__)
     print_insn = print_insn_alpha;
@@ -387,7 +392,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     if (monitor_disas_is_physical) {
         cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
-        cpu_memory_rw_debug(s->env, memaddr,myaddr, length, 0);
+        cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     }
     return 0;
 }
@@ -462,6 +467,9 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
 #elif defined(TARGET_S390X)
     s.info.mach = bfd_mach_s390_64;
     print_insn = print_insn_s390;
+#elif defined(TARGET_MOXIE)
+    s.info.mach = bfd_arch_moxie;
+    print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;

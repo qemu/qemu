@@ -4,40 +4,18 @@
 
 void trace_print_events(FILE *stream, fprintf_function stream_printf)
 {
-    unsigned int i;
+    TraceEventID i;
 
-    for (i = 0; i < NR_TRACE_EVENTS; i++) {
+    for (i = 0; i < trace_event_count(); i++) {
+        TraceEvent *ev = trace_event_id(i);
         stream_printf(stream, "%s [Event ID %u] : state %u\n",
-                      trace_list[i].tp_name, i, trace_list[i].state);
+                      trace_event_get_name(ev), i, trace_event_get_state_dynamic(ev));
     }
 }
 
-bool trace_event_set_state(const char *name, bool state)
+void trace_event_set_state_dynamic_backend(TraceEvent *ev, bool state)
 {
-    unsigned int i;
-    unsigned int len;
-    bool wildcard = false;
-    bool matched = false;
-
-    len = strlen(name);
-    if (len > 0 && name[len - 1] == '*') {
-        wildcard = true;
-        len -= 1;
-    }
-    for (i = 0; i < NR_TRACE_EVENTS; i++) {
-        if (wildcard) {
-            if (!strncmp(trace_list[i].tp_name, name, len)) {
-                trace_list[i].state = state;
-                matched = true;
-            }
-            continue;
-        }
-        if (!strcmp(trace_list[i].tp_name, name)) {
-            trace_list[i].state = state;
-            return true;
-        }
-    }
-    return matched;
+    ev->dstate = state;
 }
 
 bool trace_backend_init(const char *events, const char *file)

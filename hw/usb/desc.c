@@ -522,8 +522,6 @@ void usb_desc_attach(USBDevice *dev)
     } else if (desc->full && (dev->port->speedmask & USB_SPEED_MASK_FULL)) {
         dev->speed = USB_SPEED_FULL;
     } else {
-        fprintf(stderr, "usb: port/device speed mismatch for \"%s\"\n",
-                usb_device_get_product_desc(dev));
         return;
     }
     usb_desc_setdefaults(dev);
@@ -567,6 +565,12 @@ void usb_desc_create_serial(USBDevice *dev)
     char serial[64];
     char *path;
     int dst;
+
+    if (dev->serial) {
+        /* 'serial' usb bus property has priority if present */
+        usb_desc_set_string(dev, index, dev->serial);
+        return;
+    }
 
     assert(index != 0 && desc->str[index] != NULL);
     dst = snprintf(serial, sizeof(serial), "%s", desc->str[index]);

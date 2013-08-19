@@ -26,19 +26,19 @@
  */
 #include "cpu.h"
 #include "sysemu/sysemu.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 #include <libfdt.h>
 
 #define TOKEN_BASE      0x2000
 #define TOKEN_MAX       0x100
 
-static void rtas_display_character(sPAPREnvironment *spapr,
+static void rtas_display_character(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    uint32_t token, uint32_t nargs,
                                    target_ulong args,
                                    uint32_t nret, target_ulong rets)
@@ -54,7 +54,7 @@ static void rtas_display_character(sPAPREnvironment *spapr,
     }
 }
 
-static void rtas_get_time_of_day(sPAPREnvironment *spapr,
+static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -78,7 +78,7 @@ static void rtas_get_time_of_day(sPAPREnvironment *spapr,
     rtas_st(rets, 7, 0); /* we don't do nanoseconds */
 }
 
-static void rtas_set_time_of_day(sPAPREnvironment *spapr,
+static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -99,7 +99,7 @@ static void rtas_set_time_of_day(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0); /* Success */
 }
 
-static void rtas_power_off(sPAPREnvironment *spapr,
+static void rtas_power_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            uint32_t token, uint32_t nargs, target_ulong args,
                            uint32_t nret, target_ulong rets)
 {
@@ -111,7 +111,7 @@ static void rtas_power_off(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_system_reboot(sPAPREnvironment *spapr,
+static void rtas_system_reboot(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                uint32_t token, uint32_t nargs,
                                target_ulong args,
                                uint32_t nret, target_ulong rets)
@@ -124,13 +124,13 @@ static void rtas_system_reboot(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
+static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
+                                         sPAPREnvironment *spapr,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
                                          uint32_t nret, target_ulong rets)
 {
     target_ulong id;
-    CPUPPCState *env;
     CPUState *cpu;
 
     if (nargs != 1 || nret != 2) {
@@ -139,12 +139,8 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
     }
 
     id = rtas_ld(args, 0);
-    for (env = first_cpu; env; env = env->next_cpu) {
-        cpu = CPU(ppc_env_get_cpu(env));
-        if (cpu->cpu_index != id) {
-            continue;
-        }
-
+    cpu = qemu_get_cpu(id);
+    if (cpu != NULL) {
         if (cpu->halted) {
             rtas_st(rets, 1, 0);
         } else {
@@ -159,14 +155,13 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
     rtas_st(rets, 0, -3);
 }
 
-static void rtas_start_cpu(sPAPREnvironment *spapr,
+static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
                            uint32_t token, uint32_t nargs,
                            target_ulong args,
                            uint32_t nret, target_ulong rets)
 {
     target_ulong id, start, r3;
-    CPUState *cpu;
-    CPUPPCState *env;
+    CPUState *cs;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, -3);
@@ -177,14 +172,12 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
     start = rtas_ld(args, 1);
     r3 = rtas_ld(args, 2);
 
-    for (env = first_cpu; env; env = env->next_cpu) {
-        cpu = CPU(ppc_env_get_cpu(env));
+    cs = qemu_get_cpu(id);
+    if (cs != NULL) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
 
-        if (cpu->cpu_index != id) {
-            continue;
-        }
-
-        if (!cpu->halted) {
+        if (!cs->halted) {
             rtas_st(rets, 0, -1);
             return;
         }
@@ -192,14 +185,14 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
         /* This will make sure qemu state is up to date with kvm, and
          * mark it dirty so our changes get flushed back before the
          * new cpu enters */
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
 
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
         env->nip = start;
         env->gpr[3] = r3;
-        cpu->halted = 0;
+        cs->halted = 0;
 
-        qemu_cpu_kick(cpu);
+        qemu_cpu_kick(cs);
 
         rtas_st(rets, 0, 0);
         return;
@@ -216,7 +209,7 @@ static struct rtas_call {
 
 struct rtas_call *rtas_next = rtas_table;
 
-target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
+target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets)
 {
@@ -225,7 +218,7 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
         struct rtas_call *call = rtas_table + (token - TOKEN_BASE);
 
         if (call->fn) {
-            call->fn(spapr, token, nargs, args, nret, rets);
+            call->fn(cpu, spapr, token, nargs, args, nret, rets);
             return H_SUCCESS;
         }
     }
@@ -235,7 +228,7 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
      * machines) without looking it up in the device tree.  This
      * special case makes this work */
     if (token == 0xa) {
-        rtas_display_character(spapr, 0xa, nargs, args, nret, rets);
+        rtas_display_character(cpu, spapr, 0xa, nargs, args, nret, rets);
         return H_SUCCESS;
     }
 

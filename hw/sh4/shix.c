@@ -28,7 +28,7 @@
    More information in target-sh4/README.sh4
 */
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -41,7 +41,7 @@ static void shix_init(QEMUMachineInitArgs *args)
 {
     const char *cpu_model = args->cpu_model;
     int ret;
-    CPUSH4State *env;
+    SuperHCPU *cpu;
     struct SH7750State *s;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
@@ -51,20 +51,24 @@ static void shix_init(QEMUMachineInitArgs *args)
         cpu_model = "any";
 
     printf("Initializing CPU\n");
-    env = cpu_init(cpu_model);
+    cpu = cpu_sh4_init(cpu_model);
+    if (cpu == NULL) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
 
     /* Allocate memory space */
     printf("Allocating ROM\n");
-    memory_region_init_ram(rom, "shix.rom", 0x4000);
+    memory_region_init_ram(rom, NULL, "shix.rom", 0x4000);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(sysmem, 0x00000000, rom);
     printf("Allocating SDRAM 1\n");
-    memory_region_init_ram(&sdram[0], "shix.sdram1", 0x01000000);
+    memory_region_init_ram(&sdram[0], NULL, "shix.sdram1", 0x01000000);
     vmstate_register_ram_global(&sdram[0]);
     memory_region_add_subregion(sysmem, 0x08000000, &sdram[0]);
     printf("Allocating SDRAM 2\n");
-    memory_region_init_ram(&sdram[1], "shix.sdram2", 0x01000000);
+    memory_region_init_ram(&sdram[1], NULL, "shix.sdram2", 0x01000000);
     vmstate_register_ram_global(&sdram[1]);
     memory_region_add_subregion(sysmem, 0x0c000000, &sdram[1]);
 
@@ -81,7 +85,7 @@ static void shix_init(QEMUMachineInitArgs *args)
     }
 
     /* Register peripherals */
-    s = sh7750_init(env, sysmem);
+    s = sh7750_init(cpu, sysmem);
     /* XXXXX Check success */
     tc58128_init(s, "shix_linux_nand.bin", NULL);
     fprintf(stderr, "initialization terminated\n");

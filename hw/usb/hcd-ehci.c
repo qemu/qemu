@@ -446,7 +446,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -454,7 +454,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
     }
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
+        dma_memory_read(ehci->as, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -467,7 +467,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -476,7 +476,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp));
     }
 
     return num;
@@ -586,17 +586,23 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 
 static void ehci_free_packet(EHCIPacket *p)
 {
-    if (p->async == EHCI_ASYNC_FINISHED) {
+    if (p->async == EHCI_ASYNC_FINISHED &&
+            !(p->queue->qh.token & QTD_TOKEN_HALT)) {
         ehci_writeback_async_complete_packet(p);
         return;
     }
     trace_usb_ehci_packet_action(p->queue, p, "free");
-    if (p->async == EHCI_ASYNC_INITIALIZED) {
-        usb_packet_unmap(&p->packet, &p->sgl);
-        qemu_sglist_destroy(&p->sgl);
-    }
     if (p->async == EHCI_ASYNC_INFLIGHT) {
         usb_cancel_packet(&p->packet);
+    }
+    if (p->async == EHCI_ASYNC_FINISHED &&
+            p->packet.status == USB_RET_SUCCESS) {
+        fprintf(stderr,
+                "EHCI: Dropping completed packet from halted %s ep %02X\n",
+                (p->pid == USB_TOKEN_IN) ? "in" : "out",
+                get_field(p->queue->qh.epchar, QH_EPCHAR_EP));
+    }
+    if (p->async != EHCI_ASYNC_NONE) {
         usb_packet_unmap(&p->packet, &p->sgl);
         qemu_sglist_destroy(&p->sgl);
     }
@@ -989,7 +995,7 @@ static uint64_t ehci_port_read(void *ptr, hwaddr addr,
     uint32_t val;
 
     val = s->portsc[addr >> 2];
-    trace_usb_ehci_portsc_read(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_read(addr + s->portscbase, addr >> 2, val);
     return val;
 }
 
@@ -1030,7 +1036,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
     uint32_t old = *portsc;
     USBDevice *dev = s->ports[port].dev;
 
-    trace_usb_ehci_portsc_write(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_write(addr + s->portscbase, addr >> 2, val);
 
     /* Clear rwc bits */
     *portsc &= ~(val & PORTSC_RWC_MASK);
@@ -1063,7 +1069,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
 
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
-    trace_usb_ehci_portsc_change(addr + PORTSC_BEGIN, addr >> 2, *portsc, old);
+    trace_usb_ehci_portsc_change(addr + s->portscbase, addr >> 2, *portsc, old);
 }
 
 static void ehci_opreg_write(void *ptr, hwaddr addr,
@@ -1235,11 +1241,13 @@ static int ehci_init_transfer(EHCIPacket *p)
 {
     uint32_t cpage, offset, bytes, plen;
     dma_addr_t page;
+    USBBus *bus = &p->queue->ehci->bus;
+    BusState *qbus = BUS(bus);
 
     cpage  = get_field(p->qtd.token, QTD_TOKEN_CPAGE);
     bytes  = get_field(p->qtd.token, QTD_TOKEN_TBYTES);
     offset = p->qtd.bufptr[0] & ~QTD_BUFPTR_MASK;
-    qemu_sglist_init(&p->sgl, 5, p->queue->ehci->dma);
+    qemu_sglist_init(&p->sgl, qbus->parent, 5, p->queue->ehci->as);
 
     while (bytes > 0) {
         if (cpage > 4) {
@@ -1349,7 +1357,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     default:
         /* should not be triggerable */
         fprintf(stderr, "USB invalid response %d\n", p->packet.status);
-        assert(0);
+        g_assert_not_reached();
         break;
     }
 
@@ -1478,7 +1486,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 return -1;
             }
 
-            qemu_sglist_init(&ehci->isgl, 2, ehci->dma);
+            qemu_sglist_init(&ehci->isgl, DEVICE(ehci), 2, ehci->as);
             if (off + len > 4096) {
                 /* transfer crosses page border */
                 uint32_t len2 = off + len - 4096;
@@ -2134,7 +2142,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
         default:
             fprintf(stderr, "Bad state!\n");
             again = -1;
-            assert(0);
+            g_assert_not_reached();
             break;
         }
 
@@ -2198,7 +2206,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad asynchronous state %d. "
                 "Resetting to active\n", ehci->astate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -2248,7 +2256,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad periodic state %d. "
                 "Resetting to active\n", ehci->pstate);
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -2502,25 +2510,18 @@ const VMStateDescription vmstate_ehci = {
     }
 };
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 
-    /* 2.2 host controller interface version */
-    s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
-    s->caps[0x01] = 0x00;
-    s->caps[0x02] = 0x00;
-    s->caps[0x03] = 0x01;        /* HC version */
-    s->caps[0x04] = NB_PORTS;    /* Number of downstream ports */
-    s->caps[0x05] = 0x00;        /* No companion ports at present */
-    s->caps[0x06] = 0x00;
-    s->caps[0x07] = 0x00;
-    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
-    s->caps[0x0a] = 0x00;
-    s->caps[0x0b] = 0x00;
+    if (s->portnr > NB_PORTS) {
+        error_setg(errp, "Too many ports! Max. port number is %d.",
+                   NB_PORTS);
+        return;
+    }
 
     usb_bus_new(&s->bus, &ehci_bus_ops, dev);
-    for(i = 0; i < NB_PORTS; i++) {
+    for (i = 0; i < s->portnr; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);
         s->ports[i].dev = 0;
@@ -2528,24 +2529,41 @@ void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
     s->async_bh = qemu_bh_new(ehci_frame_timer, s);
+
+    qemu_register_reset(ehci_reset, s);
+    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
+}
+
+void usb_ehci_init(EHCIState *s, DeviceState *dev)
+{
+    /* 2.2 host controller interface version */
+    s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
+    s->caps[0x01] = 0x00;
+    s->caps[0x02] = 0x00;
+    s->caps[0x03] = 0x01;        /* HC version */
+    s->caps[0x04] = s->portnr;   /* Number of downstream ports */
+    s->caps[0x05] = 0x00;        /* No companion ports at present */
+    s->caps[0x06] = 0x00;
+    s->caps[0x07] = 0x00;
+    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
+    s->caps[0x0a] = 0x00;
+    s->caps[0x0b] = 0x00;
+
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);
 
-    qemu_register_reset(ehci_reset, s);
-    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
-
-    memory_region_init(&s->mem, "ehci", MMIO_SIZE);
-    memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
+    memory_region_init(&s->mem, OBJECT(dev), "ehci", MMIO_SIZE);
+    memory_region_init_io(&s->mem_caps, OBJECT(dev), &ehci_mmio_caps_ops, s,
                           "capabilities", CAPA_SIZE);
-    memory_region_init_io(&s->mem_opreg, &ehci_mmio_opreg_ops, s,
-                          "operational", PORTSC_BEGIN);
-    memory_region_init_io(&s->mem_ports, &ehci_mmio_port_ops, s,
-                          "ports", PORTSC_END - PORTSC_BEGIN);
+    memory_region_init_io(&s->mem_opreg, OBJECT(dev), &ehci_mmio_opreg_ops, s,
+                          "operational", s->portscbase);
+    memory_region_init_io(&s->mem_ports, OBJECT(dev), &ehci_mmio_port_ops, s,
+                          "ports", 4 * s->portnr);
 
     memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
     memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
-    memory_region_add_subregion(&s->mem, s->opregbase + PORTSC_BEGIN,
+    memory_region_add_subregion(&s->mem, s->opregbase + s->portscbase,
                                 &s->mem_ports);
 }
 

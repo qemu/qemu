@@ -17,15 +17,15 @@ typedef struct {
 static int worker_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    return __sync_fetch_and_add(&data->n, 1);
+    return atomic_fetch_inc(&data->n);
 }
 
 static int long_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    __sync_fetch_and_add(&data->n, 1);
+    atomic_inc(&data->n);
     g_usleep(2000000);
-    __sync_fetch_and_add(&data->n, 1);
+    atomic_inc(&data->n);
     return 0;
 }
 
@@ -169,7 +169,7 @@ static void test_cancel(void)
     /* Cancel the jobs that haven't been started yet.  */
     num_canceled = 0;
     for (i = 0; i < 100; i++) {
-        if (__sync_val_compare_and_swap(&data[i].n, 0, 3) == 0) {
+        if (atomic_cmpxchg(&data[i].n, 0, 3) == 0) {
             data[i].ret = -ECANCELED;
             bdrv_aio_cancel(data[i].aiocb);
             active--;

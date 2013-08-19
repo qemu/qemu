@@ -20,40 +20,25 @@
 #define MEMORY_INTERNAL_H
 
 #ifndef CONFIG_USER_ONLY
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 
-typedef struct PhysPageEntry PhysPageEntry;
-
-struct PhysPageEntry {
-    uint16_t is_leaf : 1;
-     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
-    uint16_t ptr : 15;
-};
 
 typedef struct AddressSpaceDispatch AddressSpaceDispatch;
-
-struct AddressSpaceDispatch {
-    /* This is a multi-level map on the physical address space.
-     * The bottom level has pointers to MemoryRegionSections.
-     */
-    PhysPageEntry phys_map;
-    MemoryListener listener;
-};
 
 void address_space_init_dispatch(AddressSpace *as);
 void address_space_destroy_dispatch(AddressSpace *as);
 
+extern const MemoryRegionOps unassigned_mem_ops;
+
+bool memory_region_access_valid(MemoryRegion *mr, hwaddr addr,
+                                unsigned size, bool is_write);
+
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
+void *qemu_get_ram_ptr(ram_addr_t addr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
-
-struct MemoryRegion;
-struct MemoryRegionSection;
-
-void qemu_register_coalesced_mmio(hwaddr addr, ram_addr_t size);
-void qemu_unregister_coalesced_mmio(hwaddr addr, ram_addr_t size);
 
 #define VGA_DIRTY_FLAG       0x01
 #define CODE_DIRTY_FLAG      0x02
@@ -133,8 +118,6 @@ static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
 
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags);
-
-extern const IORangeOps memory_region_iorange_ops;
 
 #endif
 

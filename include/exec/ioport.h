@@ -25,7 +25,8 @@
 #define IOPORT_H
 
 #include "qemu-common.h"
-#include "exec/iorange.h"
+#include "qom/object.h"
+#include "exec/memory.h"
 
 typedef uint32_t pio_addr_t;
 #define FMT_pioaddr     PRIx32
@@ -33,18 +34,16 @@ typedef uint32_t pio_addr_t;
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
-/* These should really be in isa.h, but are here to make pc.h happy.  */
-typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
-typedef void (IOPortDestructor)(void *opaque);
+typedef struct MemoryRegionPortio {
+    uint32_t offset;
+    uint32_t len;
+    unsigned size;
+    uint32_t (*read)(void *opaque, uint32_t address);
+    void (*write)(void *opaque, uint32_t address, uint32_t data);
+    uint32_t base; /* private field */
+} MemoryRegionPortio;
 
-void ioport_register(IORange *iorange);
-int register_ioport_read(pio_addr_t start, int length, int size,
-                         IOPortReadFunc *func, void *opaque);
-int register_ioport_write(pio_addr_t start, int length, int size,
-                          IOPortWriteFunc *func, void *opaque);
-void isa_unassign_ioport(pio_addr_t start, int length);
-bool isa_is_ioport_assigned(pio_addr_t start);
+#define PORTIO_END_OF_LIST() { }
 
 void cpu_outb(pio_addr_t addr, uint8_t val);
 void cpu_outw(pio_addr_t addr, uint16_t val);
@@ -53,20 +52,17 @@ uint8_t cpu_inb(pio_addr_t addr);
 uint16_t cpu_inw(pio_addr_t addr);
 uint32_t cpu_inl(pio_addr_t addr);
 
-struct MemoryRegion;
-struct MemoryRegionPortio;
-
 typedef struct PortioList {
     const struct MemoryRegionPortio *ports;
+    Object *owner;
     struct MemoryRegion *address_space;
     unsigned nr;
     struct MemoryRegion **regions;
-    struct MemoryRegion **aliases;
     void *opaque;
     const char *name;
 } PortioList;
 
-void portio_list_init(PortioList *piolist,
+void portio_list_init(PortioList *piolist, Object *owner,
                       const struct MemoryRegionPortio *callbacks,
                       void *opaque, const char *name);
 void portio_list_destroy(PortioList *piolist);

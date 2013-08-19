@@ -45,12 +45,19 @@ void cris_cpu_do_interrupt(CPUState *cs)
     env->pregs[PR_ERP] = env->pc;
 }
 
+void crisv10_cpu_do_interrupt(CPUState *cs)
+{
+    cris_cpu_do_interrupt(cs);
+}
+
 int cpu_cris_handle_mmu_fault(CPUCRISState * env, target_ulong address, int rw,
                               int mmu_idx)
 {
+    CRISCPU *cpu = cris_env_get_cpu(env);
+
     env->exception_index = 0xaa;
     env->pregs[PR_EDA] = address;
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
     return 1;
 }
 
@@ -109,9 +116,10 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
     return r;
 }
 
-static void do_interruptv10(CPUCRISState *env)
+void crisv10_cpu_do_interrupt(CPUState *cs)
 {
-    D(CPUState *cs = CPU(cris_env_get_cpu(env)));
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     int ex_vec = -1;
 
     D_LOG("exception index=%d interrupt_req=%d\n",
@@ -170,10 +178,6 @@ void cris_cpu_do_interrupt(CPUState *cs)
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
     int ex_vec = -1;
-
-    if (env->pregs[PR_VR] < 32) {
-        return do_interruptv10(env);
-    }
 
     D_LOG("exception index=%d interrupt_req=%d\n",
           env->exception_index,
@@ -251,16 +255,17 @@ void cris_cpu_do_interrupt(CPUState *cs)
           env->pregs[PR_ERP]);
 }
 
-hwaddr cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
+hwaddr cris_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
     uint32_t phy = addr;
     struct cris_mmu_result res;
     int miss;
 
-    miss = cris_mmu_translate(&res, env, addr, 0, 0, 1);
+    miss = cris_mmu_translate(&res, &cpu->env, addr, 0, 0, 1);
     /* If D TLB misses, try I TLB.  */
     if (miss) {
-        miss = cris_mmu_translate(&res, env, addr, 2, 0, 1);
+        miss = cris_mmu_translate(&res, &cpu->env, addr, 2, 0, 1);
     }
 
     if (!miss) {

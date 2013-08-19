@@ -33,6 +33,9 @@
 #include "vreader.h"
 #include "vevent.h"
 
+#include "libcacard/vcardt_internal.h"
+
+
 typedef enum {
     VCardEmulUnknown = -1,
     VCardEmulFalse = 0,
@@ -87,17 +90,13 @@ static int nss_emul_init;
 /*
  * allocate the set of arrays for certs, cert_len, key
  */
-static PRBool
+static void
 vcard_emul_alloc_arrays(unsigned char ***certsp, int **cert_lenp,
                         VCardKey ***keysp, int cert_count)
 {
-    *certsp = NULL;
-    *cert_lenp = NULL;
-    *keysp = NULL;
     *certsp = (unsigned char **)g_malloc(sizeof(unsigned char *)*cert_count);
     *cert_lenp = (int *)g_malloc(sizeof(int)*cert_count);
     *keysp = (VCardKey **)g_malloc(sizeof(VCardKey *)*cert_count);
-    return PR_TRUE;
 }
 
 /*
@@ -519,18 +518,23 @@ vcard_emul_reader_get_slot(VReader *vreader)
 }
 
 /*
- *  Card ATR's map to physical cards. VCARD_ATR_PREFIX will set appropriate
+ *  Card ATR's map to physical cards. vcard_alloc_atr will set appropriate
  *  historical bytes for any software emulated card. The remaining bytes can be
  *  used to indicate the actual emulator
  */
-static const unsigned char nss_atr[] = { VCARD_ATR_PREFIX(3), 'N', 'S', 'S' };
+static unsigned char *nss_atr;
+static int nss_atr_len;
 
 void
 vcard_emul_get_atr(VCard *card, unsigned char *atr, int *atr_len)
 {
-    int len = MIN(sizeof(nss_atr), *atr_len);
+    int len;
     assert(atr != NULL);
 
+    if (nss_atr == NULL) {
+        nss_atr = vcard_alloc_atr("NSS", &nss_atr_len);
+    }
+    len = MIN(nss_atr_len, *atr_len);
     memcpy(atr, nss_atr, len);
     *atr_len = len;
 }
@@ -593,7 +597,6 @@ vcard_emul_mirror_card(VReader *vreader)
     int *cert_len;
     VCardKey **keys;
     PK11SlotInfo *slot;
-    PRBool ret;
     VCard *card;
 
     slot = vcard_emul_reader_get_slot(vreader);
@@ -619,10 +622,7 @@ vcard_emul_mirror_card(VReader *vreader)
     }
 
     /* allocate the arrays */
-    ret = vcard_emul_alloc_arrays(&certs, &cert_len, &keys, cert_count);
-    if (ret == PR_FALSE) {
-        return NULL;
-    }
+    vcard_emul_alloc_arrays(&certs, &cert_len, &keys, cert_count);
 
     /* fill in the arrays */
     cert_count = 0;
@@ -870,7 +870,7 @@ VCardEmulError
 vcard_emul_init(const VCardEmulOptions *options)
 {
     SECStatus rv;
-    PRBool ret, has_readers = PR_FALSE, need_coolkey_module;
+    PRBool has_readers = PR_FALSE;
     VReader *vreader;
     VReaderEmul *vreader_emul;
     SECMODListLock *module_lock;
@@ -893,7 +893,21 @@ vcard_emul_init(const VCardEmulOptions *options)
     if (options->nss_db) {
         rv = NSS_Init(options->nss_db);
     } else {
-        rv = NSS_Init("sql:/etc/pki/nssdb");
+        gchar *path;
+#ifndef _WIN32
+        path = g_strdup("/etc/pki/nssdb");
+#else
+        if (g_get_system_config_dirs() == NULL ||
+            g_get_system_config_dirs()[0] == NULL) {
+            return VCARD_EMUL_FAIL;
+        }
+
+        path = g_build_filename(
+            g_get_system_config_dirs()[0], "pki", "nssdb", NULL);
+#endif
+
+        rv = NSS_Init(path);
+        g_free(path);
     }
     if (rv != SECSuccess) {
         return VCARD_EMUL_FAIL;
@@ -922,11 +936,9 @@ vcard_emul_init(const VCardEmulOptions *options)
         vreader_add_reader(vreader);
         cert_count = options->vreader[i].cert_count;
 
-        ret = vcard_emul_alloc_arrays(&certs, &cert_len, &keys,
-                                      options->vreader[i].cert_count);
-        if (ret == PR_FALSE) {
-            continue;
-        }
+        vcard_emul_alloc_arrays(&certs, &cert_len, &keys,
+                                options->vreader[i].cert_count);
+
         cert_count = 0;
         for (j = 0; j < options->vreader[i].cert_count; j++) {
             /* we should have a better way of identifying certs than by
@@ -969,29 +981,14 @@ vcard_emul_init(const VCardEmulOptions *options)
     /* make sure we have some PKCS #11 module loaded */
     module_lock = SECMOD_GetDefaultModuleListLock();
     module_list = SECMOD_GetDefaultModuleList();
-    need_coolkey_module = !has_readers;
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
         SECMODModule *module = mlp->module;
         if (module_has_removable_hw_slots(module)) {
-            need_coolkey_module = PR_FALSE;
             break;
         }
     }
     SECMOD_ReleaseReadLock(module_lock);
-
-    if (need_coolkey_module) {
-        SECMODModule *module;
-        module = SECMOD_LoadUserModule(
-                    (char *)"library=libcoolkeypk11.so name=Coolkey",
-                    NULL, PR_FALSE);
-        if (module == NULL) {
-            return VCARD_EMUL_FAIL;
-        }
-        SECMOD_DestroyModule(module); /* free our reference, Module will still
-                                       * be on the list.
-                                       * until we destroy it */
-    }
 
     /* now examine all the slots, finding which should be readers */
     /* We should control this with options. For now we mirror out any

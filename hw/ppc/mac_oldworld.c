@@ -24,17 +24,17 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/ppc.h"
+#include "hw/ppc/ppc.h"
 #include "mac.h"
-#include "hw/adb.h"
-#include "hw/nvram.h"
+#include "hw/input/adb.h"
+#include "hw/timer/m48t59.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
-#include "hw/fw_cfg.h"
-#include "hw/escc.h"
+#include "hw/nvram/fw_cfg.h"
+#include "hw/char/escc.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -45,6 +45,7 @@
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
+#define TBFREQ 16600000UL
 
 static int fw_cfg_boot_set(void *opaque, const char *boot_device)
 {
@@ -86,6 +87,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     int linux_boot, i;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
+    MemoryRegion *isa = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -114,7 +116,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
         env = &cpu->env;
 
         /* Set time-base frequency to 16.6 Mhz */
-        cpu_ppc_tb_init(env,  16600000UL);
+        cpu_ppc_tb_init(env,  TBFREQ);
         qemu_register_reset(ppc_heathrow_reset, cpu);
     }
 
@@ -126,12 +128,12 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(ram, "ppc_heathrow.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "ppc_heathrow.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_heathrow.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE);
     vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
@@ -224,7 +226,9 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     }
 
     /* Register 2 MB of ISA IO space */
-    isa_mmio_init(0xfe000000, 0x00200000);
+    memory_region_init_alias(isa, NULL, "isa_mmio",
+                             get_system_io(), 0, 0x00200000);
+    memory_region_add_subregion(sysmem, 0xfe000000, isa);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
     heathrow_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
@@ -255,11 +259,11 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
 
     escc_mem = escc_init(0, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
-    memory_region_init_alias(escc_bar, "escc-bar",
+    memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
 
     ide_drive_get(hd, MAX_IDE_BUS);
@@ -267,20 +271,19 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x12]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE */
-    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE-0 */
+    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
+    qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
+    qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
     macio_init(macio, pic_mem, escc_bar);
 
-    /* First IDE channel is a MAC IDE on the MacIO bus */
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide"));
+                                                        "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    /* Second IDE channel is a CMD646 on the PCI bus */
-    hd[0] = hd[MAX_IDE_DEVS];
-    hd[1] = hd[MAX_IDE_DEVS + 1];
-    hd[3] = hd[2] = NULL;
-    pci_cmd646_ide_init(pci_bus, hd, 0);
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide[1]"));
+    macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
@@ -331,8 +334,10 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
     } else {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, TBFREQ);
     }
+    /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, 266000000);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }

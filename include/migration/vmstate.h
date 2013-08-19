@@ -26,7 +26,9 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H 1
 
+#ifndef CONFIG_USER_ONLY
 #include <migration/qemu-file.h>
+#endif
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
@@ -149,6 +151,7 @@ extern const VMStateInfo vmstate_info_uint8_equal;
 extern const VMStateInfo vmstate_info_uint16_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
 extern const VMStateInfo vmstate_info_uint32_equal;
+extern const VMStateInfo vmstate_info_uint64_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
 extern const VMStateInfo vmstate_info_uint8;
@@ -156,11 +159,14 @@ extern const VMStateInfo vmstate_info_uint16;
 extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
+extern const VMStateInfo vmstate_info_float64;
+
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
 extern const VMStateInfo vmstate_info_bitmap;
 
+#define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
 #define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
 
@@ -175,6 +181,10 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define vmstate_offset_array(_state, _field, _type, _num)            \
     (offsetof(_state, _field) +                                      \
      type_check_array(_type, typeof_field(_state, _field), _num))
+
+#define vmstate_offset_2darray(_state, _field, _type, _n1, _n2)      \
+    (offsetof(_state, _field) +                                      \
+     type_check_2darray(_type, typeof_field(_state, _field), _n1, _n2))
 
 #define vmstate_offset_sub_array(_state, _field, _type, _start)      \
     (offsetof(_state, _field[_start]))
@@ -219,6 +229,16 @@ extern const VMStateInfo vmstate_info_bitmap;
     .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
     .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+}
+
+#define VMSTATE_2DARRAY(_field, _state, _n1, _n2, _version, _info, _type) { \
+    .name       = (stringify(_field)),                                      \
+    .version_id = (_version),                                               \
+    .num        = (_n1) * (_n2),                                            \
+    .info       = &(_info),                                                 \
+    .size       = sizeof(_type),                                            \
+    .flags      = VMS_ARRAY,                                                \
+    .offset     = vmstate_offset_2darray(_state, _field, _type, _n1, _n2),  \
 }
 
 #define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\
@@ -340,6 +360,16 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset     = vmstate_offset_pointer(_state, _field, _type),     \
 }
 
+#define VMSTATE_STRUCT_VARRAY_POINTER_UINT32(_field, _state, _field_num, _vmsd, _type) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = 0,                                                 \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .size       = sizeof(_type),                                     \
+    .vmsd       = &(_vmsd),                                          \
+    .flags      = VMS_POINTER | VMS_VARRAY_INT32 | VMS_STRUCT,       \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+}
+
 #define VMSTATE_STRUCT_VARRAY_POINTER_UINT16(_field, _state, _field_num, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = 0,                                                 \
@@ -380,14 +410,14 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
-#define VMSTATE_BUFFER_MULTIPLY(_field, _state, _version, _test, _start, _field_size, _multiply) { \
+#define VMSTATE_VBUFFER_MULTIPLY(_field, _state, _version, _test, _start, _field_size, _multiply) { \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
     .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
     .size         = (_multiply),                                      \
     .info         = &vmstate_info_buffer,                            \
-    .flags        = VMS_VBUFFER|VMS_MULTIPLY,                        \
+    .flags        = VMS_VBUFFER|VMS_POINTER|VMS_MULTIPLY,            \
     .offset       = offsetof(_state, _field),                        \
     .start        = (_start),                                        \
 }
@@ -420,6 +450,15 @@ extern const VMStateInfo vmstate_info_bitmap;
     .size       = (_size),                                           \
     .info       = &(_info),                                          \
     .flags      = VMS_BUFFER,                                        \
+    .offset     = offsetof(_state, _field),                          \
+}
+
+#define VMSTATE_BUFFER_POINTER_UNSAFE(_field, _state, _version, _size) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .size       = (_size),                                           \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER|VMS_POINTER,                            \
     .offset     = offsetof(_state, _field),                          \
 }
 
@@ -518,8 +557,17 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
 
-#define VMSTATE_UINT32_EQUAL(_f, _s)                                   \
-    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint32_equal, uint32_t)
+#define VMSTATE_UINT32_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint32_equal, uint32_t)
+
+#define VMSTATE_UINT32_EQUAL(_f, _s)                                  \
+    VMSTATE_UINT32_EQUAL_V(_f, _s, 0)
+
+#define VMSTATE_UINT64_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint64_equal, uint64_t)
+
+#define VMSTATE_UINT64_EQUAL(_f, _s)                                  \
+    VMSTATE_UINT64_EQUAL_V(_f, _s, 0)
 
 #define VMSTATE_INT32_LE(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
@@ -532,6 +580,13 @@ extern const VMStateInfo vmstate_info_bitmap;
 
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
+
+
+#define VMSTATE_FLOAT64_V(_f, _s, _v)                                 \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_float64, float64)
+
+#define VMSTATE_FLOAT64(_f, _s)                                       \
+    VMSTATE_FLOAT64_V(_f, _s, 0)
 
 #define VMSTATE_TIMER_TEST(_f, _s, _test)                             \
     VMSTATE_POINTER_TEST(_f, _s, _test, vmstate_info_timer, QEMUTimer *)
@@ -554,14 +609,26 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_UINT16_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint16, uint16_t)
 
+#define VMSTATE_UINT16_2DARRAY_V(_f, _s, _n1, _n2, _v)                \
+    VMSTATE_2DARRAY(_f, _s, _n1, _n2, _v, vmstate_info_uint16, uint16_t)
+
 #define VMSTATE_UINT16_ARRAY(_f, _s, _n)                               \
     VMSTATE_UINT16_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_UINT16_2DARRAY(_f, _s, _n1, _n2)                      \
+    VMSTATE_UINT16_2DARRAY_V(_f, _s, _n1, _n2, 0)
+
+#define VMSTATE_UINT8_2DARRAY_V(_f, _s, _n1, _n2, _v)                 \
+    VMSTATE_2DARRAY(_f, _s, _n1, _n2, _v, vmstate_info_uint8, uint8_t)
 
 #define VMSTATE_UINT8_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint8, uint8_t)
 
 #define VMSTATE_UINT8_ARRAY(_f, _s, _n)                               \
     VMSTATE_UINT8_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_UINT8_2DARRAY(_f, _s, _n1, _n2)                       \
+    VMSTATE_UINT8_2DARRAY_V(_f, _s, _n1, _n2, 0)
 
 #define VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint32, uint32_t)
@@ -598,6 +665,12 @@ extern const VMStateInfo vmstate_info_bitmap;
 
 #define VMSTATE_INT64_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT64_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_FLOAT64_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_float64, float64)
+
+#define VMSTATE_FLOAT64_ARRAY(_f, _s, _n)                             \
+    VMSTATE_FLOAT64_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))

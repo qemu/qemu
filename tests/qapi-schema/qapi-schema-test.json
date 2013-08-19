@@ -1,0 +1,53 @@
+# *-*- Mode: Python -*-*
+
+# for testing enums
+{ 'enum': 'EnumOne',
+  'data': [ 'value1', 'value2', 'value3' ] }
+{ 'type': 'NestedEnumsOne',
+  'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+
+# for testing nested structs
+{ 'type': 'UserDefOne',
+  'data': { 'integer': 'int', 'string': 'str', '*enum1': 'EnumOne' } }
+
+{ 'type': 'UserDefTwo',
+  'data': { 'string': 'str',
+            'dict': { 'string': 'str',
+                      'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
+                      '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
+
+{ 'type': 'UserDefNested',
+  'data': { 'string0': 'str',
+            'dict1': { 'string1': 'str',
+                       'dict2': { 'userdef1': 'UserDefOne', 'string2': 'str' },
+                       '*dict3': { 'userdef2': 'UserDefOne', 'string3': 'str' } } } }
+
+# for testing unions
+{ 'type': 'UserDefA',
+  'data': { 'boolean': 'bool' } }
+
+{ 'type': 'UserDefB',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'UserDefUnion',
+  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
+
+# for testing native lists
+{ 'union': 'UserDefNativeListUnion',
+  'data': { 'integer': ['int'],
+            's8': ['int8'],
+            's16': ['int16'],
+            's32': ['int32'],
+            's64': ['int64'],
+            'u8': ['uint8'],
+            'u16': ['uint16'],
+            'u32': ['uint32'],
+            'u64': ['uint64'],
+            'number': ['number'],
+            'boolean': ['bool'],
+            'string': ['str'] } }
+
+# testing commands
+{ 'command': 'user_def_cmd', 'data': {} }
+{ 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
+{ 'command': 'user_def_cmd2', 'data': {'ud1a': 'UserDefOne', 'ud1b': 'UserDefOne'}, 'returns': 'UserDefTwo' }

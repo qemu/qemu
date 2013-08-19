@@ -26,11 +26,16 @@
  * THE SOFTWARE.
  */
 #include <windows.h>
+#include <glib.h>
+#include <stdlib.h>
 #include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "qemu/sockets.h"
+
+/* this must come after including "trace.h" */
+#include <shlobj.h>
 
 void *qemu_oom_check(void *ptr)
 {
@@ -53,7 +58,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     return ptr;
 }
 
-void *qemu_vmalloc(size_t size)
+void *qemu_anon_ram_alloc(size_t size)
 {
     void *ptr;
 
@@ -64,13 +69,21 @@ void *qemu_vmalloc(size_t size)
         abort();
     }
     ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
-    trace_qemu_vmalloc(size, ptr);
+    trace_qemu_anon_ram_alloc(size, ptr);
     return ptr;
 }
 
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
+    if (ptr) {
+        VirtualFree(ptr, 0, MEM_RELEASE);
+    }
+}
+
+void qemu_anon_ram_free(void *ptr, size_t size)
+{
+    trace_qemu_anon_ram_free(ptr, size);
     if (ptr) {
         VirtualFree(ptr, 0, MEM_RELEASE);
     }
@@ -100,14 +113,14 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
     return p;
 }
 
-void socket_set_block(int fd)
+void qemu_set_block(int fd)
 {
     unsigned long opt = 0;
     WSAEventSelect(fd, NULL, 0);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
-void socket_set_nonblock(int fd)
+void qemu_set_nonblock(int fd)
 {
     unsigned long opt = 1;
     ioctlsocket(fd, FIONBIO, &opt);
@@ -151,4 +164,21 @@ int qemu_gettimeofday(qemu_timeval *tp)
 int qemu_get_thread_id(void)
 {
     return GetCurrentThreadId();
+}
+
+char *
+qemu_get_local_state_pathname(const char *relative_pathname)
+{
+    HRESULT result;
+    char base_path[MAX_PATH+1] = "";
+
+    result = SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL,
+                             /* SHGFP_TYPE_CURRENT */ 0, base_path);
+    if (result != S_OK) {
+        /* misconfigured environment */
+        g_critical("CSIDL_COMMON_APPDATA unavailable: %ld", (long)result);
+        abort();
+    }
+    return g_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", base_path,
+                           relative_pathname);
 }

@@ -214,7 +214,8 @@ do
 	start=`_wallclock`
 	$timestamp && echo -n "	["`date "+%T"`"]"
 	[ ! -x $seq ] && chmod u+x $seq # ensure we can run it
-	./$seq >$tmp.out 2>&1
+	MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
+		./$seq >$tmp.out 2>&1
 	sts=$?
 	$timestamp && _timestamp
 	stop=`_wallclock`

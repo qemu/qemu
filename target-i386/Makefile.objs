@@ -1,6 +1,7 @@
 obj-y += translate.o helper.o cpu.o
 obj-y += excp_helper.o fpu_helper.o cc_helper.o int_helper.o svm_helper.o
 obj-y += smm_helper.o misc_helper.o mem_helper.o seg_helper.o
+obj-y += gdbstub.o
 obj-$(CONFIG_SOFTMMU) += machine.o arch_memory_mapping.o arch_dump.o
 obj-$(CONFIG_KVM) += kvm.o hyperv.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o

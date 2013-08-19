@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 #include "libqtest.h"
-#include "libi2c.h"
-#include "hw/tmp105_regs.h"
+#include "libqos/i2c.h"
+#include "hw/misc/tmp105_regs.h"
 
 #include <glib.h>
 

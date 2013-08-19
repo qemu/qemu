@@ -7,6 +7,7 @@ common-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
 common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
 common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
+common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
 # emulated usb devices
 common-obj-y += dev-hub.o
@@ -21,7 +22,12 @@ common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
 # FIXME: make configurable too
 CONFIG_USB_BLUETOOTH := y
 common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
-common-obj-$(CONFIG_USB_SMARTCARD)    += dev-smartcard-reader.o
+
+ifeq ($(CONFIG_USB_SMARTCARD),y)
+common-obj-y                          += dev-smartcard-reader.o
+common-obj-y                          += ccid-card-passthru.o
+common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
+endif
 
 # usb redirection
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o

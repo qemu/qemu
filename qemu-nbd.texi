@@ -45,6 +45,8 @@ Export QEMU disk image using NBD protocol.
   disconnect the specified device
 @item -e, --shared=@var{num}
   device can be shared by @var{num} clients (default @samp{1})
+@item -f, --format=@var{fmt}
+  force block driver for format @var{fmt} instead of auto-detecting
 @item -t, --persistent
   don't exit on the last connection
 @item -v, --verbose

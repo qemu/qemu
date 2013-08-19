@@ -16,12 +16,12 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "hw/loader.h"
 #include "hw/ssi.h"
@@ -34,6 +34,10 @@
 #define FLASH_SECTOR_SIZE (128 * 1024)
 
 #define IRQ_OFFSET 32 /* pic interrupts start from index 32 */
+
+static const int dma_irqs[8] = {
+    46, 47, 48, 49, 72, 73, 74, 75
+};
 
 static struct arm_boot_info zynq_binfo = {};
 
@@ -62,7 +66,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     int num_busses =  is_qspi ? NUM_QSPI_BUSSES : 1;
     int num_ss = is_qspi ? NUM_QSPI_FLASHES : NUM_SPI_FLASHES;
 
-    dev = qdev_create(NULL, "xilinx,spips");
+    dev = qdev_create(NULL, is_qspi ? "xlnx.ps7-qspi" : "xlnx.ps7-spi");
     qdev_prop_set_uint8(dev, "num-txrx-bytes", is_qspi ? 4 : 1);
     qdev_prop_set_uint8(dev, "num-ss-bits", num_ss);
     qdev_prop_set_uint8(dev, "num-busses", num_busses);
@@ -82,8 +86,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
         for (j = 0; j < num_ss; ++j) {
-            flash_dev = ssi_create_slave_no_init(spi, "n25q128");
-            qdev_init_nofail(flash_dev);
+            flash_dev = ssi_create_slave(spi, "n25q128");
 
             cs_line = qdev_get_gpio_in(flash_dev, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
@@ -129,12 +132,12 @@ static void zynq_init(QEMUMachineInitArgs *args)
     }
 
     /* DDR remapped to address zero.  */
-    memory_region_init_ram(ext_ram, "zynq.ext_ram", ram_size);
+    memory_region_init_ram(ext_ram, NULL, "zynq.ext_ram", ram_size);
     vmstate_register_ram_global(ext_ram);
     memory_region_add_subregion(address_space_mem, 0, ext_ram);
 
     /* 256K of on-chip memory */
-    memory_region_init_ram(ocm_ram, "zynq.ocm_ram", 256 << 10);
+    memory_region_init_ram(ocm_ram, NULL, "zynq.ocm_ram", 256 << 10);
     vmstate_register_ram_global(ocm_ram);
     memory_region_add_subregion(address_space_mem, 0xFFFC0000, ocm_ram);
 
@@ -196,6 +199,26 @@ static void zynq_init(QEMUMachineInitArgs *args)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0101000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[79-IRQ_OFFSET]);
 
+    dev = qdev_create(NULL, "pl330");
+    qdev_prop_set_uint8(dev, "num_chnls",  8);
+    qdev_prop_set_uint8(dev, "num_periph_req",  4);
+    qdev_prop_set_uint8(dev, "num_events",  16);
+
+    qdev_prop_set_uint8(dev, "data_width",  64);
+    qdev_prop_set_uint8(dev, "wr_cap",  8);
+    qdev_prop_set_uint8(dev, "wr_q_dep",  16);
+    qdev_prop_set_uint8(dev, "rd_cap",  8);
+    qdev_prop_set_uint8(dev, "rd_q_dep",  16);
+    qdev_prop_set_uint16(dev, "data_buffer_dep",  256);
+
+    qdev_init_nofail(dev);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, 0xF8003000);
+    sysbus_connect_irq(busdev, 0, pic[45-IRQ_OFFSET]); /* abort irq line */
+    for (n = 0; n < 8; ++n) { /* event irqs */
+        sysbus_connect_irq(busdev, n + 1, pic[dma_irqs[n] - IRQ_OFFSET]);
+    }
+
     zynq_binfo.ram_size = ram_size;
     zynq_binfo.kernel_filename = kernel_filename;
     zynq_binfo.kernel_cmdline = kernel_cmdline;
@@ -203,7 +226,7 @@ static void zynq_init(QEMUMachineInitArgs *args)
     zynq_binfo.nb_cpus = 1;
     zynq_binfo.board_id = 0xd32;
     zynq_binfo.loader_start = 0;
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &zynq_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &zynq_binfo);
 }
 
 static QEMUMachine zynq_machine = {

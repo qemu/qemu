@@ -38,11 +38,12 @@
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 /* Work around an -Wstrict-prototypes warning in GTK headers */
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #endif
 #include <gtk/gtk.h>
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic error "-Wstrict-prototypes"
+#pragma GCC diagnostic pop
 #endif
 
 
@@ -54,7 +55,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <pty.h>
 #include <math.h>
 
 #include "ui/console.h"
@@ -62,7 +62,7 @@
 #include "qmp-commands.h"
 #include "x_keymap.h"
 #include "keymaps.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 //#define DEBUG_GTK
 
@@ -97,6 +97,15 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define GDK_KEY_plus GDK_plus
 #define GDK_KEY_minus GDK_minus
 #endif
+
+#define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
+#define IGNORE_MODIFIER_MASK \
+    (GDK_MODIFIER_MASK & ~(GDK_LOCK_MASK | GDK_MOD2_MASK))
+
+static const int modifier_keycode[] = {
+    /* shift, control, alt keys, meta keys, both left & right */
+    0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
+};
 
 typedef struct VirtualConsole
 {
@@ -142,8 +151,9 @@ typedef struct GtkDisplayState
     GtkWidget *notebook;
     GtkWidget *drawing_area;
     cairo_surface_t *surface;
+    pixman_image_t *convert;
     DisplayChangeListener dcl;
-    DisplayState *ds;
+    DisplaySurface *ds;
     int button_mask;
     int last_x;
     int last_y;
@@ -157,6 +167,8 @@ typedef struct GtkDisplayState
     gboolean free_scale;
 
     bool external_pause_update;
+
+    bool modifier_pressed[ARRAY_SIZE(modifier_keycode)];
 } GtkDisplayState;
 
 static GtkDisplayState *global_state;
@@ -203,11 +215,11 @@ static void gd_update_caption(GtkDisplayState *s)
     bool is_paused = !runstate_is_running();
 
     if (gd_is_grab_active(s)) {
-        grab = " - Press Ctrl+Alt+G to release grab";
+        grab = _(" - Press Ctrl+Alt+G to release grab");
     }
 
     if (is_paused) {
-        status = " [Paused]";
+        status = _(" [Paused]");
     }
     s->external_pause_update = true;
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->pause_item),
@@ -225,82 +237,8 @@ static void gd_update_caption(GtkDisplayState *s)
     g_free(title);
 }
 
-/** DisplayState Callbacks **/
-
-static void gd_update(DisplayState *ds, int x, int y, int w, int h)
+static void gd_update_windowsize(GtkDisplayState *s)
 {
-    GtkDisplayState *s = ds->opaque;
-    int x1, x2, y1, y2;
-    int mx, my;
-    int fbw, fbh;
-    int ww, wh;
-
-    DPRINTF("update(x=%d, y=%d, w=%d, h=%d)\n", x, y, w, h);
-
-    x1 = floor(x * s->scale_x);
-    y1 = floor(y * s->scale_y);
-
-    x2 = ceil(x * s->scale_x + w * s->scale_x);
-    y2 = ceil(y * s->scale_y + h * s->scale_y);
-
-    fbw = ds_get_width(s->ds) * s->scale_x;
-    fbh = ds_get_height(s->ds) * s->scale_y;
-
-    gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
-
-    mx = my = 0;
-    if (ww > fbw) {
-        mx = (ww - fbw) / 2;
-    }
-    if (wh > fbh) {
-        my = (wh - fbh) / 2;
-    }
-
-    gtk_widget_queue_draw_area(s->drawing_area, mx + x1, my + y1, (x2 - x1), (y2 - y1));
-}
-
-static void gd_refresh(DisplayState *ds)
-{
-    vga_hw_update();
-}
-
-static void gd_resize(DisplayState *ds)
-{
-    GtkDisplayState *s = ds->opaque;
-    cairo_format_t kind;
-    int stride;
-
-    DPRINTF("resize(width=%d, height=%d)\n",
-            ds_get_width(ds), ds_get_height(ds));
-
-    if (s->surface) {
-        cairo_surface_destroy(s->surface);
-    }
-
-    switch (ds->surface->pf.bits_per_pixel) {
-    case 8:
-        kind = CAIRO_FORMAT_A8;
-        break;
-    case 16:
-        kind = CAIRO_FORMAT_RGB16_565;
-        break;
-    case 32:
-        kind = CAIRO_FORMAT_RGB24;
-        break;
-    default:
-        g_assert_not_reached();
-        break;
-    }
-
-    stride = cairo_format_stride_for_width(kind, ds_get_width(ds));
-    g_assert(ds_get_linesize(ds) == stride);
-
-    s->surface = cairo_image_surface_create_for_data(ds_get_data(ds),
-                                                     kind,
-                                                     ds_get_width(ds),
-                                                     ds_get_height(ds),
-                                                     ds_get_linesize(ds));
-
     if (!s->full_screen) {
         GtkRequisition req;
         double sx, sy;
@@ -317,8 +255,8 @@ static void gd_resize(DisplayState *ds)
         }
 
         gtk_widget_set_size_request(s->drawing_area,
-                                    ds_get_width(ds) * s->scale_x,
-                                    ds_get_height(ds) * s->scale_y);
+                                    surface_width(s->ds) * s->scale_x,
+                                    surface_height(s->ds) * s->scale_y);
 #if GTK_CHECK_VERSION(3, 0, 0)
         gtk_widget_get_preferred_size(s->vbox, NULL, &req);
 #else
@@ -327,6 +265,195 @@ static void gd_resize(DisplayState *ds)
 
         gtk_window_resize(GTK_WINDOW(s->window),
                           req.width * sx, req.height * sy);
+    }
+}
+
+static void gd_update_full_redraw(GtkDisplayState *s)
+{
+    int ww, wh;
+    gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
+    gtk_widget_queue_draw_area(s->drawing_area, 0, 0, ww, wh);
+}
+
+static void gtk_release_modifiers(GtkDisplayState *s)
+{
+    int i, keycode;
+
+    if (!gd_on_vga(s)) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
+        keycode = modifier_keycode[i];
+        if (!s->modifier_pressed[i]) {
+            continue;
+        }
+        if (keycode & SCANCODE_GREY) {
+            kbd_put_keycode(SCANCODE_EMUL0);
+        }
+        kbd_put_keycode(keycode | SCANCODE_UP);
+        s->modifier_pressed[i] = false;
+    }
+}
+
+/** DisplayState Callbacks **/
+
+static void gd_update(DisplayChangeListener *dcl,
+                      int x, int y, int w, int h)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    int x1, x2, y1, y2;
+    int mx, my;
+    int fbw, fbh;
+    int ww, wh;
+
+    DPRINTF("update(x=%d, y=%d, w=%d, h=%d)\n", x, y, w, h);
+
+    if (s->convert) {
+        pixman_image_composite(PIXMAN_OP_SRC, s->ds->image, NULL, s->convert,
+                               x, y, 0, 0, x, y, w, h);
+    }
+
+    x1 = floor(x * s->scale_x);
+    y1 = floor(y * s->scale_y);
+
+    x2 = ceil(x * s->scale_x + w * s->scale_x);
+    y2 = ceil(y * s->scale_y + h * s->scale_y);
+
+    fbw = surface_width(s->ds) * s->scale_x;
+    fbh = surface_height(s->ds) * s->scale_y;
+
+    gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
+
+    mx = my = 0;
+    if (ww > fbw) {
+        mx = (ww - fbw) / 2;
+    }
+    if (wh > fbh) {
+        my = (wh - fbh) / 2;
+    }
+
+    gtk_widget_queue_draw_area(s->drawing_area, mx + x1, my + y1, (x2 - x1), (y2 - y1));
+}
+
+static void gd_refresh(DisplayChangeListener *dcl)
+{
+    graphic_hw_update(dcl->con);
+}
+
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void gd_mouse_set(DisplayChangeListener *dcl,
+                         int x, int y, int visible)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    GdkDisplay *dpy;
+    GdkDeviceManager *mgr;
+    gint x_root, y_root;
+
+    dpy = gtk_widget_get_display(s->drawing_area);
+    mgr = gdk_display_get_device_manager(dpy);
+    gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
+                               x, y, &x_root, &y_root);
+    gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
+                    gtk_widget_get_screen(s->drawing_area),
+                    x, y);
+}
+#else
+static void gd_mouse_set(DisplayChangeListener *dcl,
+                         int x, int y, int visible)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    gint x_root, y_root;
+
+    gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
+                               x, y, &x_root, &y_root);
+    gdk_display_warp_pointer(gtk_widget_get_display(s->drawing_area),
+                             gtk_widget_get_screen(s->drawing_area),
+                             x_root, y_root);
+}
+#endif
+
+static void gd_cursor_define(DisplayChangeListener *dcl,
+                             QEMUCursor *c)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    GdkPixbuf *pixbuf;
+    GdkCursor *cursor;
+
+    pixbuf = gdk_pixbuf_new_from_data((guchar *)(c->data),
+                                      GDK_COLORSPACE_RGB, true, 8,
+                                      c->width, c->height, c->width * 4,
+                                      NULL, NULL);
+    cursor = gdk_cursor_new_from_pixbuf(gtk_widget_get_display(s->drawing_area),
+                                        pixbuf, c->hot_x, c->hot_y);
+    gdk_window_set_cursor(gtk_widget_get_window(s->drawing_area), cursor);
+    g_object_unref(pixbuf);
+#if !GTK_CHECK_VERSION(3, 0, 0)
+    gdk_cursor_unref(cursor);
+#else
+    g_object_unref(cursor);
+#endif
+}
+
+static void gd_switch(DisplayChangeListener *dcl,
+                      DisplaySurface *surface)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    bool resized = true;
+
+    DPRINTF("resize(width=%d, height=%d)\n",
+            surface_width(surface), surface_height(surface));
+
+    if (s->surface) {
+        cairo_surface_destroy(s->surface);
+    }
+
+    if (s->ds &&
+        surface_width(s->ds) == surface_width(surface) &&
+        surface_height(s->ds) == surface_height(surface)) {
+        resized = false;
+    }
+    s->ds = surface;
+
+    if (s->convert) {
+        pixman_image_unref(s->convert);
+        s->convert = NULL;
+    }
+
+    if (surface->format == PIXMAN_x8r8g8b8) {
+        /*
+         * PIXMAN_x8r8g8b8 == CAIRO_FORMAT_RGB24
+         *
+         * No need to convert, use surface directly.  Should be the
+         * common case as this is qemu_default_pixelformat(32) too.
+         */
+        s->surface = cairo_image_surface_create_for_data
+            (surface_data(surface),
+             CAIRO_FORMAT_RGB24,
+             surface_width(surface),
+             surface_height(surface),
+             surface_stride(surface));
+    } else {
+        /* Must convert surface, use pixman to do it. */
+        s->convert = pixman_image_create_bits(PIXMAN_x8r8g8b8,
+                                              surface_width(surface),
+                                              surface_height(surface),
+                                              NULL, 0);
+        s->surface = cairo_image_surface_create_for_data
+            ((void *)pixman_image_get_data(s->convert),
+             CAIRO_FORMAT_RGB24,
+             pixman_image_get_width(s->convert),
+             pixman_image_get_height(s->convert),
+             pixman_image_get_stride(s->convert));
+        pixman_image_composite(PIXMAN_OP_SRC, s->ds->image, NULL, s->convert,
+                               0, 0, 0, 0, 0, 0,
+                               pixman_image_get_width(s->convert),
+                               pixman_image_get_height(s->convert));
+    }
+
+    if (resized) {
+        gd_update_windowsize(s);
+    } else {
+        gd_update_full_redraw(s);
     }
 }
 
@@ -350,26 +477,15 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    GtkAccelGroupEntry *entries;
-    guint n_entries = 0;
-    gboolean propagate_accel = TRUE;
     gboolean handled = FALSE;
 
-    entries = gtk_accel_group_query(s->accel_group, key->keyval,
-                                    key->state, &n_entries);
-    if (n_entries) {
-        const char *quark = g_quark_to_string(entries[0].accel_path_quark);
-
-        if (gd_is_grab_active(s) && strstart(quark, "<QEMU>/File/", NULL)) {
-            propagate_accel = FALSE;
-        }
-    }
-
-    if (!handled && propagate_accel) {
+    if (!gd_is_grab_active(s) ||
+        (key->state & IGNORE_MODIFIER_MASK) == HOTKEY_MODIFIERS) {
         handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
     }
-
-    if (!handled) {
+    if (handled) {
+        gtk_release_modifiers(s);
+    } else {
         handled = gtk_window_propagate_key_event(GTK_WINDOW(widget), key);
     }
 
@@ -382,7 +498,7 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
     GtkDisplayState *s = opaque;
 
     if (!no_quit) {
-        unregister_displaychangelistener(s->ds, &s->dcl);
+        unregister_displaychangelistener(&s->dcl);
         qmp_quit(NULL);
         return FALSE;
     }
@@ -401,8 +517,8 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
         return FALSE;
     }
 
-    fbw = ds_get_width(s->ds);
-    fbh = ds_get_height(s->ds);
+    fbw = surface_width(s->ds);
+    fbh = surface_height(s->ds);
 
     gdk_drawable_get_size(gtk_widget_get_window(widget), &ww, &wh);
 
@@ -480,8 +596,8 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     int fbh, fbw;
     int ww, wh;
 
-    fbw = ds_get_width(s->ds) * s->scale_x;
-    fbh = ds_get_height(s->ds) * s->scale_y;
+    fbw = surface_width(s->ds) * s->scale_x;
+    fbh = surface_height(s->ds) * s->scale_y;
 
     gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
 
@@ -497,14 +613,14 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     y = (motion->y - my) / s->scale_y;
 
     if (x < 0 || y < 0 ||
-        x >= ds_get_width(s->ds) ||
-        y >= ds_get_height(s->ds)) {
+        x >= surface_width(s->ds) ||
+        y >= surface_height(s->ds)) {
         return TRUE;
     }
 
     if (kbd_mouse_is_absolute()) {
-        dx = x * 0x7FFF / (ds_get_width(s->ds) - 1);
-        dy = y * 0x7FFF / (ds_get_height(s->ds) - 1);
+        dx = x * 0x7FFF / (surface_width(s->ds) - 1);
+        dy = y * 0x7FFF / (surface_height(s->ds) - 1);
     } else if (s->last_x == -1 || s->last_y == -1) {
         dx = 0;
         dy = 0;
@@ -585,8 +701,8 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
     }
 
     if (kbd_mouse_is_absolute()) {
-        dx = s->last_x * 0x7FFF / (ds_get_width(s->ds) - 1);
-        dy = s->last_y * 0x7FFF / (ds_get_height(s->ds) - 1);
+        dx = s->last_x * 0x7FFF / (surface_width(s->ds) - 1);
+        dy = s->last_y * 0x7FFF / (surface_height(s->ds) - 1);
     } else {
         dx = 0;
         dy = 0;
@@ -599,8 +715,10 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
+    GtkDisplayState *s = opaque;
     int gdk_keycode;
     int qemu_keycode;
+    int i;
 
     gdk_keycode = key->hardware_keycode;
 
@@ -621,6 +739,12 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     DPRINTF("translated GDK keycode %d to QEMU keycode %d (%s)\n",
             gdk_keycode, qemu_keycode,
             (key->type == GDK_KEY_PRESS) ? "down" : "up");
+
+    for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
+        if (qemu_keycode == modifier_keycode[i]) {
+            s->modifier_pressed[i] = (key->type == GDK_KEY_PRESS);
+        }
+    }
 
     if (qemu_keycode & SCANCODE_GREY) {
         kbd_put_keycode(SCANCODE_EMUL0);
@@ -677,6 +801,7 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
     } else {
         int i;
 
+        gtk_release_modifiers(s);
         for (i = 0; i < s->nb_vcs; i++) {
             if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vc[i].menu_item))) {
                 gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), i + 1);
@@ -715,7 +840,8 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         gd_menu_show_tabs(GTK_MENU_ITEM(s->show_tabs_item), s);
         gtk_widget_set_size_request(s->menu_bar, -1, -1);
         gtk_widget_set_size_request(s->drawing_area,
-                                    ds_get_width(s->ds), ds_get_height(s->ds));
+                                    surface_width(s->ds),
+                                    surface_height(s->ds));
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item), FALSE);
         s->full_screen = FALSE;
         s->scale_x = 1.0;
@@ -735,7 +861,7 @@ static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
     s->scale_x += .25;
     s->scale_y += .25;
 
-    gd_resize(s->ds);
+    gd_update_windowsize(s);
 }
 
 static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
@@ -751,7 +877,7 @@ static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
     s->scale_x = MAX(s->scale_x, .25);
     s->scale_y = MAX(s->scale_y, .25);
 
-    gd_resize(s->ds);
+    gd_update_windowsize(s);
 }
 
 static void gd_menu_zoom_fixed(GtkMenuItem *item, void *opaque)
@@ -761,24 +887,23 @@ static void gd_menu_zoom_fixed(GtkMenuItem *item, void *opaque)
     s->scale_x = 1.0;
     s->scale_y = 1.0;
 
-    gd_resize(s->ds);
+    gd_update_windowsize(s);
 }
 
 static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    int ww, wh;
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item))) {
         s->free_scale = TRUE;
     } else {
         s->free_scale = FALSE;
+        s->scale_x = 1.0;
+        s->scale_y = 1.0;
+        gd_update_windowsize(s);
     }
 
-    gd_resize(s->ds);
-
-    gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
-    gtk_widget_queue_draw_area(s->drawing_area, 0, 0, ww, wh);
+    gd_update_full_redraw(s);
 }
 
 static void gd_grab_keyboard(GtkDisplayState *s)
@@ -979,6 +1104,16 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing, gp
     return TRUE;
 }
 
+static gboolean gd_focus_out_event(GtkWidget *widget,
+                                   GdkEventCrossing *crossing, gpointer data)
+{
+    GtkDisplayState *s = data;
+
+    gtk_release_modifiers(s);
+
+    return TRUE;
+}
+
 /** Virtual Console Callbacks **/
 
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
@@ -997,6 +1132,8 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused)
 
     chr = g_malloc0(sizeof(*chr));
     chr->chr_write = gd_vc_chr_write;
+    /* defer OPENED events until our vc is fully initialized */
+    chr->explicit_be_open = true;
 
     vcs[nb_vcs++] = chr;
 
@@ -1024,7 +1161,8 @@ static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSList *group)
+static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSList *group,
+                          GtkWidget *view_menu)
 {
     const char *label;
     char buffer[32];
@@ -1035,8 +1173,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     GIOChannel *chan;
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
-    int master_fd, slave_fd, ret;
-    struct termios tty;
+    int master_fd, slave_fd;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1052,17 +1189,12 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
     group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
-    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
     vc->terminal = vte_terminal_new();
 
-    ret = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
-    g_assert(ret != -1);
-
-    /* Set raw attributes on the pty. */
-    tcgetattr(slave_fd, &tty);
-    cfmakeraw(&tty);
-    tcsetattr(slave_fd, TCSAFLUSH, &tty);
+    master_fd = qemu_openpty_raw(&slave_fd, NULL);
+    g_assert(master_fd != -1);
 
 #if VTE_CHECK_VERSION(0, 26, 0)
     pty = vte_pty_new_foreign(master_fd, NULL);
@@ -1091,9 +1223,9 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), vc->menu_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
 
-    qemu_chr_generic_open(vc->chr);
+    qemu_chr_be_generic_open(vc->chr);
     if (vc->chr->init) {
         vc->chr->init(vc->chr);
     }
@@ -1162,136 +1294,168 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_enter_event), s);
     g_signal_connect(s->drawing_area, "leave-notify-event",
                      G_CALLBACK(gd_leave_event), s);
+    g_signal_connect(s->drawing_area, "focus-out-event",
+                     G_CALLBACK(gd_focus_out_event), s);
 }
 
-static void gd_create_menus(GtkDisplayState *s)
+static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *accel_group)
 {
-    GtkStockItem item;
-    GtkAccelGroup *accel_group;
-    GSList *group = NULL;
+    GtkWidget *machine_menu;
     GtkWidget *separator;
-    int i;
+    GtkStockItem item;
 
-    accel_group = gtk_accel_group_new();
-    s->machine_menu = gtk_menu_new();
-    gtk_menu_set_accel_group(GTK_MENU(s->machine_menu), accel_group);
-    s->machine_menu_item = gtk_menu_item_new_with_mnemonic(_("_Machine"));
+    machine_menu = gtk_menu_new();
+    gtk_menu_set_accel_group(GTK_MENU(machine_menu), accel_group);
 
     s->pause_item = gtk_check_menu_item_new_with_mnemonic(_("_Pause"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), s->pause_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->pause_item);
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
     s->reset_item = gtk_image_menu_item_new_with_mnemonic(_("_Reset"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), s->reset_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->reset_item);
 
     s->powerdown_item = gtk_image_menu_item_new_with_mnemonic(_("Power _Down"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), s->powerdown_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->powerdown_item);
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
     s->quit_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
     gtk_stock_lookup(GTK_STOCK_QUIT, &item);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->quit_item),
                                  "<QEMU>/Machine/Quit");
     gtk_accel_map_add_entry("<QEMU>/Machine/Quit", item.keyval, item.modifier);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->machine_menu), s->quit_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->quit_item);
 
-    s->view_menu = gtk_menu_new();
-    gtk_menu_set_accel_group(GTK_MENU(s->view_menu), accel_group);
-    s->view_menu_item = gtk_menu_item_new_with_mnemonic(_("_View"));
+    return machine_menu;
+}
+
+static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_group)
+{
+    GSList *group = NULL;
+    GtkWidget *view_menu;
+    GtkWidget *separator;
+    int i;
+
+    view_menu = gtk_menu_new();
+    gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
 
     s->full_screen_item =
         gtk_image_menu_item_new_from_stock(GTK_STOCK_FULLSCREEN, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
                                  "<QEMU>/View/Full Screen");
-    gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->full_screen_item);
+    gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f,
+                            HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->full_screen_item);
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
     s->zoom_in_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_IN, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_in_item),
                                  "<QEMU>/View/Zoom In");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->zoom_in_item);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus,
+                            HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_in_item);
 
     s->zoom_out_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_OUT, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_out_item),
                                  "<QEMU>/View/Zoom Out");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->zoom_out_item);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus,
+                            HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_out_item);
 
     s->zoom_fixed_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_100, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_fixed_item),
                                  "<QEMU>/View/Zoom Fixed");
-    gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->zoom_fixed_item);
+    gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0,
+                            HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_fixed_item);
 
     s->zoom_fit_item = gtk_check_menu_item_new_with_mnemonic(_("Zoom To _Fit"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->zoom_fit_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_fit_item);
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
     s->grab_on_hover_item = gtk_check_menu_item_new_with_mnemonic(_("Grab On _Hover"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->grab_on_hover_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->grab_on_hover_item);
 
     s->grab_item = gtk_check_menu_item_new_with_mnemonic(_("_Grab Input"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->grab_item),
                                  "<QEMU>/View/Grab Input");
-    gtk_accel_map_add_entry("<QEMU>/View/Grab Input", GDK_KEY_g, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->grab_item);
+    gtk_accel_map_add_entry("<QEMU>/View/Grab Input", GDK_KEY_g,
+                            HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->grab_item);
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
     s->vga_item = gtk_radio_menu_item_new_with_mnemonic(group, "_VGA");
     group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(s->vga_item));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->vga_item),
                                  "<QEMU>/View/VGA");
-    gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, GDK_CONTROL_MASK | GDK_MOD1_MASK);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->vga_item);
+    gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, HOTKEY_MODIFIERS);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->vga_item);
 
     for (i = 0; i < nb_vcs; i++) {
         VirtualConsole *vc = &s->vc[i];
 
-        group = gd_vc_init(s, vc, i, group);
+        group = gd_vc_init(s, vc, i, group, view_menu);
         s->nb_vcs++;
     }
 
     separator = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), separator);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
     s->show_tabs_item = gtk_check_menu_item_new_with_mnemonic(_("Show _Tabs"));
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), s->show_tabs_item);
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->show_tabs_item);
 
-    g_object_set_data(G_OBJECT(s->window), "accel_group", accel_group);
-    gtk_window_add_accel_group(GTK_WINDOW(s->window), accel_group);
-    s->accel_group = accel_group;
+    return view_menu;
+}
 
+static void gd_create_menus(GtkDisplayState *s)
+{
+    GtkAccelGroup *accel_group;
+
+    accel_group = gtk_accel_group_new();
+    s->machine_menu = gd_create_menu_machine(s, accel_group);
+    s->view_menu = gd_create_menu_view(s, accel_group);
+
+    s->machine_menu_item = gtk_menu_item_new_with_mnemonic(_("_Machine"));
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->machine_menu_item),
                               s->machine_menu);
     gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->machine_menu_item);
 
+    s->view_menu_item = gtk_menu_item_new_with_mnemonic(_("_View"));
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->view_menu_item), s->view_menu);
     gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->view_menu_item);
+
+    g_object_set_data(G_OBJECT(s->window), "accel_group", accel_group);
+    gtk_window_add_accel_group(GTK_WINDOW(s->window), accel_group);
+    s->accel_group = accel_group;
 }
 
-void gtk_display_init(DisplayState *ds)
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "gtk",
+    .dpy_gfx_update    = gd_update,
+    .dpy_gfx_switch    = gd_switch,
+    .dpy_refresh       = gd_refresh,
+    .dpy_mouse_set     = gd_mouse_set,
+    .dpy_cursor_define = gd_cursor_define,
+};
+
+void gtk_display_init(DisplayState *ds, bool full_screen)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
+    char *filename;
 
     gtk_init(NULL, NULL);
 
-    ds->opaque = s;
-    s->ds = ds;
-    s->dcl.dpy_gfx_update = gd_update;
-    s->dcl.dpy_gfx_resize = gd_resize;
-    s->dcl.dpy_refresh = gd_refresh;
+    s->dcl.ops = &dcl_ops;
+    s->dcl.con = qemu_console_lookup_by_index(0);
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if GTK_CHECK_VERSION(3, 2, 0)
@@ -1318,6 +1482,18 @@ void gtk_display_init(DisplayState *ds)
     qemu_add_vm_change_state_handler(gd_change_runstate, s);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), s->drawing_area, gtk_label_new("VGA"));
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu_logo_no_text.svg");
+    if (filename) {
+        GError *error = NULL;
+        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);
+        if (pixbuf) {
+            gtk_window_set_icon(GTK_WINDOW(s->window), pixbuf);
+        } else {
+            g_error_free(error);
+        }
+        g_free(filename);
+    }
 
     gd_create_menus(s);
 
@@ -1347,7 +1523,11 @@ void gtk_display_init(DisplayState *ds)
 
     gtk_widget_show_all(s->window);
 
-    register_displaychangelistener(ds, &s->dcl);
+    if (full_screen) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+    }
+
+    register_displaychangelistener(&s->dcl);
 
     global_state = s;
 }

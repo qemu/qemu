@@ -40,8 +40,23 @@ speaking, the size of guest memory can always fit into ram_addr_t but
 it would not be correct to store an actual guest physical address in a
 ram_addr_t.
 
-Use target_ulong (or abi_ulong) for CPU virtual addresses, however
-devices should not need to use target_ulong.
+For CPU virtual addresses there are several possible types.
+vaddr is the best type to use to hold a CPU virtual address in
+target-independent code. It is guaranteed to be large enough to hold a
+virtual address for any target, and it does not change size from target
+to target. It is always unsigned.
+target_ulong is a type the size of a virtual address on the CPU; this means
+it may be 32 or 64 bits depending on which target is being built. It should
+therefore be used only in target-specific code, and in some
+performance-critical built-per-target core code such as the TLB code.
+There is also a signed version, target_long.
+abi_ulong is for the *-user targets, and represents a type the size of
+'void *' in that target's ABI. (This may not be the same as the size of a
+full CPU virtual address in the case of target ABIs which use 32 bit pointers
+on 64 bit CPUs, like sparc32plus.) Definitions of structures that must match
+the target's ABI must use this type for anything that on the target is defined
+to be an 'unsigned long' or a pointer type.
+There is also a signed version, abi_long.
 
 Of course, take all of the above with a grain of salt.  If you're about
 to use some system interface that requires a type like size_t, pid_t or
@@ -78,16 +93,15 @@ avoided.
 Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
 APIs is not allowed in the QEMU codebase. Instead of these routines,
 use the GLib memory allocation routines g_malloc/g_malloc0/g_new/
-g_new0/g_realloc/g_free or QEMU's qemu_vmalloc/qemu_memalign/qemu_vfree
+g_new0/g_realloc/g_free or QEMU's qemu_memalign/qemu_blockalign/qemu_vfree
 APIs.
 
 Please note that g_malloc will exit on allocation failure, so there
 is no need to test for failure (as you would have to with malloc).
 Calling g_malloc with a zero size is valid and will return NULL.
 
-Memory allocated by qemu_vmalloc or qemu_memalign must be freed with
-qemu_vfree, since breaking this will cause problems on Win32 and user
-emulators.
+Memory allocated by qemu_memalign or qemu_blockalign must be freed with
+qemu_vfree, since breaking this will cause problems on Win32.
 
 4. String manipulation
 

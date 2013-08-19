@@ -1,0 +1,39 @@
+PVPANIC DEVICE
+==============
+
+pvpanic device is a simulated ISA device, through which a guest panic
+event is sent to qemu, and a QMP event is generated. This allows
+management apps (e.g. libvirt) to be notified and respond to the event.
+
+The management app has the option of waiting for GUEST_PANICKED events,
+and/or polling for guest-panicked RunState, to learn when the pvpanic
+device has fired a panic event.
+
+ISA Interface
+-------------
+
+pvpanic exposes a single I/O port, by default 0x505. On read, the bits
+recognized by the device are set. Software should ignore bits it doesn't
+recognize. On write, the bits not recognized by the device are ignored.
+Software should set only bits both itself and the device recognize.
+Currently, only bit 0 is recognized, setting it indicates a guest panic
+has happened.
+
+ACPI Interface
+--------------
+
+pvpanic device is defined with ACPI ID "QEMU0001". Custom methods:
+
+RDPT:       To determine whether guest panic notification is supported.
+Arguments:  None
+Return:     Returns a byte, bit 0 set to indicate guest panic
+            notification is supported. Other bits are reserved and
+            should be ignored.
+
+WRPT:       To send a guest panic event
+Arguments:  Arg0 is a byte, with bit 0 set to indicate guest panic has
+            happened. Other bits are reserved and should be cleared.
+Return:     None
+
+The ACPI device will automatically refer to the right port in case it
+is modified.

@@ -23,8 +23,6 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
-//#define CONFIG_DEBUG_EXEC
-
 bool qemu_cpu_has_work(CPUState *cpu)
 {
     return cpu_has_work(cpu);
@@ -61,8 +59,14 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
+        CPUClass *cc = CPU_GET_CLASS(cpu);
         TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-        cpu_pc_from_tb(env, tb);
+        if (cc->synchronize_from_tb) {
+            cc->synchronize_from_tb(cpu, tb);
+        } else {
+            assert(cc->set_pc);
+            cc->set_pc(cpu, tb->pc);
+        }
     }
     if ((next_tb & TB_EXIT_MASK) == TB_EXIT_REQUESTED) {
         /* We were asked to stop executing TBs (probably a pending
@@ -215,7 +219,15 @@ int cpu_exec(CPUArchState *env)
         cpu->halted = 0;
     }
 
-    cpu_single_env = env;
+    current_cpu = cpu;
+
+    /* As long as current_cpu is null, up to the assignment just above,
+     * requests by other threads to exit the execution loop are expected to
+     * be issued using the exit_request global. We must make sure that our
+     * evaluation of the global value is performed past the current_cpu
+     * value transition point, which requires a memory barrier as well as
+     * an instruction scheduling constraint on modern architectures.  */
+    smp_mb();
 
     if (unlikely(exit_request)) {
         cpu->exit_request = 1;
@@ -224,7 +236,7 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((env->eflags >> 10) & 1));
+    env->df = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_SPARC)
@@ -240,6 +252,7 @@ int cpu_exec(CPUArchState *env)
 #elif defined(TARGET_LM32)
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
+#elif defined(TARGET_MOXIE)
 #elif defined(TARGET_OPENRISC)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_CRIS)
@@ -284,7 +297,7 @@ int cpu_exec(CPUArchState *env)
             for(;;) {
                 interrupt_request = cpu->interrupt_request;
                 if (unlikely(interrupt_request)) {
-                    if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
+                    if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
                         /* Mask out external interrupts for this step. */
                         interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
                     }
@@ -324,7 +337,7 @@ int cpu_exec(CPUArchState *env)
                             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
                                                           0);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter(env);
+                            do_smm_enter(x86_env_get_cpu(env));
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
@@ -566,25 +579,22 @@ int cpu_exec(CPUArchState *env)
                     env->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit(env);
                 }
-#if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
+#if defined(DEBUG_DISAS)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
 #if defined(TARGET_I386)
-                    env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-                        | (DF & DF_MASK);
-                    log_cpu_state(env, CPU_DUMP_CCOP);
-                    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+                    log_cpu_state(cpu, CPU_DUMP_CCOP);
 #elif defined(TARGET_M68K)
                     cpu_m68k_flush_flags(env, env->cc_op);
                     env->cc_op = CC_OP_FLAGS;
                     env->sr = (env->sr & 0xffe0)
                               | env->cc_dest | (env->cc_x << 4);
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #else
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #endif
                 }
-#endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
+#endif /* DEBUG_DISAS */
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
@@ -596,11 +606,10 @@ int cpu_exec(CPUArchState *env)
                     next_tb = 0;
                     tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
                 }
-#ifdef CONFIG_DEBUG_EXEC
-                qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
-                             tb->tc_ptr, tb->pc,
-                             lookup_symbol(tb->pc));
-#endif
+                if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
+                    qemu_log("Trace %p [" TARGET_FMT_lx "] %s\n",
+                             tb->tc_ptr, tb->pc, lookup_symbol(tb->pc));
+                }
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
@@ -670,7 +679,8 @@ int cpu_exec(CPUArchState *env)
         } else {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
-            env = cpu_single_env;
+            cpu = current_cpu;
+            env = cpu->env_ptr;
         }
     } /* for(;;) */
 
@@ -678,7 +688,7 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
     /* restore flags in standard format */
     env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-        | (DF & DF_MASK);
+        | (env->df & DF_MASK);
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_UNICORE32)
@@ -692,6 +702,7 @@ int cpu_exec(CPUArchState *env)
               | env->cc_dest | (env->cc_x << 4);
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
+#elif defined(TARGET_MOXIE)
 #elif defined(TARGET_OPENRISC)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_ALPHA)
@@ -703,7 +714,7 @@ int cpu_exec(CPUArchState *env)
 #error unsupported target CPU
 #endif
 
-    /* fail safe : never use cpu_single_env outside cpu_exec() */
-    cpu_single_env = NULL;
+    /* fail safe : never use current_cpu outside cpu_exec() */
+    current_cpu = NULL;
     return ret;
 }

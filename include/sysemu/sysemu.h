@@ -22,6 +22,7 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid);
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
+bool runstate_needs_reset(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
@@ -34,8 +35,8 @@ void vm_state_notify(int running, RunState state);
 #define VMRESET_REPORT   true
 
 void vm_start(void);
-void vm_stop(RunState state);
-void vm_stop_force_state(RunState state);
+int vm_stop(RunState state);
+int vm_stop_force_state(RunState state);
 
 typedef enum WakeupReason {
     QEMU_WAKEUP_REASON_OTHER = 0,
@@ -102,7 +103,6 @@ typedef enum {
 
 extern int vga_interface_type;
 #define xenfb_enabled (vga_interface_type == VGA_XENFB)
-#define qxl_enabled (vga_interface_type == VGA_QXL)
 
 extern int graphic_width;
 extern int graphic_height;
@@ -152,6 +152,9 @@ void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 /* generic hotplug */
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 
+/* CPU hotplug */
+void qemu_register_cpu_added_notifier(Notifier *notifier);
+
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
 int do_pcie_aer_inject_error(Monitor *mon,
@@ -175,11 +178,13 @@ void usb_info(Monitor *mon, const QDict *qdict);
 
 void rtc_change_mon_event(struct tm *tm);
 
-void register_devices(void);
-
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(size_t *size);
+
+DeviceState *get_boot_device(uint32_t position);
+
+QemuOpts *qemu_get_machine_opts(void);
 
 bool usb_enabled(bool default_usb);
 

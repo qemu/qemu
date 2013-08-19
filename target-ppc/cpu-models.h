@@ -31,9 +31,10 @@
 typedef struct PowerPCCPUAlias {
     const char *alias;
     const char *model;
+    ObjectClass *oc;
 } PowerPCCPUAlias;
 
-extern const PowerPCCPUAlias ppc_cpu_aliases[];
+extern PowerPCCPUAlias ppc_cpu_aliases[];
 
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
@@ -546,15 +547,16 @@ enum {
     CPU_POWERPC_POWER4P            = 0x00380000,
      /* XXX: missing 0x003A0201 */
     CPU_POWERPC_POWER5             = 0x003A0203,
-#define CPU_POWERPC_POWER5GR         CPU_POWERPC_POWER5
     CPU_POWERPC_POWER5P            = 0x003B0000,
-#define CPU_POWERPC_POWER5GS         CPU_POWERPC_POWER5P
+    CPU_POWERPC_POWER5P_v21        = 0x003B0201,
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
     CPU_POWERPC_POWER6A            = 0x0F000002,
     CPU_POWERPC_POWER7_v20         = 0x003F0200,
     CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
+    CPU_POWERPC_POWER7P_v21        = 0x004A0201,
+    CPU_POWERPC_POWER8_v10         = 0x004B0100,
     CPU_POWERPC_970                = 0x00390202,
     CPU_POWERPC_970FX_v10          = 0x00391100,
     CPU_POWERPC_970FX_v20          = 0x003C0200,
@@ -731,9 +733,7 @@ enum {
     POWERPC_SVR_8568E              = 0x807D0011 | POWERPC_SVR_E500,
     POWERPC_SVR_8572               = 0x80E00010 | POWERPC_SVR_E500,
     POWERPC_SVR_8572E              = 0x80E80010 | POWERPC_SVR_E500,
-#if 0
-    POWERPC_SVR_8610               = xxx,
-#endif
+    POWERPC_SVR_8610               = 0x80A00011,
     POWERPC_SVR_8641               = 0x80900021,
     POWERPC_SVR_8641D              = 0x80900121,
 };

@@ -16,6 +16,7 @@
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "trace.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
@@ -362,12 +363,16 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
 
 void object_unparent(Object *obj)
 {
-    object_ref(obj);
-    if (obj->parent) {
-        object_property_del_child(obj->parent, obj, NULL);
+    if (!obj->parent) {
+        return;
     }
+
+    object_ref(obj);
     if (obj->class->unparent) {
         (obj->class->unparent)(obj);
+    }
+    if (obj->parent) {
+        object_property_del_child(obj->parent, obj, NULL);
     }
     object_unref(obj);
 }
@@ -427,27 +432,66 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     return NULL;
 }
 
-Object *object_dynamic_cast_assert(Object *obj, const char *typename)
+Object *object_dynamic_cast_assert(Object *obj, const char *typename,
+                                   const char *file, int line, const char *func)
 {
+    trace_object_dynamic_cast_assert(obj ? obj->class->type->name : "(null)",
+                                     typename, file, line, func);
+
+#ifdef CONFIG_QOM_CAST_DEBUG
+    int i;
     Object *inst;
+
+    for (i = 0; obj && i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (obj->class->cast_cache[i] == typename) {
+            goto out;
+        }
+    }
 
     inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                obj, typename);
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, obj, typename);
         abort();
     }
 
-    return inst;
+    assert(obj == inst);
+
+    if (obj && obj == inst) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
+        }
+        obj->class->cast_cache[i - 1] = typename;
+    }
+
+out:
+#endif
+    return obj;
 }
 
 ObjectClass *object_class_dynamic_cast(ObjectClass *class,
                                        const char *typename)
 {
-    TypeImpl *target_type = type_get_by_name(typename);
-    TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
+    TypeImpl *target_type;
+    TypeImpl *type;
+
+    if (!class) {
+        return NULL;
+    }
+
+    /* A simple fast path that can trigger a lot for leaf classes.  */
+    type = class->type;
+    if (type->name == typename) {
+        return class;
+    }
+
+    target_type = type_get_by_name(typename);
+    if (!target_type) {
+        /* target class type unknown, so fail the cast */
+        return NULL;
+    }
 
     if (type->class->interfaces &&
             type_is_ancestor(target_type, type_interface)) {
@@ -475,16 +519,46 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
 }
 
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
-                                              const char *typename)
+                                              const char *typename,
+                                              const char *file, int line,
+                                              const char *func)
 {
-    ObjectClass *ret = object_class_dynamic_cast(class, typename);
+    ObjectClass *ret;
 
-    if (!ret) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                class, typename);
+    trace_object_class_dynamic_cast_assert(class ? class->type->name : "(null)",
+                                           typename, file, line, func);
+
+#ifdef CONFIG_QOM_CAST_DEBUG
+    int i;
+
+    for (i = 0; class && i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (class->cast_cache[i] == typename) {
+            ret = class;
+            goto out;
+        }
+    }
+#else
+    if (!class || !class->interfaces) {
+        return class;
+    }
+#endif
+
+    ret = object_class_dynamic_cast(class, typename);
+    if (!ret && class) {
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, class, typename);
         abort();
     }
 
+#ifdef CONFIG_QOM_CAST_DEBUG
+    if (class && ret == class) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            class->cast_cache[i - 1] = class->cast_cache[i];
+        }
+        class->cast_cache[i - 1] = typename;
+    }
+out:
+#endif
     return ret;
 }
 
@@ -609,16 +683,15 @@ GSList *object_class_get_list(const char *implements_type,
 
 void object_ref(Object *obj)
 {
-    obj->ref++;
+     atomic_inc(&obj->ref);
 }
 
 void object_unref(Object *obj)
 {
     g_assert(obj->ref > 0);
-    obj->ref--;
 
     /* parent always holds a reference to its children */
-    if (obj->ref == 0) {
+    if (atomic_fetch_dec(&obj->ref) == 1) {
         object_finalize(obj);
     }
 }
@@ -629,7 +702,18 @@ void object_property_add(Object *obj, const char *name, const char *type,
                          ObjectPropertyRelease *release,
                          void *opaque, Error **errp)
 {
-    ObjectProperty *prop = g_malloc0(sizeof(*prop));
+    ObjectProperty *prop;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (strcmp(prop->name, name) == 0) {
+            error_setg(errp, "attempt to add duplicate property '%s'"
+                       " to object (type '%s')", name,
+                       object_get_typename(obj));
+            return;
+        }
+    }
+
+    prop = g_malloc0(sizeof(*prop));
 
     prop->name = g_strdup(name);
     prop->type = g_strdup(type);
@@ -1098,21 +1182,13 @@ static Object *object_resolve_partial_path(Object *parent,
 Object *object_resolve_path_type(const char *path, const char *typename,
                                  bool *ambiguous)
 {
-    bool partial_path = true;
     Object *obj;
     gchar **parts;
 
     parts = g_strsplit(path, "/", 0);
-    if (parts == NULL || parts[0] == NULL) {
-        g_strfreev(parts);
-        return object_get_root();
-    }
+    assert(parts);
 
-    if (strcmp(parts[0], "") == 0) {
-        partial_path = false;
-    }
-
-    if (partial_path) {
+    if (parts[0] == NULL || strcmp(parts[0], "") != 0) {
         if (ambiguous) {
             *ambiguous = false;
         }

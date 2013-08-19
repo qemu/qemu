@@ -119,7 +119,8 @@ struct UHCIPCIDeviceClass {
 
 struct UHCIAsync {
     USBPacket packet;
-    QEMUSGList sgl;
+    uint8_t   static_buf[64]; /* 64 bytes is enough, except for isoc packets */
+    uint8_t   *buf;
     UHCIQueue *queue;
     QTAILQ_ENTRY(UHCIAsync) next;
     uint32_t  td_addr;
@@ -188,6 +189,7 @@ typedef struct UHCI_QH {
 
 static void uhci_async_cancel(UHCIAsync *async);
 static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td);
+static void uhci_resume(void *opaque);
 
 static inline int32_t uhci_queue_token(UHCI_TD *td)
 {
@@ -264,7 +266,6 @@ static UHCIAsync *uhci_async_alloc(UHCIQueue *queue, uint32_t td_addr)
     async->queue = queue;
     async->td_addr = td_addr;
     usb_packet_init(&async->packet);
-    pci_dma_sglist_init(&async->sgl, &queue->uhci->dev, 1);
     trace_usb_uhci_packet_add(async->queue->token, async->td_addr);
 
     return async;
@@ -274,7 +275,9 @@ static void uhci_async_free(UHCIAsync *async)
 {
     trace_usb_uhci_packet_del(async->queue->token, async->td_addr);
     usb_packet_cleanup(&async->packet);
-    qemu_sglist_destroy(&async->sgl);
+    if (async->buf != async->static_buf) {
+        g_free(async->buf);
+    }
     g_free(async);
 }
 
@@ -299,7 +302,6 @@ static void uhci_async_cancel(UHCIAsync *async)
                                  async->done);
     if (!async->done)
         usb_cancel_packet(&async->packet);
-    usb_packet_unmap(&async->packet, &async->sgl);
     uhci_async_free(async);
 }
 
@@ -497,6 +499,12 @@ static void uhci_port_write(void *opaque, hwaddr addr,
             return;
         }
         s->cmd = val;
+        if (val & UHCI_CMD_EGSM) {
+            if ((s->ports[0].ctrl & UHCI_PORT_RD) ||
+                (s->ports[1].ctrl & UHCI_PORT_RD)) {
+                uhci_resume(s);
+            }
+        }
         break;
     case 0x02:
         s->status &= ~val;
@@ -774,6 +782,7 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
         *int_mask |= 0x01;
 
     if (pid == USB_TOKEN_IN) {
+        pci_dma_write(&s->dev, td->buffer, async->buf, len);
         if ((td->ctrl & TD_CTRL_SPD) && len < max_len) {
             *int_mask |= 0x02;
             /* short packet: do not update QH */
@@ -881,12 +890,17 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     spd = (pid == USB_TOKEN_IN && (td->ctrl & TD_CTRL_SPD) != 0);
     usb_packet_setup(&async->packet, pid, q->ep, 0, td_addr, spd,
                      (td->ctrl & TD_CTRL_IOC) != 0);
-    qemu_sglist_add(&async->sgl, td->buffer, max_len);
-    usb_packet_map(&async->packet, &async->sgl);
+    if (max_len <= sizeof(async->static_buf)) {
+        async->buf = async->static_buf;
+    } else {
+        async->buf = g_malloc(max_len);
+    }
+    usb_packet_addbuf(&async->packet, async->buf, max_len);
 
     switch(pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
+        pci_dma_read(&s->dev, td->buffer, async->buf, max_len);
         usb_handle_packet(q->ep->dev, &async->packet);
         if (async->packet.status == USB_RET_SUCCESS) {
             async->packet.actual_length = max_len;
@@ -899,7 +913,6 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
     default:
         /* invalid pid : frame interrupted */
-        usb_packet_unmap(&async->packet, &async->sgl);
         uhci_async_free(async);
         s->status |= UHCI_STS_HCPERR;
         uhci_update_irq(s);
@@ -916,7 +929,6 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
 done:
     ret = uhci_complete_td(s, td, async, int_mask);
-    usb_packet_unmap(&async->packet, &async->sgl);
     uhci_async_free(async);
     return ret;
 }
@@ -1254,7 +1266,9 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
 
     qemu_register_reset(uhci_reset, s);
 
-    memory_region_init_io(&s->io_bar, &uhci_ioport_ops, s, "uhci", 0x20);
+    memory_region_init_io(&s->io_bar, OBJECT(s), &uhci_ioport_ops, s,
+                          "uhci", 0x20);
+
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
@@ -1308,6 +1322,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->no_hotplug = 1;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
+    set_bit(DEVICE_CATEGORY_USB, dc->categories);
     u->info = *info;
 }
 

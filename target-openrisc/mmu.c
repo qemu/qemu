@@ -219,12 +219,11 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
 #endif
 
 #ifndef CONFIG_USER_ONLY
-hwaddr cpu_get_phys_page_debug(CPUOpenRISCState *env,
-                                           target_ulong addr)
+hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     hwaddr phys_addr;
     int prot;
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     if (cpu_openrisc_get_phys_addr(cpu, &phys_addr, &prot, addr, 0)) {
         return -1;

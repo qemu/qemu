@@ -22,6 +22,13 @@
 #include "qemu-common.h"
 
 
+static void lm32_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    LM32CPU *cpu = LM32_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 /* CPUClass::reset() */
 static void lm32_cpu_reset(CPUState *s)
 {
@@ -29,27 +36,22 @@ static void lm32_cpu_reset(CPUState *s)
     LM32CPUClass *lcc = LM32_CPU_GET_CLASS(cpu);
     CPULM32State *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
     lcc->parent_reset(s);
-
-    tlb_flush(env, 1);
 
     /* reset cpu state */
     memset(env, 0, offsetof(CPULM32State, breakpoints));
+
+    tlb_flush(env, 1);
 }
 
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    LM32CPU *cpu = LM32_CPU(dev);
+    CPUState *cs = CPU(dev);
     LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
-    qemu_init_vcpu(&cpu->env);
+    qemu_init_vcpu(cs);
 
     lcc->parent_realize(dev, errp);
 }
@@ -85,7 +87,15 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = lm32_cpu_reset;
 
     cc->do_interrupt = lm32_cpu_do_interrupt;
-    cpu_class_set_vmsd(cc, &vmstate_lm32_cpu);
+    cc->dump_state = lm32_cpu_dump_state;
+    cc->set_pc = lm32_cpu_set_pc;
+    cc->gdb_read_register = lm32_cpu_gdb_read_register;
+    cc->gdb_write_register = lm32_cpu_gdb_write_register;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = lm32_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_lm32_cpu;
+#endif
+    cc->gdb_num_core_regs = 32 + 7;
 }
 
 static const TypeInfo lm32_cpu_type_info = {

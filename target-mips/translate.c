@@ -9571,8 +9571,7 @@ static void decode_i64_mips16 (DisasContext *ctx,
 }
 #endif
 
-static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
-                                       int *is_branch)
+static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     int extend = cpu_lduw_code(env, ctx->pc + 2);
     int op, rx, ry, funct, sa;
@@ -9763,8 +9762,7 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
     return 4;
 }
 
-static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
-                              int *is_branch)
+static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     int rx, ry;
     int sa;
@@ -9807,7 +9805,6 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
         op = ((ctx->opcode >> 10) & 0x1) ? OPC_JALXS : OPC_JALS;
         gen_compute_branch(ctx, op, 4, rx, ry, offset);
         n_bytes = 4;
-        *is_branch = 1;
         break;
     case M16_OPC_BEQZ:
         gen_compute_branch(ctx, OPC_BEQ, 2, rx, 0, ((int8_t)ctx->opcode) << 1);
@@ -10046,9 +10043,6 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
                 }
 
                 gen_compute_branch(ctx, op, 2, ra ? 31 : rx, 31, 0);
-                if (!nd) {
-                    *is_branch = 1;
-                }
             }
             break;
         case RR_SDBBP:
@@ -10193,7 +10187,7 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
         }
         break;
     case M16_OPC_EXTEND:
-        decode_extended_mips16_opc(env, ctx, is_branch);
+        decode_extended_mips16_opc(env, ctx);
         n_bytes = 4;
         break;
 #if defined(TARGET_MIPS64)
@@ -10802,7 +10796,7 @@ static void gen_ldst_multiple (DisasContext *ctx, uint32_t opc, int reglist,
 }
 
 
-static void gen_pool16c_insn(DisasContext *ctx, int *is_branch)
+static void gen_pool16c_insn(DisasContext *ctx)
 {
     int rd = mmreg((ctx->opcode >> 3) & 0x7);
     int rs = mmreg(ctx->opcode & 0x7);
@@ -10864,7 +10858,6 @@ static void gen_pool16c_insn(DisasContext *ctx, int *is_branch)
 
             gen_compute_branch(ctx, OPC_JR, 2, reg, 0, 0);
         }
-        *is_branch = 1;
         break;
     case JRC16 + 0:
     case JRC16 + 1:
@@ -10889,7 +10882,6 @@ static void gen_pool16c_insn(DisasContext *ctx, int *is_branch)
 
             gen_compute_branch(ctx, opc, 2, reg, 31, 0);
         }
-        *is_branch = 1;
         break;
     case MFHI16 + 0:
     case MFHI16 + 1:
@@ -11020,8 +11012,7 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
     tcg_temp_free(t1);
 }
 
-static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
-                           int *is_branch)
+static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
 {
     int extension = (ctx->opcode >> 6) & 0x3f;
     int minor = (ctx->opcode >> 12) & 0xf;
@@ -11070,6 +11061,36 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
         }
         break;
 #endif
+    case 0x2a:
+        switch (minor & 3) {
+        case MADD_ACC:
+            gen_muldiv(ctx, OPC_MADD, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MADDU_ACC:
+            gen_muldiv(ctx, OPC_MADDU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MSUB_ACC:
+            gen_muldiv(ctx, OPC_MSUB, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MSUBU_ACC:
+            gen_muldiv(ctx, OPC_MSUBU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
+    case 0x32:
+        switch (minor & 3) {
+        case MULT_ACC:
+            gen_muldiv(ctx, OPC_MULT, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        case MULTU_ACC:
+            gen_muldiv(ctx, OPC_MULTU, (ctx->opcode >> 14) & 3, rs, rt);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
     case 0x2c:
         switch (minor) {
         case SEB:
@@ -11122,7 +11143,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
             mips32_op = OPC_MSUBU;
         do_mul:
             check_insn(ctx, ISA_MIPS32);
-            gen_muldiv(ctx, mips32_op, (ctx->opcode >> 14) & 3, rs, rt);
+            gen_muldiv(ctx, mips32_op, 0, rs, rt);
             break;
         default:
             goto pool32axf_invalid;
@@ -11147,12 +11168,10 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
         case JALR:
         case JALR_HB:
             gen_compute_branch (ctx, OPC_JALR, 4, rs, rt, 0);
-            *is_branch = 1;
             break;
         case JALRS:
         case JALRS_HB:
             gen_compute_branch (ctx, OPC_JALRS, 4, rs, rt, 0);
-            *is_branch = 1;
             break;
         default:
             goto pool32axf_invalid;
@@ -11258,19 +11277,37 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
             goto pool32axf_invalid;
         }
         break;
-    case 0x35:
+    case 0x01:
         switch (minor & 3) {
-        case MFHI32:
+        case MFHI_ACC:
             gen_HILO(ctx, OPC_MFHI, minor >> 2, rs);
             break;
-        case MFLO32:
+        case MFLO_ACC:
             gen_HILO(ctx, OPC_MFLO, minor >> 2, rs);
             break;
-        case MTHI32:
+        case MTHI_ACC:
             gen_HILO(ctx, OPC_MTHI, minor >> 2, rs);
             break;
-        case MTLO32:
+        case MTLO_ACC:
             gen_HILO(ctx, OPC_MTLO, minor >> 2, rs);
+            break;
+        default:
+            goto pool32axf_invalid;
+        }
+        break;
+    case 0x35:
+        switch (minor) {
+        case MFHI32:
+            gen_HILO(ctx, OPC_MFHI, 0, rs);
+            break;
+        case MFLO32:
+            gen_HILO(ctx, OPC_MFLO, 0, rs);
+            break;
+        case MTHI32:
+            gen_HILO(ctx, OPC_MTHI, 0, rs);
+            break;
+        case MTLO32:
+            gen_HILO(ctx, OPC_MTLO, 0, rs);
             break;
         default:
             goto pool32axf_invalid;
@@ -11551,7 +11588,7 @@ static void gen_pool32fxf(DisasContext *ctx, int rt, int rs)
 }
 
 static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
-                                    uint16_t insn_hw1, int *is_branch)
+                                    uint16_t insn_hw1)
 {
     int32_t offset;
     uint16_t insn;
@@ -11685,7 +11722,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             gen_bitops(ctx, OPC_EXT, rt, rs, rr, rd);
             return;
         case POOL32AXF:
-            gen_pool32axf(env, ctx, rt, rs, is_branch);
+            gen_pool32axf(env, ctx, rt, rs);
             break;
         case 0x07:
             generate_exception(ctx, EXCP_BREAK);
@@ -12048,7 +12085,6 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             mips32_op = OPC_BGTZ;
         do_branch:
             gen_compute_branch(ctx, mips32_op, 4, rs, -1, imm << 1);
-            *is_branch = 1;
             break;
 
             /* Traps */
@@ -12109,7 +12145,6 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         do_cp1branch:
             gen_compute_branch1(ctx, mips32_op,
                                 (ctx->opcode >> 18) & 0x7, imm << 1);
-            *is_branch = 1;
             break;
         case BPOSGE64:
         case BPOSGE32:
@@ -12216,30 +12251,24 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
     case JALX32:
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
         gen_compute_branch(ctx, OPC_JALX, 4, rt, rs, offset);
-        *is_branch = 1;
         break;
     case JALS32:
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 1;
         gen_compute_branch(ctx, OPC_JALS, 4, rt, rs, offset);
-        *is_branch = 1;
         break;
     case BEQ32:
         gen_compute_branch(ctx, OPC_BEQ, 4, rt, rs, imm << 1);
-        *is_branch = 1;
         break;
     case BNE32:
         gen_compute_branch(ctx, OPC_BNE, 4, rt, rs, imm << 1);
-        *is_branch = 1;
         break;
     case J32:
         gen_compute_branch(ctx, OPC_J, 4, rt, rs,
                            (int32_t)(ctx->opcode & 0x3FFFFFF) << 1);
-        *is_branch = 1;
         break;
     case JAL32:
         gen_compute_branch(ctx, OPC_JAL, 4, rt, rs,
                            (int32_t)(ctx->opcode & 0x3FFFFFF) << 1);
-        *is_branch = 1;
         break;
         /* Floating point (COP1) */
     case LWC132:
@@ -12309,7 +12338,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
     }
 }
 
-static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
+static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t op;
 
@@ -12442,7 +12471,7 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_b
         }
         break;
     case POOL16C:
-        gen_pool16c_insn(ctx, is_branch);
+        gen_pool16c_insn(ctx);
         break;
     case LWGP16:
         {
@@ -12582,14 +12611,12 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_b
     case B16:
         gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0,
                            SIMM(ctx->opcode, 0, 10) << 1);
-        *is_branch = 1;
         break;
     case BNEZ16:
     case BEQZ16:
         gen_compute_branch(ctx, op == BNEZ16 ? OPC_BNE : OPC_BEQ, 2,
                            mmreg(uMIPS_RD(ctx->opcode)),
                            0, SIMM(ctx->opcode, 0, 7) << 1);
-        *is_branch = 1;
         break;
     case LI16:
         {
@@ -12610,7 +12637,7 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_b
         generate_exception(ctx, EXCP_RI);
         break;
     default:
-        decode_micromips32_opc (env, ctx, op, is_branch);
+        decode_micromips32_opc (env, ctx, op);
         return 4;
     }
 
@@ -13400,6 +13427,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
     /* OPC_MULT_G_2E, OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
      * the same mask and op1. */
     case OPC_MULT_G_2E:
+        check_dspr2(ctx);
         switch (op2) {
         case  OPC_MUL_PH:
             gen_helper_mul_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
@@ -14345,7 +14373,7 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
 
 /* End MIPSDSP functions. */
 
-static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
+static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     int32_t offset;
     int rs, rt, rd, sa;
@@ -14459,7 +14487,6 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             break;
         case OPC_JR ... OPC_JALR:
             gen_compute_branch(ctx, op1, 4, rs, rd, sa);
-            *is_branch = 1;
             break;
         case OPC_TGE ... OPC_TEQ: /* Traps */
         case OPC_TNE:
@@ -15226,7 +15253,6 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_BLTZ ... OPC_BGEZL: /* REGIMM branches */
         case OPC_BLTZAL ... OPC_BGEZALL:
             gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2);
-            *is_branch = 1;
             break;
         case OPC_TGEI ... OPC_TEQI: /* REGIMM traps */
         case OPC_TNEI:
@@ -15242,7 +15268,6 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
 #endif
             check_dsp(ctx);
             gen_compute_branch(ctx, op1, 4, -1, -2, (int32_t)imm << 2);
-            *is_branch = 1;
             break;
         default:            /* Invalid */
             MIPS_INVAL("regimm");
@@ -15354,12 +15379,10 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
          gen_compute_branch(ctx, op, 4, rs, rt, offset);
-         *is_branch = 1;
          break;
     case OPC_BEQ ... OPC_BGTZ: /* Branch */
     case OPC_BEQL ... OPC_BGTZL:
          gen_compute_branch(ctx, op, 4, rs, rt, imm << 2);
-         *is_branch = 1;
          break;
     case OPC_LB ... OPC_LWR: /* Load and stores */
     case OPC_LL:
@@ -15419,7 +15442,6 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             case OPC_BC1:
                 gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
-                *is_branch = 1;
                 break;
             case OPC_S_FMT:
             case OPC_D_FMT:
@@ -15526,7 +15548,6 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         check_insn(ctx, ASE_MIPS16 | ASE_MICROMIPS);
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
         gen_compute_branch(ctx, op, 4, rs, rt, offset);
-        *is_branch = 1;
         break;
     case OPC_MDMX:
         check_insn(ctx, ASE_MDMX);
@@ -15539,9 +15560,11 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
 }
 
 static inline void
-gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
-                                int search_pc)
+gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
@@ -15550,7 +15573,7 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
     int insn_bytes;
-    int is_branch;
+    int is_delay;
 
     if (search_pc)
         qemu_log("search pc %d\n", search_pc);
@@ -15559,7 +15582,7 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.insn_flags = env->insn_flags;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
@@ -15608,23 +15631,23 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 
-        is_branch = 0;
+        is_delay = ctx.hflags & MIPS_HFLAG_BMASK;
         if (!(ctx.hflags & MIPS_HFLAG_M16)) {
             ctx.opcode = cpu_ldl_code(env, ctx.pc);
             insn_bytes = 4;
-            decode_opc(env, &ctx, &is_branch);
+            decode_opc(env, &ctx);
         } else if (ctx.insn_flags & ASE_MICROMIPS) {
             ctx.opcode = cpu_lduw_code(env, ctx.pc);
-            insn_bytes = decode_micromips_opc(env, &ctx, &is_branch);
+            insn_bytes = decode_micromips_opc(env, &ctx);
         } else if (ctx.insn_flags & ASE_MIPS16) {
             ctx.opcode = cpu_lduw_code(env, ctx.pc);
-            insn_bytes = decode_mips16_opc(env, &ctx, &is_branch);
+            insn_bytes = decode_mips16_opc(env, &ctx);
         } else {
             generate_exception(&ctx, EXCP_RI);
             ctx.bstate = BS_STOP;
             break;
         }
-        if (!is_branch) {
+        if (is_delay) {
             handle_delay_slot(&ctx, insn_bytes);
         }
         ctx.pc += insn_bytes;
@@ -15635,8 +15658,9 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
            This is what GDB expects and is consistent with what the
            hardware does (e.g. if a delay slot instruction faults, the
            reported PC is the PC of the branch).  */
-        if (env->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0)
+        if (cs->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0) {
             break;
+        }
 
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
@@ -15651,9 +15675,10 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
         if (singlestep)
             break;
     }
-    if (tb->cflags & CF_LAST_IO)
+    if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
-    if (env->singlestep_enabled && ctx.bstate != BS_BRANCH) {
+    }
+    if (cs->singlestep_enabled && ctx.bstate != BS_BRANCH) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_helper_0e0i(raise_exception, EXCP_DEBUG);
     } else {
@@ -15697,12 +15722,12 @@ done_generating:
 
 void gen_intermediate_code (CPUMIPSState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUMIPSState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, true);
 }
 
 static void fpu_dump_state(CPUMIPSState *env, FILE *f, fprintf_function fpu_fprintf,
@@ -15779,9 +15804,11 @@ cpu_mips_check_sign_extensions (CPUMIPSState *env, FILE *f,
 }
 #endif
 
-void cpu_dump_state (CPUMIPSState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
     int i;
 
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx

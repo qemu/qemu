@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "qemu/option.h"
 #include "qapi/error.h"
-#include "qemu/option.h"
 
 QemuOptsList *qemu_find_opts(const char *group);
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp);

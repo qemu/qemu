@@ -65,11 +65,21 @@ typedef struct X86CPU {
     /*< public >*/
 
     CPUX86State env;
+
+    /* Features that were filtered out because of missing host capabilities */
+    uint32_t filtered_features[FEATURE_WORDS];
+
+    /* Enable PMU CPUID bits. This can't be enabled by default yet because
+     * it doesn't have ABI stability guarantees, as it passes all PMU CPUID
+     * bits returned by GET_SUPPORTED_CPUID (that depend on host CPU and kernel
+     * capabilities) directly to the guest.
+     */
+    bool enable_pmu;
 } X86CPU;
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 {
-    return X86_CPU(container_of(env, X86CPU, env));
+    return container_of(env, X86CPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
@@ -85,5 +95,25 @@ extern const struct VMStateDescription vmstate_x86_cpu;
  * @cpu: vCPU the interrupt is to be handled by.
  */
 void x86_cpu_do_interrupt(CPUState *cpu);
+
+int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                             int cpuid, void *opaque);
+int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                             int cpuid, void *opaque);
+int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                                 void *opaque);
+int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                                 void *opaque);
+
+void x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
+                                Error **errp);
+
+void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags);
+
+hwaddr x86_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
+int x86_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int x86_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 #endif

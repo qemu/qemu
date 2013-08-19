@@ -174,11 +174,14 @@
 # @suspended: guest is suspended (ACPI S3)
 #
 # @watchdog: the watchdog action is configured to pause and has been triggered
+#
+# @guest-panicked: guest has been panicked as a result of guest OS panic
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog' ] }
+            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+            'guest-panicked' ] }
 
 ##
 # @SnapshotInfo
@@ -233,6 +236,8 @@
 #
 # @snapshots: #optional list of VM snapshots
 #
+# @backing-image: #optional info of the backing image (since 1.6)
+#
 # Since: 1.3
 #
 ##
@@ -242,7 +247,8 @@
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
-           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
+           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
+           '*backing-image': 'ImageInfo' } }
 
 ##
 # @ImageCheck:
@@ -385,7 +391,7 @@
 #
 # Since: 1.4
 ##
-{ 'enum': 'DataFormat'
+{ 'enum': 'DataFormat',
   'data': [ 'utf8', 'base64' ] }
 
 ##
@@ -496,7 +502,9 @@
 #
 # @total: total amount of bytes involved in the migration process
 #
-# @duplicate: number of duplicate pages (since 1.2)
+# @duplicate: number of duplicate (zero) pages (since 1.2)
+#
+# @skipped: number of skipped zero pages (since 1.5)
 #
 # @normal : number of normal pages (since 1.2)
 #
@@ -505,12 +513,15 @@
 # @dirty-pages-rate: number of pages dirtied by second by the
 #        guest (since 1.3)
 #
+# @mbps: throughput in megabits/sec. (since 1.6)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'duplicate': 'int', 'normal': 'int', 'normal-bytes': 'int',
-           'dirty-pages-rate' : 'int' } }
+           'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
+           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
+           'mbps' : 'number' } }
 
 ##
 # @XBZRLECacheStats
@@ -567,6 +578,12 @@
 #        expected downtime in milliseconds for the guest in last walk
 #        of the dirty bitmap. (since 1.3)
 #
+# @setup-time: #optional amount of setup time in milliseconds _before_ the
+#        iterations begin but _after_ the QMP command is issued. This is designed
+#        to provide an accounting of any activities (such as RDMA pinning) which
+#        may be expensive, but do not actually occur during the iterative
+#        migration rounds themselves. (since 1.6)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
@@ -575,7 +592,8 @@
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
            '*expected-downtime': 'int',
-           '*downtime': 'int'} }
+           '*downtime': 'int',
+           '*setup-time': 'int'} }
 
 ##
 # @query-migrate
@@ -597,10 +615,24 @@
 #          This feature allows us to minimize migration traffic for certain work
 #          loads, by sending compressed difference of the pages
 #
+# @x-rdma-pin-all: Controls whether or not the entire VM memory footprint is
+#          mlock()'d on demand or all at once. Refer to docs/rdma.txt for usage.
+#          Disabled by default. Experimental: may (or may not) be renamed after
+#          further testing is complete. (since 1.6)
+#
+# @zero-blocks: During storage migration encode blocks of zeroes efficiently. This
+#          essentially saves 1MB of zeroes per block on the wire. Enabling requires
+#          source and target VM to support this feature. To enable it is sufficient
+#          to enable the capability on the source VM. The feature is disabled by
+#          default. (since 1.6)
+#
+# @auto-converge: If enabled, QEMU will automatically throttle down the guest
+#          to speed up convergence of RAM migration. (since 1.6)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle'] }
+  'data': ['xbzrle', 'x-rdma-pin-all', 'auto-converge', 'zero-blocks'] }
 
 ##
 # @MigrationCapabilityStatus
@@ -751,6 +783,8 @@
 #
 # @iops_wr: write I/O operations per second is specified
 #
+# @image: the info of image used (since: 1.6)
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
@@ -760,7 +794,8 @@
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+            'image': 'ImageInfo' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -1385,6 +1420,19 @@
 { 'command': 'cpu', 'data': {'index': 'int'} }
 
 ##
+# @cpu-add
+#
+# Adds CPU with specified ID
+#
+# @id: ID of CPU to be created, valid values [0..max_cpus)
+#
+# Returns: Nothing on success
+#
+# Since 1.5
+##
+{ 'command': 'cpu-add', 'data': {'id': 'int'} }
+
+##
 # @memsave:
 #
 # Save a portion of guest memory to a file.
@@ -1571,7 +1619,7 @@
 #
 # Since: 1.1
 ##
-{ 'enum': 'NewImageMode'
+{ 'enum': 'NewImageMode',
   'data': [ 'existing', 'absolute-paths' ] }
 
 ##
@@ -1591,54 +1639,98 @@
             '*mode': 'NewImageMode' } }
 
 ##
-# @BlockdevAction
+# @DriveBackup
+#
+# @device: the name of the device which should be copied.
+#
+# @target: the target of the new image. If the file exists, or if it
+#          is a device, the existing file/device will be used as the new
+#          destination.  If it does not exist, a new file will be created.
+#
+# @format: #optional the format of the new destination, default is to
+#          probe if @mode is 'existing', else the format of the source
+#
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
+# @mode: #optional whether and how QEMU should create a new image, default is
+#        'absolute-paths'.
+#
+# @speed: #optional the maximum speed, in bytes per second
+#
+# @on-source-error: #optional the action to take on an error on the source,
+#                   default 'report'.  'stop' and 'enospc' can only be used
+#                   if the block device supports io-status (see BlockInfo).
+#
+# @on-target-error: #optional the action to take on an error on the target,
+#                   default 'report' (no limitations, since this applies to
+#                   a different block device than @device).
+#
+# Note that @on-source-error and @on-target-error only affect background I/O.
+# If an error occurs during a guest write request, the device's rerror/werror
+# actions will be used.
+#
+# Since: 1.6
+##
+{ 'type': 'DriveBackup',
+  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
+            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            '*speed': 'int',
+            '*on-source-error': 'BlockdevOnError',
+            '*on-target-error': 'BlockdevOnError' } }
+
+##
+# @Abort
+#
+# This action can be used to test transaction failure.
+#
+# Since: 1.6
+###
+{ 'type': 'Abort',
+  'data': { } }
+
+##
+# @TransactionAction
 #
 # A discriminated record of operations that can be performed with
 # @transaction.
 ##
-{ 'union': 'BlockdevAction',
+{ 'union': 'TransactionAction',
   'data': {
        'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'drive-backup': 'DriveBackup',
+       'abort': 'Abort'
    } }
 
 ##
 # @transaction
 #
-# Atomically operate on a group of one or more block devices.  If
-# any operation fails, then the entire set of actions will be
-# abandoned and the appropriate error returned.  The only operation
-# supported is currently blockdev-snapshot-sync.
+# Executes a number of transactionable QMP commands atomically. If any
+# operation fails, then the entire set of actions will be abandoned and the
+# appropriate error returned.
 #
 #  List of:
-#  @BlockdevAction: information needed for the device snapshot
+#  @TransactionAction: information needed for the respective operation
 #
 # Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+#          Errors depend on the operations of the transaction
 #
-# Note: The transaction aborts on the first failure.  Therefore, there will
-# be only one device or snapshot file returned in an error condition, and
+# Note: The transaction aborts on the first failure.  Therefore, there will be
+# information on only one failed operation returned in an error condition, and
 # subsequent actions will not have been attempted.
 #
 # Since 1.1
 ##
 { 'command': 'transaction',
-  'data': { 'actions': [ 'BlockdevAction' ] } }
+  'data': { 'actions': [ 'TransactionAction' ] } }
 
 ##
 # @blockdev-snapshot-sync
 #
 # Generates a synchronous snapshot of a block device.
 #
-# @device:  the name of the device to generate the snapshot from.
-#
-# @snapshot-file: the target of the new image. If the file exists, or if it
-#                 is a device, the snapshot will be created in the existing
-#                 file/device. If does not exist, a new file will be created.
-#
-# @format: #optional the format of the snapshot image, default is 'qcow2'.
-#
-# @mode: #optional whether and how QEMU should create a new image, default is
-#        'absolute-paths'.
+# For the arguments, see the documentation of BlockdevSnapshot.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1646,8 +1738,7 @@
 # Since 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
-            '*mode': 'NewImageMode'} }
+  'data': 'BlockdevSnapshot' }
 
 ##
 # @human-monitor-command:
@@ -1711,6 +1802,24 @@
 { 'command': 'block-commit',
   'data': { 'device': 'str', '*base': 'str', 'top': 'str',
             '*speed': 'int' } }
+
+##
+# @drive-backup
+#
+# Start a point-in-time copy of a block device to a new destination.  The
+# status of ongoing drive-backup operations can be checked with
+# query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
+# The operation can be stopped before it has completed using the
+# block-job-cancel command.
+#
+# For the arguments, see the documentation of DriveBackup.
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since 1.6
+##
+{ 'command': 'drive-backup', 'data': 'DriveBackup' }
 
 ##
 # @drive-mirror
@@ -2354,7 +2463,9 @@
 # Notes: When this command completes, the device may not be removed from the
 #        guest.  Hot removal is an operation that requires guest cooperation.
 #        This command merely requests that the guest begin the hot removal
-#        process.
+#        process.  Completion of the device removal process is signaled with a
+#        DEVICE_DELETED event. Guest reset will automatically complete removal
+#        for all devices.
 #
 # Since: 0.14.0
 ##
@@ -2575,6 +2686,8 @@
 # devices
 #
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
+#
+# @queues: #optional number of queues to be created for multiqueue capable tap
 #
 # Since 1.2
 ##
@@ -2844,11 +2957,14 @@
 #
 # @default: #optional whether the machine is default
 #
+# @cpu-max: maximum number of CPUs supported by the machine type
+#           (since 1.5.0)
+#
 # Since: 1.2.0
 ##
 { 'type': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
-            '*is-default': 'bool' } }
+            '*is-default': 'bool', 'cpu-max': 'int' } }
 
 ##
 # @query-machines:
@@ -2983,22 +3099,6 @@
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
 ##
-# @TargetType
-#
-# Target CPU emulation type
-#
-# These parameters correspond to the softmmu binary CPU name that is currently
-# running.
-#
-# Since: 1.2.0
-##
-{ 'enum': 'TargetType',
-  'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'or32',
-            'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4', 'sparc64',
-            'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
-
-##
 # @TargetInfo:
 #
 # Information describing the QEMU target.
@@ -3008,7 +3108,7 @@
 # Since: 1.2.0
 ##
 { 'type': 'TargetInfo',
-  'data': { 'arch': 'TargetType' } }
+  'data': { 'arch': 'str' } }
 
 ##
 # @query-target:
@@ -3171,10 +3271,11 @@
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
 # @server: #optional create server socket (default: true)
-# @wait: #optional wait for connect (not used for server
-#        sockets, default: false)
+# @wait: #optional wait for incoming connection on server
+#        sockets (default: false).
 # @nodelay: #optional set TCP_NODELAY socket option (default: false)
-# @telnet: #optional enable telnet protocol (default: false)
+# @telnet: #optional enable telnet protocol on server
+#          sockets (default: false)
 #
 # Since: 1.4
 ##
@@ -3185,7 +3286,7 @@
                                      '*telnet'  : 'bool' } }
 
 ##
-# @ChardevDgram:
+# @ChardevUdp:
 #
 # Configuration info for datagram socket chardevs.
 #
@@ -3194,8 +3295,8 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevDgram', 'data': { 'remote' : 'SocketAddress',
-                                    '*local' : 'SocketAddress' } }
+{ 'type': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
+                                  '*local' : 'SocketAddress' } }
 
 ##
 # @ChardevMux:
@@ -3263,9 +3364,9 @@
 ##
 # @ChardevRingbuf:
 #
-# Configuration info for memory chardevs
+# Configuration info for ring buffer chardevs.
 #
-# @size: #optional Ringbuffer size, must be power of two, default is 65536
+# @size: #optional ring buffer size, must be power of two, default is 65536
 #
 # Since: 1.5
 ##
@@ -3285,7 +3386,7 @@
                                        'parallel': 'ChardevHostdev',
                                        'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
-                                       'dgram'  : 'ChardevDgram',
+                                       'udp'    : 'ChardevUdp',
                                        'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy',
                                        'mux'    : 'ChardevMux',
@@ -3296,6 +3397,8 @@
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',
+                                       'ringbuf': 'ChardevRingbuf',
+                                       # next one is just for compatibility
                                        'memory' : 'ChardevRingbuf' } }
 
 ##
@@ -3403,13 +3506,12 @@
 #
 # A union referencing different TPM backend types' configuration options
 #
-# @tpm-passthough-options: TPMPassthroughOptions describing the TPM
-#                          passthrough configuration options
+# @passthrough: The configuration options for the TPM passthrough type
 #
 # Since: 1.5
 ##
 { 'union': 'TpmTypeOptions',
-   'data': { 'tpm-passthrough-options' : 'TPMPassthroughOptions' } }
+   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
 
 ##
 # @TpmInfo:
@@ -3420,17 +3522,14 @@
 #
 # @model: The TPM frontend model
 #
-# @type: The TPM (backend) type being used
-#
-# @tpm-options: The TPM (backend) type configuration options
+# @options: The TPM (backend) type configuration options
 #
 # Since: 1.5
 ##
 { 'type': 'TPMInfo',
   'data': {'id': 'str',
            'model': 'TpmModel',
-           'type': 'TpmType',
-           'tpm-options': 'TpmTypeOptions' } }
+           'options': 'TpmTypeOptions' } }
 
 ##
 # @query-tpm:
@@ -3442,3 +3541,235 @@
 # Since: 1.5
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'] }
+
+##
+# @AcpiTableOptions
+#
+# Specify an ACPI table on the command line to load.
+#
+# At most one of @file and @data can be specified. The list of files specified
+# by any one of them is loaded and concatenated in order. If both are omitted,
+# @data is implied.
+#
+# Other fields / optargs can be used to override fields of the generic ACPI
+# table header; refer to the ACPI specification 5.0, section 5.2.6 System
+# Description Table Header. If a header field is not overridden, then the
+# corresponding value from the concatenated blob is used (in case of @file), or
+# it is filled in with a hard-coded value (in case of @data).
+#
+# String fields are copied into the matching ACPI member from lowest address
+# upwards, and silently truncated / NUL-padded to length.
+#
+# @sig: #optional table signature / identifier (4 bytes)
+#
+# @rev: #optional table revision number (dependent on signature, 1 byte)
+#
+# @oem_id: #optional OEM identifier (6 bytes)
+#
+# @oem_table_id: #optional OEM table identifier (8 bytes)
+#
+# @oem_rev: #optional OEM-supplied revision number (4 bytes)
+#
+# @asl_compiler_id: #optional identifier of the utility that created the table
+#                   (4 bytes)
+#
+# @asl_compiler_rev: #optional revision number of the utility that created the
+#                    table (4 bytes)
+#
+# @file: #optional colon (:) separated list of pathnames to load and
+#        concatenate as table data. The resultant binary blob is expected to
+#        have an ACPI table header. At least one file is required. This field
+#        excludes @data.
+#
+# @data: #optional colon (:) separated list of pathnames to load and
+#        concatenate as table data. The resultant binary blob must not have an
+#        ACPI table header. At least one file is required. This field excludes
+#        @file.
+#
+# Since 1.5
+##
+{ 'type': 'AcpiTableOptions',
+  'data': {
+    '*sig':               'str',
+    '*rev':               'uint8',
+    '*oem_id':            'str',
+    '*oem_table_id':      'str',
+    '*oem_rev':           'uint32',
+    '*asl_compiler_id':   'str',
+    '*asl_compiler_rev':  'uint32',
+    '*file':              'str',
+    '*data':              'str' }}
+
+##
+# @CommandLineParameterType:
+#
+# Possible types for an option parameter.
+#
+# @string: accepts a character string
+#
+# @boolean: accepts "on" or "off"
+#
+# @number: accepts a number
+#
+# @size: accepts a number followed by an optional suffix (K)ilo,
+#        (M)ega, (G)iga, (T)era
+#
+# Since 1.5
+##
+{ 'enum': 'CommandLineParameterType',
+  'data': ['string', 'boolean', 'number', 'size'] }
+
+##
+# @CommandLineParameterInfo:
+#
+# Details about a single parameter of a command line option.
+#
+# @name: parameter name
+#
+# @type: parameter @CommandLineParameterType
+#
+# @help: #optional human readable text string, not suitable for parsing.
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineParameterInfo',
+  'data': { 'name': 'str',
+            'type': 'CommandLineParameterType',
+            '*help': 'str' } }
+
+##
+# @CommandLineOptionInfo:
+#
+# Details about a command line option, including its list of parameter details
+#
+# @option: option name
+#
+# @parameters: an array of @CommandLineParameterInfo
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineOptionInfo',
+  'data': { 'option': 'str', 'parameters': ['CommandLineParameterInfo'] } }
+
+##
+# @query-command-line-options:
+#
+# Query command line option schema.
+#
+# @option: #optional option name
+#
+# Returns: list of @CommandLineOptionInfo for all options (or for the given
+#          @option).  Returns an error if the given @option doesn't exist.
+#
+# Since 1.5
+##
+{'command': 'query-command-line-options', 'data': { '*option': 'str' },
+ 'returns': ['CommandLineOptionInfo'] }
+
+##
+# @X86CPURegister32
+#
+# A X86 32-bit register
+#
+# Since: 1.5
+##
+{ 'enum': 'X86CPURegister32',
+  'data': [ 'EAX', 'EBX', 'ECX', 'EDX', 'ESP', 'EBP', 'ESI', 'EDI' ] }
+
+##
+# @X86CPUFeatureWordInfo
+#
+# Information about a X86 CPU feature word
+#
+# @cpuid-input-eax: Input EAX value for CPUID instruction for that feature word
+#
+# @cpuid-input-ecx: #optional Input ECX value for CPUID instruction for that
+#                   feature word
+#
+# @cpuid-register: Output register containing the feature bits
+#
+# @features: value of output register, containing the feature bits
+#
+# Since: 1.5
+##
+{ 'type': 'X86CPUFeatureWordInfo',
+  'data': { 'cpuid-input-eax': 'int',
+            '*cpuid-input-ecx': 'int',
+            'cpuid-register': 'X86CPURegister32',
+            'features': 'int' } }
+
+##
+# @RxState:
+#
+# Packets receiving state
+#
+# @normal: filter assigned packets according to the mac-table
+#
+# @none: don't receive any assigned packet
+#
+# @all: receive all assigned packets
+#
+# Since: 1.6
+##
+{ 'enum': 'RxState', 'data': [ 'normal', 'none', 'all' ] }
+
+##
+# @RxFilterInfo:
+#
+# Rx-filter information for a NIC.
+#
+# @name: net client name
+#
+# @promiscuous: whether promiscuous mode is enabled
+#
+# @multicast: multicast receive state
+#
+# @unicast: unicast receive state
+#
+# @broadcast-allowed: whether to receive broadcast
+#
+# @multicast-overflow: multicast table is overflowed or not
+#
+# @unicast-overflow: unicast table is overflowed or not
+#
+# @main-mac: the main macaddr string
+#
+# @vlan-table: a list of active vlan id
+#
+# @unicast-table: a list of unicast macaddr string
+#
+# @multicast-table: a list of multicast macaddr string
+#
+# Since 1.6
+##
+
+{ 'type': 'RxFilterInfo',
+  'data': {
+    'name':               'str',
+    'promiscuous':        'bool',
+    'multicast':          'RxState',
+    'unicast':            'RxState',
+    'broadcast-allowed':  'bool',
+    'multicast-overflow': 'bool',
+    'unicast-overflow':   'bool',
+    'main-mac':           'str',
+    'vlan-table':         ['int'],
+    'unicast-table':      ['str'],
+    'multicast-table':    ['str'] }}
+
+##
+# @query-rx-filter:
+#
+# Return rx-filter information for all NICs (or for the given NIC).
+#
+# @name: #optional net client name
+#
+# Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
+#          Returns an error if the given @name doesn't exist, or given
+#          NIC doesn't support rx-filter querying, or given net client
+#          isn't a NIC.
+#
+# Since: 1.6
+##
+{ 'command': 'query-rx-filter', 'data': { '*name': 'str' },
+  'returns': ['RxFilterInfo'] }

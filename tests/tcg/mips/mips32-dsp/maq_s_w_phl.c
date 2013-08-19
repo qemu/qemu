@@ -10,12 +10,12 @@ int main()
     int resulth, resultl;
     int resdsp;
 
-    achi = 0x05;
-    acli = 0xB4CB;
+    achi = 0x00000005;
+    acli = 0x0000B4CB;
     rs  = 0xFF060000;
     rt  = 0xCB000000;
-    resulth = 0x04;
-    resultl = 0x947438CB;
+    resulth = 0x00000005;
+    resultl = 0x006838CB;
 
     __asm
         ("mthi %2, $ac1\n\t"
@@ -29,12 +29,12 @@ int main()
     assert(resulth == acho);
     assert(resultl == aclo);
 
-    achi = 0x06;
-    acli = 0xB4CB;
+    achi = 0x00000006;
+    acli = 0x0000B4CB;
     rs  = 0x80000000;
     rt  = 0x80000000;
-    resulth = 0x6;
-    resultl = 0x8000b4ca;
+    resulth = 0x00000006;
+    resultl = 0x8000B4CA;
     resdsp = 1;
 
     __asm

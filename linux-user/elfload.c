@@ -101,15 +101,22 @@ enum {
 #define ELF_DATA        ELFDATA2LSB
 #endif
 
-typedef target_ulong    target_elf_greg_t;
-#ifdef USE_UID16
-typedef target_ushort   target_uid_t;
-typedef target_ushort   target_gid_t;
+#ifdef TARGET_ABI_MIPSN32
+typedef abi_ullong      target_elf_greg_t;
+#define tswapreg(ptr)   tswap64(ptr)
 #else
-typedef target_uint     target_uid_t;
-typedef target_uint     target_gid_t;
+typedef abi_ulong       target_elf_greg_t;
+#define tswapreg(ptr)   tswapal(ptr)
 #endif
-typedef target_int      target_pid_t;
+
+#ifdef USE_UID16
+typedef abi_ushort      target_uid_t;
+typedef abi_ushort      target_gid_t;
+#else
+typedef abi_uint        target_uid_t;
+typedef abi_uint        target_gid_t;
+#endif
+typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
@@ -118,7 +125,7 @@ typedef target_int      target_pid_t;
 static const char *get_elf_platform(void)
 {
     static char elf_platform[] = "i386";
-    int family = (thread_env->cpuid_version >> 8) & 0xff;
+    int family = object_property_get_int(OBJECT(thread_cpu), "family", NULL);
     if (family > 6)
         family = 6;
     if (family >= 3)
@@ -130,7 +137,9 @@ static const char *get_elf_platform(void)
 
 static uint32_t get_elf_hwcap(void)
 {
-    return thread_env->cpuid_features;
+    X86CPU *cpu = X86_CPU(thread_cpu);
+
+    return cpu->env.features[FEAT_1_EDX];
 }
 
 #ifdef TARGET_X86_64
@@ -290,25 +299,25 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUARMState *env)
 {
-    (*regs)[0] = tswapl(env->regs[0]);
-    (*regs)[1] = tswapl(env->regs[1]);
-    (*regs)[2] = tswapl(env->regs[2]);
-    (*regs)[3] = tswapl(env->regs[3]);
-    (*regs)[4] = tswapl(env->regs[4]);
-    (*regs)[5] = tswapl(env->regs[5]);
-    (*regs)[6] = tswapl(env->regs[6]);
-    (*regs)[7] = tswapl(env->regs[7]);
-    (*regs)[8] = tswapl(env->regs[8]);
-    (*regs)[9] = tswapl(env->regs[9]);
-    (*regs)[10] = tswapl(env->regs[10]);
-    (*regs)[11] = tswapl(env->regs[11]);
-    (*regs)[12] = tswapl(env->regs[12]);
-    (*regs)[13] = tswapl(env->regs[13]);
-    (*regs)[14] = tswapl(env->regs[14]);
-    (*regs)[15] = tswapl(env->regs[15]);
+    (*regs)[0] = tswapreg(env->regs[0]);
+    (*regs)[1] = tswapreg(env->regs[1]);
+    (*regs)[2] = tswapreg(env->regs[2]);
+    (*regs)[3] = tswapreg(env->regs[3]);
+    (*regs)[4] = tswapreg(env->regs[4]);
+    (*regs)[5] = tswapreg(env->regs[5]);
+    (*regs)[6] = tswapreg(env->regs[6]);
+    (*regs)[7] = tswapreg(env->regs[7]);
+    (*regs)[8] = tswapreg(env->regs[8]);
+    (*regs)[9] = tswapreg(env->regs[9]);
+    (*regs)[10] = tswapreg(env->regs[10]);
+    (*regs)[11] = tswapreg(env->regs[11]);
+    (*regs)[12] = tswapreg(env->regs[12]);
+    (*regs)[13] = tswapreg(env->regs[13]);
+    (*regs)[14] = tswapreg(env->regs[14]);
+    (*regs)[15] = tswapreg(env->regs[15]);
 
-    (*regs)[16] = tswapl(cpsr_read((CPUARMState *)env));
-    (*regs)[17] = tswapl(env->regs[0]); /* XXX */
+    (*regs)[16] = tswapreg(cpsr_read((CPUARMState *)env));
+    (*regs)[17] = tswapreg(env->regs[0]); /* XXX */
 }
 
 #define USE_ELF_CORE_DUMP
@@ -397,7 +406,7 @@ static int validate_guest_space(unsigned long guest_base,
 
 static uint32_t get_elf_hwcap(void)
 {
-    CPUARMState *e = thread_env;
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
     uint32_t hwcaps = 0;
 
     hwcaps |= ARM_HWCAP_ARM_SWP;
@@ -408,7 +417,7 @@ static uint32_t get_elf_hwcap(void)
 
     /* probe for the extra features */
 #define GET_FEATURE(feat, hwcap) \
-    do {if (arm_feature(e, feat)) { hwcaps |= hwcap; } } while (0)
+    do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
     GET_FEATURE(ARM_FEATURE_VFP, ARM_HWCAP_ARM_VFP);
     GET_FEATURE(ARM_FEATURE_IWMMXT, ARM_HWCAP_ARM_IWMMXT);
     GET_FEATURE(ARM_FEATURE_THUMB2EE, ARM_HWCAP_ARM_THUMBEE);
@@ -612,13 +621,13 @@ enum {
 
 static uint32_t get_elf_hwcap(void)
 {
-    CPUPPCState *e = thread_env;
+    PowerPCCPU *cpu = POWERPC_CPU(thread_cpu);
     uint32_t features = 0;
 
     /* We don't have to be terribly complete here; the high points are
        Altivec/FP/SPE support.  Anything else is just a bonus.  */
 #define GET_FEATURE(flag, feature)                                      \
-    do {if (e->insns_flags & flag) features |= feature; } while(0)
+    do { if (cpu->env.insns_flags & flag) { features |= feature; } } while (0)
     GET_FEATURE(PPC_64B, QEMU_PPC_FEATURE_64);
     GET_FEATURE(PPC_FLOAT, QEMU_PPC_FEATURE_HAS_FPU);
     GET_FEATURE(PPC_ALTIVEC, QEMU_PPC_FEATURE_HAS_ALTIVEC);
@@ -674,19 +683,19 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
     target_ulong ccr = 0;
 
     for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-        (*regs)[i] = tswapl(env->gpr[i]);
+        (*regs)[i] = tswapreg(env->gpr[i]);
     }
 
-    (*regs)[32] = tswapl(env->nip);
-    (*regs)[33] = tswapl(env->msr);
-    (*regs)[35] = tswapl(env->ctr);
-    (*regs)[36] = tswapl(env->lr);
-    (*regs)[37] = tswapl(env->xer);
+    (*regs)[32] = tswapreg(env->nip);
+    (*regs)[33] = tswapreg(env->msr);
+    (*regs)[35] = tswapreg(env->ctr);
+    (*regs)[36] = tswapreg(env->lr);
+    (*regs)[37] = tswapreg(env->xer);
 
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         ccr |= env->crf[i] << (32 - ((i + 1) * 4));
     }
-    (*regs)[38] = tswapl(ccr);
+    (*regs)[38] = tswapreg(ccr);
 }
 
 #define USE_ELF_CORE_DUMP
@@ -747,17 +756,17 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *e
     (*regs)[TARGET_EF_R0] = 0;
 
     for (i = 1; i < ARRAY_SIZE(env->active_tc.gpr); i++) {
-        (*regs)[TARGET_EF_R0 + i] = tswapl(env->active_tc.gpr[i]);
+        (*regs)[TARGET_EF_R0 + i] = tswapreg(env->active_tc.gpr[i]);
     }
 
     (*regs)[TARGET_EF_R26] = 0;
     (*regs)[TARGET_EF_R27] = 0;
-    (*regs)[TARGET_EF_LO] = tswapl(env->active_tc.LO[0]);
-    (*regs)[TARGET_EF_HI] = tswapl(env->active_tc.HI[0]);
-    (*regs)[TARGET_EF_CP0_EPC] = tswapl(env->active_tc.PC);
-    (*regs)[TARGET_EF_CP0_BADVADDR] = tswapl(env->CP0_BadVAddr);
-    (*regs)[TARGET_EF_CP0_STATUS] = tswapl(env->CP0_Status);
-    (*regs)[TARGET_EF_CP0_CAUSE] = tswapl(env->CP0_Cause);
+    (*regs)[TARGET_EF_LO] = tswapreg(env->active_tc.LO[0]);
+    (*regs)[TARGET_EF_HI] = tswapreg(env->active_tc.HI[0]);
+    (*regs)[TARGET_EF_CP0_EPC] = tswapreg(env->active_tc.PC);
+    (*regs)[TARGET_EF_CP0_BADVADDR] = tswapreg(env->CP0_BadVAddr);
+    (*regs)[TARGET_EF_CP0_STATUS] = tswapreg(env->CP0_Status);
+    (*regs)[TARGET_EF_CP0_CAUSE] = tswapreg(env->CP0_Cause);
 }
 
 #define USE_ELF_CORE_DUMP
@@ -794,11 +803,11 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
     int i, pos = 0;
 
     for (i = 0; i < 32; i++) {
-        (*regs)[pos++] = tswapl(env->regs[i]);
+        (*regs)[pos++] = tswapreg(env->regs[i]);
     }
 
     for (i = 0; i < 6; i++) {
-        (*regs)[pos++] = tswapl(env->sregs[i]);
+        (*regs)[pos++] = tswapreg(env->sregs[i]);
     }
 }
 
@@ -834,11 +843,11 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     int i;
 
     for (i = 0; i < 32; i++) {
-        (*regs)[i] = tswapl(env->gpr[i]);
+        (*regs)[i] = tswapreg(env->gpr[i]);
     }
 
-    (*regs)[32] = tswapl(env->pc);
-    (*regs)[33] = tswapl(env->sr);
+    (*regs)[32] = tswapreg(env->pc);
+    (*regs)[33] = tswapreg(env->sr);
 }
 #define ELF_HWCAP 0
 #define ELF_PLATFORM NULL
@@ -883,15 +892,15 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
     int i;
 
     for (i = 0; i < 16; i++) {
-        (*regs[i]) = tswapl(env->gregs[i]);
+        (*regs[i]) = tswapreg(env->gregs[i]);
     }
 
-    (*regs)[TARGET_REG_PC] = tswapl(env->pc);
-    (*regs)[TARGET_REG_PR] = tswapl(env->pr);
-    (*regs)[TARGET_REG_SR] = tswapl(env->sr);
-    (*regs)[TARGET_REG_GBR] = tswapl(env->gbr);
-    (*regs)[TARGET_REG_MACH] = tswapl(env->mach);
-    (*regs)[TARGET_REG_MACL] = tswapl(env->macl);
+    (*regs)[TARGET_REG_PC] = tswapreg(env->pc);
+    (*regs)[TARGET_REG_PR] = tswapreg(env->pr);
+    (*regs)[TARGET_REG_SR] = tswapreg(env->sr);
+    (*regs)[TARGET_REG_GBR] = tswapreg(env->gbr);
+    (*regs)[TARGET_REG_MACH] = tswapreg(env->mach);
+    (*regs)[TARGET_REG_MACL] = tswapreg(env->macl);
     (*regs)[TARGET_REG_SYSCALL] = 0; /* FIXME */
 }
 
@@ -945,25 +954,25 @@ typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *env)
 {
-    (*regs)[0] = tswapl(env->dregs[1]);
-    (*regs)[1] = tswapl(env->dregs[2]);
-    (*regs)[2] = tswapl(env->dregs[3]);
-    (*regs)[3] = tswapl(env->dregs[4]);
-    (*regs)[4] = tswapl(env->dregs[5]);
-    (*regs)[5] = tswapl(env->dregs[6]);
-    (*regs)[6] = tswapl(env->dregs[7]);
-    (*regs)[7] = tswapl(env->aregs[0]);
-    (*regs)[8] = tswapl(env->aregs[1]);
-    (*regs)[9] = tswapl(env->aregs[2]);
-    (*regs)[10] = tswapl(env->aregs[3]);
-    (*regs)[11] = tswapl(env->aregs[4]);
-    (*regs)[12] = tswapl(env->aregs[5]);
-    (*regs)[13] = tswapl(env->aregs[6]);
-    (*regs)[14] = tswapl(env->dregs[0]);
-    (*regs)[15] = tswapl(env->aregs[7]);
-    (*regs)[16] = tswapl(env->dregs[0]); /* FIXME: orig_d0 */
-    (*regs)[17] = tswapl(env->sr);
-    (*regs)[18] = tswapl(env->pc);
+    (*regs)[0] = tswapreg(env->dregs[1]);
+    (*regs)[1] = tswapreg(env->dregs[2]);
+    (*regs)[2] = tswapreg(env->dregs[3]);
+    (*regs)[3] = tswapreg(env->dregs[4]);
+    (*regs)[4] = tswapreg(env->dregs[5]);
+    (*regs)[5] = tswapreg(env->dregs[6]);
+    (*regs)[6] = tswapreg(env->dregs[7]);
+    (*regs)[7] = tswapreg(env->aregs[0]);
+    (*regs)[8] = tswapreg(env->aregs[1]);
+    (*regs)[9] = tswapreg(env->aregs[2]);
+    (*regs)[10] = tswapreg(env->aregs[3]);
+    (*regs)[11] = tswapreg(env->aregs[4]);
+    (*regs)[12] = tswapreg(env->aregs[5]);
+    (*regs)[13] = tswapreg(env->aregs[6]);
+    (*regs)[14] = tswapreg(env->dregs[0]);
+    (*regs)[15] = tswapreg(env->aregs[7]);
+    (*regs)[16] = tswapreg(env->dregs[0]); /* FIXME: orig_d0 */
+    (*regs)[17] = tswapreg(env->sr);
+    (*regs)[18] = tswapreg(env->pc);
     (*regs)[19] = 0;  /* FIXME: regs->format | regs->vector */
 }
 
@@ -2102,16 +2111,16 @@ struct memelfnote {
 };
 
 struct target_elf_siginfo {
-    target_int  si_signo; /* signal number */
-    target_int  si_code;  /* extra code */
-    target_int  si_errno; /* errno */
+    abi_int    si_signo; /* signal number */
+    abi_int    si_code;  /* extra code */
+    abi_int    si_errno; /* errno */
 };
 
 struct target_elf_prstatus {
     struct target_elf_siginfo pr_info;      /* Info associated with signal */
-    target_short       pr_cursig;    /* Current signal */
-    target_ulong       pr_sigpend;   /* XXX */
-    target_ulong       pr_sighold;   /* XXX */
+    abi_short          pr_cursig;    /* Current signal */
+    abi_ulong          pr_sigpend;   /* XXX */
+    abi_ulong          pr_sighold;   /* XXX */
     target_pid_t       pr_pid;
     target_pid_t       pr_ppid;
     target_pid_t       pr_pgrp;
@@ -2121,7 +2130,7 @@ struct target_elf_prstatus {
     struct target_timeval pr_cutime; /* XXX Cumulative user time */
     struct target_timeval pr_cstime; /* XXX Cumulative system time */
     target_elf_gregset_t      pr_reg;       /* GP registers */
-    target_int         pr_fpvalid;   /* XXX */
+    abi_int            pr_fpvalid;   /* XXX */
 };
 
 #define ELF_PRARGSZ     (80) /* Number of chars for args */
@@ -2131,7 +2140,7 @@ struct target_elf_prpsinfo {
     char         pr_sname;       /* char for pr_state */
     char         pr_zomb;        /* zombie */
     char         pr_nice;        /* nice val */
-    target_ulong pr_flag;        /* flags */
+    abi_ulong    pr_flag;        /* flags */
     target_uid_t pr_uid;
     target_gid_t pr_gid;
     target_pid_t pr_pid, pr_ppid, pr_pgrp, pr_sid;
@@ -2215,12 +2224,12 @@ static int write_note_info(struct elf_note_info *, int);
 #ifdef BSWAP_NEEDED
 static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 {
-    prstatus->pr_info.si_signo = tswapl(prstatus->pr_info.si_signo);
-    prstatus->pr_info.si_code = tswapl(prstatus->pr_info.si_code);
-    prstatus->pr_info.si_errno = tswapl(prstatus->pr_info.si_errno);
+    prstatus->pr_info.si_signo = tswap32(prstatus->pr_info.si_signo);
+    prstatus->pr_info.si_code = tswap32(prstatus->pr_info.si_code);
+    prstatus->pr_info.si_errno = tswap32(prstatus->pr_info.si_errno);
     prstatus->pr_cursig = tswap16(prstatus->pr_cursig);
-    prstatus->pr_sigpend = tswapl(prstatus->pr_sigpend);
-    prstatus->pr_sighold = tswapl(prstatus->pr_sighold);
+    prstatus->pr_sigpend = tswapal(prstatus->pr_sigpend);
+    prstatus->pr_sighold = tswapal(prstatus->pr_sighold);
     prstatus->pr_pid = tswap32(prstatus->pr_pid);
     prstatus->pr_ppid = tswap32(prstatus->pr_ppid);
     prstatus->pr_pgrp = tswap32(prstatus->pr_pgrp);
@@ -2232,7 +2241,7 @@ static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 
 static void bswap_psinfo(struct target_elf_prpsinfo *psinfo)
 {
-    psinfo->pr_flag = tswapl(psinfo->pr_flag);
+    psinfo->pr_flag = tswapal(psinfo->pr_flag);
     psinfo->pr_uid = tswap16(psinfo->pr_uid);
     psinfo->pr_gid = tswap16(psinfo->pr_gid);
     psinfo->pr_pid = tswap32(psinfo->pr_pid);
@@ -2621,7 +2630,7 @@ static int fill_note_info(struct elf_note_info *info,
                           long signr, const CPUArchState *env)
 {
 #define NUMNOTES 3
-    CPUArchState *cpu = NULL;
+    CPUState *cpu = NULL;
     TaskState *ts = (TaskState *)env->opaque;
     int i;
 
@@ -2660,9 +2669,10 @@ static int fill_note_info(struct elf_note_info *info,
     /* read and fill status of all threads */
     cpu_list_lock();
     for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
-        if (cpu == thread_env)
+        if (cpu == thread_cpu) {
             continue;
-        fill_thread_info(info, cpu);
+        }
+        fill_thread_info(info, (CPUArchState *)cpu->env_ptr);
     }
     cpu_list_unlock();
 

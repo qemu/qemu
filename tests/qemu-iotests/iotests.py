@@ -23,6 +23,7 @@ import string
 import unittest
 import sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'QMP'))
 import qmp
+import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
            'VM', 'QMPTestCase', 'notrun', 'main']
@@ -51,6 +52,21 @@ def qemu_io(*args):
     args = qemu_io_args + list(args)
     return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
 
+def compare_images(img1, img2):
+    '''Return True if two image files are identical'''
+    return qemu_img('compare', '-f', imgfmt,
+                    '-F', imgfmt, img1, img2) == 0
+
+def create_image(name, size):
+    '''Create a fully-allocated raw image with sector markers'''
+    file = open(name, 'w')
+    i = 0
+    while i < size:
+        sector = struct.pack('>l504xl', i / 512, i / 512)
+        file.write(sector)
+        i = i + 512
+    file.close()
+
 class VM(object):
     '''A QEMU VM'''
 
@@ -78,6 +94,11 @@ class VM(object):
         self._args.append(','.join(options))
         self._num_drives += 1
         return self
+
+    def hmp_qemu_io(self, drive, cmd):
+        '''Write to a given drive using an HMP command'''
+        return self.qmp('human-monitor-command',
+                        command_line='qemu-io %s "%s"' % (drive, cmd))
 
     def add_fd(self, fd, fdset, opaque, opts=''):
         '''Pass a file descriptor to the VM'''
@@ -169,6 +190,43 @@ class QMPTestCase(unittest.TestCase):
         '''Assert that the value for a specific path in a QMP dict matches'''
         result = self.dictpath(d, path)
         self.assertEqual(result, value, 'values not equal "%s" and "%s"' % (str(result), str(value)))
+
+    def assert_no_active_block_jobs(self):
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return', [])
+
+    def cancel_and_wait(self, drive='drive0', force=False):
+        '''Cancel a block job and wait for it to finish, returning the event'''
+        result = self.vm.qmp('block-job-cancel', device=drive, force=force)
+        self.assert_qmp(result, 'return', {})
+
+        cancelled = False
+        result = None
+        while not cancelled:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED' or \
+                   event['event'] == 'BLOCK_JOB_CANCELLED':
+                    self.assert_qmp(event, 'data/device', drive)
+                    result = event
+                    cancelled = True
+
+        self.assert_no_active_block_jobs()
+        return result
+
+    def wait_until_completed(self, drive='drive0'):
+        '''Wait for a block job to finish, returning the event'''
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/device', drive)
+                    self.assert_qmp_absent(event, 'data/error')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_block_jobs()
+        return event
 
 def notrun(reason):
     '''Skip this test suite'''

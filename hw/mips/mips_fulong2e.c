@@ -19,30 +19,32 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/serial.h"
-#include "hw/fdc.h"
+#include "hw/i386/pc.h"
+#include "hw/char/serial.h"
+#include "hw/block/fdc.h"
 #include "net/net.h"
 #include "hw/boards.h"
-#include "hw/smbus.h"
+#include "hw/i2c/smbus.h"
 #include "block/block.h"
-#include "hw/flash.h"
-#include "hw/mips.h"
-#include "hw/mips_cpudevs.h"
+#include "hw/block/flash.h"
+#include "hw/mips/mips.h"
+#include "hw/mips/cpudevs.h"
 #include "hw/pci/pci.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "audio/audio.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
-#include "hw/mips-bios.h"
+#include "hw/mips/bios.h"
 #include "hw/ide.h"
 #include "elf.h"
-#include "hw/vt82c686.h"
-#include "hw/mc146818rtc.h"
-#include "hw/i8254.h"
+#include "hw/isa/vt82c686.h"
+#include "hw/timer/mc146818rtc.h"
+#include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 #define DEBUG_FULONG2E_INIT
 
@@ -126,7 +128,7 @@ static int64_t load_kernel (CPUMIPSState *env)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~TARGET_PAGE_MASK) & TARGET_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > ram_size) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
@@ -231,7 +233,7 @@ static void audio_init (PCIBus *pci_bus)
 }
 
 /* Network support */
-static void network_init (void)
+static void network_init (PCIBus *pci_bus)
 {
     int i;
 
@@ -244,16 +246,16 @@ static void network_init (void)
             default_devaddr = "07";
         }
 
-        pci_nic_init_nofail(nd, "rtl8139", default_devaddr);
+        pci_nic_init_nofail(nd, pci_bus, "rtl8139", default_devaddr);
     }
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUMIPSState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
-    if (env && level) {
-        cpu_exit(env);
+    if (cpu && level) {
+        cpu_exit(cpu);
     }
 }
 
@@ -300,9 +302,9 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     bios_size = 1024 * 1024;
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "fulong2e.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "fulong2e.ram", ram_size);
     vmstate_register_ram_global(ram);
-    memory_region_init_ram(bios, "fulong2e.bios", bios_size);
+    memory_region_init_ram(bios, NULL, "fulong2e.bios", bios_size);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
 
@@ -332,8 +334,9 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
             bios_size = -1;
         }
 
-        if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
-            fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n", bios_name);
+        if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
+            !kernel_filename && !qtest_enabled()) {
+            error_report("Could not load MIPS bios '%s'", bios_name);
             exit(1);
         }
     }
@@ -393,7 +396,7 @@ static void mips_fulong2e_init(QEMUMachineInitArgs *args)
     /* Sound card */
     audio_init(pci_bus);
     /* Network card */
-    network_init();
+    network_init(pci_bus);
 }
 
 static QEMUMachine mips_fulong2e_machine = {

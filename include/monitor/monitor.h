@@ -39,12 +39,15 @@ typedef enum MonitorEvent {
     QEVENT_BLOCK_JOB_CANCELLED,
     QEVENT_BLOCK_JOB_ERROR,
     QEVENT_BLOCK_JOB_READY,
+    QEVENT_DEVICE_DELETED,
     QEVENT_DEVICE_TRAY_MOVED,
+    QEVENT_NIC_RX_FILTER_CHANGED,
     QEVENT_SUSPEND,
     QEVENT_SUSPEND_DISK,
     QEVENT_WAKEUP,
     QEVENT_BALLOON_CHANGE,
     QEVENT_SPICE_MIGRATE_COMPLETED,
+    QEVENT_GUEST_PANICKED,
 
     /* Add to 'monitor_event_names' array in monitor.c when
      * defining new events here */

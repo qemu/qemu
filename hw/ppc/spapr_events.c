@@ -26,12 +26,12 @@
  */
 #include "cpu.h"
 #include "sysemu/sysemu.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 #include <libfdt.h>
 
@@ -277,7 +277,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     qemu_irq_pulse(xics_get_qirq(spapr->icp, spapr->epow_irq));
 }
 
-static void check_exception(sPAPREnvironment *spapr,
+static void check_exception(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                             uint32_t token, uint32_t nargs,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)

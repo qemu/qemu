@@ -150,10 +150,11 @@ void sh4_translate_init(void)
     done_init = 1;
 }
 
-void cpu_dump_state(CPUSH4State * env, FILE * f,
-		    int (*cpu_fprintf) (FILE * f, const char *fmt, ...),
-		    int flags)
+void superh_cpu_dump_state(CPUState *cs, FILE *f,
+                           fprintf_function cpu_fprintf, int flags)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
     int i;
     cpu_fprintf(f, "pc=0x%08x sr=0x%08x pr=0x%08x fpscr=0x%08x\n",
 		env->pc, env->sr, env->pr, env->fpscr);
@@ -1845,9 +1846,11 @@ static void decode_opc(DisasContext * ctx)
 }
 
 static inline void
-gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
-                               int search_pc)
+gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     static uint16_t *gen_opc_end;
@@ -1866,7 +1869,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
        so assume it is a dynamic branch.  */
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.features = env->features;
     ctx.has_movcal = (ctx.flags & TB_FLAG_PENDING_MOVCA);
 
@@ -1912,8 +1915,9 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;
-	if (env->singlestep_enabled)
+        if (cs->singlestep_enabled) {
 	    break;
+        }
         if (num_insns >= max_insns)
             break;
         if (singlestep)
@@ -1921,7 +1925,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (env->singlestep_enabled) {
+    if (cs->singlestep_enabled) {
         tcg_gen_movi_i32(cpu_pc, ctx.pc);
         gen_helper_debug(cpu_env);
     } else {
@@ -1968,12 +1972,12 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 
 void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb, int pc_pos)

@@ -1,6 +1,10 @@
 #ifndef INT128_H
 #define INT128_H
 
+#include <assert.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 typedef struct Int128 Int128;
 
 struct Int128 {
@@ -34,23 +38,47 @@ static inline Int128 int128_2_64(void)
     return (Int128) { 0, 1 };
 }
 
+static inline Int128 int128_and(Int128 a, Int128 b)
+{
+    return (Int128) { a.lo & b.lo, a.hi & b.hi };
+}
+
+static inline Int128 int128_rshift(Int128 a, int n)
+{
+    int64_t h;
+    if (!n) {
+        return a;
+    }
+    h = a.hi >> (n & 63);
+    if (n >= 64) {
+        return (Int128) { h, h >> 63 };
+    } else {
+        return (Int128) { (a.lo >> n) | (a.hi << (64 - n)), h };
+    }
+}
+
 static inline Int128 int128_add(Int128 a, Int128 b)
 {
-    Int128 r = { a.lo + b.lo, a.hi + b.hi };
-    r.hi += (r.lo < a.lo) || (r.lo < b.lo);
-    return r;
+    uint64_t lo = a.lo + b.lo;
+
+    /* a.lo <= a.lo + b.lo < a.lo + k (k is the base, 2^64).  Hence,
+     * a.lo + b.lo >= k implies 0 <= lo = a.lo + b.lo - k < a.lo.
+     * Similarly, a.lo + b.lo < k implies a.lo <= lo = a.lo + b.lo < k.
+     *
+     * So the carry is lo < a.lo.
+     */
+    return (Int128) { lo, (uint64_t)a.hi + b.hi + (lo < a.lo) };
 }
 
 static inline Int128 int128_neg(Int128 a)
 {
-    a.lo = ~a.lo;
-    a.hi = ~a.hi;
-    return int128_add(a, int128_one());
+    uint64_t lo = -a.lo;
+    return (Int128) { lo, ~(uint64_t)a.hi + !lo };
 }
 
 static inline Int128 int128_sub(Int128 a, Int128 b)
 {
-    return int128_add(a, int128_neg(b));
+    return (Int128){ a.lo - b.lo, a.hi - b.hi - (a.lo < b.lo) };
 }
 
 static inline bool int128_nonneg(Int128 a)
@@ -70,7 +98,7 @@ static inline bool int128_ne(Int128 a, Int128 b)
 
 static inline bool int128_ge(Int128 a, Int128 b)
 {
-    return int128_nonneg(int128_sub(a, b));
+    return a.hi > b.hi || (a.hi == b.hi && a.lo >= b.lo);
 }
 
 static inline bool int128_lt(Int128 a, Int128 b)

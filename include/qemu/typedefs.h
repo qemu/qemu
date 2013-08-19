@@ -18,6 +18,12 @@ typedef struct DeviceState DeviceState;
 typedef struct BusState BusState;
 typedef struct BusClass BusClass;
 
+typedef struct AddressSpace AddressSpace;
+typedef struct MemoryRegion MemoryRegion;
+typedef struct MemoryRegionSection MemoryRegionSection;
+
+typedef struct MemoryMappingList MemoryMappingList;
+
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
@@ -57,5 +63,7 @@ typedef struct EventNotifier EventNotifier;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct QEMUSGList QEMUSGList;
 typedef struct SHPCDevice SHPCDevice;
+typedef struct FWCfgState FWCfgState;
+typedef struct PcGuestInfo PcGuestInfo;
 
 #endif /* QEMU_TYPEDEFS_H */

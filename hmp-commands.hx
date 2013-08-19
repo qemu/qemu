@@ -185,6 +185,8 @@ Remove host block device.  The result is that guest generated IO is no longer
 submitted against the host device underlying the disk.  Once a drive has
 been deleted, the QEMU Block layer returns -EIO which results in IO
 errors in the guest for applications that are reading/writing to the device.
+These errors are always reported to the guest, regardless of the drive's error
+actions (drive options rerror, werror).
 ETEXI
 
     {
@@ -736,7 +738,6 @@ info mice
 @end example
 ETEXI
 
-#ifdef HAS_AUDIO
     {
         .name       = "wavcapture",
         .args_type  = "path:F,freq:i?,bits:i?,nchannels:i?",
@@ -744,7 +745,6 @@ ETEXI
         .help       = "capture audio to a wave file (default frequency=44100 bits=16 channels=2)",
         .mhandler.cmd = do_wav_capture,
     },
-#endif
 STEXI
 @item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
 @findex wavcapture
@@ -759,7 +759,6 @@ Defaults:
 @end itemize
 ETEXI
 
-#ifdef HAS_AUDIO
     {
         .name       = "stopcapture",
         .args_type  = "n:i",
@@ -767,7 +766,6 @@ ETEXI
         .help       = "stop capture",
         .mhandler.cmd = do_stop_capture,
     },
-#endif
 STEXI
 @item stopcapture @var{index}
 @findex stopcapture
@@ -993,7 +991,6 @@ server will ask the spice/vnc client to automatically reconnect using the
 new parameters (if specified) once the vm migration finished successfully.
 ETEXI
 
-#if defined(CONFIG_HAVE_CORE_DUMP)
     {
         .name       = "dump-guest-memory",
         .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
@@ -1017,7 +1014,6 @@ gdb.
     length: the memory size, in bytes. It's optional, and should be specified
             with begin together.
 ETEXI
-#endif
 
     {
         .name       = "snapshot_blkdev",
@@ -1063,6 +1059,26 @@ using the specified target.
 ETEXI
 
     {
+        .name       = "drive_backup",
+        .args_type  = "reuse:-n,full:-f,device:B,target:s,format:s?",
+        .params     = "[-n] [-f] device target [format]",
+        .help       = "initiates a point-in-time\n\t\t\t"
+                      "copy for a device. The device's contents are\n\t\t\t"
+                      "copied to the new image file, excluding data that\n\t\t\t"
+                      "is written after the command is started.\n\t\t\t"
+                      "The -n flag requests QEMU to reuse the image found\n\t\t\t"
+                      "in new-image-file, instead of recreating it from scratch.\n\t\t\t"
+                      "The -f flag requests QEMU to copy the whole disk,\n\t\t\t"
+                      "so that the result does not need a backing file.\n\t\t\t",
+        .mhandler.cmd = hmp_drive_backup,
+    },
+STEXI
+@item drive_backup
+@findex drive_backup
+Start a point-in-time copy of a block device to a specificed target.
+ETEXI
+
+    {
         .name       = "drive_add",
         .args_type  = "pci_addr:s,opts:s",
         .params     = "[[<domain>:]<bus>:]<slot>\n"
@@ -1081,7 +1097,7 @@ STEXI
 Add drive to PCI storage controller.
 ETEXI
 
-#if defined(TARGET_I386)
+#if defined(CONFIG_PCI_HOTPLUG_OLD)
     {
         .name       = "pci_add",
         .args_type  = "pci_addr:s,type:s,opts:s?",
@@ -1097,7 +1113,7 @@ STEXI
 Hot-add PCI device.
 ETEXI
 
-#if defined(TARGET_I386)
+#if defined(CONFIG_PCI_HOTPLUG_OLD)
     {
         .name       = "pci_del",
         .args_type  = "pci_addr:s",
@@ -1551,6 +1567,22 @@ STEXI
 @findex chardev_remove
 
 Removes the chardev @var{id}.
+
+ETEXI
+
+    {
+        .name       = "qemu-io",
+        .args_type  = "device:B,command:s",
+        .params     = "[device] \"[command]\"",
+        .help       = "run a qemu-io command on a block device",
+        .mhandler.cmd = hmp_qemu_io,
+    },
+
+STEXI
+@item qemu-io @var{device} @var{command}
+@findex qemu-io
+
+Executes a qemu-io command on the given block device.
 
 ETEXI
 

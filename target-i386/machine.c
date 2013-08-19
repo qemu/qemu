@@ -1,7 +1,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
@@ -252,6 +252,24 @@ static void cpu_pre_save(void *opaque)
     }
 
     env->fpregs_format_vmstate = 0;
+
+    /*
+     * Real mode guest segments register DPL should be zero.
+     * Older KVM version were setting it wrongly.
+     * Fixing it will allow live migration to host with unrestricted guest
+     * support (otherwise the migration will fail with invalid guest state
+     * error).
+     */
+    if (!(env->cr[0] & CR0_PE_MASK) &&
+        (env->segs[R_CS].flags >> DESC_DPL_SHIFT & 3) != 0) {
+        env->segs[R_CS].flags &= ~(env->segs[R_CS].flags & DESC_DPL_MASK);
+        env->segs[R_DS].flags &= ~(env->segs[R_DS].flags & DESC_DPL_MASK);
+        env->segs[R_ES].flags &= ~(env->segs[R_ES].flags & DESC_DPL_MASK);
+        env->segs[R_FS].flags &= ~(env->segs[R_FS].flags & DESC_DPL_MASK);
+        env->segs[R_GS].flags &= ~(env->segs[R_GS].flags & DESC_DPL_MASK);
+        env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
+    }
+
 }
 
 static int cpu_post_load(void *opaque, int version_id)
@@ -259,6 +277,24 @@ static int cpu_post_load(void *opaque, int version_id)
     X86CPU *cpu = opaque;
     CPUX86State *env = &cpu->env;
     int i;
+
+    /*
+     * Real mode guest segments register DPL should be zero.
+     * Older KVM version were setting it wrongly.
+     * Fixing it will allow live migration from such host that don't have
+     * restricted guest support to a host with unrestricted guest support
+     * (otherwise the migration will fail with invalid guest state
+     * error).
+     */
+    if (!(env->cr[0] & CR0_PE_MASK) &&
+        (env->segs[R_CS].flags >> DESC_DPL_SHIFT & 3) != 0) {
+        env->segs[R_CS].flags &= ~(env->segs[R_CS].flags & DESC_DPL_MASK);
+        env->segs[R_DS].flags &= ~(env->segs[R_DS].flags & DESC_DPL_MASK);
+        env->segs[R_ES].flags &= ~(env->segs[R_ES].flags & DESC_DPL_MASK);
+        env->segs[R_FS].flags &= ~(env->segs[R_FS].flags & DESC_DPL_MASK);
+        env->segs[R_GS].flags &= ~(env->segs[R_GS].flags & DESC_DPL_MASK);
+        env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
+    }
 
     /* XXX: restore FPU round state */
     env->fpstt = (env->fpus_vmstate >> 11) & 7;
@@ -291,6 +327,24 @@ static bool pv_eoi_msr_needed(void *opaque)
 
     return cpu->env.pv_eoi_en_msr != 0;
 }
+
+static bool steal_time_msr_needed(void *opaque)
+{
+    CPUX86State *cpu = opaque;
+
+    return cpu->steal_time_msr != 0;
+}
+
+static const VMStateDescription vmstate_steal_time_msr = {
+    .name = "cpu/steal_time_msr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(steal_time_msr, CPUX86State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_async_pf_msr = {
     .name = "cpu/async_pf_msr",
@@ -502,6 +556,9 @@ const VMStateDescription vmstate_x86_cpu = {
         } , {
             .vmsd = &vmstate_pv_eoi_msr,
             .needed = pv_eoi_msr_needed,
+        } , {
+            .vmsd = &vmstate_steal_time_msr,
+            .needed = steal_time_msr_needed,
         } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,

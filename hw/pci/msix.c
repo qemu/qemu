@@ -280,10 +280,10 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
 
     msix_mask_all(dev, nentries);
 
-    memory_region_init_io(&dev->msix_table_mmio, &msix_table_mmio_ops, dev,
+    memory_region_init_io(&dev->msix_table_mmio, OBJECT(dev), &msix_table_mmio_ops, dev,
                           "msix-table", table_size);
     memory_region_add_subregion(table_bar, table_offset, &dev->msix_table_mmio);
-    memory_region_init_io(&dev->msix_pba_mmio, &msix_pba_mmio_ops, dev,
+    memory_region_init_io(&dev->msix_pba_mmio, OBJECT(dev), &msix_pba_mmio_ops, dev,
                           "msix-pba", pba_size);
     memory_region_add_subregion(pba_bar, pba_offset, &dev->msix_pba_mmio);
 
@@ -311,7 +311,7 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
     }
 
     name = g_strdup_printf("%s-msix", dev->name);
-    memory_region_init(&dev->msix_exclusive_bar, name, MSIX_EXCLUSIVE_BAR_SIZE);
+    memory_region_init(&dev->msix_exclusive_bar, OBJECT(dev), name, MSIX_EXCLUSIVE_BAR_SIZE);
     g_free(name);
 
     ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,
@@ -569,3 +569,36 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
     dev->msix_vector_release_notifier = NULL;
     dev->msix_vector_poll_notifier = NULL;
 }
+
+static void put_msix_state(QEMUFile *f, void *pv, size_t size)
+{
+    msix_save(pv, f);
+}
+
+static int get_msix_state(QEMUFile *f, void *pv, size_t size)
+{
+    msix_load(pv, f);
+    return 0;
+}
+
+static VMStateInfo vmstate_info_msix = {
+    .name = "msix state",
+    .get  = get_msix_state,
+    .put  = put_msix_state,
+};
+
+const VMStateDescription vmstate_msix = {
+    .name = "msix",
+    .fields = (VMStateField[]) {
+        {
+            .name         = "msix",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,   /* ouch */
+            .info         = &vmstate_info_msix,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};

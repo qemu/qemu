@@ -99,7 +99,7 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
 static ssize_t
 do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
 {
-#if defined CONFIG_IOVEC && defined CONFIG_POSIX
+#ifdef CONFIG_POSIX
     ssize_t ret;
     struct msghdr msg;
     memset(&msg, 0, sizeof(msg));
@@ -144,89 +144,95 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
                       size_t offset, size_t bytes,
                       bool do_send)
 {
+    ssize_t total = 0;
     ssize_t ret;
-    unsigned si, ei;            /* start and end indexes */
-    if (bytes == 0) {
-        /* Catch the do-nothing case early, as otherwise we will pass an
-         * empty iovec to sendmsg/recvmsg(), and not all implementations
-         * accept this.
-         */
-        return 0;
+    size_t orig_len, tail;
+    unsigned niov;
+
+    while (bytes > 0) {
+        /* Find the start position, skipping `offset' bytes:
+         * first, skip all full-sized vector elements, */
+        for (niov = 0; niov < iov_cnt && offset >= iov[niov].iov_len; ++niov) {
+            offset -= iov[niov].iov_len;
+        }
+
+        /* niov == iov_cnt would only be valid if bytes == 0, which
+         * we already ruled out in the loop condition.  */
+        assert(niov < iov_cnt);
+        iov += niov;
+        iov_cnt -= niov;
+
+        if (offset) {
+            /* second, skip `offset' bytes from the (now) first element,
+             * undo it on exit */
+            iov[0].iov_base += offset;
+            iov[0].iov_len -= offset;
+        }
+        /* Find the end position skipping `bytes' bytes: */
+        /* first, skip all full-sized elements */
+        tail = bytes;
+        for (niov = 0; niov < iov_cnt && iov[niov].iov_len <= tail; ++niov) {
+            tail -= iov[niov].iov_len;
+        }
+        if (tail) {
+            /* second, fixup the last element, and remember the original
+             * length */
+            assert(niov < iov_cnt);
+            assert(iov[niov].iov_len > tail);
+            orig_len = iov[niov].iov_len;
+            iov[niov++].iov_len = tail;
+        }
+
+        ret = do_send_recv(sockfd, iov, niov, do_send);
+
+        /* Undo the changes above before checking for errors */
+        if (tail) {
+            iov[niov-1].iov_len = orig_len;
+        }
+        if (offset) {
+            iov[0].iov_base -= offset;
+            iov[0].iov_len += offset;
+        }
+
+        if (ret < 0) {
+            assert(errno != EINTR);
+            if (errno == EAGAIN && total > 0) {
+                return total;
+            }
+            return -1;
+        }
+
+        if (ret == 0 && !do_send) {
+            /* recv returns 0 when the peer has performed an orderly
+             * shutdown. */
+            break;
+        }
+
+        /* Prepare for the next iteration */
+        offset += ret;
+        total += ret;
+        bytes -= ret;
     }
 
-    /* Find the start position, skipping `offset' bytes:
-     * first, skip all full-sized vector elements, */
-    for (si = 0; si < iov_cnt && offset >= iov[si].iov_len; ++si) {
-        offset -= iov[si].iov_len;
-    }
-    if (offset) {
-        assert(si < iov_cnt);
-        /* second, skip `offset' bytes from the (now) first element,
-         * undo it on exit */
-        iov[si].iov_base += offset;
-        iov[si].iov_len -= offset;
-    }
-    /* Find the end position skipping `bytes' bytes: */
-    /* first, skip all full-sized elements */
-    for (ei = si; ei < iov_cnt && iov[ei].iov_len <= bytes; ++ei) {
-        bytes -= iov[ei].iov_len;
-    }
-    if (bytes) {
-        /* second, fixup the last element, and remember
-         * the length we've cut from the end of it in `bytes' */
-        size_t tail;
-        assert(ei < iov_cnt);
-        assert(iov[ei].iov_len > bytes);
-        tail = iov[ei].iov_len - bytes;
-        iov[ei].iov_len = bytes;
-        bytes = tail;  /* bytes is now equal to the tail size */
-        ++ei;
-    }
-
-    ret = do_send_recv(sockfd, iov + si, ei - si, do_send);
-
-    /* Undo the changes above */
-    if (offset) {
-        iov[si].iov_base -= offset;
-        iov[si].iov_len += offset;
-    }
-    if (bytes) {
-        iov[ei-1].iov_len += bytes;
-    }
-
-    return ret;
+    return total;
 }
 
 
 void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
                  FILE *fp, const char *prefix, size_t limit)
 {
-    unsigned int i, v, b;
-    uint8_t *c;
+    int v;
+    size_t size = 0;
+    char *buf;
 
-    c = iov[0].iov_base;
-    for (i = 0, v = 0, b = 0; b < limit; i++, b++) {
-        if (i == iov[v].iov_len) {
-            i = 0; v++;
-            if (v == iov_cnt) {
-                break;
-            }
-            c = iov[v].iov_base;
-        }
-        if ((b % 16) == 0) {
-            fprintf(fp, "%s: %04x:", prefix, b);
-        }
-        if ((b % 4) == 0) {
-            fprintf(fp, " ");
-        }
-        fprintf(fp, " %02x", c[i]);
-        if ((b % 16) == 15) {
-            fprintf(fp, "\n");
-        }
+    for (v = 0; v < iov_cnt; v++) {
+        size += iov[v].iov_len;
     }
-    if ((b % 16) != 0) {
-        fprintf(fp, "\n");
-    }
+    size = size > limit ? limit : size;
+    buf = g_malloc(size);
+    iov_to_buf(iov, iov_cnt, 0, buf, size);
+    qemu_hexdump(buf, fp, prefix, size);
+    g_free(buf);
 }
 
 unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,

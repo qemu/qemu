@@ -34,6 +34,12 @@ dd()
    fi
 }
 
+# poke_file 'test.img' 512 '\xff\xfe'
+poke_file()
+{
+    printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
+}
+
 # we need common.config
 if [ "$iam" != "check" ]
 then
@@ -52,6 +58,9 @@ if [ "$IMGPROTO" = "file" ]; then
 elif [ "$IMGPROTO" = "nbd" ]; then
     TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
     TEST_IMG="nbd:127.0.0.1:10810"
+elif [ "$IMGPROTO" = "ssh" ]; then
+    TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+    TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
 else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
@@ -124,6 +133,9 @@ _make_test_img()
             -e "s# compat='[^']*'##g" \
             -e "s# compat6=\\(on\\|off\\)##g" \
             -e "s# static=\\(on\\|off\\)##g" \
+            -e "s# zeroed_grain=\\(on\\|off\\)##g" \
+            -e "s# subformat='[^']*'##g" \
+            -e "s# adapter_type='[^']*'##g" \
             -e "s# lazy_refcounts=\\(on\\|off\\)##g"
 
     # Start an NBD server on the image file, which is what we'll be talking to
@@ -161,7 +173,7 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check "$@" -f $IMGFMT $TEST_IMG 2>&1 | \
+    $QEMU_IMG check "$@" -f $IMGFMT $TEST_IMG 2>&1 | _filter_testdir | \
         sed -e '/allocated.*fragmented.*compressed clusters/d' \
             -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
             -e '/Image end offset: [0-9]\+/d'

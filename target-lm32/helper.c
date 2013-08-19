@@ -37,9 +37,16 @@ int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
     return 0;
 }
 
-hwaddr cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
+hwaddr lm32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    return addr & TARGET_PAGE_MASK;
+    LM32CPU *cpu = LM32_CPU(cs);
+
+    addr &= TARGET_PAGE_MASK;
+    if (cpu->env.flags & LM32_FLAG_IGNORE_MSB) {
+        return addr & 0x7fffffff;
+    } else {
+        return addr;
+    }
 }
 
 void lm32_cpu_do_interrupt(CPUState *cs)
@@ -65,7 +72,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         } else {
             env->pc = env->eba + (env->exception_index * 32);
         }
-        log_cpu_state_mask(CPU_LOG_INT, env, 0);
+        log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     case EXCP_BREAKPOINT:
     case EXCP_WATCHPOINT:
@@ -74,7 +81,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->ie |= (env->ie & IE_IE) ? IE_BIE : 0;
         env->ie &= ~IE_IE;
         env->pc = env->deba + (env->exception_index * 32);
-        log_cpu_state_mask(CPU_LOG_INT, env, 0);
+        log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     default:
         cpu_abort(env, "unhandled exception type=%d\n",

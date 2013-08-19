@@ -38,6 +38,9 @@ struct Coroutine {
     void *entry_arg;
     Coroutine *caller;
     QSLIST_ENTRY(Coroutine) pool_next;
+
+    /* Coroutines that should be woken up when we yield or terminate */
+    QTAILQ_HEAD(, Coroutine) co_queue_wakeup;
     QTAILQ_ENTRY(Coroutine) co_queue_next;
 };
 
@@ -45,5 +48,6 @@ Coroutine *qemu_coroutine_new(void);
 void qemu_coroutine_delete(Coroutine *co);
 CoroutineAction qemu_coroutine_switch(Coroutine *from, Coroutine *to,
                                       CoroutineAction action);
+void coroutine_fn qemu_co_queue_run_restart(Coroutine *co);
 
 #endif

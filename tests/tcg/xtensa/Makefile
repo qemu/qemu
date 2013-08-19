@@ -1,9 +1,9 @@
--include ../../config-host.mak
+-include ../../../config-host.mak
 
 CROSS=xtensa-dc232b-elf-
 
 ifndef XT
-SIM = qemu-system-xtensa
+SIM = ../../../xtensa-softmmu/qemu-system-xtensa
 SIMFLAGS = -M sim -cpu dc232b -nographic -semihosting $(EXTFLAGS) -kernel
 SIMDEBUG = -s -S
 else
@@ -13,10 +13,12 @@ SIMDEBUG = --gdbserve=0
 endif
 
 CC      = $(CROSS)gcc
-AS      = $(CROSS)gcc -x assembler
+AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
 
-LDFLAGS = -Tlinker.ld
+XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
+
+LDFLAGS = -T$(XTENSA_SRC_PATH)/linker.ld
 
 CRT        = crt.o vectors.o
 
@@ -26,6 +28,7 @@ TESTCASES += test_bi.tst
 TESTCASES += test_break.tst
 TESTCASES += test_bz.tst
 TESTCASES += test_clamps.tst
+TESTCASES += test_extui.tst
 TESTCASES += test_fail.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
@@ -52,13 +55,13 @@ TESTCASES += test_windowed.tst
 
 all: build
 
-%.o: $(SRC_PATH)/tests/xtensa/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+%.o: $(XTENSA_SRC_PATH)/%.c
+	$(CC) -I$(XTENSA_SRC_PATH) $(CFLAGS) -c $< -o $@
 
-%.o: $(SRC_PATH)/tests/xtensa/%.S
-	$(AS) $(ASFLAGS) -c $< -o $@
+%.o: $(XTENSA_SRC_PATH)/%.S
+	$(AS) -Wa,-I,$(XTENSA_SRC_PATH) $(ASFLAGS) -c $< -o $@
 
-%.tst: %.o macros.inc $(CRT) Makefile
+%.tst: %.o $(XTENSA_SRC_PATH)/macros.inc $(CRT) Makefile
 	$(LD) $(LDFLAGS) $(NOSTDFLAGS) $(CRT) $< -o $@
 
 build: $(TESTCASES)

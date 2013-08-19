@@ -410,7 +410,7 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
             assert(p->ep->type != USB_ENDPOINT_XFER_ISOC);
             /* using async for interrupt packets breaks migration */
             assert(p->ep->type != USB_ENDPOINT_XFER_INT ||
-                   (dev->flags & USB_DEV_FLAG_IS_HOST));
+                   (dev->flags & (1 << USB_DEV_FLAG_IS_HOST)));
             usb_packet_set_state(p, USB_PACKET_ASYNC);
             QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
         } else if (p->status == USB_RET_ADD_TO_QUEUE) {

@@ -144,3 +144,5 @@ struct target_vm86plus_struct {
 };
 
 #define UNAME_MACHINE "i686"
+
+#define TARGET_CLONE_BACKWARDS

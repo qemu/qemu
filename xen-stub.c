@@ -9,7 +9,7 @@
  */
 
 #include "qemu-common.h"
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
 
@@ -62,4 +62,9 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
 
 void xen_modified_memory(ram_addr_t start, ram_addr_t length)
 {
+}
+
+int xen_hvm_init(void)
+{
+    return 0;
 }

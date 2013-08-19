@@ -279,7 +279,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
         return ret;
     }
 
-    ret = bdrv_file_open(&cow_bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         return ret;
     }
@@ -340,6 +340,7 @@ static BlockDriver bdrv_cow = {
     .bdrv_open      = cow_open,
     .bdrv_close     = cow_close,
     .bdrv_create    = cow_create,
+    .bdrv_has_zero_init     = bdrv_has_zero_init_1,
 
     .bdrv_read              = cow_co_read,
     .bdrv_write             = cow_co_write,

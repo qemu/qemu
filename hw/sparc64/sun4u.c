@@ -23,17 +23,17 @@
  */
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "hw/apb_pci.h"
-#include "hw/pc.h"
-#include "hw/serial.h"
-#include "hw/nvram.h"
-#include "hw/fdc.h"
+#include "hw/pci-host/apb.h"
+#include "hw/i386/pc.h"
+#include "hw/char/serial.h"
+#include "hw/timer/m48t59.h"
+#include "hw/block/fdc.h"
 #include "net/net.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/firmware_abi.h"
-#include "hw/fw_cfg.h"
+#include "hw/nvram/openbios_firmware_abi.h"
+#include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
@@ -81,7 +81,7 @@
 #define FW_CFG_SPARC64_HEIGHT (FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_SPARC64_DEPTH (FW_CFG_ARCH_LOCAL + 0x02)
 
-#define IVEC_MAX             0x30
+#define IVEC_MAX             0x40
 
 #define TICK_MAX             0x7fffffffffffffffULL
 
@@ -585,8 +585,7 @@ pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
     ISABus *isa_bus;
 
     pci_dev = pci_create_simple(bus, devfn, "ebus");
-    isa_bus = DO_UPCAST(ISABus, qbus,
-                        qdev_get_child_bus(&pci_dev->qdev, "isa.0"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
     isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
     isa_bus_irqs(isa_bus, isa_irq);
     return isa_bus;
@@ -606,9 +605,11 @@ pci_ebus_init1(PCIDevice *pci_dev)
     pci_dev->config[0x09] = 0x00; // programming i/f
     pci_dev->config[0x0D] = 0x0a; // latency_timer
 
-    isa_mmio_setup(&s->bar0, 0x1000000);
+    memory_region_init_alias(&s->bar0, OBJECT(s), "bar0", get_system_io(),
+                             0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
-    isa_mmio_setup(&s->bar1, 0x800000);
+    memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
+                             0, 0x800000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar1);
     return 0;
 }
@@ -631,8 +632,12 @@ static const TypeInfo ebus_info = {
     .class_init    = ebus_class_init,
 };
 
+#define TYPE_OPENPROM "openprom"
+#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+
 typedef struct PROMState {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion prom;
 } PROMState;
 
@@ -650,7 +655,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     char *filename;
     int ret;
 
-    dev = qdev_create(NULL, "openprom");
+    dev = qdev_create(NULL, TYPE_OPENPROM);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
 
@@ -679,9 +684,9 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 static int prom_init1(SysBusDevice *dev)
 {
-    PROMState *s = FROM_SYSBUS(PROMState, dev);
+    PROMState *s = OPENPROM(dev);
 
-    memory_region_init_ram(&s->prom, "sun4u.prom", PROM_SIZE_MAX);
+    memory_region_init_ram(&s->prom, OBJECT(s), "sun4u.prom", PROM_SIZE_MAX);
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
@@ -702,16 +707,19 @@ static void prom_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo prom_info = {
-    .name          = "openprom",
+    .name          = TYPE_OPENPROM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
 };
 
 
-typedef struct RamDevice
-{
-    SysBusDevice busdev;
+#define TYPE_SUN4U_MEMORY "memory"
+#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
+
+typedef struct RamDevice {
+    SysBusDevice parent_obj;
+
     MemoryRegion ram;
     uint64_t size;
 } RamDevice;
@@ -719,9 +727,9 @@ typedef struct RamDevice
 /* System RAM */
 static int ram_init1(SysBusDevice *dev)
 {
-    RamDevice *d = FROM_SYSBUS(RamDevice, dev);
+    RamDevice *d = SUN4U_RAM(dev);
 
-    memory_region_init_ram(&d->ram, "sun4u.ram", d->size);
+    memory_region_init_ram(&d->ram, OBJECT(d), "sun4u.ram", d->size);
     vmstate_register_ram_global(&d->ram);
     sysbus_init_mmio(dev, &d->ram);
     return 0;
@@ -734,10 +742,10 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
     RamDevice *d;
 
     /* allocate RAM */
-    dev = qdev_create(NULL, "memory");
+    dev = qdev_create(NULL, TYPE_SUN4U_MEMORY);
     s = SYS_BUS_DEVICE(dev);
 
-    d = FROM_SYSBUS(RamDevice, s);
+    d = SUN4U_RAM(dev);
     d->size = RAM_size;
     qdev_init_nofail(dev);
 
@@ -759,7 +767,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ram_info = {
-    .name          = "memory",
+    .name          = TYPE_SUN4U_MEMORY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
@@ -818,7 +826,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
 
     /* init CPUs */
     cpu = cpu_devinit(cpu_model, hwdef);
@@ -855,7 +863,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
     ide_drive_get(hd, MAX_IDE_BUS);
 

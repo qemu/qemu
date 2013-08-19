@@ -47,11 +47,16 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     bh->ctx = ctx;
     bh->cb = cb;
     bh->opaque = opaque;
+    qemu_mutex_lock(&ctx->bh_lock);
     bh->next = ctx->first_bh;
+    /* Make sure that the members are ready before putting bh into list */
+    smp_wmb();
     ctx->first_bh = bh;
+    qemu_mutex_unlock(&ctx->bh_lock);
     return bh;
 }
 
+/* Multiple occurrences of aio_bh_poll cannot be called concurrently */
 int aio_bh_poll(AioContext *ctx)
 {
     QEMUBH *bh, **bhp, *next;
@@ -61,9 +66,15 @@ int aio_bh_poll(AioContext *ctx)
 
     ret = 0;
     for (bh = ctx->first_bh; bh; bh = next) {
+        /* Make sure that fetching bh happens before accessing its members */
+        smp_read_barrier_depends();
         next = bh->next;
         if (!bh->deleted && bh->scheduled) {
             bh->scheduled = 0;
+            /* Paired with write barrier in bh schedule to ensure reading for
+             * idle & callbacks coming after bh's scheduling.
+             */
+            smp_rmb();
             if (!bh->idle)
                 ret = 1;
             bh->idle = 0;
@@ -75,6 +86,7 @@ int aio_bh_poll(AioContext *ctx)
 
     /* remove deleted bhs */
     if (!ctx->walking_bh) {
+        qemu_mutex_lock(&ctx->bh_lock);
         bhp = &ctx->first_bh;
         while (*bhp) {
             bh = *bhp;
@@ -85,6 +97,7 @@ int aio_bh_poll(AioContext *ctx)
                 bhp = &bh->next;
             }
         }
+        qemu_mutex_unlock(&ctx->bh_lock);
     }
 
     return ret;
@@ -94,24 +107,38 @@ void qemu_bh_schedule_idle(QEMUBH *bh)
 {
     if (bh->scheduled)
         return;
-    bh->scheduled = 1;
     bh->idle = 1;
+    /* Make sure that idle & any writes needed by the callback are done
+     * before the locations are read in the aio_bh_poll.
+     */
+    smp_wmb();
+    bh->scheduled = 1;
 }
 
 void qemu_bh_schedule(QEMUBH *bh)
 {
     if (bh->scheduled)
         return;
-    bh->scheduled = 1;
     bh->idle = 0;
+    /* Make sure that idle & any writes needed by the callback are done
+     * before the locations are read in the aio_bh_poll.
+     */
+    smp_wmb();
+    bh->scheduled = 1;
     aio_notify(bh->ctx);
 }
 
+
+/* This func is async.
+ */
 void qemu_bh_cancel(QEMUBH *bh)
 {
     bh->scheduled = 0;
 }
 
+/* This func is async.The bottom half will do the delete action at the finial
+ * end.
+ */
 void qemu_bh_delete(QEMUBH *bh)
 {
     bh->scheduled = 0;
@@ -176,6 +203,7 @@ aio_ctx_finalize(GSource     *source)
     thread_pool_free(ctx->thread_pool);
     aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
+    qemu_mutex_destroy(&ctx->bh_lock);
     g_array_free(ctx->pollfds, TRUE);
 }
 
@@ -211,6 +239,7 @@ AioContext *aio_context_new(void)
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
     ctx->pollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
     ctx->thread_pool = NULL;
+    qemu_mutex_init(&ctx->bh_lock);
     event_notifier_init(&ctx->notifier, false);
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)

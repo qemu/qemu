@@ -45,7 +45,7 @@ void helper_divb_AL(CPUX86State *env, target_ulong t0)
 {
     unsigned int num, den, q, r;
 
-    num = (EAX & 0xffff);
+    num = (env->regs[R_EAX] & 0xffff);
     den = (t0 & 0xff);
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -56,14 +56,14 @@ void helper_divb_AL(CPUX86State *env, target_ulong t0)
     }
     q &= 0xff;
     r = (num % den) & 0xff;
-    EAX = (EAX & ~0xffff) | (r << 8) | q;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | (r << 8) | q;
 }
 
 void helper_idivb_AL(CPUX86State *env, target_ulong t0)
 {
     int num, den, q, r;
 
-    num = (int16_t)EAX;
+    num = (int16_t)env->regs[R_EAX];
     den = (int8_t)t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -74,14 +74,14 @@ void helper_idivb_AL(CPUX86State *env, target_ulong t0)
     }
     q &= 0xff;
     r = (num % den) & 0xff;
-    EAX = (EAX & ~0xffff) | (r << 8) | q;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | (r << 8) | q;
 }
 
 void helper_divw_AX(CPUX86State *env, target_ulong t0)
 {
     unsigned int num, den, q, r;
 
-    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
+    num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (t0 & 0xffff);
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -92,15 +92,15 @@ void helper_divw_AX(CPUX86State *env, target_ulong t0)
     }
     q &= 0xffff;
     r = (num % den) & 0xffff;
-    EAX = (EAX & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | q;
+    env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
 void helper_idivw_AX(CPUX86State *env, target_ulong t0)
 {
     int num, den, q, r;
 
-    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
+    num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (int16_t)t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -111,8 +111,8 @@ void helper_idivw_AX(CPUX86State *env, target_ulong t0)
     }
     q &= 0xffff;
     r = (num % den) & 0xffff;
-    EAX = (EAX & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | q;
+    env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
 void helper_divl_EAX(CPUX86State *env, target_ulong t0)
@@ -120,7 +120,7 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
     unsigned int den, r;
     uint64_t num, q;
 
-    num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
+    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -130,8 +130,8 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
     if (q > 0xffffffff) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    EAX = (uint32_t)q;
-    EDX = (uint32_t)r;
+    env->regs[R_EAX] = (uint32_t)q;
+    env->regs[R_EDX] = (uint32_t)r;
 }
 
 void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
@@ -139,7 +139,7 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
     int den, r;
     int64_t num, q;
 
-    num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
+    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -149,8 +149,8 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
     if (q != (int32_t)q) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    EAX = (uint32_t)q;
-    EDX = (uint32_t)r;
+    env->regs[R_EAX] = (uint32_t)q;
+    env->regs[R_EDX] = (uint32_t)r;
 }
 
 /* bcd */
@@ -160,10 +160,10 @@ void helper_aam(CPUX86State *env, int base)
 {
     int al, ah;
 
-    al = EAX & 0xff;
+    al = env->regs[R_EAX] & 0xff;
     ah = al / base;
     al = al % base;
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al | (ah << 8);
     CC_DST = al;
 }
 
@@ -171,10 +171,10 @@ void helper_aad(CPUX86State *env, int base)
 {
     int al, ah;
 
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
+    al = env->regs[R_EAX] & 0xff;
+    ah = (env->regs[R_EAX] >> 8) & 0xff;
     al = ((ah * base) + al) & 0xff;
-    EAX = (EAX & ~0xffff) | al;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al;
     CC_DST = al;
 }
 
@@ -186,8 +186,8 @@ void helper_aaa(CPUX86State *env)
 
     eflags = cpu_cc_compute_all(env, CC_OP);
     af = eflags & CC_A;
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
+    al = env->regs[R_EAX] & 0xff;
+    ah = (env->regs[R_EAX] >> 8) & 0xff;
 
     icarry = (al > 0xf9);
     if (((al & 0x0f) > 9) || af) {
@@ -198,7 +198,7 @@ void helper_aaa(CPUX86State *env)
         eflags &= ~(CC_C | CC_A);
         al &= 0x0f;
     }
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
 }
 
@@ -210,8 +210,8 @@ void helper_aas(CPUX86State *env)
 
     eflags = cpu_cc_compute_all(env, CC_OP);
     af = eflags & CC_A;
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
+    al = env->regs[R_EAX] & 0xff;
+    ah = (env->regs[R_EAX] >> 8) & 0xff;
 
     icarry = (al < 6);
     if (((al & 0x0f) > 9) || af) {
@@ -222,7 +222,7 @@ void helper_aas(CPUX86State *env)
         eflags &= ~(CC_C | CC_A);
         al &= 0x0f;
     }
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
 }
 
@@ -234,7 +234,7 @@ void helper_daa(CPUX86State *env)
     eflags = cpu_cc_compute_all(env, CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
-    old_al = al = EAX & 0xff;
+    old_al = al = env->regs[R_EAX] & 0xff;
 
     eflags = 0;
     if (((al & 0x0f) > 9) || af) {
@@ -245,7 +245,7 @@ void helper_daa(CPUX86State *env)
         al = (al + 0x60) & 0xff;
         eflags |= CC_C;
     }
-    EAX = (EAX & ~0xff) | al;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xff) | al;
     /* well, speed is not an issue here, so we compute the flags by hand */
     eflags |= (al == 0) << 6; /* zf */
     eflags |= parity_table[al]; /* pf */
@@ -261,7 +261,7 @@ void helper_das(CPUX86State *env)
     eflags = cpu_cc_compute_all(env, CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
-    al = EAX & 0xff;
+    al = env->regs[R_EAX] & 0xff;
 
     eflags = 0;
     al1 = al;
@@ -276,7 +276,7 @@ void helper_das(CPUX86State *env)
         al = (al - 0x60) & 0xff;
         eflags |= CC_C;
     }
-    EAX = (EAX & ~0xff) | al;
+    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xff) | al;
     /* well, speed is not an issue here, so we compute the flags by hand */
     eflags |= (al == 0) << 6; /* zf */
     eflags |= parity_table[al]; /* pf */
@@ -381,13 +381,13 @@ void helper_divq_EAX(CPUX86State *env, target_ulong t0)
     if (t0 == 0) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    r0 = EAX;
-    r1 = EDX;
+    r0 = env->regs[R_EAX];
+    r1 = env->regs[R_EDX];
     if (div64(&r0, &r1, t0)) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    EAX = r0;
-    EDX = r1;
+    env->regs[R_EAX] = r0;
+    env->regs[R_EDX] = r1;
 }
 
 void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
@@ -397,13 +397,13 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
     if (t0 == 0) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    r0 = EAX;
-    r1 = EDX;
+    r0 = env->regs[R_EAX];
+    r1 = env->regs[R_EDX];
     if (idiv64(&r0, &r1, t0)) {
         raise_exception(env, EXCP00_DIVZ);
     }
-    EAX = r0;
-    EDX = r1;
+    env->regs[R_EAX] = r0;
+    env->regs[R_EDX] = r1;
 }
 #endif
 

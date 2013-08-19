@@ -58,17 +58,19 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 }
 #endif
 
+static void s390_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    S390CPU *cpu = S390_CPU(cs);
+
+    cpu->env.psw.addr = value;
+}
+
 /* CPUClass::reset() */
 static void s390_cpu_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
-
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
-    }
 
     s390_del_running_cpu(cpu);
 
@@ -99,11 +101,11 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    S390CPU *cpu = S390_CPU(dev);
+    CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
-    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
     scc->parent_realize(dev, errp);
 }
@@ -170,7 +172,17 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = s390_cpu_reset;
 
     cc->do_interrupt = s390_cpu_do_interrupt;
+    cc->dump_state = s390_cpu_dump_state;
+    cc->set_pc = s390_cpu_set_pc;
+    cc->gdb_read_register = s390_cpu_gdb_read_register;
+    cc->gdb_write_register = s390_cpu_gdb_write_register;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
+    cc->write_elf64_note = s390_cpu_write_elf64_note;
+    cc->write_elf64_qemunote = s390_cpu_write_elf64_qemunote;
+#endif
     dc->vmsd = &vmstate_s390_cpu;
+    cc->gdb_num_core_regs = S390_NUM_REGS;
 }
 
 static const TypeInfo s390_cpu_type_info = {

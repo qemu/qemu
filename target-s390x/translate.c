@@ -86,9 +86,11 @@ static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
     return pc;
 }
 
-void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     int i;
 
     if (env->cc_op > 3) {
@@ -1142,7 +1144,7 @@ struct DisasInsn {
 };
 
 /* ====================================================================== */
-/* Miscelaneous helpers, used by several operations.  */
+/* Miscellaneous helpers, used by several operations.  */
 
 static void help_l2_shift(DisasContext *s, DisasFields *f,
                           DisasOps *o, int mask)
@@ -3088,6 +3090,7 @@ static ExitStatus op_srnm(DisasContext *s, DisasOps *o)
         break;
     case 0xb9: /* SRNMT */
         pos = 4, len = 3;
+        break;
     default:
         tcg_abort();
     }
@@ -3805,7 +3808,7 @@ static void cout_tm64(DisasContext *s, DisasOps *o)
 }
 
 /* ====================================================================== */
-/* The "PREPeration" generators.  These initialize the DisasOps.OUT fields
+/* The "PREParation" generators.  These initialize the DisasOps.OUT fields
    with the TCG register to which we will write.  Used in combination with
    the "wout" generators, in some cases we need a new temporary, and in
    some cases we can write to a TCG global.  */
@@ -4733,10 +4736,12 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(CPUS390XState *env,
+static inline void gen_intermediate_code_internal(S390CPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
+    CPUS390XState *env = &cpu->env;
     DisasContext dc;
     target_ulong pc_start;
     uint64_t next_page_start;
@@ -4757,7 +4762,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
     dc.tb = tb;
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
-    do_debug = dc.singlestep_enabled = env->singlestep_enabled;
+    do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
@@ -4814,7 +4819,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
                 || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
-                || env->singlestep_enabled)) {
+                || cs->singlestep_enabled)) {
             status = EXIT_PC_STALE;
         }
     } while (status == NO_EXIT);
@@ -4869,12 +4874,12 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
 
 void gen_intermediate_code (CPUS390XState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUS390XState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb, int pc_pos)

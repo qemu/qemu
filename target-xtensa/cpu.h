@@ -484,6 +484,7 @@ static inline int cpu_mmu_index(CPUXtensaState *env)
 #define XTENSA_TBFLAG_ICOUNT 0x20
 #define XTENSA_TBFLAG_CPENABLE_MASK 0x3fc0
 #define XTENSA_TBFLAG_CPENABLE_SHIFT 6
+#define XTENSA_TBFLAG_EXCEPTION 0x4000
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -510,6 +511,9 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_COPROCESSOR)) {
         *flags |= env->sregs[CPENABLE] << XTENSA_TBFLAG_CPENABLE_SHIFT;
     }
+    if (ENV_GET_CPU(env)->singlestep_enabled && env->exception_taken) {
+        *flags |= XTENSA_TBFLAG_EXCEPTION;
+    }
 }
 
 #include "exec/cpu-all.h"
@@ -520,11 +524,6 @@ static inline int cpu_has_work(CPUState *cpu)
     CPUXtensaState *env = &XTENSA_CPU(cpu)->env;
 
     return env->pending_irq_level;
-}
-
-static inline void cpu_pc_from_tb(CPUXtensaState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
 }
 
 #endif

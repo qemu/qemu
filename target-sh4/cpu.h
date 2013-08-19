@@ -220,11 +220,6 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
 
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr);
 
-static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
-{
-  env->gbr = newtls;
-}
-
 void cpu_load_tlb(CPUSH4State * env);
 
 static inline CPUSH4State *cpu_init(const char *cpu_model)
@@ -249,15 +244,6 @@ static inline int cpu_mmu_index (CPUSH4State *env)
 {
     return (env->sr & SR_MD) == 0 ? 1 : 0;
 }
-
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUSH4State *env, target_ulong newsp)
-{
-    if (newsp)
-        env->gregs[15] = newsp;
-    env->gregs[0] = 0;
-}
-#endif
 
 #include "exec/cpu-all.h"
 
@@ -372,11 +358,5 @@ static inline bool cpu_has_work(CPUState *cpu)
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUSH4State *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-    env->flags = tb->flags;
-}
 
 #endif				/* _CPU_SH4_H */

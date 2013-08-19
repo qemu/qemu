@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include <brlapi.h>
@@ -610,8 +610,6 @@ CharDriverState *chr_baum_init(void)
     }
 
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
-
-    qemu_chr_generic_open(chr);
 
     return chr;
 

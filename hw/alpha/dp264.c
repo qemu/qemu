@@ -10,12 +10,12 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/boards.h"
-#include "hw/alpha_sys.h"
+#include "alpha_sys.h"
 #include "sysemu/sysemu.h"
-#include "hw/mc146818rtc.h"
+#include "hw/timer/mc146818rtc.h"
 #include "hw/ide.h"
-#include "hw/i8254.h"
-#include "hw/serial.h"
+#include "hw/timer/i8254.h"
+#include "hw/char/serial.h"
 
 #define MAX_IDE_BUS 2
 
@@ -73,7 +73,9 @@ static void clipper_init(QEMUMachineInitArgs *args)
     pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
-    rtc_init(isa_bus, 1980, rtc_irq);
+    /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
+    rtc_init(isa_bus, 1900, rtc_irq);
+
     pit_init(isa_bus, 0x40, 0, NULL);
     isa_create_simple(isa_bus, "i8042");
 
@@ -89,7 +91,7 @@ static void clipper_init(QEMUMachineInitArgs *args)
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], "e1000", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
     }
 
     /* IDE disk setup.  */

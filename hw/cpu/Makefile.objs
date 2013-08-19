@@ -1,0 +1,5 @@
+obj-$(CONFIG_ARM11MPCORE) += arm11mpcore.o
+obj-$(CONFIG_ARM9MPCORE) += a9mpcore.o
+obj-$(CONFIG_ARM15MPCORE) += a15mpcore.o
+obj-$(CONFIG_ICC_BUS) += icc_bus.o
+

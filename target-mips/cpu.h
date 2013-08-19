@@ -493,8 +493,9 @@ void r4k_helper_tlbwr(CPUMIPSState *env);
 void r4k_helper_tlbp(CPUMIPSState *env);
 void r4k_helper_tlbr(CPUMIPSState *env);
 
-void cpu_unassigned_access(CPUMIPSState *env, hwaddr addr,
-                           int is_write, int is_exec, int unused, int size);
+void mips_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                bool is_write, bool is_exec, int unused,
+                                unsigned size);
 #endif
 
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
@@ -518,14 +519,6 @@ extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
 static inline int cpu_mmu_index (CPUMIPSState *env)
 {
     return env->hflags & MIPS_HFLAG_KSU;
-}
-
-static inline void cpu_clone_regs(CPUMIPSState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->active_tc.gpr[29] = newsp;
-    env->active_tc.gpr[7] = 0;
-    env->active_tc.gpr[2] = 0;
 }
 
 static inline int cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
@@ -668,6 +661,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
 hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
 		                               int rw);
 #endif
+target_ulong exception_resume_pc (CPUMIPSState *env);
 
 static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -675,11 +669,6 @@ static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
     *pc = env->active_tc.PC;
     *cs_base = 0;
     *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
-}
-
-static inline void cpu_set_tls(CPUMIPSState *env, target_ulong newtls)
-{
-    env->tls_value = newtls;
 }
 
 static inline int mips_vpe_active(CPUMIPSState *env)
@@ -742,13 +731,6 @@ static inline bool cpu_has_work(CPUState *cpu)
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUMIPSState *env, TranslationBlock *tb)
-{
-    env->active_tc.PC = tb->pc;
-    env->hflags &= ~MIPS_HFLAG_BMASK;
-    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
-}
 
 static inline void compute_hflags(CPUMIPSState *env)
 {

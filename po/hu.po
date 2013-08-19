@@ -1,0 +1,63 @@
+# Hungarian translation for QEMU.
+# This file is put in the public domain.
+# Ákos Kovács <akoskovacs@gmx.com>, 2013.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 1.4.50\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2013-07-05 22:36+0200\n"
+"PO-Revision-Date: 2013-05-06 20:42+0200\n"
+"Last-Translator: Ákos Kovács <akoskovacs@gmx.com>\n"
+"Language-Team: Hungarian <hu@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ui/gtk.c:214
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - Nyomj Ctrl+Alt+G-t a bemeneti eszközök elengedéséhez"
+
+#: ui/gtk.c:218
+msgid " [Paused]"
+msgstr " [Megállítva]"
+
+#: ui/gtk.c:1318
+msgid "_Pause"
+msgstr "_Megállítás"
+
+#: ui/gtk.c:1324
+msgid "_Reset"
+msgstr "Új_raindítás"
+
+#: ui/gtk.c:1327
+msgid "Power _Down"
+msgstr "_Leállítás"
+
+#: ui/gtk.c:1381
+msgid "Zoom To _Fit"
+msgstr "Ablakmérethez _igazítás"
+
+#: ui/gtk.c:1387
+msgid "Grab On _Hover"
+msgstr "Automatikus _elfogás"
+
+#: ui/gtk.c:1390
+msgid "_Grab Input"
+msgstr "_Bemeneti eszközök megragadása"
+
+#: ui/gtk.c:1416
+msgid "Show _Tabs"
+msgstr "_Fülek megjelenítése"
+
+#: ui/gtk.c:1430
+msgid "_Machine"
+msgstr "_Gép"
+
+#: ui/gtk.c:1435
+msgid "_View"
+msgstr "_Nézet"
+
+#~ msgid "_File"
+#~ msgstr "_File"
