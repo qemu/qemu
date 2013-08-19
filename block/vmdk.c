@@ -481,9 +481,9 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent)
     return ret;
 }
 
-static int vmdk_open_vmdk3(BlockDriverState *bs,
-                           BlockDriverState *file,
-                           int flags)
+static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
+                                 BlockDriverState *file,
+                                 int flags)
 {
     int ret;
     uint32_t magic;
@@ -674,7 +674,7 @@ static int vmdk_open_sparse(BlockDriverState *bs,
     magic = be32_to_cpu(magic);
     switch (magic) {
         case VMDK3_MAGIC:
-            return vmdk_open_vmdk3(bs, file, flags);
+            return vmdk_open_vmfs_sparse(bs, file, flags);
             break;
         case VMDK4_MAGIC:
             return vmdk_open_vmdk4(bs, file, flags);
@@ -718,7 +718,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         }
 
         if (sectors <= 0 ||
-            (strcmp(type, "FLAT") && strcmp(type, "SPARSE")) ||
+            (strcmp(type, "FLAT") && strcmp(type, "SPARSE") &&
+             strcmp(type, "VMFSSPARSE")) ||
             (strcmp(access, "RW"))) {
             goto next_line;
         }
@@ -741,8 +742,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                 return ret;
             }
             extent->flat_start_offset = flat_offset << 9;
-        } else if (!strcmp(type, "SPARSE")) {
-            /* SPARSE extent */
+        } else if (!strcmp(type, "SPARSE") || !strcmp(type, "VMFSSPARSE")) {
+            /* SPARSE extent and VMFSSPARSE extent are both "COWD" sparse file*/
             ret = vmdk_open_sparse(bs, extent_file, bs->open_flags);
             if (ret) {
                 bdrv_delete(extent_file);
@@ -789,6 +790,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
         goto exit;
     }
     if (strcmp(ct, "monolithicFlat") &&
+        strcmp(ct, "vmfsSparse") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&
         strcmp(ct, "twoGbMaxExtentFlat")) {
         fprintf(stderr,
@@ -1380,7 +1382,6 @@ static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
-
 
 static int vmdk_create_extent(const char *filename, int64_t filesize,
                               bool flat, bool compress, bool zeroed_grain)
