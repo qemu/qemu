@@ -407,6 +407,7 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
     const QemuOpt *opt;
     const char *str;
+    unsigned long long val;
 
     if (ov->list_mode == LM_UNSIGNED_INTERVAL) {
         *obj = ov->range_next.u;
@@ -417,26 +418,12 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
     if (!opt) {
         return;
     }
-
     str = opt->str;
-    if (str != NULL) {
-        while (isspace((unsigned char)*str)) {
-            ++str;
-        }
 
-        if (*str != '-' && *str != '\0') {
-            unsigned long long val;
-            char *endptr;
-
-            /* non-empty, non-negative subject sequence */
-            errno = 0;
-            val = strtoull(str, &endptr, 0);
-            if (*endptr == '\0' && errno == 0 && val <= UINT64_MAX) {
-                *obj = val;
-                processed(ov, name);
-                return;
-            }
-        }
+    if (parse_uint_full(str, &val, 0) == 0 && val <= UINT64_MAX) {
+        *obj = val;
+        processed(ov, name);
+        return;
     }
     error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
               "an uint64 value");
