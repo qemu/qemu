@@ -342,7 +342,8 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
 {
     unsigned long base = mr->ram_addr >> TARGET_PAGE_BITS;
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
-    unsigned long size = base + (int128_get64(mr->size) >> TARGET_PAGE_BITS);
+    uint64_t mr_size = TARGET_PAGE_ALIGN(memory_region_size(mr));
+    unsigned long size = base + (mr_size >> TARGET_PAGE_BITS);
 
     unsigned long next;
 
