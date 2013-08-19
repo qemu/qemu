@@ -22,7 +22,32 @@ enum ListMode
 {
     LM_NONE,             /* not traversing a list of repeated options */
     LM_STARTED,          /* opts_start_list() succeeded */
-    LM_IN_PROGRESS       /* opts_next_list() has been called */
+
+    LM_IN_PROGRESS,      /* opts_next_list() has been called.
+                          *
+                          * Generating the next list link will consume the most
+                          * recently parsed QemuOpt instance of the repeated
+                          * option.
+                          *
+                          * Parsing a value into the list link will examine the
+                          * next QemuOpt instance of the repeated option, and
+                          * possibly enter LM_SIGNED_INTERVAL or
+                          * LM_UNSIGNED_INTERVAL.
+                          */
+
+    LM_SIGNED_INTERVAL,  /* opts_next_list() has been called.
+                          *
+                          * Generating the next list link will consume the most
+                          * recently stored element from the signed interval,
+                          * parsed from the most recent QemuOpt instance of the
+                          * repeated option. This may consume QemuOpt itself
+                          * and return to LM_IN_PROGRESS.
+                          *
+                          * Parsing a value into the list link will store the
+                          * next element of the signed interval.
+                          */
+
+    LM_UNSIGNED_INTERVAL /* Same as above, only for an unsigned interval. */
 };
 
 typedef enum ListMode ListMode;
@@ -46,6 +71,15 @@ struct OptsVisitor
      * schema, with a single mandatory scalar member. */
     ListMode list_mode;
     GQueue *repeated_opts;
+
+    /* When parsing a list of repeating options as integers, values of the form
+     * "a-b", representing a closed interval, are allowed. Elements in the
+     * range are generated individually.
+     */
+    union {
+        int64_t s;
+        uint64_t u;
+    } range_next, range_limit;
 
     /* If "opts_root->id" is set, reinstantiate it as a fake QemuOpt for
      * uniformity. Only its "name" and "str" fields are set. "fake_id_opt" does
@@ -185,6 +219,22 @@ opts_next_list(Visitor *v, GenericList **list, Error **errp)
         link = list;
         break;
 
+    case LM_SIGNED_INTERVAL:
+    case LM_UNSIGNED_INTERVAL:
+        link = &(*list)->next;
+
+        if (ov->list_mode == LM_SIGNED_INTERVAL) {
+            if (ov->range_next.s < ov->range_limit.s) {
+                ++ov->range_next.s;
+                break;
+            }
+        } else if (ov->range_next.u < ov->range_limit.u) {
+            ++ov->range_next.u;
+            break;
+        }
+        ov->list_mode = LM_IN_PROGRESS;
+        /* range has been completed, fall through in order to pop option */
+
     case LM_IN_PROGRESS: {
         const QemuOpt *opt;
 
@@ -211,7 +261,10 @@ opts_end_list(Visitor *v, Error **errp)
 {
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
-    assert(ov->list_mode == LM_STARTED || ov->list_mode == LM_IN_PROGRESS);
+    assert(ov->list_mode == LM_STARTED ||
+           ov->list_mode == LM_IN_PROGRESS ||
+           ov->list_mode == LM_SIGNED_INTERVAL ||
+           ov->list_mode == LM_UNSIGNED_INTERVAL);
     ov->repeated_opts = NULL;
     ov->list_mode = LM_NONE;
 }
@@ -303,6 +356,11 @@ opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
     long long val;
     char *endptr;
 
+    if (ov->list_mode == LM_SIGNED_INTERVAL) {
+        *obj = ov->range_next.s;
+        return;
+    }
+
     opt = lookup_scalar(ov, name, errp);
     if (!opt) {
         return;
@@ -327,6 +385,11 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
     const QemuOpt *opt;
     const char *str;
+
+    if (ov->list_mode == LM_UNSIGNED_INTERVAL) {
+        *obj = ov->range_next.u;
+        return;
+    }
 
     opt = lookup_scalar(ov, name, errp);
     if (!opt) {
