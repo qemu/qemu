@@ -1429,7 +1429,9 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options)
                 return -EINVAL;
             }
         } else if (!strcmp(options->name, BLOCK_OPT_COMPAT_LEVEL)) {
-            if (!options->value.s || !strcmp(options->value.s, "0.10")) {
+            if (!options->value.s) {
+                /* keep the default */
+            } else if (!strcmp(options->value.s, "0.10")) {
                 version = 2;
             } else if (!strcmp(options->value.s, "1.1")) {
                 version = 3;
