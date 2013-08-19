@@ -693,6 +693,7 @@ static const TypeInfo virtio_scsi_common_info = {
     .name = TYPE_VIRTIO_SCSI_COMMON,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOSCSICommon),
+    .abstract = true,
     .class_init = virtio_scsi_common_class_init,
 };
 
