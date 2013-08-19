@@ -719,7 +719,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
         if (sectors <= 0 ||
             (strcmp(type, "FLAT") && strcmp(type, "SPARSE") &&
-             strcmp(type, "VMFSSPARSE")) ||
+             strcmp(type, "VMFS") && strcmp(type, "VMFSSPARSE")) ||
             (strcmp(access, "RW"))) {
             goto next_line;
         }
@@ -732,7 +732,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         }
 
         /* save to extents array */
-        if (!strcmp(type, "FLAT")) {
+        if (!strcmp(type, "FLAT") || !strcmp(type, "VMFS")) {
             /* FLAT extent */
             VmdkExtent *extent;
 
@@ -790,6 +790,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
         goto exit;
     }
     if (strcmp(ct, "monolithicFlat") &&
+        strcmp(ct, "vmfs") &&
         strcmp(ct, "vmfsSparse") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&
         strcmp(ct, "twoGbMaxExtentFlat")) {
