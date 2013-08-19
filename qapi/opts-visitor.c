@@ -1,7 +1,7 @@
 /*
  * Options Visitor
  *
- * Copyright Red Hat, Inc. 2012
+ * Copyright Red Hat, Inc. 2012, 2013
  *
  * Author: Laszlo Ersek <lersek@redhat.com>
  *
@@ -17,6 +17,15 @@
 #include "qemu/option_int.h"
 #include "qapi/visitor-impl.h"
 
+
+enum ListMode
+{
+    LM_NONE,             /* not traversing a list of repeated options */
+    LM_STARTED,          /* opts_start_list() succeeded */
+    LM_IN_PROGRESS       /* opts_next_list() has been called */
+};
+
+typedef enum ListMode ListMode;
 
 struct OptsVisitor
 {
@@ -35,8 +44,8 @@ struct OptsVisitor
     /* The list currently being traversed with opts_start_list() /
      * opts_next_list(). The list must have a struct element type in the
      * schema, with a single mandatory scalar member. */
+    ListMode list_mode;
     GQueue *repeated_opts;
-    bool repeated_opts_first;
 
     /* If "opts_root->id" is set, reinstantiate it as a fake QemuOpt for
      * uniformity. Only its "name" and "str" fields are set. "fake_id_opt" does
@@ -156,9 +165,11 @@ opts_start_list(Visitor *v, const char *name, Error **errp)
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
     /* we can't traverse a list in a list */
-    assert(ov->repeated_opts == NULL);
+    assert(ov->list_mode == LM_NONE);
     ov->repeated_opts = lookup_distinct(ov, name, errp);
-    ov->repeated_opts_first = (ov->repeated_opts != NULL);
+    if (ov->repeated_opts != NULL) {
+        ov->list_mode = LM_STARTED;
+    }
 }
 
 
@@ -168,10 +179,13 @@ opts_next_list(Visitor *v, GenericList **list, Error **errp)
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
     GenericList **link;
 
-    if (ov->repeated_opts_first) {
-        ov->repeated_opts_first = false;
+    switch (ov->list_mode) {
+    case LM_STARTED:
+        ov->list_mode = LM_IN_PROGRESS;
         link = list;
-    } else {
+        break;
+
+    case LM_IN_PROGRESS: {
         const QemuOpt *opt;
 
         opt = g_queue_pop_head(ov->repeated_opts);
@@ -180,6 +194,11 @@ opts_next_list(Visitor *v, GenericList **list, Error **errp)
             return NULL;
         }
         link = &(*list)->next;
+        break;
+    }
+
+    default:
+        abort();
     }
 
     *link = g_malloc0(sizeof **link);
@@ -192,14 +211,16 @@ opts_end_list(Visitor *v, Error **errp)
 {
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
+    assert(ov->list_mode == LM_STARTED || ov->list_mode == LM_IN_PROGRESS);
     ov->repeated_opts = NULL;
+    ov->list_mode = LM_NONE;
 }
 
 
 static const QemuOpt *
 lookup_scalar(const OptsVisitor *ov, const char *name, Error **errp)
 {
-    if (ov->repeated_opts == NULL) {
+    if (ov->list_mode == LM_NONE) {
         GQueue *list;
 
         /* the last occurrence of any QemuOpt takes effect when queried by name
@@ -207,6 +228,7 @@ lookup_scalar(const OptsVisitor *ov, const char *name, Error **errp)
         list = lookup_distinct(ov, name, errp);
         return list ? g_queue_peek_tail(list) : NULL;
     }
+    assert(ov->list_mode == LM_IN_PROGRESS);
     return g_queue_peek_head(ov->repeated_opts);
 }
 
@@ -214,9 +236,12 @@ lookup_scalar(const OptsVisitor *ov, const char *name, Error **errp)
 static void
 processed(OptsVisitor *ov, const char *name)
 {
-    if (ov->repeated_opts == NULL) {
+    if (ov->list_mode == LM_NONE) {
         g_hash_table_remove(ov->unprocessed_opts, name);
+        return;
     }
+    assert(ov->list_mode == LM_IN_PROGRESS);
+    /* do nothing */
 }
 
 
@@ -365,7 +390,7 @@ opts_start_optional(Visitor *v, bool *present, const char *name,
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 
     /* we only support a single mandatory scalar field in a list node */
-    assert(ov->repeated_opts == NULL);
+    assert(ov->list_mode == LM_NONE);
     *present = (lookup_distinct(ov, name, NULL) != NULL);
 }
 
