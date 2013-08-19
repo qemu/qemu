@@ -48,6 +48,7 @@ QMP/qmp-commands.txt
 test-bitops
 test-coroutine
 test-int128
+test-opts-visitor
 test-qmp-input-visitor
 test-qmp-output-visitor
 test-string-input-visitor
