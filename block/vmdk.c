@@ -494,14 +494,14 @@ static int vmdk_open_vmdk3(BlockDriverState *bs,
     if (ret < 0) {
         return ret;
     }
-
-    ret = vmdk_add_extent(bs,
-                             bs->file, false,
-                             le32_to_cpu(header.disk_sectors),
-                             le32_to_cpu(header.l1dir_offset) << 9,
-                             0, 1 << 6, 1 << 9,
-                             le32_to_cpu(header.granularity),
-                             &extent);
+    ret = vmdk_add_extent(bs, file, false,
+                          le32_to_cpu(header.disk_sectors),
+                          le32_to_cpu(header.l1dir_offset) << 9,
+                          0,
+                          le32_to_cpu(header.l1dir_size),
+                          4096,
+                          le32_to_cpu(header.granularity),
+                          &extent);
     if (ret < 0) {
         return ret;
     }
