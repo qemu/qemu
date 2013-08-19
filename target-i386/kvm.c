@@ -65,6 +65,7 @@ static bool has_msr_star;
 static bool has_msr_hsave_pa;
 static bool has_msr_tsc_adjust;
 static bool has_msr_tsc_deadline;
+static bool has_msr_feature_control;
 static bool has_msr_async_pf_en;
 static bool has_msr_pv_eoi_en;
 static bool has_msr_misc_enable;
@@ -666,6 +667,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
+    c = cpuid_find_entry(&cpuid_data.cpuid, 1, 0);
+    if (c) {
+        has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
+                                  !!(c->ecx & CPUID_EXT_SMX);
+    }
+
     cpuid_data.cpuid.padding = 0;
     r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
     if (r) {
@@ -1169,7 +1176,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (hyperv_vapic_recommended()) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
-        kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL, env->msr_ia32_feature_control);
+        if (has_msr_feature_control) {
+            kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL,
+                              env->msr_ia32_feature_control);
+        }
     }
     if (env->mcg_cap) {
         int i;
@@ -1394,7 +1404,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_misc_enable) {
         msrs[n++].index = MSR_IA32_MISC_ENABLE;
     }
-    msrs[n++].index = MSR_IA32_FEATURE_CONTROL;
+    if (has_msr_feature_control) {
+        msrs[n++].index = MSR_IA32_FEATURE_CONTROL;
+    }
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
@@ -1509,6 +1521,7 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_FEATURE_CONTROL:
             env->msr_ia32_feature_control = msrs[i].data;
+            break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&
                 msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {
