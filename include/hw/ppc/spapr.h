@@ -111,6 +111,15 @@ typedef struct sPAPREnvironment {
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE         -45
 #define H_RESCINDEND      -46
+#define H_P2              -55
+#define H_P3              -56
+#define H_P4              -57
+#define H_P5              -58
+#define H_P6              -59
+#define H_P7              -60
+#define H_P8              -61
+#define H_P9              -62
+#define H_UNSUPPORTED_FLAG -256
 #define H_MULTI_THREADS_ACTIVE -9005
 
 
@@ -144,6 +153,11 @@ typedef struct sPAPREnvironment {
 #define H_N               (1ULL<<(63-61))
 #define H_PP1             (1ULL<<(63-62))
 #define H_PP2             (1ULL<<(63-63))
+
+/* H_SET_MODE flags */
+#define H_SET_MODE_ENDIAN        4
+#define H_SET_MODE_ENDIAN_BIG    0
+#define H_SET_MODE_ENDIAN_LITTLE 1
 
 /* VASI States */
 #define H_VASI_INVALID    0
@@ -269,7 +283,8 @@ typedef struct sPAPREnvironment {
 #define H_GET_EM_PARMS          0x2B8
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
-#define MAX_HCALL_OPCODE        H_GET_MPP
+#define H_SET_MODE              0x31C
+#define MAX_HCALL_OPCODE        H_SET_MODE
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
