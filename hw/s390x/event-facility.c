@@ -183,7 +183,7 @@ static uint16_t handle_sccb_read_events(SCLPEventFacility *ef, SCCB *sccb,
 {
     uint16_t rc;
     int slen;
-    unsigned elen = 0;
+    unsigned elen;
     BusChild *kid;
     SCLPEvent *event;
     SCLPEventClass *ec;
@@ -203,11 +203,11 @@ static uint16_t handle_sccb_read_events(SCLPEventFacility *ef, SCCB *sccb,
 
         if (mask & ec->get_send_mask()) {
             if (ec->read_event_data(event, event_buf, &slen)) {
+                elen = be16_to_cpu(event_buf->length);
+                event_buf = (EventBufferHeader *) ((char *)event_buf + elen);
                 rc = SCLP_RC_NORMAL_COMPLETION;
             }
         }
-        elen = be16_to_cpu(event_buf->length);
-        event_buf = (void *) event_buf + elen;
     }
 
     if (sccb->h.control_mask[2] & SCLP_VARIABLE_LENGTH_RESPONSE) {
