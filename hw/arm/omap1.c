@@ -3827,7 +3827,6 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     int i;
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             g_malloc0(sizeof(struct omap_mpu_state_s));
-    qemu_irq *cpu_irq;
     qemu_irq dma_irqs[6];
     DriveInfo *dinfo;
     SysBusDevice *busdev;
@@ -3860,14 +3859,15 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
 
-    cpu_irq = arm_pic_init_cpu(s->cpu);
     s->ih[0] = qdev_create(NULL, "omap-intc");
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
     qdev_prop_set_ptr(s->ih[0], "clk", omap_findclk(s, "arminth_ck"));
     qdev_init_nofail(s->ih[0]);
     busdev = SYS_BUS_DEVICE(s->ih[0]);
-    sysbus_connect_irq(busdev, 0, cpu_irq[ARM_PIC_CPU_IRQ]);
-    sysbus_connect_irq(busdev, 1, cpu_irq[ARM_PIC_CPU_FIQ]);
+    sysbus_connect_irq(busdev, 0,
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
+    sysbus_connect_irq(busdev, 1,
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ));
     sysbus_mmio_map(busdev, 0, 0xfffecb00);
     s->ih[1] = qdev_create(NULL, "omap-intc");
     qdev_prop_set_uint32(s->ih[1], "size", 0x800);
