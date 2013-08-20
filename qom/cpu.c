@@ -240,7 +240,7 @@ static void cpu_common_initfn(Object *obj)
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(obj);
 
-    cpu->gdb_num_regs = cc->gdb_num_core_regs;
+    cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
