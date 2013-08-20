@@ -178,9 +178,12 @@ typedef enum TCGType {
     TCG_TYPE_REG = TCG_TYPE_I64,
 #endif
 
-    /* An alias for the size of the native pointer.  We don't currently
-       support any hosts with 64-bit registers and 32-bit pointers.  */
-    TCG_TYPE_PTR = TCG_TYPE_REG,
+    /* An alias for the size of the native pointer.  */
+#if UINTPTR_MAX == UINT32_MAX
+    TCG_TYPE_PTR = TCG_TYPE_I32,
+#else
+    TCG_TYPE_PTR = TCG_TYPE_I64,
+#endif
 
     /* An alias for the size of the target "long", aka register.  */
 #if TARGET_LONG_BITS == 64
