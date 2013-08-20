@@ -472,6 +472,9 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * old must have the OVERRIDE bit set.
  * NO_MIGRATE indicates that this register should be ignored for migration;
  * (eg because any state is accessed via some other coprocessor register).
+ * IO indicates that this register does I/O and therefore its accesses
+ * need to be surrounded by gen_io_start()/gen_io_end(). In particular,
+ * registers which implement clocks or timers require this.
  */
 #define ARM_CP_SPECIAL 1
 #define ARM_CP_CONST 2
@@ -479,13 +482,14 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_SUPPRESS_TB_END 8
 #define ARM_CP_OVERRIDE 16
 #define ARM_CP_NO_MIGRATE 32
+#define ARM_CP_IO 64
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_LAST_SPECIAL ARM_CP_WFI
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
-#define ARM_CP_FLAG_MASK 0x3f
+#define ARM_CP_FLAG_MASK 0x7f
 
 /* Return true if cptype is a valid type field. This is used to try to
  * catch errors where the sentinel has been accidentally left off the end

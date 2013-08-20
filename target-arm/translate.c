@@ -6280,6 +6280,10 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             break;
         }
 
+        if (use_icount && (ri->type & ARM_CP_IO)) {
+            gen_io_start();
+        }
+
         if (isread) {
             /* Read */
             if (is64) {
@@ -6369,14 +6373,20 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     store_cpu_offset(tmp, ri->fieldoffset);
                 }
             }
+        }
+
+        if (use_icount && (ri->type & ARM_CP_IO)) {
+            /* I/O operations must end the TB here (whether read or write) */
+            gen_io_end();
+            gen_lookup_tb(s);
+        } else if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
             /* We default to ending the TB on a coprocessor register write,
              * but allow this to be suppressed by the register definition
              * (usually only necessary to work around guest bugs).
              */
-            if (!(ri->type & ARM_CP_SUPPRESS_TB_END)) {
-                gen_lookup_tb(s);
-            }
+            gen_lookup_tb(s);
         }
+
         return 0;
     }
 
