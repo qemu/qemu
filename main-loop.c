@@ -489,17 +489,14 @@ bool qemu_aio_wait(void)
 void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_read,
                              IOHandler *io_write,
-                             AioFlushHandler *io_flush,
                              void *opaque)
 {
-    aio_set_fd_handler(qemu_aio_context, fd, io_read, io_write, io_flush,
-                       opaque);
+    aio_set_fd_handler(qemu_aio_context, fd, io_read, io_write, opaque);
 }
 #endif
 
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
-                                 EventNotifierHandler *io_read,
-                                 AioFlushEventNotifierHandler *io_flush)
+                                 EventNotifierHandler *io_read)
 {
-    aio_set_event_notifier(qemu_aio_context, notifier, io_read, io_flush);
+    aio_set_event_notifier(qemu_aio_context, notifier, io_read);
 }
