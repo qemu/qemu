@@ -1974,6 +1974,37 @@ static void do_v7m_exception_exit(CPUARMState *env)
        pointer.  */
 }
 
+/* Exception names for debug logging; note that not all of these
+ * precisely correspond to architectural exceptions.
+ */
+static const char * const excnames[] = {
+    [EXCP_UDEF] = "Undefined Instruction",
+    [EXCP_SWI] = "SVC",
+    [EXCP_PREFETCH_ABORT] = "Prefetch Abort",
+    [EXCP_DATA_ABORT] = "Data Abort",
+    [EXCP_IRQ] = "IRQ",
+    [EXCP_FIQ] = "FIQ",
+    [EXCP_BKPT] = "Breakpoint",
+    [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
+    [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
+    [EXCP_STREX] = "QEMU intercept of STREX",
+};
+
+static inline void arm_log_exception(int idx)
+{
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        const char *exc = NULL;
+
+        if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
+            exc = excnames[idx];
+        }
+        if (!exc) {
+            exc = "unknown";
+        }
+        qemu_log_mask(CPU_LOG_INT, "Taking exception %d [%s]\n", idx, exc);
+    }
+}
+
 void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1981,6 +2012,8 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
     uint32_t addr;
+
+    arm_log_exception(env->exception_index);
 
     lr = 0xfffffff1;
     if (env->v7m.current_sp)
@@ -2011,6 +2044,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
             if (nr == 0xab) {
                 env->regs[15] += 2;
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
@@ -2064,6 +2098,8 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     assert(!IS_M(env));
 
+    arm_log_exception(env->exception_index);
+
     /* TODO: Vectored interrupt controller.  */
     switch (env->exception_index) {
     case EXCP_UDEF:
@@ -2091,6 +2127,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
                     || (mask == 0xab && env->thumb))
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
@@ -2108,18 +2145,23 @@ void arm_cpu_do_interrupt(CPUState *cs)
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
                 env->regs[15] += 2;
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
         env->cp15.c5_insn = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
+        qemu_log_mask(CPU_LOG_INT, "...with IFSR 0x%x IFAR 0x%x\n",
+                      env->cp15.c5_insn, env->cp15.c6_insn);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x0c;
         mask = CPSR_A | CPSR_I;
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
+        qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
+                      env->cp15.c5_data, env->cp15.c6_data);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x10;
         mask = CPSR_A | CPSR_I;
