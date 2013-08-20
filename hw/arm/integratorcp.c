@@ -465,7 +465,6 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
     qemu_irq pic[32];
-    qemu_irq *cpu_pic;
     DeviceState *dev;
     int i;
 
@@ -493,10 +492,10 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
-                                cpu_pic[ARM_PIC_CPU_IRQ],
-                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
