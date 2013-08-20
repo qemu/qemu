@@ -66,7 +66,7 @@
 static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
-                        tcg_target_long value, tcg_target_long addend);
+                        intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
 typedef struct {
@@ -143,7 +143,7 @@ static inline void tcg_out64(TCGContext *s, uint64_t v)
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
-                          int label_index, long addend)
+                          int label_index, intptr_t addend)
 {
     TCGLabel *l;
     TCGRelocation *r;
@@ -169,11 +169,12 @@ static void tcg_out_label(TCGContext *s, int label_index, void *ptr)
 {
     TCGLabel *l;
     TCGRelocation *r;
-    tcg_target_long value = (tcg_target_long)ptr;
+    intptr_t value = (intptr_t)ptr;
 
     l = &s->labels[label_index];
-    if (l->has_value)
+    if (l->has_value) {
         tcg_abort();
+    }
     r = l->u.first_reloc;
     while (r != NULL) {
         patch_reloc(r->ptr, r->type, value, r->addend);

@@ -351,10 +351,10 @@ static uint8_t *tb_ret_addr;
 static uint64_t facilities;
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
-    tcg_target_long code_ptr_tl = (tcg_target_long)code_ptr;
-    tcg_target_long pcrel2;
+    intptr_t code_ptr_tl = (intptr_t)code_ptr;
+    intptr_t pcrel2;
 
     /* ??? Not the usual definition of "addend".  */
     pcrel2 = (value - (code_ptr_tl + addend)) >> 1;

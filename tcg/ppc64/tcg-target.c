@@ -208,7 +208,7 @@ static void reloc_pc14 (void *pc, tcg_target_long target)
 }
 
 static void patch_reloc (uint8_t *code_ptr, int type,
-                         tcg_target_long value, tcg_target_long addend)
+                         intptr_t value, intptr_t addend)
 {
     value += addend;
     switch (type) {

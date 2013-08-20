@@ -108,21 +108,21 @@ static const int tcg_target_call_oarg_regs[2] = {
 
 #define TCG_REG_TMP  TCG_REG_R12
 
-static inline void reloc_abs32(void *code_ptr, tcg_target_long target)
+static inline void reloc_abs32(void *code_ptr, intptr_t target)
 {
     *(uint32_t *) code_ptr = target;
 }
 
-static inline void reloc_pc24(void *code_ptr, tcg_target_long target)
+static inline void reloc_pc24(void *code_ptr, intptr_t target)
 {
-    uint32_t offset = ((target - ((tcg_target_long) code_ptr + 8)) >> 2);
+    uint32_t offset = ((target - ((intptr_t)code_ptr + 8)) >> 2);
 
     *(uint32_t *) code_ptr = ((*(uint32_t *) code_ptr) & ~0xffffff)
                              | (offset & 0xffffff);
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     switch (type) {
     case R_ARM_ABS32:

@@ -149,14 +149,14 @@ static int reassemble_21(int as21)
 #define R_PARISC_PCREL12F  R_PARISC_NONE
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     uint32_t *insn_ptr = (uint32_t *)code_ptr;
     uint32_t insn = *insn_ptr;
-    tcg_target_long pcrel;
+    intptr_t pcrel;
 
     value += addend;
-    pcrel = (value - ((tcg_target_long)code_ptr + 8)) >> 2;
+    pcrel = (value - ((intptr_t)code_ptr + 8)) >> 2;
 
     switch (type) {
     case R_PARISC_PCREL12F:

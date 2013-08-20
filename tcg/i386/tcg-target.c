@@ -112,7 +112,7 @@ static bool have_cmov;
 static uint8_t *tb_ret_addr;
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     value += addend;
     switch(type) {

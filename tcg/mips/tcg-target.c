@@ -108,33 +108,33 @@ static const TCGReg tcg_target_call_oarg_regs[2] = {
 
 static uint8_t *tb_ret_addr;
 
-static inline uint32_t reloc_lo16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_lo16_val(void *pc, intptr_t target)
 {
     return target & 0xffff;
 }
 
-static inline void reloc_lo16 (void *pc, tcg_target_long target)
+static inline void reloc_lo16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_lo16_val(pc, target);
 }
 
-static inline uint32_t reloc_hi16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_hi16_val(void *pc, intptr_t target)
 {
     return (target >> 16) & 0xffff;
 }
 
-static inline void reloc_hi16 (void *pc, tcg_target_long target)
+static inline void reloc_hi16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_hi16_val(pc, target);
 }
 
-static inline uint32_t reloc_pc16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_pc16_val(void *pc, intptr_t target)
 {
     int32_t disp;
 
-    disp = target - (tcg_target_long) pc - 4;
+    disp = target - (intptr_t)pc - 4;
     if (disp != (disp << 14) >> 14) {
         tcg_abort ();
     }
@@ -157,14 +157,14 @@ static inline uint32_t reloc_26_val (void *pc, tcg_target_long target)
     return (target >> 2) & 0x3ffffff;
 }
 
-static inline void reloc_pc26 (void *pc, tcg_target_long target)
+static inline void reloc_pc26(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0x3ffffff)
                        | reloc_26_val(pc, target);
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     value += addend;
     switch(type) {

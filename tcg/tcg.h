@@ -139,13 +139,13 @@ typedef struct TCGRelocation {
     struct TCGRelocation *next;
     int type;
     uint8_t *ptr;
-    tcg_target_long addend;
+    intptr_t addend;
 } TCGRelocation; 
 
 typedef struct TCGLabel {
     int has_value;
     union {
-        tcg_target_ulong value;
+        uintptr_t value;
         TCGRelocation *first_reloc;
     } u;
 } TCGLabel;
