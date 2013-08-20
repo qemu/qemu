@@ -379,13 +379,26 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 #endif
 }
 
-static int use_goto_tb(DisasContext *ctx, uint64_t dest)
+static bool in_superpage(DisasContext *ctx, int64_t addr)
 {
-    /* Check for the dest on the same page as the start of the TB.  We
-       also want to suppress goto_tb in the case of single-steping and IO.  */
-    return (((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0
-            && !ctx->singlestep_enabled
-            && !(ctx->tb->cflags & CF_LAST_IO));
+    return ((ctx->tb->flags & TB_FLAGS_USER_MODE) == 0
+            && addr < 0
+            && ((addr >> 41) & 3) == 2
+            && addr >> TARGET_VIRT_ADDR_SPACE_BITS == addr >> 63);
+}
+
+static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+{
+    /* Suppress goto_tb in the case of single-steping and IO.  */
+    if (ctx->singlestep_enabled || (ctx->tb->cflags & CF_LAST_IO)) {
+        return false;
+    }
+    /* If the destination is in the superpage, the page perms can't change.  */
+    if (in_superpage(ctx, dest)) {
+        return true;
+    }
+    /* Check for the dest on the same page as the start of the TB.  */
+    return ((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0;
 }
 
 static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
@@ -1521,7 +1534,8 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_mov_i64(cpu_unique, cpu_ir[IR_A0]);
             break;
         default:
-            return gen_excp(ctx, EXCP_CALL_PAL, palcode & 0xbf);
+            palcode &= 0xbf;
+            goto do_call_pal;
         }
         return NO_EXIT;
     }
@@ -1586,13 +1600,42 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
 
         default:
-            return gen_excp(ctx, EXCP_CALL_PAL, palcode & 0x3f);
+            palcode &= 0x3f;
+            goto do_call_pal;
         }
         return NO_EXIT;
     }
 #endif
-
     return gen_invalid(ctx);
+
+ do_call_pal:
+#ifdef CONFIG_USER_ONLY
+    return gen_excp(ctx, EXCP_CALL_PAL, palcode);
+#else
+    {
+        TCGv pc = tcg_const_i64(ctx->pc);
+        TCGv entry = tcg_const_i64(palcode & 0x80
+                                   ? 0x2000 + (palcode - 0x80) * 64
+                                   : 0x1000 + palcode * 64);
+
+        gen_helper_call_pal(cpu_env, pc, entry);
+
+        tcg_temp_free(entry);
+        tcg_temp_free(pc);
+
+        /* Since the destination is running in PALmode, we don't really
+           need the page permissions check.  We'll see the existance of
+           the page when we create the TB, and we'll flush all TBs if
+           we change the PAL base register.  */
+        if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
+            tcg_gen_goto_tb(0);
+            tcg_gen_exit_tb((tcg_target_long)ctx->tb);
+            return EXIT_GOTO_TB;
+        }
+
+        return EXIT_PC_UPDATED;
+    }
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1707,6 +1750,15 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         /* ALARM */
         gen_helper_set_alarm(cpu_env, tmp);
         break;
+
+    case 7:
+        /* PALBR */
+        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, palbr));
+        /* Changing the PAL base register implies un-chaining all of the TBs
+           that ended with a CALL_PAL.  Since the base register usually only
+           changes during boot, flushing everything works well.  */
+        gen_helper_tb_flush(cpu_env);
+        return EXIT_PC_STALE;
 
     default:
         /* The basic registers are data only, and unknown registers
@@ -3392,6 +3444,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     CPUAlphaState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
+    target_ulong pc_mask;
     uint32_t insn;
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
@@ -3421,8 +3474,15 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+
+    if (in_superpage(&ctx, pc_start)) {
+        pc_mask = (1ULL << 41) - 1;
+    } else {
+        pc_mask = ~TARGET_PAGE_MASK;
+    }
 
     gen_tb_start();
     do {
@@ -3460,7 +3520,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
         if (ret == NO_EXIT
-            && ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
+            && ((ctx.pc & pc_mask) == 0
                 || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
