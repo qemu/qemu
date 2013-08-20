@@ -58,6 +58,9 @@
 /* ARM-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
 
+/* Meanings of the ARMCPU object's two inbound GPIO lines */
+#define ARM_CPU_IRQ 0
+#define ARM_CPU_FIQ 1
 
 typedef void ARMWriteCPFunc(void *opaque, int cp_info,
                             int srcreg, int operand, uint32_t value);
