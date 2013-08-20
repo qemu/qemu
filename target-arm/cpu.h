@@ -79,6 +79,21 @@ struct arm_boot_info;
    s<2n+1> maps to the most significant half of d<n>
  */
 
+/* CPU state for each instance of a generic timer (in cp15 c14) */
+typedef struct ARMGenericTimer {
+    uint64_t cval; /* Timer CompareValue register */
+    uint32_t ctl; /* Timer Control register */
+} ARMGenericTimer;
+
+#define GTIMER_PHYS 0
+#define GTIMER_VIRT 1
+#define NUM_GTIMERS 2
+
+/* Scale factor for generic timers, ie number of ns per tick.
+ * This gives a 62.5MHz timer.
+ */
+#define GTIMER_SCALE 16
+
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -146,6 +161,9 @@ typedef struct CPUARMState {
         uint32_t c13_tls1; /* User RW Thread register.  */
         uint32_t c13_tls2; /* User RO Thread register.  */
         uint32_t c13_tls3; /* Privileged Thread register.  */
+        uint32_t c14_cntfrq; /* Counter Frequency register */
+        uint32_t c14_cntkctl; /* Timer Control register */
+        ARMGenericTimer c14_timer[NUM_GTIMERS];
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
         uint32_t c15_ticonfig; /* TI925T configuration byte.  */
         uint32_t c15_i_max; /* Maximum D-cache dirty line index.  */

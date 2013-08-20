@@ -695,14 +695,260 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+#ifndef CONFIG_USER_ONLY
+
+static uint64_t gt_get_countervalue(CPUARMState *env)
+{
+    return qemu_get_clock_ns(vm_clock) / GTIMER_SCALE;
+}
+
+static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
+{
+    ARMGenericTimer *gt = &cpu->env.cp15.c14_timer[timeridx];
+
+    if (gt->ctl & 1) {
+        /* Timer enabled: calculate and set current ISTATUS, irq, and
+         * reset timer to when ISTATUS next has to change
+         */
+        uint64_t count = gt_get_countervalue(&cpu->env);
+        /* Note that this must be unsigned 64 bit arithmetic: */
+        int istatus = count >= gt->cval;
+        uint64_t nexttick;
+
+        gt->ctl = deposit32(gt->ctl, 2, 1, istatus);
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx],
+                     (istatus && !(gt->ctl & 2)));
+        if (istatus) {
+            /* Next transition is when count rolls back over to zero */
+            nexttick = UINT64_MAX;
+        } else {
+            /* Next transition is when we hit cval */
+            nexttick = gt->cval;
+        }
+        /* Note that the desired next expiry time might be beyond the
+         * signed-64-bit range of a QEMUTimer -- in this case we just
+         * set the timer for as far in the future as possible. When the
+         * timer expires we will reset the timer for any remaining period.
+         */
+        if (nexttick > INT64_MAX / GTIMER_SCALE) {
+            nexttick = INT64_MAX / GTIMER_SCALE;
+        }
+        qemu_mod_timer(cpu->gt_timer[timeridx], nexttick);
+    } else {
+        /* Timer disabled: ISTATUS and timer output always clear */
+        gt->ctl &= ~4;
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx], 0);
+        qemu_del_timer(cpu->gt_timer[timeridx]);
+    }
+}
+
+static int gt_cntfrq_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    /* Not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
+    if (arm_current_pl(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_cntfrq;
+    return 0;
+}
+
+static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int timeridx = ri->opc1 & 1;
+
+    qemu_del_timer(cpu->gt_timer[timeridx]);
+}
+
+static int gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = gt_get_countervalue(env);
+    return 0;
+}
+
+static int gt_cval_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_timer[timeridx].cval;
+    return 0;
+}
+
+static int gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    env->cp15.c14_timer[timeridx].cval = value;
+    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    return 0;
+}
+static int gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    int timeridx = ri->crm & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = (uint32_t)(env->cp15.c14_timer[timeridx].cval -
+                        gt_get_countervalue(env));
+    return 0;
+}
+
+static int gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    int timeridx = ri->crm & 1;
+
+    env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
+        + sextract64(value, 0, 32);
+    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    return 0;
+}
+
+static int gt_ctl_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    int timeridx = ri->crm & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_timer[timeridx].ctl;
+    return 0;
+}
+
+static int gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int timeridx = ri->crm & 1;
+    uint32_t oldval = env->cp15.c14_timer[timeridx].ctl;
+
+    env->cp15.c14_timer[timeridx].ctl = value & 3;
+    if ((oldval ^ value) & 1) {
+        /* Enable toggled */
+        gt_recalc_timer(cpu, timeridx);
+    } else if ((oldval & value) & 2) {
+        /* IMASK toggled: don't need to recalculate,
+         * just set the interrupt line based on ISTATUS
+         */
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx],
+                     (oldval & 4) && (value & 2));
+    }
+    return 0;
+}
+
+void arm_gt_ptimer_cb(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    gt_recalc_timer(cpu, GTIMER_PHYS);
+}
+
+void arm_gt_vtimer_cb(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    gt_recalc_timer(cpu, GTIMER_VIRT);
+}
+
 static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
-    /* Dummy implementation: RAZ/WI the whole crn=14 space */
-    { .name = "GENERIC_TIMER", .cp = 15, .crn = 14,
-      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_NO_MIGRATE,
-      .resetvalue = 0 },
+    /* Note that CNTFRQ is purely reads-as-written for the benefit
+     * of software; writing it doesn't actually change the timer frequency.
+     * Our reset value matches the fixed frequency we implement the timer at.
+     */
+    { .name = "CNTFRQ", .cp = 15, .crn = 14, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_cntfrq),
+      .resetvalue = (1000 * 1000 * 1000) / GTIMER_SCALE,
+      .readfn = gt_cntfrq_read, .raw_readfn = raw_read,
+    },
+    /* overall control: mostly access permissions */
+    { .name = "CNTKCTL", .cp = 15, .crn = 14, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_cntkctl),
+      .resetvalue = 0,
+    },
+    /* per-timer control */
+    { .name = "CNTP_CTL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 1,
+      .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].ctl),
+      .resetvalue = 0,
+      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    { .name = "CNTV_CTL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 1,
+      .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].ctl),
+      .resetvalue = 0,
+      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    /* TimerValue views: a 32 bit downcounting view of the underlying state */
+    { .name = "CNTP_TVAL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .readfn = gt_tval_read, .writefn = gt_tval_write,
+    },
+    { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .readfn = gt_tval_read, .writefn = gt_tval_write,
+    },
+    /* The counter itself */
+    { .name = "CNTPCT", .cp = 15, .crm = 14, .opc1 = 0,
+      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+    },
+    { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
+      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+    },
+    /* Comparison value, indicating when the timer goes off */
+    { .name = "CNTP_CVAL", .cp = 15, .crm = 14, .opc1 = 2,
+      .access = PL1_RW | PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_IO,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
+      .resetvalue = 0,
+      .readfn = gt_cval_read, .writefn = gt_cval_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    { .name = "CNTV_CVAL", .cp = 15, .crm = 14, .opc1 = 3,
+      .access = PL1_RW | PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_IO,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].cval),
+      .resetvalue = 0,
+      .readfn = gt_cval_read, .writefn = gt_cval_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
     REGINFO_SENTINEL
 };
+
+#else
+/* In user-mode none of the generic timer registers are accessible,
+ * and their implementation depends on vm_clock and qdev gpio outputs,
+ * so instead just don't register any of them.
+ */
+static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
+    REGINFO_SENTINEL
+};
+
+#endif
 
 static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {

@@ -86,6 +86,11 @@ typedef struct ARMCPU {
     uint64_t *cpreg_vmstate_values;
     int32_t cpreg_vmstate_array_len;
 
+    /* Timers used by the generic (architected) timer */
+    QEMUTimer *gt_timer[NUM_GTIMERS];
+    /* GPIO outputs for generic timer */
+    qemu_irq gt_timer_outputs[NUM_GTIMERS];
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant
@@ -151,5 +156,9 @@ hwaddr arm_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
 int arm_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
+/* Callback functions for the generic timer's timers. */
+void arm_gt_ptimer_cb(void *opaque);
+void arm_gt_vtimer_cb(void *opaque);
 
 #endif
