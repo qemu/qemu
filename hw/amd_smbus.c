@@ -22,10 +22,10 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "amd_smbus.h"
-#include "smbus.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/amd_smbus.h"
+#include "hw/i2c/smbus.h"
 
 /* AMD756 SMBus address offsets */
 #define SMB_ADDR_OFFSET     0xE0

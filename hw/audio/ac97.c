@@ -194,7 +194,7 @@ static void fetch_bd (AC97LinkState *s, AC97BusMasterRegs *r)
 {
     uint8_t b[8];
 
-    dma_memory_read(s->dma, r->bdbar + r->civ * 8, b, 8);
+    dma_memory_read(s->as, r->bdbar + r->civ * 8, b, 8);
     r->bd_valid = 1;
     r->bd.addr = le32_to_cpu (*(uint32_t *) &b[0]) & ~3;
     r->bd.ctl_len = le32_to_cpu (*(uint32_t *) &b[4]);
@@ -951,7 +951,7 @@ static int write_audio (AC97LinkState *s, AC97BusMasterRegs *r,
     while (temp) {
         int copied;
         to_copy = audio_MIN (temp, sizeof (tmpbuf));
-        dma_memory_read (s->dma, addr, tmpbuf, to_copy);
+        dma_memory_read (s->as, addr, tmpbuf, to_copy);
         copied = AUD_write (s->voice_po, tmpbuf, to_copy);
         dolog ("write_audio max=%x to_copy=%x copied=%x\n",
                max, to_copy, copied);
@@ -1032,7 +1032,7 @@ static int read_audio (AC97LinkState *s, AC97BusMasterRegs *r,
             *stop = 1;
             break;
         }
-        dma_memory_write (s->dma, addr, tmpbuf, acquired);
+        dma_memory_write (s->as, addr, tmpbuf, acquired);
         temp -= acquired;
         addr += acquired;
         nread += acquired;
@@ -1280,10 +1280,10 @@ static void ac97_on_reset (void *opaque)
 
 void ac97_common_init (AC97LinkState *s,
                        qemu_irq irq,
-                       DMAContext *dma)
+                       AddressSpace *as)
 {
     s->irq = irq;
-    s->dma = dma;
+    s->as = as;
 
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
@@ -1398,7 +1398,7 @@ static int ac97_initfn (PCIDevice *dev)
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
 
-    ac97_common_init(&s->state, s->dev.irq[0], pci_dma_context(&s->dev));
+    ac97_common_init(&s->state, s->dev.irq[0], pci_get_address_space(&s->dev));
 
     return 0;
 }

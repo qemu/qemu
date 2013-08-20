@@ -16,20 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
 #include "ui/console.h"
-#include "pci/pci.h"
-#include "vga.h"
-#include "vga_int.h"
+#include "hw/pci/pci.h"
+#include "hw/display/vga.h"
+#include "hw/display/vga_int.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qapi/qmp/qstring.h"
 #include "gl/gloffscreen.h"
 
-#include "u_format_r11g11b10f.h"
+#include "hw/u_format_r11g11b10f.h"
 
-#include "nv2a_vsh.h"
+#include "hw/nv2a_vsh.h"
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -41,7 +41,7 @@
 #include <GL/gl.h>
 #endif
 
-#include "nv2a.h"
+#include "hw/nv2a.h"
 
 #define DEBUG_NV2A
 #ifdef DEBUG_NV2A
@@ -834,6 +834,7 @@ typedef struct NV2AState {
     qemu_irq irq;
 
     VGACommonState vga;
+    GraphicHwOps hw_ops;
 
     MemoryRegion *vram;
     MemoryRegion vram_pci;
@@ -3698,35 +3699,14 @@ static void nv2a_get_offsets(VGACommonState *s,
 }
 
 
-/* Graphic console methods. Need to wrap all of these since
- * graphic_console_init takes a single opaque, and we
- * need access to the nv2a state to set the vblank interrupt */
-static void nv2a_vga_update(void *opaque)
+static void nv2a_vga_gfx_update(void *opaque)
 {
-    NV2AState *d = NV2A_DEVICE(opaque);
+    VGACommonState *vga = opaque;
+    vga->hw_ops->gfx_update(vga);
 
-    d->vga.update(&d->vga);
-
+    NV2AState *d = container_of(vga, NV2AState, vga);
     d->pcrtc.pending_interrupts |= NV_PCRTC_INTR_0_VBLANK;
     update_irq(d);
-}
-static void nv2a_vga_invalidate(void *opaque)
-{
-    NV2AState *d = NV2A_DEVICE(opaque);
-    d->vga.invalidate(&d->vga);
-}
-static void nv2a_vga_screen_dump(void *opaque,
-                                 const char *filename,
-                                 bool cswitch,
-                                 Error **errp)
-{
-    NV2AState *d = NV2A_DEVICE(opaque);
-    d->vga.screen_dump(&d->vga, filename, cswitch, errp);
-}
-static void nv2a_vga_text_update(void *opaque, console_ch_t *chardata)
-{
-    NV2AState *d = NV2A_DEVICE(opaque);
-    d->vga.text_update(&d->vga, chardata);
 }
 
 static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
@@ -3735,13 +3715,13 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
     d->vram = ram;
 
      /* PCI exposed vram */
-    memory_region_init_alias(&d->vram_pci, "nv2a-vram-pci", d->vram,
+    memory_region_init_alias(&d->vram_pci, OBJECT(d), "nv2a-vram-pci", d->vram,
                              0, memory_region_size(d->vram));
     pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram_pci);
 
 
     /* RAMIN - should be in vram somewhere, but not quite sure where atm */
-    memory_region_init_ram(&d->ramin, "nv2a-ramin", 0x100000);
+    memory_region_init_ram(&d->ramin, OBJECT(d), "nv2a-ramin", 0x100000);
     /* memory_region_init_alias(&d->ramin, "nv2a-ramin", &d->vram,
                          memory_region_size(&d->vram) - 0x100000,
                          0x100000); */
@@ -3754,7 +3734,7 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
 
     /* hacky. swap out vga's vram */
     memory_region_destroy(&d->vga.vram);
-    memory_region_init_alias(&d->vga.vram, "vga.vram",
+    memory_region_init_alias(&d->vga.vram, OBJECT(d), "vga.vram",
                              d->vram, 0, memory_region_size(d->vram));
     d->vga.vram_ptr = memory_region_get_ram_ptr(&d->vga.vram);
     vga_dirty_log_start(&d->vga);
@@ -3782,24 +3762,23 @@ static int nv2a_initfn(PCIDevice *dev)
     /* seems to start in color mode */
     vga->msr = VGA_MIS_COLOR;
 
-    vga_common_init(vga);
+    vga_common_init(vga, OBJECT(dev));
     vga->get_bpp = nv2a_get_bpp;
     vga->get_offsets = nv2a_get_offsets;
 
-    vga->ds = graphic_console_init(nv2a_vga_update,
-                                   nv2a_vga_invalidate,
-                                   nv2a_vga_screen_dump,
-                                   nv2a_vga_text_update,
-                                   d);
+    d->hw_ops = *vga->hw_ops;
+    d->hw_ops.gfx_update = nv2a_vga_gfx_update;
+    vga->con = graphic_console_init(DEVICE(dev), &d->hw_ops, vga);
 
 
     /* mmio */
-    memory_region_init(&d->mmio, "nv2a-mmio", 0x1000000);
+    memory_region_init(&d->mmio, OBJECT(dev), "nv2a-mmio", 0x1000000);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
     for (i=0; i<sizeof(blocktable)/sizeof(blocktable[0]); i++) {
         if (!blocktable[i].name) continue;
-        memory_region_init_io(&d->block_mmio[i], &blocktable[i].ops, d,
+        memory_region_init_io(&d->block_mmio[i], OBJECT(dev),
+                              &blocktable[i].ops, d,
                               blocktable[i].name, blocktable[i].size);
         memory_region_add_subregion(&d->mmio, blocktable[i].offset,
                                     &d->block_mmio[i]);

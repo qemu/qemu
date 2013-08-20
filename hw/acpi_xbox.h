@@ -20,7 +20,7 @@
 #ifndef HW_ACPI_XBOX_H
 #define HW_ACPI_XBOX_H
 
-#include "acpi.h"
+#include "hw/acpi/acpi.h"
 
 typedef struct XBOX_PMRegs {
 	MemoryRegion bar;

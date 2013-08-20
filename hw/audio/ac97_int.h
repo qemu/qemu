@@ -20,10 +20,10 @@
 #ifndef HW_AC97_INT_H
 #define HW_AC97_INT_H
 
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audio/audio.h"
 #include "audio/audio.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 
 enum {
@@ -53,7 +53,7 @@ typedef struct AC97BusMasterRegs {
 
 typedef struct AC97LinkState {
     qemu_irq irq;
-    DMAContext *dma;
+    AddressSpace *as;
     QEMUSoundCard card;
 
     uint32_t glob_cnt;
@@ -73,7 +73,7 @@ typedef struct AC97LinkState {
 
 void ac97_common_init (AC97LinkState *s,
                        qemu_irq irq,
-                       DMAContext *dma);
+                       AddressSpace *as);
 
 
 extern const MemoryRegionOps ac97_io_nam_ops;

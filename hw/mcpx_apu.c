@@ -16,11 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
 
-#include "mcpx_apu.h"
+#include "hw/mcpx_apu.h"
 
 
 
@@ -417,14 +417,14 @@ static int mcpx_apu_initfn(PCIDevice *dev)
 {
     MCPXAPUState *d = MCPX_APU_DEVICE(dev);
 
-    memory_region_init_io(&d->mmio, &mcpx_apu_mmio_ops, d,
+    memory_region_init_io(&d->mmio, OBJECT(dev), &mcpx_apu_mmio_ops, d,
                           "mcpx-apu-mmio", 0x80000);
 
-    memory_region_init_io(&d->vp.mmio, &vp_ops, d,
+    memory_region_init_io(&d->vp.mmio, OBJECT(dev), &vp_ops, d,
                           "mcpx-apu-vp", 0x10000);
     memory_region_add_subregion(&d->mmio, 0x20000, &d->vp.mmio);
 
-    memory_region_init_io(&d->gp.mmio, &gp_ops, d,
+    memory_region_init_io(&d->gp.mmio, OBJECT(dev), &gp_ops, d,
                           "mcpx-apu-gp", 0x10000);
     memory_region_add_subregion(&d->mmio, 0x30000, &d->gp.mmio);
 

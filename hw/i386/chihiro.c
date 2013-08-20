@@ -21,7 +21,7 @@
 #include "hw/boards.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "exec/memory.h"
 #include "qemu/config-file.h"
 #include "sysemu/blockdev.h"
@@ -80,22 +80,20 @@ static const MemoryRegionOps chihiro_lpc_io_ops = {
     },
 };
 
-static int chihiro_lpc_initfn(ISADevice *dev)
+static void chihiro_lpc_realize(DeviceState *dev, Error **errp)
 {
     ChihiroLPCState *s = CHIHIRO_LPC_DEVICE(dev);
+    ISADevice *isa = ISA_DEVICE(dev);
     
-    memory_region_init_io(&s->ioport, &chihiro_lpc_io_ops, s,
+    memory_region_init_io(&s->ioport, OBJECT(dev), &chihiro_lpc_io_ops, s,
                           "chihiro-lpc-io", 0x100);
-    isa_register_ioport(dev, &s->ioport, 0x4000);
-
-    return 0;
+    isa_register_ioport(isa, &s->ioport, 0x4000);
 }
 
 static void chihiro_lpc_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = chihiro_lpc_initfn;
+    dc->realize = chihiro_lpc_realize;
     dc->desc = "Chihiro LPC";
 }
 
@@ -139,11 +137,11 @@ static void chihiro_ide_interface_init(const char *rom_file,
 
     MemoryRegion *interface, *rom, *filesystem;
     interface = g_malloc(sizeof(*interface));
-    memory_region_init(interface, "chihiro.interface",
+    memory_region_init(interface, NULL, "chihiro.interface",
                        (uint64_t)0x10000000 * SECTOR_SIZE);
 
     rom = g_malloc(sizeof(*rom));
-    memory_region_init_ram(rom, "chihiro.interface.rom",
+    memory_region_init_ram(rom, NULL, "chihiro.interface.rom",
                            ROM_SECTORS * SECTOR_SIZE);
     memory_region_add_subregion(interface,
                                 (uint64_t)ROM_START * SECTOR_SIZE, rom);
@@ -151,7 +149,7 @@ static void chihiro_ide_interface_init(const char *rom_file,
 
     /* limited by the size of the board ram, which we emulate as 128M for now */
     filesystem = g_malloc(sizeof(*filesystem));
-    memory_region_init_ram(filesystem, "chihiro.interface.filesystem",
+    memory_region_init_ram(filesystem, NULL, "chihiro.interface.filesystem",
                            128 * 1024 * 1024);
     memory_region_add_subregion(interface,
                                 (uint64_t)FILESYSTEM_START * SECTOR_SIZE,
@@ -160,7 +158,7 @@ static void chihiro_ide_interface_init(const char *rom_file,
 
     AddressSpace *interface_space;
     interface_space = g_malloc(sizeof(*interface_space));
-    address_space_init(interface_space, interface);
+    address_space_init(interface_space, interface, "chihiro-interface");
 
     /* read files */
     int rc, fd = -1;
@@ -264,8 +262,7 @@ static void chihiro_init(QEMUMachineInitArgs *args)
     ISABus *isa_bus;
     xbox_init_common(args, (uint8_t*)eeprom, &isa_bus);
 
-    ISADevice *dev = isa_create(isa_bus, "chihiro-lpc");
-    qdev_init_nofail(&dev->qdev);
+    isa_create_simple(isa_bus, "chihiro-lpc");
 }
 
 

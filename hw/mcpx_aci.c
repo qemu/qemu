@@ -16,12 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "ac97_int.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/audio/ac97_int.h"
 
-#include "mcpx_apu.h"
+#include "hw/mcpx_apu.h"
 
 typedef struct MCPXACIState {
     PCIDevice dev;
@@ -46,11 +46,11 @@ static int mcpx_aci_initfn(PCIDevice *dev)
     MCPXACIState *d = MCPX_ACI_DEVICE(dev);
 
     //mmio
-    memory_region_init(&d->mmio, "mcpx-aci-mmio", 0x1000);
+    memory_region_init(&d->mmio, OBJECT(dev), "mcpx-aci-mmio", 0x1000);
 
-    memory_region_init_io(&d->io_nam, &ac97_io_nam_ops, &d->ac97,
+    memory_region_init_io(&d->io_nam, OBJECT(dev), &ac97_io_nam_ops, &d->ac97,
                           "mcpx-aci-nam", 0x100);
-    memory_region_init_io(&d->io_nabm, &ac97_io_nabm_ops, &d->ac97,
+    memory_region_init_io(&d->io_nabm, OBJECT(dev), &ac97_io_nabm_ops, &d->ac97,
                           "mcpx-aci-nabm", 0x80);
 
     /*pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_nam);
@@ -67,7 +67,7 @@ static int mcpx_aci_initfn(PCIDevice *dev)
 
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    ac97_common_init(&d->ac97, d->irq, pci_dma_context(&d->dev));
+    ac97_common_init(&d->ac97, d->irq, pci_get_address_space(&d->dev));
 
     return 0;
 }

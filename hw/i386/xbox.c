@@ -22,16 +22,17 @@
 
 #include "hw/hw.h"
 #include "sysemu/arch_init.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "hw/ide.h"
-#include "hw/mc146818rtc.h"
-#include "hw/i8254.h"
-#include "hw/pcspk.h"
+#include "hw/timer/mc146818rtc.h"
+#include "hw/timer/i8254.h"
+#include "hw/audio/pcspk.h"
 #include "sysemu/sysemu.h"
+#include "hw/cpu/icc_bus.h"
 #include "hw/sysbus.h"
-#include "hw/smbus.h"
+#include "hw/i2c/smbus.h"
 #include "sysemu/blockdev.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
@@ -64,7 +65,7 @@ static void xbox_memory_init(MemoryRegion *system_memory,
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "xbox.ram", mem_size);
+    memory_region_init_ram(ram, NULL, "xbox.ram", mem_size);
     vmstate_register_ram_global(ram);
     *ram_memory = ram;
     memory_region_add_subregion(system_memory, 0, ram);
@@ -88,7 +89,7 @@ static void xbox_memory_init(MemoryRegion *system_memory,
         goto bios_error;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, "xbox.bios", bios_size);
+    memory_region_init_ram(bios, NULL, "xbox.bios", bios_size);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
@@ -105,7 +106,7 @@ bios_error:
     /* map the bios repeated at the top of memory */
     for (map_loc=(uint32_t)(-bios_size); map_loc >= 0xff000000; map_loc-=bios_size) {
         map_bios = g_malloc(sizeof(*map_bios));
-        memory_region_init_alias(map_bios, NULL, bios, 0, bios_size);
+        memory_region_init_alias(map_bios, NULL, NULL, bios, 0, bios_size);
 
         memory_region_add_subregion(rom_memory, map_loc, map_bios);
         memory_region_set_readonly(map_bios, true);
@@ -147,10 +148,16 @@ void xbox_init_common(QEMUMachineInitArgs *args,
     i2c_bus *smbus;
     PCIBus *agp_bus;
 
-    pc_cpus_init(cpu_model);
+
+    DeviceState *icc_bridge;
+    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
+    object_property_add_child(qdev_get_machine(), "icc-bridge",
+                              OBJECT(icc_bridge), NULL);
+
+    pc_cpus_init(cpu_model, icc_bridge);
 
     pci_memory = g_new(MemoryRegion, 1);
-    memory_region_init(pci_memory, "pci", INT64_MAX);
+    memory_region_init(pci_memory, NULL, "pci", INT64_MAX);
 
     /* allocate ram and load rom/bios */
     xbox_memory_init(get_system_memory(), ram_size,

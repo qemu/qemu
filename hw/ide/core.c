@@ -1373,7 +1373,7 @@ static bool cmd_security_unlock(IDEState *s, uint8_t cmd)
     s->status = READY_STAT | SEEK_STAT;
     ide_transfer_start(s, s->io_buffer, 512,
                        ide_security_cmd);
-    break;
+    return false;
 }
 
 

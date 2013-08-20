@@ -16,23 +16,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/range.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "loader.h"
+#include "hw/isa/isa.h"
+#include "hw/sysbus.h"
+#include "hw/loader.h"
 #include "qemu/config-file.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "pci/pci_bus.h"
-#include "pci/pci_bridge.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
 #include "exec/address-spaces.h"
 
-#include "acpi_xbox.h"
-#include "amd_smbus.h"
+#include "hw/acpi_xbox.h"
+#include "hw/amd_smbus.h"
 #include "qemu-common.h"
 
-#include "xbox_pci.h"
+#include "hw/xbox_pci.h"
 
 
  /*
@@ -79,7 +79,7 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
     host_state = PCI_HOST_BRIDGE(dev);
 
     host_bus = pci_bus_new(dev, NULL,
-                           pci_memory, address_space_io, 0);
+                           pci_memory, address_space_io, 0, TYPE_PCI_BUS);
     host_state->bus = host_bus;
 
     //pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
@@ -95,7 +95,8 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
     bridge_state->system_memory = address_space_mem;
 
     /* PCI hole */
-    memory_region_init_alias(&bridge_state->pci_hole, "pci-hole",
+    memory_region_init_alias(&bridge_state->pci_hole, OBJECT(bridge),
+                             "pci-hole",
                              bridge_state->pci_address_space,
                              ram_size,
                              0x100000000ULL - ram_size);    
@@ -119,7 +120,7 @@ PCIBus *xbox_agp_init(PCIBus *bus)
         return NULL;
     }
 
-    br = DO_UPCAST(PCIBridge, dev, d);
+    br = PCI_BRIDGE(d);
     //qdev = &br->dev.qdev;
     //qdev_init_nofail(qdev);
 
@@ -197,7 +198,7 @@ static int xbox_smbus_initfn(PCIDevice *dev)
 {
     XBOX_SMBState *s = XBOX_SMBUS_DEVICE(dev);
 
-    memory_region_init_io(&s->smb_bar, &xbox_smbus_ops,
+    memory_region_init_io(&s->smb_bar, OBJECT(dev), &xbox_smbus_ops,
                           s, "xbox-smbus-bar", 32);
     pci_register_bar(dev, XBOX_SMBUS_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &s->smb_bar);
@@ -386,7 +387,7 @@ static int xbox_agp_initfn(PCIDevice *d)
 {
     pci_set_word(d->config + PCI_PREF_MEMORY_BASE, PCI_PREF_RANGE_TYPE_32);
     pci_set_word(d->config + PCI_PREF_MEMORY_LIMIT, PCI_PREF_RANGE_TYPE_32);
-    return pci_bridge_initfn(d);
+    return pci_bridge_initfn(d, TYPE_PCI_BUS);
 }
 
 static void xbox_agp_class_init(ObjectClass *klass, void *data)
@@ -408,7 +409,7 @@ static void xbox_agp_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo xbox_agp_info = {
     .name          = "xbox-agp",
-    .parent        = TYPE_PCI_DEVICE,
+    .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridge),
     .class_init    = xbox_agp_class_init,
 };
@@ -458,12 +459,14 @@ static int xbox_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *s = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
+    memory_region_init_io(&s->conf_mem, OBJECT(dev),
+                          &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
     sysbus_add_io(dev, CONFIG_ADDR, &s->conf_mem);
     sysbus_init_ioports(&s->busdev, CONFIG_ADDR, 4);
 
-    memory_region_init_io(&s->data_mem, &pci_host_data_le_ops, s,
+    memory_region_init_io(&s->data_mem, OBJECT(dev),
+                          &pci_host_data_le_ops, s,
                           "pci-conf-data", 4);
     sysbus_add_io(dev, CONFIG_DATA, &s->data_mem);
     sysbus_init_ioports(&s->busdev, CONFIG_DATA, 4);

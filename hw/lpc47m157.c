@@ -17,7 +17,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 
 
 #define ENTER_CONFIG_KEY    0x55
@@ -124,30 +124,25 @@ static const MemoryRegionOps lpc47m157_io_ops = {
     },
 };
 
-static int lpc47m157_init(ISADevice *dev)
+static void lpc47m157_realize(DeviceState *dev, Error **errp)
 {
-    LPC47M157State *s;
-    ISABus *bus;
-
-    s = LPC47M157_DEVICE(dev);
-    bus = isa_bus_from_device(dev);
+    LPC47M157State *s = LPC47M157_DEVICE(dev);
+    ISADevice *isa = ISA_DEVICE(dev);
 
     const uint32_t iobase = 0x2e; //0x4e if SYSOPT pin, make it a property 
     s->config_regs[CONFIG_PORT_LOW] = iobase & 0xFF;
     s->config_regs[CONFIG_PORT_HIGH] = iobase >> 8;
 
-    memory_region_init_io(&s->io, &lpc47m157_io_ops, s, "lpc47m157", 2);
-    isa_register_ioport(dev, &s->io, iobase);
-
-    return 0;
+    memory_region_init_io(&s->io, OBJECT(s),
+                          &lpc47m157_io_ops, s, "lpc47m157", 2);
+    isa_register_ioport(isa, &s->io, iobase);
 }
 
 static void lpc47m157_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
 
-    ic->init = lpc47m157_init;
+    dc->realize = lpc47m157_realize;
     //dc->reset = pc87312_reset;
     //dc->vmsd = &vmstate_pc87312;
     //dc->props = pc87312_properties;

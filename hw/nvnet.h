@@ -20,7 +20,7 @@
 #ifndef HW_NVNET_H
 #define HW_NVNET_H
 
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 void nvnet_init(PCIBus *bus, int devfn, qemu_irq irq);
 

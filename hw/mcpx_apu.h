@@ -20,7 +20,7 @@
 #ifndef HW_MCPX_APU_H
 #define HW_MCPX_APU_H
 
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 void mcpx_apu_init(PCIBus *bus, int devfn, qemu_irq irq);
 void mcpx_aci_init(PCIBus *bus, int devfn, qemu_irq irq);

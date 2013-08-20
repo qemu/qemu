@@ -2001,6 +2001,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "boot",
             .type = QEMU_OPT_BOOL,
             .help = "(deprecated, ignored)",
+        },{
+            .name = "locked",
+            .type = QEMU_OPT_BOOL,
+            .help = "emulate a security locked drive",
         },
         { /* end of list */ }
     },

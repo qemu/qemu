@@ -22,14 +22,14 @@
 #ifndef HW_XBOX_PCI_H
 #define HW_XBOX_PCI_H
 
-#include "hw.h"
-#include "isa.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "pci/pci_bus.h"
-#include "amd_smbus.h"
-#include "acpi.h"
-#include "acpi_xbox.h"
+#include "hw/hw.h"
+#include "hw/isa/isa.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/amd_smbus.h"
+#include "hw/acpi/acpi.h"
+#include "hw/acpi_xbox.h"
 
 
 typedef struct XBOX_PCIState {

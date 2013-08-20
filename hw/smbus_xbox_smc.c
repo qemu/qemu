@@ -17,9 +17,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "i2c.h"
-#include "smbus.h"
+#include "hw/hw.h"
+#include "hw/i2c/i2c.h"
+#include "hw/i2c/smbus.h"
 
 /* 
  * Hardware is a PIC16LC

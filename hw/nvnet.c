@@ -16,11 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
 
-#include "nvnet.h"
+#include "hw/nvnet.h"
 
 
 #define IOPORT_SIZE 0x8
@@ -82,10 +82,12 @@ static int nvnet_initfn(PCIDevice *dev)
 {
     NVNetState *d = NVNET_DEVICE(dev);
 
-    memory_region_init_io(&d->mmio, &nvnet_mmio_ops, d, "nvnet-mmio", MMIO_SIZE);
+    memory_region_init_io(&d->mmio, OBJECT(dev),
+                          &nvnet_mmio_ops, d, "nvnet-mmio", MMIO_SIZE);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    memory_region_init_io(&d->io, &nvnet_io_ops, d, "nvnet-io", IOPORT_SIZE);
+    memory_region_init_io(&d->io, OBJECT(dev), 
+                          &nvnet_io_ops, d, "nvnet-io", IOPORT_SIZE);
     pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
 
     return 0;

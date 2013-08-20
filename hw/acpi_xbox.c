@@ -23,14 +23,15 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "acpi.h"
-#include "xbox_pci.h"
-#include "acpi_xbox.h"
+#include "hw/acpi/acpi.h"
+#include "hw/xbox_pci.h"
+
+#include "hw/acpi_xbox.h"
 
 //#define DEBUG
 #ifdef DEBUG
@@ -52,14 +53,14 @@ static void xbox_pm_update_sci_fn(ACPIREGS *regs)
 
 void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm/*, qemu_irq sci_irq*/) {
 
-    memory_region_init(&pm->bar, "xbox-pm-bar", 256);
+    memory_region_init(&pm->bar, OBJECT(dev), "xbox-pm-bar", 256);
     pci_register_bar(dev, XBOX_PM_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &pm->bar);
 
 
     acpi_pm_tmr_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->bar);
     acpi_pm1_evt_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->bar);
-    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->bar);
+    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->bar, 2);
 
     //pm->irq = sci_irq;
 }
