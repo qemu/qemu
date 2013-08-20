@@ -2631,7 +2631,7 @@ static inline void tcg_gen_debug_insn_start(uint64_t pc)
 #endif
 }
 
-static inline void tcg_gen_exit_tb(tcg_target_long val)
+static inline void tcg_gen_exit_tb(uintptr_t val)
 {
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }

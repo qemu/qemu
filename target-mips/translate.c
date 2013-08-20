@@ -3581,7 +3581,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         gen_save_pc(dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         gen_save_pc(dest);
         if (ctx->singlestep_enabled) {

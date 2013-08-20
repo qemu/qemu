@@ -400,7 +400,7 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
     } else {
         if (slot >= 0) {
             tcg_gen_goto_tb(slot);
-            tcg_gen_exit_tb((tcg_target_long)dc->tb + slot);
+            tcg_gen_exit_tb((uintptr_t)dc->tb + slot);
         } else {
             tcg_gen_exit_tb(0);
         }
