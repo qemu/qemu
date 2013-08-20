@@ -67,14 +67,22 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 static int raw_read(CPUARMState *env, const ARMCPRegInfo *ri,
                     uint64_t *value)
 {
-    *value = CPREG_FIELD32(env, ri);
+    if (ri->type & ARM_CP_64BIT) {
+        *value = CPREG_FIELD64(env, ri);
+    } else {
+        *value = CPREG_FIELD32(env, ri);
+    }
     return 0;
 }
 
 static int raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                      uint64_t value)
 {
-    CPREG_FIELD32(env, ri) = value;
+    if (ri->type & ARM_CP_64BIT) {
+        CPREG_FIELD64(env, ri) = value;
+    } else {
+        CPREG_FIELD32(env, ri) = value;
+    }
     return 0;
 }
 
