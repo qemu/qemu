@@ -435,9 +435,9 @@ struct TCGContext {
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];
     TCGRegSet reserved_regs;
-    tcg_target_long current_frame_offset;
-    tcg_target_long frame_start;
-    tcg_target_long frame_end;
+    intptr_t current_frame_offset;
+    intptr_t frame_start;
+    intptr_t frame_end;
     int frame_reg;
 
     uint8_t *code_ptr;
@@ -530,8 +530,7 @@ void tcg_func_start(TCGContext *s);
 int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf);
 int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
-void tcg_set_frame(TCGContext *s, int reg,
-                   tcg_target_long start, tcg_target_long size);
+void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
 TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
 TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,

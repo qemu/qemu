@@ -306,8 +306,7 @@ void tcg_prologue_init(TCGContext *s)
 #endif
 }
 
-void tcg_set_frame(TCGContext *s, int reg,
-                   tcg_target_long start, tcg_target_long size)
+void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size)
 {
     s->frame_start = start;
     s->frame_end = start + size;
@@ -1613,7 +1612,7 @@ static void temp_allocate_frame(TCGContext *s, int temp)
     ts->mem_offset = s->current_frame_offset;
     ts->mem_reg = s->frame_reg;
     ts->mem_allocated = 1;
-    s->current_frame_offset += (tcg_target_long)sizeof(tcg_target_long);
+    s->current_frame_offset += sizeof(tcg_target_long);
 }
 
 /* sync register 'reg' by saving it to the corresponding temporary */
