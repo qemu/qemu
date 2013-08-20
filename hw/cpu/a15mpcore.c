@@ -49,6 +49,8 @@ static int a15mp_priv_init(SysBusDevice *dev)
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
     SysBusDevice *busdev;
     const char *gictype = "arm_gic";
+    int i;
+    CPUState *cpu;
 
     if (kvm_irqchip_in_kernel()) {
         gictype = "kvm-arm-gic";
@@ -66,6 +68,22 @@ static int a15mp_priv_init(SysBusDevice *dev)
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(DEVICE(dev), a15mp_priv_set_irq, s->num_irq - 32);
+
+    /* Wire the outputs from each CPU's generic timer to the
+     * appropriate GIC PPI inputs
+     */
+    for (i = 0, cpu = first_cpu; i < s->num_cpu; i++, cpu = cpu->next_cpu) {
+        DeviceState *cpudev = DEVICE(cpu);
+        int ppibase = s->num_irq - 32 + i * 32;
+        /* physical timer; we wire it up to the non-secure timer's ID,
+         * since a real A15 always has TrustZone but QEMU doesn't.
+         */
+        qdev_connect_gpio_out(cpudev, 0,
+                              qdev_get_gpio_in(s->gic, ppibase + 30));
+        /* virtual timer */
+        qdev_connect_gpio_out(cpudev, 1,
+                              qdev_get_gpio_in(s->gic, ppibase + 27));
+    }
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x0fff -- reserved

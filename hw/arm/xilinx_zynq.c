@@ -108,11 +108,9 @@ static void zynq_init(QEMUMachineInitArgs *args)
     MemoryRegion *ocm_ram = g_new(MemoryRegion, 1);
     DeviceState *dev;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     qemu_irq pic[64];
     NICInfo *nd;
     int n;
-    qemu_irq cpu_irq;
 
     if (!cpu_model) {
         cpu_model = "cortex-a9";
@@ -123,8 +121,6 @@ static void zynq_init(QEMUMachineInitArgs *args)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    irqp = arm_pic_init_cpu(cpu);
-    cpu_irq = irqp[ARM_PIC_CPU_IRQ];
 
     /* max 2GB ram */
     if (ram_size > 0x80000000) {
@@ -159,7 +155,8 @@ static void zynq_init(QEMUMachineInitArgs *args)
     qdev_init_nofail(dev);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0xF8F00000);
-    sysbus_connect_irq(busdev, 0, cpu_irq);
+    sysbus_connect_irq(busdev, 0,
+                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
 
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);

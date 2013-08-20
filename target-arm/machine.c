@@ -222,9 +222,9 @@ static int cpu_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 12,
-    .minimum_version_id = 12,
-    .minimum_version_id_old = 12,
+    .version_id = 13,
+    .minimum_version_id = 13,
+    .minimum_version_id_old = 13,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
@@ -257,6 +257,8 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT32(env.exclusive_val, ARMCPU),
         VMSTATE_UINT32(env.exclusive_high, ARMCPU),
         VMSTATE_UINT64(env.features, ARMCPU),
+        VMSTATE_TIMER(gt_timer[GTIMER_PHYS], ARMCPU),
+        VMSTATE_TIMER(gt_timer[GTIMER_VIRT], ARMCPU),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (VMStateSubsection[]) {
