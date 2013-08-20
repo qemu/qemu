@@ -434,11 +434,11 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 /* Interpret pseudo code in tb. */
-tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
+uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 {
     long tcg_temps[CPU_TEMP_BUF_NLONGS];
     uintptr_t sp_value = (uintptr_t)(tcg_temps + CPU_TEMP_BUF_NLONGS);
-    tcg_target_ulong next_tb = 0;
+    uintptr_t next_tb = 0;
 
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
     tci_reg[TCG_REG_CALL_STACK] = sp_value;

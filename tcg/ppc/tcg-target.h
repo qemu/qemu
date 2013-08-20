@@ -102,7 +102,7 @@ typedef enum {
 #define TCG_AREG0 TCG_REG_R27
 
 #define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((long __attribute__ ((longcall)) \
+    ((uintptr_t __attribute__ ((longcall)) \
       (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, tb_ptr)
 
 #endif
