@@ -388,7 +388,7 @@ typedef struct TCGTemp {
     int reg;
     tcg_target_long val;
     int mem_reg;
-    tcg_target_long mem_offset;
+    intptr_t mem_offset;
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
@@ -533,8 +533,7 @@ int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
 TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
-TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
-                                const char *name);
+TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name);
 TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
 static inline TCGv_i32 tcg_temp_new_i32(void)
 {
@@ -548,8 +547,7 @@ void tcg_temp_free_i32(TCGv_i32 arg);
 char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg);
 
 TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
-TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
-                                const char *name);
+TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name);
 TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
 static inline TCGv_i64 tcg_temp_new_i64(void)
 {

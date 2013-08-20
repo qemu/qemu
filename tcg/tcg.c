@@ -389,7 +389,7 @@ TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name)
 }
 
 static inline int tcg_global_mem_new_internal(TCGType type, int reg,
-                                              tcg_target_long offset,
+                                              intptr_t offset,
                                               const char *name)
 {
     TCGContext *s = &tcg_ctx;
@@ -449,21 +449,15 @@ static inline int tcg_global_mem_new_internal(TCGType type, int reg,
     return idx;
 }
 
-TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
-                                const char *name)
+TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name)
 {
-    int idx;
-
-    idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
     return MAKE_TCGV_I32(idx);
 }
 
-TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
-                                const char *name)
+TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name)
 {
-    int idx;
-
-    idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
     return MAKE_TCGV_I64(idx);
 }
 
