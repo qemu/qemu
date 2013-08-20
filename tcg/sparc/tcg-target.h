@@ -142,16 +142,12 @@ typedef enum {
 
 #define TCG_AREG0 TCG_REG_I0
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
-    unsigned long p;
-
-    p = start & ~(8UL - 1UL);
-    stop = (stop + (8UL - 1UL)) & ~(8UL - 1UL);
-
-    for (; p < stop; p += 8)
+    uintptr_t p;
+    for (p = start & -8; p < (stop + 7) & -8; p += 8) {
         __asm__ __volatile__("flush\t%0" : : "r" (p));
+    }
 }
 
 #endif

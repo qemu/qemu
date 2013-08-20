@@ -293,8 +293,7 @@ void tcg_prologue_init(TCGContext *s)
     s->code_buf = s->code_gen_prologue;
     s->code_ptr = s->code_buf;
     tcg_target_qemu_prologue(s);
-    flush_icache_range((tcg_target_ulong)s->code_buf,
-                       (tcg_target_ulong)s->code_ptr);
+    flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
@@ -2415,8 +2414,7 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
     tcg_gen_code_common(s, gen_code_buf, -1);
 
     /* flush instruction cache */
-    flush_icache_range((tcg_target_ulong)gen_code_buf,
-                       (tcg_target_ulong)s->code_ptr);
+    flush_icache_range((uintptr_t)gen_code_buf, (uintptr_t)s->code_ptr);
 
     return s->code_ptr -  gen_code_buf;
 }
