@@ -430,8 +430,7 @@ static void tcg_out_modrm(TCGContext *s, int opc, int r, int rm)
    that will follow the instruction.  */
 
 static void tcg_out_modrm_sib_offset(TCGContext *s, int opc, int r, int rm,
-                                     int index, int shift,
-                                     tcg_target_long offset)
+                                     int index, int shift, intptr_t offset)
 {
     int mod, len;
 
@@ -439,8 +438,8 @@ static void tcg_out_modrm_sib_offset(TCGContext *s, int opc, int r, int rm,
         if (TCG_TARGET_REG_BITS == 64) {
             /* Try for a rip-relative addressing mode.  This has replaced
                the 32-bit-mode absolute addressing encoding.  */
-            tcg_target_long pc = (tcg_target_long)s->code_ptr + 5 + ~rm;
-            tcg_target_long disp = offset - pc;
+            intptr_t pc = (intptr_t)s->code_ptr + 5 + ~rm;
+            intptr_t disp = offset - pc;
             if (disp == (int32_t)disp) {
                 tcg_out_opc(s, opc, r, 0, 0);
                 tcg_out8(s, (LOWREGMASK(r) << 3) | 5);
@@ -514,7 +513,7 @@ static void tcg_out_modrm_sib_offset(TCGContext *s, int opc, int r, int rm,
 
 /* A simplification of the above with no index or shift.  */
 static inline void tcg_out_modrm_offset(TCGContext *s, int opc, int r,
-                                        int rm, tcg_target_long offset)
+                                        int rm, intptr_t offset)
 {
     tcg_out_modrm_sib_offset(s, opc, r, rm, -1, 0, offset);
 }
@@ -559,7 +558,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 
     /* Try a 7 byte pc-relative lea before the 10 byte movq.  */
-    diff = arg - ((tcg_target_long)s->code_ptr + 7);
+    diff = arg - ((uintptr_t)s->code_ptr + 7);
     if (diff == (int32_t)diff) {
         tcg_out_opc(s, OPC_LEA | P_REXW, ret, 0, 0);
         tcg_out8(s, (LOWREGMASK(ret) << 3) | 5);
@@ -757,7 +756,7 @@ static void tcg_out_jxx(TCGContext *s, int opc, int label_index, int small)
     TCGLabel *l = &s->labels[label_index];
 
     if (l->has_value) {
-        val = l->u.value - (tcg_target_long)s->code_ptr;
+        val = l->u.value - (intptr_t)s->code_ptr;
         val1 = val - 2;
         if ((int8_t)val1 == val1) {
             if (opc == -1) {
@@ -997,9 +996,9 @@ static void tcg_out_movcond64(TCGContext *s, TCGCond cond, TCGArg dest,
 }
 #endif
 
-static void tcg_out_branch(TCGContext *s, int call, tcg_target_long dest)
+static void tcg_out_branch(TCGContext *s, int call, uintptr_t dest)
 {
-    tcg_target_long disp = dest - (tcg_target_long)s->code_ptr - 5;
+    intptr_t disp = dest - (intptr_t)s->code_ptr - 5;
 
     if (disp == (int32_t)disp) {
         tcg_out_opc(s, call ? OPC_CALL_Jz : OPC_JMP_long, 0, 0, 0);
@@ -1011,12 +1010,12 @@ static void tcg_out_branch(TCGContext *s, int call, tcg_target_long dest)
     }
 }
 
-static inline void tcg_out_calli(TCGContext *s, tcg_target_long dest)
+static inline void tcg_out_calli(TCGContext *s, uintptr_t dest)
 {
     tcg_out_branch(s, 1, dest);
 }
 
-static void tcg_out_jmp(TCGContext *s, tcg_target_long dest)
+static void tcg_out_jmp(TCGContext *s, uintptr_t dest)
 {
     tcg_out_branch(s, 0, dest);
 }
@@ -1154,8 +1153,7 @@ static inline void setup_guest_base_seg(void) { }
 #endif /* SOFTMMU */
 
 static void tcg_out_qemu_ld_direct(TCGContext *s, int datalo, int datahi,
-                                   int base, tcg_target_long ofs, int seg,
-                                   int sizeop)
+                                   int base, intptr_t ofs, int seg, int sizeop)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     const int bswap = 1;
@@ -1305,7 +1303,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 }
 
 static void tcg_out_qemu_st_direct(TCGContext *s, int datalo, int datahi,
-                                   int base, tcg_target_long ofs, int seg,
+                                   int base, intptr_t ofs, int seg,
                                    int sizeop)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -1519,7 +1517,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
                      do_getpc(l->raddr));
     }
 
-    tcg_out_calli(s, (tcg_target_long)qemu_ld_helpers[s_bits]);
+    tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[s_bits]);
 
     data_reg = l->datalo_reg;
     switch(opc) {
@@ -1560,7 +1558,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     }
 
     /* Jump to the code corresponding to next IR of qemu_st */
-    tcg_out_jmp(s, (tcg_target_long)l->raddr);
+    tcg_out_jmp(s, (uintptr_t)l->raddr);
 }
 
 /*
@@ -1625,9 +1623,8 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         }
     }
 
-    tcg_out_calli(s, (tcg_target_long)qemu_st_helpers[s_bits]);
-
-    tcg_out_jmp(s, (tcg_target_long)l->raddr);
+    tcg_out_calli(s, (uintptr_t)qemu_st_helpers[s_bits]);
+    tcg_out_jmp(s, (uintptr_t)l->raddr);
 }
 
 /*
@@ -1668,7 +1665,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     switch(opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_EAX, args[0]);
-        tcg_out_jmp(s, (tcg_target_long) tb_ret_addr);
+        tcg_out_jmp(s, (uintptr_t)tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
@@ -1679,7 +1676,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         } else {
             /* indirect jump method */
             tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1,
-                                 (tcg_target_long)(s->tb_next + args[0]));
+                                 (intptr_t)(s->tb_next + args[0]));
         }
         s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
         break;
@@ -2372,7 +2369,7 @@ static DebugFrame debug_frame = {
 #if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_start = (uintptr_t)buf;
     debug_frame.fde.func_len = buf_size;
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
