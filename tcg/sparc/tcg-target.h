@@ -24,6 +24,14 @@
 #ifndef TCG_TARGET_SPARC 
 #define TCG_TARGET_SPARC 1
 
+#if UINTPTR_MAX == UINT32_MAX
+# define TCG_TARGET_REG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define TCG_TARGET_REG_BITS 64
+#else
+# error Unknown pointer size for tcg target
+#endif
+
 #define TCG_TARGET_WORDS_BIGENDIAN
 
 #define TCG_TARGET_NB_REGS 32

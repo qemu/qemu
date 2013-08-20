@@ -22,6 +22,10 @@
  * THE SOFTWARE.
  */
 
+#if TCG_TARGET_REG_BITS != 32
+#error unsupported
+#endif
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0", "%r1", "%rp", "%r3", "%r4", "%r5", "%r6", "%r7",

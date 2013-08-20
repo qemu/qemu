@@ -23,13 +23,17 @@
  */
 #include "qemu-common.h"
 
-/* Target word size (must be identical to pointer size). */
-#if UINTPTR_MAX == UINT32_MAX
-# define TCG_TARGET_REG_BITS 32
-#elif UINTPTR_MAX == UINT64_MAX
-# define TCG_TARGET_REG_BITS 64
-#else
-# error Unknown pointer size for tcg target
+#include "tcg-target.h"
+
+/* Default target word size to pointer size.  */
+#ifndef TCG_TARGET_REG_BITS
+# if UINTPTR_MAX == UINT32_MAX
+#  define TCG_TARGET_REG_BITS 32
+# elif UINTPTR_MAX == UINT64_MAX
+#  define TCG_TARGET_REG_BITS 64
+# else
+#  error Unknown pointer size for tcg target
+# endif
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
@@ -46,7 +50,6 @@ typedef uint64_t tcg_target_ulong;
 #error unsupported
 #endif
 
-#include "tcg-target.h"
 #include "tcg-runtime.h"
 
 #if TCG_TARGET_NB_REGS <= 32

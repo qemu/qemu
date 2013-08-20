@@ -24,12 +24,14 @@
 #ifndef TCG_TARGET_I386 
 #define TCG_TARGET_I386 1
 
-//#define TCG_TARGET_WORDS_BIGENDIAN
+#undef TCG_TARGET_WORDS_BIGENDIAN
 
-#if TCG_TARGET_REG_BITS == 64
-# define TCG_TARGET_NB_REGS 16
+#ifdef __x86_64__
+# define TCG_TARGET_REG_BITS  64
+# define TCG_TARGET_NB_REGS   16
 #else
-# define TCG_TARGET_NB_REGS 8
+# define TCG_TARGET_REG_BITS  32
+# define TCG_TARGET_NB_REGS    8
 #endif
 
 typedef enum {

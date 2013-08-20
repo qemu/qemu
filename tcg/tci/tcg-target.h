@@ -44,6 +44,14 @@
 
 #define TCG_TARGET_INTERPRETER 1
 
+#if UINTPTR_MAX == UINT32_MAX
+# define TCG_TARGET_REG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define TCG_TARGET_REG_BITS 64
+#else
+# error Unknown pointer size for tci target
+#endif
+
 #ifdef CONFIG_DEBUG_TCG
 /* Enable debug output. */
 #define CONFIG_DEBUG_TCG_INTERPRETER
