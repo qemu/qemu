@@ -1,7 +1,8 @@
-#!/usr/bin/perl
-# win debug client
+#!/usr/bin/env perl
+# win/xbox KD client
 #
 # Copyright (C) 2007 SecureWorks, Inc.
+# Copyright (C) 2013 espes
 #
 # This program is free software subject to the terms of the GNU General 
 # Public License.  You can use, copy, redistribute and/or modify the 
@@ -39,8 +40,10 @@
 # WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN 
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-use Device::SerialPort;
 use IO::Select;
+use IO::Socket;
+use File::stat;
+use Fcntl ':mode';
 use strict;
 
 $| = 1;
@@ -65,39 +68,71 @@ $pcontext                   = \%kernelcontext;
 
 my $version;
 my $kernelbase;
-my %exceptions = (
-    3221225477 => "EXCEPTION_ACCESS_VIOLATION",
-    3221225612 => "EXCEPTION_ARRAY_BOUNDS_EXCEEDED",
-    2147483651 => "EXCEPTION_BREAKPOINT",
-    2147483650 => "EXCEPTION_DATATYPE_MISALIGNMENT",
-    3221225613 => "EXCEPTION_FLT_DENORMAL_OPERAND",
-    3221225614 => "EXCEPTION_FLT_DIVIDE_BY_ZERO",
-    3221225615 => "EXCEPTION_FLT_INEXACT_RESULT",
-    3221225520 => "EXCEPTION_FLT_INVALID_OPERATION",
-    3221225617 => "EXCEPTION_FLT_OVERFLOW",
-    3221225522 => "EXCEPTION_FLT_STACK_CHECK",
-    3221225523 => "EXCEPTION_FLT_UNDERFLOW",
-    2147483649 => "EXCEPTION_GUARD_PAGE",
-    3221225501 => "EXCEPTION_ILLEGAL_INSTRUCTION",
-    3221225478 => "EXCEPTION_IN_PAGE_ERROR",
-    3221225620 => "EXCEPTION_INT_DIVIDE_BY_ZERO",
-    3221225525 => "EXCEPTION_INT_OVERFLOW",
-    3221225725 => "EXCEPTION_STACK_OVERFLOW"
-);
 
 my $nextpid = 1;
 my %breakpoints;
 my $curbp = 1;
 my $controlspace;
 my $controlspacesent;
-my $ob = tie( *FH, 'Device::SerialPort', "$dev" ) || die "Can't tie: $!\n";
-$ob->baudrate(115200);
-$ob->parity("none");
-$ob->databits(8);
-$ob->stopbits(1);
-$ob->handshake("none");
-$ob->write_settings || die "failed writing settings";
-FH->blocking(0);
+
+my $isserial;
+my $serial;
+my $socket;
+my $ds = stat($dev) || die "$!";
+if (S_ISCHR($ds->mode)) {
+    require Device::SerialPort;
+    $serial = tie( *FH, 'Device::SerialPort', "$dev" ) || die "Can't tie: $!";
+    $serial->baudrate(115200);
+    $serial->parity("none");
+    $serial->databits(8);
+    $serial->stopbits(1);
+    $serial->handshake("none");
+    $serial->write_settings || die "failed writing settings";
+    FH->blocking(0);
+} elsif (S_ISSOCK($ds->mode)) {
+    $socket = IO::Socket::UNIX->new(
+        Type => SOCK_STREAM,
+        Peer => $dev
+    ) || die "Can't create socket $!";
+} else {
+    die "$dev not a character device or a socket\n";
+}
+
+sub writeDev {
+    my $data = shift;
+    if ($serial) {
+        $serial->write($data);
+    } else {
+        $socket->syswrite($data);
+    }
+}
+
+sub readLoop {
+    my $wanted = shift;
+    my $total  = 0;
+    my $count;
+    my $outbuf;
+    while ( $total < $wanted ) {
+        my $buf;
+        if ($serial) {
+            ( $count, $buf ) = $serial->read(1);
+        } else {
+            #FH->blocking(1);
+            $count = $socket->sysread($buf, 1);
+            if ($count == 0) {
+                die "eof";
+            }
+            # printf "readLoop $count %x\n", ord($buf);
+            #FH->blocking(0);
+        }
+        
+        if ($count) {
+            $total += $count;
+            $outbuf .= $buf;
+        }
+    }
+    return $outbuf;
+}
 
 sub hexformat {
     my $buf = shift;
@@ -129,316 +164,63 @@ sub cksum {
     return $sum;
 }
 
-my $s = IO::Select->new();
-$s->add( \*STDIN );
-$s->add( \*FH );
-my @ready;
-sendReset();
-while ( @ready = $s->can_read ) {
-    for my $fh (@ready) {
-        if ( $fh == \*STDIN ) {
-            my $line = <$fh>;
-            if ( $line =~ /break/ ) {
-                print "Sending break...\n";
-                $ob->write("b");
-            }
-            elsif ( $running == 1 ) {
-                print "Kernel is busy (send break command)\n";
-            }
-            elsif ( $line =~ /processcontext ([0-9A-Fa-f]+)/ ) {
-                my $pid = hex($1);
-                if ( $pid == 0 ) {
-                    $pcontext = \%kernelcontext;
-                    print "Process context is kernel\n";
-                }
-                else {
-                    my $eproc = getEprocess($pid);
-                    my $dtb   = readDword( $eproc + 0x18 );
-                    my $peb   = readDword( $eproc + 0x1b0 );
+my $PACKET_LEADER = 0x30303030;
+my $CONTROL_PACKET_LEADER = 0x69696969;
 
-                    if ($peb) {
-                        $processcontext{'eprocess'} = $eproc;
-                        $processcontext{'dtb'}      = $dtb;
-                        $processcontext{'peb'}      = $peb;
-                        $processcontext{'pid'}      = $pid;
-                        $pcontext                   = \%processcontext;
-                        printf "Implicit process is now %x\n", $pid;
-                    }
-                    else {
-                        print "Invalid PID (PEB not found in eprocess)\n";
-                    }
-                }
+my $PACKET_TYPE_UNUSED              = 0;
+my $PACKET_TYPE_KD_STATE_CHANGE32   = 1;
+my $PACKET_TYPE_KD_STATE_MANIPULATE = 2;
+my $PACKET_TYPE_KD_DEBUG_IO         = 3;
+my $PACKET_TYPE_KD_ACKNOWLEDGE      = 4;
+my $PACKET_TYPE_KD_RESEND           = 5;
+my $PACKET_TYPE_KD_RESET            = 6;
+my $PACKET_TYPE_KD_STATE_CHANGE64   = 7;
+my $PACKET_TYPE_MAX                 = 8;
 
-            }
-            elsif ( $line =~ /getprocaddress (\S+) (\S+)/ ) {
-                my $dll    = $1;
-                my $export = $2;
-                my $addr   = getProcAddress( $dll, $export );
-                if ($addr) {
-                    printf "%s!%s:%08x\n", $dll, $export, $addr;
-                }
-                else {
-                    printf "%s!%s not found\n", $dll, $export;
-                }
-            }
-            elsif ( $line =~ /listexports ([0-9A-Fa-f]+)/ ) {
-                listExports( hex($1) );
-            }
-            elsif ( $line =~ /^logical2physical ([0-9A-Fa-f]+)/ ) {
-                printf "%08x -> %08x\n", hex($1), logical2physical( hex($1) );
-            }
-            elsif ( $line =~ /^parsepe ([0-9A-Fa-f]+)/ ) {
-                my %PE       = parsePE( hex($1) );
-                my $compiled = localtime( $PE{"TimeDateStamp"} );
-                print "Compiled on $compiled\n";
-            }
-            elsif ( $line =~
-                /^writevirtualmemory ([0-9A-Fa-f]+) [0-9A-Fa-f][0-9A-Fa-f]/ )
-            {
-                chomp($line);
-                my ( $c, $addr, @bytes ) = split( /\s+/, $line );
-                sendDbgKdWriteVirtualMemory( hex($addr),
-                    join( "", map { chr(hex) } @bytes ) );
-            }
-            elsif ( $line =~ /^(?:messagebox|mb)\s+(.*)\|(.*)/ ) {
-                my $title   = $1;
-                my $message = $2;
-                injectSUSShellcode( $title, $message );
-                insertApc();
-            }
-            elsif ( $line =~ /^processlist|^listprocess/ ) {
-                print "Walking process list...\n";
-                my %procs = getProcessList();
-                for ( reverse sort keys %procs ) {
-                    my $c = localtime( $procs{$_}{'created'} );
-                    printf "%04x %s\n", $procs{$_}{'pid'}, $procs{$_}{'name'};
-                    printf
-                      "Eprocess: %08x  DTB: %08x  PEB: %08x  Created: %s\n", $_,
-                      $procs{$_}{'dtb'}, $procs{$_}{'peb'}, $c;
-                    print "Threads: ";
-                    print join( " ",
-                        map { sprintf "%08x", $_ } @{ $procs{$_}{'threads'} } );
-                    print "\n\n";
-                }
-            }
-            elsif ( $line =~ /^module|^listmodules/ ) {
-                my %modules;
-                if ( $pcontext->{'pid'} == 0 ) {
-                    %modules = getKernelModules();
-                }
-                else {
-                    %modules = getUserModules();
-                }
-                for ( sort keys %modules ) {
-                    printf "%s\tPath:%s\n", $modules{$_}{'name'},
-                      $modules{$_}{'path'};
-                    printf "base:%08x  " . "size:%08x entry:%08x\n\n", $_,
-                      $modules{$_}{'size'}, $modules{$_}{'entry'};
-                }
-            }
-            elsif ( $line =~ /^findprocessbyname (\S+)/ ) {
-                my $name  = $1;
-                my %procs = getProcessList();
-              PROCFIND:
-                for ( sort keys %procs ) {
-                    my $c = localtime( $procs{$_}{'created'} );
-                    my $n = $procs{$_}{'name'};
-                    if ( lc($name) eq lc($n) ) {
-                        printf "%04x %s\n", $procs{$_}{'pid'},
-                          $procs{$_}{'name'};
-                        printf
-                          "Eprocess: %08x  DTB: %08x  PEB: %08x  Created: %s\n",
-                          $_, $procs{$_}{'dtb'}, $procs{$_}{'peb'}, $c;
-                        print "Threads: ";
-                        print join( " ",
-                            map { sprintf "%08x", $_ }
-                              @{ $procs{$_}{'threads'} } );
-                        print "\n";
-                        last PROCFIND;
-                    }
-                }
-            }
-            elsif ( $line =~ /^eprocess ([0-9A-Fa-f]+)/ ) {
-                my $ep = getEprocess( hex($1) );
-                sendDbgKdReadVirtualMemory( $ep, 648 );
-                my $buf = waitPacketQuiet(0x3130);
-                if ( length($buf) > 56 ) {
-                    my $eproc = substr( $buf, 56 );
-                    if ( length($eproc) > 0x20c ) {
-                        my $name;
-                        if ( $version > 5 ) {
-                            $name = substr( $eproc, 0x174, 16 );
-                        }
-                        else {
-                            $name = substr( $eproc, 0x1fc, 16 );
-                        }
-                        $name =~ s/\x00//g;
-                        print "Process name is $name\n";
-                        my $next = unpack( "I", substr( $eproc, 0xa0, 4 ) );
-                    }
+sub handlePacket {
+    my $quiet = shift;
 
-                }
-            }
-            elsif ( $line =~ /^bp ([0-9A-Fa-f]+)/ ) {
-                sendDbgKdWriteBreakPoint($1);
-            }
-            elsif ( $line =~ /^bc ([0-9A-Fa-f]+)/ ) {
-                sendDbgKdRestoreBreakPoint($1);
-            }
-            elsif ( $line =~ /^bl/ ) {
-                print "Breakpoints:\n", join( "\n", sort keys %breakpoints ),
-                  "\n";
-            }
-            elsif ( $line =~ /^continue/ ) {
-                sendDbgKdContinue2();
-                $running = 1;
-            }
-            elsif ( $line =~ /^getpspcidtable/ ) {
-                getPspCidTable();
-            }
-            elsif ( $line =~ /^(autocontinue|g)$/ ) {
-
-                # get/set context to update EIP before continuing
-                my %context = getContext();
-                $context{'EIP'}++;
-                setContext(%context);
-                sendDbgKdContinue2();
-                $running = 1;
-            }
-            elsif ( $line =~ /^version/ ) {
-                printVersionData();
-            }
-            elsif ( $line =~ /^readcontrolspace/ ) {
-                sendDbgKdReadControlSpace();
-            }
-            elsif ( $line =~ /^writecontrolspace/ ) {
-                if ($controlspace) {
-                    sendDbgKdWriteControlSpace();
-                }
-                else {
-                    print "Haven't gotten control space yet!\n";
-                }
-            }
-            elsif ( $line =~ /^r (.*)=(.*)/ ) {
-                my $reg     = $1;
-                my $val     = $2;
-                my %context = getContext();
-                if ( length($reg) < 4 ) {
-                    $reg = uc($reg);
-                }
-                if ( exists $context{$reg} ) {
-                    if ( $reg eq "fp.RegisterArea" ) {
-                        printf "Not supported yet.\n";
-                    }
-                    elsif ( $reg eq "leftovers" ) {
-                        printf "Not supported.\n";
-                    }
-                    else {
-                        $context{$reg} = hex($val);
-                        setContext(%context);
-                        %context = getContext();
-                        printf "New value of %s is %08x\n", $reg,
-                          $context{$reg};
-                    }
-                }
-                else {
-                    print "Register $reg unknown\n";
-                }
-            }
-            elsif ( $line =~ /^r (.*)/ ) {
-                my $reg     = $1;
-                my %context = getContext();
-                if ( length($reg) < 4 ) {
-                    $reg = uc($reg);
-                }
-                if ( exists $context{$reg} ) {
-                    if ( $reg eq "fp.RegisterArea" ) {
-                        printf "%s = \n%s\n", $reg, hexprint($reg);
-                    }
-                    else {
-                        printf "%s = %08x\n", $reg, $context{$reg};
-                    }
-                }
-                else {
-                    print "Register $reg unknown\n";
-                }
-            }
-            elsif ( $line =~ /^r$|^getcontext/ ) {
-                my %context = getContext();
-                for ( sort keys %context ) {
-                    if (   ( $_ ne "fp.RegisterArea" )
-                        && ( $_ ne "leftovers" ) )
-                    {
-                        printf "%s=%08x ", $_, $context{$_};
-                    }
-                }
-                print "\n";
-            }
-            elsif ( $line =~ /^dw ([0-9A-Fa-f]+)/ ) {
-                printf "%08x: %08x\n", hex($1), readDword( hex($1) );
-            }
-            elsif ( $line =~ /^(?:readvirtualmem|d) ([0-9A-Fa-f]+)/ ) {
-                my $vaddr = $1;
-                my $readlen;
-                if ( $line =~
-                    /(?:readvirtualmem|d) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+)/ )
-                {
-                    $readlen = hex($2);
-                }
-                $readlen ||= 4;
-                my $buf = readVirtualMemory( hex($vaddr), $readlen );
-                print hexasc($buf);
-            }
-            elsif ( $line =~ /^(?:readphysicalmem|dp) ([0-9A-Fa-f]+)/ ) {
-                my $addr = $1;
-                my $readlen;
-                if ( $line =~
-                    /(?:readphysicalmem|dp) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+)/ )
-                {
-                    $readlen = hex($2);
-                }
-                $readlen ||= 4;
-                sendDbgKdReadPhysicalMemory( hex($addr), $readlen );
-            }
-            elsif ( $line =~ /^reboot/ ) {
-                sendDbgKdReboot();
-            }
-            elsif ( $line =~ /^quit|^exit/ ) {
-                untie *FH;
-                exit;
-            }
-            elsif ( $line =~ /^reset/ ) {
-                sendReset();
-            }
-        }
-        elsif ( $fh == \*FH ) {
-            my $buf = getPacket(1);
-            if ($buf) {
-                decodePayload($buf);
-            }
-        }
+    my ($ptype, $buf) = getPacket($quiet);
+    
+    if (!$buf) {
+        return;
     }
+
+    if ($ptype == $PACKET_TYPE_KD_STATE_MANIPULATE) {
+        handleStateManipulate($buf, $quiet);
+    } elsif ($ptype == $PACKET_TYPE_KD_DEBUG_IO) {
+        handleDebugIO($buf, $quiet);
+    } elsif ($ptype == $PACKET_TYPE_KD_STATE_CHANGE64) {
+        handleStateChange($buf, $quiet);
+    }
+
+    return ($ptype, $buf);
 }
 
 sub getPacket {
     my $payload;
     my $quiet = shift;
+
+    my $ptype;
+
     my $buf   = readLoop(4);
-    if ( $buf eq "\x30\x30\x30\x30" || $buf eq "\x69\x69\x69\x69" ) {
-        my $pl = $buf;
-        my $plh = unpack( "I", $buf );
+    my $plh = unpack( "I", $buf );
+    if ( $plh == $PACKET_LEADER || $plh == $CONTROL_PACKET_LEADER ) {
         printf "Got packet leader: %08x\n", $plh unless $quiet;
+        
         $buf = readLoop(2);
-        my $ptype = unpack( "S", $buf );
+        $ptype = unpack( "S", $buf );
         print "Packet type: $ptype\n" unless $quiet;
+        
         $buf = readLoop(2);
         my $bc = unpack( "S", $buf );
         print "Byte count: $bc\n" unless $quiet;
+        
         $buf = readLoop(4);
         my $pid = unpack( "I", $buf );
         $nextpid = $pid;
-        my $pidraw = $buf;
         printf "Packet ID: %08x\n", $pid unless $quiet;
+        
         $buf = readLoop(4);
         my $ck = unpack( "I", $buf );
         printf "Checksum: %08x\n", $ck unless $quiet;
@@ -451,58 +233,188 @@ sub getPacket {
         if ( $plh == 0x30303030 ) {
 
             # packet trailer
-            $buf = readLoop(1);
-            print hexformat($buf) unless $quiet;
-            if ( $buf eq "\xaa" ) {
-                print "sending Ack\n" unless $quiet;
+            my $trail = readLoop(1);
+            # print hexformat($trail) unless $quiet;
+            if ( $trail eq "\xaa" ) {
+                # print "sending Ack\n";# unless $quiet;
                 sendAck();
             }
         }
     }
-    return $payload;
+    return ($ptype, $payload);
 }
 
-sub decodePayload {
+# PACKET_TYPE_KD_DEBUG_IO apis
+# DBGKD_DEBUG_IO
+my $DbgKdPrintStringApi = 0x00003230;
+my $DbgKdGetStringApi = 0x00003231;
+sub handleDebugIO {
+    my $buf = shift;
+    my $quiet = shift;
+
+    my $apiNumber = unpack("I", substr($buf, 0, 4));
+    if ($apiNumber == $DbgKdPrintStringApi) {
+        print "DBG PRINT STRING: ".substr($buf, 0x10);
+    }
+}
+
+# PACKET_TYPE_KD_STATE_CHANGE states
+# X86_NT5_DBGKD_WAIT_STATE_CHANGE64
+my $DbgKdExceptionStateChange   = 0x00003030;
+my $DbgKdLoadSymbolsStateChange = 0x00003031;
+
+sub handleStateChange {
+    my $buf = shift;
+    my $quiet = shift;
+
+    my $newState = unpack("I", substr($buf, 0, 4));
+    printf "State Change: %08x\n", $newState unless $quiet;
+    
+    if ($newState == $DbgKdExceptionStateChange) {
+        my %exceptions = (
+            0xc0000005 => "EXCEPTION_ACCESS_VIOLATION",
+            0xc000008c => "EXCEPTION_ARRAY_BOUNDS_EXCEEDED",
+            0x80000003 => "EXCEPTION_BREAKPOINT",
+            0x80000002 => "EXCEPTION_DATATYPE_MISALIGNMENT",
+            0xc000008d => "EXCEPTION_FLT_DENORMAL_OPERAND",
+            0xc000008e => "EXCEPTION_FLT_DIVIDE_BY_ZERO",
+            0xc000008f => "EXCEPTION_FLT_INEXACT_RESULT",
+            0xc0000030 => "EXCEPTION_FLT_INVALID_OPERATION",
+            0xc0000091 => "EXCEPTION_FLT_OVERFLOW",
+            0xc0000032 => "EXCEPTION_FLT_STACK_CHECK",
+            0xc0000033 => "EXCEPTION_FLT_UNDERFLOW",
+            0x80000001 => "EXCEPTION_GUARD_PAGE",
+            0xc000001d => "EXCEPTION_ILLEGAL_INSTRUCTION",
+            0xc0000006 => "EXCEPTION_IN_PAGE_ERROR",
+            0xc0000094 => "EXCEPTION_INT_DIVIDE_BY_ZERO",
+            0xc0000035 => "EXCEPTION_INT_OVERFLOW",
+            0xc00000fd => "EXCEPTION_STACK_OVERFLOW"
+        );
+
+
+        # DBGKM_EXCEPTION64
+        my $ex = substr($buf, 32);
+
+        my $code = unpack("I", substr($ex,0,4));
+        my $flags = unpack("I", substr($ex,4,4));
+        my $record = unpack("I", substr($ex,8,4));
+        my $address = unpack("I", substr($ex,16,4));
+        my $parameters = unpack("I", substr($ex,24,4));
+
+        if ( $exceptions{$code} ) {
+            printf "*** %s ", $exceptions{$code};
+        }
+        else {
+            printf "*** Exception %08x ", $code;
+        }
+        printf "at %08x\n", $address;
+
+        printf "Exception flags = %08x\n", $flags;
+        printf "Exception record = %08x\n", $record;
+        printf "Exception address = %08x\n", $address;
+        printf "Number parameters = %08x\n", $parameters;
+
+        $running = 0;
+
+        # my @v = getVersionInfo();
+        # $version    = $v[0];
+        # $kernelbase = $v[2];
+    } elsif ($newState == $DbgKdLoadSymbolsStateChange) {
+        #DBGKD_LOAD_SYMBOLS64
+
+        my $file = substr($buf, 0x3b8);
+        chop $file;
+        print "Load Symbols for $file\n";
+
+        #nothing to do...
+
+        sendDbgKdContinue2();
+
+    }
+}
+
+# PACKET_TYPE_KD_STATE_MANIPULATE api numbers
+# DBGKD_MANIPULATE_STATE64
+my $DbgKdReadVirtualMemoryApi           = 0x00003130;
+my $DbgKdWriteVirtualMemoryApi          = 0x00003131;
+my $DbgKdGetContextApi                  = 0x00003132;
+my $DbgKdSetContextApi                  = 0x00003133;
+my $DbgKdWriteBreakPointApi             = 0x00003134;
+my $DbgKdRestoreBreakPointApi           = 0x00003135;
+my $DbgKdContinueApi                    = 0x00003136;
+my $DbgKdReadControlSpaceApi            = 0x00003137;
+my $DbgKdWriteControlSpaceApi           = 0x00003138;
+my $DbgKdReadIoSpaceApi                 = 0x00003139;
+my $DbgKdWriteIoSpaceApi                = 0x0000313A;
+my $DbgKdRebootApi                      = 0x0000313B;
+my $DbgKdContinueApi2                   = 0x0000313C;
+my $DbgKdReadPhysicalMemoryApi          = 0x0000313D;
+my $DbgKdWritePhysicalMemoryApi         = 0x0000313E;
+my $DbgKdSetSpecialCallApi              = 0x00003140;
+my $DbgKdClearSpecialCallsApi           = 0x00003141;
+my $DbgKdSetInternalBreakPointApi       = 0x00003142;
+my $DbgKdGetInternalBreakPointApi       = 0x00003143;
+my $DbgKdReadIoSpaceExtendedApi         = 0x00003144;
+my $DbgKdWriteIoSpaceExtendedApi        = 0x00003145;
+my $DbgKdGetVersionApi                  = 0x00003146;
+my $DbgKdWriteBreakPointExApi           = 0x00003147;
+my $DbgKdRestoreBreakPointExApi         = 0x00003148;
+my $DbgKdCauseBugCheckApi               = 0x00003149;
+my $DbgKdSwitchProcessor                = 0x00003150;
+my $DbgKdPageInApi                      = 0x00003151;
+my $DbgKdReadMachineSpecificRegister    = 0x00003152;
+my $DbgKdWriteMachineSpecificRegister   = 0x00003153;
+my $DbgKdSearchMemoryApi                = 0x00003156;
+my $DbgKdGetBusDataApi                  = 0x00003157;
+my $DbgKdSetBusDataApi                  = 0x00003158;
+my $DbgKdCheckLowMemoryApi              = 0x00003159;
+
+sub handleStateManipulate {
     my $buf   = shift;
     my $quiet = shift;
-    if ( substr( $buf, 0, 4 ) eq "\x30\x30\x00\x00" ) {
-        my $exception = substr( $buf, 32 );
-        decodeException($exception);
-        $running = 0;
-        my @v = getVersionInfo();
-        $version    = $v[0];
-        $kernelbase = $v[2];
-    }
-    elsif ( substr( $buf, 0, 4 ) eq "\x34\x31\x00\x00" ) {
+
+    my $apiNumber = unpack("I", substr($buf, 0, 4));
+    printf "State Manipulate: %08x\n", $apiNumber;
+
+    if ( $apiNumber == $DbgKdWriteBreakPointApi ) {
         my $bp = sprintf( "%08x", unpack( "I", substr( $buf, 16, 4 ) ) );
         my $handle = unpack( "I", substr( $buf, 20, 4 ) );
         print "Breakpoint $handle set at $bp\n";
         $breakpoints{$bp} = $handle;
     }
-    elsif ( substr( $buf, 0, 4 ) eq "\x35\x31\x00\x00" ) {
+    elsif ( $apiNumber == $DbgKdRestoreBreakPointApi ) {
         my $handle = unpack( "I", substr( $buf, 16, 4 ) );
         print "Breakpoint $handle cleared\n";
     }
-    elsif ( substr( $buf, 0, 4 ) eq "\x46\x31\x00\x00" ) {
+    elsif ( $apiNumber == $DbgKdGetVersionApi ) {
         my $version = substr( $buf, 16 );
         print "VERS: ", hexformat($version) unless $quiet;
     }
-    elsif ( substr( $buf, 0, 4 ) eq "\x30\x31\x00\x00" ) {
+    elsif ( $apiNumber == $DbgKdReadVirtualMemoryApi ) {
         my $vmem = substr( $buf, 56 );
         print "VMEM:\n", hexasc($vmem) unless $quiet;
     }
-    elsif ( substr( $buf, 0, 4 ) eq "\x3d\x31\x00\x00" ) {
+    elsif ( $apiNumber == $DbgKdReadPhysicalMemoryApi ) {
         my $pmem = substr( $buf, 56 );
         print "PMEM:\n", hexasc($pmem) unless $quiet;
     }
-    elsif ( substr( $buf, 0, 4 ) eq "\x37\x31\x00\x00" ) {
+    elsif ( $apiNumber == $DbgKdReadControlSpaceApi ) {
         $controlspace = substr( $buf, 56 );
         print "CNTL: ", hexformat($controlspace) unless $quiet;
     }
     else {
-        print "DATA: ", hexasc($buf) unless $quiet;
+        print "UNKN: ", hexasc($buf) unless $quiet;
     }
 }
+
+
+
+
+
+
+
+
+
 
 sub packetHeader {
     my $d      = shift;
@@ -514,61 +426,29 @@ sub packetHeader {
     return $header;
 }
 
-sub readLoop {
-    my $wanted = shift;
-    my $total  = 0;
-    my $count;
-    my $outbuf;
-    my $buf;
-    while ( $total < $wanted ) {
-        ( $count, $buf ) = $ob->read(1);
-        if ($count) {
-            $total += $count;
-            $outbuf .= $buf;
-        }
-    }
-    return $outbuf;
-}
-
 sub sendAck {
     my $ack =
       "\x69\x69\x69\x69\x04\x00\x00\x00\x00\x00\x80\x80\x00\x00\x00\x00";
     substr( $ack, 8, 4 ) = pack( "I", $nextpid );
 
     #print hexformat($ack);
-    $ob->write($ack);
+    writeDev($ack);
 }
 
 sub sendReset {
     my $rst =
       "\x69\x69\x69\x69\x06\x00\x00\x00\x00\x00\x80\x80\x00\x00\x00\x00";
 
-    #print "Sending reset packet\n";
-    #print hexformat($rst);
-    $ob->write($rst);
+    # print "Sending reset packet\n";
+    # print hexformat($rst);
+    writeDev($rst);
 }
 
-sub decodeException {
-    my $ex = shift;
-    my $code = unpack( "I", substr( $ex, 0, 4 ) );
-    if ( $exceptions{$code} ) {
-        printf "*** %s ", $exceptions{$code};
-    }
-    else {
-        printf "*** Exception %08 ", $code;
-    }
-    printf "at %08x\n", unpack( "I", substr( $ex, 16, 4 ) );
-
-    #printf "Exception flags = %08x\n", unpack("I", substr($ex,4,4));
-    #printf "Exception record = %08x\n", unpack("I", substr($ex,8,4));
-    #printf "Exception address = %08x\n", unpack("I", substr($ex,16,4));
-    #printf "Number parameters = %08x\n", unpack("I", substr($ex,24,4));
-}
 
 sub getContext {
     my %context;
     sendDbgKdGetContext();
-    my $buf = waitPacketQuiet(0x3132);
+    my $buf = waitStateManipulate($DbgKdGetContextApi);
     if ( length($buf) > 204 ) {
         my $ctx = substr( $buf, 56 );
 
@@ -646,14 +526,14 @@ sub setContext {
     $ctx .= pack( "I", $context{'SS'} );
     $ctx .= $context{'leftovers'};
     sendDbgKdSetContext($ctx);
-    waitPacketQuiet(0x3133);
+    waitStateManipulate($DbgKdSetContextApi);
 }
 
 sub getVersionInfo {
-
+    print "getVersionInfo\n";
     # os version, protocol version, kernel base, module list, debugger data
     sendDbgKdGetVersion();
-    my $buf = waitPacketQuiet(0x3146);
+    my $buf = waitStateManipulate($DbgKdGetVersionApi);
     if ( length($buf) > 32 ) {
         my $v = substr( $buf, 16 );
         my $osv = sprintf "%d.%d", unpack( "S", substr( $v, 4, 2 ) ),
@@ -671,6 +551,12 @@ sub getVersionInfo {
             printf "Processor architecture %04x not supported\n", $machinetype;
             exit;
         }
+
+        printf "Windows version = %s\n",  $osv;
+        printf "Protocol version = %d\n", $pv;
+        printf "Kernel base = %08x\n",    $kernbase;
+        printf "Module list = %08x\n",    $modlist;
+        printf "Debugger data = %08x\n",  $ddata;
 
         return ( $osv, $pv, $kernbase, $modlist, $ddata );
     }
@@ -765,17 +651,17 @@ sub sendManipulateStatePacket {
     my $h = packetHeader($d);
 
     #print "SEND: ", hexformat($h),
-    #		hexformat($d);
-    $ob->write($h);
-    $ob->write($d);
-    $ob->write("\xaa");
+    #       hexformat($d);
+    writeDev($h);
+    writeDev($d);
+    writeDev("\xaa");
 }
 
 sub sendDbgKdContinue2 {
 
     #print "Sending DbgKdContinue2Api packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0,  4 ) = pack( "I", 0x313c );
+    substr( $d, 0,  4 ) = pack( "I", $DbgKdContinueApi2 );
     substr( $d, 8,  4 ) = pack( "I", 0x00010001 );
     substr( $d, 16, 4 ) = pack( "I", 0x00010001 );
     substr( $d, 24, 4 ) = pack( "I", 0x400 );        # TraceFlag
@@ -787,7 +673,7 @@ sub sendDbgKdGetVersion {
 
     #print "Sending DbgKdGetVersionApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0, 4 ) = pack( "I", 0x3146 );
+    substr( $d, 0, 4 ) = pack( "I", $DbgKdGetVersionApi );
     sendManipulateStatePacket($d);
 }
 
@@ -796,7 +682,7 @@ sub sendDbgKdWriteBreakPoint {
 
     #print "Sending DbgKdWriteBreakPointApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0,  4 ) = pack( "I", 0x3134 );
+    substr( $d, 0,  4 ) = pack( "I", $DbgKdWriteBreakPointApi );
     substr( $d, 16, 4 ) = pack( "I", $bp );
     substr( $d, 20, 4 ) = pack( "I", $curbp++ );
     sendManipulateStatePacket($d);
@@ -808,7 +694,7 @@ sub sendDbgKdRestoreBreakPoint {
 
         #print "Sending DbgKdRestoreBreakPointApi packet\n";
         my $d = "\x00" x 56;
-        substr( $d, 0,  4 ) = pack( "I", 0x3135 );
+        substr( $d, 0,  4 ) = pack( "I", $DbgKdRestoreBreakPointApi );
         substr( $d, 16, 4 ) = pack( "I", $breakpoints{$bp} );
         sendManipulateStatePacket($d);
         delete( $breakpoints{$bp} );
@@ -818,7 +704,7 @@ sub sendDbgKdRestoreBreakPoint {
     }
 }
 
-sub DbgKdReadControlSpace {
+sub sendDbgKdReadControlSpace {
 
     #print "Sending DbgKdReadControlSpaceApi packet\n";
     my $d = "\x00" x 56;
@@ -844,7 +730,7 @@ sub sendDbgKdGetContext {
 
     #print "Sending DbgKdGetContextApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0, 4 ) = pack( "I", 0x3132 );
+    substr( $d, 0, 4 ) = pack( "I", $DbgKdGetContextApi );
     sendManipulateStatePacket($d);
 }
 
@@ -853,7 +739,7 @@ sub sendDbgKdSetContext {
 
     #print "Sending DbgKdSetContextApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0, 4 ) = pack( "I", 0x3133 );
+    substr( $d, 0, 4 ) = pack( "I", $DbgKdSetContextApi );
     substr( $d, 16, 4 ) = substr( $ctx, 0, 4 );
     $d .= $ctx;
     sendManipulateStatePacket($d);
@@ -865,7 +751,7 @@ sub sendDbgKdReadPhysicalMemory {
 
     #print "Sending DbgKdReadPhysicalMemoryApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0,  4 ) = pack( "I", 0x313d );
+    substr( $d, 0,  4 ) = pack( "I", $DbgKdReadPhysicalMemoryApi );
     substr( $d, 16, 4 ) = pack( "I", $addr );
     substr( $d, 24, 4 ) = pack( "I", $readlen );
     sendManipulateStatePacket($d);
@@ -877,7 +763,7 @@ sub sendDbgKdReadVirtualMemory {
 
     #print "Sending DbgKdReadVirtualMemoryApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0,  4 ) = pack( "I", 0x3130 );
+    substr( $d, 0,  4 ) = pack( "I", $DbgKdReadVirtualMemoryApi );
     substr( $d, 16, 4 ) = pack( "I", $vaddr );
     substr( $d, 24, 4 ) = pack( "I", $readlen );
     sendManipulateStatePacket($d);
@@ -890,7 +776,7 @@ sub sendDbgKdWriteVirtualMemory {
 
     #print "Sending DbgKdWriteVirtualMemoryApi packet\n";
     my $d = "\x00" x 56;
-    substr( $d, 0,  4 ) = pack( "I", 0x3131 );
+    substr( $d, 0,  4 ) = pack( "I", $DbgKdWriteVirtualMemoryApi );
     substr( $d, 16, 4 ) = pack( "I", $vaddr );
     substr( $d, 24, 4 ) = pack( "I", $writelen );
     $d .= $data;
@@ -917,7 +803,7 @@ sub readPhysicalMemory {
 
         if ( $len < $chunksize ) {
             sendDbgKdReadPhysicalMemory( $addr, $len );
-            my $buf = waitPacketQuiet(0x313d);
+            my $buf = waitStateManipulate($DbgKdReadPhysicalMemoryApi);
             if ( length($buf) > 56 ) {
                 $out .= substr( $buf, 56 );
             }
@@ -925,7 +811,7 @@ sub readPhysicalMemory {
         }
         else {
             sendDbgKdReadPhysicalMemory( $addr, $chunksize );
-            my $buf = waitPacketQuiet(0x313d);
+            my $buf = waitStateManipulate($DbgKdReadPhysicalMemoryApi);
             if ( length($buf) > 56 ) {
                 $out .= substr( $buf, 56 );
             }
@@ -946,13 +832,13 @@ sub writePhysicalMemory {
 
         if ( $len < $chunksize ) {
             sendDbgKdWritePhysicalMemory( $addr, $buf );
-            waitPacketQuiet(0x313e);
+            waitStateManipulate(0x313e);
             $len = 0;
         }
         else {
             sendDbgKdWritePhysicalMemory( $addr,
                 substr( $buf, $offset, $chunksize ) );
-            waitPacketQuiet(0x313e);
+            waitStateManipulate(0x313e);
             $len -= $chunksize;
             $offset += $chunksize;
             $addr   += $chunksize;
@@ -973,13 +859,13 @@ sub writeVirtualMemory {
 
             if ( $len < $chunksize ) {
                 sendDbgKdWriteVirtualMemory( $addr, $buf );
-                waitPacketQuiet(0x3131);
+                waitStateManipulate($DbgKdWriteVirtualMemoryApi);
                 $len = 0;
             }
             else {
                 sendDbgKdWriteVirtualMemory( $addr,
                     substr( $buf, $offset, $chunksize ) );
-                waitPacketQuiet(0x3131);
+                waitStateManipulate($DbgKdWriteVirtualMemoryApi);
                 $len -= $chunksize;
                 $offset += $chunksize;
                 $addr   += $chunksize;
@@ -1036,7 +922,7 @@ sub readVirtualMemory {
 
             if ( $len < $chunksize ) {
                 sendDbgKdReadVirtualMemory( $addr, $len );
-                $buf = waitPacketQuiet(0x3130);
+                $buf = waitStateManipulate($DbgKdReadVirtualMemoryApi);
                 if ( length($buf) > 56 ) {
                     $out .= substr( $buf, 56 );
                 }
@@ -1044,7 +930,7 @@ sub readVirtualMemory {
             }
             else {
                 sendDbgKdReadVirtualMemory( $addr, $chunksize );
-                $buf = waitPacketQuiet(0x3130);
+                $buf = waitStateManipulate($DbgKdReadVirtualMemoryApi);
                 if ( length($buf) > 56 ) {
                     $out .= substr( $buf, 56 );
                 }
@@ -1091,40 +977,24 @@ sub sendDbgKdReboot {
     sendManipulateStatePacket($d);
 }
 
-sub waitPacket {
-    return if $running;
-    my $wanted = shift;
-    my $buf;
-    alarm($timeout);
-    eval {
-        while ( unpack( "I", substr( $buf, 0, 4 ) ) != $wanted )
-        {
-            $buf = getPacket(1);
-            decodePayload($buf);
-        }
-    };
-    alarm(0);
-    if ($@) {
-        if ( $@ !~ /timeout/ ) {
-            die "Fatal: $@\n";
-        }
-        else {
-            printf "Timeout waiting for %04x packet reply\n", $wanted;
-        }
-    }
-    return $buf;
-}
 
-sub waitPacketQuiet {
+sub waitStateManipulate {
     return if $running;
     my $wanted = shift;
+    my $quiet = shift;
+    
+    my $ptype;
     my $buf;
     alarm($timeout);
     eval {
-        while ( unpack( "I", substr( $buf, 0, 4 ) ) != $wanted )
-        {
-            $buf = getPacket(1);
-            decodePayload( $buf, 1 );
+        while (1) {
+            ($ptype, $buf) = handlePacket(1);
+            if ($ptype == $PACKET_TYPE_KD_STATE_MANIPULATE) {
+                my $api = unpack( "I", substr( $buf, 0, 4 ) );
+                if ($api == $wanted) {
+                    last;
+                }
+            }
         }
     };
     alarm(0);
@@ -1144,7 +1014,7 @@ sub getPspCidTable {
     my $save        = $pcontext;
     $pcontext = \%kernelcontext;    # this procedure is kernel context only
     sendDbgKdGetVersion();
-    my $buf = waitPacketQuiet(0x3146);
+    my $buf = waitStateManipulate($DbgKdGetVersionApi);
     my $pddata = unpack( "I", substr( $buf, 48, 4 ) );
     if ($pddata) {
 
@@ -1767,4 +1637,312 @@ sub getUserModules {
         }
     }
     return %modules;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+my $s = IO::Select->new();
+$s->add( \*STDIN );
+if ($serial) {
+    $s->add( \*FH );
+} elsif ($socket) {
+    $s->add($socket);
+}
+
+my @ready;
+sendReset();
+while ( @ready = $s->can_read ) {
+    for my $fh (@ready) {
+        if ( $fh == \*STDIN ) {
+            my $line = <$fh>;
+            if ( $line =~ /break/ ) {
+                print "Sending break...\n";
+                writeDev("b");
+            }
+            elsif ( $running == 1 ) {
+                print "Kernel is busy (send break command)\n";
+            }
+            elsif ( $line =~ /processcontext ([0-9A-Fa-f]+)/ ) {
+                my $pid = hex($1);
+                if ( $pid == 0 ) {
+                    $pcontext = \%kernelcontext;
+                    print "Process context is kernel\n";
+                }
+                else {
+                    my $eproc = getEprocess($pid);
+                    my $dtb   = readDword( $eproc + 0x18 );
+                    my $peb   = readDword( $eproc + 0x1b0 );
+
+                    if ($peb) {
+                        $processcontext{'eprocess'} = $eproc;
+                        $processcontext{'dtb'}      = $dtb;
+                        $processcontext{'peb'}      = $peb;
+                        $processcontext{'pid'}      = $pid;
+                        $pcontext                   = \%processcontext;
+                        printf "Implicit process is now %x\n", $pid;
+                    }
+                    else {
+                        print "Invalid PID (PEB not found in eprocess)\n";
+                    }
+                }
+
+            }
+            elsif ( $line =~ /getprocaddress (\S+) (\S+)/ ) {
+                my $dll    = $1;
+                my $export = $2;
+                my $addr   = getProcAddress( $dll, $export );
+                if ($addr) {
+                    printf "%s!%s:%08x\n", $dll, $export, $addr;
+                }
+                else {
+                    printf "%s!%s not found\n", $dll, $export;
+                }
+            }
+            elsif ( $line =~ /listexports ([0-9A-Fa-f]+)/ ) {
+                listExports( hex($1) );
+            }
+            elsif ( $line =~ /^logical2physical ([0-9A-Fa-f]+)/ ) {
+                printf "%08x -> %08x\n", hex($1), logical2physical( hex($1) );
+            }
+            elsif ( $line =~ /^parsepe ([0-9A-Fa-f]+)/ ) {
+                my %PE       = parsePE( hex($1) );
+                my $compiled = localtime( $PE{"TimeDateStamp"} );
+                print "Compiled on $compiled\n";
+            }
+            elsif ( $line =~
+                /^writevirtualmemory ([0-9A-Fa-f]+) [0-9A-Fa-f][0-9A-Fa-f]/ )
+            {
+                chomp($line);
+                my ( $c, $addr, @bytes ) = split( /\s+/, $line );
+                sendDbgKdWriteVirtualMemory( hex($addr),
+                    join( "", map { chr(hex) } @bytes ) );
+            }
+            elsif ( $line =~ /^(?:messagebox|mb)\s+(.*)\|(.*)/ ) {
+                my $title   = $1;
+                my $message = $2;
+                injectSUSShellcode( $title, $message );
+                insertApc();
+            }
+            elsif ( $line =~ /^processlist|^listprocess/ ) {
+                print "Walking process list...\n";
+                my %procs = getProcessList();
+                for ( reverse sort keys %procs ) {
+                    my $c = localtime( $procs{$_}{'created'} );
+                    printf "%04x %s\n", $procs{$_}{'pid'}, $procs{$_}{'name'};
+                    printf
+                      "Eprocess: %08x  DTB: %08x  PEB: %08x  Created: %s\n", $_,
+                      $procs{$_}{'dtb'}, $procs{$_}{'peb'}, $c;
+                    print "Threads: ";
+                    print join( " ",
+                        map { sprintf "%08x", $_ } @{ $procs{$_}{'threads'} } );
+                    print "\n\n";
+                }
+            }
+            elsif ( $line =~ /^module|^listmodules/ ) {
+                my %modules;
+                if ( $pcontext->{'pid'} == 0 ) {
+                    %modules = getKernelModules();
+                }
+                else {
+                    %modules = getUserModules();
+                }
+                for ( sort keys %modules ) {
+                    printf "%s\tPath:%s\n", $modules{$_}{'name'},
+                      $modules{$_}{'path'};
+                    printf "base:%08x  " . "size:%08x entry:%08x\n\n", $_,
+                      $modules{$_}{'size'}, $modules{$_}{'entry'};
+                }
+            }
+            elsif ( $line =~ /^findprocessbyname (\S+)/ ) {
+                my $name  = $1;
+                my %procs = getProcessList();
+              PROCFIND:
+                for ( sort keys %procs ) {
+                    my $c = localtime( $procs{$_}{'created'} );
+                    my $n = $procs{$_}{'name'};
+                    if ( lc($name) eq lc($n) ) {
+                        printf "%04x %s\n", $procs{$_}{'pid'},
+                          $procs{$_}{'name'};
+                        printf
+                          "Eprocess: %08x  DTB: %08x  PEB: %08x  Created: %s\n",
+                          $_, $procs{$_}{'dtb'}, $procs{$_}{'peb'}, $c;
+                        print "Threads: ";
+                        print join( " ",
+                            map { sprintf "%08x", $_ }
+                              @{ $procs{$_}{'threads'} } );
+                        print "\n";
+                        last PROCFIND;
+                    }
+                }
+            }
+            elsif ( $line =~ /^eprocess ([0-9A-Fa-f]+)/ ) {
+                my $ep = getEprocess( hex($1) );
+                sendDbgKdReadVirtualMemory( $ep, 648 );
+                my $buf = waitStateManipulate($DbgKdReadVirtualMemoryApi);
+                if ( length($buf) > 56 ) {
+                    my $eproc = substr( $buf, 56 );
+                    if ( length($eproc) > 0x20c ) {
+                        my $name;
+                        if ( $version > 5 ) {
+                            $name = substr( $eproc, 0x174, 16 );
+                        }
+                        else {
+                            $name = substr( $eproc, 0x1fc, 16 );
+                        }
+                        $name =~ s/\x00//g;
+                        print "Process name is $name\n";
+                        my $next = unpack( "I", substr( $eproc, 0xa0, 4 ) );
+                    }
+
+                }
+            }
+            elsif ( $line =~ /^bp ([0-9A-Fa-f]+)/ ) {
+                sendDbgKdWriteBreakPoint($1);
+            }
+            elsif ( $line =~ /^bc ([0-9A-Fa-f]+)/ ) {
+                sendDbgKdRestoreBreakPoint($1);
+            }
+            elsif ( $line =~ /^bl/ ) {
+                print "Breakpoints:\n", join( "\n", sort keys %breakpoints ),
+                  "\n";
+            }
+            elsif ( $line =~ /^continue/ ) {
+                sendDbgKdContinue2();
+                $running = 1;
+            }
+            elsif ( $line =~ /^getpspcidtable/ ) {
+                getPspCidTable();
+            }
+            elsif ( $line =~ /^(autocontinue|g)$/ ) {
+
+                # get/set context to update EIP before continuing
+                my %context = getContext();
+                $context{'EIP'}++;
+                setContext(%context);
+                sendDbgKdContinue2();
+                $running = 1;
+            }
+            elsif ( $line =~ /^version/ ) {
+                printVersionData();
+            }
+            elsif ( $line =~ /^readcontrolspace/ ) {
+                sendDbgKdReadControlSpace();
+            }
+            elsif ( $line =~ /^writecontrolspace/ ) {
+                if ($controlspace) {
+                    sendDbgKdWriteControlSpace();
+                }
+                else {
+                    print "Haven't gotten control space yet!\n";
+                }
+            }
+            elsif ( $line =~ /^r (.*)=(.*)/ ) {
+                my $reg     = $1;
+                my $val     = $2;
+                my %context = getContext();
+                if ( length($reg) < 4 ) {
+                    $reg = uc($reg);
+                }
+                if ( exists $context{$reg} ) {
+                    if ( $reg eq "fp.RegisterArea" ) {
+                        printf "Not supported yet.\n";
+                    }
+                    elsif ( $reg eq "leftovers" ) {
+                        printf "Not supported.\n";
+                    }
+                    else {
+                        $context{$reg} = hex($val);
+                        setContext(%context);
+                        %context = getContext();
+                        printf "New value of %s is %08x\n", $reg,
+                          $context{$reg};
+                    }
+                }
+                else {
+                    print "Register $reg unknown\n";
+                }
+            }
+            elsif ( $line =~ /^r (.*)/ ) {
+                my $reg     = $1;
+                my %context = getContext();
+                if ( length($reg) < 4 ) {
+                    $reg = uc($reg);
+                }
+                if ( exists $context{$reg} ) {
+                    if ( $reg eq "fp.RegisterArea" ) {
+                        printf "%s = \n%s\n", $reg, hexprint($reg);
+                    }
+                    else {
+                        printf "%s = %08x\n", $reg, $context{$reg};
+                    }
+                }
+                else {
+                    print "Register $reg unknown\n";
+                }
+            }
+            elsif ( $line =~ /^r$|^getcontext/ ) {
+                my %context = getContext();
+                for ( sort keys %context ) {
+                    if (   ( $_ ne "fp.RegisterArea" )
+                        && ( $_ ne "leftovers" ) )
+                    {
+                        printf "%s=%08x\n", $_, $context{$_};
+                    }
+                }
+                # print "\n";
+            }
+            elsif ( $line =~ /^dw ([0-9A-Fa-f]+)/ ) {
+                printf "%08x: %08x\n", hex($1), readDword( hex($1) );
+            }
+            elsif ( $line =~ /^(?:readvirtualmem|d) ([0-9A-Fa-f]+)/ ) {
+                my $vaddr = $1;
+                my $readlen;
+                if ( $line =~
+                    /(?:readvirtualmem|d) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+)/ )
+                {
+                    $readlen = hex($2);
+                }
+                $readlen ||= 4;
+                my $buf = readVirtualMemory( hex($vaddr), $readlen );
+                print hexasc($buf);
+            }
+            elsif ( $line =~ /^(?:readphysicalmem|dp) ([0-9A-Fa-f]+)/ ) {
+                my $addr = $1;
+                my $readlen;
+                if ( $line =~
+                    /(?:readphysicalmem|dp) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+)/ )
+                {
+                    $readlen = hex($2);
+                }
+                $readlen ||= 4;
+                sendDbgKdReadPhysicalMemory( hex($addr), $readlen );
+            }
+            elsif ( $line =~ /^reboot/ ) {
+                sendDbgKdReboot();
+            }
+            elsif ( $line =~ /^quit|^exit/ ) {
+                untie *FH;
+                exit;
+            }
+            elsif ( $line =~ /^reset/ ) {
+                sendReset();
+            }
+        }
+        elsif ( $fh == \*FH || $fh == $socket ) {
+            handlePacket(0);
+        }
+        print "\n\n";
+    }
 }
