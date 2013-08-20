@@ -173,7 +173,6 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     DeviceState *nvic;
     /* FIXME: make this local state.  */
     static qemu_irq pic[64];
-    qemu_irq *cpu_pic;
     int image_size;
     uint64_t entry;
     uint64_t lowaddr;
@@ -221,8 +220,8 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     nvic = qdev_create(NULL, "armv7m_nvic");
     env->nvic = nvic;
     qdev_init_nofail(nvic);
-    cpu_pic = arm_pic_init_cpu(cpu);
-    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0,
+                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);
     }
