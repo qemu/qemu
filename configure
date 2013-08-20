@@ -362,7 +362,11 @@ if test ! -z "$cpu" ; then
 elif check_define __i386__ ; then
   cpu="i386"
 elif check_define __x86_64__ ; then
-  cpu="x86_64"
+  if check_define __ILP32__ ; then
+    cpu="x32"
+  else
+    cpu="x86_64"
+  fi
 elif check_define __sparc__ ; then
   if check_define __arch64__ ; then
     cpu="sparc64"
@@ -399,7 +403,7 @@ ARCH=
 # Normalise host CPU name and set ARCH.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ia64|ppc|ppc64|s390|s390x|sparc64)
+  ia64|ppc|ppc64|s390|s390x|sparc64|x32)
     cpu="$cpu"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
@@ -550,7 +554,7 @@ Haiku)
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" -o "$cpu" = "x32" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
@@ -977,6 +981,11 @@ case "$cpu" in
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
+    x32)
+           CPU_CFLAGS="-mx32"
+           LDFLAGS="-mx32 $LDFLAGS"
+           cc_i386='$(CC) -m32'
+           ;;
     # No special flags required for other host CPUs
 esac
 
@@ -1251,7 +1260,7 @@ fi
 
 if test "$pie" = ""; then
   case "$cpu-$targetos" in
-    i386-Linux|x86_64-Linux|i386-OpenBSD|x86_64-OpenBSD)
+    i386-Linux|x86_64-Linux|x32-Linux|i386-OpenBSD|x86_64-OpenBSD)
       ;;
     *)
       pie="no"
@@ -3506,7 +3515,7 @@ fi
 if test "$pie" = "no" ; then
   textseg_addr=
   case "$cpu" in
-    arm | hppa | i386 | m68k | ppc | ppc64 | s390* | sparc | sparc64 | x86_64)
+    arm | hppa | i386 | m68k | ppc | ppc64 | s390* | sparc | sparc64 | x86_64 | x32)
       textseg_addr=0x60000000
       ;;
     mips)
@@ -3681,7 +3690,7 @@ echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 echo "ARCH=$ARCH" >> $config_host_mak
 
 case "$cpu" in
-  arm|i386|x86_64|ppc|aarch64)
+  arm|i386|x86_64|x32|ppc|aarch64)
     # The TCG interpreter currently does not support ld/st optimization.
     if test "$tcg_interpreter" = "no" ; then
         echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_host_mak
@@ -4116,7 +4125,7 @@ elif test "$ARCH" = "sparc64" ; then
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/sparc $QEMU_INCLUDES"
 elif test "$ARCH" = "s390x" ; then
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/s390 $QEMU_INCLUDES"
-elif test "$ARCH" = "x86_64" ; then
+elif test "$ARCH" = "x86_64" -o "$ARCH" = "x32" ; then
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/i386 $QEMU_INCLUDES"
 else
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
@@ -4178,7 +4187,7 @@ fi
 if test "$linux" = "yes" ; then
   mkdir -p linux-headers
   case "$cpu" in
-  i386|x86_64)
+  i386|x86_64|x32)
     linux_arch=x86
     ;;
   ppcemb|ppc|ppc64)
@@ -4444,7 +4453,7 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_HPPA_DIS=y"  >> $config_target_mak
     echo "CONFIG_HPPA_DIS=y"  >> config-all-disas.mak
   ;;
-  i386|x86_64)
+  i386|x86_64|x32)
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
     echo "CONFIG_I386_DIS=y"  >> config-all-disas.mak
   ;;
