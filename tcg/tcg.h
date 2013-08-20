@@ -402,7 +402,7 @@ typedef struct TCGTemp {
 } TCGTemp;
 
 typedef struct TCGHelperInfo {
-    tcg_target_ulong func;
+    uintptr_t func;
     const char *name;
 } TCGHelperInfo;
 

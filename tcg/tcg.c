@@ -634,7 +634,7 @@ void tcg_register_helper(void *func, const char *name)
         s->helpers = realloc(s->helpers, n * sizeof(TCGHelperInfo));
         s->allocated_helpers = n;
     }
-    s->helpers[s->nb_helpers].func = (tcg_target_ulong)func;
+    s->helpers[s->nb_helpers].func = (uintptr_t)func;
     s->helpers[s->nb_helpers].name = name;
     s->nb_helpers++;
 }
@@ -864,11 +864,11 @@ static int helper_cmp(const void *p1, const void *p2)
 }
 
 /* find helper definition (Note: A hash table would be better) */
-static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val)
+static TCGHelperInfo *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
     int m, m_min, m_max;
     TCGHelperInfo *th;
-    tcg_target_ulong v;
+    uintptr_t v;
 
     if (unlikely(!s->helpers_sorted)) {
         qsort(s->helpers, s->nb_helpers, sizeof(TCGHelperInfo), 
