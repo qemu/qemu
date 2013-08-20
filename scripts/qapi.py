@@ -161,7 +161,7 @@ class QAPISchema:
 def parse_schema(fp):
     try:
         schema = QAPISchema(fp)
-    except QAPISchemaError as e:
+    except QAPISchemaError, e:
         print >>sys.stderr, e
         exit(1)
 
