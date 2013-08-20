@@ -183,7 +183,6 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
     DeviceState *dev;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     int n;
     qemu_irq cpu_irq[4];
     ram_addr_t low_ram_size;
@@ -198,8 +197,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(cpu);
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
     if (ram_size > 0x40000000) {
@@ -312,15 +310,13 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu;
-        qemu_irq *irqp;
 
         cpu = cpu_arm_init(cpu_model);
         if (!cpu) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(cpu);
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
     {
