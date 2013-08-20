@@ -1,0 +1,26 @@
+bc <address> - clear breakpoint at address
+bl - list breakpoints
+bp <address> - set breakpoint at address
+break - send break-in packet to host
+continue - resume execution
+dw <address> - read dword at virtual address
+eprocess <address> - parse the eprocess block at address 
+findprocessbyname <name> - find a process from process name
+getcontext - get the current thread context
+getprocaddress <module name> <api name> - locate an procedure's import address
+getpspcidtable - get the psp cid table
+listexports <baseaddr> - list all the exports from the module at baseaddr
+listmodules - list loaded modules
+logical2physical <address> - convert a virtual address to a physical address
+messagebox <title> <text> - inject a messagebox into explorer.exe process
+parsepe - <baseaddr> give some information about the PE file at baseaddr
+processcontext <pid> - show the context info for the given pid
+processlist - list running processes
+quit - exit the debugger
+r <register>=<value> - read or set the given register
+readphysicalmem <address> <length> - read physical memory
+readvirtualmem <address> <length> - read virtual memory
+reboot - reboot the target
+reset - reset the debugger protocol stream
+version - show debug API version information
+writevirtualmemory <address> <data> - write bytes to virtual memory
