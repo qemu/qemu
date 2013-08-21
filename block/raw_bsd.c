@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2010, 2013, Red Hat, Inc.
  * Copyright (C) 2010, Blue Swirl <blauwirbel@gmail.com>
+ * Copyright (C) 2009, Anthony Liguori <aliguori@us.ibm.com>
  *
  * Author:
  *   Laszlo Ersek <lersek@redhat.com>
@@ -124,11 +125,6 @@ static TYPE raw_create(void)
     return bdrv_create_file();
 }
 
-static const char *raw_format_name(void)
-{
-    return "raw";
-}
-
 static int raw_open(BlockDriverState *bs)
 {
     bs->sg = bs->file->sg;
@@ -146,3 +142,35 @@ static int raw_probe(void)
      */
     return 1;
 }
+
+static BlockDriver bdrv_raw = {
+    .format_name          = "raw",
+    .bdrv_probe           = &raw_probe,
+    .bdrv_reopen_prepare  = &raw_reopen_prepare,
+    .bdrv_open            = &raw_open,
+    .bdrv_close           = &raw_close,
+    .bdrv_create          = &raw_create,
+    .bdrv_co_readv        = &raw_co_readv,
+    .bdrv_co_writev       = &raw_co_writev,
+    .bdrv_co_write_zeroes = &raw_co_write_zeroes,
+    .bdrv_co_discard      = &raw_co_discard,
+    .bdrv_co_is_allocated = &raw_co_is_allocated,
+    .bdrv_truncate        = &raw_truncate,
+    .bdrv_getlength       = &raw_getlength,
+    .bdrv_get_info        = &raw_get_info,
+    .bdrv_is_inserted     = &raw_is_inserted,
+    .bdrv_media_changed   = &raw_media_changed,
+    .bdrv_eject           = &raw_eject,
+    .bdrv_lock_medium     = &raw_lock_medium,
+    .bdrv_ioctl           = &raw_ioctl,
+    .bdrv_aio_ioctl       = &raw_aio_ioctl,
+    .create_options       = &raw_create_options[0],
+    .bdrv_has_zero_init   = &raw_has_zero_init
+};
+
+static void bdrv_raw_init(void)
+{
+    bdrv_register(&bdrv_raw);
+}
+
+block_init(bdrv_raw_init);
