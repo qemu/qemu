@@ -215,25 +215,42 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
-static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
+static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     rom_file_in_ram = false;
+}
+
+static void pc_compat_1_5(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
+    has_pvpanic = true;
+}
+
+static void pc_compat_1_4(QEMUMachineInitArgs *args)
+{
+    /* 1.5 was special - it enabled pvpanic in builtin machine */
+    pc_compat_1_6(args);
+    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
     pc_q35_init(args);
 }
 
 static void pc_q35_init_1_5(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = true;
-    pc_q35_init_1_6(args);
+    pc_compat_1_5(args);
+    pc_q35_init(args);
 }
 
 static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
 {
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
-    /* 1.5 was special - it enabled pvpanic in builtin machine */
-    pc_q35_init_1_6(args);
+    pc_compat_1_4(args);
+    pc_q35_init(args);
 }
 
 static QEMUMachine pc_q35_machine_v1_6 = {

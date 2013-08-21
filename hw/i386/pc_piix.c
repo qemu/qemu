@@ -236,38 +236,68 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
     pc_init1(args, get_system_memory(), get_system_io(), 1, 1);
 }
 
-static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
+static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     rom_file_in_ram = false;
+}
+
+static void pc_compat_1_5(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
+    has_pvpanic = true;
+}
+
+static void pc_compat_1_4(QEMUMachineInitArgs *args)
+{
+    /* 1.5 was special - it enabled pvpanic in builtin machine */
+    pc_compat_1_6(args);
+    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_compat_1_3(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_4(args);
+    enable_compat_apic_id_mode();
+}
+
+/* PC compat function for pc-0.14 to pc-1.2 */
+static void pc_compat_1_2(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_3(args);
+    disable_kvm_pv_eoi();
+}
+
+static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
     pc_init_pci(args);
 }
 
 static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = true;
-    pc_init_pci_1_6(args);
+    pc_compat_1_5(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
-    /* 1.5 was special - it enabled pvpanic in builtin machine */
-    pc_init_pci_1_6(args);
+    pc_compat_1_4(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 {
-    enable_compat_apic_id_mode();
-    pc_init_pci_1_4(args);
+    pc_compat_1_3(args);
+    pc_init_pci(args);
 }
 
 /* PC machine init function for pc-0.14 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
-    disable_kvm_pv_eoi();
-    pc_init_pci_1_3(args);
+    pc_compat_1_2(args);
+    pc_init_pci(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
