@@ -29,7 +29,7 @@
 #include "block/block_int.h"
 #include "qemu/option.h"
 
-static const QEMUOptionParameter raw_create_options[] = {
+static QEMUOptionParameter raw_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
         .type = OPT_SIZE,
@@ -38,104 +38,114 @@ static const QEMUOptionParameter raw_create_options[] = {
     { 0 }
 };
 
-static TYPE raw_reopen_prepare(BlockDriverState *bs)
+static int raw_reopen_prepare(BDRVReopenState *reopen_state,
+                              BlockReopenQueue *queue, Error **errp)
 {
-    return bdrv_reopen_prepare(bs->file);
+    return 0;
 }
 
-static TYPE raw_co_readv(BlockDriverState *bs)
+static int coroutine_fn raw_co_readv(BlockDriverState *bs, int64_t sector_num,
+                                     int nb_sectors, QEMUIOVector *qiov)
 {
     BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-    return bdrv_co_readv(bs->file);
+    return bdrv_co_readv(bs->file, sector_num, nb_sectors, qiov);
 }
 
-static TYPE raw_co_writev(BlockDriverState *bs)
+static int coroutine_fn raw_co_writev(BlockDriverState *bs, int64_t sector_num,
+                                      int nb_sectors, QEMUIOVector *qiov)
 {
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    return bdrv_co_writev(bs->file);
+    return bdrv_co_writev(bs->file, sector_num, nb_sectors, qiov);
 }
 
-static TYPE raw_co_is_allocated(BlockDriverState *bs)
+static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
+                                            int64_t sector_num, int nb_sectors,
+                                            int *pnum)
 {
-    return bdrv_co_is_allocated(bs->file);
+    return bdrv_co_is_allocated(bs->file, sector_num, nb_sectors, pnum);
 }
 
-static TYPE raw_co_write_zeroes(BlockDriverState *bs)
+static int coroutine_fn raw_co_write_zeroes(BlockDriverState *bs,
+                                            int64_t sector_num, int nb_sectors)
 {
-    return bdrv_co_write_zeroes(bs->file);
+    return bdrv_co_write_zeroes(bs->file, sector_num, nb_sectors);
 }
 
-static TYPE raw_co_discard(BlockDriverState *bs)
+static int coroutine_fn raw_co_discard(BlockDriverState *bs,
+                                       int64_t sector_num, int nb_sectors)
 {
-    return bdrv_co_discard(bs->file);
+    return bdrv_co_discard(bs->file, sector_num, nb_sectors);
 }
 
-static TYPE raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     return bdrv_getlength(bs->file);
 }
 
-static TYPE raw_get_info(BlockDriverState *bs)
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
-    return bdrv_get_info(bs->file);
+    return bdrv_get_info(bs->file, bdi);
 }
 
-static TYPE raw_truncate(BlockDriverState *bs)
+static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
-    return bdrv_truncate(bs->file);
+    return bdrv_truncate(bs->file, offset);
 }
 
-static TYPE raw_is_inserted(BlockDriverState *bs)
+static int raw_is_inserted(BlockDriverState *bs)
 {
     return bdrv_is_inserted(bs->file);
 }
 
-static TYPE raw_media_changed(BlockDriverState *bs)
+static int raw_media_changed(BlockDriverState *bs)
 {
     return bdrv_media_changed(bs->file);
 }
 
-static TYPE raw_eject(BlockDriverState *bs)
+static void raw_eject(BlockDriverState *bs, bool eject_flag)
 {
-    return bdrv_eject(bs->file);
+    bdrv_eject(bs->file, eject_flag);
 }
 
-static TYPE raw_lock_medium(BlockDriverState *bs)
+static void raw_lock_medium(BlockDriverState *bs, bool locked)
 {
-    return bdrv_lock_medium(bs->file);
+    bdrv_lock_medium(bs->file, locked);
 }
 
-static TYPE raw_ioctl(BlockDriverState *bs)
+static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
-    return bdrv_ioctl(bs->file);
+    return bdrv_ioctl(bs->file, req, buf);
 }
 
-static TYPE raw_aio_ioctl(BlockDriverState *bs)
+static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
+                                       unsigned long int req, void *buf,
+                                       BlockDriverCompletionFunc *cb,
+                                       void *opaque)
 {
-    return bdrv_aio_ioctl(bs->file);
+    return bdrv_aio_ioctl(bs->file, req, buf, cb, opaque);
 }
 
-static TYPE raw_has_zero_init(BlockDriverState *bs)
+static int raw_has_zero_init(BlockDriverState *bs)
 {
     return bdrv_has_zero_init(bs->file);
 }
 
-static TYPE raw_create(void)
+static int raw_create(const char *filename, QEMUOptionParameter *options)
 {
-    return bdrv_create_file();
+    return bdrv_create_file(filename, options);
 }
 
-static int raw_open(BlockDriverState *bs)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags)
 {
     bs->sg = bs->file->sg;
     return 0;
 }
 
-static void raw_close(void)
+static void raw_close(BlockDriverState *bs)
 {
 }
 
-static int raw_probe(void)
+static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     /* smallest possible positive score so that raw is used if and only if no
      * other block driver works
