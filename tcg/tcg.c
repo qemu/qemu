@@ -2070,7 +2070,9 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     int nb_iargs, nb_oargs, flags, nb_regs, i, reg, nb_params;
     TCGArg arg, func_arg;
     TCGTemp *ts;
-    tcg_target_long stack_offset, call_stack_size, func_addr;
+    intptr_t stack_offset;
+    size_t call_stack_size;
+    uintptr_t func_addr;
     int const_func_arg, allocate_args;
     TCGRegSet allocated_regs;
     const TCGArgConstraint *arg_ct;
