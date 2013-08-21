@@ -108,3 +108,7 @@ static TYPE raw_has_zero_init(BlockDriverState *bs)
     return bdrv_has_zero_init(bs->file);
 }
 
+static TYPE raw_create(void)
+{
+    return bdrv_create_file();
+}
