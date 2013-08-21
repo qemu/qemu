@@ -433,7 +433,7 @@ static int uhci_post_load(void *opaque, int version_id)
     UHCIState *s = opaque;
 
     if (version_id < 2) {
-        s->expire_time = qemu_get_clock_ns(vm_clock) +
+        s->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
             (get_ticks_per_sec() / FRAME_TIMER_FREQ);
     }
     return 0;
@@ -476,9 +476,9 @@ static void uhci_port_write(void *opaque, hwaddr addr,
         if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
             /* start frame processing */
             trace_usb_uhci_schedule_start();
-            s->expire_time = qemu_get_clock_ns(vm_clock) +
+            s->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                 (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-            qemu_mod_timer(s->frame_timer, s->expire_time);
+            timer_mod(s->frame_timer, s->expire_time);
             s->status &= ~UHCI_STS_HCHALTED;
         } else if (!(val & UHCI_CMD_RS)) {
             s->status |= UHCI_STS_HCHALTED;
@@ -1161,7 +1161,7 @@ static void uhci_frame_timer(void *opaque)
     if (!(s->cmd & UHCI_CMD_RS)) {
         /* Full stop */
         trace_usb_uhci_schedule_stop();
-        qemu_del_timer(s->frame_timer);
+        timer_del(s->frame_timer);
         uhci_async_cancel_all(s);
         /* set hchalted bit in status - UHCI11D 2.1.2 */
         s->status |= UHCI_STS_HCHALTED;
@@ -1170,7 +1170,7 @@ static void uhci_frame_timer(void *opaque)
 
     /* We still store expire_time in our state, for migration */
     t_last_run = s->expire_time - frame_t;
-    t_now = qemu_get_clock_ns(vm_clock);
+    t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* Process up to MAX_FRAMES_PER_TICK frames */
     frames = (t_now - t_last_run) / frame_t;
@@ -1204,7 +1204,7 @@ static void uhci_frame_timer(void *opaque)
     }
     s->pending_int_mask = 0;
 
-    qemu_mod_timer(s->frame_timer, t_now + frame_t);
+    timer_mod(s->frame_timer, t_now + frame_t);
 }
 
 static const MemoryRegionOps uhci_ioport_ops = {
@@ -1261,7 +1261,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
         }
     }
     s->bh = qemu_bh_new(uhci_bh, s);
-    s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
+    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
     QTAILQ_INIT(&s->queues);
 

@@ -172,7 +172,7 @@ static void cadence_timer_run(CadenceTimerState *s)
     event_interval = next_value - (int64_t)s->reg_value;
     event_interval = (event_interval < 0) ? -event_interval : event_interval;
 
-    qemu_mod_timer(s->timer, s->cpu_time +
+    timer_mod(s->timer, s->cpu_time +
                 cadence_timer_get_ns(s, event_interval));
 }
 
@@ -184,7 +184,7 @@ static void cadence_timer_sync(CadenceTimerState *s)
             (int64_t)s->reg_interval + 1 : 0x10000ULL) << 16;
     uint64_t old_time = s->cpu_time;
 
-    s->cpu_time = qemu_get_clock_ns(vm_clock);
+    s->cpu_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     DB_PRINT("cpu time: %lld ns\n", (long long)old_time);
 
     if (!s->cpu_time_valid || old_time == s->cpu_time) {
@@ -401,7 +401,7 @@ static void cadence_timer_init(uint32_t freq, CadenceTimerState *s)
 
     cadence_timer_reset(s);
 
-    s->timer = qemu_new_timer_ns(vm_clock, cadence_timer_tick, s);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cadence_timer_tick, s);
 }
 
 static int cadence_ttc_init(SysBusDevice *dev)

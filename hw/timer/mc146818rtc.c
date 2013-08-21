@@ -113,13 +113,13 @@ static uint64_t get_guest_rtc_ns(RTCState *s)
 static void rtc_coalesced_timer_update(RTCState *s)
 {
     if (s->irq_coalesced == 0) {
-        qemu_del_timer(s->coalesced_timer);
+        timer_del(s->coalesced_timer);
     } else {
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1; 
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
             muldiv64(s->period / c, get_ticks_per_sec(), RTC_CLOCK_RATE);
-        qemu_mod_timer(s->coalesced_timer, next_clock);
+        timer_mod(s->coalesced_timer, next_clock);
     }
 }
 
@@ -169,12 +169,12 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
         next_irq_clock = (cur_clock & ~(period - 1)) + period;
         s->next_periodic_time =
             muldiv64(next_irq_clock, get_ticks_per_sec(), RTC_CLOCK_RATE) + 1;
-        qemu_mod_timer(s->periodic_timer, s->next_periodic_time);
+        timer_mod(s->periodic_timer, s->next_periodic_time);
     } else {
 #ifdef TARGET_I386
         s->irq_coalesced = 0;
 #endif
-        qemu_del_timer(s->periodic_timer);
+        timer_del(s->periodic_timer);
     }
 }
 
@@ -222,17 +222,17 @@ static void check_update_timer(RTCState *s)
      * from occurring, because the time of day is not updated.
      */
     if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
     if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
         (s->cmos_data[RTC_REG_B] & REG_B_SET)) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
     if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
         (s->cmos_data[RTC_REG_C] & REG_C_AF)) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
 
@@ -253,7 +253,7 @@ static void check_update_timer(RTCState *s)
         next_update_time = s->next_alarm_time;
     }
     if (next_update_time != timer_expire_time_ns(s->update_timer)) {
-        qemu_mod_timer(s->update_timer, next_update_time);
+        timer_mod(s->update_timer, next_update_time);
     }
 }
 

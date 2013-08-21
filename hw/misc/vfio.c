@@ -276,8 +276,8 @@ static void vfio_intx_mmap_enable(void *opaque)
     VFIODevice *vdev = opaque;
 
     if (vdev->intx.pending) {
-        qemu_mod_timer(vdev->intx.mmap_timer,
-                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+        timer_mod(vdev->intx.mmap_timer,
+                       qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vdev->intx.mmap_timeout);
         return;
     }
 
@@ -300,8 +300,8 @@ static void vfio_intx_interrupt(void *opaque)
     qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 1);
     vfio_mmap_set_enabled(vdev, false);
     if (vdev->intx.mmap_timeout) {
-        qemu_mod_timer(vdev->intx.mmap_timer,
-                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+        timer_mod(vdev->intx.mmap_timer,
+                       qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vdev->intx.mmap_timeout);
     }
 }
 
@@ -543,7 +543,7 @@ static void vfio_disable_intx(VFIODevice *vdev)
 {
     int fd;
 
-    qemu_del_timer(vdev->intx.mmap_timer);
+    timer_del(vdev->intx.mmap_timer);
     vfio_disable_intx_kvm(vdev);
     vfio_disable_irqindex(vdev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
@@ -3176,7 +3176,7 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
-        vdev->intx.mmap_timer = qemu_new_timer_ms(vm_clock,
+        vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
         pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_update_irq);
         ret = vfio_enable_intx(vdev);
@@ -3210,7 +3210,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {
-        qemu_free_timer(vdev->intx.mmap_timer);
+        timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);

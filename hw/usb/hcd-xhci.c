@@ -608,7 +608,7 @@ static const char *event_name(XHCIEvent *event)
 
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
 {
-    int64_t now = qemu_get_clock_ns(vm_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     return (now - xhci->mfindex_start) / 125000;
 }
 
@@ -619,12 +619,12 @@ static void xhci_mfwrap_update(XHCIState *xhci)
     int64_t now;
 
     if ((xhci->usbcmd & bits) == bits) {
-        now = qemu_get_clock_ns(vm_clock);
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         mfindex = ((now - xhci->mfindex_start) / 125000) & 0x3fff;
         left = 0x4000 - mfindex;
-        qemu_mod_timer(xhci->mfwrap_timer, now + left * 125000);
+        timer_mod(xhci->mfwrap_timer, now + left * 125000);
     } else {
-        qemu_del_timer(xhci->mfwrap_timer);
+        timer_del(xhci->mfwrap_timer);
     }
 }
 
@@ -1086,7 +1086,7 @@ static void xhci_run(XHCIState *xhci)
 {
     trace_usb_xhci_run();
     xhci->usbsts &= ~USBSTS_HCH;
-    xhci->mfindex_start = qemu_get_clock_ns(vm_clock);
+    xhci->mfindex_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
 static void xhci_stop(XHCIState *xhci)
@@ -1229,7 +1229,7 @@ static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
     for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
         usb_packet_init(&epctx->transfers[i].packet);
     }
-    epctx->kick_timer = qemu_new_timer_ns(vm_clock, xhci_ep_kick_timer, epctx);
+    epctx->kick_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_ep_kick_timer, epctx);
 
     return epctx;
 }
@@ -1304,7 +1304,7 @@ static int xhci_ep_nuke_one_xfer(XHCITransfer *t)
         XHCIEPContext *epctx = t->xhci->slots[t->slotid-1].eps[t->epid-1];
         if (epctx) {
             epctx->retry = NULL;
-            qemu_del_timer(epctx->kick_timer);
+            timer_del(epctx->kick_timer);
         }
         t->running_retry = 0;
     }
@@ -1380,7 +1380,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 
     xhci_set_ep_state(xhci, epctx, NULL, EP_DISABLED);
 
-    qemu_free_timer(epctx->kick_timer);
+    timer_free(epctx->kick_timer);
     g_free(epctx);
     slot->eps[epid-1] = NULL;
 
@@ -1844,12 +1844,12 @@ static void xhci_check_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
                                 XHCIEPContext *epctx, uint64_t mfindex)
 {
     if (xfer->mfindex_kick > mfindex) {
-        qemu_mod_timer(epctx->kick_timer, qemu_get_clock_ns(vm_clock) +
+        timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (xfer->mfindex_kick - mfindex) * 125000);
         xfer->running_retry = 1;
     } else {
         epctx->mfindex_last = xfer->mfindex_kick;
-        qemu_del_timer(epctx->kick_timer);
+        timer_del(epctx->kick_timer);
         xfer->running_retry = 0;
     }
 }
@@ -2745,7 +2745,7 @@ static void xhci_reset(DeviceState *dev)
         xhci->intr[i].ev_buffer_get = 0;
     }
 
-    xhci->mfindex_start = qemu_get_clock_ns(vm_clock);
+    xhci->mfindex_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     xhci_mfwrap_update(xhci);
 }
 
@@ -3366,7 +3366,7 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
         xhci->numslots = 1;
     }
 
-    xhci->mfwrap_timer = qemu_new_timer_ns(vm_clock, xhci_mfwrap_timer, xhci);
+    xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
     xhci->irq = dev->irq[0];
 
@@ -3451,7 +3451,7 @@ static int usb_xhci_post_load(void *opaque, int version_id)
             epctx->state = state;
             if (state == EP_RUNNING) {
                 /* kick endpoint after vmload is finished */
-                qemu_mod_timer(epctx->kick_timer, qemu_get_clock_ns(vm_clock));
+                timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
             }
         }
     }

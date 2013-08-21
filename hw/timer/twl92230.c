@@ -73,12 +73,12 @@ static inline void menelaus_update(MenelausState *s)
 static inline void menelaus_rtc_start(MenelausState *s)
 {
     s->rtc.next += qemu_clock_get_ms(rtc_clock);
-    qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
+    timer_mod(s->rtc.hz_tm, s->rtc.next);
 }
 
 static inline void menelaus_rtc_stop(MenelausState *s)
 {
-    qemu_del_timer(s->rtc.hz_tm);
+    timer_del(s->rtc.hz_tm);
     s->rtc.next -= qemu_clock_get_ms(rtc_clock);
     if (s->rtc.next < 1)
         s->rtc.next = 1;
@@ -102,7 +102,7 @@ static void menelaus_rtc_hz(void *opaque)
     s->rtc.next_comp --;
     s->rtc.alm_sec --;
     s->rtc.next += 1000;
-    qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
+    timer_mod(s->rtc.hz_tm, s->rtc.next);
     if ((s->rtc.ctrl >> 3) & 3) {				/* EVERY */
         menelaus_rtc_update(s);
         if (((s->rtc.ctrl >> 3) & 3) == 1 && !s->rtc.tm.tm_sec)

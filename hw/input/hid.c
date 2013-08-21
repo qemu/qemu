@@ -85,8 +85,8 @@ static void hid_idle_timer(void *opaque)
 static void hid_del_idle_timer(HIDState *hs)
 {
     if (hs->idle_timer) {
-        qemu_del_timer(hs->idle_timer);
-        qemu_free_timer(hs->idle_timer);
+        timer_del(hs->idle_timer);
+        timer_free(hs->idle_timer);
         hs->idle_timer = NULL;
     }
 }
@@ -94,12 +94,12 @@ static void hid_del_idle_timer(HIDState *hs)
 void hid_set_next_idle(HIDState *hs)
 {
     if (hs->idle) {
-        uint64_t expire_time = qemu_get_clock_ns(vm_clock) +
+        uint64_t expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                                get_ticks_per_sec() * hs->idle * 4 / 1000;
         if (!hs->idle_timer) {
-            hs->idle_timer = qemu_new_timer_ns(vm_clock, hid_idle_timer, hs);
+            hs->idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, hid_idle_timer, hs);
         }
-        qemu_mod_timer_ns(hs->idle_timer, expire_time);
+        timer_mod_ns(hs->idle_timer, expire_time);
     } else {
         hid_del_idle_timer(hs);
     }

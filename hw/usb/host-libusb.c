@@ -1462,7 +1462,7 @@ static void usb_host_auto_check(void *unused)
         if (unconnected == 0) {
             /* nothing to watch */
             if (usb_auto_timer) {
-                qemu_del_timer(usb_auto_timer);
+                timer_del(usb_auto_timer);
                 trace_usb_host_auto_scan_disabled();
             }
             return;
@@ -1474,13 +1474,13 @@ static void usb_host_auto_check(void *unused)
         usb_vmstate = qemu_add_vm_change_state_handler(usb_host_vm_state, NULL);
     }
     if (!usb_auto_timer) {
-        usb_auto_timer = qemu_new_timer_ms(rt_clock, usb_host_auto_check, NULL);
+        usb_auto_timer = timer_new_ms(QEMU_CLOCK_REALTIME, usb_host_auto_check, NULL);
         if (!usb_auto_timer) {
             return;
         }
         trace_usb_host_auto_scan_enabled();
     }
-    qemu_mod_timer(usb_auto_timer, qemu_get_clock_ms(rt_clock) + 2000);
+    timer_mod(usb_auto_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 2000);
 }
 
 void usb_host_info(Monitor *mon, const QDict *qdict)

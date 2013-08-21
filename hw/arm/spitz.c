@@ -393,7 +393,7 @@ static void spitz_keyboard_tick(void *opaque)
             s->fifopos = 0;
     }
 
-    qemu_mod_timer(s->kbdtimer, qemu_get_clock_ns(vm_clock) +
+    timer_mod(s->kbdtimer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    get_ticks_per_sec() / 32);
 }
 
@@ -485,7 +485,7 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
         qdev_connect_gpio_out(cpu->gpio, spitz_gpio_key_strobe[i],
                 qdev_get_gpio_in(dev, i));
 
-    qemu_mod_timer(s->kbdtimer, qemu_get_clock_ns(vm_clock));
+    timer_mod(s->kbdtimer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
     qemu_add_kbd_event_handler(spitz_keyboard_handler, s);
 }
@@ -505,7 +505,7 @@ static int spitz_keyboard_init(SysBusDevice *sbd)
 
     spitz_keyboard_pre_map(s);
 
-    s->kbdtimer = qemu_new_timer_ns(vm_clock, spitz_keyboard_tick, s);
+    s->kbdtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, spitz_keyboard_tick, s);
     qdev_init_gpio_in(dev, spitz_keyboard_strobe, SPITZ_KEY_STROBE_NUM);
     qdev_init_gpio_out(dev, s->sense, SPITZ_KEY_SENSE_NUM);
 

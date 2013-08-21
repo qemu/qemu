@@ -906,7 +906,7 @@ static void exynos4210_ltick_event(void *opaque)
         /* raise interrupt if enabled */
         if (s->reg.int_enb & L_INT_INTENB_ICNTEIE) {
 #ifdef DEBUG_MCT
-            time2[s->id] = qemu_get_clock_ns(vm_clock);
+            time2[s->id] = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             DPRINTF("local timer[%d] IRQ: %llx\n", s->id,
                     time2[s->id] - time1[s->id]);
             time1[s->id] = time2[s->id];

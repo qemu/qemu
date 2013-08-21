@@ -190,7 +190,7 @@ set_phy_ctrl(E1000State *s, int index, uint16_t val)
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
-        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
 
@@ -306,7 +306,7 @@ static void e1000_reset(void *opaque)
     uint8_t *macaddr = d->conf.macaddr.a;
     int i;
 
-    qemu_del_timer(d->autoneg_timer);
+    timer_del(d->autoneg_timer);
     memset(d->phy_reg, 0, sizeof d->phy_reg);
     memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
     memset(d->mac_reg, 0, sizeof d->mac_reg);
@@ -1184,7 +1184,7 @@ static int e1000_post_load(void *opaque, int version_id)
         s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
         !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
         nc->link_down = false;
-        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
     return 0;
@@ -1314,8 +1314,8 @@ pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
 
-    qemu_del_timer(d->autoneg_timer);
-    qemu_free_timer(d->autoneg_timer);
+    timer_del(d->autoneg_timer);
+    timer_free(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
     qemu_del_nic(d->nic);
@@ -1370,7 +1370,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
 
-    d->autoneg_timer = qemu_new_timer_ms(vm_clock, e1000_autoneg_timer, d);
+    d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
 
     return 0;
 }

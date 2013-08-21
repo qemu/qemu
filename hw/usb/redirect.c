@@ -1297,7 +1297,7 @@ static int usbredir_initfn(USBDevice *udev)
     }
 
     dev->chardev_close_bh = qemu_bh_new(usbredir_chardev_close_bh, dev);
-    dev->attach_timer = qemu_new_timer_ms(vm_clock, usbredir_do_attach, dev);
+    dev->attach_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, usbredir_do_attach, dev);
 
     packet_id_queue_init(&dev->cancelled, dev, "cancelled");
     packet_id_queue_init(&dev->already_in_flight, dev, "already-in-flight");
@@ -1338,8 +1338,8 @@ static void usbredir_handle_destroy(USBDevice *udev)
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->chardev_close_bh);
 
-    qemu_del_timer(dev->attach_timer);
-    qemu_free_timer(dev->attach_timer);
+    timer_del(dev->attach_timer);
+    timer_free(dev->attach_timer);
 
     usbredir_cleanup_device_queues(dev);
 
@@ -1548,7 +1548,7 @@ static void usbredir_device_connect(void *priv,
     }
 
     usbredir_check_bulk_receiving(dev);
-    qemu_mod_timer(dev->attach_timer, dev->next_attach_time);
+    timer_mod(dev->attach_timer, dev->next_attach_time);
 }
 
 static void usbredir_device_disconnect(void *priv)
@@ -1556,7 +1556,7 @@ static void usbredir_device_disconnect(void *priv)
     USBRedirDevice *dev = priv;
 
     /* Stop any pending attaches */
-    qemu_del_timer(dev->attach_timer);
+    timer_del(dev->attach_timer);
 
     if (dev->dev.attached) {
         DPRINTF("detaching device\n");
@@ -1565,7 +1565,7 @@ static void usbredir_device_disconnect(void *priv)
          * Delay next usb device attach to give the guest a chance to see
          * see the detach / attach in case of quick close / open succession
          */
-        dev->next_attach_time = qemu_get_clock_ms(vm_clock) + 200;
+        dev->next_attach_time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 200;
     }
 
     /* Reset state so that the next dev connected starts with a clean slate */

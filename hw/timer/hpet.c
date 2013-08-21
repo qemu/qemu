@@ -152,7 +152,7 @@ static int deactivating_bit(uint64_t old, uint64_t new, uint64_t mask)
 
 static uint64_t hpet_get_ticks(HPETState *s)
 {
-    return ns_to_ticks(qemu_get_clock_ns(vm_clock) + s->hpet_offset);
+    return ns_to_ticks(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->hpet_offset);
 }
 
 /*
@@ -233,7 +233,7 @@ static int hpet_post_load(void *opaque, int version_id)
     HPETState *s = opaque;
 
     /* Recalculate the offset between the main counter and guest time */
-    s->hpet_offset = ticks_to_ns(s->hpet_counter) - qemu_get_clock_ns(vm_clock);
+    s->hpet_offset = ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* Push number of timers into capability returned via HPET_ID */
     s->capability &= ~HPET_ID_NUM_TIM_MASK;
@@ -332,12 +332,12 @@ static void hpet_timer(void *opaque)
             }
         }
         diff = hpet_calculate_diff(t, cur_tick);
-        qemu_mod_timer(t->qemu_timer,
-                       qemu_get_clock_ns(vm_clock) + (int64_t)ticks_to_ns(diff));
+        timer_mod(t->qemu_timer,
+                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (int64_t)ticks_to_ns(diff));
     } else if (t->config & HPET_TN_32BIT && !timer_is_periodic(t)) {
         if (t->wrap_flag) {
             diff = hpet_calculate_diff(t, cur_tick);
-            qemu_mod_timer(t->qemu_timer, qemu_get_clock_ns(vm_clock) +
+            timer_mod(t->qemu_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                            (int64_t)ticks_to_ns(diff));
             t->wrap_flag = 0;
         }
@@ -365,13 +365,13 @@ static void hpet_set_timer(HPETTimer *t)
             t->wrap_flag = 1;
         }
     }
-    qemu_mod_timer(t->qemu_timer,
-                   qemu_get_clock_ns(vm_clock) + (int64_t)ticks_to_ns(diff));
+    timer_mod(t->qemu_timer,
+                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (int64_t)ticks_to_ns(diff));
 }
 
 static void hpet_del_timer(HPETTimer *t)
 {
-    qemu_del_timer(t->qemu_timer);
+    timer_del(t->qemu_timer);
     update_irq(t, 0);
 }
 
@@ -567,7 +567,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Enable main counter and interrupt generation. */
                 s->hpet_offset =
-                    ticks_to_ns(s->hpet_counter) - qemu_get_clock_ns(vm_clock);
+                    ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 for (i = 0; i < s->num_timers; i++) {
                     if ((&s->timer[i])->cmp != ~0ULL) {
                         hpet_set_timer(&s->timer[i]);
@@ -726,7 +726,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     }
     for (i = 0; i < HPET_MAX_TIMERS; i++) {
         timer = &s->timer[i];
-        timer->qemu_timer = qemu_new_timer_ns(vm_clock, hpet_timer, timer);
+        timer->qemu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, hpet_timer, timer);
         timer->tn = i;
         timer->state = s;
     }

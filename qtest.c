@@ -47,7 +47,7 @@ static bool qtest_opened;
  *
  * Clock management:
  *
- * The qtest client is completely in charge of the vm_clock.  qtest commands
+ * The qtest client is completely in charge of the QEMU_CLOCK_VIRTUAL.  qtest commands
  * let you adjust the value of the clock (monotonically).  All the commands
  * return the current value of the clock in nanoseconds.
  *
@@ -414,9 +414,9 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         } else {
             ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         }
-        qtest_clock_warp(qemu_get_clock_ns(vm_clock) + ns);
+        qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
         qtest_send_prefix(chr);
-        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_get_clock_ns(vm_clock));
+        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     } else if (strcmp(words[0], "clock_set") == 0) {
         int64_t ns;
 
@@ -424,7 +424,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         ns = strtoll(words[1], NULL, 0);
         qtest_clock_warp(ns);
         qtest_send_prefix(chr);
-        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_get_clock_ns(vm_clock));
+        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     } else {
         qtest_send_prefix(chr);
         qtest_send(chr, "FAIL Unknown command `%s'\n", words[0]);

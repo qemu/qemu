@@ -1596,7 +1596,7 @@ async_common:
         trace_qxl_io_log(d->id, d->ram->log_buf);
         if (d->guestdebug) {
             fprintf(stderr, "qxl/guest-%d: %" PRId64 ": %s", d->id,
-                    qemu_get_clock_ns(vm_clock), d->ram->log_buf);
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), d->ram->log_buf);
         }
         break;
     case QXL_IO_RESET:

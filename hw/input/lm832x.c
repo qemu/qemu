@@ -365,7 +365,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
             break;
         }
 
-        qemu_del_timer(s->pwm.tm[(value & 3) - 1]);
+        timer_del(s->pwm.tm[(value & 3) - 1]);
         break;
 
     case LM832x_GENERAL_ERROR:
@@ -463,9 +463,9 @@ static int lm8323_init(I2CSlave *i2c)
     LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
     s->model = 0x8323;
-    s->pwm.tm[0] = qemu_new_timer_ns(vm_clock, lm_kbd_pwm0_tick, s);
-    s->pwm.tm[1] = qemu_new_timer_ns(vm_clock, lm_kbd_pwm1_tick, s);
-    s->pwm.tm[2] = qemu_new_timer_ns(vm_clock, lm_kbd_pwm2_tick, s);
+    s->pwm.tm[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm0_tick, s);
+    s->pwm.tm[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm1_tick, s);
+    s->pwm.tm[2] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm2_tick, s);
     qdev_init_gpio_out(&i2c->qdev, &s->nirq, 1);
 
     lm_kbd_reset(s);

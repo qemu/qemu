@@ -606,7 +606,7 @@ static uint32_t apic_get_current_count(APICCommonState *s)
 {
     int64_t d;
     uint32_t val;
-    d = (qemu_get_clock_ns(vm_clock) - s->initial_count_load_time) >>
+    d = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->initial_count_load_time) >>
         s->count_shift;
     if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
         /* periodic */
@@ -623,9 +623,9 @@ static uint32_t apic_get_current_count(APICCommonState *s)
 static void apic_timer_update(APICCommonState *s, int64_t current_time)
 {
     if (apic_next_timer(s, current_time)) {
-        qemu_mod_timer(s->timer, s->next_time);
+        timer_mod(s->timer, s->next_time);
     } else {
-        qemu_del_timer(s->timer);
+        timer_del(s->timer);
     }
 }
 
@@ -822,7 +822,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
             int n = index - 0x32;
             s->lvt[n] = val;
             if (n == APIC_LVT_TIMER) {
-                apic_timer_update(s, qemu_get_clock_ns(vm_clock));
+                apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
             } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
                 apic_update_irq(s);
             }
@@ -830,7 +830,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 0x38:
         s->initial_count = val;
-        s->initial_count_load_time = qemu_get_clock_ns(vm_clock);
+        s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         apic_timer_update(s, s->initial_count_load_time);
         break;
     case 0x39:
@@ -857,9 +857,9 @@ static void apic_pre_save(APICCommonState *s)
 static void apic_post_load(APICCommonState *s)
 {
     if (s->timer_expiry != -1) {
-        qemu_mod_timer(s->timer, s->timer_expiry);
+        timer_mod(s->timer, s->timer_expiry);
     } else {
-        qemu_del_timer(s->timer);
+        timer_del(s->timer);
     }
 }
 
@@ -876,7 +876,7 @@ static void apic_init(APICCommonState *s)
     memory_region_init_io(&s->io_memory, OBJECT(s), &apic_io_ops, s, "apic-msi",
                           APIC_SPACE_SIZE);
 
-    s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, apic_timer, s);
     local_apics[s->idx] = s;
 
     msi_supported = true;

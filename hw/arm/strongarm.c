@@ -278,17 +278,17 @@ static void strongarm_rtc_hzupdate(StrongARMRTCState *s)
 static inline void strongarm_rtc_timer_update(StrongARMRTCState *s)
 {
     if ((s->rtsr & RTSR_HZE) && !(s->rtsr & RTSR_HZ)) {
-        qemu_mod_timer(s->rtc_hz, s->last_hz + 1000);
+        timer_mod(s->rtc_hz, s->last_hz + 1000);
     } else {
-        qemu_del_timer(s->rtc_hz);
+        timer_del(s->rtc_hz);
     }
 
     if ((s->rtsr & RTSR_ALE) && !(s->rtsr & RTSR_AL)) {
-        qemu_mod_timer(s->rtc_alarm, s->last_hz +
+        timer_mod(s->rtc_alarm, s->last_hz +
                 (((s->rtar - s->last_rcnr) * 1000 *
                   ((s->rttr & 0xffff) + 1)) >> 15));
     } else {
-        qemu_del_timer(s->rtc_alarm);
+        timer_del(s->rtc_alarm);
     }
 }
 
@@ -1085,8 +1085,8 @@ static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
     }
 
     /* call the timeout receive callback in 3 char transmit time */
-    qemu_mod_timer(s->rx_timeout_timer,
-                    qemu_get_clock_ns(vm_clock) + s->char_transmit_time * 3);
+    timer_mod(s->rx_timeout_timer,
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time * 3);
 
     strongarm_uart_update_status(s);
     strongarm_uart_update_int_status(s);
@@ -1107,7 +1107,7 @@ static void strongarm_uart_event(void *opaque, int event)
 static void strongarm_uart_tx(void *opaque)
 {
     StrongARMUARTState *s = opaque;
-    uint64_t new_xmit_ts = qemu_get_clock_ns(vm_clock);
+    uint64_t new_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
         strongarm_uart_receive(s, &s->tx_fifo[s->tx_start], 1);
@@ -1118,7 +1118,7 @@ static void strongarm_uart_tx(void *opaque)
     s->tx_start = (s->tx_start + 1) % 8;
     s->tx_len--;
     if (s->tx_len) {
-        qemu_mod_timer(s->tx_timer, new_xmit_ts + s->char_transmit_time);
+        timer_mod(s->tx_timer, new_xmit_ts + s->char_transmit_time);
     }
     strongarm_uart_update_status(s);
     strongarm_uart_update_int_status(s);
@@ -1237,8 +1237,8 @@ static int strongarm_uart_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
-    s->rx_timeout_timer = qemu_new_timer_ns(vm_clock, strongarm_uart_rx_to, s);
-    s->tx_timer = qemu_new_timer_ns(vm_clock, strongarm_uart_tx, s);
+    s->rx_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_rx_to, s);
+    s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
 
     if (s->chr) {
         qemu_chr_add_handlers(s->chr,
@@ -1282,8 +1282,8 @@ static int strongarm_uart_post_load(void *opaque, int version_id)
 
     /* restart rx timeout timer */
     if (s->rx_len) {
-        qemu_mod_timer(s->rx_timeout_timer,
-                qemu_get_clock_ns(vm_clock) + s->char_transmit_time * 3);
+        timer_mod(s->rx_timeout_timer,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time * 3);
     }
 
     return 0;

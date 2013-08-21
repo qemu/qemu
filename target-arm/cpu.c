@@ -204,9 +204,9 @@ static void arm_cpu_initfn(Object *obj)
         qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 2);
     }
 
-    cpu->gt_timer[GTIMER_PHYS] = qemu_new_timer(vm_clock, GTIMER_SCALE,
+    cpu->gt_timer[GTIMER_PHYS] = timer_new(QEMU_CLOCK_VIRTUAL, GTIMER_SCALE,
                                                 arm_gt_ptimer_cb, cpu);
-    cpu->gt_timer[GTIMER_VIRT] = qemu_new_timer(vm_clock, GTIMER_SCALE,
+    cpu->gt_timer[GTIMER_VIRT] = timer_new(QEMU_CLOCK_VIRTUAL, GTIMER_SCALE,
                                                 arm_gt_vtimer_cb, cpu);
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
                        ARRAY_SIZE(cpu->gt_timer_outputs));

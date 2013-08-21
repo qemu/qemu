@@ -81,10 +81,10 @@ static void timerblock_reload(TimerBlock *tb, int restart)
         return;
     }
     if (restart) {
-        tb->tick = qemu_get_clock_ns(vm_clock);
+        tb->tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
     tb->tick += (int64_t)tb->count * timerblock_scale(tb);
-    qemu_mod_timer(tb->timer, tb->tick);
+    timer_mod(tb->timer, tb->tick);
 }
 
 static void timerblock_tick(void *opaque)
@@ -113,7 +113,7 @@ static uint64_t timerblock_read(void *opaque, hwaddr addr,
             return 0;
         }
         /* Slow and ugly, but hopefully won't happen too often.  */
-        val = tb->tick - qemu_get_clock_ns(vm_clock);
+        val = tb->tick - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         val /= timerblock_scale(tb);
         if (val < 0) {
             val = 0;
@@ -140,7 +140,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
     case 4: /* Counter.  */
         if ((tb->control & 1) && tb->count) {
             /* Cancel the previous timer.  */
-            qemu_del_timer(tb->timer);
+            timer_del(tb->timer);
         }
         tb->count = value;
         if (tb->control & 1) {
@@ -211,7 +211,7 @@ static void timerblock_reset(TimerBlock *tb)
     tb->status = 0;
     tb->tick = 0;
     if (tb->timer) {
-        qemu_del_timer(tb->timer);
+        timer_del(tb->timer);
     }
 }
 
@@ -248,7 +248,7 @@ static int arm_mptimer_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
     for (i = 0; i < s->num_cpu; i++) {
         TimerBlock *tb = &s->timerblock[i];
-        tb->timer = qemu_new_timer_ns(vm_clock, timerblock_tick, tb);
+        tb->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, timerblock_tick, tb);
         sysbus_init_irq(dev, &tb->irq);
         memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
                               "arm_mptimer_timerblock", 0x20);

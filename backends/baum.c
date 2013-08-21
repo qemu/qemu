@@ -315,7 +315,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
         if (*cur++ != ESC) { \
             DPRINTF("Broken packet %#2x, tossing\n", req); \
             if (timer_pending(baum->cellCount_timer)) {    \
-                qemu_del_timer(baum->cellCount_timer);     \
+                timer_del(baum->cellCount_timer);     \
                 baum_cellCount_timer_cb(baum);             \
             } \
             return (cur - 2 - buf); \
@@ -334,7 +334,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
         int i;
 
         /* Allow 100ms to complete the DisplayData packet */
-        qemu_mod_timer(baum->cellCount_timer, qemu_get_clock_ns(vm_clock) +
+        timer_mod(baum->cellCount_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        get_ticks_per_sec() / 10);
         for (i = 0; i < baum->x * baum->y ; i++) {
             EAT(c);
@@ -348,7 +348,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
                 c = '?';
             text[i] = c;
         }
-        qemu_del_timer(baum->cellCount_timer);
+        timer_del(baum->cellCount_timer);
 
         memset(zero, 0, sizeof(zero));
 
@@ -553,7 +553,7 @@ static void baum_close(struct CharDriverState *chr)
 {
     BaumDriverState *baum = chr->opaque;
 
-    qemu_free_timer(baum->cellCount_timer);
+    timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
@@ -588,7 +588,7 @@ CharDriverState *chr_baum_init(void)
         goto fail_handle;
     }
 
-    baum->cellCount_timer = qemu_new_timer_ns(vm_clock, baum_cellCount_timer_cb, baum);
+    baum->cellCount_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, baum_cellCount_timer_cb, baum);
 
     if (brlapi__getDisplaySize(handle, &baum->x, &baum->y) == -1) {
         brlapi_perror("baum_init: brlapi_getDisplaySize");
@@ -614,7 +614,7 @@ CharDriverState *chr_baum_init(void)
     return chr;
 
 fail:
-    qemu_free_timer(baum->cellCount_timer);
+    timer_free(baum->cellCount_timer);
     brlapi__closeConnection(handle);
 fail_handle:
     g_free(handle);

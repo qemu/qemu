@@ -130,8 +130,8 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
     do {} while (qemu_co_enter_next(&bs->throttled_reqs));
 
     if (bs->block_timer) {
-        qemu_del_timer(bs->block_timer);
-        qemu_free_timer(bs->block_timer);
+        timer_del(bs->block_timer);
+        timer_free(bs->block_timer);
         bs->block_timer = NULL;
     }
 
@@ -148,7 +148,7 @@ static void bdrv_block_timer(void *opaque)
 
 void bdrv_io_limits_enable(BlockDriverState *bs)
 {
-    bs->block_timer = qemu_new_timer_ns(vm_clock, bdrv_block_timer, bs);
+    bs->block_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, bdrv_block_timer, bs);
     bs->io_limits_enabled = true;
 }
 
@@ -180,8 +180,8 @@ static void bdrv_io_limits_intercept(BlockDriverState *bs,
      */
 
     while (bdrv_exceed_io_limits(bs, nb_sectors, is_write, &wait_time)) {
-        qemu_mod_timer(bs->block_timer,
-                       wait_time + qemu_get_clock_ns(vm_clock));
+        timer_mod(bs->block_timer,
+                       wait_time + qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         qemu_co_queue_wait_insert_head(&bs->throttled_reqs);
     }
 
@@ -3747,7 +3747,7 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
     double   elapsed_time;
     int      bps_ret, iops_ret;
 
-    now = qemu_get_clock_ns(vm_clock);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     if (now > bs->slice_end) {
         bs->slice_start = now;
         bs->slice_end   = now + BLOCK_IO_SLICE_TIME;
@@ -3767,7 +3767,7 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
             *wait = max_wait;
         }
 
-        now = qemu_get_clock_ns(vm_clock);
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         if (bs->slice_end < now + max_wait) {
             bs->slice_end = now + max_wait;
         }
