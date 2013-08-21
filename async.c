@@ -205,6 +205,7 @@ aio_ctx_finalize(GSource     *source)
     event_notifier_cleanup(&ctx->notifier);
     qemu_mutex_destroy(&ctx->bh_lock);
     g_array_free(ctx->pollfds, TRUE);
+    timerlistgroup_deinit(&ctx->tlg);
 }
 
 static GSourceFuncs aio_source_funcs = {
@@ -244,6 +245,7 @@ AioContext *aio_context_new(void)
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)
                            event_notifier_test_and_clear);
+    timerlistgroup_init(&ctx->tlg);
 
     return ctx;
 }

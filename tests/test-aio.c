@@ -12,6 +12,7 @@
 
 #include <glib.h>
 #include "block/aio.h"
+#include "qemu/timer.h"
 
 AioContext *ctx;
 
@@ -629,6 +630,8 @@ static void test_source_wait_event_notifier_noflush(void)
 int main(int argc, char **argv)
 {
     GSource *src;
+
+    init_clocks();
 
     ctx = aio_context_new();
     src = aio_get_g_source(ctx);

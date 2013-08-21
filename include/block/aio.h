@@ -19,6 +19,7 @@
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
+#include "qemu/timer.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
@@ -73,6 +74,9 @@ struct AioContext {
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
+
+    /* TimerLists for calling timers - one per clock type */
+    QEMUTimerListGroup tlg;
 };
 
 /**
