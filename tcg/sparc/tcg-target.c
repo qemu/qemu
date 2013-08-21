@@ -449,13 +449,14 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_ldst(s, arg, arg1, arg2, (type == TCG_TYPE_I32 ? STW : STX));
 }
 
-static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
-                                  tcg_target_long arg)
+static inline void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, uintptr_t arg)
 {
+    TCGReg base = TCG_REG_G0;
     if (!check_fit_tl(arg, 10)) {
         tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ff);
+        base = ret;
     }
-    tcg_out_ld(s, TCG_TYPE_PTR, ret, ret, arg & 0x3ff);
+    tcg_out_ld(s, TCG_TYPE_PTR, ret, base, arg & 0x3ff);
 }
 
 static inline void tcg_out_sety(TCGContext *s, int rs)
@@ -1176,8 +1177,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out32(s, CALL | (old_insn & ~INSN_OP(-1)));
         } else {
             /* indirect jump method */
-            tcg_out_ld_ptr(s, TCG_REG_T1,
-                           (tcg_target_long)(s->tb_next + args[0]));
+            tcg_out_ld_ptr(s, TCG_REG_T1, (uintptr_t)(s->tb_next + args[0]));
             tcg_out_arithi(s, TCG_REG_G0, TCG_REG_T1, 0, JMPL);
         }
         tcg_out_nop(s);
@@ -1674,7 +1674,7 @@ static DebugFrame debug_frame = {
 
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_start = (uintptr_t)buf;
     debug_frame.fde.func_len = buf_size;
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
@@ -1683,14 +1683,12 @@ void tcg_register_jit(void *buf, size_t buf_size)
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     uint32_t *ptr = (uint32_t *)jmp_addr;
-    tcg_target_long disp = (tcg_target_long)(addr - jmp_addr) >> 2;
+    uintptr_t disp = addr - jmp_addr;
 
     /* We can reach the entire address space for 32-bit.  For 64-bit
        the code_gen_buffer can't be larger than 2GB.  */
-    if (TCG_TARGET_REG_BITS == 64 && !check_fit_tl(disp, 30)) {
-        tcg_abort();
-    }
+    assert(disp == (int32_t)disp);
 
-    *ptr = CALL | (disp & 0x3fffffff);
+    *ptr = CALL | (uint32_t)disp >> 2;
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
