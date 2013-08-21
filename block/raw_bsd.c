@@ -33,11 +33,13 @@ static TYPE raw_reopen_prepare(BlockDriverState *bs)
 
 static TYPE raw_co_readv(BlockDriverState *bs)
 {
+    BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
     return bdrv_co_readv(bs->file);
 }
 
 static TYPE raw_co_writev(BlockDriverState *bs)
 {
+    BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
     return bdrv_co_writev(bs->file);
 }
 
