@@ -1493,7 +1493,7 @@ static void usbredir_device_connect(void *priv,
     USBRedirDevice *dev = priv;
     const char *speed;
 
-    if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
+    if (timer_pending(dev->attach_timer) || dev->dev.attached) {
         ERROR("Received device connect while already connected\n");
         return;
     }
@@ -1588,7 +1588,7 @@ static void usbredir_interface_info(void *priv,
      * If we receive interface info after the device has already been
      * connected (ie on a set_config), re-check interface dependent things.
      */
-    if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
+    if (timer_pending(dev->attach_timer) || dev->dev.attached) {
         usbredir_check_bulk_receiving(dev);
         if (usbredir_check_filter(dev)) {
             ERROR("Device no longer matches filter after interface info "

@@ -983,7 +983,7 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
-    expire_time = qemu_timer_expire_time_ns(ts);
+    expire_time = timer_expire_time_ns(ts);
     qemu_put_be64(f, expire_time);
 }
 

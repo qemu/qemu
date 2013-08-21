@@ -1093,7 +1093,7 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 0x14; i ++)
         qemu_get_be16s(f, &s->filter_data[i]);
 
-    s->busy = qemu_timer_pending(s->timer);
+    s->busy = timer_pending(s->timer);
     qemu_set_irq(s->pint, !s->irq);
     qemu_set_irq(s->davint, !s->dav);
 

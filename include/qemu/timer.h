@@ -49,9 +49,9 @@ void qemu_free_timer(QEMUTimer *ts);
 void qemu_del_timer(QEMUTimer *ts);
 void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time);
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
-bool qemu_timer_pending(QEMUTimer *ts);
-bool qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time);
-uint64_t qemu_timer_expire_time_ns(QEMUTimer *ts);
+bool timer_pending(QEMUTimer *ts);
+bool timer_expired(QEMUTimer *timer_head, int64_t current_time);
+uint64_t timer_expire_time_ns(QEMUTimer *ts);
 
 void qemu_run_timers(QEMUClock *clock);
 void qemu_run_all_timers(void);

@@ -314,9 +314,9 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
             return 0; \
         if (*cur++ != ESC) { \
             DPRINTF("Broken packet %#2x, tossing\n", req); \
-		if (qemu_timer_pending(baum->cellCount_timer)) { \
-                qemu_del_timer(baum->cellCount_timer); \
-                baum_cellCount_timer_cb(baum); \
+            if (timer_pending(baum->cellCount_timer)) {    \
+                qemu_del_timer(baum->cellCount_timer);     \
+                baum_cellCount_timer_cb(baum);             \
             } \
             return (cur - 2 - buf); \
         } \

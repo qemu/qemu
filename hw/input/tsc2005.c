@@ -513,7 +513,7 @@ static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 8; i ++)
         s->tr[i] = qemu_get_be32(f);
 
-    s->busy = qemu_timer_pending(s->timer);
+    s->busy = timer_pending(s->timer);
     tsc2005_pin_update(s);
 
     return 0;

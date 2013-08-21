@@ -80,7 +80,7 @@ struct qemu_alarm_timer {
 
 static struct qemu_alarm_timer *alarm_timer;
 
-static bool qemu_timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
+static bool timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
 {
     return timer_head && (timer_head->expire_time <= current_time);
 }
@@ -301,7 +301,7 @@ void qemu_del_timer(QEMUTimer *ts)
     QEMUTimer **pt, *t;
 
     /* NOTE: this code must be signal safe because
-       qemu_timer_expired() can be called from a signal. */
+       timer_expired() can be called from a signal. */
     pt = &ts->clock->active_timers;
     for(;;) {
         t = *pt;
@@ -325,11 +325,11 @@ void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
 
     /* add the timer in the sorted list */
     /* NOTE: this code must be signal safe because
-       qemu_timer_expired() can be called from a signal. */
+       timer_expired() can be called from a signal. */
     pt = &ts->clock->active_timers;
     for(;;) {
         t = *pt;
-        if (!qemu_timer_expired_ns(t, expire_time)) {
+        if (!timer_expired_ns(t, expire_time)) {
             break;
         }
         pt = &t->next;
@@ -356,7 +356,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     qemu_mod_timer_ns(ts, expire_time * ts->scale);
 }
 
-bool qemu_timer_pending(QEMUTimer *ts)
+bool timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
     for (t = ts->clock->active_timers; t != NULL; t = t->next) {
@@ -367,9 +367,9 @@ bool qemu_timer_pending(QEMUTimer *ts)
     return false;
 }
 
-bool qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+bool timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
-    return qemu_timer_expired_ns(timer_head, current_time * timer_head->scale);
+    return timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
 
 void qemu_run_timers(QEMUClock *clock)
@@ -383,7 +383,7 @@ void qemu_run_timers(QEMUClock *clock)
     current_time = qemu_get_clock_ns(clock);
     for(;;) {
         ts = clock->active_timers;
-        if (!qemu_timer_expired_ns(ts, current_time)) {
+        if (!timer_expired_ns(ts, current_time)) {
             break;
         }
         /* remove timer from the list before calling the callback */
@@ -439,9 +439,9 @@ void init_clocks(void)
     }
 }
 
-uint64_t qemu_timer_expire_time_ns(QEMUTimer *ts)
+uint64_t timer_expire_time_ns(QEMUTimer *ts)
 {
-    return qemu_timer_pending(ts) ? ts->expire_time : -1;
+    return timer_pending(ts) ? ts->expire_time : -1;
 }
 
 void qemu_run_all_timers(void)

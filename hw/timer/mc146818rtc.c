@@ -252,7 +252,7 @@ static void check_update_timer(RTCState *s)
          * the alarm time.  */
         next_update_time = s->next_alarm_time;
     }
-    if (next_update_time != qemu_timer_expire_time_ns(s->update_timer)) {
+    if (next_update_time != timer_expire_time_ns(s->update_timer)) {
         qemu_mod_timer(s->update_timer, next_update_time);
     }
 }
@@ -587,8 +587,8 @@ static int update_in_progress(RTCState *s)
     if (!rtc_running(s)) {
         return 0;
     }
-    if (qemu_timer_pending(s->update_timer)) {
-        int64_t next_update_time = qemu_timer_expire_time_ns(s->update_timer);
+    if (timer_pending(s->update_timer)) {
+        int64_t next_update_time = timer_expire_time_ns(s->update_timer);
         /* Latch UIP until the timer expires.  */
         if (qemu_get_clock_ns(rtc_clock) >= (next_update_time - UIP_HOLD_LENGTH)) {
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;

@@ -72,8 +72,8 @@ uint32_t cpu_mips_get_count (CPUMIPSState *env)
         uint64_t now;
 
         now = qemu_get_clock_ns(vm_clock);
-        if (qemu_timer_pending(env->timer)
-            && qemu_timer_expired(env->timer, now)) {
+        if (timer_pending(env->timer)
+            && timer_expired(env->timer, now)) {
             /* The timer has already expired.  */
             cpu_mips_timer_expire(env);
         }
