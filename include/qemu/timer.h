@@ -53,6 +53,11 @@ typedef enum {
 
 typedef struct QEMUClock QEMUClock;
 typedef struct QEMUTimerList QEMUTimerList;
+
+struct QEMUTimerListGroup {
+    QEMUTimerList *tl[QEMU_CLOCK_MAX];
+};
+
 typedef void QEMUTimerCB(void *opaque);
 
 struct QEMUTimer {
@@ -64,6 +69,7 @@ struct QEMUTimer {
     int scale;
 };
 
+extern QEMUTimerListGroup main_loop_tlg;
 extern QEMUClock *qemu_clocks[QEMU_CLOCK_MAX];
 
 /**
@@ -216,6 +222,49 @@ QEMUClock *timerlist_get_clock(QEMUTimerList *timer_list);
  * Returns: true if any timer expired
  */
 bool timerlist_run_timers(QEMUTimerList *timer_list);
+
+/**
+ * timerlistgroup_init:
+ * @tlg: the timer list group
+ *
+ * Initialise a timer list group. This must already be
+ * allocated in memory and zeroed.
+ */
+void timerlistgroup_init(QEMUTimerListGroup *tlg);
+
+/**
+ * timerlistgroup_deinit:
+ * @tlg: the timer list group
+ *
+ * Deinitialise a timer list group. This must already be
+ * initialised. Note the memory is not freed.
+ */
+void timerlistgroup_deinit(QEMUTimerListGroup *tlg);
+
+/**
+ * timerlistgroup_run_timers:
+ * @tlg: the timer list group
+ *
+ * Run the timers associated with a timer list group.
+ * This will run timers on multiple clocks.
+ *
+ * Returns: true if any timer callback ran
+ */
+bool timerlistgroup_run_timers(QEMUTimerListGroup *tlg);
+
+/**
+ * timerlistgroup_deadline_ns
+ * @tlg: the timer list group
+ *
+ * Determine the deadline of the soonest timer to
+ * expire associated with any timer list linked to
+ * the timer list group. Only clocks suitable for
+ * deadline calculation are included.
+ *
+ * Returns: the deadline in nanoseconds or -1 if no
+ * timers are to expire.
+ */
+int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
 
 /**
  * qemu_timeout_ns_to_ms:

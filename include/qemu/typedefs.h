@@ -4,6 +4,7 @@
 /* A load of opaque types so that device init declarations don't have to
    pull in all the real definitions.  */
 typedef struct QEMUTimer QEMUTimer;
+typedef struct QEMUTimerListGroup QEMUTimerListGroup;
 typedef struct QEMUFile QEMUFile;
 typedef struct QEMUBH QEMUBH;
 
