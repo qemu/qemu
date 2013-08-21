@@ -234,6 +234,11 @@ void aio_notify(AioContext *ctx)
     event_notifier_set(&ctx->notifier);
 }
 
+static void aio_timerlist_notify(void *opaque)
+{
+    aio_notify(opaque);
+}
+
 AioContext *aio_context_new(void)
 {
     AioContext *ctx;
@@ -245,7 +250,7 @@ AioContext *aio_context_new(void)
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)
                            event_notifier_test_and_clear);
-    timerlistgroup_init(&ctx->tlg);
+    timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;
 }

@@ -73,6 +73,8 @@ struct QEMUTimerList {
     QEMUClock *clock;
     QEMUTimer *active_timers;
     QLIST_ENTRY(QEMUTimerList) list;
+    QEMUTimerListNotifyCB *notify_cb;
+    void *notify_opaque;
 };
 
 struct qemu_alarm_timer {
@@ -243,7 +245,9 @@ next:
     }
 }
 
-static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock)
+static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock,
+                                               QEMUTimerListNotifyCB *cb,
+                                               void *opaque)
 {
     QEMUTimerList *timer_list;
 
@@ -257,13 +261,16 @@ static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock)
 
     timer_list = g_malloc0(sizeof(QEMUTimerList));
     timer_list->clock = clock;
+    timer_list->notify_cb = cb;
+    timer_list->notify_opaque = opaque;
     QLIST_INSERT_HEAD(&clock->timerlists, timer_list, list);
     return timer_list;
 }
 
-QEMUTimerList *timerlist_new(QEMUClockType type)
+QEMUTimerList *timerlist_new(QEMUClockType type,
+                             QEMUTimerListNotifyCB *cb, void *opaque)
 {
-    return timerlist_new_from_clock(qemu_clock_ptr(type));
+    return timerlist_new_from_clock(qemu_clock_ptr(type), cb, opaque);
 }
 
 void timerlist_free(QEMUTimerList *timer_list)
@@ -288,7 +295,7 @@ static QEMUClock *qemu_clock_new(QEMUClockType type)
     clock->last = INT64_MIN;
     QLIST_INIT(&clock->timerlists);
     notifier_list_init(&clock->reset_notifiers);
-    clock->main_loop_timerlist = timerlist_new_from_clock(clock);
+    clock->main_loop_timerlist = timerlist_new_from_clock(clock, NULL, NULL);
     return clock;
 }
 
@@ -384,6 +391,15 @@ QEMUClock *timerlist_get_clock(QEMUTimerList *timer_list)
 QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClock *clock)
 {
     return clock->main_loop_timerlist;
+}
+
+void timerlist_notify(QEMUTimerList *timer_list)
+{
+    if (timer_list->notify_cb) {
+        timer_list->notify_cb(timer_list->notify_opaque);
+    } else {
+        qemu_notify_event();
+    }
 }
 
 /* Transition function to convert a nanosecond timeout to ms
@@ -507,7 +523,7 @@ void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
         /* Interrupt execution to force deadline recalculation.  */
         qemu_clock_warp(ts->timer_list->clock);
         if (use_icount) {
-            qemu_notify_event();
+            timerlist_notify(ts->timer_list);
         }
     }
 }
@@ -565,11 +581,12 @@ bool qemu_run_timers(QEMUClock *clock)
     return timerlist_run_timers(clock->main_loop_timerlist);
 }
 
-void timerlistgroup_init(QEMUTimerListGroup *tlg)
+void timerlistgroup_init(QEMUTimerListGroup *tlg,
+                         QEMUTimerListNotifyCB *cb, void *opaque)
 {
     QEMUClockType type;
     for (type = 0; type < QEMU_CLOCK_MAX; type++) {
-        tlg->tl[type] = timerlist_new(type);
+        tlg->tl[type] = timerlist_new(type, cb, opaque);
     }
 }
 
