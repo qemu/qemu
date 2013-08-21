@@ -1289,15 +1289,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_div32(s, args[0], args[1], args[2], const_args[2], 1);
         break;
 
-    case INDEX_op_rem_i32:
-    case INDEX_op_remu_i32:
-        tcg_out_div32(s, TCG_REG_T1, args[1], args[2], const_args[2],
-                      opc == INDEX_op_remu_i32);
-        tcg_out_arithc(s, TCG_REG_T1, TCG_REG_T1, args[2], const_args[2],
-                       ARITH_UMUL);
-        tcg_out_arith(s, args[0], args[1], TCG_REG_T1, ARITH_SUB);
-        break;
-
     case INDEX_op_brcond_i32:
         tcg_out_brcond_i32(s, args[2], args[0], args[1], const_args[1],
                            args[3]);
@@ -1413,14 +1404,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
-    case INDEX_op_rem_i64:
-    case INDEX_op_remu_i64:
-        tcg_out_arithc(s, TCG_REG_T1, args[1], args[2], const_args[2],
-                       opc == INDEX_op_rem_i64 ? ARITH_SDIVX : ARITH_UDIVX);
-        tcg_out_arithc(s, TCG_REG_T1, TCG_REG_T1, args[2], const_args[2],
-                       ARITH_MULX);
-        tcg_out_arith(s, args[0], args[1], TCG_REG_T1, ARITH_SUB);
-        break;
     case INDEX_op_ext32s_i64:
         if (const_args[1]) {
             tcg_out_movi(s, TCG_TYPE_I64, args[0], (int32_t)args[1]);
@@ -1484,8 +1467,6 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_mul_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rJ" } },
-    { INDEX_op_rem_i32, { "r", "rZ", "rJ" } },
-    { INDEX_op_remu_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_sub_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_and_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_andc_i32, { "r", "rZ", "rJ" } },
@@ -1532,8 +1513,6 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_mul_i64, { "r", "rZ", "rJ" } },
     { INDEX_op_div_i64, { "r", "rZ", "rJ" } },
     { INDEX_op_divu_i64, { "r", "rZ", "rJ" } },
-    { INDEX_op_rem_i64, { "r", "rZ", "rJ" } },
-    { INDEX_op_remu_i64, { "r", "rZ", "rJ" } },
     { INDEX_op_sub_i64, { "r", "rZ", "rJ" } },
     { INDEX_op_and_i64, { "r", "rZ", "rJ" } },
     { INDEX_op_andc_i64, { "r", "rZ", "rJ" } },
