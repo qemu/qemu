@@ -40,10 +40,6 @@
 /***********************************************************/
 /* timers */
 
-#define QEMU_CLOCK_REALTIME 0
-#define QEMU_CLOCK_VIRTUAL  1
-#define QEMU_CLOCK_HOST     2
-
 struct QEMUClock {
     QEMUTimer *active_timers;
 
@@ -231,7 +227,7 @@ QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 QEMUClock *host_clock;
 
-static QEMUClock *qemu_new_clock(int type)
+static QEMUClock *qemu_clock_new(int type)
 {
     QEMUClock *clock;
 
@@ -433,9 +429,9 @@ void qemu_unregister_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
 void init_clocks(void)
 {
     if (!rt_clock) {
-        rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
-        vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
-        host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
+        rt_clock = qemu_clock_new(QEMU_CLOCK_REALTIME);
+        vm_clock = qemu_clock_new(QEMU_CLOCK_VIRTUAL);
+        host_clock = qemu_clock_new(QEMU_CLOCK_HOST);
     }
 }
 

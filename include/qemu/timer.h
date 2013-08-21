@@ -11,6 +11,10 @@
 #define SCALE_US 1000
 #define SCALE_NS 1
 
+#define QEMU_CLOCK_REALTIME 0
+#define QEMU_CLOCK_VIRTUAL  1
+#define QEMU_CLOCK_HOST     2
+
 typedef struct QEMUClock QEMUClock;
 typedef void QEMUTimerCB(void *opaque);
 
