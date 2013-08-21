@@ -45,7 +45,6 @@ typedef enum {
     QEMU_CLOCK_MAX
 } QEMUClockType;
 
-typedef struct QEMUClock QEMUClock;
 typedef struct QEMUTimerList QEMUTimerList;
 
 struct QEMUTimerListGroup {
@@ -67,20 +66,10 @@ struct QEMUTimer {
 extern QEMUTimerListGroup main_loop_tlg;
 
 /*
- * QEMUClock & QEMUClockType
+ * QEMUClockType
  */
 
-/**
- * qemu_clock_ptr:
- * @type: type of clock
- *
- * Translate a clock type into a pointer to QEMUClock object.
- *
- * Returns: a pointer to the QEMUClock object
- */
-QEMUClock *qemu_clock_ptr(QEMUClockType type);
-
-/**
+/*
  * qemu_clock_get_ns;
  * @type: the clock type
  *
@@ -654,205 +643,6 @@ static inline int64_t get_ticks_per_sec(void)
 {
     return 1000000000LL;
 }
-
-/**************************************************
- * LEGACY API SECTION
- *
- * All these calls will be deleted in due course
- */
-
-/* These three clocks are maintained here with separate variable
- * names for compatibility only.
- */
-#define rt_clock (qemu_clock_ptr(QEMU_CLOCK_REALTIME))
-#define vm_clock (qemu_clock_ptr(QEMU_CLOCK_VIRTUAL))
-#define host_clock (qemu_clock_ptr(QEMU_CLOCK_HOST))
-
-/** LEGACY
- * qemu_get_clock_ns:
- * @clock: the clock to operate on
- *
- * Get the nanosecond value of a clock
- *
- * Returns: the clock value in nanoseconds
- */
-int64_t qemu_get_clock_ns(QEMUClock *clock);
-
-/** LEGACY
- * qemu_get_clock_ms:
- * @clock: the clock to operate on
- *
- * Get the millisecond value of a clock
- *
- * Returns: the clock value in milliseconds
- */
-static inline int64_t qemu_get_clock_ms(QEMUClock *clock)
-{
-    return qemu_get_clock_ns(clock) / SCALE_MS;
-}
-
-/** LEGACY
- * qemu_register_clock_reset_notifier:
- * @clock: the clock to operate on
- * @notifier: the notifier function
- *
- * Register a notifier function to call when the clock
- * concerned is reset.
- */
-void qemu_register_clock_reset_notifier(QEMUClock *clock,
-                                        Notifier *notifier);
-
-/** LEGACY
- * qemu_unregister_clock_reset_notifier:
- * @clock: the clock to operate on
- * @notifier: the notifier function
- *
- * Unregister a notifier function to call when the clock
- * concerned is reset.
- */
-void qemu_unregister_clock_reset_notifier(QEMUClock *clock,
-                                          Notifier *notifier);
-
-/** LEGACY
- * qemu_new_timer:
- * @clock: the clock to operate on
- * @scale: the scale of the clock
- * @cb: the callback function to call when the timer expires
- * @opaque: an opaque pointer to pass to the callback
- *
- * Produce a new timer attached to clock @clock. This is a legacy
- * function. Use timer_new instead.
- *
- * Returns: a pointer to the new timer allocated.
- */
-QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
-                          QEMUTimerCB *cb, void *opaque);
-
-/** LEGACY
- * qemu_free_timer:
- * @ts: the timer to operate on
- *
- * free the timer @ts. @ts must not be active.
- *
- * This is a legacy function. Use timer_free instead.
- */
-static inline void qemu_free_timer(QEMUTimer *ts)
-{
-    timer_free(ts);
-}
-
-/** LEGACY
- * qemu_del_timer:
- * @ts: the timer to operate on
- *
- * Delete a timer. This makes it inactive. It does not free
- * memory.
- *
- * This is a legacy function. Use timer_del instead.
- */
-static inline void qemu_del_timer(QEMUTimer *ts)
-{
-    timer_del(ts);
-}
-
-/** LEGACY
- * qemu_mod_timer_ns:
- * @ts: the timer to operate on
- * @expire_time: the expiry time in nanoseconds
- *
- * Modify a timer such that the expiry time is @expire_time
- * as measured in nanoseconds
- *
- * This is a legacy function. Use timer_mod_ns.
- */
-static inline void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
-{
-    timer_mod_ns(ts, expire_time);
-}
-
-/** LEGACY
- * qemu_mod_timer:
- * @ts: the timer to operate on
- * @expire_time: the expiry time
- *
- * Modify a timer such that the expiry time is @expire_time
- * as measured in the timer's scale
- *
- * This is a legacy function. Use timer_mod.
- */
-static inline void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
-{
-    timer_mod(ts, expire_time);
-}
-
-/** LEGACY
- * qemu_run_timers:
- * @clock: clock on which to operate
- *
- * Run all the timers associated with the default timer list
- * of a clock.
- *
- * Returns: true if any timer ran.
- */
-bool qemu_run_timers(QEMUClock *clock);
-
-/** LEGACY
- * qemu_new_timer_ns:
- * @clock: the clock to associate with the timer
- * @callback: the callback to call when the timer expires
- * @opaque: the opaque pointer to pass to the callback
- *
- * Create a new timer with nanosecond scale on the default timer list
- * associated with the clock.
- *
- * Returns: a pointer to the newly created timer
- */
-static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
-                                           void *opaque)
-{
-    return qemu_new_timer(clock, SCALE_NS, cb, opaque);
-}
-
-/** LEGACY
- * qemu_new_timer_us:
- * @clock: the clock to associate with the timer
- * @callback: the callback to call when the timer expires
- * @opaque: the opaque pointer to pass to the callback
- *
- * Create a new timer with microsecond scale on the default timer list
- * associated with the clock.
- *
- * Returns: a pointer to the newly created timer
- */
-static inline QEMUTimer *qemu_new_timer_us(QEMUClock *clock,
-                                           QEMUTimerCB *cb,
-                                           void *opaque)
-{
-    return qemu_new_timer(clock, SCALE_US, cb, opaque);
-}
-
-/** LEGACY
- * qemu_new_timer_ms:
- * @clock: the clock to associate with the timer
- * @callback: the callback to call when the timer expires
- * @opaque: the opaque pointer to pass to the callback
- *
- * Create a new timer with millisecond scale on the default timer list
- * associated with the clock.
- *
- * Returns: a pointer to the newly created timer
- */
-static inline QEMUTimer *qemu_new_timer_ms(QEMUClock *clock,
-                                           QEMUTimerCB *cb,
-                                           void *opaque)
-{
-    return qemu_new_timer(clock, SCALE_MS, cb, opaque);
-}
-
-/****************************************************
- * END OF LEGACY API SECTION
- */
-
 
 /*
  * Low level clock functions

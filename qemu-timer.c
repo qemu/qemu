@@ -44,7 +44,7 @@
 /***********************************************************/
 /* timers */
 
-struct QEMUClock {
+typedef struct QEMUClock {
     QLIST_HEAD(, QEMUTimerList) timerlists;
 
     NotifierList reset_notifiers;
@@ -52,7 +52,7 @@ struct QEMUClock {
 
     QEMUClockType type;
     bool enabled;
-};
+} QEMUClock;
 
 QEMUTimerListGroup main_loop_tlg;
 QEMUClock qemu_clocks[QEMU_CLOCK_MAX];
@@ -80,7 +80,7 @@ struct QEMUTimerList {
  *
  * Returns: a pointer to the QEMUClock object
  */
-QEMUClock *qemu_clock_ptr(QEMUClockType type)
+static inline QEMUClock *qemu_clock_ptr(QEMUClockType type)
 {
     return &qemu_clocks[type];
 }
@@ -291,13 +291,6 @@ void timer_init(QEMUTimer *ts,
     ts->scale = scale;
 }
 
-QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
-                          QEMUTimerCB *cb, void *opaque)
-{
-    return timer_new_tl(main_loop_tlg.tl[clock->type],
-                     scale, cb, opaque);
-}
-
 void timer_free(QEMUTimer *ts)
 {
     g_free(ts);
@@ -407,11 +400,6 @@ bool qemu_clock_run_timers(QEMUClockType type)
     return timerlist_run_timers(main_loop_tlg.tl[type]);
 }
 
-bool qemu_run_timers(QEMUClock *clock)
-{
-    return qemu_clock_run_timers(clock->type);
-}
-
 void timerlistgroup_init(QEMUTimerListGroup *tlg,
                          QEMUTimerListNotifyCB *cb, void *opaque)
 {
@@ -479,11 +467,6 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
     }
 }
 
-int64_t qemu_get_clock_ns(QEMUClock *clock)
-{
-    return qemu_clock_get_ns(clock->type);
-}
-
 void qemu_clock_register_reset_notifier(QEMUClockType type,
                                         Notifier *notifier)
 {
@@ -495,18 +478,6 @@ void qemu_clock_unregister_reset_notifier(QEMUClockType type,
                                           Notifier *notifier)
 {
     notifier_remove(notifier);
-}
-
-void qemu_register_clock_reset_notifier(QEMUClock *clock,
-                                        Notifier *notifier)
-{
-    qemu_clock_register_reset_notifier(clock->type, notifier);
-}
-
-void qemu_unregister_clock_reset_notifier(QEMUClock *clock,
-                                          Notifier *notifier)
-{
-    qemu_clock_unregister_reset_notifier(clock->type, notifier);
 }
 
 void init_clocks(void)
