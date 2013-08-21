@@ -24,7 +24,7 @@
 
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
-#include "hw/amd_smbus.h"
+#include "hw/xbox/amd_smbus.h"
 #include "hw/i2c/smbus.h"
 
 /* AMD756 SMBus address offsets */

@@ -29,7 +29,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "hw/nv2a_vsh.h"
+#include "hw/xbox/nv2a_vsh.h"
 
 
 #define VSH_TOKEN_SIZE 4

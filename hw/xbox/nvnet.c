@@ -20,7 +20,7 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 
-#include "hw/nvnet.h"
+#include "hw/xbox/nvnet.h"
 
 
 #define IOPORT_SIZE 0x8

@@ -21,7 +21,7 @@
 #include "hw/pci/pci.h"
 #include "hw/audio/ac97_int.h"
 
-#include "hw/mcpx_apu.h"
+#include "hw/xbox/mcpx_apu.h"
 
 typedef struct MCPXACIState {
     PCIDevice dev;

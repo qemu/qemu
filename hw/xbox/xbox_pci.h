@@ -27,9 +27,9 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/amd_smbus.h"
+#include "hw/xbox/amd_smbus.h"
 #include "hw/acpi/acpi.h"
-#include "hw/acpi_xbox.h"
+#include "hw/xbox/acpi_xbox.h"
 
 
 typedef struct XBOX_PCIState {

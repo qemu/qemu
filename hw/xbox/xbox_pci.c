@@ -27,12 +27,12 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "exec/address-spaces.h"
-
-#include "hw/acpi_xbox.h"
-#include "hw/amd_smbus.h"
 #include "qemu-common.h"
 
-#include "hw/xbox_pci.h"
+#include "hw/xbox/acpi_xbox.h"
+#include "hw/xbox/amd_smbus.h"
+
+#include "hw/xbox/xbox_pci.h"
 
 
  /*

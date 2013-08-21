@@ -37,12 +37,12 @@
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 
-#include "hw/xbox_pci.h"
-#include "hw/nvnet.h"
-#include "hw/nv2a.h"
-#include "hw/mcpx_apu.h"
+#include "hw/xbox/xbox_pci.h"
+#include "hw/xbox/nvnet.h"
+#include "hw/xbox/nv2a.h"
+#include "hw/xbox/mcpx_apu.h"
 
-#include "hw/xbox.h"
+#include "hw/xbox/xbox.h"
 
 /* mostly from pc_memory_init */
 static void xbox_memory_init(MemoryRegion *system_memory,

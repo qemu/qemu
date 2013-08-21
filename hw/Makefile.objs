@@ -31,4 +31,4 @@ devices-dirs-y += core/
 common-obj-y += $(devices-dirs-y)
 obj-y += $(devices-dirs-y)
 
-obj-$(CONFIG_XBOX) += xbox_pci.o acpi_xbox.o amd_smbus.o nvnet.o nv2a.o nv2a_vsh.o mcpx_apu.o mcpx_aci.o smbus_xbox_smc.o smbus_cx25871.o smbus_adm1032.o lpc47m157.o
+obj-$(CONFIG_XBOX) += xbox/

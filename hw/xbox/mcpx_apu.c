@@ -20,7 +20,7 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 
-#include "hw/mcpx_apu.h"
+#include "hw/xbox/mcpx_apu.h"
 
 
 

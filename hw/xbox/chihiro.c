@@ -26,7 +26,7 @@
 #include "qemu/config-file.h"
 #include "sysemu/blockdev.h"
 #include "block/blkmemory.h"
-#include "hw/xbox.h"
+#include "hw/xbox/xbox.h"
 
 
 #define SEGA_CHIP_REVISION                  0xF0

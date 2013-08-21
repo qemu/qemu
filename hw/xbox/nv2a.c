@@ -27,21 +27,10 @@
 #include "qapi/qmp/qstring.h"
 #include "gl/gloffscreen.h"
 
-#include "hw/u_format_r11g11b10f.h"
+#include "hw/xbox/u_format_r11g11b10f.h"
+#include "hw/xbox/nv2a_vsh.h"
 
-#include "hw/nv2a_vsh.h"
-
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#elif defined(_WIN32)
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
-#else
-#include <GL/gl.h>
-#endif
-
-#include "hw/nv2a.h"
+#include "hw/xbox/nv2a.h"
 
 #define DEBUG_NV2A
 #ifdef DEBUG_NV2A

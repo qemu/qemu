@@ -29,9 +29,9 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/acpi/acpi.h"
-#include "hw/xbox_pci.h"
+#include "hw/xbox/xbox_pci.h"
 
-#include "hw/acpi_xbox.h"
+#include "hw/xbox/acpi_xbox.h"
 
 //#define DEBUG
 #ifdef DEBUG
