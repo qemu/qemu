@@ -86,9 +86,8 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
                     kernel_filename);
             exit(1);
         }
+        cpu->env.pc = entry;
     }
-
-    cpu->env.pc = entry;
 }
 
 static void openrisc_sim_init(QEMUMachineInitArgs *args)
