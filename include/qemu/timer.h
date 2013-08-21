@@ -118,6 +118,34 @@ static inline int64_t qemu_clock_get_ns(QEMUClockType type)
 }
 
 /**
+ * qemu_clock_get_ms;
+ * @type: the clock type
+ *
+ * Get the millisecond value of a clock with
+ * type @type
+ *
+ * Returns: the clock value in milliseconds
+ */
+static inline int64_t qemu_clock_get_ms(QEMUClockType type)
+{
+    return qemu_clock_get_ns(type) / SCALE_MS;
+}
+
+/**
+ * qemu_clock_get_us;
+ * @type: the clock type
+ *
+ * Get the microsecond value of a clock with
+ * type @type
+ *
+ * Returns: the clock value in microseconds
+ */
+static inline int64_t qemu_clock_get_us(QEMUClockType type)
+{
+    return qemu_clock_get_ns(type) / SCALE_US;
+}
+
+/**
  * qemu_clock_has_timers:
  * @clock: the clock to operate on
  *
