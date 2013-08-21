@@ -54,6 +54,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "qemu/main-loop.h"
 #include "qemu-common.h"
 #include "hw/ptimer.h"
 

@@ -36,6 +36,7 @@
 #include "qmp-commands.h"
 #include "hw/qdev.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"

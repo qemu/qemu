@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
 

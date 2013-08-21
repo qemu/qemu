@@ -34,6 +34,7 @@
 #include "monitor/monitor.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
+#include "qemu/main-loop.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4

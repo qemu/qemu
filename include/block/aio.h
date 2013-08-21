@@ -14,6 +14,7 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
+#include "qemu/typedefs.h"
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
@@ -42,7 +43,7 @@ typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
 typedef void IOHandler(void *opaque);
 
-typedef struct AioContext {
+struct AioContext {
     GSource source;
 
     /* The list of registered AIO handlers */
@@ -72,7 +73,7 @@ typedef struct AioContext {
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
-} AioContext;
+};
 
 /**
  * aio_context_new: Allocate a new AioContext.

@@ -16,6 +16,7 @@
 #define QEMU_COROUTINE_H
 
 #include <stdbool.h>
+#include "qemu/typedefs.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 

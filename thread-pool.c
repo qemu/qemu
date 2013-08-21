@@ -23,6 +23,7 @@
 #include "block/block_int.h"
 #include "qemu/event_notifier.h"
 #include "block/thread-pool.h"
+#include "qemu/main-loop.h"
 
 static void do_spawn_thread(ThreadPool *pool);
 

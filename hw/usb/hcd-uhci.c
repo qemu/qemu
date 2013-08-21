@@ -32,6 +32,7 @@
 #include "qemu/iov.h"
 #include "sysemu/dma.h"
 #include "trace.h"
+#include "qemu/main-loop.h"
 
 //#define DEBUG
 //#define DEBUG_DUMP_DATA

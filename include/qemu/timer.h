@@ -3,7 +3,6 @@
 
 #include "qemu/typedefs.h"
 #include "qemu-common.h"
-#include "qemu/main-loop.h"
 #include "qemu/notify.h"
 
 /* timers */

@@ -15,6 +15,7 @@
 
 #include "qemu-common.h"
 #include "qemu/sockets.h"
+#include "qemu/main-loop.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "block/block.h"

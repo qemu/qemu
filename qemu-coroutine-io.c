@@ -26,6 +26,7 @@
 #include "qemu/sockets.h"
 #include "block/coroutine.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 
 ssize_t coroutine_fn
 qemu_co_sendv_recvv(int sockfd, struct iovec *iov, unsigned iov_cnt,

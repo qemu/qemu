@@ -10,6 +10,7 @@
 
 #include "qemu-io.h"
 #include "block/block_int.h"
+#include "qemu/main-loop.h"
 
 #define CMD_NOFILE_OK   0x01
 

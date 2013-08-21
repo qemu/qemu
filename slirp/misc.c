@@ -9,6 +9,7 @@
 #include <libslirp.h>
 
 #include "monitor/monitor.h"
+#include "qemu/main-loop.h"
 
 #ifdef DEBUG
 int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
