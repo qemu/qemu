@@ -51,6 +51,17 @@ void helper_hw_ret(CPUAlphaState *env, uint64_t a)
     }
 }
 
+void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
+{
+    int pal_mode = env->pal_mode;
+    env->exc_addr = pc | pal_mode;
+    env->pc = env->palbr + entry_ofs;
+    if (!pal_mode) {
+        env->pal_mode = 1;
+        swap_shadow_regs(env);
+    }
+}
+
 void helper_tbia(CPUAlphaState *env)
 {
     tlb_flush(env, 1);
@@ -59,6 +70,11 @@ void helper_tbia(CPUAlphaState *env)
 void helper_tbis(CPUAlphaState *env, uint64_t p)
 {
     tlb_flush_page(env, p);
+}
+
+void helper_tb_flush(CPUAlphaState *env)
+{
+    tb_flush(env);
 }
 
 void helper_halt(uint64_t restart)
@@ -91,4 +107,5 @@ void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
         qemu_del_timer(cpu->alarm_timer);
     }
 }
+
 #endif /* CONFIG_USER_ONLY */

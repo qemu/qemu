@@ -8,7 +8,7 @@
  */
 
 #include "qemu-common.h"
-#include "i2c.h"
+#include "hw/i2c/i2c.h"
 #include "stcpmu.h"
 
 //#define DBF(X...) fprintf(stderr, "QEMU: stcpmu: " X)

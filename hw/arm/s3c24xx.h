@@ -11,7 +11,7 @@
 #ifndef S3C24XX_H
 #define S3C24XX_H 1
 
-#include "flash.h"
+#include "hw/block/flash.h"
 
 /* This structure type encapsulates the state of a S3C24XX SoC. */
 typedef struct S3CState_s {

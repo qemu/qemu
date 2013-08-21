@@ -62,12 +62,17 @@
 
 static CPUState *next_cpu;
 
+bool cpu_is_stopped(CPUState *cpu)
+{
+    return cpu->stopped || !runstate_is_running();
+}
+
 static bool cpu_thread_is_idle(CPUState *cpu)
 {
     if (cpu->stop || cpu->queued_work_first) {
         return false;
     }
-    if (cpu->stopped || !runstate_is_running()) {
+    if (cpu_is_stopped(cpu)) {
         return true;
     }
     if (!cpu->halted || qemu_cpu_has_work(cpu) ||
@@ -429,11 +434,6 @@ void cpu_synchronize_all_post_init(void)
     }
 }
 
-bool cpu_is_stopped(CPUState *cpu)
-{
-    return !runstate_is_running() || cpu->stopped;
-}
-
 static int do_vm_stop(RunState state)
 {
     int ret = 0;
@@ -457,7 +457,7 @@ static bool cpu_can_run(CPUState *cpu)
     if (cpu->stop) {
         return false;
     }
-    if (cpu->stopped || !runstate_is_running()) {
+    if (cpu_is_stopped(cpu)) {
         return false;
     }
     return true;

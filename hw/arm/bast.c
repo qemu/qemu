@@ -16,16 +16,16 @@
  * * eth1 is 10 Mbps half duplex only.
  */
 
-#include "char/char.h"          /* qemu_chr_new */
+#include "sysemu/char.h"        /* qemu_chr_new */
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "hw/loader.h"          /* load_image_targphys */
-#include "hw/smbus.h"
+#include "hw/i2c/smbus.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/ide/internal.h"    /* ide_cmd_write, ... */
-#include "hw/s3c2410x.h"
-#include "hw/serial.h"          /* serial_isa_init */
+#include "s3c2410x.h"
+#include "hw/char/serial.h"     /* serial_isa_init */
 #include "hw/sysbus.h"          /* SYS_BUS_DEVICE, ... */
 #include "net/net.h"
 #include "sysemu/blockdev.h"    /* drive_get */
@@ -92,8 +92,9 @@ static const MemoryRegionOps cpld_ops = {
 static void stcb_cpld_register(STCBState *s)
 {
     MemoryRegion *sysmem = get_system_memory();
-    memory_region_init_io(&s->cpld1, &cpld_ops, s, "cpld1", BAST_CPLD_SIZE);
-    memory_region_init_alias(&s->cpld5, "cpld5", &s->cpld1, 0, BAST_CPLD_SIZE);
+    memory_region_init_io(&s->cpld1, OBJECT(s),
+                          &cpld_ops, s, "cpld1", BAST_CPLD_SIZE);
+    memory_region_init_alias(&s->cpld5, NULL, "cpld5", &s->cpld1, 0, BAST_CPLD_SIZE);
     memory_region_add_subregion(sysmem, BAST_CS1_CPLD_BASE, &s->cpld1);
     memory_region_add_subregion(sysmem, BAST_CS5_CPLD_BASE, &s->cpld5);
     s->cpld_ctrl2 = 0;
@@ -185,10 +186,11 @@ static MMIOState *stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq i
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
-    memory_region_init_io(&s->slow, &stcb_ide_ops, s, "stcb-ide", 0x1000000);
-    memory_region_init_alias(&s->fast, "stcb-ide", &s->slow, 0, 0x1000000);
-    memory_region_init_alias(&s->slowb, "stcb-ide", &s->slow, 0, 0x1000000);
-    memory_region_init_alias(&s->fastb, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_io(&s->slow, OBJECT(s),
+                          &stcb_ide_ops, s, "stcb-ide", 0x1000000);
+    memory_region_init_alias(&s->fast, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->slowb, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->fastb, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
     return s;
 }
 
@@ -309,7 +311,8 @@ static int ax88796_init(SysBusDevice *dev)
 
     logout("\n");
 
-    memory_region_init_io(&s->mmio, &ax88796_ops, s, "ax88796", ASIXNET_SIZE);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &ax88796_ops, s, "ax88796", ASIXNET_SIZE);
     //~ sysbus_init_mmio(dev, AX88796_SIZE, iomemtype);
     sysbus_init_mmio(dev, &s->mmio);
     //~ sysbus_init_irq(dev, &s->irq);

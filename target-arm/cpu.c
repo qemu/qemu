@@ -23,7 +23,9 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
+#include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -129,6 +131,55 @@ static void arm_cpu_reset(CPUState *s)
     tb_flush(env);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void arm_cpu_set_irq(void *opaque, int irq, int level)
+{
+    ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+
+    switch (irq) {
+    case ARM_CPU_IRQ:
+        if (level) {
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+        break;
+    case ARM_CPU_FIQ:
+        if (level) {
+            cpu_interrupt(cs, CPU_INTERRUPT_FIQ);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_FIQ);
+        }
+        break;
+    default:
+        hw_error("arm_cpu_set_irq: Bad interrupt line %d\n", irq);
+    }
+}
+
+static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
+{
+#ifdef CONFIG_KVM
+    ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    int kvm_irq = KVM_ARM_IRQ_TYPE_CPU << KVM_ARM_IRQ_TYPE_SHIFT;
+
+    switch (irq) {
+    case ARM_CPU_IRQ:
+        kvm_irq |= KVM_ARM_IRQ_CPU_IRQ;
+        break;
+    case ARM_CPU_FIQ:
+        kvm_irq |= KVM_ARM_IRQ_CPU_FIQ;
+        break;
+    default:
+        hw_error("arm_cpu_kvm_set_irq: Bad interrupt line %d\n", irq);
+    }
+    kvm_irq |= cs->cpu_index << KVM_ARM_IRQ_VCPU_SHIFT;
+    kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
+#endif
+}
+#endif
+
 static inline void set_feature(CPUARMState *env, int feature)
 {
     env->features |= 1ULL << feature;
@@ -144,6 +195,22 @@ static void arm_cpu_initfn(Object *obj)
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+#ifndef CONFIG_USER_ONLY
+    /* Our inbound IRQ and FIQ lines */
+    if (kvm_enabled()) {
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_kvm_set_irq, 2);
+    } else {
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 2);
+    }
+
+    cpu->gt_timer[GTIMER_PHYS] = qemu_new_timer(vm_clock, GTIMER_SCALE,
+                                                arm_gt_ptimer_cb, cpu);
+    cpu->gt_timer[GTIMER_VIRT] = qemu_new_timer(vm_clock, GTIMER_SCALE,
+                                                arm_gt_vtimer_cb, cpu);
+    qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
+                       ARRAY_SIZE(cpu->gt_timer_outputs));
+#endif
 
     if (tcg_enabled() && !inited) {
         inited = true;

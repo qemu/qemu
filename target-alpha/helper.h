@@ -99,6 +99,7 @@ DEF_HELPER_FLAGS_2(ieee_input_cmp, TCG_CALL_NO_WG, void, env, i64)
 
 #if !defined (CONFIG_USER_ONLY)
 DEF_HELPER_2(hw_ret, void, env, i64)
+DEF_HELPER_3(call_pal, void, env, i64, i64)
 
 DEF_HELPER_1(ldl_phys, i64, i64)
 DEF_HELPER_1(ldq_phys, i64, i64)
@@ -111,6 +112,7 @@ DEF_HELPER_3(stq_c_phys, i64, env, i64, i64)
 
 DEF_HELPER_FLAGS_1(tbia, TCG_CALL_NO_RWG, void, env)
 DEF_HELPER_FLAGS_2(tbis, TCG_CALL_NO_RWG, void, env, i64)
+DEF_HELPER_FLAGS_1(tb_flush, TCG_CALL_NO_RWG, void, env)
 
 DEF_HELPER_1(halt, void, i64);
 

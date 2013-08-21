@@ -1588,7 +1588,6 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
                             unsigned int sdram_size, const char *rev)
 {
     StrongARMState *s;
-    qemu_irq *pic;
     int i;
 
     s = g_malloc0(sizeof(StrongARMState));
@@ -1613,9 +1612,10 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(sysmem, SA_SDCS0, &s->sdram);
 
-    pic = arm_pic_init_cpu(s->cpu);
     s->pic = sysbus_create_varargs("strongarm_pic", 0x90050000,
-                    pic[ARM_PIC_CPU_IRQ], pic[ARM_PIC_CPU_FIQ], NULL);
+                    qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ),
+                    qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ),
+                    NULL);
 
     sysbus_create_varargs("pxa25x-timer", 0x90000000,
                     qdev_get_gpio_in(s->pic, SA_PIC_OSTC0),

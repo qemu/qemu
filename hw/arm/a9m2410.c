@@ -16,14 +16,14 @@
 
 #include "hw/hw.h"
 #include "hw/sysbus.h"          /* SYS_BUS_DEVICE, ... */
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "hw/ide/internal.h"    /* ide_cmd_write, ... */
 #include "hw/loader.h"          /* load_image_targphys */
 #include "hw/s3c2410x.h"
-#include "hw/smbus.h"
+#include "hw/i2c/smbus.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
-#include "hw/serial.h"          /* serial_isa_init */
+#include "hw/char/serial.h"     /* serial_isa_init */
 #include "net/net.h"
 #include "sysemu/blockdev.h"    /* drive_get */
 #include "sysemu/dma.h"         /* QEMUSGList (in ide/internal.h) */
@@ -90,8 +90,9 @@ static const MemoryRegionOps cpld_ops = {
 static void stcb_cpld_register(STCBState *s)
 {
     MemoryRegion *sysmem = get_system_memory();
-    memory_region_init_io(&s->cpld1, &cpld_ops, s, "cpld1", A9M2410_CPLD_SIZE);
-    memory_region_init_alias(&s->cpld5, "cpld5", &s->cpld1, 0, A9M2410_CPLD_SIZE);
+    memory_region_init_io(&s->cpld1, OBJECT(s),
+                          &cpld_ops, s, "cpld1", A9M2410_CPLD_SIZE);
+    memory_region_init_alias(&s->cpld5, NULL, "cpld5", &s->cpld1, 0, A9M2410_CPLD_SIZE);
     memory_region_add_subregion(sysmem, A9M2410_CS1_CPLD_BASE, &s->cpld1);
     memory_region_add_subregion(sysmem, A9M2410_CS5_CPLD_BASE, &s->cpld5);
     s->cpld_ctrl2 = 0;
@@ -183,10 +184,11 @@ static MMIOState *stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq i
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
-    memory_region_init_io(&s->slow, &stcb_ide_ops, s, "stcb-ide", 0x1000000);
-    memory_region_init_alias(&s->fast, "stcb-ide", &s->slow, 0, 0x1000000);
-    memory_region_init_alias(&s->slowb, "stcb-ide", &s->slow, 0, 0x1000000);
-    memory_region_init_alias(&s->fastb, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_io(&s->slow, OBJECT(s),
+                          &stcb_ide_ops, s, "stcb-ide", 0x1000000);
+    memory_region_init_alias(&s->fast, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->slowb, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->fastb, NULL, "stcb-ide", &s->slow, 0, 0x1000000);
     return s;
 }
 

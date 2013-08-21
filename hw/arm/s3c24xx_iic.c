@@ -13,7 +13,7 @@
 
 #include "hw.h"
 #include "exec/address-spaces.h" /* get_system_memory */
-#include "i2c.h"
+#include "hw/i2c/i2c.h"
 
 #include "s3c24xx.h"
 

@@ -9,12 +9,12 @@
  */
 
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "hw/boards.h"
 #include "hw/devices.h"
 #include "hw/loader.h"          /* load_image_targphys */
 #include "hw/s3c2410x.h"
-#include "hw/smbus.h"
+#include "hw/i2c/smbus.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "sysemu/blockdev.h"    /* drive_get */
 #include "sysemu/sysemu.h"
@@ -61,7 +61,7 @@ static void smdk2410_init(QEMUMachineInitArgs *args)
     stcb->soc = s3c2410x_init(ram_size);
 
     /* Register the NOR flash ROM */
-    memory_region_init_ram(&stcb->flash,
+    memory_region_init_ram(&stcb->flash, NULL,
                            "smdk2410.flash", SMDK2410_NOR_SIZE);
     memory_region_set_readonly(&stcb->flash, true);
     memory_region_add_subregion(get_system_memory(),

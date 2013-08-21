@@ -93,7 +93,6 @@ static void raspi_init(QEMUMachineInitArgs *args)
 
     MemoryRegion *mr;
 
-    qemu_irq *cpu_pic;
     qemu_irq pic[72];
     qemu_irq mbox_irq[MBOX_CHAN_COUNT];
 
@@ -141,10 +140,10 @@ static void raspi_init(QEMUMachineInitArgs *args)
         per_todo_bus);
 
     // Interrupt Controller
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("bcm2835_ic", ARMCTRL_IC_BASE,
-        cpu_pic[ARM_PIC_CPU_IRQ],
-        cpu_pic[ARM_PIC_CPU_FIQ], NULL);
+        qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+        qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+        NULL);
     s = SYS_BUS_DEVICE(dev);
     mr = sysbus_mmio_get_region(s, 0);
     memory_region_init_alias(per_ic_bus, NULL, NULL, mr,

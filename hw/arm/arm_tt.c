@@ -14,21 +14,21 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/arm.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
-#include "hw/i2c.h"
-#include "hw/pc.h"
+#include "hw/i2c/i2c.h"
+#include "hw/i386/pc.h"
 #include "hw/ptimer.h"          /* ptimer_state */
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "block/block.h"
-#include "char/char.h"          /* qemu_chr_new */
+#include "sysemu/char.h"        /* qemu_chr_new */
 #include "ui/console.h"
 
-#include "hw/s3c2440.h"
+#include "s3c2440.h"
 
 #ifdef TARGET_WORDS_BIGENDIAN
 int bigendian = 1;
@@ -915,7 +915,6 @@ static void tt_init(QEMUMachineInitArgs *args)
     ARMCPU *cpu;
     TTState *s;
 #if 0
-    qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
     DeviceState *i2c_dev;
@@ -951,7 +950,6 @@ static void tt_init(QEMUMachineInitArgs *args)
     s->soc = s3c2440_init(ram_size);
 
     cpu = s->soc->cpu;
-    //~ cpu_pic = arm_pic_init_cpu(cpu);
 
     //~ ram_off = qemu_ram_alloc(NULL, "arm920.ram", ram_size);
     //~ cpu_register_physical_memory(0x00000000, ram_size, ram_off | IO_MEM_RAM);

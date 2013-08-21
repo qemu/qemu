@@ -56,7 +56,6 @@ static void realview_init(QEMUMachineInitArgs *args,
     MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *gpio2, *pl041;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     qemu_irq pic[64];
     qemu_irq mmc_irq[2];
     PCIBus *pci_bus = NULL;
@@ -92,8 +91,7 @@ static void realview_init(QEMUMachineInitArgs *args,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(cpu);
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
     env = &cpu->env;
     if (arm_feature(env, ARM_FEATURE_V7)) {

@@ -7,9 +7,9 @@
  *
  */
 
-#include "sysbus.h"
-#include "boards.h"
-#include "arm-misc.h"
+#include "hw/sysbus.h"
+#include "hw/boards.h"
+#include "hw/arm/arm.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "net/net.h"
 
@@ -20,7 +20,6 @@ static void phycard_init(QEMUMachineInitArgs *args)
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_pic;
     qemu_irq pic[64];
     DeviceState *dev;
     int i;
@@ -35,13 +34,12 @@ static void phycard_init(QEMUMachineInitArgs *args)
     }
 
     /* RAM at address zero. */
-    memory_region_init_ram(ram, "phycard.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "phycard.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_simple("syborg,interrupt", 0xC0000000,
-                               cpu_pic[ARM_PIC_CPU_IRQ]);
+                               qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }

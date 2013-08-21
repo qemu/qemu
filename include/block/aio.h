@@ -74,9 +74,6 @@ typedef struct AioContext {
     struct ThreadPool *thread_pool;
 } AioContext;
 
-/* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
-typedef int (AioFlushEventNotifierHandler)(EventNotifier *e);
-
 /**
  * aio_context_new: Allocate a new AioContext.
  *
@@ -198,9 +195,6 @@ bool aio_pending(AioContext *ctx);
 bool aio_poll(AioContext *ctx, bool blocking);
 
 #ifdef CONFIG_POSIX
-/* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
-typedef int (AioFlushHandler)(void *opaque);
-
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
  * be invoked when using qemu_aio_wait().
@@ -212,7 +206,6 @@ void aio_set_fd_handler(AioContext *ctx,
                         int fd,
                         IOHandler *io_read,
                         IOHandler *io_write,
-                        AioFlushHandler *io_flush,
                         void *opaque);
 #endif
 
@@ -225,8 +218,7 @@ void aio_set_fd_handler(AioContext *ctx,
  */
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
-                            AioFlushEventNotifierHandler *io_flush);
+                            EventNotifierHandler *io_read);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.
@@ -240,14 +232,12 @@ struct ThreadPool *aio_get_thread_pool(AioContext *ctx);
 
 bool qemu_aio_wait(void);
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
-                                 EventNotifierHandler *io_read,
-                                 AioFlushEventNotifierHandler *io_flush);
+                                 EventNotifierHandler *io_read);
 
 #ifdef CONFIG_POSIX
 void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_read,
                              IOHandler *io_write,
-                             AioFlushHandler *io_flush,
                              void *opaque);
 #endif
 

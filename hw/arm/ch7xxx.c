@@ -8,7 +8,7 @@
  */
 
 #include "qemu-common.h"
-#include "i2c.h"
+#include "hw/i2c/i2c.h"
 
 //#define DBF(X...) fprintf(stderr, "QEMU:ch7xxx:" X)
 #define DBF(X...)
