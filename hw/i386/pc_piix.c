@@ -62,11 +62,11 @@ static bool has_pci_info = true;
 
 /* PC hardware initialisation */
 static void pc_init1(QEMUMachineInitArgs *args,
-                     MemoryRegion *system_memory,
-                     MemoryRegion *system_io,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
+    MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *system_io = get_system_io();
     int i;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
@@ -233,7 +233,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
 
 static void pc_init_pci(QEMUMachineInitArgs *args)
 {
-    pc_init1(args, get_system_memory(), get_system_io(), 1, 1);
+    pc_init1(args, 1, 1);
 }
 
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
@@ -306,7 +306,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
     has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
-    pc_init1(args, get_system_memory(), get_system_io(), 1, 0);
+    pc_init1(args, 1, 0);
 }
 
 static void pc_init_isa(QEMUMachineInitArgs *args)
@@ -317,7 +317,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
     }
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
-    pc_init1(args, get_system_memory(), get_system_io(), 0, 1);
+    pc_init1(args, 0, 1);
 }
 
 #ifdef CONFIG_XEN
