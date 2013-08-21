@@ -93,7 +93,7 @@ uint64_t helper_get_vmtime(void)
 
 uint64_t helper_get_walltime(void)
 {
-    return qemu_get_clock_ns(rtc_clock);
+    return qemu_clock_get_ns(rtc_clock);
 }
 
 void helper_set_alarm(CPUAlphaState *env, uint64_t expire)

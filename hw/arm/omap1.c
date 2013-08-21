@@ -2894,7 +2894,7 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     s->pm_am = 0;
     s->auto_comp = 0;
     s->round = 0;
-    s->tick = qemu_get_clock_ms(rtc_clock);
+    s->tick = qemu_clock_get_ms(rtc_clock);
     memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
     s->alarm_tm.tm_mday = 0x01;
     s->status = 1 << 7;
@@ -2915,7 +2915,7 @@ static struct omap_rtc_s *omap_rtc_init(MemoryRegion *system_memory,
 
     s->irq = timerirq;
     s->alarm = alarmirq;
-    s->clk = qemu_new_timer_ms(rtc_clock, omap_rtc_tick, s);
+    s->clk = timer_new_ms(rtc_clock, omap_rtc_tick, s);
 
     omap_rtc_reset(s);
 

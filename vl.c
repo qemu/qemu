@@ -196,7 +196,7 @@ NICInfo nd_table[MAX_NICS];
 int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
-QEMUClock *rtc_clock;
+QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
 static int no_frame = 0;
@@ -805,11 +805,11 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "clock");
     if (value) {
         if (!strcmp(value, "host")) {
-            rtc_clock = host_clock;
+            rtc_clock = QEMU_CLOCK_HOST;
         } else if (!strcmp(value, "rt")) {
-            rtc_clock = rt_clock;
+            rtc_clock = QEMU_CLOCK_REALTIME;
         } else if (!strcmp(value, "vm")) {
-            rtc_clock = vm_clock;
+            rtc_clock = QEMU_CLOCK_VIRTUAL;
         } else {
             fprintf(stderr, "qemu: invalid option value '%s'\n", value);
             exit(1);
@@ -2965,7 +2965,7 @@ int main(int argc, char **argv, char **envp)
     runstate_init();
 
     init_clocks();
-    rtc_clock = host_clock;
+    rtc_clock = QEMU_CLOCK_HOST;
 
     qemu_cache_utils_init(envp);
 
