@@ -65,22 +65,14 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr, uint64_t buid,
 {
     sPAPRPHBState *sphb = find_phb(spapr, buid);
     PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
-    BusState *bus = BUS(phb->bus);
-    BusChild *kid;
+    int bus_num = (config_addr >> 16) & 0xFF;
     int devfn = (config_addr >> 8) & 0xFF;
 
     if (!phb) {
         return NULL;
     }
 
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        PCIDevice *dev = (PCIDevice *)kid->child;
-        if (dev->devfn == devfn) {
-            return dev;
-        }
-    }
-
-    return NULL;
+    return pci_find_device(phb->bus, bus_num, devfn);
 }
 
 static uint32_t rtas_pci_cfgaddr(uint32_t arg)
