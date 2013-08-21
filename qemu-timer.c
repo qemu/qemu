@@ -273,6 +273,56 @@ int64_t qemu_clock_deadline(QEMUClock *clock)
     return delta;
 }
 
+/*
+ * As above, but return -1 for no deadline, and do not cap to 2^32
+ * as we know the result is always positive.
+ */
+
+int64_t qemu_clock_deadline_ns(QEMUClock *clock)
+{
+    int64_t delta;
+
+    if (!clock->enabled || !clock->active_timers) {
+        return -1;
+    }
+
+    delta = clock->active_timers->expire_time - qemu_get_clock_ns(clock);
+
+    if (delta <= 0) {
+        return 0;
+    }
+
+    return delta;
+}
+
+/* Transition function to convert a nanosecond timeout to ms
+ * This is used where a system does not support ppoll
+ */
+int qemu_timeout_ns_to_ms(int64_t ns)
+{
+    int64_t ms;
+    if (ns < 0) {
+        return -1;
+    }
+
+    if (!ns) {
+        return 0;
+    }
+
+    /* Always round up, because it's better to wait too long than to wait too
+     * little and effectively busy-wait
+     */
+    ms = (ns + SCALE_MS - 1) / SCALE_MS;
+
+    /* To avoid overflow problems, limit this to 2^31, i.e. approx 25 days */
+    if (ms > (int64_t) INT32_MAX) {
+        ms = INT32_MAX;
+    }
+
+    return (int) ms;
+}
+
+
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque)
 {

@@ -40,6 +40,29 @@ int64_t qemu_get_clock_ns(QEMUClock *clock);
 int64_t qemu_clock_has_timers(QEMUClock *clock);
 int64_t qemu_clock_expired(QEMUClock *clock);
 int64_t qemu_clock_deadline(QEMUClock *clock);
+
+/**
+ * qemu_clock_deadline_ns:
+ * @clock: the clock to operate on
+ *
+ * Calculate the timeout of the earliest expiring timer
+ * in nanoseconds, or -1 if no timer is set to expire.
+ *
+ * Returns: time until expiry in nanoseconds or -1
+ */
+int64_t qemu_clock_deadline_ns(QEMUClock *clock);
+
+/**
+ * qemu_timeout_ns_to_ms:
+ * @ns: nanosecond timeout value
+ *
+ * Convert a nanosecond timeout value (or -1) to
+ * a millisecond value (or -1), always rounding up.
+ *
+ * Returns: millisecond timeout value
+ */
+int qemu_timeout_ns_to_ms(int64_t ns);
+
 void qemu_clock_enable(QEMUClock *clock, bool enabled);
 void qemu_clock_warp(QEMUClock *clock);
 
@@ -66,6 +89,25 @@ int init_timer_alarm(void);
 int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);
+
+/**
+ * qemu_soonest_timeout:
+ * @timeout1: first timeout in nanoseconds (or -1 for infinite)
+ * @timeout2: second timeout in nanoseconds (or -1 for infinite)
+ *
+ * Calculates the soonest of two timeout values. -1 means infinite, which
+ * is later than any other value.
+ *
+ * Returns: soonest timeout value in nanoseconds (or -1 for infinite)
+ */
+static inline int64_t qemu_soonest_timeout(int64_t timeout1, int64_t timeout2)
+{
+    /* we can abuse the fact that -1 (which means infinite) is a maximal
+     * value when cast to unsigned. As this is disgusting, it's kept in
+     * one inline function.
+     */
+    return ((uint64_t) timeout1 < (uint64_t) timeout2) ? timeout1 : timeout2;
+}
 
 static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
                                            void *opaque)
