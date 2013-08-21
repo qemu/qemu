@@ -26,11 +26,13 @@ static void openrisc_pic_cpu_handler(void *opaque, int irq, int level)
 {
     OpenRISCCPU *cpu = (OpenRISCCPU *)opaque;
     CPUState *cs = CPU(cpu);
-    uint32_t irq_bit = 1 << irq;
+    uint32_t irq_bit;
 
     if (irq > 31 || irq < 0) {
         return;
     }
+
+    irq_bit = 1U << irq;
 
     if (level) {
         cpu->env.picsr |= irq_bit;
