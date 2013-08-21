@@ -63,6 +63,18 @@ int64_t qemu_clock_deadline_ns(QEMUClock *clock);
  */
 int qemu_timeout_ns_to_ms(int64_t ns);
 
+/**
+ * qemu_poll_ns:
+ * @fds: Array of file descriptors
+ * @nfds: number of file descriptors
+ * @timeout: timeout in nanoseconds
+ *
+ * Perform a poll like g_poll but with a timeout in nanoseconds.
+ * See g_poll documentation for further details.
+ *
+ * Returns: number of fds ready
+ */
+int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout);
 void qemu_clock_enable(QEMUClock *clock, bool enabled);
 void qemu_clock_warp(QEMUClock *clock);
 

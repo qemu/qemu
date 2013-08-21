@@ -37,6 +37,10 @@
 #include <mmsystem.h>
 #endif
 
+#ifdef CONFIG_PPOLL
+#include <poll.h>
+#endif
+
 /***********************************************************/
 /* timers */
 
@@ -320,6 +324,26 @@ int qemu_timeout_ns_to_ms(int64_t ns)
     }
 
     return (int) ms;
+}
+
+
+/* qemu implementation of g_poll which uses a nanosecond timeout but is
+ * otherwise identical to g_poll
+ */
+int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
+{
+#ifdef CONFIG_PPOLL
+    if (timeout < 0) {
+        return ppoll((struct pollfd *)fds, nfds, NULL, NULL);
+    } else {
+        struct timespec ts;
+        ts.tv_sec = timeout / 1000000000LL;
+        ts.tv_nsec = timeout % 1000000000LL;
+        return ppoll((struct pollfd *)fds, nfds, &ts, NULL);
+    }
+#else
+    return g_poll(fds, nfds, qemu_timeout_ns_to_ms(timeout));
+#endif
 }
 
 

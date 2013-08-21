@@ -2818,6 +2818,22 @@ if compile_prog "" "" ; then
   dup3=yes
 fi
 
+# check for ppoll support
+ppoll=no
+cat > $TMPC << EOF
+#include <poll.h>
+
+int main(void)
+{
+    struct pollfd pfd = { .fd = 0, .events = 0, .revents = 0 };
+    ppoll(&pfd, 1, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  ppoll=yes
+fi
+
 # check for epoll support
 epoll=no
 cat > $TMPC << EOF
@@ -3813,6 +3829,9 @@ if test "$fiemap" = "yes" ; then
 fi
 if test "$dup3" = "yes" ; then
   echo "CONFIG_DUP3=y" >> $config_host_mak
+fi
+if test "$ppoll" = "yes" ; then
+  echo "CONFIG_PPOLL=y" >> $config_host_mak
 fi
 if test "$epoll" = "yes" ; then
   echo "CONFIG_EPOLL=y" >> $config_host_mak
