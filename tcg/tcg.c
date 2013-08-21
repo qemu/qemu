@@ -49,10 +49,10 @@
 
 #include "tcg-op.h"
 
-#if TCG_TARGET_REG_BITS == 64
-# define ELF_CLASS  ELFCLASS64
-#else
+#if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32
+#else
+# define ELF_CLASS  ELFCLASS64
 #endif
 #ifdef HOST_WORDS_BIGENDIAN
 # define ELF_DATA   ELFDATA2MSB
@@ -82,8 +82,8 @@ typedef struct {
 typedef struct QEMU_PACKED {
     uint32_t len __attribute__((aligned((sizeof(void *)))));
     uint32_t cie_offset;
-    tcg_target_long func_start;
-    tcg_target_long func_len;
+    uintptr_t func_start;
+    uintptr_t func_len;
 } DebugFrameFDEHeader;
 
 static void tcg_register_jit_int(void *buf, size_t size,
