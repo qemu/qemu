@@ -246,4 +246,47 @@ void qemu_aio_set_fd_handler(int fd,
                              void *opaque);
 #endif
 
+/**
+ * aio_timer_new:
+ * @ctx: the aio context
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Allocate a new timer attached to the context @ctx.
+ * The function is responsible for memory allocation.
+ *
+ * The preferred interface is aio_timer_init. Use that
+ * unless you really need dynamic memory allocation.
+ *
+ * Returns: a pointer to the new timer
+ */
+static inline QEMUTimer *aio_timer_new(AioContext *ctx, QEMUClockType type,
+                                       int scale,
+                                       QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_tl(ctx->tlg.tl[type], scale, cb, opaque);
+}
+
+/**
+ * aio_timer_init:
+ * @ctx: the aio context
+ * @ts: the timer
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialise a new timer attached to the context @ctx.
+ * The caller is responsible for memory allocation.
+ */
+static inline void aio_timer_init(AioContext *ctx,
+                                  QEMUTimer *ts, QEMUClockType type,
+                                  int scale,
+                                  QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, ctx->tlg.tl[type], scale, cb, opaque);
+}
+
 #endif
