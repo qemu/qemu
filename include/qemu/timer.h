@@ -93,8 +93,52 @@ static inline QEMUClock *qemu_clock_ptr(QEMUClockType type)
 #define vm_clock (qemu_clock_ptr(QEMU_CLOCK_VIRTUAL))
 #define host_clock (qemu_clock_ptr(QEMU_CLOCK_HOST))
 
+/**
+ * qemu_get_clock_ns:
+ * @clock: the clock to operate on
+ *
+ * Get the nanosecond value of a clock
+ *
+ * Returns: the clock value in nanoseconds
+ */
 int64_t qemu_get_clock_ns(QEMUClock *clock);
+
+/**
+ * qemu_clock_get_ns;
+ * @type: the clock type
+ *
+ * Get the nanosecond value of a clock with
+ * type @type
+ *
+ * Returns: the clock value in nanoseconds
+ */
+static inline int64_t qemu_clock_get_ns(QEMUClockType type)
+{
+    return qemu_get_clock_ns(qemu_clock_ptr(type));
+}
+
+/**
+ * qemu_clock_has_timers:
+ * @clock: the clock to operate on
+ *
+ * Determines whether a clock's default timer list
+ * has timers attached
+ *
+ * Returns: true if the clock's default timer list
+ * has timers attached
+ */
 bool qemu_clock_has_timers(QEMUClock *clock);
+
+/**
+ * qemu_clock_expired:
+ * @clock: the clock to operate on
+ *
+ * Determines whether a clock's default timer list
+ * has an expired clock.
+ *
+ * Returns: true if the clock's default timer list has
+ * an expired timer
+ */
 bool qemu_clock_expired(QEMUClock *clock);
 int64_t qemu_clock_deadline(QEMUClock *clock);
 
@@ -294,7 +338,7 @@ void timerlistgroup_deinit(QEMUTimerListGroup *tlg);
 bool timerlistgroup_run_timers(QEMUTimerListGroup *tlg);
 
 /**
- * timerlistgroup_deadline_ns
+ * timerlistgroup_deadline_ns:
  * @tlg: the timer list group
  *
  * Determine the deadline of the soonest timer to
@@ -330,13 +374,57 @@ int qemu_timeout_ns_to_ms(int64_t ns);
  * Returns: number of fds ready
  */
 int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout);
+
+/**
+ * qemu_clock_enable:
+ * @clock: the clock to operate on
+ * @enabled: true to enable, false to disable
+ *
+ * Enable or disable a clock
+ */
 void qemu_clock_enable(QEMUClock *clock, bool enabled);
+
+/**
+ * qemu_clock_warp:
+ * @clock: the clock to operate on
+ *
+ * Warp a clock to a new value
+ */
 void qemu_clock_warp(QEMUClock *clock);
 
+/**
+ * qemu_register_clock_reset_notifier:
+ * @clock: the clock to operate on
+ * @notifier: the notifier function
+ *
+ * Register a notifier function to call when the clock
+ * concerned is reset.
+ */
 void qemu_register_clock_reset_notifier(QEMUClock *clock, Notifier *notifier);
+
+/**
+ * qemu_unregister_clock_reset_notifier:
+ * @clock: the clock to operate on
+ * @notifier: the notifier function
+ *
+ * Unregister a notifier function to call when the clock
+ * concerned is reset.
+ */
 void qemu_unregister_clock_reset_notifier(QEMUClock *clock,
                                           Notifier *notifier);
 
+/**
+ * qemu_new_timer:
+ * @clock: the clock to operate on
+ * @scale: the scale of the clock
+ * @cb: the callback function to call when the timer expires
+ * @opaque: an opaque pointer to pass to the callback
+ *
+ * Produce a new timer attached to clock @clock. This is a legacy
+ * function. Use timer_new instead.
+ *
+ * Returns: a pointer to the new timer allocated.
+ */
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque);
 
@@ -401,21 +489,21 @@ static inline QEMUTimer *timer_new(QEMUClockType type, int scale,
     return timer_new_tl(main_loop_tlg.tl[type], scale, cb, opaque);
 }
 
+/**
+ * qemu_free_timer:
+ * @ts: the timer to operate on
+ *
+ * free the timer @ts. @ts must not be active.
+ *
+ * This is a legacy function. Use timer_free instead.
+ */
 void qemu_free_timer(QEMUTimer *ts);
-void qemu_del_timer(QEMUTimer *ts);
-void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time);
-void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
-bool timer_pending(QEMUTimer *ts);
-bool timer_expired(QEMUTimer *timer_head, int64_t current_time);
-uint64_t timer_expire_time_ns(QEMUTimer *ts);
-
-/* New format calling conventions for timers */
 
 /**
  * timer_free:
- * @ts: the timer
+ * @ts: the timer to operate on
  *
- * Free a timer (it must not be on the active list)
+ * free the timer @ts. @ts must not be active.
  */
 static inline void timer_free(QEMUTimer *ts)
 {
@@ -423,10 +511,22 @@ static inline void timer_free(QEMUTimer *ts)
 }
 
 /**
- * timer_del:
- * @ts: the timer
+ * qemu_del_timer:
+ * @ts: the timer to operate on
  *
- * Delete a timer from the active list.
+ * Delete a timer. This makes it inactive. It does not free
+ * memory.
+ *
+ * This is a legacy function. Use timer_del instead.
+ */
+void qemu_del_timer(QEMUTimer *ts);
+
+/**
+ * timer_del:
+ * @ts: the timer to operate on
+ *
+ * Delete a timer. This makes it inactive. It does not free
+ * memory.
  */
 static inline void timer_del(QEMUTimer *ts)
 {
@@ -434,11 +534,24 @@ static inline void timer_del(QEMUTimer *ts)
 }
 
 /**
- * timer_mod_ns:
- * @ts: the timer
+ * qemu_mod_timer_ns:
+ * @ts: the timer to operate on
  * @expire_time: the expiry time in nanoseconds
  *
- * Modify a timer to expire at @expire_time
+ * Modify a timer such that the expiry time is @expire_time
+ * as measured in nanoseconds
+ *
+ * This is a legacy function. Use timer_mod_ns.
+ */
+void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time);
+
+/**
+ * timer_mod_ns:
+ * @ts: the timer to operate on
+ * @expire_time: the expiry time in nanoseconds
+ *
+ * Modify a timer such that the expiry time is @expire_time
+ * as measured in nanoseconds
  */
 static inline void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
 {
@@ -446,17 +559,60 @@ static inline void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
 }
 
 /**
- * timer_mod:
- * @ts: the timer
- * @expire_time: the expire time in the units associated with the timer
+ * qemu_mod_timer:
+ * @ts: the timer to operate on
+ * @expire_time: the expiry time
  *
- * Modify a timer to expiry at @expire_time, taking into
- * account the scale associated with the timer.
+ * Modify a timer such that the expiry time is @expire_time
+ * as measured in the timer's scale
+ *
+ * This is a legacy function. Use timer_mod.
  */
-static inline void timer_mod(QEMUTimer *ts, int64_t expire_timer)
+void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
+
+/**
+ * timer_mod:
+ * @ts: the timer to operate on
+ * @expire_time: the expiry time in nanoseconds
+ *
+ * Modify a timer such that the expiry time is @expire_time
+ * as measured in the timer's scale
+ */
+static inline void timer_mod(QEMUTimer *ts, int64_t expire_time)
 {
-    qemu_mod_timer(ts, expire_timer);
+    qemu_mod_timer(ts, expire_time);
 }
+
+/**
+ * timer_pending:
+ * @ts: the timer to operate on
+ *
+ * Determines whether a timer is pending (i.e. is on the
+ * active list of timers, whether or not it has not yet expired).
+ *
+ * Returns: true if the timer is pending
+ */
+bool timer_pending(QEMUTimer *ts);
+
+/**
+ * timer_expired:
+ * @ts: the timer to operate on
+ *
+ * Determines whether a timer has expired.
+ *
+ * Returns: true if the timer has expired
+ */
+bool timer_expired(QEMUTimer *timer_head, int64_t current_time);
+
+/**
+ * timer_expire_time_ns:
+ * @ts: the timer to operate on
+ *
+ * Determines the time until a timer expires
+ *
+ * Returns: the time (in nanoseonds) until a timer expires
+ */
+uint64_t timer_expire_time_ns(QEMUTimer *ts);
 
 /**
  * qemu_run_timers:
@@ -480,8 +636,14 @@ bool qemu_run_timers(QEMUClock *clock);
 bool qemu_run_all_timers(void);
 
 void configure_alarms(char const *opt);
-void init_clocks(void);
 int init_timer_alarm(void);
+
+/**
+ * initclocks:
+ *
+ * Initialise the clock & timer infrastructure
+ */
+void init_clocks(void);
 
 int64_t cpu_get_ticks(void);
 void cpu_enable_ticks(void);
