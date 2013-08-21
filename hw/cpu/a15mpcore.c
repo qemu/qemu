@@ -50,7 +50,6 @@ static int a15mp_priv_init(SysBusDevice *dev)
     SysBusDevice *busdev;
     const char *gictype = "arm_gic";
     int i;
-    CPUState *cpu;
 
     if (kvm_irqchip_in_kernel()) {
         gictype = "kvm-arm-gic";
@@ -72,8 +71,8 @@ static int a15mp_priv_init(SysBusDevice *dev)
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs
      */
-    for (i = 0, cpu = first_cpu; i < s->num_cpu; i++, cpu = cpu->next_cpu) {
-        DeviceState *cpudev = DEVICE(cpu);
+    for (i = 0; i < s->num_cpu; i++) {
+        DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = s->num_irq - 32 + i * 32;
         /* physical timer; we wire it up to the non-secure timer's ID,
          * since a real A15 always has TrustZone but QEMU doesn't.
