@@ -304,11 +304,20 @@ bool qemu_clock_use_for_deadline(QEMUClock *clock)
     return !(use_icount && (clock->type == QEMU_CLOCK_VIRTUAL));
 }
 
+void qemu_clock_notify(QEMUClock *clock)
+{
+    QEMUTimerList *timer_list;
+    QLIST_FOREACH(timer_list, &clock->timerlists, list) {
+        timerlist_notify(timer_list);
+    }
+}
+
 void qemu_clock_enable(QEMUClock *clock, bool enabled)
 {
     bool old = clock->enabled;
     clock->enabled = enabled;
     if (enabled && !old) {
+        qemu_clock_notify(clock);
         qemu_rearm_alarm_timer(alarm_timer);
     }
 }
@@ -522,9 +531,7 @@ void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
         }
         /* Interrupt execution to force deadline recalculation.  */
         qemu_clock_warp(ts->timer_list->clock);
-        if (use_icount) {
-            timerlist_notify(ts->timer_list);
-        }
+        timerlist_notify(ts->timer_list);
     }
 }
 

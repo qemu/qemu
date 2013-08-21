@@ -136,6 +136,15 @@ bool qemu_clock_use_for_deadline(QEMUClock *clock);
 QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClock *clock);
 
 /**
+ * qemu_clock_nofify:
+ * @clock: the clock to operate on
+ *
+ * Call the notifier callback connected with the default timer
+ * list linked to the clock, or qemu_notify() if none.
+ */
+void qemu_clock_notify(QEMUClock *clock);
+
+/**
  * timerlist_new:
  * @type: the clock type to associate with the timerlist
  * @cb: the callback to call on notification
