@@ -3714,7 +3714,9 @@ int main(int argc, char **argv, char **envp)
                 old_param = 1;
                 break;
             case QEMU_OPTION_clock:
-                configure_alarms(optarg);
+                /* Clock options no longer exist.  Keep this option for
+                 * backward compatibility.
+                 */
                 break;
             case QEMU_OPTION_startdate:
                 configure_rtc_date_offset(optarg, 1);

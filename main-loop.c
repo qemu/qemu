@@ -131,10 +131,6 @@ int qemu_init_main_loop(void)
     GSource *src;
 
     init_clocks();
-    if (init_timer_alarm() < 0) {
-        fprintf(stderr, "could not initialize alarm timer\n");
-        exit(1);
-    }
 
     ret = qemu_signal_init();
     if (ret) {
