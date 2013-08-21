@@ -49,22 +49,29 @@
 /* timers */
 
 struct QEMUClock {
-    QEMUTimer *active_timers;
+    QEMUTimerList *main_loop_timerlist;
+    QLIST_HEAD(, QEMUTimerList) timerlists;
 
     NotifierList reset_notifiers;
     int64_t last;
 
-    int type;
+    QEMUClockType type;
     bool enabled;
 };
 
-struct QEMUTimer {
-    int64_t expire_time;	/* in nanoseconds */
+QEMUClock *qemu_clocks[QEMU_CLOCK_MAX];
+
+/* A QEMUTimerList is a list of timers attached to a clock. More
+ * than one QEMUTimerList can be attached to each clock, for instance
+ * used by different AioContexts / threads. Each clock also has
+ * a list of the QEMUTimerLists associated with it, in order that
+ * reenabling the clock can call all the notifiers.
+ */
+
+struct QEMUTimerList {
     QEMUClock *clock;
-    QEMUTimerCB *cb;
-    void *opaque;
-    QEMUTimer *next;
-    int scale;
+    QEMUTimer *active_timers;
+    QLIST_ENTRY(QEMUTimerList) list;
 };
 
 struct qemu_alarm_timer {
@@ -93,21 +100,25 @@ static int64_t qemu_next_alarm_deadline(void)
 {
     int64_t delta = INT64_MAX;
     int64_t rtdelta;
+    int64_t hdelta;
 
-    if (!use_icount && vm_clock->enabled && vm_clock->active_timers) {
-        delta = vm_clock->active_timers->expire_time -
-                     qemu_get_clock_ns(vm_clock);
+    if (!use_icount && vm_clock->enabled &&
+        vm_clock->main_loop_timerlist->active_timers) {
+        delta = vm_clock->main_loop_timerlist->active_timers->expire_time -
+            qemu_get_clock_ns(vm_clock);
     }
-    if (host_clock->enabled && host_clock->active_timers) {
-        int64_t hdelta = host_clock->active_timers->expire_time -
-                 qemu_get_clock_ns(host_clock);
+    if (host_clock->enabled &&
+        host_clock->main_loop_timerlist->active_timers) {
+        hdelta = host_clock->main_loop_timerlist->active_timers->expire_time -
+            qemu_get_clock_ns(host_clock);
         if (hdelta < delta) {
             delta = hdelta;
         }
     }
-    if (rt_clock->enabled && rt_clock->active_timers) {
-        rtdelta = (rt_clock->active_timers->expire_time -
-                 qemu_get_clock_ns(rt_clock));
+    if (rt_clock->enabled &&
+        rt_clock->main_loop_timerlist->active_timers) {
+        rtdelta = (rt_clock->main_loop_timerlist->active_timers->expire_time -
+                   qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta) {
             delta = rtdelta;
         }
@@ -231,11 +242,42 @@ next:
     }
 }
 
-QEMUClock *rt_clock;
-QEMUClock *vm_clock;
-QEMUClock *host_clock;
+static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock)
+{
+    QEMUTimerList *timer_list;
 
-static QEMUClock *qemu_clock_new(int type)
+    /* Assert if we do not have a clock. If you see this
+     * assertion in means that the clocks have not been
+     * initialised before a timerlist is needed. This
+     * normally happens if an AioContext is used before
+     * init_clocks() is called within main().
+     */
+    assert(clock);
+
+    timer_list = g_malloc0(sizeof(QEMUTimerList));
+    timer_list->clock = clock;
+    QLIST_INSERT_HEAD(&clock->timerlists, timer_list, list);
+    return timer_list;
+}
+
+QEMUTimerList *timerlist_new(QEMUClockType type)
+{
+    return timerlist_new_from_clock(qemu_clock_ptr(type));
+}
+
+void timerlist_free(QEMUTimerList *timer_list)
+{
+    assert(!timerlist_has_timers(timer_list));
+    if (timer_list->clock) {
+        QLIST_REMOVE(timer_list, list);
+        if (timer_list->clock->main_loop_timerlist == timer_list) {
+            timer_list->clock->main_loop_timerlist = NULL;
+        }
+    }
+    g_free(timer_list);
+}
+
+static QEMUClock *qemu_clock_new(QEMUClockType type)
 {
     QEMUClock *clock;
 
@@ -243,8 +285,15 @@ static QEMUClock *qemu_clock_new(int type)
     clock->type = type;
     clock->enabled = true;
     clock->last = INT64_MIN;
+    QLIST_INIT(&clock->timerlists);
     notifier_list_init(&clock->reset_notifiers);
+    clock->main_loop_timerlist = timerlist_new_from_clock(clock);
     return clock;
+}
+
+bool qemu_clock_use_for_deadline(QEMUClock *clock)
+{
+    return !(use_icount && (clock->type == QEMU_CLOCK_VIRTUAL));
 }
 
 void qemu_clock_enable(QEMUClock *clock, bool enabled)
@@ -256,24 +305,36 @@ void qemu_clock_enable(QEMUClock *clock, bool enabled)
     }
 }
 
-int64_t qemu_clock_has_timers(QEMUClock *clock)
+bool timerlist_has_timers(QEMUTimerList *timer_list)
 {
-    return !!clock->active_timers;
+    return !!timer_list->active_timers;
 }
 
-int64_t qemu_clock_expired(QEMUClock *clock)
+bool qemu_clock_has_timers(QEMUClock *clock)
 {
-    return (clock->active_timers &&
-            clock->active_timers->expire_time < qemu_get_clock_ns(clock));
+    return timerlist_has_timers(clock->main_loop_timerlist);
 }
 
-int64_t qemu_clock_deadline(QEMUClock *clock)
+bool timerlist_expired(QEMUTimerList *timer_list)
+{
+    return (timer_list->active_timers &&
+            timer_list->active_timers->expire_time <
+            qemu_get_clock_ns(timer_list->clock));
+}
+
+bool qemu_clock_expired(QEMUClock *clock)
+{
+    return timerlist_expired(clock->main_loop_timerlist);
+}
+
+int64_t timerlist_deadline(QEMUTimerList *timer_list)
 {
     /* To avoid problems with overflow limit this to 2^32.  */
     int64_t delta = INT32_MAX;
 
-    if (clock->enabled && clock->active_timers) {
-        delta = clock->active_timers->expire_time - qemu_get_clock_ns(clock);
+    if (timer_list->clock->enabled && timer_list->active_timers) {
+        delta = timer_list->active_timers->expire_time -
+            qemu_get_clock_ns(timer_list->clock);
     }
     if (delta < 0) {
         delta = 0;
@@ -281,26 +342,47 @@ int64_t qemu_clock_deadline(QEMUClock *clock)
     return delta;
 }
 
+int64_t qemu_clock_deadline(QEMUClock *clock)
+{
+    return timerlist_deadline(clock->main_loop_timerlist);
+}
+
 /*
  * As above, but return -1 for no deadline, and do not cap to 2^32
  * as we know the result is always positive.
  */
 
-int64_t qemu_clock_deadline_ns(QEMUClock *clock)
+int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
 {
     int64_t delta;
 
-    if (!clock->enabled || !clock->active_timers) {
+    if (!timer_list->clock->enabled || !timer_list->active_timers) {
         return -1;
     }
 
-    delta = clock->active_timers->expire_time - qemu_get_clock_ns(clock);
+    delta = timer_list->active_timers->expire_time -
+        qemu_get_clock_ns(timer_list->clock);
 
     if (delta <= 0) {
         return 0;
     }
 
     return delta;
+}
+
+int64_t qemu_clock_deadline_ns(QEMUClock *clock)
+{
+    return timerlist_deadline_ns(clock->main_loop_timerlist);
+}
+
+QEMUClock *timerlist_get_clock(QEMUTimerList *timer_list)
+{
+    return timer_list->clock;
+}
+
+QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClock *clock)
+{
+    return clock->main_loop_timerlist;
 }
 
 /* Transition function to convert a nanosecond timeout to ms
@@ -351,17 +433,21 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
 }
 
 
-QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
-                          QEMUTimerCB *cb, void *opaque)
+void timer_init(QEMUTimer *ts,
+                QEMUTimerList *timer_list, int scale,
+                QEMUTimerCB *cb, void *opaque)
 {
-    QEMUTimer *ts;
-
-    ts = g_malloc0(sizeof(QEMUTimer));
-    ts->clock = clock;
+    ts->timer_list = timer_list;
     ts->cb = cb;
     ts->opaque = opaque;
     ts->scale = scale;
-    return ts;
+}
+
+QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
+                          QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_tl(clock->main_loop_timerlist,
+                     scale, cb, opaque);
 }
 
 void qemu_free_timer(QEMUTimer *ts)
@@ -376,7 +462,7 @@ void qemu_del_timer(QEMUTimer *ts)
 
     /* NOTE: this code must be signal safe because
        timer_expired() can be called from a signal. */
-    pt = &ts->clock->active_timers;
+    pt = &ts->timer_list->active_timers;
     for(;;) {
         t = *pt;
         if (!t)
@@ -400,7 +486,7 @@ void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     /* add the timer in the sorted list */
     /* NOTE: this code must be signal safe because
        timer_expired() can be called from a signal. */
-    pt = &ts->clock->active_timers;
+    pt = &ts->timer_list->active_timers;
     for(;;) {
         t = *pt;
         if (!timer_expired_ns(t, expire_time)) {
@@ -413,12 +499,12 @@ void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     *pt = ts;
 
     /* Rearm if necessary  */
-    if (pt == &ts->clock->active_timers) {
+    if (pt == &ts->timer_list->active_timers) {
         if (!alarm_timer->pending) {
             qemu_rearm_alarm_timer(alarm_timer);
         }
         /* Interrupt execution to force deadline recalculation.  */
-        qemu_clock_warp(ts->clock);
+        qemu_clock_warp(ts->timer_list->clock);
         if (use_icount) {
             qemu_notify_event();
         }
@@ -433,7 +519,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 bool timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
-    for (t = ts->clock->active_timers; t != NULL; t = t->next) {
+    for (t = ts->timer_list->active_timers; t != NULL; t = t->next) {
         if (t == ts) {
             return true;
         }
@@ -446,23 +532,24 @@ bool timer_expired(QEMUTimer *timer_head, int64_t current_time)
     return timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
 
-bool qemu_run_timers(QEMUClock *clock)
+bool timerlist_run_timers(QEMUTimerList *timer_list)
 {
     QEMUTimer *ts;
     int64_t current_time;
     bool progress = false;
    
-    if (!clock->enabled)
+    if (!timer_list->clock->enabled) {
         return progress;
+    }
 
-    current_time = qemu_get_clock_ns(clock);
+    current_time = qemu_get_clock_ns(timer_list->clock);
     for(;;) {
-        ts = clock->active_timers;
+        ts = timer_list->active_timers;
         if (!timer_expired_ns(ts, current_time)) {
             break;
         }
         /* remove timer from the list before calling the callback */
-        clock->active_timers = ts->next;
+        timer_list->active_timers = ts->next;
         ts->next = NULL;
 
         /* run the callback (the timer list can be modified) */
@@ -470,6 +557,11 @@ bool qemu_run_timers(QEMUClock *clock)
         progress = true;
     }
     return progress;
+}
+
+bool qemu_run_timers(QEMUClock *clock)
+{
+    return timerlist_run_timers(clock->main_loop_timerlist);
 }
 
 int64_t qemu_get_clock_ns(QEMUClock *clock)
@@ -509,11 +601,13 @@ void qemu_unregister_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
 
 void init_clocks(void)
 {
-    if (!rt_clock) {
-        rt_clock = qemu_clock_new(QEMU_CLOCK_REALTIME);
-        vm_clock = qemu_clock_new(QEMU_CLOCK_VIRTUAL);
-        host_clock = qemu_clock_new(QEMU_CLOCK_HOST);
+    QEMUClockType type;
+    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+        if (!qemu_clocks[type]) {
+            qemu_clocks[type] = qemu_clock_new(type);
+        }
     }
+
 #ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK
     prctl(PR_SET_TIMERSLACK, 1, 0, 0, 0);
 #endif
@@ -530,9 +624,10 @@ bool qemu_run_all_timers(void)
     alarm_timer->pending = false;
 
     /* vm time timers */
-    progress |= qemu_run_timers(vm_clock);
-    progress |= qemu_run_timers(rt_clock);
-    progress |= qemu_run_timers(host_clock);
+    QEMUClockType type;
+    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+        progress |= qemu_run_timers(qemu_clock_ptr(type));
+    }
 
     /* rearm timer, if not periodic */
     if (alarm_timer->expired) {
