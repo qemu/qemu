@@ -412,7 +412,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         if (words[1]) {
             ns = strtoll(words[1], NULL, 0);
         } else {
-            ns = qemu_clock_deadline(vm_clock);
+            ns = qemu_clock_deadline_ns_all(vm_clock);
         }
         qtest_clock_warp(qemu_get_clock_ns(vm_clock) + ns);
         qtest_send_prefix(chr);

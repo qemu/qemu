@@ -267,7 +267,7 @@ static void icount_warp_rt(void *opaque)
             qemu_icount_bias += MIN(warp_delta, delta);
         }
         if (qemu_clock_expired(vm_clock)) {
-            qemu_notify_event();
+            qemu_clock_notify(vm_clock);
         }
     }
     vm_clock_warp_start = -1;
@@ -278,13 +278,13 @@ void qtest_clock_warp(int64_t dest)
     int64_t clock = qemu_get_clock_ns(vm_clock);
     assert(qtest_enabled());
     while (clock < dest) {
-        int64_t deadline = qemu_clock_deadline(vm_clock);
+        int64_t deadline = qemu_clock_deadline_ns_all(vm_clock);
         int64_t warp = MIN(dest - clock, deadline);
         qemu_icount_bias += warp;
         qemu_run_timers(vm_clock);
         clock = qemu_get_clock_ns(vm_clock);
     }
-    qemu_notify_event();
+    qemu_clock_notify(vm_clock);
 }
 
 void qemu_clock_warp(QEMUClock *clock)
@@ -319,7 +319,18 @@ void qemu_clock_warp(QEMUClock *clock)
     }
 
     vm_clock_warp_start = qemu_get_clock_ns(rt_clock);
-    deadline = qemu_clock_deadline(vm_clock);
+    /* We want to use the earliest deadline from ALL vm_clocks */
+    deadline = qemu_clock_deadline_ns_all(vm_clock);
+
+    /* Maintain prior (possibly buggy) behaviour where if no deadline
+     * was set (as there is no vm_clock timer) or it is more than
+     * INT32_MAX nanoseconds ahead, we still use INT32_MAX
+     * nanoseconds.
+     */
+    if ((deadline < 0) || (deadline > INT32_MAX)) {
+        deadline = INT32_MAX;
+    }
+
     if (deadline > 0) {
         /*
          * Ensure the vm_clock proceeds even when the virtual CPU goes to
@@ -338,8 +349,8 @@ void qemu_clock_warp(QEMUClock *clock)
          * packets continuously instead of every 100ms.
          */
         qemu_mod_timer(icount_warp_timer, vm_clock_warp_start + deadline);
-    } else {
-        qemu_notify_event();
+    } else if (deadline == 0) {
+        qemu_clock_notify(vm_clock);
     }
 }
 
@@ -866,8 +877,13 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     while (1) {
         tcg_exec_all();
-        if (use_icount && qemu_clock_deadline(vm_clock) <= 0) {
-            qemu_notify_event();
+
+        if (use_icount) {
+            int64_t deadline = qemu_clock_deadline_ns_all(vm_clock);
+
+            if (deadline == 0) {
+                qemu_clock_notify(vm_clock);
+            }
         }
         qemu_tcg_wait_io_event();
     }
@@ -1145,11 +1161,23 @@ static int tcg_cpu_exec(CPUArchState *env)
 #endif
     if (use_icount) {
         int64_t count;
+        int64_t deadline;
         int decr;
         qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
         env->icount_decr.u16.low = 0;
         env->icount_extra = 0;
-        count = qemu_icount_round(qemu_clock_deadline(vm_clock));
+        deadline = qemu_clock_deadline_ns_all(vm_clock);
+
+        /* Maintain prior (possibly buggy) behaviour where if no deadline
+         * was set (as there is no vm_clock timer) or it is more than
+         * INT32_MAX nanoseconds ahead, we still use INT32_MAX
+         * nanoseconds.
+         */
+        if ((deadline < 0) || (deadline > INT32_MAX)) {
+            deadline = INT32_MAX;
+        }
+
+        count = qemu_icount_round(deadline);
         qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
