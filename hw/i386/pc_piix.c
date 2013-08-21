@@ -263,17 +263,11 @@ static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
     pc_init_pci_1_4(args);
 }
 
-/* PC machine init function for pc-1.1 to pc-1.2 */
+/* PC machine init function for pc-0.14 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
     disable_kvm_pv_eoi();
     pc_init_pci_1_3(args);
-}
-
-/* PC machine init function for pc-0.14 to pc-1.0 */
-static void pc_init_pci_1_0(QEMUMachineInitArgs *args)
-{
-    pc_init_pci_1_2(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
@@ -485,7 +479,7 @@ static QEMUMachine pc_machine_v1_1 = {
 static QEMUMachine pc_machine_v1_0 = {
     .name = "pc-1.0",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_0,
@@ -501,7 +495,7 @@ static QEMUMachine pc_machine_v1_0 = {
 static QEMUMachine pc_machine_v0_15 = {
     .name = "pc-0.15",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_15,
@@ -534,7 +528,7 @@ static QEMUMachine pc_machine_v0_15 = {
 static QEMUMachine pc_machine_v0_14 = {
     .name = "pc-0.14",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_14, 
