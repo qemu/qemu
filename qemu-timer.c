@@ -176,26 +176,6 @@ bool qemu_clock_expired(QEMUClock *clock)
     return timerlist_expired(clock->main_loop_timerlist);
 }
 
-int64_t timerlist_deadline(QEMUTimerList *timer_list)
-{
-    /* To avoid problems with overflow limit this to 2^32.  */
-    int64_t delta = INT32_MAX;
-
-    if (timer_list->clock->enabled && timer_list->active_timers) {
-        delta = timer_list->active_timers->expire_time -
-            qemu_get_clock_ns(timer_list->clock);
-    }
-    if (delta < 0) {
-        delta = 0;
-    }
-    return delta;
-}
-
-int64_t qemu_clock_deadline(QEMUClock *clock)
-{
-    return timerlist_deadline(clock->main_loop_timerlist);
-}
-
 /*
  * As above, but return -1 for no deadline, and do not cap to 2^32
  * as we know the result is always positive.

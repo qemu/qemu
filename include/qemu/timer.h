@@ -140,7 +140,6 @@ bool qemu_clock_has_timers(QEMUClock *clock);
  * an expired timer
  */
 bool qemu_clock_expired(QEMUClock *clock);
-int64_t qemu_clock_deadline(QEMUClock *clock);
 
 /**
  * qemu_clock_deadline_ns:
@@ -244,21 +243,6 @@ bool timerlist_has_timers(QEMUTimerList *timer_list);
  * have expired.
  */
 bool timerlist_expired(QEMUTimerList *timer_list);
-
-/**
- * timerlist_deadline:
- * @timer_list: the timer list to operate on
- *
- * Determine the deadline for a timer_list. This is
- * a legacy function which returns INT32_MAX if the
- * timer list has no timers or if the earliest timer
- * expires later than INT32_MAX nanoseconds away.
- *
- * Returns: the number of nanoseconds until the earliest
- * timer expires or INT32_MAX in the situations listed
- * above
- */
-int64_t timerlist_deadline(QEMUTimerList *timer_list);
 
 /**
  * timerlist_deadline_ns:
