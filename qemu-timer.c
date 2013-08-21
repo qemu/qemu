@@ -41,6 +41,10 @@
 #include <poll.h>
 #endif
 
+#ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK
+#include <sys/prctl.h>
+#endif
+
 /***********************************************************/
 /* timers */
 
@@ -507,6 +511,9 @@ void init_clocks(void)
         vm_clock = qemu_clock_new(QEMU_CLOCK_VIRTUAL);
         host_clock = qemu_clock_new(QEMU_CLOCK_HOST);
     }
+#ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK
+    prctl(PR_SET_TIMERSLACK, 1, 0, 0, 0);
+#endif
 }
 
 uint64_t timer_expire_time_ns(QEMUTimer *ts)
