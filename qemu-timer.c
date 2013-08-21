@@ -45,7 +45,6 @@
 /* timers */
 
 struct QEMUClock {
-    QEMUTimerList *main_loop_timerlist;
     QLIST_HEAD(, QEMUTimerList) timerlists;
 
     NotifierList reset_notifiers;
@@ -56,7 +55,7 @@ struct QEMUClock {
 };
 
 QEMUTimerListGroup main_loop_tlg;
-QEMUClock *qemu_clocks[QEMU_CLOCK_MAX];
+QEMUClock qemu_clocks[QEMU_CLOCK_MAX];
 
 /* A QEMUTimerList is a list of timers attached to a clock. More
  * than one QEMUTimerList can be attached to each clock, for instance
@@ -73,24 +72,30 @@ struct QEMUTimerList {
     void *notify_opaque;
 };
 
+/**
+ * qemu_clock_ptr:
+ * @type: type of clock
+ *
+ * Translate a clock type into a pointer to QEMUClock object.
+ *
+ * Returns: a pointer to the QEMUClock object
+ */
+QEMUClock *qemu_clock_ptr(QEMUClockType type)
+{
+    return &qemu_clocks[type];
+}
+
 static bool timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
 {
     return timer_head && (timer_head->expire_time <= current_time);
 }
 
-static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock,
-                                               QEMUTimerListNotifyCB *cb,
-                                               void *opaque)
+QEMUTimerList *timerlist_new(QEMUClockType type,
+                             QEMUTimerListNotifyCB *cb,
+                             void *opaque)
 {
     QEMUTimerList *timer_list;
-
-    /* Assert if we do not have a clock. If you see this
-     * assertion in means that the clocks have not been
-     * initialised before a timerlist is needed. This
-     * normally happens if an AioContext is used before
-     * init_clocks() is called within main().
-     */
-    assert(clock);
+    QEMUClock *clock = qemu_clock_ptr(type);
 
     timer_list = g_malloc0(sizeof(QEMUTimerList));
     timer_list->clock = clock;
@@ -100,36 +105,25 @@ static QEMUTimerList *timerlist_new_from_clock(QEMUClock *clock,
     return timer_list;
 }
 
-QEMUTimerList *timerlist_new(QEMUClockType type,
-                             QEMUTimerListNotifyCB *cb, void *opaque)
-{
-    return timerlist_new_from_clock(qemu_clock_ptr(type), cb, opaque);
-}
-
 void timerlist_free(QEMUTimerList *timer_list)
 {
     assert(!timerlist_has_timers(timer_list));
     if (timer_list->clock) {
         QLIST_REMOVE(timer_list, list);
-        if (timer_list->clock->main_loop_timerlist == timer_list) {
-            timer_list->clock->main_loop_timerlist = NULL;
-        }
     }
     g_free(timer_list);
 }
 
-static QEMUClock *qemu_clock_new(QEMUClockType type)
+static void qemu_clock_init(QEMUClockType type)
 {
-    QEMUClock *clock;
+    QEMUClock *clock = qemu_clock_ptr(type);
 
-    clock = g_malloc0(sizeof(QEMUClock));
     clock->type = type;
     clock->enabled = true;
     clock->last = INT64_MIN;
     QLIST_INIT(&clock->timerlists);
     notifier_list_init(&clock->reset_notifiers);
-    clock->main_loop_timerlist = timerlist_new_from_clock(clock, NULL, NULL);
-    return clock;
+    main_loop_tlg.tl[type] = timerlist_new(type, NULL, NULL);
 }
 
 bool qemu_clock_use_for_deadline(QEMUClockType type)
@@ -164,7 +158,7 @@ bool timerlist_has_timers(QEMUTimerList *timer_list)
 bool qemu_clock_has_timers(QEMUClockType type)
 {
     return timerlist_has_timers(
-        qemu_clock_ptr(type)->main_loop_timerlist);
+        main_loop_tlg.tl[type]);
 }
 
 bool timerlist_expired(QEMUTimerList *timer_list)
@@ -177,7 +171,7 @@ bool timerlist_expired(QEMUTimerList *timer_list)
 bool qemu_clock_expired(QEMUClockType type)
 {
     return timerlist_expired(
-        qemu_clock_ptr(type)->main_loop_timerlist);
+        main_loop_tlg.tl[type]);
 }
 
 /*
@@ -227,7 +221,7 @@ QEMUClockType timerlist_get_clock(QEMUTimerList *timer_list)
 
 QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClockType type)
 {
-    return qemu_clock_ptr(type)->main_loop_timerlist;
+    return main_loop_tlg.tl[type];
 }
 
 void timerlist_notify(QEMUTimerList *timer_list)
@@ -300,7 +294,7 @@ void timer_init(QEMUTimer *ts,
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque)
 {
-    return timer_new_tl(clock->main_loop_timerlist,
+    return timer_new_tl(main_loop_tlg.tl[clock->type],
                      scale, cb, opaque);
 }
 
@@ -410,7 +404,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
 
 bool qemu_clock_run_timers(QEMUClockType type)
 {
-    return timerlist_run_timers(qemu_clock_ptr(type)->main_loop_timerlist);
+    return timerlist_run_timers(main_loop_tlg.tl[type]);
 }
 
 bool qemu_run_timers(QEMUClock *clock)
@@ -519,10 +513,7 @@ void init_clocks(void)
 {
     QEMUClockType type;
     for (type = 0; type < QEMU_CLOCK_MAX; type++) {
-        if (!qemu_clocks[type]) {
-            qemu_clocks[type] = qemu_clock_new(type);
-            main_loop_tlg.tl[type] = qemu_clocks[type]->main_loop_timerlist;
-        }
+        qemu_clock_init(type);
     }
 
 #ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK
