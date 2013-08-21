@@ -423,14 +423,14 @@ static inline void tcg_out_mov(TCGContext *s,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_LD,
                  arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_ST,
                  arg, arg1, arg2);

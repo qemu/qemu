@@ -2065,13 +2065,13 @@ static void tcg_target_init(TCGContext *s)
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ld32u(s, COND_AL, arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_st32(s, COND_AL, arg, arg1, arg2);
 }

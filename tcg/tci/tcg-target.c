@@ -488,7 +488,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
 }
 
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                       tcg_target_long arg2)
+                       intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     if (type == TCG_TYPE_I32) {
@@ -842,7 +842,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 }
 
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                       tcg_target_long arg2)
+                       intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     if (type == TCG_TYPE_I32) {

@@ -1072,8 +1072,8 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32(s, BCLR | BO_ALWAYS);
 }
 
-static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                        tcg_target_long arg2)
+static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
+                       intptr_t arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, ret, arg1, arg2, LWZ, LWZX);
@@ -1081,8 +1081,8 @@ static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
         tcg_out_ldsta (s, ret, arg1, arg2, LD, LDX);
 }
 
-static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                        tcg_target_long arg2)
+static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
+                       intptr_t arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, arg, arg1, arg2, STW, STWX);

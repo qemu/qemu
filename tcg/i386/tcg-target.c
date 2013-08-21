@@ -595,14 +595,14 @@ static inline void tcg_out_pop(TCGContext *s, int reg)
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     int opc = OPC_MOVL_GvEv + (type == TCG_TYPE_I64 ? P_REXW : 0);
     tcg_out_modrm_offset(s, opc, ret, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     int opc = OPC_MOVL_EvGv + (type == TCG_TYPE_I64 ? P_REXW : 0);
     tcg_out_modrm_offset(s, opc, arg, arg1, arg2);

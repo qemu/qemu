@@ -392,14 +392,14 @@ static void tcg_out_ldst(TCGContext *s, int ret, int addr,
 
 /* This function is required by tcg.c.  */
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_LDW);
 }
 
 /* This function is required by tcg.c.  */
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_STW);
 }

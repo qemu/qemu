@@ -771,7 +771,7 @@ static void tcg_out_mem(TCGContext *s, S390Opcode opc_rx, S390Opcode opc_rxy,
 
 /* load data without address translation or endianness conversion */
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg data,
-                              TCGReg base, tcg_target_long ofs)
+                              TCGReg base, intptr_t ofs)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_mem(s, RX_L, RXY_LY, data, base, TCG_REG_NONE, ofs);
@@ -781,7 +781,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg data,
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg data,
-                              TCGReg base, tcg_target_long ofs)
+                              TCGReg base, intptr_t ofs)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_mem(s, RX_ST, RXY_STY, data, base, TCG_REG_NONE, ofs);

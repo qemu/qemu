@@ -93,14 +93,14 @@ static void tcg_register_jit_int(void *buf, size_t size,
 /* Forward declarations for functions declared and used in tcg-target.c. */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                       tcg_target_long arg2);
+                       intptr_t arg2);
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args);
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                       tcg_target_long arg2);
+                       intptr_t arg2);
 static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct);
 

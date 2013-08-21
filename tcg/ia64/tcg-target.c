@@ -993,7 +993,7 @@ static inline void tcg_out_st_rel(TCGContext *s, uint64_t opc_m4, TCGArg arg,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_ld_rel(s, OPC_LD4_M1, arg, arg1, arg2);
@@ -1003,7 +1003,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_st_rel(s, OPC_ST4_M4, arg, arg1, arg2);
