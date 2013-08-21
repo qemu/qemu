@@ -112,3 +112,26 @@ static TYPE raw_create(void)
 {
     return bdrv_create_file();
 }
+
+static const char *raw_format_name(void)
+{
+    return "raw";
+}
+
+static int raw_open(BlockDriverState *bs)
+{
+    bs->sg = bs->file->sg;
+    return 0;
+}
+
+static void raw_close(void)
+{
+}
+
+static int raw_probe(void)
+{
+    /* smallest possible positive score so that raw is used if and only if no
+     * other block driver works
+     */
+    return 1;
+}
