@@ -207,7 +207,7 @@ static void icount_adjust(void)
         return;
     }
     cur_time = cpu_get_clock();
-    cur_icount = qemu_get_clock_ns(vm_clock);
+    cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
@@ -228,15 +228,16 @@ static void icount_adjust(void)
 
 static void icount_adjust_rt(void *opaque)
 {
-    qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock_ms(rt_clock) + 1000);
+    timer_mod(icount_rt_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     icount_adjust();
 }
 
 static void icount_adjust_vm(void *opaque)
 {
-    qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
+    timer_mod(icount_vm_timer,
+                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                   get_ticks_per_sec() / 10);
     icount_adjust();
 }
 
@@ -252,22 +253,22 @@ static void icount_warp_rt(void *opaque)
     }
 
     if (runstate_is_running()) {
-        int64_t clock = qemu_get_clock_ns(rt_clock);
+        int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
         int64_t warp_delta = clock - vm_clock_warp_start;
         if (use_icount == 1) {
             qemu_icount_bias += warp_delta;
         } else {
             /*
-             * In adaptive mode, do not let the vm_clock run too
+             * In adaptive mode, do not let QEMU_CLOCK_VIRTUAL run too
              * far ahead of real time.
              */
             int64_t cur_time = cpu_get_clock();
-            int64_t cur_icount = qemu_get_clock_ns(vm_clock);
+            int64_t cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             int64_t delta = cur_time - cur_icount;
             qemu_icount_bias += MIN(warp_delta, delta);
         }
-        if (qemu_clock_expired(vm_clock)) {
-            qemu_clock_notify(vm_clock);
+        if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
+            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
         }
     }
     vm_clock_warp_start = -1;
@@ -275,19 +276,19 @@ static void icount_warp_rt(void *opaque)
 
 void qtest_clock_warp(int64_t dest)
 {
-    int64_t clock = qemu_get_clock_ns(vm_clock);
+    int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     assert(qtest_enabled());
     while (clock < dest) {
-        int64_t deadline = qemu_clock_deadline_ns_all(vm_clock);
+        int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         int64_t warp = MIN(dest - clock, deadline);
         qemu_icount_bias += warp;
-        qemu_run_timers(vm_clock);
-        clock = qemu_get_clock_ns(vm_clock);
+        qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+        clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
-    qemu_clock_notify(vm_clock);
+    qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
 }
 
-void qemu_clock_warp(QEMUClock *clock)
+void qemu_clock_warp(QEMUClockType type)
 {
     int64_t deadline;
 
@@ -296,20 +297,20 @@ void qemu_clock_warp(QEMUClock *clock)
      * applicable to other clocks.  But a clock argument removes the
      * need for if statements all over the place.
      */
-    if (clock != vm_clock || !use_icount) {
+    if (type != QEMU_CLOCK_VIRTUAL || !use_icount) {
         return;
     }
 
     /*
-     * If the CPUs have been sleeping, advance the vm_clock timer now.  This
-     * ensures that the deadline for the timer is computed correctly below.
+     * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.
+     * This ensures that the deadline for the timer is computed correctly below.
      * This also makes sure that the insn counter is synchronized before the
      * CPU starts running, in case the CPU is woken by an event other than
-     * the earliest vm_clock timer.
+     * the earliest QEMU_CLOCK_VIRTUAL timer.
      */
     icount_warp_rt(NULL);
-    if (!all_cpu_threads_idle() || !qemu_clock_has_timers(vm_clock)) {
-        qemu_del_timer(icount_warp_timer);
+    if (!all_cpu_threads_idle() || !qemu_clock_has_timers(QEMU_CLOCK_VIRTUAL)) {
+        timer_del(icount_warp_timer);
         return;
     }
 
@@ -318,12 +319,12 @@ void qemu_clock_warp(QEMUClock *clock)
 	return;
     }
 
-    vm_clock_warp_start = qemu_get_clock_ns(rt_clock);
+    vm_clock_warp_start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     /* We want to use the earliest deadline from ALL vm_clocks */
-    deadline = qemu_clock_deadline_ns_all(vm_clock);
+    deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 
     /* Maintain prior (possibly buggy) behaviour where if no deadline
-     * was set (as there is no vm_clock timer) or it is more than
+     * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
      * INT32_MAX nanoseconds ahead, we still use INT32_MAX
      * nanoseconds.
      */
@@ -333,24 +334,25 @@ void qemu_clock_warp(QEMUClock *clock)
 
     if (deadline > 0) {
         /*
-         * Ensure the vm_clock proceeds even when the virtual CPU goes to
+         * Ensure QEMU_CLOCK_VIRTUAL proceeds even when the virtual CPU goes to
          * sleep.  Otherwise, the CPU might be waiting for a future timer
          * interrupt to wake it up, but the interrupt never comes because
          * the vCPU isn't running any insns and thus doesn't advance the
-         * vm_clock.
+         * QEMU_CLOCK_VIRTUAL.
          *
          * An extreme solution for this problem would be to never let VCPUs
-         * sleep in icount mode if there is a pending vm_clock timer; rather
-         * time could just advance to the next vm_clock event.  Instead, we
-         * do stop VCPUs and only advance vm_clock after some "real" time,
-         * (related to the time left until the next event) has passed.  This
-         * rt_clock timer will do this.  This avoids that the warps are too
-         * visible externally---for example, you will not be sending network
-         * packets continuously instead of every 100ms.
+         * sleep in icount mode if there is a pending QEMU_CLOCK_VIRTUAL
+         * timer; rather time could just advance to the next QEMU_CLOCK_VIRTUAL
+         * event.  Instead, we do stop VCPUs and only advance QEMU_CLOCK_VIRTUAL
+         * after some e"real" time, (related to the time left until the next
+         * event) has passed. The QEMU_CLOCK_REALTIME timer will do this.
+         * This avoids that the warps are visible externally; for example,
+         * you will not be sending network packets continuously instead of
+         * every 100ms.
          */
-        qemu_mod_timer(icount_warp_timer, vm_clock_warp_start + deadline);
+        timer_mod(icount_warp_timer, vm_clock_warp_start + deadline);
     } else if (deadline == 0) {
-        qemu_clock_notify(vm_clock);
+        qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
 }
 
@@ -374,7 +376,8 @@ void configure_icount(const char *option)
         return;
     }
 
-    icount_warp_timer = qemu_new_timer_ns(rt_clock, icount_warp_rt, NULL);
+    icount_warp_timer = timer_new_ns(QEMU_CLOCK_REALTIME,
+                                          icount_warp_rt, NULL);
     if (strcmp(option, "auto") != 0) {
         icount_time_shift = strtol(option, NULL, 0);
         use_icount = 1;
@@ -392,12 +395,15 @@ void configure_icount(const char *option)
        the virtual time trigger catches emulated time passing too fast.
        Realtime triggers occur even when idle, so use them less frequently
        than VM triggers.  */
-    icount_rt_timer = qemu_new_timer_ms(rt_clock, icount_adjust_rt, NULL);
-    qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock_ms(rt_clock) + 1000);
-    icount_vm_timer = qemu_new_timer_ns(vm_clock, icount_adjust_vm, NULL);
-    qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
+    icount_rt_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                        icount_adjust_rt, NULL);
+    timer_mod(icount_rt_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
+    icount_vm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                        icount_adjust_vm, NULL);
+    timer_mod(icount_vm_timer,
+                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                   get_ticks_per_sec() / 10);
 }
 
 /***********************************************************/
@@ -746,7 +752,7 @@ static void qemu_tcg_wait_io_event(void)
     while (all_cpu_threads_idle()) {
        /* Start accounting real time to the virtual clock if the CPUs
           are idle.  */
-        qemu_clock_warp(vm_clock);
+        qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
     }
 
@@ -879,10 +885,10 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
         tcg_exec_all();
 
         if (use_icount) {
-            int64_t deadline = qemu_clock_deadline_ns_all(vm_clock);
+            int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 
             if (deadline == 0) {
-                qemu_clock_notify(vm_clock);
+                qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
             }
         }
         qemu_tcg_wait_io_event();
@@ -1001,7 +1007,7 @@ void pause_all_vcpus(void)
 {
     CPUState *cpu = first_cpu;
 
-    qemu_clock_enable(vm_clock, false);
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     while (cpu) {
         cpu->stop = true;
         qemu_cpu_kick(cpu);
@@ -1042,7 +1048,7 @@ void resume_all_vcpus(void)
 {
     CPUState *cpu = first_cpu;
 
-    qemu_clock_enable(vm_clock, true);
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     while (cpu) {
         cpu_resume(cpu);
         cpu = cpu->next_cpu;
@@ -1166,10 +1172,10 @@ static int tcg_cpu_exec(CPUArchState *env)
         qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
         env->icount_decr.u16.low = 0;
         env->icount_extra = 0;
-        deadline = qemu_clock_deadline_ns_all(vm_clock);
+        deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 
         /* Maintain prior (possibly buggy) behaviour where if no deadline
-         * was set (as there is no vm_clock timer) or it is more than
+         * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
          * INT32_MAX nanoseconds ahead, we still use INT32_MAX
          * nanoseconds.
          */
@@ -1203,8 +1209,8 @@ static void tcg_exec_all(void)
 {
     int r;
 
-    /* Account partial waits to the vm_clock.  */
-    qemu_clock_warp(vm_clock);
+    /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
+    qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
 
     if (next_cpu == NULL) {
         next_cpu = first_cpu;
@@ -1213,7 +1219,7 @@ static void tcg_exec_all(void)
         CPUState *cpu = next_cpu;
         CPUArchState *env = cpu->env_ptr;
 
-        qemu_clock_enable(vm_clock,
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
                           (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (cpu_can_run(cpu)) {

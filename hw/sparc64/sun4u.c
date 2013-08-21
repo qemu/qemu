@@ -363,7 +363,7 @@ void cpu_put_timer(QEMUFile *f, CPUTimer *s)
     qemu_put_be64s(f, &s->disabled_mask);
     qemu_put_sbe64s(f, &s->clock_offset);
 
-    qemu_put_timer(f, s->qtimer);
+    timer_put(f, s->qtimer);
 }
 
 void cpu_get_timer(QEMUFile *f, CPUTimer *s)
@@ -373,7 +373,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_be64s(f, &s->disabled_mask);
     qemu_get_sbe64s(f, &s->clock_offset);
 
-    qemu_get_timer(f, s->qtimer);
+    timer_get(f, s->qtimer);
 }
 
 static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,

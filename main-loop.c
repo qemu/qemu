@@ -487,7 +487,7 @@ int main_loop_wait(int nonblocking)
     slirp_pollfds_poll(gpollfds, (ret < 0));
 #endif
 
-    qemu_run_all_timers();
+    qemu_clock_run_all_timers();
 
     return ret;
 }

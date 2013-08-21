@@ -979,7 +979,7 @@ uint64_t qemu_get_be64(QEMUFile *f)
 
 /* timer */
 
-void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_put(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
@@ -987,7 +987,7 @@ void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
     qemu_put_be64(f, expire_time);
 }
 
-void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_get(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
@@ -1339,14 +1339,14 @@ const VMStateInfo vmstate_info_float64 = {
 static int get_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_get_timer(f, v);
+    timer_get(f, v);
     return 0;
 }
 
 static void put_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_put_timer(f, v);
+    timer_put(f, v);
 }
 
 const VMStateInfo vmstate_info_timer = {

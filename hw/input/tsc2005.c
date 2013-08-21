@@ -449,7 +449,7 @@ static void tsc2005_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->dav);
     qemu_put_be16s(f, &s->data);
 
-    qemu_put_timer(f, s->timer);
+    timer_put(f, s->timer);
     qemu_put_byte(f, s->enabled);
     qemu_put_byte(f, s->host_mode);
     qemu_put_byte(f, s->function);
@@ -490,7 +490,7 @@ static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->dav);
     qemu_get_be16s(f, &s->data);
 
-    qemu_get_timer(f, s->timer);
+    timer_get(f, s->timer);
     s->enabled = qemu_get_byte(f);
     s->host_mode = qemu_get_byte(f);
     s->function = qemu_get_byte(f);
