@@ -103,7 +103,7 @@ wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }

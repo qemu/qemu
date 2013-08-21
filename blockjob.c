@@ -187,7 +187,7 @@ int block_job_cancel_sync(BlockJob *job)
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
 }
 
-void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
+void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
 {
     assert(job->busy);
 
@@ -200,7 +200,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
     if (block_job_is_paused(job)) {
         qemu_coroutine_yield();
     } else {
-        co_sleep_ns(clock, ns);
+        co_sleep_ns(type, ns);
     }
     job->busy = true;
 }

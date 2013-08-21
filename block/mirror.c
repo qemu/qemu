@@ -439,13 +439,13 @@ static void coroutine_fn mirror_run(void *opaque)
                 delay_ns = 0;
             }
 
-            block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+            block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
             if (block_job_is_cancelled(&s->common)) {
                 break;
             }
         } else if (!should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
-            block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+            block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
         } else if (cnt == 0) {
             /* The two disks are in sync.  Exit and report successful
              * completion.

@@ -272,9 +272,9 @@ static void coroutine_fn backup_run(void *opaque)
                 uint64_t delay_ns = ratelimit_calculate_delay(
                         &job->limit, job->sectors_read);
                 job->sectors_read = 0;
-                block_job_sleep_ns(&job->common, rt_clock, delay_ns);
+                block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, delay_ns);
             } else {
-                block_job_sleep_ns(&job->common, rt_clock, 0);
+                block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, 0);
             }
 
             if (block_job_is_cancelled(&job->common)) {
