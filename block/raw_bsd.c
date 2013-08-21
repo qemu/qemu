@@ -1,6 +1,7 @@
 /* BlockDriver implementation for "raw"
  *
- * Copyright (C) 2013, Red Hat, Inc.
+ * Copyright (C) 2010, 2013, Red Hat, Inc.
+ * Copyright (C) 2010, Blue Swirl <blauwirbel@gmail.com>
  *
  * Author:
  *   Laszlo Ersek <lersek@redhat.com>
@@ -25,6 +26,16 @@
  */
 
 #include "block/block_int.h"
+#include "qemu/option.h"
+
+static const QEMUOptionParameter raw_create_options[] = {
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    { 0 }
+};
 
 static TYPE raw_reopen_prepare(BlockDriverState *bs)
 {
