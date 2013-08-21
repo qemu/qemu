@@ -264,7 +264,7 @@ int64_t qemu_clock_deadline(QEMUClock *clock)
     /* To avoid problems with overflow limit this to 2^32.  */
     int64_t delta = INT32_MAX;
 
-    if (clock->active_timers) {
+    if (clock->enabled && clock->active_timers) {
         delta = clock->active_timers->expire_time - qemu_get_clock_ns(clock);
     }
     if (delta < 0) {
