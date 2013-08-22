@@ -129,7 +129,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
             node->io_notify(node->e);
 
             /* aio_notify() does not count as progress */
-            if (node->opaque != &ctx->notifier) {
+            if (node->e != &ctx->notifier) {
                 progress = true;
             }
         }
@@ -195,7 +195,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
                 node->io_notify(node->e);
 
                 /* aio_notify() does not count as progress */
-                if (node->opaque != &ctx->notifier) {
+                if (node->e != &ctx->notifier) {
                     progress = true;
                 }
             }
