@@ -3171,9 +3171,13 @@ static const MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-static void expr_error(Monitor *mon, const char *msg)
+static void expr_error(Monitor *mon, const char *fmt, ...)
 {
-    monitor_printf(mon, "%s\n", msg);
+    va_list ap;
+    va_start(ap, fmt);
+    monitor_vprintf(mon, fmt, ap);
+    monitor_printf(mon, "\n");
+    va_end(ap);
     siglongjmp(expr_env, 1);
 }
 
@@ -3291,7 +3295,7 @@ static int64_t expr_unary(Monitor *mon)
             expr_error(mon, "number too large");
         }
         if (pch == p) {
-            expr_error(mon, "invalid char in expression");
+            expr_error(mon, "invalid char '%c' in expression", *p);
         }
         pch = p;
         while (qemu_isspace(*pch))

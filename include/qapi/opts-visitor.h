@@ -16,6 +16,12 @@
 #include "qapi/visitor.h"
 #include "qemu/option.h"
 
+/* Inclusive upper bound on the size of any flattened range. This is a safety
+ * (= anti-annoyance) measure; wrong ranges should not cause long startup
+ * delays nor exhaust virtual memory.
+ */
+#define OPTS_VISITOR_RANGE_MAX 65536
+
 typedef struct OptsVisitor OptsVisitor;
 
 /* Contrarily to qemu-option.c::parse_option_number(), OptsVisitor's "int"
