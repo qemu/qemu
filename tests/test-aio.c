@@ -77,11 +77,6 @@ static void dummy_io_handler_read(void *opaque)
 {
 }
 
-static int dummy_io_handler_flush(void *opaque)
-{
-    return 1;
-}
-
 static void bh_delete_cb(void *opaque)
 {
     BHTestData *data = opaque;
@@ -382,7 +377,7 @@ static void test_timer_schedule(void)
      */
     g_assert(!pipe2(pipefd, O_NONBLOCK));
     aio_set_fd_handler(ctx, pipefd[0],
-                       dummy_io_handler_read, NULL, dummy_io_handler_flush);
+                       dummy_io_handler_read, NULL, NULL);
     aio_poll(ctx, false);
 
     aio_timer_init(ctx, &data.timer, data.clock_type,
@@ -723,7 +718,7 @@ static void test_source_timer_schedule(void)
      */
     g_assert(!pipe2(pipefd, O_NONBLOCK));
     aio_set_fd_handler(ctx, pipefd[0],
-                       dummy_io_handler_read, NULL, dummy_io_handler_flush);
+                       dummy_io_handler_read, NULL, NULL);
     do {} while (g_main_context_iteration(NULL, false));
 
     aio_timer_init(ctx, &data.timer, data.clock_type,
