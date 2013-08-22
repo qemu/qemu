@@ -207,6 +207,13 @@ int qemu_open(const char *name, int flags, ...)
     }
 #endif
 
+#ifdef O_DIRECT
+    if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
+        error_report("file system may not support O_DIRECT");
+        errno = EINVAL; /* in case it was clobbered */
+    }
+#endif /* O_DIRECT */
+
     return ret;
 }
 
