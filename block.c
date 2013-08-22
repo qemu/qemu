@@ -706,6 +706,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     bs->open_flags = flags;
     bs->buffer_alignment = 512;
+    bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
 
@@ -1402,6 +1403,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->valid_key = 0;
         bs->sg = 0;
         bs->growable = 0;
+        bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         bs->options = NULL;
 

@@ -281,6 +281,9 @@ struct BlockDriverState {
     /* Whether the disk can expand beyond total_sectors */
     int growable;
 
+    /* Whether produces zeros when read beyond eof */
+    bool zero_beyond_eof;
+
     /* the memory alignment required for the buffers handled by this driver */
     int buffer_alignment;
 
