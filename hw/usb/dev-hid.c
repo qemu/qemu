@@ -658,7 +658,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
     dc->props = usb_tablet_properties;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo usb_tablet_info = {
