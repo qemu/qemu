@@ -2171,7 +2171,8 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->frames[i].state = s;
     }
 
-    scsi_bus_new(&s->bus, DEVICE(dev), &megasas_scsi_info, NULL);
+    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
+                 &megasas_scsi_info, NULL);
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {

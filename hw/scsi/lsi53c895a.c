@@ -2117,7 +2117,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, d, &lsi_scsi_info, NULL);
+    scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
