@@ -567,7 +567,8 @@ static void *migration_thread(void *opaque)
         if (!qemu_file_rate_limit(s->file)) {
             DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
-            DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
+            DPRINTF("pending size %" PRIu64 " max %" PRIu64 "\n",
+                    pending_size, max_size);
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
