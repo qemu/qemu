@@ -1870,8 +1870,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             int shift;
             n = (offset - 0x58) >> 2;
             shift = (offset & 3) * 8;
-            s->scratch[n] &= ~(0xff << shift);
-            s->scratch[n] |= (val & 0xff) << shift;
+            s->scratch[n] = deposit32(s->scratch[n], shift, 8, val);
         } else {
             BADF("Unhandled writeb 0x%x = 0x%x\n", offset, val);
         }
