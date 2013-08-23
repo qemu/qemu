@@ -47,7 +47,8 @@
 
 #define VIRTIO_EXT_CODE   0x2603
 
-static void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev);
+static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
+                                VirtIOS390Device *dev);
 
 static const TypeInfo s390_virtio_bus_info = {
     .name = TYPE_S390_VIRTIO_BUS,
@@ -585,7 +586,7 @@ static int s390_virtio_busdev_init(DeviceState *dev)
     VirtIOS390Device *_dev = (VirtIOS390Device *)dev;
     VirtIOS390DeviceClass *_info = VIRTIO_S390_DEVICE_GET_CLASS(dev);
 
-    virtio_s390_bus_new(&_dev->bus, _dev);
+    virtio_s390_bus_new(&_dev->bus, sizeof(_dev->bus), _dev);
 
     return _info->init(_dev);
 }
@@ -691,7 +692,8 @@ static const TypeInfo s390_virtio_bridge_info = {
 
 /* virtio-s390-bus */
 
-static void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev)
+static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
+                                VirtIOS390Device *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
