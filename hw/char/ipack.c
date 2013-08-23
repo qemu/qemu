@@ -24,7 +24,8 @@ IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)
     return NULL;
 }
 
-void ipack_bus_new_inplace(IPackBus *bus, DeviceState *parent,
+void ipack_bus_new_inplace(IPackBus *bus, size_t bus_size,
+                           DeviceState *parent,
                            const char *name, uint8_t n_slots,
                            qemu_irq_handler handler)
 {
