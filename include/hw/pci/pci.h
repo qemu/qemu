@@ -348,7 +348,7 @@ typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
 
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
-void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
+void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
