@@ -1241,11 +1241,11 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
 {
     int ret = 0;
     int64_t total_size = 0;
-    BlockDriverState bs;
+    BlockDriverState *bs;
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
 
-    memset(&bs, 0, sizeof(BlockDriverState));
+    bs = bdrv_new("");
 
     /* Read out options */
     while (options && options->name) {
@@ -1255,12 +1255,12 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    bs.opaque = g_malloc0(sizeof(struct IscsiLun));
-    iscsilun = bs.opaque;
+    bs->opaque = g_malloc0(sizeof(struct IscsiLun));
+    iscsilun = bs->opaque;
 
     bs_options = qdict_new();
     qdict_put(bs_options, "filename", qstring_from_str(filename));
-    ret = iscsi_open(&bs, bs_options, 0);
+    ret = iscsi_open(bs, bs_options, 0);
     QDECREF(bs_options);
 
     if (ret != 0) {
@@ -1274,7 +1274,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
         ret = -ENODEV;
         goto out;
     }
-    if (bs.total_sectors < total_size) {
+    if (bs->total_sectors < total_size) {
         ret = -ENOSPC;
         goto out;
     }
@@ -1284,7 +1284,9 @@ out:
     if (iscsilun->iscsi != NULL) {
         iscsi_destroy_context(iscsilun->iscsi);
     }
-    g_free(bs.opaque);
+    g_free(bs->opaque);
+    bs->opaque = NULL;
+    bdrv_delete(bs);
     return ret;
 }
 
