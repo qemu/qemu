@@ -585,7 +585,7 @@ Object *object_new_with_type(Type type);
 
 /**
  * object_initialize_with_type:
- * @obj: A pointer to the memory to be used for the object.
+ * @data: A pointer to the memory to be used for the object.
  * @type: The type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
