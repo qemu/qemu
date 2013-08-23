@@ -332,6 +332,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     notifier_with_return_list_init(&bs->before_write_notifiers);
     qemu_co_queue_init(&bs->throttled_reqs[0]);
     qemu_co_queue_init(&bs->throttled_reqs[1]);
+    bs->refcnt = 1;
 
     return bs;
 }
@@ -1565,6 +1566,9 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 
     /* dirty bitmap */
     bs_dest->dirty_bitmap       = bs_src->dirty_bitmap;
+
+    /* reference count */
+    bs_dest->refcnt             = bs_src->refcnt;
 
     /* job */
     bs_dest->in_use             = bs_src->in_use;
@@ -4294,6 +4298,23 @@ int64_t bdrv_get_dirty_count(BlockDriverState *bs)
         return hbitmap_count(bs->dirty_bitmap);
     } else {
         return 0;
+    }
+}
+
+/* Get a reference to bs */
+void bdrv_ref(BlockDriverState *bs)
+{
+    bs->refcnt++;
+}
+
+/* Release a previously grabbed reference to bs.
+ * If after releasing, reference count is zero, the BlockDriverState is
+ * deleted. */
+void bdrv_unref(BlockDriverState *bs)
+{
+    assert(bs->refcnt > 0);
+    if (--bs->refcnt == 0) {
+        bdrv_delete(bs);
     }
 }
 

@@ -355,6 +355,8 @@ int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
+void bdrv_ref(BlockDriverState *bs);
+void bdrv_unref(BlockDriverState *bs);
 void bdrv_set_in_use(BlockDriverState *bs, int in_use);
 int bdrv_in_use(BlockDriverState *bs);
 
