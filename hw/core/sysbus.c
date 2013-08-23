@@ -276,8 +276,8 @@ static void main_system_bus_create(void)
     /* assign main_system_bus before qbus_create_inplace()
      * in order to make "if (bus != sysbus_get_default())" work */
     main_system_bus = g_malloc0(system_bus_info.instance_size);
-    qbus_create_inplace(main_system_bus, TYPE_SYSTEM_BUS, NULL,
-                        "main-system-bus");
+    qbus_create_inplace(main_system_bus, system_bus_info.instance_size,
+                        TYPE_SYSTEM_BUS, NULL, "main-system-bus");
     OBJECT(main_system_bus)->free = g_free;
     object_property_add_child(container_get(qdev_get_machine(),
                                             "/unattached"),

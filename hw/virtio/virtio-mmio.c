@@ -392,7 +392,7 @@ static void virtio_mmio_bus_new(VirtioBusState *bus, size_t bus_size,
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
 
-    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_MMIO_BUS, qdev, NULL);
+    qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_MMIO_BUS, qdev, NULL);
     qbus = BUS(bus);
     qbus->allow_hotplug = 0;
 }

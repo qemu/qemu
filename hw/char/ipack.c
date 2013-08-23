@@ -29,7 +29,7 @@ void ipack_bus_new_inplace(IPackBus *bus, size_t bus_size,
                            const char *name, uint8_t n_slots,
                            qemu_irq_handler handler)
 {
-    qbus_create_inplace(&bus->qbus, TYPE_IPACK_BUS, parent, name);
+    qbus_create_inplace(bus, bus_size, TYPE_IPACK_BUS, parent, name);
     bus->n_slots = n_slots;
     bus->set_irq = handler;
 }

@@ -90,7 +90,8 @@ static void icc_bridge_init(Object *obj)
     ICCBridgeState *s = ICC_BRIGDE(obj);
     SysBusDevice *sb = SYS_BUS_DEVICE(obj);
 
-    qbus_create_inplace(&s->icc_bus, TYPE_ICC_BUS, DEVICE(s), "icc");
+    qbus_create_inplace(&s->icc_bus, sizeof(s->icc_bus), TYPE_ICC_BUS,
+                        DEVICE(s), "icc");
 
     /* Do not change order of registering regions,
      * APIC must be first registered region, board maps it by 0 index
