@@ -579,8 +579,10 @@ static void xilinx_axidma_init(Object *obj)
                              (Object **) &s->tx_control_dev, &errp);
     assert_no_error(errp);
 
-    object_initialize(&s->rx_data_dev, TYPE_XILINX_AXI_DMA_DATA_STREAM);
-    object_initialize(&s->rx_control_dev, TYPE_XILINX_AXI_DMA_CONTROL_STREAM);
+    object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
+                      TYPE_XILINX_AXI_DMA_DATA_STREAM);
+    object_initialize(&s->rx_control_dev, sizeof(s->rx_control_dev),
+                      TYPE_XILINX_AXI_DMA_CONTROL_STREAM);
     object_property_add_child(OBJECT(s), "axistream-connected-target",
                               (Object *)&s->rx_data_dev, &errp);
     assert_no_error(errp);

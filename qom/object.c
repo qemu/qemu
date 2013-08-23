@@ -329,7 +329,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     object_post_init_with_type(obj, type);
 }
 
-void object_initialize(void *data, const char *typename)
+void object_initialize(void *data, size_t size, const char *typename)
 {
     TypeImpl *type = type_get_by_name(typename);
 

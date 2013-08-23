@@ -473,7 +473,7 @@ static void bus_unparent(Object *obj)
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name)
 {
-    object_initialize(bus, typename);
+    object_initialize(bus, size, typename);
     qbus_realize(bus, parent, name);
 }
 

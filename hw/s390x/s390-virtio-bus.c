@@ -171,7 +171,7 @@ static int s390_virtio_net_init(VirtIOS390Device *s390_dev)
 static void s390_virtio_net_instance_init(Object *obj)
 {
     VirtIONetS390 *dev = VIRTIO_NET_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VIRTIO_NET);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -190,7 +190,7 @@ static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
 static void s390_virtio_blk_instance_init(Object *obj)
 {
     VirtIOBlkS390 *dev = VIRTIO_BLK_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VIRTIO_BLK);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -231,7 +231,7 @@ static int s390_virtio_serial_init(VirtIOS390Device *s390_dev)
 static void s390_virtio_serial_instance_init(Object *obj)
 {
     VirtIOSerialS390 *dev = VIRTIO_SERIAL_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VIRTIO_SERIAL);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -263,7 +263,7 @@ static int s390_virtio_scsi_init(VirtIOS390Device *s390_dev)
 static void s390_virtio_scsi_instance_init(Object *obj)
 {
     VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VIRTIO_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -284,7 +284,7 @@ static int s390_vhost_scsi_init(VirtIOS390Device *s390_dev)
 static void s390_vhost_scsi_instance_init(Object *obj)
 {
     VHostSCSIS390 *dev = VHOST_SCSI_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VHOST_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 #endif
@@ -310,7 +310,7 @@ static int s390_virtio_rng_init(VirtIOS390Device *s390_dev)
 static void s390_virtio_rng_instance_init(Object *obj)
 {
     VirtIORNGS390 *dev = VIRTIO_RNG_S390(obj);
-    object_initialize(&dev->vdev, TYPE_VIRTIO_RNG);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng, NULL);
