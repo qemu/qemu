@@ -27,7 +27,8 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 
-static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev);
+static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtioCcwDevice *dev);
 
 static int virtual_css_bus_reset(BusState *qbus)
 {
@@ -1209,7 +1210,7 @@ static int virtio_ccw_busdev_init(DeviceState *dev)
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
     VirtIOCCWDeviceClass *_info = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
 
-    virtio_ccw_bus_new(&_dev->bus, _dev);
+    virtio_ccw_bus_new(&_dev->bus, sizeof(_dev->bus), _dev);
 
     return _info->init(_dev);
 }
@@ -1289,7 +1290,8 @@ static const TypeInfo virtual_css_bridge_info = {
 
 /* virtio-ccw-bus */
 
-static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev)
+static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtioCcwDevice *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
