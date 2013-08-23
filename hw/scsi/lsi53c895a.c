@@ -998,12 +998,6 @@ bad:
     s->msg_action = 0;
 }
 
-/* Sign extend a 24-bit value.  */
-static inline int32_t sxt24(int32_t n)
-{
-    return (n << 8) >> 8;
-}
-
 #define LSI_BUF_SIZE 4096
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
@@ -1083,7 +1077,7 @@ again:
             /* Table indirect addressing.  */
 
             /* 32-bit Table indirect */
-            offset = sxt24(addr);
+            offset = sextract32(addr, 0, 24);
             pci_dma_read(pci_dev, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
             s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
@@ -1183,13 +1177,13 @@ again:
             uint32_t id;
 
             if (insn & (1 << 25)) {
-                id = read_dword(s, s->dsa + sxt24(insn));
+                id = read_dword(s, s->dsa + sextract32(insn, 0, 24));
             } else {
                 id = insn;
             }
             id = (id >> 16) & 0xf;
             if (insn & (1 << 26)) {
-                addr = s->dsp + sxt24(addr);
+                addr = s->dsp + sextract32(addr, 0, 24);
             }
             s->dnad = addr;
             switch (opcode) {
@@ -1385,7 +1379,7 @@ again:
             if (cond == jmp) {
                 if (insn & (1 << 23)) {
                     /* Relative address.  */
-                    addr = s->dsp + sxt24(addr);
+                    addr = s->dsp + sextract32(addr, 0, 24);
                 }
                 switch ((insn >> 27) & 7) {
                 case 0: /* Jump */
@@ -1438,7 +1432,7 @@ again:
             int i;
 
             if (insn & (1 << 28)) {
-                addr = s->dsa + sxt24(addr);
+                addr = s->dsa + sextract32(addr, 0, 24);
             }
             n = (insn & 7);
             reg = (insn >> 16) & 0xff;
