@@ -1881,7 +1881,7 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
             return -1;
         }
     } else {
-        usb_bus_new(&ohci->bus, &ohci_bus_ops, dev);
+        usb_bus_new(&ohci->bus, sizeof(ohci->bus), &ohci_bus_ops, dev);
         for (i = 0; i < num_ports; i++) {
             usb_register_port(&ohci->bus, &ohci->rhport[i].port,
                               ohci, i, &ohci_port_ops,
