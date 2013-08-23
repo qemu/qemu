@@ -40,11 +40,11 @@
 #define QCOW_MAX_CRYPT_CLUSTERS 32
 
 /* indicate that the refcount of the referenced cluster is exactly one. */
-#define QCOW_OFLAG_COPIED     (1LL << 63)
+#define QCOW_OFLAG_COPIED     (1ULL << 63)
 /* indicate that the cluster is compressed (they never have the copied flag) */
-#define QCOW_OFLAG_COMPRESSED (1LL << 62)
+#define QCOW_OFLAG_COMPRESSED (1ULL << 62)
 /* The cluster reads as all zeros */
-#define QCOW_OFLAG_ZERO (1LL << 0)
+#define QCOW_OFLAG_ZERO (1ULL << 0)
 
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
 
