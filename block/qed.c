@@ -599,7 +599,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     ret = 0; /* success */
 out:
     g_free(l1_table);
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     return ret;
 }
 

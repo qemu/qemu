@@ -903,7 +903,7 @@ fail:
     if (!bs->drv) {
         QDECREF(bs->options);
     }
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     return ret;
 }
 
@@ -954,7 +954,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options)
                     *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv);
     if (ret < 0) {
-        bdrv_delete(bs->backing_hd);
+        bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
         return ret;
@@ -1029,12 +1029,12 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         bs1 = bdrv_new("");
         ret = bdrv_open(bs1, filename, NULL, 0, drv);
         if (ret < 0) {
-            bdrv_delete(bs1);
+            bdrv_unref(bs1);
             goto fail;
         }
         total_size = bdrv_getlength(bs1) & BDRV_SECTOR_MASK;
 
-        bdrv_delete(bs1);
+        bdrv_unref(bs1);
 
         ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
         if (ret < 0) {
@@ -1108,7 +1108,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     }
 
     if (bs->file != file) {
-        bdrv_delete(file);
+        bdrv_unref(file);
         file = NULL;
     }
 
@@ -1143,7 +1143,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
 unlink_and_fail:
     if (file != NULL) {
-        bdrv_delete(file);
+        bdrv_unref(file);
     }
     if (bs->is_temporary) {
         unlink(filename);
@@ -1404,7 +1404,7 @@ void bdrv_close(BlockDriverState *bs)
 
     if (bs->drv) {
         if (bs->backing_hd) {
-            bdrv_delete(bs->backing_hd);
+            bdrv_unref(bs->backing_hd);
             bs->backing_hd = NULL;
         }
         bs->drv->bdrv_close(bs);
@@ -1429,7 +1429,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->options = NULL;
 
         if (bs->file != NULL) {
-            bdrv_delete(bs->file);
+            bdrv_unref(bs->file);
             bs->file = NULL;
         }
     }
@@ -1653,11 +1653,12 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
             bs_new->drv ? bs_new->drv->format_name : "");
 }
 
-void bdrv_delete(BlockDriverState *bs)
+static void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);
     assert(!bs->job);
     assert(!bs->in_use);
+    assert(!bs->refcnt);
 
     bdrv_close(bs);
 
@@ -2173,7 +2174,7 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
         /* so that bdrv_close() does not recursively close the chain */
         intermediate_state->bs->backing_hd = NULL;
-        bdrv_delete(intermediate_state->bs);
+        bdrv_unref(intermediate_state->bs);
     }
     ret = 0;
 
@@ -4531,7 +4532,7 @@ out:
     free_option_parameters(param);
 
     if (bs) {
-        bdrv_delete(bs);
+        bdrv_unref(bs);
     }
 }
 

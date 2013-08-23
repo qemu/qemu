@@ -751,7 +751,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     g_free(tmp);
     ret = 0;
 exit:
-    bdrv_delete(qcow_bs);
+    bdrv_unref(qcow_bs);
     return ret;
 }
 

@@ -1452,7 +1452,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     ret = 0;
 out:
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     return ret;
 }
 

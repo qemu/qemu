@@ -480,7 +480,7 @@ immediate_exit:
         bdrv_swap(s->target, s->common.bs);
     }
     bdrv_close(s->target);
-    bdrv_delete(s->target);
+    bdrv_unref(s->target);
     block_job_completed(&s->common, ret);
 }
 

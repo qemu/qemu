@@ -1430,7 +1430,7 @@ static int sd_prealloc(const char *filename)
     }
 out:
     if (bs) {
-        bdrv_delete(bs);
+        bdrv_unref(bs);
     }
     g_free(buf);
 
@@ -1509,13 +1509,13 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
 
         if (!is_snapshot(&s->inode)) {
             error_report("cannot clone from a non snapshot vdi");
-            bdrv_delete(bs);
+            bdrv_unref(bs);
             ret = -EINVAL;
             goto out;
         }
 
         base_vid = s->inode.vdi_id;
-        bdrv_delete(bs);
+        bdrv_unref(bs);
     }
 
     ret = do_sd_create(s, vdi, vdi_size, base_vid, &vid, 0);

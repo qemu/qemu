@@ -314,7 +314,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
     }
 
 exit:
-    bdrv_delete(cow_bs);
+    bdrv_unref(cow_bs);
     return ret;
 }
 

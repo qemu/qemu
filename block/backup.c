@@ -338,7 +338,7 @@ static void coroutine_fn backup_run(void *opaque)
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
-    bdrv_delete(target);
+    bdrv_unref(target);
 
     block_job_completed(&job->common, ret);
 }
