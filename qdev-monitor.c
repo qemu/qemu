@@ -453,8 +453,8 @@ static BusState *qbus_find(const char *path)
 
 DeviceState *qdev_device_add(QemuOpts *opts)
 {
-    ObjectClass *obj;
-    DeviceClass *k;
+    ObjectClass *oc;
+    DeviceClass *dc;
     const char *driver, *path, *id;
     DeviceState *qdev;
     BusState *bus = NULL;
@@ -466,22 +466,22 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* find driver */
-    obj = object_class_by_name(driver);
-    if (!obj) {
+    oc = object_class_by_name(driver);
+    if (!oc) {
         const char *typename = find_typename_by_alias(driver);
 
         if (typename) {
             driver = typename;
-            obj = object_class_by_name(driver);
+            oc = object_class_by_name(driver);
         }
     }
 
-    if (!obj) {
+    if (!oc) {
         qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
         return NULL;
     }
 
-    k = DEVICE_CLASS(obj);
+    dc = DEVICE_CLASS(oc);
 
     /* find bus */
     path = qemu_opt_get(opts, "bus");
@@ -490,16 +490,16 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         if (!bus) {
             return NULL;
         }
-        if (!object_dynamic_cast(OBJECT(bus), k->bus_type)) {
+        if (!object_dynamic_cast(OBJECT(bus), dc->bus_type)) {
             qerror_report(QERR_BAD_BUS_FOR_DEVICE,
                           driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
-    } else if (k->bus_type != NULL) {
-        bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_type);
+    } else if (dc->bus_type != NULL) {
+        bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
         if (!bus) {
             qerror_report(QERR_NO_BUS_FOR_DEVICE,
-                          k->bus_type, driver);
+                          dc->bus_type, driver);
             return NULL;
         }
     }
