@@ -1669,6 +1669,7 @@ static void pgraph_method(NV2AState *d,
             switch (context_surfaces->color_format) {
             case NV062_SET_COLOR_FORMAT_LE_Y8:
                 bytes_per_pixel = 1;
+                break;
             case NV062_SET_COLOR_FORMAT_LE_A8R8G8B8:
                 bytes_per_pixel = 4;
                 break;
@@ -1684,7 +1685,7 @@ static void pgraph_method(NV2AState *d,
             assert(context_surfaces->source_offset < source_dma_len);
             source += context_surfaces->source_offset;
 
-            dest = nv_dma_map(d, context_surfaces->dma_image_source,
+            dest = nv_dma_map(d, context_surfaces->dma_image_dest,
                               &dest_dma_len);
             assert(context_surfaces->dest_offset < dest_dma_len);
             dest += context_surfaces->dest_offset;
