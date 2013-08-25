@@ -34,7 +34,7 @@
 
 #define DEBUG_NV2A
 #ifdef DEBUG_NV2A
-# define NV2A_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
+# define NV2A_DPRINTF(format, ...)       printf("nv2a: " format, ## __VA_ARGS__)
 #else
 # define NV2A_DPRINTF(format, ...)       do { } while (0)
 #endif
@@ -471,10 +471,11 @@
 #   define NV097_CLEAR_SURFACE                                0x00971D94
 #       define NV097_CLEAR_SURFACE_Z                              (1 << 0)
 #       define NV097_CLEAR_SURFACE_STENCIL                        (1 << 1)
-#       define NV097_CLEAR_SURFACE_R                              (1 << 4)
-#       define NV097_CLEAR_SURFACE_G                              (1 << 5)
-#       define NV097_CLEAR_SURFACE_B                              (1 << 6)
-#       define NV097_CLEAR_SURFACE_A                              (1 << 7)
+#       define NV097_CLEAR_SURFACE_COLOR                          0x000000F0
+#       define NV097_CLEAR_SURFACE_R                                (1 << 4)
+#       define NV097_CLEAR_SURFACE_G                                (1 << 5)
+#       define NV097_CLEAR_SURFACE_B                                (1 << 6)
+#       define NV097_CLEAR_SURFACE_A                                (1 << 7)
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
@@ -663,6 +664,7 @@ typedef struct Texture {
 } Texture;
 
 typedef struct Surface {
+    bool draw_dirty;
     unsigned int pitch;
     unsigned int x, y;
     unsigned int width, height;
@@ -681,7 +683,6 @@ typedef struct KelvinState {
     hwaddr dma_semaphore;
     unsigned int semaphore_offset;
 
-    bool surface_dirty;
     Surface surface_color;
     Surface surface_zeta;
     uint32_t color_mask;
@@ -1234,7 +1235,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
                                              shader->program_length);
         const char* shader_code_str = qstring_get_str(shader_code);
 
-        NV2A_DPRINTF("nv2a bind shader %d, code:\n%s\n",
+        NV2A_DPRINTF("bind shader %d, code:\n%s\n",
                      kelvin->vertexshader_start_slot,
                      shader_code_str);
 
@@ -1426,12 +1427,12 @@ static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
 
 }
 
-static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
+static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload)
 {
-    /* read the renderbuffer into the set surface */
-    if (kelvin->surface_color.format != 0 && kelvin->color_mask) {
+    if (kelvin->surface_color.format != 0 && kelvin->color_mask
+        && (upload || kelvin->surface_color.draw_dirty)) {
 
-        /* There's a bunch of bugs that could cause us to hit this functino
+        /* There's a bunch of bugs that could cause us to hit this function
          * at the wrong time and get a invalid dma object.
          * Check that it's sane. */
         DMAObject color_dma = nv_dma_load(d, kelvin->dma_color);
@@ -1470,24 +1471,70 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
         /* TODO */
         assert(kelvin->surface_color.x == 0 && kelvin->surface_color.y == 0);
 
-        glo_readpixels(gl_format, gl_type,
-                       bytes_per_pixel, kelvin->surface_color.pitch,
-                       kelvin->surface_color.width, kelvin->surface_color.height,
-                       color_data + kelvin->surface_color.offset);
-        assert(glGetError() == GL_NO_ERROR);
+        if (upload && memory_region_test_and_clear_dirty(d->vram,
+                                               color_dma.address
+                                                 + kelvin->surface_color.offset,
+                                               kelvin->surface_color.pitch
+                                                 * kelvin->surface_color.height,
+                                               DIRTY_MEMORY_NV2A)) {
+            /* surface modified (or moved) by the cpu.
+             * copy it into the opengl renderbuffer */
+            assert(!kelvin->surface_color.draw_dirty);
 
-        memory_region_set_dirty(d->vram,
-                                color_dma.address + kelvin->surface_color.offset,
-                                kelvin->surface_color.pitch
-                                    * kelvin->surface_color.height);
-    }
-}
+            assert(kelvin->surface_color.pitch % bytes_per_pixel == 0);
 
-static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin)
-{
-    if (kelvin->surface_dirty) {
-        kelvin_read_surface(d, kelvin);
-        kelvin->surface_dirty = false;
+            int rl, pa;
+            glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rl);
+            glGetIntegerv(GL_UNPACK_ALIGNMENT, &pa);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                          kelvin->surface_color.pitch / bytes_per_pixel);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            /* glDrawPixels is crazy deprecated, but there really isn't
+             * an easy alternative */
+
+            glRasterPos2i(0, 0);
+            glDrawPixels(kelvin->surface_color.width,
+                         kelvin->surface_color.height,
+                         gl_format, gl_type,
+                         color_data + kelvin->surface_color.offset);
+            assert(glGetError() == GL_NO_ERROR);
+
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, rl);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, pa);
+        }
+
+        if (!upload && kelvin->surface_color.draw_dirty) {
+            /* read the opengl renderbuffer into the surface */
+
+            glo_readpixels(gl_format, gl_type,
+                           bytes_per_pixel, kelvin->surface_color.pitch,
+                           kelvin->surface_color.width, kelvin->surface_color.height,
+                           color_data + kelvin->surface_color.offset);
+            assert(glGetError() == GL_NO_ERROR);
+
+            memory_region_set_client_dirty(d->vram,
+                                           color_dma.address
+                                                + kelvin->surface_color.offset,
+                                           kelvin->surface_color.pitch
+                                                * kelvin->surface_color.height,
+                                           DIRTY_MEMORY_VGA);
+
+            kelvin->surface_color.draw_dirty = false;
+
+            uint8_t *out = color_data + kelvin->surface_color.offset;
+            NV2A_DPRINTF("read_surface 0x%llx - 0x%llx, "
+                          "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
+                color_dma.address, color_dma.address + color_dma.limit,
+                color_dma.address + kelvin->surface_color.offset,
+                color_dma.address + kelvin->surface_color.pitch * kelvin->surface_color.height,
+                kelvin->surface_color.x, kelvin->surface_color.y,
+                kelvin->surface_color.width, kelvin->surface_color.height,
+                kelvin->surface_color.pitch,
+                out[0], out[1], out[2], out[3]);
+        }
+
+
     }
 }
 
@@ -1742,11 +1789,11 @@ static void pgraph_method(NV2AState *d,
     
     case NV097_WAIT_FOR_IDLE:
         glFinish();
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
         break;
 
     case NV097_FLIP_STALL:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
         break;
     
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
@@ -1763,7 +1810,7 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CONTEXT_DMA_COLOR:
         /* try to get any straggling draws in before the surface's changed :/ */
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->dma_color = parameter;
         break;
@@ -1781,7 +1828,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_color.x =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
@@ -1789,7 +1836,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
         break;
     case NV097_SET_SURFACE_CLIP_VERTICAL:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_color.y =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
@@ -1797,7 +1844,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
         break;
     case NV097_SET_SURFACE_FORMAT:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_color.format =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_COLOR);
@@ -1805,7 +1852,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ZETA);
         break;
     case NV097_SET_SURFACE_PITCH:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_color.pitch =
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_COLOR);
@@ -1813,12 +1860,12 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_ZETA);
         break;
     case NV097_SET_SURFACE_COLOR_OFFSET:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_color.offset = parameter;
         break;
     case NV097_SET_SURFACE_ZETA_OFFSET:
-        kelvin_update_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin, false);
 
         kelvin->surface_zeta.offset = parameter;
         break;
@@ -1982,6 +2029,8 @@ static void pgraph_method(NV2AState *d,
         } else {
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
 
+            kelvin_update_surface(d, kelvin, true);
+
             if (kelvin->use_vertex_program) {
                 glEnable(GL_VERTEX_PROGRAM_ARB);
                 kelvin_bind_vertexshader(kelvin);
@@ -2000,7 +2049,7 @@ static void pgraph_method(NV2AState *d,
             kelvin->array_batch_length = 0;
             kelvin->inline_vertex_data_length = 0;
         }
-        kelvin->surface_dirty = true;
+        kelvin->surface_color.draw_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
         slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
@@ -2078,11 +2127,13 @@ static void pgraph_method(NV2AState *d,
         unsigned int start = GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX);
         unsigned int count = GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1;
 
+        kelvin_update_surface(d, kelvin, true);
+
         kelvin_bind_converted_vertex_attributes(d, kelvin,
             false, start + count);
         glDrawArrays(kelvin->gl_primitive_mode, start, count);
 
-        kelvin->surface_dirty = true;
+        kelvin->surface_color.draw_dirty = true;
         break;
     }
     case NV097_INLINE_ARRAY:
@@ -2095,6 +2146,9 @@ static void pgraph_method(NV2AState *d,
         kelvin->semaphore_offset = parameter;
         break;
     case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE: {
+
+        kelvin_update_surface(d, kelvin, false);
+
         //qemu_mutex_unlock(&d->pgraph.lock);
         //qemu_mutex_lock_iothread();
 
@@ -2135,14 +2189,15 @@ static void pgraph_method(NV2AState *d,
         if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
             gl_mask |= GL_STENCIL_BUFFER_BIT;
         }
-        if (parameter & (
-                NV097_CLEAR_SURFACE_R | NV097_CLEAR_SURFACE_G
-                | NV097_CLEAR_SURFACE_B | NV097_CLEAR_SURFACE_A)) {
+        if (parameter & (NV097_CLEAR_SURFACE_COLOR)) {
             gl_mask |= GL_COLOR_BUFFER_BIT;
+            kelvin_update_surface(d, kelvin, true);
         }
         glClear(gl_mask);
 
-        kelvin->surface_dirty = true;
+        if (parameter & NV097_CLEAR_SURFACE_COLOR) {
+            kelvin->surface_color.draw_dirty = true;
+        }
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
@@ -2193,7 +2248,7 @@ static void pgraph_context_switch(NV2AState *d, unsigned int channel_id)
     }
     qemu_mutex_unlock(&d->pgraph.lock);
     if (!valid) {
-        NV2A_DPRINTF("nv2a: puller needs to switch to ch %d\n", channel_id);
+        NV2A_DPRINTF("puller needs to switch to ch %d\n", channel_id);
         
         qemu_mutex_lock_iothread();
         d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
@@ -2345,7 +2400,7 @@ static void pfifo_run_pusher(NV2AState *d) {
 
     dma = nv_dma_map(d, state->dma_instance, &dma_len);
 
-    NV2A_DPRINTF("nv2a DMA pusher: max 0x%llx, 0x%llx - 0x%llx\n",
+    NV2A_DPRINTF("DMA pusher: max 0x%llx, 0x%llx - 0x%llx\n",
                  dma_len, control->dma_get, control->dma_put);
 
     /* based on the convenient pseudocode in envytools */
@@ -2386,12 +2441,12 @@ static void pfifo_run_pusher(NV2AState *d) {
                 /* old jump */
                 state->get_jmp_shadow = control->dma_get;
                 control->dma_get = word & 0x1fffffff;
-                NV2A_DPRINTF("nv2a pb OLD_JMP 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb OLD_JMP 0x%llx\n", control->dma_get);
             } else if ((word & 3) == 1) {
                 /* jump */
                 state->get_jmp_shadow = control->dma_get;
                 control->dma_get = word & 0xfffffffc;
-                NV2A_DPRINTF("nv2a pb JMP 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb JMP 0x%llx\n", control->dma_get);
             } else if ((word & 3) == 2) {
                 /* call */
                 if (state->subroutine_active) {
@@ -2401,7 +2456,7 @@ static void pfifo_run_pusher(NV2AState *d) {
                 state->subroutine_return = control->dma_get;
                 state->subroutine_active = true;
                 control->dma_get = word & 0xfffffffc;
-                NV2A_DPRINTF("nv2a pb CALL 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb CALL 0x%llx\n", control->dma_get);
             } else if (word == 0x00020000) {
                 /* return */
                 if (!state->subroutine_active) {
@@ -2410,7 +2465,7 @@ static void pfifo_run_pusher(NV2AState *d) {
                 }
                 control->dma_get = state->subroutine_return;
                 state->subroutine_active = false;
-                NV2A_DPRINTF("nv2a pb RET 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb RET 0x%llx\n", control->dma_get);
             } else if ((word & 0xe0030003) == 0) {
                 /* increasing methods */
                 state->method = word & 0x1fff;
@@ -2426,6 +2481,8 @@ static void pfifo_run_pusher(NV2AState *d) {
                 state->method_nonincreasing = true;
                 state->dcount = 0;
             } else {
+                NV2A_DPRINTF("pb reserved cmd 0x%llx - 0x%x\n",
+                             control->dma_get, word);
                 state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD;
                 break;
             }
@@ -2433,7 +2490,9 @@ static void pfifo_run_pusher(NV2AState *d) {
     }
 
     if (state->error) {
-        NV2A_DPRINTF("nv2a pb error: %d\n", state->error);
+        NV2A_DPRINTF("pb error: %d\n", state->error);
+        assert(false);
+
         state->dma_push_suspended = true;
 
         d->pfifo.pending_interrupts |= NV_PFIFO_INTR_0_DMA_PUSHER;
@@ -3105,7 +3164,7 @@ static void pgraph_write(void *opaque, hwaddr addr,
         qemu_mutex_lock(&d->pgraph.lock);
 
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
-            NV2A_DPRINTF("nv2a PGRAPH: read channel %d context from %llx\n",
+            NV2A_DPRINTF("PGRAPH: read channel %d context from %llx\n",
                          d->pgraph.channel_id, d->pgraph.context_address);
 
             uint8_t *context_ptr = d->ramin_ptr + d->pgraph.context_address;
@@ -3247,7 +3306,7 @@ static uint64_t pramdac_read(void *opaque,
     /* Surprisingly, QEMU doesn't handle unaligned access for you properly */
     r >>= 32 - 8 * size - 8 * (addr & 3);
 
-    NV2A_DPRINTF("nv2a PRAMDAC: read %d [0x%llx] -> %llx\n", size, addr, r);
+    NV2A_DPRINTF("PRAMDAC: read %d [0x%llx] -> %llx\n", size, addr, r);
     return r;
 }
 static void pramdac_write(void *opaque, hwaddr addr,
@@ -3343,7 +3402,7 @@ static uint64_t user_read(void *opaque,
         }
     } else {
         /* PIO Mode */
-        /* dunno */
+        assert(false);
     }
 
     reg_log_read(NV_USER, addr, r);
@@ -3588,14 +3647,14 @@ static void reg_log_read(int block, hwaddr addr, uint64_t val) {
         hwaddr naddr = blocktable[block].offset + addr;
         if (naddr < sizeof(nv2a_reg_names)/sizeof(const char*)
                 && nv2a_reg_names[naddr]) {
-            NV2A_DPRINTF("nv2a %s: read [%s] -> 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: read [%s] -> 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {
-            NV2A_DPRINTF("nv2a %s: read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
                     blocktable[block].name, addr, val);
         }
     } else {
-        NV2A_DPRINTF("nv2a (%d?): read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+        NV2A_DPRINTF("(%d?): read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
                 block, addr, val);
     }
 }
@@ -3605,14 +3664,14 @@ static void reg_log_write(int block, hwaddr addr, uint64_t val) {
         hwaddr naddr = blocktable[block].offset + addr;
         if (naddr < sizeof(nv2a_reg_names)/sizeof(const char*)
                 && nv2a_reg_names[naddr]) {
-            NV2A_DPRINTF("nv2a %s: [%s] = 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: [%s] = 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {
-            NV2A_DPRINTF("nv2a %s: [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
                     blocktable[block].name, addr, val);
         }
     } else {
-        NV2A_DPRINTF("nv2a (%d?): [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+        NV2A_DPRINTF("(%d?): [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
                 block, addr, val);
     }
 }
@@ -3622,7 +3681,7 @@ static void pgraph_method_log(unsigned int subchannel,
     static unsigned int last = 0;
     static unsigned int count = 0;
     if (last == 0x1800 && method != last) {
-        NV2A_DPRINTF("nv2a pgraph method (%d) 0x%x * %d\n",
+        NV2A_DPRINTF("pgraph method (%d) 0x%x * %d\n",
                         subchannel, last, count);  
     }
     if (method != 0x1800) {
@@ -3643,10 +3702,10 @@ static void pgraph_method_log(unsigned int subchannel,
             method_name = nv2a_method_names[nmethod];
         }
         if (method_name) {
-            NV2A_DPRINTF("nv2a pgraph method (%d): %s (0x%x)\n",
+            NV2A_DPRINTF("pgraph method (%d): %s (0x%x)\n",
                      subchannel, method_name, parameter);
         } else {
-            NV2A_DPRINTF("nv2a pgraph method (%d): 0x%x -> 0x%04x (0x%x)\n",
+            NV2A_DPRINTF("pgraph method (%d): 0x%x -> 0x%04x (0x%x)\n",
                      subchannel, graphics_class, method, parameter);
         }
 
@@ -3721,6 +3780,8 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
 
     d->vram_ptr = memory_region_get_ram_ptr(d->vram);
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
+
+    memory_region_set_log(d->vram, true, DIRTY_MEMORY_NV2A);
 
     /* hacky. swap out vga's vram */
     memory_region_destroy(&d->vga.vram);

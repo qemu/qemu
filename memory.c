@@ -1198,6 +1198,19 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
     return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
 }
 
+void memory_region_set_client_dirty(MemoryRegion *mr, hwaddr addr,
+                                    hwaddr size, unsigned client)
+{
+    if (mr->alias) {
+        return memory_region_set_client_dirty(mr->alias,
+                                              addr - mr->alias_offset,
+                                              size, client);
+    }
+    assert(mr->terminates);
+    return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr,
+                                               size, 1 << client);
+}
+
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client)
 {
