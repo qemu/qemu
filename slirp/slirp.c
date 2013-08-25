@@ -262,14 +262,33 @@ void slirp_cleanup(Slirp *slirp)
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 #define CONN_CANFRCV(so) (((so)->so_state & (SS_FCANTRCVMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 
-void slirp_update_timeout(uint32_t *timeout)
+static void slirp_update_timeout(uint32_t *timeout)
 {
-    if (!QTAILQ_EMPTY(&slirp_instances)) {
-        *timeout = MIN(TIMEOUT_DEFAULT, *timeout);
+    Slirp *slirp;
+    uint32_t t;
+
+    if (*timeout <= TIMEOUT_FAST) {
+        return;
     }
+    *timeout = MIN(1000, *timeout);
+    t = *timeout;
+
+    /* If we have tcp timeout with slirp, then we will fill @timeout with
+     * more precise value.
+     */
+    QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
+        if (slirp->time_fasttimo) {
+            *timeout = TIMEOUT_FAST;
+            return;
+        }
+        if (slirp->do_slowtimo) {
+            t = MIN(TIMEOUT_SLOW, t);
+        }
+    }
+    *timeout = t;
 }
 
-void slirp_pollfds_fill(GArray *pollfds)
+void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout)
 {
     Slirp *slirp;
     struct socket *so, *so_next;
@@ -439,6 +458,7 @@ void slirp_pollfds_fill(GArray *pollfds)
             }
         }
     }
+    slirp_update_timeout(timeout);
 }
 
 void slirp_pollfds_poll(GArray *pollfds, int select_error)
