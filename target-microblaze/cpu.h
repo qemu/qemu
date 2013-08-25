@@ -363,11 +363,6 @@ void mb_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
                               unsigned size);
 #endif
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
-}
-
 #include "exec/exec-all.h"
 
 #endif

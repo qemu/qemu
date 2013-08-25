@@ -152,11 +152,6 @@ static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline int cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
-}
-
 int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
                                int rw, int mmu_idx);
 

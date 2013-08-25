@@ -23,6 +23,12 @@ static void uc32_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.regs[31] = value;
 }
 
+static bool uc32_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request &
+        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
+}
+
 static inline void set_feature(CPUUniCore32State *env, int feature)
 {
     env->features |= feature;
@@ -138,6 +144,7 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = uc32_cpu_realizefn;
 
     cc->class_by_name = uc32_cpu_class_by_name;
+    cc->has_work = uc32_cpu_has_work;
     cc->do_interrupt = uc32_cpu_do_interrupt;
     cc->dump_state = uc32_cpu_dump_state;
     cc->set_pc = uc32_cpu_set_pc;

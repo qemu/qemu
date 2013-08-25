@@ -276,11 +276,6 @@ static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
 #define cpu_list cris_cpu_list
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
-}
-
 #include "exec/exec-all.h"
 
 #endif

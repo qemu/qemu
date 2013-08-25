@@ -29,6 +29,11 @@ static void moxie_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static bool moxie_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 static void moxie_cpu_reset(CPUState *s)
 {
     MoxieCPU *cpu = MOXIE_CPU(s);
@@ -99,6 +104,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
+    cc->has_work = moxie_cpu_has_work;
     cc->do_interrupt = moxie_cpu_do_interrupt;
     cc->dump_state = moxie_cpu_dump_state;
     cc->set_pc = moxie_cpu_set_pc;

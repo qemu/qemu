@@ -2171,14 +2171,6 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
 
 extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
-    CPUPPCState *env = &ppc_cpu->env;
-
-    return msr_ee && (cpu->interrupt_request & CPU_INTERRUPT_HARD);
-}
-
 #include "exec/exec-all.h"
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);

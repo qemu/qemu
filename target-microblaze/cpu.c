@@ -34,6 +34,11 @@ static void mb_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.sregs[SR_PC] = value;
 }
 
+static bool mb_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+}
+
 #ifndef CONFIG_USER_ONLY
 static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
 {
@@ -160,6 +165,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
 
+    cc->has_work = mb_cpu_has_work;
     cc->do_interrupt = mb_cpu_do_interrupt;
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;

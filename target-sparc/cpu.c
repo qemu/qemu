@@ -739,6 +739,15 @@ static void sparc_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.npc = tb->cs_base;
 }
 
+static bool sparc_cpu_has_work(CPUState *cs)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+
+    return (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+           cpu_interrupts_enabled(env);
+}
+
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
@@ -782,6 +791,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
 
+    cc->has_work = sparc_cpu_has_work;
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)

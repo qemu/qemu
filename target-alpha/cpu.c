@@ -31,6 +31,21 @@ static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static bool alpha_cpu_has_work(CPUState *cs)
+{
+    /* Here we are checking to see if the CPU should wake up from HALT.
+       We will have gotten into this state only for WTINT from PALmode.  */
+    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
+       asleep even if (some) interrupts have been asserted.  For now,
+       assume that if a CPU really wants to stay asleep, it will mask
+       interrupts at the chipset level, which will prevent these bits
+       from being set in the first place.  */
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD
+                                    | CPU_INTERRUPT_TIMER
+                                    | CPU_INTERRUPT_SMP
+                                    | CPU_INTERRUPT_MCHK);
+}
+
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -267,6 +282,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = alpha_cpu_realizefn;
 
     cc->class_by_name = alpha_cpu_class_by_name;
+    cc->has_work = alpha_cpu_has_work;
     cc->do_interrupt = alpha_cpu_do_interrupt;
     cc->dump_state = alpha_cpu_dump_state;
     cc->set_pc = alpha_cpu_set_pc;

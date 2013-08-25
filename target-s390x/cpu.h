@@ -1041,15 +1041,6 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    S390CPU *s390_cpu = S390_CPU(cpu);
-    CPUS390XState *env = &s390_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->psw.mask & PSW_MASK_EXT);
-}
-
 /* fpu_helper.c */
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);

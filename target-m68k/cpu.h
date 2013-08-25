@@ -253,11 +253,6 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
-}
-
 #include "exec/exec-all.h"
 
 #endif

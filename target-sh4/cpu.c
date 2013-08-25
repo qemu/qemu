@@ -39,6 +39,11 @@ static void superh_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.flags = tb->flags;
 }
 
+static bool superh_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 /* CPUClass::reset() */
 static void superh_cpu_reset(CPUState *s)
 {
@@ -280,6 +285,7 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = superh_cpu_reset;
 
     cc->class_by_name = superh_cpu_class_by_name;
+    cc->has_work = superh_cpu_has_work;
     cc->do_interrupt = superh_cpu_do_interrupt;
     cc->dump_state = superh_cpu_dump_state;
     cc->set_pc = superh_cpu_set_pc;

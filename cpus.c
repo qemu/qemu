@@ -76,7 +76,7 @@ static bool cpu_thread_is_idle(CPUState *cpu)
     if (cpu_is_stopped(cpu)) {
         return true;
     }
-    if (!cpu->halted || qemu_cpu_has_work(cpu) ||
+    if (!cpu->halted || cpu_has_work(cpu) ||
         kvm_halt_in_kernel()) {
         return false;
     }

@@ -27,6 +27,12 @@ static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static bool openrisc_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD |
+                                    CPU_INTERRUPT_TIMER);
+}
+
 /* CPUClass::reset() */
 static void openrisc_cpu_reset(CPUState *s)
 {
@@ -153,6 +159,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = openrisc_cpu_reset;
 
     cc->class_by_name = openrisc_cpu_class_by_name;
+    cc->has_work = openrisc_cpu_has_work;
     cc->do_interrupt = openrisc_cpu_do_interrupt;
     cc->dump_state = openrisc_cpu_dump_state;
     cc->set_pc = openrisc_cpu_set_pc;

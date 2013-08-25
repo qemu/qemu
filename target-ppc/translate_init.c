@@ -8384,6 +8384,14 @@ static void ppc_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.nip = value;
 }
 
+static bool ppc_cpu_has_work(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+}
+
 /* CPUClass::reset() */
 static void ppc_cpu_reset(CPUState *s)
 {
@@ -8511,6 +8519,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = ppc_cpu_reset;
 
     cc->class_by_name = ppc_cpu_class_by_name;
+    cc->has_work = ppc_cpu_has_work;
     cc->do_interrupt = ppc_cpu_do_interrupt;
     cc->dump_state = ppc_cpu_dump_state;
     cc->dump_statistics = ppc_cpu_dump_statistics;

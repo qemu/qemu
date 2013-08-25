@@ -419,11 +419,6 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD |
-                                     CPU_INTERRUPT_TIMER);
-}
 
 #include "exec/exec-all.h"
 

@@ -160,10 +160,4 @@ static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc
 void uc32_translate_init(void);
 void switch_mode(CPUUniCore32State *, int);
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request &
-        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
-}
-
 #endif /* QEMU_UNICORE32_CPU_H */

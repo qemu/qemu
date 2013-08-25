@@ -749,15 +749,6 @@ static inline bool tb_am_enabled(int tb_flags)
 #endif
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    SPARCCPU *sparc_cpu = SPARC_CPU(cpu);
-    CPUSPARCState *env1 = &sparc_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-           cpu_interrupts_enabled(env1);
-}
-
 #include "exec/exec-all.h"
 
 #endif

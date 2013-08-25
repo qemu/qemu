@@ -1166,12 +1166,6 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     *cs_base = 0;
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request &
-        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
-}
-
 #include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)

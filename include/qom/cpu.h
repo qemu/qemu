@@ -70,6 +70,7 @@ struct TranslationBlock;
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
+ * @has_work: Callback for checking if there is work to do.
  * @do_interrupt: Callback for interrupt handling.
  * @do_unassigned_access: Callback for unassigned access handling.
  * @memory_rw_debug: Callback for GDB memory access.
@@ -99,6 +100,7 @@ typedef struct CPUClass {
 
     void (*reset)(CPUState *cpu);
     int reset_dump_flags;
+    bool (*has_work)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
     CPUUnassignedAccess do_unassigned_access;
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
@@ -348,14 +350,20 @@ void cpu_reset(CPUState *cpu);
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 
 /**
- * qemu_cpu_has_work:
+ * cpu_has_work:
  * @cpu: The vCPU to check.
  *
  * Checks whether the CPU has work to do.
  *
  * Returns: %true if the CPU has work, %false otherwise.
  */
-bool qemu_cpu_has_work(CPUState *cpu);
+static inline bool cpu_has_work(CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    g_assert(cc->has_work);
+    return cc->has_work(cpu);
+}
 
 /**
  * qemu_cpu_is_self:

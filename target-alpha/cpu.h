@@ -498,21 +498,6 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    /* Here we are checking to see if the CPU should wake up from HALT.
-       We will have gotten into this state only for WTINT from PALmode.  */
-    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
-       asleep even if (some) interrupts have been asserted.  For now,
-       assume that if a CPU really wants to stay asleep, it will mask
-       interrupts at the chipset level, which will prevent these bits
-       from being set in the first place.  */
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
-                                     | CPU_INTERRUPT_TIMER
-                                     | CPU_INTERRUPT_SMP
-                                     | CPU_INTERRUPT_MCHK);
-}
-
 #include "exec/exec-all.h"
 
 #endif /* !defined (__CPU_ALPHA_H__) */

@@ -23,11 +23,6 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
-bool qemu_cpu_has_work(CPUState *cpu)
-{
-    return cpu_has_work(cpu);
-}
-
 void cpu_loop_exit(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);

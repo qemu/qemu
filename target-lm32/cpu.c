@@ -110,6 +110,11 @@ static void lm32_cpu_init_cfg_reg(LM32CPU *cpu)
     env->cfg = cfg;
 }
 
+static bool lm32_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 /* CPUClass::reset() */
 static void lm32_cpu_reset(CPUState *s)
 {
@@ -255,6 +260,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = lm32_cpu_reset;
 
     cc->class_by_name = lm32_cpu_class_by_name;
+    cc->has_work = lm32_cpu_has_work;
     cc->do_interrupt = lm32_cpu_do_interrupt;
     cc->dump_state = lm32_cpu_dump_state;
     cc->set_pc = lm32_cpu_set_pc;

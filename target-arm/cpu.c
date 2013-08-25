@@ -36,6 +36,12 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.regs[15] = value;
 }
 
+static bool arm_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request &
+        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
+}
+
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
     /* Reset a single ARMCPRegInfo register */
@@ -1001,6 +1007,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = arm_cpu_reset;
 
     cc->class_by_name = arm_cpu_class_by_name;
+    cc->has_work = arm_cpu_has_work;
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->dump_state = arm_cpu_dump_state;
     cc->set_pc = arm_cpu_set_pc;

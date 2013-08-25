@@ -245,11 +245,6 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
-}
-
 #include "exec/exec-all.h"
 
 #endif

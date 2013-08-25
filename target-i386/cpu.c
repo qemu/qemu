@@ -2695,6 +2695,20 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
+static bool x86_cpu_has_work(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
+                                      CPU_INTERRUPT_POLL)) &&
+            (env->eflags & IF_MASK)) ||
+           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
+                                     CPU_INTERRUPT_INIT |
+                                     CPU_INTERRUPT_SIPI |
+                                     CPU_INTERRUPT_MCE));
+}
+
 static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
     { .name  = "hv-spinlocks", .info  = &qdev_prop_spinlocks },
@@ -2721,6 +2735,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
+    cc->has_work = x86_cpu_has_work;
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;
     cc->set_pc = x86_cpu_set_pc;
