@@ -47,6 +47,11 @@ static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
 static struct in_addr dns_addr;
 static u_int dns_addr_time;
 
+#define TIMEOUT_FAST 2  /* milliseconds */
+#define TIMEOUT_SLOW 499  /* milliseconds */
+/* for the aging of certain requests like DNS */
+#define TIMEOUT_DEFAULT 1000  /* milliseconds */
+
 #ifdef _WIN32
 
 int get_dns_addr(struct in_addr *pdns_addr)
@@ -57,7 +62,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
     IP_ADDR_STRING *pIPAddr;
     struct in_addr tmp_addr;
 
-    if (dns_addr.s_addr != 0 && (curtime - dns_addr_time) < 1000) {
+    if (dns_addr.s_addr != 0 && (curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
         *pdns_addr = dns_addr;
         return 0;
     }
@@ -113,7 +118,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
 
     if (dns_addr.s_addr != 0) {
         struct stat old_stat;
-        if ((curtime - dns_addr_time) < 1000) {
+        if ((curtime - dns_addr_time) < TIMEOUT_DEFAULT) {
             *pdns_addr = dns_addr;
             return 0;
         }
@@ -260,7 +265,7 @@ void slirp_cleanup(Slirp *slirp)
 void slirp_update_timeout(uint32_t *timeout)
 {
     if (!QTAILQ_EMPTY(&slirp_instances)) {
-        *timeout = MIN(1000, *timeout);
+        *timeout = MIN(TIMEOUT_DEFAULT, *timeout);
     }
 }
 
@@ -452,11 +457,13 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
         /*
          * See if anything has timed out
          */
-        if (slirp->time_fasttimo && ((curtime - slirp->time_fasttimo) >= 2)) {
+        if (slirp->time_fasttimo &&
+            ((curtime - slirp->time_fasttimo) >= TIMEOUT_FAST)) {
             tcp_fasttimo(slirp);
             slirp->time_fasttimo = 0;
         }
-        if (slirp->do_slowtimo && ((curtime - slirp->last_slowtimo) >= 499)) {
+        if (slirp->do_slowtimo &&
+            ((curtime - slirp->last_slowtimo) >= TIMEOUT_SLOW)) {
             ip_slowtimo(slirp);
             tcp_slowtimo(slirp);
             slirp->last_slowtimo = curtime;
