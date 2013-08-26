@@ -1254,13 +1254,14 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
 
     if (kvm_enabled()) {
         env->tpr_access_type = access;
 
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TPR);
+        cpu_interrupt(cs, CPU_INTERRUPT_TPR);
     } else {
-        cpu_restore_state(env, env->mem_io_pc);
+        cpu_restore_state(env, cs->mem_io_pc);
 
         apic_handle_tpr_access_report(cpu->apic_state, env->eip, access);
     }

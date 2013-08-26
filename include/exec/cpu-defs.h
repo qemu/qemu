@@ -146,13 +146,6 @@ typedef struct CPUWatchpoint {
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     /* soft mmu support */                                              \
-    /* in order to avoid passing too many arguments to the MMIO         \
-       helpers, we store some rarely used information in the CPU        \
-       context) */                                                      \
-    uintptr_t mem_io_pc; /* host pc at which the memory was             \
-                            accessed */                                 \
-    target_ulong mem_io_vaddr; /* target virtual addr at which the      \
-                                     memory was accessed */             \
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
                                                                         \

@@ -406,7 +406,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     }
 
     if (!kvm_enabled()) {
-        cpu_restore_state(env, env->mem_io_pc);
+        cpu_restore_state(env, cs->mem_io_pc);
         cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                              &current_flags);
     }

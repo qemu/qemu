@@ -1553,7 +1553,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
        flushed */
     if (!cpu_physical_memory_is_clean(ram_addr)) {
         CPUArchState *env = current_cpu->env_ptr;
-        tlb_set_dirty(env, env->mem_io_vaddr);
+        tlb_set_dirty(env, current_cpu->mem_io_vaddr);
     }
 }
 
@@ -1572,7 +1572,8 @@ static const MemoryRegionOps notdirty_mem_ops = {
 /* Generate a debug exception if a watchpoint has been hit.  */
 static void check_watchpoint(int offset, int len_mask, int flags)
 {
-    CPUArchState *env = current_cpu->env_ptr;
+    CPUState *cpu = current_cpu;
+    CPUArchState *env = cpu->env_ptr;
     target_ulong pc, cs_base;
     target_ulong vaddr;
     CPUWatchpoint *wp;
@@ -1582,10 +1583,10 @@ static void check_watchpoint(int offset, int len_mask, int flags)
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
          * current instruction. */
-        cpu_interrupt(ENV_GET_CPU(env), CPU_INTERRUPT_DEBUG);
+        cpu_interrupt(cpu, CPU_INTERRUPT_DEBUG);
         return;
     }
-    vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
+    vaddr = (cpu->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
     QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if ((vaddr == (wp->vaddr & len_mask) ||
              (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
