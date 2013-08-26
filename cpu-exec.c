@@ -650,15 +650,15 @@ int cpu_exec(CPUArchState *env)
                         int insns_left;
                         tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         insns_left = env->icount_decr.u32;
-                        if (env->icount_extra && insns_left >= 0) {
+                        if (cpu->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
-                            env->icount_extra += insns_left;
-                            if (env->icount_extra > 0xffff) {
+                            cpu->icount_extra += insns_left;
+                            if (cpu->icount_extra > 0xffff) {
                                 insns_left = 0xffff;
                             } else {
-                                insns_left = env->icount_extra;
+                                insns_left = cpu->icount_extra;
                             }
-                            env->icount_extra -= insns_left;
+                            cpu->icount_extra -= insns_left;
                             env->icount_decr.u16.low = insns_left;
                         } else {
                             if (insns_left > 0) {

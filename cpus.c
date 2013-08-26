@@ -143,7 +143,7 @@ static int64_t cpu_get_icount_locked(void)
         if (!cpu_can_do_io(cpu)) {
             fprintf(stderr, "Bad clock read\n");
         }
-        icount -= (env->icount_decr.u16.low + env->icount_extra);
+        icount -= (env->icount_decr.u16.low + cpu->icount_extra);
     }
     return qemu_icount_bias + (icount << icount_time_shift);
 }
@@ -1236,6 +1236,7 @@ int vm_stop_force_state(RunState state)
 
 static int tcg_cpu_exec(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int ret;
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -1248,9 +1249,9 @@ static int tcg_cpu_exec(CPUArchState *env)
         int64_t count;
         int64_t deadline;
         int decr;
-        qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
+        qemu_icount -= (env->icount_decr.u16.low + cpu->icount_extra);
         env->icount_decr.u16.low = 0;
-        env->icount_extra = 0;
+        cpu->icount_extra = 0;
         deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 
         /* Maintain prior (possibly buggy) behaviour where if no deadline
@@ -1267,7 +1268,7 @@ static int tcg_cpu_exec(CPUArchState *env)
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
         env->icount_decr.u16.low = decr;
-        env->icount_extra = count;
+        cpu->icount_extra = count;
     }
     ret = cpu_exec(env);
 #ifdef CONFIG_PROFILER
@@ -1276,10 +1277,9 @@ static int tcg_cpu_exec(CPUArchState *env)
     if (use_icount) {
         /* Fold pending instructions back into the
            instruction counter, and clear the interrupt flag.  */
-        qemu_icount -= (env->icount_decr.u16.low
-                        + env->icount_extra);
+        qemu_icount -= (env->icount_decr.u16.low + cpu->icount_extra);
         env->icount_decr.u32 = 0;
-        env->icount_extra = 0;
+        cpu->icount_extra = 0;
     }
     return ret;
 }

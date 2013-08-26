@@ -157,6 +157,7 @@ struct kvm_run;
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
  * @singlestep_enabled: Flags for single-stepping.
+ * @icount_extra: Instructions until next timer event.
  * @can_do_io: Nonzero if memory-mapped IO is safe.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
@@ -196,6 +197,7 @@ struct CPUState {
     volatile sig_atomic_t tcg_exit_req;
     uint32_t interrupt_request;
     int singlestep_enabled;
+    int64_t icount_extra;
 
     AddressSpace *as;
     MemoryListener *tcg_as_listener;

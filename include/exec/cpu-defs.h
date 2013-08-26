@@ -149,7 +149,6 @@ typedef struct CPUWatchpoint {
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
                                                                         \
-    int64_t icount_extra; /* Instructions until next timer event.  */   \
     /* Number of cycles left, with interrupt flag in high bit.          \
        This allows a single read-compare-cbranch-write sequence to test \
        for both decrementer underflow and exceptions.  */               \
