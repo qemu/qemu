@@ -49,7 +49,7 @@ static void cris_cpu_reset(CPUState *s)
     ccc->parent_reset(s);
 
     vr = env->pregs[PR_VR];
-    memset(env, 0, offsetof(CPUCRISState, breakpoints));
+    memset(env, 0, offsetof(CPUCRISState, load_info));
     env->pregs[PR_VR] = vr;
     tlb_flush(env, 1);
 

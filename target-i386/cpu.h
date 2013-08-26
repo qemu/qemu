@@ -875,7 +875,7 @@ typedef struct CPUX86State {
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
     union {
-        CPUBreakpoint *cpu_breakpoint[4];
+        struct CPUBreakpoint *cpu_breakpoint[4];
         struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
     uint32_t smbase;
@@ -887,6 +887,7 @@ typedef struct CPUX86State {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */

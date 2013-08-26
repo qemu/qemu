@@ -109,7 +109,7 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     s390_cpu_reset(s);
     /* initial reset does not touch regs,fregs and aregs */
-    memset(&env->fpc, 0, offsetof(CPUS390XState, breakpoints) -
+    memset(&env->fpc, 0, offsetof(CPUS390XState, cpu_num) -
                          offsetof(CPUS390XState, fpc));
 
     /* architectured initial values for CR 0 and 14 */
@@ -139,7 +139,7 @@ static void s390_cpu_full_reset(CPUState *s)
 
     scc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUS390XState, breakpoints));
+    memset(env, 0, offsetof(CPUS390XState, cpu_num));
 
     /* architectured initial values for CR 0 and 14 */
     env->cregs[0] = CR0_RESET;

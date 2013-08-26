@@ -2948,10 +2948,11 @@ invalid_opcode:
 
 static void check_breakpoint(CPUXtensaState *env, DisasContext *dc)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     CPUBreakpoint *bp;
 
-    if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == dc->pc) {
                 tcg_gen_movi_i32(cpu_pc, dc->pc);
                 gen_exception(dc, EXCP_DEBUG);

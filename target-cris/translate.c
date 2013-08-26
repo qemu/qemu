@@ -3089,10 +3089,11 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
 
 static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
 {
+    CPUState *cs = CPU(cris_env_get_cpu(env));
     CPUBreakpoint *bp;
 
-    if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == dc->pc) {
                 cris_evaluate_flags(dc);
                 tcg_gen_movi_tl(env_pc, dc->pc);

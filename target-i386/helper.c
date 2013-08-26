@@ -1101,7 +1101,7 @@ void breakpoint_handler(CPUX86State *env)
             }
         }
     } else {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry)
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, true);
@@ -1109,6 +1109,7 @@ void breakpoint_handler(CPUX86State *env)
                 }
                 break;
             }
+        }
     }
 }
 

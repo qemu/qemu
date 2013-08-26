@@ -125,7 +125,7 @@ static void lm32_cpu_reset(CPUState *s)
     lcc->parent_reset(s);
 
     /* reset cpu state */
-    memset(env, 0, offsetof(CPULM32State, breakpoints));
+    memset(env, 0, offsetof(CPULM32State, eba));
 
     lm32_cpu_init_cfg_reg(cpu);
     tlb_flush(env, 1);

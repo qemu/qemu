@@ -2410,7 +2410,7 @@ static void x86_cpu_reset(CPUState *s)
     xcc->parent_reset(s);
 
 
-    memset(env, 0, offsetof(CPUX86State, breakpoints));
+    memset(env, 0, offsetof(CPUX86State, pat));
 
     tlb_flush(env, 1);
 

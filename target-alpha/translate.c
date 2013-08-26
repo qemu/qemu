@@ -3463,8 +3463,8 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
                     gen_excp(&ctx, EXCP_DEBUG, 0);
                     break;

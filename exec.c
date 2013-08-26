@@ -484,7 +484,7 @@ void cpu_exec_init(CPUArchState *env)
     }
     cpu->cpu_index = cpu_index;
     cpu->numa_node = 0;
-    QTAILQ_INIT(&env->breakpoints);
+    QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
@@ -621,6 +621,7 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
                           CPUBreakpoint **breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp;
 
     bp = g_malloc(sizeof(*bp));
@@ -630,12 +631,12 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
 
     /* keep all GDB-injected breakpoints in front */
     if (flags & BP_GDB) {
-        QTAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_HEAD(&cpu->breakpoints, bp, entry);
     } else {
-        QTAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
+        QTAILQ_INSERT_TAIL(&cpu->breakpoints, bp, entry);
     }
 
-    breakpoint_invalidate(ENV_GET_CPU(env), pc);
+    breakpoint_invalidate(cpu, pc);
 
     if (breakpoint) {
         *breakpoint = bp;
@@ -650,9 +651,10 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
 int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags)
 {
 #if defined(TARGET_HAS_ICE)
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp;
 
-    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
             cpu_breakpoint_remove_by_ref(env, bp);
             return 0;
@@ -668,9 +670,11 @@ int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags)
 void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    QTAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
+    CPUState *cpu = ENV_GET_CPU(env);
 
-    breakpoint_invalidate(ENV_GET_CPU(env), breakpoint->pc);
+    QTAILQ_REMOVE(&cpu->breakpoints, breakpoint, entry);
+
+    breakpoint_invalidate(cpu, breakpoint->pc);
 
     g_free(breakpoint);
 #endif
@@ -680,9 +684,10 @@ void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint)
 void cpu_breakpoint_remove_all(CPUArchState *env, int mask)
 {
 #if defined(TARGET_HAS_ICE)
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp, *next;
 
-    QTAILQ_FOREACH_SAFE(bp, &env->breakpoints, entry, next) {
+    QTAILQ_FOREACH_SAFE(bp, &cpu->breakpoints, entry, next) {
         if (bp->flags & mask)
             cpu_breakpoint_remove_by_ref(env, bp);
     }

@@ -304,6 +304,7 @@ typedef struct CPUOpenRISCState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
 #ifndef CONFIG_USER_ONLY
     CPUOpenRISCTLBContext * tlb;
 

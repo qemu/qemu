@@ -1922,8 +1922,8 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
 
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     gen_set_pc_im(dc->pc);
                     gen_exception(EXCP_DEBUG);

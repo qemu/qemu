@@ -82,7 +82,7 @@ static void arm_cpu_reset(CPUState *s)
 
     acc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUARMState, breakpoints));
+    memset(env, 0, offsetof(CPUARMState, features));
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;

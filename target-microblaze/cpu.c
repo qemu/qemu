@@ -63,7 +63,7 @@ static void mb_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMBState, breakpoints));
+    memset(env, 0, sizeof(CPUMBState));
     env->res_addr = RES_ADDR_NONE;
     tlb_flush(env, 1);
 

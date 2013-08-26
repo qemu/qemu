@@ -42,7 +42,7 @@ static void moxie_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUMoxieState, breakpoints));
+    memset(env, 0, sizeof(CPUMoxieState));
     env->pc = 0x1000;
 
     tlb_flush(env, 1);

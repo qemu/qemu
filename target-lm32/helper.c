@@ -131,7 +131,7 @@ void lm32_debug_excp_handler(CPULM32State *env)
             }
         }
     } else {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == env->pc) {
                 if (bp->flags & BP_CPU) {
                     raise_exception(env, EXCP_BREAKPOINT);

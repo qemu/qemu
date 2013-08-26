@@ -4795,8 +4795,8 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
         }
 
         status = NO_EXIT;
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc.pc) {
                     status = EXIT_PC_STALE;
                     do_debug = true;

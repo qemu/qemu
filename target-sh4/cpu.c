@@ -53,7 +53,7 @@ static void superh_cpu_reset(CPUState *s)
 
     scc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUSH4State, breakpoints));
+    memset(env, 0, offsetof(CPUSH4State, id));
     tlb_flush(env, 1);
 
     env->pc = 0xA0000000;

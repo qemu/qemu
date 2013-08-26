@@ -114,19 +114,9 @@ QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
 #endif
 
 
-typedef struct CPUBreakpoint {
-    target_ulong pc;
-    int flags; /* BP_* */
-    QTAILQ_ENTRY(CPUBreakpoint) entry;
-} CPUBreakpoint;
-
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     /* soft mmu support */                                              \
     CPU_COMMON_TLB                                                      \
-                                                                        \
-    /* from this point: preserved by CPU reset */                       \
-    /* ice debug support */                                             \
-    QTAILQ_HEAD(breakpoints_head, CPUBreakpoint) breakpoints;            \
 
 #endif

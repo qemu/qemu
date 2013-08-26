@@ -151,6 +151,12 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
+typedef struct CPUBreakpoint {
+    vaddr pc;
+    int flags; /* BP_* */
+    QTAILQ_ENTRY(CPUBreakpoint) entry;
+} CPUBreakpoint;
+
 typedef struct CPUWatchpoint {
     vaddr vaddr;
     vaddr len_mask;
@@ -237,6 +243,9 @@ struct CPUState {
     int gdb_num_regs;
     int gdb_num_g_regs;
     QTAILQ_ENTRY(CPUState) node;
+
+    /* ice debug support */
+    QTAILQ_HEAD(breakpoints_head, CPUBreakpoint) breakpoints;
 
     QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;
     CPUWatchpoint *watchpoint_hit;

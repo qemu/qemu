@@ -110,6 +110,7 @@ typedef struct CPUM68KState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint32_t features;
 } CPUM68KState;
 

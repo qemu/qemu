@@ -49,7 +49,7 @@ static void m68k_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUM68KState, breakpoints));
+    memset(env, 0, offsetof(CPUM68KState, features));
 #if !defined(CONFIG_USER_ONLY)
     env->sr = 0x2700;
 #endif

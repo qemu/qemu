@@ -171,8 +171,8 @@ typedef struct CPUCRISState {
 
 	CPU_COMMON
 
-	/* Members after CPU_COMMON are preserved across resets.  */
-	void *load_info;
+    /* Members from load_info on are preserved across resets.  */
+    void *load_info;
 } CPUCRISState;
 
 #include "cpu-qom.h"
