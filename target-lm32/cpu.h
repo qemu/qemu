@@ -167,7 +167,7 @@ struct CPULM32State {
     uint32_t wp[4];     /* watchpoints */
 
     CPUBreakpoint * cpu_breakpoint[4];
-    CPUWatchpoint * cpu_watchpoint[4];
+    struct CPUWatchpoint *cpu_watchpoint[4];
 
     CPU_COMMON
 

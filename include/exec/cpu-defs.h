@@ -120,13 +120,6 @@ typedef struct CPUBreakpoint {
     QTAILQ_ENTRY(CPUBreakpoint) entry;
 } CPUBreakpoint;
 
-typedef struct CPUWatchpoint {
-    target_ulong vaddr;
-    target_ulong len_mask;
-    int flags; /* BP_* */
-    QTAILQ_ENTRY(CPUWatchpoint) entry;
-} CPUWatchpoint;
-
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     /* soft mmu support */                                              \
@@ -135,8 +128,5 @@ typedef struct CPUWatchpoint {
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \
     QTAILQ_HEAD(breakpoints_head, CPUBreakpoint) breakpoints;            \
-                                                                        \
-    QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;            \
-    CPUWatchpoint *watchpoint_hit;                                      \
 
 #endif

@@ -200,10 +200,11 @@ void cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
 
 static void cpu_handle_debug_exception(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUWatchpoint *wp;
 
-    if (!env->watchpoint_hit) {
-        QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    if (!cpu->watchpoint_hit) {
+        QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }

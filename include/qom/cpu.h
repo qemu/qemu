@@ -151,6 +151,13 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
+typedef struct CPUWatchpoint {
+    vaddr vaddr;
+    vaddr len_mask;
+    int flags; /* BP_* */
+    QTAILQ_ENTRY(CPUWatchpoint) entry;
+} CPUWatchpoint;
+
 struct KVMState;
 struct kvm_run;
 
@@ -230,6 +237,9 @@ struct CPUState {
     int gdb_num_regs;
     int gdb_num_g_regs;
     QTAILQ_ENTRY(CPUState) node;
+
+    QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;
+    CPUWatchpoint *watchpoint_hit;
 
     void *opaque;
 

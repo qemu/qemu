@@ -359,7 +359,7 @@ typedef struct CPUXtensaState {
     int exception_taken;
 
     /* Watchpoints for DBREAK registers */
-    CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
+    struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
 
     CPU_COMMON
 } CPUXtensaState;

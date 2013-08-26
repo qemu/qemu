@@ -876,7 +876,7 @@ typedef struct CPUX86State {
     target_ulong dr[8]; /* debug registers */
     union {
         CPUBreakpoint *cpu_breakpoint[4];
-        CPUWatchpoint *cpu_watchpoint[4];
+        struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
     uint32_t smbase;
     int old_exception;  /* exception in flight */

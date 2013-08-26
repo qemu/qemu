@@ -1204,8 +1204,8 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
     }
     switch (state) {
     case RUN_STATE_DEBUG:
-        if (env->watchpoint_hit) {
-            switch (env->watchpoint_hit->flags & BP_MEM_ACCESS) {
+        if (cpu->watchpoint_hit) {
+            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
             case BP_MEM_READ:
                 type = "r";
                 break;
@@ -1219,8 +1219,8 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
                      GDB_SIGNAL_TRAP, cpu_index(cpu), type,
-                     env->watchpoint_hit->vaddr);
-            env->watchpoint_hit = NULL;
+                     (target_ulong)cpu->watchpoint_hit->vaddr);
+            cpu->watchpoint_hit = NULL;
             goto send_packet;
         }
         tb_flush(env);

@@ -3435,6 +3435,7 @@ void init_task_state(TaskState *ts)
 
 CPUArchState *cpu_copy(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     CPUArchState *new_env = cpu_init(cpu_model);
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
@@ -3450,12 +3451,12 @@ CPUArchState *cpu_copy(CPUArchState *env)
        Note: Once we support ptrace with hw-debug register access, make sure
        BP_CPU break/watchpoints are handled correctly on clone. */
     QTAILQ_INIT(&env->breakpoints);
-    QTAILQ_INIT(&env->watchpoints);
+    QTAILQ_INIT(&cpu->watchpoints);
 #if defined(TARGET_HAS_ICE)
     QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
         cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
     }
-    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
+    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         cpu_watchpoint_insert(new_env, wp->vaddr, (~wp->len_mask) + 1,
                               wp->flags, NULL);
     }

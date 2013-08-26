@@ -2277,13 +2277,13 @@ static int kvm_handle_debug(X86CPU *cpu,
                         break;
                     case 0x1:
                         ret = EXCP_DEBUG;
-                        env->watchpoint_hit = &hw_watchpoint;
+                        cs->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_WRITE;
                         break;
                     case 0x3:
                         ret = EXCP_DEBUG;
-                        env->watchpoint_hit = &hw_watchpoint;
+                        cs->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_ACCESS;
                         break;
@@ -2291,11 +2291,11 @@ static int kvm_handle_debug(X86CPU *cpu,
                 }
             }
         }
-    } else if (kvm_find_sw_breakpoint(CPU(cpu), arch_info->pc)) {
+    } else if (kvm_find_sw_breakpoint(cs, arch_info->pc)) {
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
-        cpu_synchronize_state(CPU(cpu));
+        cpu_synchronize_state(cs);
         assert(env->exception_injected == -1);
 
         /* pass to guest */
