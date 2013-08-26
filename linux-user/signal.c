@@ -370,7 +370,8 @@ void signal_init(void)
 
 static inline struct sigqueue *alloc_sigqueue(CPUArchState *env)
 {
-    TaskState *ts = env->opaque;
+    CPUState *cpu = ENV_GET_CPU(env);
+    TaskState *ts = cpu->opaque;
     struct sigqueue *q = ts->first_free;
     if (!q)
         return NULL;
@@ -380,7 +381,9 @@ static inline struct sigqueue *alloc_sigqueue(CPUArchState *env)
 
 static inline void free_sigqueue(CPUArchState *env, struct sigqueue *q)
 {
-    TaskState *ts = env->opaque;
+    CPUState *cpu = ENV_GET_CPU(env);
+    TaskState *ts = cpu->opaque;
+
     q->next = ts->first_free;
     ts->first_free = q;
 }
@@ -388,8 +391,9 @@ static inline void free_sigqueue(CPUArchState *env, struct sigqueue *q)
 /* abort execution with signal */
 static void QEMU_NORETURN force_sig(int target_sig)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    TaskState *ts = (TaskState *)env->opaque;
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu->env_ptr;
+    TaskState *ts = (TaskState *)cpu->opaque;
     int host_sig, core_dumped = 0;
     struct sigaction act;
     host_sig = target_to_host_signal(target_sig);
@@ -440,7 +444,8 @@ static void QEMU_NORETURN force_sig(int target_sig)
    as possible */
 int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 {
-    TaskState *ts = env->opaque;
+    CPUState *cpu = ENV_GET_CPU(env);
+    TaskState *ts = cpu->opaque;
     struct emulated_sigtable *k;
     struct sigqueue *q, **pq;
     abi_ulong handler;
@@ -5676,7 +5681,7 @@ void process_pending_signals(CPUArchState *cpu_env)
     struct emulated_sigtable *k;
     struct target_sigaction *sa;
     struct sigqueue *q;
-    TaskState *ts = cpu_env->opaque;
+    TaskState *ts = cpu->opaque;
 
     if (!ts->signal_pending)
         return;

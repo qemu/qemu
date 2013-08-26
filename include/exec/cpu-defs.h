@@ -138,8 +138,5 @@ typedef struct CPUWatchpoint {
                                                                         \
     QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;            \
     CPUWatchpoint *watchpoint_hit;                                      \
-                                                                        \
-    /* user data */                                                     \
-    void *opaque;                                                       \
 
 #endif

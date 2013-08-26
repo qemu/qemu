@@ -1086,8 +1086,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
 #ifdef CONFIG_USER_ONLY
         else if (strncmp(p, "Offsets", 7) == 0) {
-            CPUArchState *env = s->c_cpu->env_ptr;
-            TaskState *ts = env->opaque;
+            TaskState *ts = s->c_cpu->opaque;
 
             snprintf(buf, sizeof(buf),
                      "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
