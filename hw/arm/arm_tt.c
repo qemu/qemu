@@ -1,7 +1,7 @@
 /*
  * TomTom GO 730 with Samsung S3C2443X emulation.
  *
- * Copyright (c) 2010, 2012 Stefan Weil
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Code based on hw/musicpal.c
  * Copyright (c) 2008 Jan Kiszka
@@ -146,7 +146,10 @@ static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 
 #define MP_LCD_TEXTCOLOR        0xe0e0ff /* RRGGBB */
 
-typedef struct tt_lcd_state {
+#define TYPE_TT_LCD "tt_lcd"
+#define TT_LCD(obj) OBJECT_CHECK(tt_lcd_state, (obj), TYPE_TT_LCD)
+
+typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
     QemuConsole *con;
@@ -299,26 +302,32 @@ static const MemoryRegionOps tt_lcd_ops = {
     }
 };
 
-static int tt_lcd_init(SysBusDevice *dev)
+static const GraphicHwOps tt_gfx_ops = {
+    .invalidate  = lcd_invalidate,
+    .gfx_update  = lcd_refresh,
+};
+
+static int tt_lcd_init(SysBusDevice *sbd)
 {
-    tt_lcd_state *s = FROM_SYSBUS(tt_lcd_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    tt_lcd_state *s = TT_LCD(dev);
 
     s->brightness = 7;
 
-    memory_region_init_io(&s->mmio, &tt_lcd_ops, s, "tt-lcd", MP_LCD_SIZE);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &tt_lcd_ops, s, "tt-lcd", MP_LCD_SIZE);
+    sysbus_init_mmio(sbd, &s->mmio);
 
-    s->con = graphic_console_init(lcd_refresh, lcd_invalidate,
-                                  NULL, NULL, s);
+    s->con = graphic_console_init(DEVICE(dev), &tt_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
-    qdev_init_gpio_in(&dev->qdev, tt_lcd_gpio_brigthness_in, 3);
+    qdev_init_gpio_in(dev, tt_lcd_gpio_brigthness_in, 3);
 
     return 0;
 }
 
 static const VMStateDescription tt_lcd_vmsd = {
-    .name = "tt_lcd",
+    .name = TYPE_TT_LCD,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -345,7 +354,7 @@ static void tt_lcd_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tt_lcd_info = {
-    .name = "tt_lcd",
+    .name = TYPE_TT_LCD,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(tt_lcd_state),
     .class_init = tt_lcd_class_init,
@@ -491,14 +500,14 @@ static const MemoryRegionOps tt_ioport_ops = {
 #if 0
 static void tt_syscon_init(void)
 {
-    memory_region_init_io(&s->syscon, &tt_syscon_ops, s,
+    memory_region_init_io(&s->syscon, OBJECT(s), &tt_syscon_ops, s,
                           "tt-syscon", 0x10000);
     memory_region_add_subregion(get_system_memory(), S3C2443X_SYSCON, &s->syscon);
 }
 
 static void tt_ioport_init(void)
 {
-    memory_region_init_io(&s->ioport, &tt_ioport_ops, s,
+    memory_region_init_io(&s->ioport, OBJECT(s), &tt_ioport_ops, s,
                           "tt-ioport", 0x10000);
     memory_region_add_subregion(get_system_memory(), S3C2443X_IO_PORT, &s->ioport);
 }
@@ -526,7 +535,11 @@ static void tt_ioport_init(void)
 /* LCD brightness bits in GPIO_OE_HI */
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
-typedef struct tt_gpio_state {
+#define TYPE_TT_GPIO "tt_gpio"
+#define TT_GPIO(obj) \
+    OBJECT_CHECK(tt_gpio_state, (obj), TYPE_TT_GPIO)
+
+typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
     uint32_t lcd_brightness;
@@ -691,7 +704,7 @@ static const MemoryRegionOps tt_gpio_ops = {
 
 static void tt_gpio_reset(DeviceState *d)
 {
-    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, SYS_BUS_DEVICE(d));
+    tt_gpio_state *s = TT_GPIO(d);
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -701,25 +714,26 @@ static void tt_gpio_reset(DeviceState *d)
     s->isr = 0;
 }
 
-static int tt_gpio_init(SysBusDevice *dev)
+static int tt_gpio_init(SysBusDevice *sbd)
 {
-    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    tt_gpio_state *s = TT_GPIO(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
 
-    memory_region_init_io(&s->mmio, &tt_gpio_ops, s,
+    memory_region_init_io(&s->mmio, OBJECT(s), &tt_gpio_ops, s,
                           "tt-gpio", MP_GPIO_SIZE);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
-    qdev_init_gpio_in(&dev->qdev, tt_gpio_pin_event, 32);
+    qdev_init_gpio_in(dev, tt_gpio_pin_event, 32);
 
     return 0;
 }
 
 static const VMStateDescription tt_gpio_vmsd = {
-    .name = "tt_gpio",
+    .name = TYPE_TT_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -744,7 +758,7 @@ static void tt_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tt_gpio_info = {
-    .name  = "tt_gpio",
+    .name  = TYPE_TT_GPIO,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(tt_gpio_state),
     .class_init = tt_gpio_class_init,
@@ -774,7 +788,11 @@ static const TypeInfo tt_gpio_info = {
 #define MP_KEY_BTN_VOLUME      (1 << 6)
 #define MP_KEY_BTN_NAVIGATION  (1 << 7)
 
-typedef struct tt_key_state {
+#define TYPE_TT_KEY "tt_key"
+#define TT_KEY(obj) \
+    OBJECT_CHECK(tt_key_state, (obj), TYPE_TT_KEY)
+
+typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
     uint32_t kbd_extended;
@@ -859,16 +877,17 @@ static void tt_key_event(void *opaque, int keycode)
     s->kbd_extended = 0;
 }
 
-static int tt_key_init(SysBusDevice *dev)
+static int tt_key_init(SysBusDevice *sbd)
 {
-    tt_key_state *s = FROM_SYSBUS(tt_key_state, dev);
+    DeviceState *dev = DEVICE(sbd);
+    tt_key_state *s = TT_KEY(dev);
 
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;
 
-    qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
+    qdev_init_gpio_out(dev, s->out, ARRAY_SIZE(s->out));
 
     qemu_add_kbd_event_handler(tt_key_event, s);
 
@@ -876,7 +895,7 @@ static int tt_key_init(SysBusDevice *dev)
 }
 
 static const VMStateDescription tt_key_vmsd = {
-    .name = "tt_key",
+    .name = TYPE_TT_KEY,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -896,7 +915,7 @@ static void tt_key_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tt_key_info = {
-    .name  = "tt_key",
+    .name  = TYPE_TT_KEY,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(tt_key_state),
     .class_init = tt_key_class_init,
@@ -961,12 +980,12 @@ static void tt_init(QEMUMachineInitArgs *args)
     //~ tt_ioport_init();
 
 #if 0
-    dev = sysbus_create_simple("tt_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
+    dev = sysbus_create_simple(TYPE_TT_GPIO, MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", 0, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
-    lcd_dev = sysbus_create_simple("tt_lcd", MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple("tt_key", 0, NULL);
+    lcd_dev = sysbus_create_simple(TYPE_TT_LCD, MP_LCD_BASE, NULL);
+    key_dev = sysbus_create_simple(TYPE_TT_KEY, 0, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,

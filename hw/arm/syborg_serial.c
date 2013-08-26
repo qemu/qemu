@@ -2,6 +2,7 @@
  * Syborg serial port
  *
  * Copyright (c) 2008 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "char/char.h"
+#include "hw/sysbus.h"
+#include "sysemu/char.h"
 #include "syborg.h"
 
 //#define DEBUG_SYBORG_SERIAL
@@ -288,14 +289,15 @@ static const VMStateDescription vmstate_syborg_serial = {
     }
 };
 
-static int syborg_serial_init(SysBusDevice *dev)
+static int syborg_serial_init(SysBusDevice *sbd)
 {
-    SyborgSerialState *s = FROM_SYSBUS(SyborgSerialState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgSerialState *s = SYBORG_SERIAL(dev);
 
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_serial_ops, s,
                           "serial", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, syborg_serial_can_receive,

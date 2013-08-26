@@ -2,7 +2,7 @@
  *
  * System emulation for the Digi a9m2410.
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
  * Based on code from bast.c
  * Copyright 2006, 2008 Daniel Silverstone and Vincent Sanders
@@ -28,7 +28,7 @@
 #include "sysemu/blockdev.h"    /* drive_get */
 #include "sysemu/dma.h"         /* QEMUSGList (in ide/internal.h) */
 #include "sysemu/sysemu.h"
-#include "char/char.h"          /* qemu_chr_new */
+#include "sysemu/char.h"        /* qemu_chr_new */
 #include "exec/address-spaces.h" /* get_system_memory */
 
 #define BIOS_FILENAME "able.bin"

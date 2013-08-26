@@ -2,6 +2,7 @@
  * Syborg Framebuffer
  *
  * Copyright (c) 2009 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "ui/console.h"
 #include "syborg.h"
 #include "framebuffer.h"
@@ -510,19 +511,20 @@ static int syborg_fb_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int syborg_fb_init(SysBusDevice *dev)
+static int syborg_fb_init(SysBusDevice *sbd)
 {
-    SyborgFBState *s = FROM_SYSBUS(SyborgFBState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgFBState *s = SYBORG_FB(dev);
     DisplaySurface *surface;
 
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_fb_ops, s,
                           "framebuffer", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    s->con = graphic_console_init(syborg_fb_update_display,
-                                  syborg_fb_invalidate_display,
-                                  NULL, NULL, s);
+    s->con = graphic_console_init(DEVICE(dev), &syborg_fb_ops, s);
+//~ syborg_fb_update_display,
+//~ syborg_fb_invalidate_display,
 
     surface = qemu_console_surface(s->con);
 

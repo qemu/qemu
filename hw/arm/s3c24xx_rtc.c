@@ -4,13 +4,12 @@
  *
  * Copyright 2006, 2007, 2008 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 
 #include "s3c24xx.h"
@@ -116,7 +115,7 @@ struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(hwaddr base_addr)
     /* there are only 19 real registers but they start at offset 0x40 into the
      * range so we have 35 registers mapped
      */
-    memory_region_init_io(&s->mmio, &s3c24xx_rtc_ops, s, "s3c24xx.rtc", 35 * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s), &s3c24xx_rtc_ops, s, "s3c24xx.rtc", 35 * 4);
     memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
 
     /* set the RTC so it appears active */

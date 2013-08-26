@@ -4,8 +4,9 @@
  *
  * Copyright 2006, 2008 Daniel Silverstone and Vincent Sanders
  *
- * This file is under the terms of the GNU General Public
- * License Version 2.
+ * Copyright 2010, 2013 Stefan Weil
+ *
+ * This file is under the terms of the GNU General Public License Version 2.
  *
  * TODO:
  * * Undefined r/w at address 0x118002f9 (serial i/o?).
@@ -240,6 +241,9 @@ static void stcb_register_ide(STCBState *stcb)
 #define logout(fmt, ...) \
     fprintf(stderr, "AX88796\t%-24s" fmt, __func__, ##__VA_ARGS__)
 
+#define TYPE_AX88796 "ax88796"
+#define AX88796(obj) OBJECT_CHECK(AX88796State, (obj), TYPE_AX88796)
+
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
@@ -305,16 +309,17 @@ static const MemoryRegionOps ax88796_ops = {
     }
 };
 
-static int ax88796_init(SysBusDevice *dev)
+static int ax88796_init(SysBusDevice *sbd)
 {
-    AX88796State *s = FROM_SYSBUS(AX88796State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    AX88796State *s = AX88796(dev);
 
     logout("\n");
 
     memory_region_init_io(&s->mmio, OBJECT(s),
-                          &ax88796_ops, s, "ax88796", ASIXNET_SIZE);
-    //~ sysbus_init_mmio(dev, AX88796_SIZE, iomemtype);
-    sysbus_init_mmio(dev, &s->mmio);
+                          &ax88796_ops, s, TYPE_AX88796, ASIXNET_SIZE);
+    //~ sysbus_init_mmio(sbd, AX88796_SIZE, iomemtype);
+    sysbus_init_mmio(sbd, &s->mmio);
     //~ sysbus_init_irq(dev, &s->irq);
     //~ ax88796_reset(s);
 #if 0
@@ -346,7 +351,7 @@ static int ax88796_init(SysBusDevice *dev)
 }
 
 static const VMStateDescription ax88796_vmsd = {
-    .name = "ax88796",
+    .name = TYPE_AX88796,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -370,7 +375,7 @@ static void ax88796_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ax88796_info = {
-    .name = "ax88796",
+    .name = TYPE_AX88796,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AX88796State),
     .class_init = ax88796_class_init
@@ -494,8 +499,8 @@ static void stcb_init(QEMUMachineInitArgs *args)
 
     nd = &nd_table[1];
     if (nd->used) {
-        qemu_check_nic_model(nd, "ax88796");
-        dev = qdev_create(NULL, "ax88796");
+        qemu_check_nic_model(nd, TYPE_AX88796);
+        dev = qdev_create(NULL, TYPE_AX88796);
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);

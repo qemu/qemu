@@ -5,13 +5,12 @@
  * Copyright 2006, 2007, 2008 Daniel Silverstone, Ben Dooks
  *  and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "hw/i2c/i2c.h"
 
@@ -243,8 +242,8 @@ struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq,
 
     s3c24xx_i2c_reset(s);
 
-    memory_region_init_io(&s->mmio, &s3c24xx_i2c_ops, s, "s3c24xx-i2c",
-                          0x1000000);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &s3c24xx_i2c_ops, s, "s3c24xx-i2c", 0x1000000);
     memory_region_add_subregion(system_memory, base_addr, &s->mmio);
 
     register_savevm(NULL, "s3c24xx_i2c", 0, 0, s3c24xx_i2c_save, s3c24xx_i2c_load, s);

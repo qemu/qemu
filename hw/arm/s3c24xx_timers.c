@@ -4,13 +4,12 @@
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "qemu/timer.h"
 
@@ -188,8 +187,8 @@ s3c24xx_timers_init(S3CState *soc, hwaddr base_addr, uint32_t tclk0, uint32_t tc
 
     s = g_malloc0(sizeof(struct s3c24xx_timers_state_s));
 
-    memory_region_init_io(&s->mmio, &s3c24xx_timers_ops, s, "s3c24xx-timers",
-                          17 * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &s3c24xx_timers_ops, s, "s3c24xx-timers", 17 * 4);
     memory_region_add_subregion(system_memory, base_addr, &s->mmio);
 
     register_savevm(NULL, "s3c24xx_timers", 0, 0, s3c24xx_timers_save, s3c24xx_timers_load, s);

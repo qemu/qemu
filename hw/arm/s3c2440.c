@@ -4,13 +4,12 @@
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 
@@ -70,6 +69,9 @@
 
 /* Camera interface. */
 
+#define TYPE_S3C24XX_CAM "s3c24xx_cam"
+#define S3C24XX_CAM(obj) OBJECT_CHECK(S3C24xxCamState, (obj), TYPE_S3C24XX_CAM)
+
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
@@ -100,7 +102,7 @@ static void s3c24xx_cam_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_cam_reset(DeviceState *d)
 {
-    //~ S3C24xxCamState *s = FROM_SYSBUS(S3C24xxCamState, SYS_BUS_DEVICE(d));
+    //~ S3C24xxCamState *s = S3C24XX_CAM(d);
 }
 
 static const MemoryRegionOps s3c24xx_cam_ops = {
@@ -113,21 +115,22 @@ static const MemoryRegionOps s3c24xx_cam_ops = {
     }
 };
 
-static int s3c24xx_cam_init(SysBusDevice *dev)
+static int s3c24xx_cam_init(SysBusDevice *sbd)
 {
-    S3C24xxCamState *s = FROM_SYSBUS(S3C24xxCamState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    S3C24xxCamState *s = S3C24XX_CAM(dev);
 
     logout("\n");
-    memory_region_init_io(&s->mmio, &s3c24xx_cam_ops, s, "s3c24xx-cam", 3 * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s), &s3c24xx_cam_ops, s, "s3c24xx-cam", 3 * 4);
+    sysbus_init_mmio(sbd, &s->mmio);
 
-    //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
-    //~ sysbus_init_irq(dev, &s->parent_irq);
+    //~ qdev_init_gpio_in(dev, mv88w8618_pic_set_irq, 32);
+    //~ sysbus_init_irq(sbd, &s->parent_irq);
     return 0;
 }
 
 static const VMStateDescription s3c24xx_cam_vmsd = {
-    .name = "s3c24xx_cam",
+    .name = TYPE_S3C24XX_CAM,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -146,7 +149,7 @@ static void s3c24xx_cam_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s3c24xx_cam_info = {
-    .name = "s3c24xx_cam",
+    .name = TYPE_S3C24XX_CAM,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxCamState),
     .class_init = s3c24xx_cam_class_init
@@ -162,6 +165,9 @@ type_init(s3c24xx_cam_register_types)
 /*----------------------------------------------------------------------------*/
 
 /* Watchdog timer. */
+
+#define TYPE_S3C24XX_WDG "s3c24xx_wdg"
+#define S3C24XX_WDG(obj) OBJECT_CHECK(S3C24xxWdgState, (obj), TYPE_S3C24XX_WDG)
 
 typedef struct {
     SysBusDevice busdev;
@@ -193,7 +199,7 @@ static void s3c24xx_wdg_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_wdg_reset(DeviceState *d)
 {
-    //~ S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, SYS_BUS_DEVICE(d));
+    //~ S3C24xxWdgState *s = S3C24XX_WDG(d);
 }
 
 static const MemoryRegionOps s3c24xx_wdg_ops = {
@@ -206,13 +212,15 @@ static const MemoryRegionOps s3c24xx_wdg_ops = {
     }
 };
 
-static int s3c24xx_wdg_init(SysBusDevice *dev)
+static int s3c24xx_wdg_init(SysBusDevice *sbd)
 {
-    S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    S3C24xxWdgState *s = S3C24XX_WDG(dev);
 
     logout("\n");
-    memory_region_init_io(&s->mmio, &s3c24xx_wdg_ops, s, "s3c24xx-wdg", 3 * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &s3c24xx_wdg_ops, s, "s3c24xx-wdg", 3 * 4);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
@@ -220,7 +228,7 @@ static int s3c24xx_wdg_init(SysBusDevice *dev)
 }
 
 static const VMStateDescription s3c24xx_wdg_vmsd = {
-    .name = "s3c24xx_wdg",
+    .name = TYPE_S3C24XX_WDG,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -239,7 +247,7 @@ static void s3c24xx_wdg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s3c24xx_wdg_info = {
-    .name = "s3c24xx_wdg",
+    .name = TYPE_S3C24XX_WDG,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxWdgState),
     .class_init = s3c24xx_wdg_class_init
@@ -255,6 +263,9 @@ type_init(s3c24xx_wdg_register_types)
 /*----------------------------------------------------------------------------*/
 
 /* ADC. */
+
+#define TYPE_S3C24XX_ADC "s3c24xx_adc"
+#define S3C24XX_ADC(obj) OBJECT_CHECK(S3C24xxAdcState, (obj), TYPE_S3C24XX_ADC)
 
 typedef struct {
     SysBusDevice busdev;
@@ -298,7 +309,7 @@ static void s3c24xx_adc_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_adc_reset(DeviceState *d)
 {
-    //~ S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, SYS_BUS_DEVICE(d));
+    //~ S3C24xxAdcState *s = S3C24XX_ADC(d);
 }
 
 static const MemoryRegionOps s3c24xx_adc_ops = {
@@ -311,13 +322,15 @@ static const MemoryRegionOps s3c24xx_adc_ops = {
     }
 };
 
-static int s3c24xx_adc_init(SysBusDevice *dev)
+static int s3c24xx_adc_init(SysBusDevice *sbd)
 {
-    S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    S3C24xxAdcState *s = S3C24XX_ADC(dev);
 
     logout("\n");
-    memory_region_init_io(&s->mmio, &s3c24xx_adc_ops, s, "s3c24xx-adc", 7 * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    memory_region_init_io(&s->mmio, OBJECT(s),
+                          &s3c24xx_adc_ops, s, "s3c24xx-adc", 7 * 4);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
@@ -325,7 +338,7 @@ static int s3c24xx_adc_init(SysBusDevice *dev)
 }
 
 static const VMStateDescription s3c24xx_adc_vmsd = {
-    .name = "s3c24xx_adc",
+    .name = TYPE_S3C24XX_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -344,7 +357,7 @@ static void s3c24xx_adc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s3c24xx_adc_info = {
-    .name = "s3c24xx_adc",
+    .name = TYPE_S3C24XX_ADC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxAdcState),
     .class_init = s3c24xx_adc_class_init
@@ -371,10 +384,11 @@ s3c2440_init(int sdram_size)
     s->cpu = cpu_arm_init("arm920t");
 
     /* S3C2440X SDRAM memory is always at the same physical location. */
-    memory_region_init_ram(&s->sdram0, "s3c2440.sdram0", sdram_size);
-    memory_region_init_alias(&s->sdram1, "s3c2440.sdram1",
+    memory_region_init_ram(&s->sdram0, OBJECT(s), "s3c2440.sdram0",
+                           sdram_size);
+    memory_region_init_alias(&s->sdram1, NULL, "s3c2440.sdram1",
                              &s->sdram0, 0, sdram_size);
-    memory_region_init_alias(&s->sdram2, "s3c2440.sdram2",
+    memory_region_init_alias(&s->sdram2, NULL, "s3c2440.sdram2",
                              &s->sdram0, 0, sdram_size);
     memory_region_add_subregion(sysmem, CPU_S3C2440_DRAM, &s->sdram0);
     memory_region_add_subregion(sysmem,
@@ -383,7 +397,8 @@ s3c2440_init(int sdram_size)
                                 CPU_S3C2440_DRAM + 0x90000000, &s->sdram2);
 
     /* S3C2440 SRAM */
-    memory_region_init_ram(&s->sram, "s3c2440.sram", CPU_S3C2440_SRAM_SIZE);
+    memory_region_init_ram(&s->sram, OBJECT(s), "s3c2440.sram",
+                           CPU_S3C2440_SRAM_SIZE);
     memory_region_add_subregion(sysmem, CPU_S3C2440_SRAM_BASE, &s->sram);
 
     /* SDRAM memory controller */
@@ -429,7 +444,7 @@ s3c2440_init(int sdram_size)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, CPU_S3C2440_OHCI_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, s3c24xx_get_irq(s->irq, 26));
 
-    dev = sysbus_create_simple("s3c24xx_adc", CPU_S3C2440_ADC_BASE, NULL);
+    dev = sysbus_create_simple(TYPE_S3C24XX_ADC, CPU_S3C2440_ADC_BASE, NULL);
 
     return s;
 }

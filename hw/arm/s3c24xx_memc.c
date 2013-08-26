@@ -7,13 +7,12 @@
  *
  * Copyright 2006, 2007 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 
 #include "s3c24xx.h"
@@ -89,7 +88,7 @@ s3c24xx_memc_init(hwaddr base_addr)
      */
     struct s3c24xx_memc_state_s *s = g_new0(struct s3c24xx_memc_state_s, 1);
 
-    memory_region_init_io(&s->mmio, &s3c24xx_memc_ops, s,
+    memory_region_init_io(&s->mmio, OBJECT(s), &s3c24xx_memc_ops, s,
                           "s3c24xx.memc", 13 * 4);
     memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_memc", 0, 0, s3c24xx_memc_save, s3c24xx_memc_load, s);

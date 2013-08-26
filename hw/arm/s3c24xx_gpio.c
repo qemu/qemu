@@ -4,14 +4,13 @@
  *
  * Copyright 2006, 2007 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "s3c24xx.h"
 
 #define S3C_GPIO_GPECON         0x40
@@ -32,7 +31,12 @@
 #define S3C_GPIO_MAX            0x43
 
 /* GPIO controller state */
-typedef struct s3c24xx_gpio_state_s {
+
+#define TYPE_S3C24XX_GPIO "s3c24xx_gpio"
+#define S3C24XX_GPIO(obj) \
+    OBJECT_CHECK(S3C24xxGpioState, (obj), TYPE_S3C24XX_GPIO)
+
+struct S3C24xxGpioState {
     SysBusDevice busdev;
     MemoryRegion mmio;
 
@@ -41,7 +45,7 @@ typedef struct s3c24xx_gpio_state_s {
     qemu_irq *eirqs; /* gpio external interrupts */
 
     qemu_irq irqs[6]; /* cpu irqs to cascade */
-} S3C24xxGpioState;
+};
 
 static void
 s3c24xx_gpio_propogate_eint(S3C24xxGpioState *s)
@@ -171,15 +175,16 @@ s3c24xx_gpio_irq_handler(void *opaque, int n, int level)
     s3c24xx_gpio_propogate_eint(s);
 }
 
-static int s3c24xx_gpio_init_(SysBusDevice *dev)
+static int s3c24xx_gpio_init_(SysBusDevice *sbd)
 {
-    S3C24xxGpioState *s = FROM_SYSBUS(S3C24xxGpioState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    S3C24xxGpioState *s = S3C24XX_GPIO(dev);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
-    memory_region_init_io(&s->mmio, &s3c24xx_gpio_ops, s,
+    memory_region_init_io(&s->mmio, OBJECT(s), &s3c24xx_gpio_ops, s,
                           "s3c24xx-gpio", S3C_GPIO_MAX * 4);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 #if 0
     TODO: i/o starting at base_addr, S3C_GPIO_MAX * 4 bytes.
 #endif
@@ -199,20 +204,16 @@ static int s3c24xx_gpio_init_(SysBusDevice *dev)
     return 0;
 }
 
-struct s3c24xx_gpio_state_s *
+S3C24xxGpioState *
 s3c24xx_gpio_init(S3CState *soc, hwaddr base_addr, uint32_t cpu_id)
 {
     /* Samsung S3C24XX GPIO
      *
      * The primary operation here is the ID register and IRQs
      */
-    struct s3c24xx_gpio_state_s *s;
     int i;
 
-    s = g_malloc0(sizeof(S3C24xxGpioState));
-    if (!s) {
-        return NULL;
-    }
+    S3C24xxGpioState *s = g_new0(S3C24xxGpioState, 1);
 
     /* TODO: Diese Funktion ist veraltet und soll ersetzt werden, s.o. */
 
@@ -241,14 +242,14 @@ s3c24xx_gpio_init(S3CState *soc, hwaddr base_addr, uint32_t cpu_id)
 
 /* get the qemu interrupt from an eirq number */
 qemu_irq
-s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, unsigned einum)
+s3c24xx_get_eirq(S3C24xxGpioState *s, unsigned einum)
 {
     assert(einum < 24);
     return s->eirqs[einum];
 }
 
 static const VMStateDescription s3c24xx_gpio_vmstate = {
-    .name = "s3c24xx_gpio",
+    .name = TYPE_S3C24XX_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -272,7 +273,7 @@ static void s3c24xx_gpio_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s3c24xx_gpio_info = {
-    .name = "s3c24xx_gpio",
+    .name = TYPE_S3C24XX_GPIO,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxGpioState),
     .class_init = s3c24xx_gpio_class_init

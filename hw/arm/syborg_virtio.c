@@ -2,6 +2,7 @@
  * Virtio Syborg bindings
  *
  * Copyright (c) 2009 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +24,7 @@
  */
 
 #include "syborg.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "virtio.h"
 #include "virtio-net.h"
 
@@ -279,10 +280,11 @@ static int syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
 
 /* Device specific bindings.  */
 
-static int syborg_virtio_net_init(SysBusDevice *dev)
+static int syborg_virtio_net_init(SysBusDevice *sbd)
 {
     VirtIODevice *vdev;
-    SyborgVirtIOProxy *proxy = FROM_SYSBUS(SyborgVirtIOProxy, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgVirtIOProxy *proxy = SYBORG_VIRTIOPROXY(dev);
 
     vdev = virtio_net_init(&dev->qdev, &proxy->nic, &proxy->net,
                            proxy->host_features);

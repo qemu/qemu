@@ -2,6 +2,7 @@
  * Syborg pointing device (mouse/touchscreen)
  *
  * Copyright (c) 2008 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "ui/console.h"
 #include "syborg.h"
 
@@ -185,14 +186,15 @@ static Property syborg_pointer_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int syborg_pointer_init(SysBusDevice *dev)
+static int syborg_pointer_init(SysBusDevice *sbd)
 {
-    SyborgPointerState *s = FROM_SYSBUS(SyborgPointerState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgPointerState *s = SYBORG_POINTER(dev);
 
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_pointer_ops, s,
                           "pointer", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_pointer: fifo too small\n");

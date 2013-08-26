@@ -4,13 +4,12 @@
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
- * This file is under the terms of the GNU General Public
- * License Version 2
+ * This file is under the terms of the GNU General Public License Version 2.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h" /* get_system_memory */
 
@@ -82,10 +81,11 @@ s3c2410x_init(int sdram_size)
     s->cpu = cpu_arm_init("arm920t");
 
     /* S3C2410X SDRAM memory is always at the same physical location. */
-    memory_region_init_ram(&s->sdram0, "s3c2410x.sdram0", sdram_size);
-    memory_region_init_alias(&s->sdram1, "s3c2410x.sdram1",
+    memory_region_init_ram(&s->sdram0, OBJECT(s),
+                           "s3c2410x.sdram0", sdram_size);
+    memory_region_init_alias(&s->sdram1, NULL, "s3c2410x.sdram1",
                              &s->sdram0, 0, sdram_size);
-    memory_region_init_alias(&s->sdram2, "s3c2410x.sdram2",
+    memory_region_init_alias(&s->sdram2, NULL, "s3c2410x.sdram2",
                              &s->sdram0, 0, sdram_size);
     memory_region_add_subregion(sysmem, CPU_S3C2410X_DRAM, &s->sdram0);
     memory_region_add_subregion(sysmem,
@@ -94,7 +94,8 @@ s3c2410x_init(int sdram_size)
                                 CPU_S3C2410X_DRAM + 0x90000000, &s->sdram2);
 
     /* S3C2410X SRAM */
-    memory_region_init_ram(&s->sram, "s3c2410x.sram", CPU_S3C2410X_SRAM_SIZE);
+    memory_region_init_ram(&s->sram, OBJECT(s),
+                           "s3c2410x.sram", CPU_S3C2410X_SRAM_SIZE);
     memory_region_add_subregion(sysmem, CPU_S3C2410X_SRAM_BASE, &s->sram);
 
     /* SDRAM memory controller */

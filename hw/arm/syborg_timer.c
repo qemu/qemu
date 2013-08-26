@@ -2,6 +2,7 @@
  * Syborg Interval Timer.
  *
  * Copyright (c) 2008 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "syborg.h"
 #include "ptimer.h"             /* ptimer_state */
@@ -187,9 +188,10 @@ static const VMStateDescription vmstate_syborg_timer = {
     }
 };
 
-static int syborg_timer_init(SysBusDevice *dev)
+static int syborg_timer_init(SysBusDevice *sbd)
 {
-    SyborgTimerState *s = FROM_SYSBUS(SyborgTimerState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgTimerState *s = SYBORG_TIMER(dev);
     QEMUBH *bh;
 
     if (s->freq == 0) {
@@ -198,7 +200,7 @@ static int syborg_timer_init(SysBusDevice *dev)
     }
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_timer_ops, s, "timer", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     bh = qemu_bh_new(syborg_timer_tick, s);
     s->timer = ptimer_init(bh);

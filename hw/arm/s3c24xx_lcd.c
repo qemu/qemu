@@ -4,15 +4,15 @@
  * Copyright (c) 2007 OpenMoko, Inc.
  * Author: Andrzej Zaborowski <andrew@openedhand.com>
  *
- * Copyright 2010, 2012 Stefan Weil
+ * Copyright 2010, 2013 Stefan Weil
  *
  * This code is licenced under the GNU GPL v2.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "framebuffer.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #include "s3c24xx.h"
 
@@ -449,23 +449,25 @@ static void s3c24xx_screen_dump(void *opaque, const char *filename,
 
 #define S3C24XX_LCD_SIZE 0x1000000
 
-static int s3c24xx_lcd_init(SysBusDevice *dev)
+static int s3c24xx_lcd_init(SysBusDevice *sbd)
 {
-    S3C24xxLCD_State *s = FROM_SYSBUS(S3C24xxLCD_State, dev);
+    DeviceState *dev = DEVICE(sbd);
+    S3C24xxLCD_State *s = S3C24XX_LCD(dev);
 
     //~ s->brightness = 7;
 
     memory_region_init_io(&s->mmio, &s3c24xx_lcd_ops, s,
                           "s3c24xx-lcd", S3C24XX_LCD_SIZE);
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(sbd, &s->mmio);
 
     sysbus_init_irq(dev, &s->irq);
 
     s3c24xx_lcd_reset(s);
 
-    s->con = graphic_console_init(s3c24xx_update_display,
-                                  s3c24xx_invalidate_display,
-                                  s3c24xx_screen_dump, NULL, s);
+    s->con = graphic_console_init(DEVICE(dev), &s3c24xx_gfx_ops, s);
+//~ s3c24xx_update_display,
+//~ s3c24xx_invalidate_display,
+//~ s3c24xx_screen_dump, NULL, s);
 
     //~ qdev_init_gpio_in(&dev->qdev, s3c24xx_lcd_gpio_brigthness_in, 3);
 

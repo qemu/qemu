@@ -2,6 +2,7 @@
  * Syborg RTC
  *
  * Copyright (c) 2008 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "syborg.h"
 
@@ -111,13 +112,14 @@ static const VMStateDescription vmstate_syborg_rtc = {
     }
 };
 
-static int syborg_rtc_init(SysBusDevice *dev)
+static int syborg_rtc_init(SysBusDevice *sbd)
 {
-    SyborgRTCState *s = FROM_SYSBUS(SyborgRTCState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgRTCState *s = SYBORG_RTC(dev);
     struct tm tm;
 
     memory_region_init_io(&s->iomem, &syborg_rtc_ops, s, "rtc", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     qemu_get_timedate(&tm, 0);
     s->offset = (uint64_t)mktime(&tm) * 1000000000;

@@ -2,6 +2,7 @@
  * Syborg interrupt controller.
  *
  * Copyright (c) 2008 CodeSourcery
+ * Copyright (c) 2010, 2013 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "syborg.h"
 
 //#define DEBUG_SYBORG_INT
@@ -199,15 +200,16 @@ static int syborg_int_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int syborg_int_init(SysBusDevice *dev)
+static int syborg_int_init(SysBusDevice *sbd)
 {
-    SyborgIntState *s = FROM_SYSBUS(SyborgIntState, dev);
+    DeviceState *dev = DEVICE(sbd);
+    SyborgIntState *s = SYBORG_INT(dev);
 
     sysbus_init_irq(dev, &s->parent_irq);
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
     memory_region_init_io(&s->iomem, &syborg_int_ops, s,
                           "interrupt", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     s->flags = g_malloc0(s->num_irqs * sizeof(syborg_int_flags));
 
     register_savevm(&dev->qdev, "syborg_int", -1, 1, syborg_int_save,
