@@ -1067,9 +1067,8 @@ void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 /* helper.c */
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
                              int is_write, int mmu_idx);
-#define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
 static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)

@@ -135,9 +135,10 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 void tlb_fill(CPUX86State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int ret;
 
-    ret = cpu_x86_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = x86_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */

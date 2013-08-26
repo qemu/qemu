@@ -283,7 +283,9 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = cris_cpu_set_pc;
     cc->gdb_read_register = cris_cpu_gdb_read_register;
     cc->gdb_write_register = cris_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = cris_cpu_handle_mmu_fault;
+#else
     cc->get_phys_page_debug = cris_cpu_get_phys_page_debug;
 #endif
 

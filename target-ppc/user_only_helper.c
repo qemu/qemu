@@ -20,9 +20,11 @@
 
 #include "cpu.h"
 
-int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                         int mmu_idx)
+int ppc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                             int mmu_idx)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     int exception, error_code;
 
     if (rw == 2) {

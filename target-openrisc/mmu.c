@@ -174,19 +174,19 @@ static void cpu_openrisc_raise_mmu_exception(OpenRISCCPU *cpu,
 }
 
 #ifndef CONFIG_USER_ONLY
-int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
-                                  target_ulong address, int rw, int mmu_idx)
+int openrisc_cpu_handle_mmu_fault(CPUState *cs,
+                                  vaddr address, int rw, int mmu_idx)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     int ret = 0;
     hwaddr physical = 0;
     int prot = 0;
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     ret = cpu_openrisc_get_phys_addr(cpu, &physical, &prot,
                                      address, rw);
 
     if (ret == TLBRET_MATCH) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK,
+        tlb_set_page(&cpu->env, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;
@@ -198,11 +198,11 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
     return ret;
 }
 #else
-int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
-                                  target_ulong address, int rw, int mmu_idx)
+int openrisc_cpu_handle_mmu_fault(CPUState *cs,
+                                  vaddr address, int rw, int mmu_idx)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     int ret = 0;
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     cpu_openrisc_raise_mmu_exception(cpu, address, rw, ret);
     ret = 1;

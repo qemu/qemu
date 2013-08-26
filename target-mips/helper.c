@@ -268,9 +268,11 @@ hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 }
 #endif
 
-int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
 #if !defined(CONFIG_USER_ONLY)
     hwaddr physical;
     int prot;
@@ -279,9 +281,9 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     int ret = 0;
 
 #if 0
-    log_cpu_state(CPU(mips_env_get_cpu(env)), 0);
+    log_cpu_state(cs, 0);
 #endif
-    qemu_log("%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d\n",
+    qemu_log("%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
 
     rw &= 1;
@@ -293,8 +295,9 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_plx " prot %d\n",
-              __func__, address, ret, physical, prot);
+    qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+             " prot %d\n",
+             __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
         tlb_set_page(env, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,

@@ -209,9 +209,11 @@ do_fault:
     return code;
 }
 
-int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address,
+int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                               int access_type, int mmu_idx)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
     uint32_t phys_addr;
     target_ulong page_size;
     int prot;
@@ -231,7 +233,7 @@ int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address,
             ret = get_phys_addr_ucv2(env, address, access_type, is_user,
                                     &phys_addr, &prot, &page_size);
             if (is_user) {
-                DPRINTF("user space access: ret %x, address %x, "
+                DPRINTF("user space access: ret %x, address %" VADDR_PRIx ", "
                         "access_type %x, phys_addr %x, prot %x\n",
                         ret, address, access_type, phys_addr, prot);
             }

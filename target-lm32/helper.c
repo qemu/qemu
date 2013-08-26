@@ -20,9 +20,11 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 
-int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
+int lm32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
     int prot;
 
     address &= TARGET_PAGE_MASK;

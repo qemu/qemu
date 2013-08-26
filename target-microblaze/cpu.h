@@ -332,9 +332,8 @@ static inline int cpu_mmu_index (CPUMBState *env)
         return MMU_KERNEL_IDX;
 }
 
-int cpu_mb_handle_mmu_fault(CPUMBState *env, target_ulong address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                             int mmu_idx);
-#define cpu_handle_mmu_fault cpu_mb_handle_mmu_fault
 
 static inline int cpu_interrupts_enabled(CPUMBState *env)
 {

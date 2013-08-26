@@ -153,9 +153,10 @@ void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
     int ret;
 
-    ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = alpha_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         if (retaddr) {
             cpu_restore_state(env, retaddr);

@@ -320,9 +320,8 @@ int cpu_s390x_exec(CPUS390XState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_s390x_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
+int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                              int mmu_idx);
 
 #include "ioinst.h"
 

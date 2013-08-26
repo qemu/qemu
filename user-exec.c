@@ -82,6 +82,8 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
+    CPUState *cpu;
+    CPUClass *cc;
     CPUArchState *env;
     int ret;
 
@@ -99,9 +101,12 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
        are still valid segv ones */
     address = h2g_nocheck(address);
 
-    env = current_cpu->env_ptr;
+    cpu = current_cpu;
+    cc = CPU_GET_CLASS(cpu);
+    env = cpu->env_ptr;
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
+    g_assert(cc->handle_mmu_fault);
+    ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }

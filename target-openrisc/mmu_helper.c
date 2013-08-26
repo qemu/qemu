@@ -39,9 +39,10 @@
 void tlb_fill(CPUOpenRISCState *env, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
     int ret;
 
-    ret = cpu_openrisc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = openrisc_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
 
     if (ret) {
         if (retaddr) {

@@ -2441,9 +2441,10 @@ static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
 void tlb_fill(CPUSPARCState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    SPARCCPU *cpu = sparc_env_get_cpu(env);
     int ret;
 
-    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = sparc_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (ret) {
         if (retaddr) {
             cpu_restore_state(env, retaddr);

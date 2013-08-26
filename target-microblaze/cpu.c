@@ -171,7 +171,9 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = mb_cpu_set_pc;
     cc->gdb_read_register = mb_cpu_gdb_read_register;
     cc->gdb_write_register = mb_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = mb_cpu_handle_mmu_fault;
+#else
     cc->do_unassigned_access = mb_cpu_unassigned_access;
     cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
 #endif

@@ -339,9 +339,8 @@ static inline bool is_a64(CPUARMState *env)
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
-                              int mmu_idx);
-#define cpu_handle_mmu_fault cpu_arm_handle_mmu_fault
+int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                             int mmu_idx);
 
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants

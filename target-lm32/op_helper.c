@@ -153,9 +153,10 @@ uint32_t HELPER(rcsr_jrx)(CPULM32State *env)
 void tlb_fill(CPULM32State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
     int ret;
 
-    ret = cpu_lm32_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = lm32_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */

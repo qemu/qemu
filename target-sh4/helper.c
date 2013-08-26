@@ -39,9 +39,12 @@ void superh_cpu_do_interrupt(CPUState *cs)
     env->exception_index = -1;
 }
 
-int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-                             int mmu_idx)
+int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                int mmu_idx)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+
     env->tea = address;
     env->exception_index = -1;
     switch (rw) {
@@ -447,9 +450,11 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
     return get_mmu_address(env, physical, prot, address, rw, access_type);
 }
 
-int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-                             int mmu_idx)
+int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                int mmu_idx)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
     target_ulong physical;
     int prot, ret, access_type;
 

@@ -168,11 +168,13 @@ void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
 }
 
 #if defined(CONFIG_USER_ONLY)
-int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong address,
+int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
-    env->exception_index = EXCP_MMFAULT;
-    env->trap_arg0 = address;
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+
+    cpu->env.exception_index = EXCP_MMFAULT;
+    cpu->env.trap_arg0 = address;
     return 1;
 }
 #else
@@ -326,9 +328,11 @@ hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return (fail >= 0 ? -1 : phys);
 }
 
-int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong addr, int rw,
+int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int rw,
                                int mmu_idx)
 {
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     target_ulong phys;
     int prot, fail;
 

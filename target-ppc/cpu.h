@@ -1111,8 +1111,8 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 void ppc_hw_interrupt (CPUPPCState *env);
 #if defined(CONFIG_USER_ONLY)
-int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                         int mmu_idx);
+int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                             int mmu_idx);
 #endif
 
 #if !defined(CONFIG_USER_ONLY)

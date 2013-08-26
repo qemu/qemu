@@ -50,14 +50,14 @@ void crisv10_cpu_do_interrupt(CPUState *cs)
     cris_cpu_do_interrupt(cs);
 }
 
-int cpu_cris_handle_mmu_fault(CPUCRISState * env, target_ulong address, int rw,
+int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
 {
-    CRISCPU *cpu = cris_env_get_cpu(env);
+    CRISCPU *cpu = CRIS_CPU(cs);
 
-    env->exception_index = 0xaa;
-    env->pregs[PR_EDA] = address;
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+    cpu->env.exception_index = 0xaa;
+    cpu->env.pregs[PR_EDA] = address;
+    cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
 
@@ -73,23 +73,25 @@ static void cris_shift_ccs(CPUCRISState *env)
     env->pregs[PR_CCS] = ccs;
 }
 
-int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
+int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
 {
-    D(CPUState *cpu = CPU(cris_env_get_cpu(env)));
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     struct cris_mmu_result res;
     int prot, miss;
     int r = -1;
     target_ulong phy;
 
-    D(printf("%s addr=%x pc=%x rw=%x\n", __func__, address, env->pc, rw));
+    D(printf("%s addr=%" VADDR_PRIx " pc=%x rw=%x\n",
+             __func__, address, env->pc, rw));
     miss = cris_mmu_translate(&res, env, address & TARGET_PAGE_MASK,
                               rw, mmu_idx, 0);
     if (miss) {
         if (env->exception_index == EXCP_BUSFAULT) {
             cpu_abort(env,
                       "CRIS: Illegal recursive bus fault."
-                      "addr=%x rw=%d\n",
+                      "addr=%" VADDR_PRIx " rw=%d\n",
                       address, rw);
         }
 
@@ -109,8 +111,8 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
         r = 0;
     }
     if (r > 0) {
-        D_LOG("%s returns %d irqreq=%x addr=%x phy=%x vec=%x pc=%x\n",
-              __func__, r, cpu->interrupt_request, address, res.phy,
+        D_LOG("%s returns %d irqreq=%x addr=%" VADDR_PRIx " phy=%x vec=%x"
+              " pc=%x\n", __func__, r, cs->interrupt_request, address, res.phy,
               res.bf_vec, env->pc);
     }
     return r;

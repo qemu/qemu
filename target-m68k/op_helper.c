@@ -59,9 +59,10 @@ extern int semihosting_enabled;
 void tlb_fill(CPUM68KState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
     int ret;
 
-    ret = cpu_m68k_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = m68k_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */

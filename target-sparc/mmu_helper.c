@@ -25,13 +25,15 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,
+int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                int mmu_idx)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+
     if (rw & 2) {
-        env1->exception_index = TT_TFAULT;
+        cpu->env.exception_index = TT_TFAULT;
     } else {
-        env1->exception_index = TT_DFAULT;
+        cpu->env.exception_index = TT_DFAULT;
     }
     return 1;
 }
@@ -198,9 +200,11 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 }
 
 /* Perform address translation */
-int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
+int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                int mmu_idx)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
     hwaddr paddr;
     target_ulong vaddr;
     target_ulong page_size;
@@ -212,7 +216,7 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
     vaddr = address;
     if (error_code == 0) {
 #ifdef DEBUG_MMU
-        printf("Translate at " TARGET_FMT_lx " -> " TARGET_FMT_plx ", vaddr "
+        printf("Translate at %" VADDR_PRIx " -> " TARGET_FMT_plx ", vaddr "
                TARGET_FMT_lx "\n", address, paddr, vaddr);
 #endif
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
@@ -705,9 +709,11 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 }
 
 /* Perform address translation */
-int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
+int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                int mmu_idx)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
     target_ulong vaddr;
     hwaddr paddr;
     target_ulong page_size;

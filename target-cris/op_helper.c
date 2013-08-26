@@ -57,11 +57,12 @@
 void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    CRISCPU *cpu = cris_env_get_cpu(env);
     int ret;
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
           env->pc, env->pregs[PR_EDA], (void *)retaddr);
-    ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = cris_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */

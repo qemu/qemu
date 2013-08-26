@@ -91,14 +91,16 @@ void s390_cpu_do_interrupt(CPUState *cs)
     env->exception_index = -1;
 }
 
-int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong address,
-                               int rw, int mmu_idx)
+int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+                              int rw, int mmu_idx)
 {
-    env->exception_index = EXCP_PGM;
-    env->int_pgm_code = PGM_ADDRESSING;
+    S390CPU *cpu = S390_CPU(cs);
+
+    cpu->env.exception_index = EXCP_PGM;
+    cpu->env.int_pgm_code = PGM_ADDRESSING;
     /* On real machines this value is dropped into LowMem.  Since this
        is userland, simply put this someplace that cpu_loop can find it.  */
-    env->__excp_addr = address;
+    cpu->env.__excp_addr = address;
     return 1;
 }
 
@@ -379,14 +381,16 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     return r;
 }
 
-int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
-                               int rw, int mmu_idx)
+int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
+                              int rw, int mmu_idx)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     target_ulong vaddr, raddr;
     int prot;
 
-    DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d\n",
+    DPRINTF("%s: address 0x%" VADDR_PRIx " rw %d mmu_idx %d\n",
             __func__, orig_vaddr, rw, mmu_idx);
 
     orig_vaddr &= TARGET_PAGE_MASK;

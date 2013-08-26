@@ -83,6 +83,7 @@ struct TranslationBlock;
  * @set_pc: Callback for setting the Program Counter register.
  * @synchronize_from_tb: Callback for synchronizing state from a TCG
  * #TranslationBlock.
+ * @handle_mmu_fault: Callback for handling an MMU fault.
  * @get_phys_page_debug: Callback for obtaining a physical address.
  * @gdb_read_register: Callback for letting GDB read a register.
  * @gdb_write_register: Callback for letting GDB write a register.
@@ -117,6 +118,8 @@ typedef struct CPUClass {
                                Error **errp);
     void (*set_pc)(CPUState *cpu, vaddr value);
     void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
+    int (*handle_mmu_fault)(CPUState *cpu, vaddr address, int rw,
+                            int mmu_index);
     hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
     int (*gdb_read_register)(CPUState *cpu, uint8_t *buf, int reg);
     int (*gdb_write_register)(CPUState *cpu, uint8_t *buf, int reg);

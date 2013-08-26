@@ -258,9 +258,10 @@ uint32_t HELPER(ror_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 void tlb_fill(CPUUniCore32State *env, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     int ret;
 
-    ret = uc32_cpu_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = uc32_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */

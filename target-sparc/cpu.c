@@ -821,7 +821,9 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->synchronize_from_tb = sparc_cpu_synchronize_from_tb;
     cc->gdb_read_register = sparc_cpu_gdb_read_register;
     cc->gdb_write_register = sparc_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = sparc_cpu_handle_mmu_fault;
+#else
     cc->do_unassigned_access = sparc_cpu_unassigned_access;
     cc->get_phys_page_debug = sparc_cpu_get_phys_page_debug;
 #endif

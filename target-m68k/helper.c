@@ -277,11 +277,13 @@ void m68k_switch_sp(CPUM68KState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
-    env->exception_index = EXCP_ACCESS;
-    env->mmu.ar = address;
+    M68kCPU *cpu = M68K_CPU(cs);
+
+    cpu->env.exception_index = EXCP_ACCESS;
+    cpu->env.mmu.ar = address;
     return 1;
 }
 
@@ -295,14 +297,15 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return addr;
 }
 
-int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
-                               int mmu_idx)
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                              int mmu_idx)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
     int prot;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(&cpu->env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
 

@@ -2655,9 +2655,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
     env->exception_index = -1;
 }
 
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
-                              int mmu_idx)
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                             int mmu_idx)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     if (rw == 2) {
         env->exception_index = EXCP_PREFETCH_ABORT;
         env->cp15.c6_insn = address;
@@ -3623,9 +3626,11 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     }
 }
 
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
-                              int access_type, int mmu_idx)
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+                             int access_type, int mmu_idx)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;

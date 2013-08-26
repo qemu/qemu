@@ -74,9 +74,10 @@ uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
 void tlb_fill(CPUARMState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int ret;
 
-    ret = cpu_arm_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = arm_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */

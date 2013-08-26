@@ -247,9 +247,8 @@ static inline int cpu_mmu_index (CPUCRISState *env)
 	return !!(env->pregs[PR_CCS] & U_FLAG);
 }
 
-int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
+int cris_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_cris_handle_mmu_fault
 
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0

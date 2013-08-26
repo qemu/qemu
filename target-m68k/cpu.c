@@ -200,7 +200,9 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->set_pc = m68k_cpu_set_pc;
     cc->gdb_read_register = m68k_cpu_gdb_read_register;
     cc->gdb_write_register = m68k_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = m68k_cpu_handle_mmu_fault;
+#else
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_m68k_cpu;

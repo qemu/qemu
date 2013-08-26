@@ -485,9 +485,12 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                              int is_write, int mmu_idx)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
     /* user mode only emulation */
     is_write &= 1;
     env->cr[2] = addr;
@@ -508,14 +511,15 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 # endif
 
 /* return value:
-   -1 = cannot handle fault
-   0  = nothing more to do
-   1  = generate PF fault
-*/
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+ * -1 = cannot handle fault
+ * 0  = nothing more to do
+ * 1  = generate PF fault
+ */
+int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
                              int is_write1, int mmu_idx)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, is_write, is_user;
@@ -525,7 +529,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
     is_user = mmu_idx == MMU_USER_IDX;
 #if defined(DEBUG_MMU)
-    printf("MMU fault: addr=" TARGET_FMT_lx " w=%d u=%d eip=" TARGET_FMT_lx "\n",
+    printf("MMU fault: addr=%" VADDR_PRIx " w=%d u=%d eip=" TARGET_FMT_lx "\n",
            addr, is_write1, is_user, env->eip);
 #endif
     is_write = is_write1 & 1;

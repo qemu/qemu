@@ -231,9 +231,8 @@ static inline CPULM32State *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_lm32_gen_code
 #define cpu_signal_handler cpu_lm32_signal_handler
 
-int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
+int lm32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_lm32_handle_mmu_fault
 
 #include "exec/cpu-all.h"
 

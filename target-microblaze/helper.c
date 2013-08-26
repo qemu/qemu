@@ -36,21 +36,23 @@ void mb_cpu_do_interrupt(CPUState *cs)
     env->regs[14] = env->sregs[SR_PC];
 }
 
-int cpu_mb_handle_mmu_fault(CPUMBState * env, target_ulong address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                             int mmu_idx)
 {
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
 
-    env->exception_index = 0xaa;
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+    cpu->env.exception_index = 0xaa;
+    cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
 
 #else /* !CONFIG_USER_ONLY */
 
-int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
-                             int mmu_idx)
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                            int mmu_idx)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     unsigned int hit;
     unsigned int mmu_available;
     int r = 1;

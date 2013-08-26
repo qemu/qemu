@@ -49,9 +49,10 @@
 void tlb_fill(CPUMoxieState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    MoxieCPU *cpu = moxie_env_get_cpu(env);
     int ret;
 
-    ret = cpu_moxie_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = moxie_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             cpu_restore_state(env, retaddr);
@@ -103,27 +104,29 @@ void helper_debug(CPUMoxieState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-void moxie_cpu_do_interrupt(CPUState *env)
+void moxie_cpu_do_interrupt(CPUState *cs)
 {
     env->exception_index = -1;
 }
 
-int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
+int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
-    MoxieCPU *cpu = moxie_env_get_cpu(env);
+    MoxieCPU *cpu = MOXIE_CPU(cs);
 
-    env->exception_index = 0xaa;
-    env->debug1 = address;
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+    cpu->env.exception_index = 0xaa;
+    cpu->env.debug1 = address;
+    cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
 
 #else /* !CONFIG_USER_ONLY */
 
-int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
+int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+    CPUMoxieState *env = &cpu->env;
     MoxieMMUResult res;
     int prot, miss;
     target_ulong phy;
