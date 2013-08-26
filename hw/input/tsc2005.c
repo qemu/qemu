@@ -201,7 +201,7 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
             fprintf(stderr, "%s: touchscreen sense %sabled\n",
                             __FUNCTION__, s->enabled ? "en" : "dis");
             if (s->busy && !s->enabled)
-                qemu_del_timer(s->timer);
+                timer_del(s->timer);
             s->busy &= s->enabled;
         }
         s->nextprecision = (data >> 13) & 1;
@@ -290,8 +290,8 @@ static void tsc2005_pin_update(TSC2005State *s)
     s->precision = s->nextprecision;
     s->function = s->nextfunction;
     s->pdst = !s->pnd0;	/* Synchronised on internal clock */
-    expires = qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() >> 7);
-    qemu_mod_timer(s->timer, expires);
+    expires = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() >> 7);
+    timer_mod(s->timer, expires);
 }
 
 static void tsc2005_reset(TSC2005State *s)
@@ -337,7 +337,7 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
                     fprintf(stderr, "%s: touchscreen sense %sabled\n",
                                     __FUNCTION__, s->enabled ? "en" : "dis");
                     if (s->busy && !s->enabled)
-                        qemu_del_timer(s->timer);
+                        timer_del(s->timer);
                     s->busy &= s->enabled;
                 }
                 tsc2005_pin_update(s);
@@ -449,7 +449,7 @@ static void tsc2005_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->dav);
     qemu_put_be16s(f, &s->data);
 
-    qemu_put_timer(f, s->timer);
+    timer_put(f, s->timer);
     qemu_put_byte(f, s->enabled);
     qemu_put_byte(f, s->host_mode);
     qemu_put_byte(f, s->function);
@@ -490,7 +490,7 @@ static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->dav);
     qemu_get_be16s(f, &s->data);
 
-    qemu_get_timer(f, s->timer);
+    timer_get(f, s->timer);
     s->enabled = qemu_get_byte(f);
     s->host_mode = qemu_get_byte(f);
     s->function = qemu_get_byte(f);
@@ -513,7 +513,7 @@ static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 8; i ++)
         s->tr[i] = qemu_get_be32(f);
 
-    s->busy = qemu_timer_pending(s->timer);
+    s->busy = timer_pending(s->timer);
     tsc2005_pin_update(s);
 
     return 0;
@@ -529,7 +529,7 @@ void *tsc2005_init(qemu_irq pintdav)
     s->y = 240;
     s->pressure = 0;
     s->precision = s->nextprecision = 0;
-    s->timer = qemu_new_timer_ns(vm_clock, tsc2005_timer_tick, s);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tsc2005_timer_tick, s);
     s->pint = pintdav;
     s->model = 0x2005;
 

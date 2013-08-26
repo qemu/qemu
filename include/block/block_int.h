@@ -34,6 +34,7 @@
 #include "monitor/monitor.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
+#include "qemu/main-loop.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4
@@ -280,6 +281,9 @@ struct BlockDriverState {
 
     /* Whether the disk can expand beyond total_sectors */
     int growable;
+
+    /* Whether produces zeros when read beyond eof */
+    bool zero_beyond_eof;
 
     /* the memory alignment required for the buffers handled by this driver */
     int buffer_alignment;

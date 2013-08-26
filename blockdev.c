@@ -487,7 +487,11 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
 
         drv = bdrv_find_whitelisted_format(buf, ro);
         if (!drv) {
-            error_report("'%s' invalid format", buf);
+            if (!ro && bdrv_find_whitelisted_format(buf, !ro)) {
+                error_report("'%s' can be only used as read-only device.", buf);
+            } else {
+                error_report("'%s' invalid format", buf);
+            }
             return NULL;
         }
     }
@@ -1295,7 +1299,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         bdrv_io_limits_disable(bs);
     } else {
         if (bs->block_timer) {
-            qemu_mod_timer(bs->block_timer, qemu_get_clock_ns(vm_clock));
+            timer_mod(bs->block_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         }
     }
 }

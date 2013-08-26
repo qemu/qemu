@@ -31,6 +31,7 @@
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 
 typedef struct NetSocketState {
     NetClientState nc;

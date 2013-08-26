@@ -141,7 +141,7 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
  * Put the job to sleep (assuming that it wasn't canceled) for @ns
  * nanoseconds.  Canceling the job will interrupt the wait immediately.
  */
-void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns);
+void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 
 /**
  * block_job_completed:

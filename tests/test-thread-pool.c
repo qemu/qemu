@@ -3,6 +3,7 @@
 #include "block/aio.h"
 #include "block/thread-pool.h"
 #include "block/block.h"
+#include "qemu/timer.h"
 
 static AioContext *ctx;
 static ThreadPool *pool;
@@ -204,6 +205,8 @@ static void test_cancel(void)
 int main(int argc, char **argv)
 {
     int ret;
+
+    init_clocks();
 
     ctx = aio_context_new();
     pool = aio_get_thread_pool(ctx);

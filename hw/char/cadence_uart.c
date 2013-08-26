@@ -141,9 +141,9 @@ static void fifo_trigger_update(void *opaque)
 
 static void uart_tx_redo(UartState *s)
 {
-    uint64_t new_tx_time = qemu_get_clock_ns(vm_clock);
+    uint64_t new_tx_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    qemu_mod_timer(s->tx_time_handle, new_tx_time + s->char_tx_time);
+    timer_mod(s->tx_time_handle, new_tx_time + s->char_tx_time);
 
     s->r[R_SR] |= UART_SR_INTR_TEMPTY;
 
@@ -265,7 +265,7 @@ static void uart_ctrl_update(UartState *s)
 static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
 {
     UartState *s = (UartState *)opaque;
-    uint64_t new_rx_time = qemu_get_clock_ns(vm_clock);
+    uint64_t new_rx_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     int i;
 
     if ((s->r[R_CR] & UART_CR_RX_DIS) || !(s->r[R_CR] & UART_CR_RX_EN)) {
@@ -291,7 +291,7 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
                 s->r[R_SR] |= UART_SR_INTR_RTRIG;
             }
         }
-        qemu_mod_timer(s->fifo_trigger_handle, new_rx_time +
+        timer_mod(s->fifo_trigger_handle, new_rx_time +
                                                 (s->char_tx_time * 4));
     }
     uart_update_status(s);
@@ -452,10 +452,10 @@ static int cadence_uart_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
-    s->fifo_trigger_handle = qemu_new_timer_ns(vm_clock,
+    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
             (QEMUTimerCB *)fifo_trigger_update, s);
 
-    s->tx_time_handle = qemu_new_timer_ns(vm_clock,
+    s->tx_time_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
             (QEMUTimerCB *)uart_tx_write, s);
 
     s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;

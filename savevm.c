@@ -97,18 +97,18 @@ static void qemu_announce_self_once(void *opaque)
 
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
-        qemu_mod_timer(timer, qemu_get_clock_ms(rt_clock) +
+        timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
                        50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
-	    qemu_del_timer(timer);
-	    qemu_free_timer(timer);
+	    timer_del(timer);
+	    timer_free(timer);
     }
 }
 
 void qemu_announce_self(void)
 {
 	static QEMUTimer *timer;
-	timer = qemu_new_timer_ms(rt_clock, qemu_announce_self_once, &timer);
+	timer = timer_new_ms(QEMU_CLOCK_REALTIME, qemu_announce_self_once, &timer);
 	qemu_announce_self_once(&timer);
 }
 
@@ -979,23 +979,23 @@ uint64_t qemu_get_be64(QEMUFile *f)
 
 /* timer */
 
-void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_put(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
-    expire_time = qemu_timer_expire_time_ns(ts);
+    expire_time = timer_expire_time_ns(ts);
     qemu_put_be64(f, expire_time);
 }
 
-void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_get(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
     expire_time = qemu_get_be64(f);
     if (expire_time != -1) {
-        qemu_mod_timer_ns(ts, expire_time);
+        timer_mod_ns(ts, expire_time);
     } else {
-        qemu_del_timer(ts);
+        timer_del(ts);
     }
 }
 
@@ -1339,14 +1339,14 @@ const VMStateInfo vmstate_info_float64 = {
 static int get_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_get_timer(f, v);
+    timer_get(f, v);
     return 0;
 }
 
 static void put_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_put_timer(f, v);
+    timer_put(f, v);
 }
 
 const VMStateInfo vmstate_info_timer = {
@@ -2387,7 +2387,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     qemu_gettimeofday(&tv);
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
-    sn->vm_clock_nsec = qemu_get_clock_ns(vm_clock);
+    sn->vm_clock_nsec = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (name) {
         ret = bdrv_snapshot_find(bs, old_sn, name);

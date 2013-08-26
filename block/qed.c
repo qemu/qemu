@@ -353,10 +353,10 @@ static void qed_start_need_check_timer(BDRVQEDState *s)
 {
     trace_qed_start_need_check_timer(s);
 
-    /* Use vm_clock so we don't alter the image file while suspended for
+    /* Use QEMU_CLOCK_VIRTUAL so we don't alter the image file while suspended for
      * migration.
      */
-    qemu_mod_timer(s->need_check_timer, qemu_get_clock_ns(vm_clock) +
+    timer_mod(s->need_check_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    get_ticks_per_sec() * QED_NEED_CHECK_TIMEOUT);
 }
 
@@ -364,7 +364,7 @@ static void qed_start_need_check_timer(BDRVQEDState *s)
 static void qed_cancel_need_check_timer(BDRVQEDState *s)
 {
     trace_qed_cancel_need_check_timer(s);
-    qemu_del_timer(s->need_check_timer);
+    timer_del(s->need_check_timer);
 }
 
 static void bdrv_qed_rebind(BlockDriverState *bs)
@@ -494,7 +494,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags)
         }
     }
 
-    s->need_check_timer = qemu_new_timer_ns(vm_clock,
+    s->need_check_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                             qed_need_check_timer_cb, s);
 
 out:
@@ -518,7 +518,7 @@ static void bdrv_qed_close(BlockDriverState *bs)
     BDRVQEDState *s = bs->opaque;
 
     qed_cancel_need_check_timer(s);
-    qemu_free_timer(s->need_check_timer);
+    timer_free(s->need_check_timer);
 
     /* Ensure writes reach stable storage */
     bdrv_flush(bs->file);

@@ -1251,8 +1251,8 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
 /* Generate a SOF event, and set a timer for EOF */
 static void ohci_sof(OHCIState *ohci)
 {
-    ohci->sof_time = qemu_get_clock_ns(vm_clock);
-    qemu_mod_timer(ohci->eof_timer, ohci->sof_time + usb_frame_time);
+    ohci->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_mod(ohci->eof_timer, ohci->sof_time + usb_frame_time);
     ohci_set_interrupt(ohci, OHCI_INTR_SF);
 }
 
@@ -1349,12 +1349,12 @@ static void ohci_frame_boundary(void *opaque)
  */
 static int ohci_bus_start(OHCIState *ohci)
 {
-    ohci->eof_timer = qemu_new_timer_ns(vm_clock,
+    ohci->eof_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                     ohci_frame_boundary,
                     ohci);
 
     if (ohci->eof_timer == NULL) {
-        fprintf(stderr, "usb-ohci: %s: qemu_new_timer_ns failed\n", ohci->name);
+        fprintf(stderr, "usb-ohci: %s: timer_new_ns failed\n", ohci->name);
         ohci_die(ohci);
         return 0;
     }
@@ -1370,7 +1370,7 @@ static int ohci_bus_start(OHCIState *ohci)
 static void ohci_bus_stop(OHCIState *ohci)
 {
     if (ohci->eof_timer)
-        qemu_del_timer(ohci->eof_timer);
+        timer_del(ohci->eof_timer);
     ohci->eof_timer = NULL;
 }
 
@@ -1474,7 +1474,7 @@ static uint32_t ohci_get_frame_remaining(OHCIState *ohci)
     /* Being in USB operational state guarnatees sof_time was
      * set already.
      */
-    tks = qemu_get_clock_ns(vm_clock) - ohci->sof_time;
+    tks = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ohci->sof_time;
 
     /* avoid muldiv if possible */
     if (tks >= usb_frame_time)

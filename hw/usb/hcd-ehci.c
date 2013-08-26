@@ -150,7 +150,7 @@ typedef enum {
 #define NLPTR_TYPE_FSTN          3     // frame span traversal node
 
 #define SET_LAST_RUN_CLOCK(s) \
-    (s)->last_run_ns = qemu_get_clock_ns(vm_clock);
+    (s)->last_run_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
 /* nifty macros from Arnon's EHCI version  */
 #define get_field(data, field) \
@@ -958,7 +958,7 @@ static void ehci_reset(void *opaque)
     }
     ehci_queues_rip_all(s, 0);
     ehci_queues_rip_all(s, 1);
-    qemu_del_timer(s->frame_timer);
+    timer_del(s->frame_timer);
     qemu_bh_cancel(s->async_bh);
 }
 
@@ -2296,7 +2296,7 @@ static void ehci_frame_timer(void *opaque)
     int uframes, skipped_uframes;
     int i;
 
-    t_now = qemu_get_clock_ns(vm_clock);
+    t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ns_elapsed = t_now - ehci->last_run_ns;
     uframes = ns_elapsed / UFRAME_TIMER_NS;
 
@@ -2374,7 +2374,7 @@ static void ehci_frame_timer(void *opaque)
             expire_time = t_now + (get_ticks_per_sec()
                                * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
         }
-        qemu_mod_timer(ehci->frame_timer, expire_time);
+        timer_mod(ehci->frame_timer, expire_time);
     }
 }
 
@@ -2527,7 +2527,7 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
         s->ports[i].dev = 0;
     }
 
-    s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
+    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ehci_frame_timer, s);
     s->async_bh = qemu_bh_new(ehci_frame_timer, s);
 
     qemu_register_reset(ehci_reset, s);

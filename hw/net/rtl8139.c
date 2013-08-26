@@ -2648,7 +2648,7 @@ static void rtl8139_IntrMask_write(RTL8139State *s, uint32_t val)
 
     s->IntrMask = val;
 
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     rtl8139_update_irq(s);
 
 }
@@ -2689,7 +2689,7 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
      * and probably emulated is slower is better to assume this resetting was
      * done before testing on previous rtl8139_update_irq lead to IRQ losing
      */
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     rtl8139_update_irq(s);
 
 #endif
@@ -2697,7 +2697,7 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
 
 static uint32_t rtl8139_IntrStatus_read(RTL8139State *s)
 {
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
     uint32_t ret = s->IntrStatus;
 
@@ -2913,7 +2913,7 @@ static void rtl8139_set_next_tctr_time(RTL8139State *s, int64_t current_time)
     s->TimerExpire = next_time;
 
     if ((s->IntrMask & PCSTimeout) != 0 && (s->IntrStatus & PCSTimeout) == 0) {
-        qemu_mod_timer(s->timer, next_time);
+        timer_mod(s->timer, next_time);
     }
 }
 
@@ -2960,7 +2960,7 @@ static void rtl8139_io_writel(void *opaque, uint8_t addr, uint32_t val)
 
         case Timer:
             DPRINTF("TCTR Timer reset on write\n");
-            s->TCTR_base = qemu_get_clock_ns(vm_clock);
+            s->TCTR_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             rtl8139_set_next_tctr_time(s, s->TCTR_base);
             break;
 
@@ -2968,7 +2968,7 @@ static void rtl8139_io_writel(void *opaque, uint8_t addr, uint32_t val)
             DPRINTF("FlashReg TimerInt write val=0x%08x\n", val);
             if (s->TimerInt != val) {
                 s->TimerInt = val;
-                rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+                rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
             }
             break;
 
@@ -3183,7 +3183,7 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
             break;
 
         case Timer:
-            ret = muldiv64(qemu_get_clock_ns(vm_clock) - s->TCTR_base,
+            ret = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->TCTR_base,
                            PCI_FREQUENCY, get_ticks_per_sec());
             DPRINTF("TCTR Timer read val=0x%08x\n", ret);
             break;
@@ -3245,7 +3245,7 @@ static uint32_t rtl8139_mmio_readl(void *opaque, hwaddr addr)
 static int rtl8139_post_load(void *opaque, int version_id)
 {
     RTL8139State* s = opaque;
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     if (version_id < 4) {
         s->cplus_enabled = s->CpCmd != 0;
     }
@@ -3275,7 +3275,7 @@ static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
 static void rtl8139_pre_save(void *opaque)
 {
     RTL8139State* s = opaque;
-    int64_t current_time = qemu_get_clock_ns(vm_clock);
+    int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* set IntrStatus correctly */
     rtl8139_set_next_tctr_time(s, current_time);
@@ -3446,7 +3446,7 @@ static void rtl8139_timer(void *opaque)
 
     s->IntrStatus |= PCSTimeout;
     rtl8139_update_irq(s);
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 static void rtl8139_cleanup(NetClientState *nc)
@@ -3466,8 +3466,8 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
         g_free(s->cplus_txbuffer);
         s->cplus_txbuffer = NULL;
     }
-    qemu_del_timer(s->timer);
-    qemu_free_timer(s->timer);
+    timer_del(s->timer);
+    timer_free(s->timer);
     qemu_del_nic(s->nic);
 }
 
@@ -3535,8 +3535,8 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->cplus_txbuffer_offset = 0;
 
     s->TimerExpire = 0;
-    s->timer = qemu_new_timer_ns(vm_clock, rtl8139_timer, s);
-    rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
+    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
     add_boot_device_path(s->conf.bootindex, d, "/ethernet-phy@0");
 

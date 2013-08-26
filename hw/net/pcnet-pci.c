@@ -284,8 +284,8 @@ static void pci_pcnet_uninit(PCIDevice *dev)
 
     memory_region_destroy(&d->state.mmio);
     memory_region_destroy(&d->io_bar);
-    qemu_del_timer(d->state.poll_timer);
-    qemu_free_timer(d->state.poll_timer);
+    timer_del(d->state.poll_timer);
+    timer_free(d->state.poll_timer);
     qemu_del_nic(d->state.nic);
 }
 

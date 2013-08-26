@@ -263,7 +263,7 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
         return ret;
     }
 
-    qemu_get_timer(f, s->ar.tmr.timer);
+    timer_get(f, s->ar.tmr.timer);
     qemu_get_sbe64s(f, &s->ar.tmr.overflow_time);
 
     qemu_get_be16s(f, (uint16_t *)s->ar.gpe.sts);

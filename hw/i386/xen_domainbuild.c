@@ -148,7 +148,7 @@ static void xen_domain_poll(void *opaque)
         goto quit;
     }
 
-    qemu_mod_timer(xen_poll, qemu_get_clock_ms(rt_clock) + 1000);
+    timer_mod(xen_poll, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     return;
 
 quit:
@@ -290,8 +290,8 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
         goto err;
     }
 
-    xen_poll = qemu_new_timer_ms(rt_clock, xen_domain_poll, NULL);
-    qemu_mod_timer(xen_poll, qemu_get_clock_ms(rt_clock) + 1000);
+    xen_poll = timer_new_ms(QEMU_CLOCK_REALTIME, xen_domain_poll, NULL);
+    timer_mod(xen_poll, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     return 0;
 
 err:

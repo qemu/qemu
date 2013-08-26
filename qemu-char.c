@@ -281,7 +281,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                 int64_t ti;
                 int secs;
 
-                ti = qemu_get_clock_ms(rt_clock);
+                ti = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 if (d->timestamps_start == -1)
                     d->timestamps_start = ti;
                 ti -= d->timestamps_start;

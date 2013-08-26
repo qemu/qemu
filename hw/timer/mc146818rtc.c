@@ -102,7 +102,7 @@ static inline bool rtc_running(RTCState *s)
 static uint64_t get_guest_rtc_ns(RTCState *s)
 {
     uint64_t guest_rtc;
-    uint64_t guest_clock = qemu_get_clock_ns(rtc_clock);
+    uint64_t guest_clock = qemu_clock_get_ns(rtc_clock);
 
     guest_rtc = s->base_rtc * NSEC_PER_SEC
                  + guest_clock - s->last_update + s->offset;
@@ -113,13 +113,13 @@ static uint64_t get_guest_rtc_ns(RTCState *s)
 static void rtc_coalesced_timer_update(RTCState *s)
 {
     if (s->irq_coalesced == 0) {
-        qemu_del_timer(s->coalesced_timer);
+        timer_del(s->coalesced_timer);
     } else {
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1; 
-        int64_t next_clock = qemu_get_clock_ns(rtc_clock) +
+        int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
             muldiv64(s->period / c, get_ticks_per_sec(), RTC_CLOCK_RATE);
-        qemu_mod_timer(s->coalesced_timer, next_clock);
+        timer_mod(s->coalesced_timer, next_clock);
     }
 }
 
@@ -169,12 +169,12 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
         next_irq_clock = (cur_clock & ~(period - 1)) + period;
         s->next_periodic_time =
             muldiv64(next_irq_clock, get_ticks_per_sec(), RTC_CLOCK_RATE) + 1;
-        qemu_mod_timer(s->periodic_timer, s->next_periodic_time);
+        timer_mod(s->periodic_timer, s->next_periodic_time);
     } else {
 #ifdef TARGET_I386
         s->irq_coalesced = 0;
 #endif
-        qemu_del_timer(s->periodic_timer);
+        timer_del(s->periodic_timer);
     }
 }
 
@@ -222,23 +222,23 @@ static void check_update_timer(RTCState *s)
      * from occurring, because the time of day is not updated.
      */
     if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
     if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
         (s->cmos_data[RTC_REG_B] & REG_B_SET)) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
     if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
         (s->cmos_data[RTC_REG_C] & REG_C_AF)) {
-        qemu_del_timer(s->update_timer);
+        timer_del(s->update_timer);
         return;
     }
 
     guest_nsec = get_guest_rtc_ns(s) % NSEC_PER_SEC;
     /* if UF is clear, reprogram to next second */
-    next_update_time = qemu_get_clock_ns(rtc_clock)
+    next_update_time = qemu_clock_get_ns(rtc_clock)
         + NSEC_PER_SEC - guest_nsec;
 
     /* Compute time of next alarm.  One second is already accounted
@@ -252,8 +252,8 @@ static void check_update_timer(RTCState *s)
          * the alarm time.  */
         next_update_time = s->next_alarm_time;
     }
-    if (next_update_time != qemu_timer_expire_time_ns(s->update_timer)) {
-        qemu_mod_timer(s->update_timer, next_update_time);
+    if (next_update_time != timer_expire_time_ns(s->update_timer)) {
+        timer_mod(s->update_timer, next_update_time);
     }
 }
 
@@ -371,7 +371,7 @@ static void rtc_update_timer(void *opaque)
     rtc_update_time(s);
     s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
 
-    if (qemu_get_clock_ns(rtc_clock) >= s->next_alarm_time) {
+    if (qemu_clock_get_ns(rtc_clock) >= s->next_alarm_time) {
         irqs |= REG_C_AF;
         if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
             qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC);
@@ -445,7 +445,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             /* UIP bit is read only */
             s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
                 (s->cmos_data[RTC_REG_A] & REG_A_UIP);
-            periodic_timer_update(s, qemu_get_clock_ns(rtc_clock));
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
             check_update_timer(s);
             break;
         case RTC_REG_B:
@@ -475,7 +475,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                 qemu_irq_lower(s->irq);
             }
             s->cmos_data[RTC_REG_B] = data;
-            periodic_timer_update(s, qemu_get_clock_ns(rtc_clock));
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
             check_update_timer(s);
             break;
         case RTC_REG_C:
@@ -535,7 +535,7 @@ static void rtc_set_time(RTCState *s)
 
     rtc_get_time(s, &tm);
     s->base_rtc = mktimegm(&tm);
-    s->last_update = qemu_get_clock_ns(rtc_clock);
+    s->last_update = qemu_clock_get_ns(rtc_clock);
 
     rtc_change_mon_event(&tm);
 }
@@ -587,10 +587,11 @@ static int update_in_progress(RTCState *s)
     if (!rtc_running(s)) {
         return 0;
     }
-    if (qemu_timer_pending(s->update_timer)) {
-        int64_t next_update_time = qemu_timer_expire_time_ns(s->update_timer);
+    if (timer_pending(s->update_timer)) {
+        int64_t next_update_time = timer_expire_time_ns(s->update_timer);
         /* Latch UIP until the timer expires.  */
-        if (qemu_get_clock_ns(rtc_clock) >= (next_update_time - UIP_HOLD_LENGTH)) {
+        if (qemu_clock_get_ns(rtc_clock) >=
+            (next_update_time - UIP_HOLD_LENGTH)) {
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
             return 1;
         }
@@ -695,7 +696,7 @@ static void rtc_set_date_from_host(ISADevice *dev)
     qemu_get_timedate(&tm, 0);
 
     s->base_rtc = mktimegm(&tm);
-    s->last_update = qemu_get_clock_ns(rtc_clock);
+    s->last_update = qemu_clock_get_ns(rtc_clock);
     s->offset = 0;
 
     /* set the CMOS date */
@@ -843,7 +844,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     switch (s->lost_tick_policy) {
     case LOST_TICK_SLEW:
         s->coalesced_timer =
-            qemu_new_timer_ns(rtc_clock, rtc_coalesced_timer, s);
+            timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
         break;
     case LOST_TICK_DISCARD:
         break;
@@ -853,12 +854,13 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    s->periodic_timer = qemu_new_timer_ns(rtc_clock, rtc_periodic_timer, s);
-    s->update_timer = qemu_new_timer_ns(rtc_clock, rtc_update_timer, s);
+    s->periodic_timer = timer_new_ns(rtc_clock, rtc_periodic_timer, s);
+    s->update_timer = timer_new_ns(rtc_clock, rtc_update_timer, s);
     check_update_timer(s);
 
     s->clock_reset_notifier.notify = rtc_notify_clock_reset;
-    qemu_register_clock_reset_notifier(rtc_clock, &s->clock_reset_notifier);
+    qemu_clock_register_reset_notifier(QEMU_CLOCK_REALTIME,
+                                       &s->clock_reset_notifier);
 
     s->suspend_notifier.notify = rtc_notify_suspend;
     qemu_register_suspend_notifier(&s->suspend_notifier);

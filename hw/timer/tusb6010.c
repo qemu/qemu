@@ -516,11 +516,11 @@ static void tusb_async_writew(void *opaque, hwaddr addr,
     case TUSB_DEV_OTG_TIMER:
         s->otg_timer_val = value;
         if (value & TUSB_DEV_OTG_TIMER_ENABLE)
-            qemu_mod_timer(s->otg_timer, qemu_get_clock_ns(vm_clock) +
+            timer_mod(s->otg_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                             muldiv64(TUSB_DEV_OTG_TIMER_VAL(value),
                                      get_ticks_per_sec(), TUSB_DEVCLOCK));
         else
-            qemu_del_timer(s->otg_timer);
+            timer_del(s->otg_timer);
         break;
 
     case TUSB_PRCM_CONF:
@@ -728,8 +728,8 @@ static void tusb6010_power(TUSBState *s, int on)
         /* Pull the interrupt down after TUSB6010 comes up.  */
         s->intr_ok = 0;
         tusb_intr_update(s);
-        qemu_mod_timer(s->pwr_timer,
-                       qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 2);
+        timer_mod(s->pwr_timer,
+                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + get_ticks_per_sec() / 2);
     }
 }
 
@@ -783,8 +783,8 @@ static int tusb6010_init(SysBusDevice *sbd)
     DeviceState *dev = DEVICE(sbd);
     TUSBState *s = TUSB(dev);
 
-    s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
-    s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);
+    s->otg_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tusb_otg_tick, s);
+    s->pwr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tusb_power_tick, s);
     memory_region_init_io(&s->iomem[1], OBJECT(s), &tusb_async_ops, s,
                           "tusb-async", UINT32_MAX);
     sysbus_init_mmio(sbd, &s->iomem[0]);

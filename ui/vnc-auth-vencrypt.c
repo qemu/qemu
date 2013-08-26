@@ -25,7 +25,7 @@
  */
 
 #include "vnc.h"
-
+#include "qemu/main-loop.h"
 
 static void start_auth_vencrypt_subauth(VncState *vs)
 {

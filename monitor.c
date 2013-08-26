@@ -537,7 +537,7 @@ monitor_protocol_event_queue(MonitorEvent event,
                              QObject *data)
 {
     MonitorEventState *evstate;
-    int64_t now = qemu_get_clock_ns(rt_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     assert(event < QEVENT_MAX);
 
     qemu_mutex_lock(&monitor_event_state_lock);
@@ -564,7 +564,7 @@ monitor_protocol_event_queue(MonitorEvent event,
                 qobject_decref(evstate->data);
             } else {
                 int64_t then = evstate->last + evstate->rate;
-                qemu_mod_timer_ns(evstate->timer, then);
+                timer_mod_ns(evstate->timer, then);
             }
             evstate->data = data;
             qobject_incref(evstate->data);
@@ -584,7 +584,7 @@ monitor_protocol_event_queue(MonitorEvent event,
 static void monitor_protocol_event_handler(void *opaque)
 {
     MonitorEventState *evstate = opaque;
-    int64_t now = qemu_get_clock_ns(rt_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock(&monitor_event_state_lock);
 
@@ -622,7 +622,7 @@ monitor_protocol_event_throttle(MonitorEvent event,
     trace_monitor_protocol_event_throttle(event, rate);
     evstate->event = event;
     evstate->rate = rate * SCALE_MS;
-    evstate->timer = qemu_new_timer(rt_clock,
+    evstate->timer = timer_new(QEMU_CLOCK_REALTIME,
                                     SCALE_MS,
                                     monitor_protocol_event_handler,
                                     evstate);

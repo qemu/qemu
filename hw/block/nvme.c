@@ -187,7 +187,7 @@ static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
     assert(cq->cqid == req->sq->cqid);
     QTAILQ_REMOVE(&req->sq->out_req_list, req, entry);
     QTAILQ_INSERT_TAIL(&cq->req_list, req, entry);
-    qemu_mod_timer(cq->timer, qemu_get_clock_ns(vm_clock) + 500);
+    timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
 }
 
 static void nvme_rw_cb(void *opaque, int ret)
@@ -264,8 +264,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 static void nvme_free_sq(NvmeSQueue *sq, NvmeCtrl *n)
 {
     n->sq[sq->sqid] = NULL;
-    qemu_del_timer(sq->timer);
-    qemu_free_timer(sq->timer);
+    timer_del(sq->timer);
+    timer_free(sq->timer);
     g_free(sq->io_req);
     if (sq->sqid) {
         g_free(sq);
@@ -327,7 +327,7 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
         sq->io_req[i].sq = sq;
         QTAILQ_INSERT_TAIL(&(sq->req_list), &sq->io_req[i], entry);
     }
-    sq->timer = qemu_new_timer_ns(vm_clock, nvme_process_sq, sq);
+    sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
 
     assert(n->cq[cqid]);
     cq = n->cq[cqid];
@@ -369,8 +369,8 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeCmd *cmd)
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
     n->cq[cq->cqid] = NULL;
-    qemu_del_timer(cq->timer);
-    qemu_free_timer(cq->timer);
+    timer_del(cq->timer);
+    timer_free(cq->timer);
     msix_vector_unuse(&n->parent_obj, cq->vector);
     if (cq->cqid) {
         g_free(cq);
@@ -410,7 +410,7 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
     QTAILQ_INIT(&cq->sq_list);
     msix_vector_use(&n->parent_obj, cq->vector);
     n->cq[cqid] = cq;
-    cq->timer = qemu_new_timer_ns(vm_clock, nvme_post_cqes, cq);
+    cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
 }
 
 static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
@@ -691,9 +691,9 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         if (start_sqs) {
             NvmeSQueue *sq;
             QTAILQ_FOREACH(sq, &cq->sq_list, entry) {
-                qemu_mod_timer(sq->timer, qemu_get_clock_ns(vm_clock) + 500);
+                timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
             }
-            qemu_mod_timer(cq->timer, qemu_get_clock_ns(vm_clock) + 500);
+            timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
         }
 
         if (cq->tail != cq->head) {
@@ -714,7 +714,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         }
 
         sq->tail = new_tail;
-        qemu_mod_timer(sq->timer, qemu_get_clock_ns(vm_clock) + 500);
+        timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
 

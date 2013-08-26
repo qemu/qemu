@@ -789,7 +789,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
 {
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int index = spapr->htab_save_index;
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     assert(spapr->htab_first_pass);
 
@@ -820,7 +820,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
             qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
                             HASH_PTE_SIZE_64 * n_valid);
 
-            if ((qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+            if ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }
@@ -841,7 +841,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int examined = 0, sent = 0;
     int index = spapr->htab_save_index;
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     assert(!spapr->htab_first_pass);
 
@@ -886,7 +886,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
                             HASH_PTE_SIZE_64 * n_valid);
             sent += index - chunkstart;
 
-            if (!final && (qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+            if (!final && (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }

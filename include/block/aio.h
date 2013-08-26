@@ -14,10 +14,12 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
+#include "qemu/typedefs.h"
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
+#include "qemu/timer.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
@@ -42,7 +44,7 @@ typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
 typedef void IOHandler(void *opaque);
 
-typedef struct AioContext {
+struct AioContext {
     GSource source;
 
     /* The list of registered AIO handlers */
@@ -72,7 +74,10 @@ typedef struct AioContext {
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
-} AioContext;
+
+    /* TimerLists for calling timers - one per clock type */
+    QEMUTimerListGroup tlg;
+};
 
 /**
  * aio_context_new: Allocate a new AioContext.
@@ -240,5 +245,48 @@ void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_write,
                              void *opaque);
 #endif
+
+/**
+ * aio_timer_new:
+ * @ctx: the aio context
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Allocate a new timer attached to the context @ctx.
+ * The function is responsible for memory allocation.
+ *
+ * The preferred interface is aio_timer_init. Use that
+ * unless you really need dynamic memory allocation.
+ *
+ * Returns: a pointer to the new timer
+ */
+static inline QEMUTimer *aio_timer_new(AioContext *ctx, QEMUClockType type,
+                                       int scale,
+                                       QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_tl(ctx->tlg.tl[type], scale, cb, opaque);
+}
+
+/**
+ * aio_timer_init:
+ * @ctx: the aio context
+ * @ts: the timer
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialise a new timer attached to the context @ctx.
+ * The caller is responsible for memory allocation.
+ */
+static inline void aio_timer_init(AioContext *ctx,
+                                  QEMUTimer *ts, QEMUClockType type,
+                                  int scale,
+                                  QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, ctx->tlg.tl[type], scale, cb, opaque);
+}
 
 #endif

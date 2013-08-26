@@ -136,7 +136,7 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
     uint64_t period;
     uint64_t now;
 
-    now = qemu_get_clock_ns(vm_clock);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     tb  = cpu_ppc_get_tb(tb_env, now, tb_env->tb_offset);
     period = 1ULL << target_bit;
     delta_tick = period - (tb & (period - 1));
@@ -167,7 +167,7 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
         (*next)++;
     }
 
-    qemu_mod_timer(timer, *next);
+    timer_mod(timer, *next);
 }
 
 static void booke_decr_cb(void *opaque)
@@ -303,12 +303,12 @@ void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
     tb_env->tb_freq    = freq;
     tb_env->decr_freq  = freq;
     tb_env->opaque     = booke_timer;
-    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &booke_decr_cb, cpu);
+    tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &booke_decr_cb, cpu);
 
     booke_timer->fit_timer =
-        qemu_new_timer_ns(vm_clock, &booke_fit_cb, cpu);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, &booke_fit_cb, cpu);
     booke_timer->wdt_timer =
-        qemu_new_timer_ns(vm_clock, &booke_wdt_cb, cpu);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, &booke_wdt_cb, cpu);
 
     ret = kvmppc_booke_watchdog_enable(cpu);
 

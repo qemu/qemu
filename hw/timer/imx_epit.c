@@ -18,6 +18,7 @@
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
 #include "hw/arm/imx.h"
+#include "qemu/main-loop.h"
 
 #define TYPE_IMX_EPIT "imx.epit"
 
