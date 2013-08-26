@@ -200,6 +200,7 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
                                      uintptr_t searched_pc)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     TCGContext *s = &tcg_ctx;
     int j;
     uintptr_t tc_ptr;
@@ -218,7 +219,7 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
         /* Reset the cycle counter to the start of the block.  */
         env->icount_decr.u16.low += tb->icount;
         /* Clear the IO flag.  */
-        env->can_do_io = 0;
+        cpu->can_do_io = 0;
     }
 
     /* find opc index corresponding to search_pc */
@@ -1409,7 +1410,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
 
     if (use_icount) {
         env->icount_decr.u16.high = 0xffff;
-        if (!can_do_io(env)
+        if (!cpu_can_do_io(cpu)
             && (mask & ~old_mask) != 0) {
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }

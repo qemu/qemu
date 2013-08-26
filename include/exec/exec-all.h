@@ -380,20 +380,25 @@ extern int singlestep;
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;
 
-/* Deterministic execution requires that IO only be performed on the last
-   instruction of a TB so that interrupts take effect immediately.  */
-static inline int can_do_io(CPUArchState *env)
+/**
+ * cpu_can_do_io:
+ * @cpu: The CPU for which to check IO.
+ *
+ * Deterministic execution requires that IO only be performed on the last
+ * instruction of a TB so that interrupts take effect immediately.
+ *
+ * Returns: %true if memory-mapped IO is safe, %false otherwise.
+ */
+static inline bool cpu_can_do_io(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     if (!use_icount) {
-        return 1;
+        return true;
     }
     /* If not executing code then assume we are ok.  */
     if (cpu->current_tb == NULL) {
-        return 1;
+        return true;
     }
-    return env->can_do_io != 0;
+    return cpu->can_do_io != 0;
 }
 
 #endif

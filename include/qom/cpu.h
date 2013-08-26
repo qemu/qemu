@@ -157,6 +157,7 @@ struct kvm_run;
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
  * @singlestep_enabled: Flags for single-stepping.
+ * @can_do_io: Nonzero if memory-mapped IO is safe.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
  * @gdb_regs: Additional GDB registers.
@@ -220,6 +221,7 @@ struct CPUState {
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index; /* used by alpha TCG */
     uint32_t halted; /* used by alpha, cris, ppc TCG */
+    uint32_t can_do_io;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);

@@ -157,7 +157,6 @@ typedef struct CPUWatchpoint {
         uint32_t u32;                                                   \
         icount_decr_u16 u16;                                            \
     } icount_decr;                                                      \
-    uint32_t can_do_io; /* nonzero if memory mapped IO is safe.  */     \
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \
