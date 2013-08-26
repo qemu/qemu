@@ -99,6 +99,8 @@ uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
                                 int is_write, int is_user, uintptr_t retaddr)
 {
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     uint64_t pc;
     uint32_t insn;
 
@@ -112,7 +114,7 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     env->trap_arg0 = addr;
     env->trap_arg1 = insn >> 26;                /* opcode */
     env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
-    env->exception_index = EXCP_UNALIGN;
+    cs->exception_index = EXCP_UNALIGN;
     env->error_code = 0;
     cpu_loop_exit(env);
 }

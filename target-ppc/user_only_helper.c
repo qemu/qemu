@@ -39,7 +39,7 @@ int ppc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
         env->spr[SPR_DAR] = address;
         env->spr[SPR_DSISR] = error_code;
     }
-    env->exception_index = exception;
+    cs->exception_index = exception;
     env->error_code = error_code;
 
     return 1;

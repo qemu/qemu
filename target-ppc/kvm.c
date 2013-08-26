@@ -1178,7 +1178,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
 
     if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
     }
 
     return 0;

@@ -24,7 +24,10 @@
 
 static void raise_exception(CPUARMState *env, int tt)
 {
-    env->exception_index = tt;
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = tt;
     cpu_loop_exit(env);
 }
 
@@ -75,15 +78,16 @@ void tlb_fill(CPUARMState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int ret;
 
-    ret = arm_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = arm_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        raise_exception(env, env->exception_index);
+        raise_exception(env, cs->exception_index);
     }
 }
 #endif
@@ -221,23 +225,27 @@ void HELPER(wfi)(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
-    env->exception_index = EXCP_HLT;
+    cs->exception_index = EXCP_HLT;
     cs->halted = 1;
     cpu_loop_exit(env);
 }
 
 void HELPER(wfe)(CPUARMState *env)
 {
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
     /* Don't actually halt the CPU, just yield back to top
      * level loop
      */
-    env->exception_index = EXCP_YIELD;
+    cs->exception_index = EXCP_YIELD;
     cpu_loop_exit(env);
 }
 
 void HELPER(exception)(CPUARMState *env, uint32_t excp)
 {
-    env->exception_index = excp;
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
+    cs->exception_index = excp;
     cpu_loop_exit(env);
 }
 

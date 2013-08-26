@@ -1491,6 +1491,7 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
 static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                                     int rw, int mmu_idx)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     mmu_ctx_t ctx;
     int access_type;
     int ret = 0;
@@ -1510,24 +1511,24 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;
     } else if (ret < 0) {
-        LOG_MMU_STATE(CPU(ppc_env_get_cpu(env)));
+        LOG_MMU_STATE(cs);
         if (access_type == ACCESS_CODE) {
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
                 switch (env->mmu_model) {
                 case POWERPC_MMU_SOFT_6xx:
-                    env->exception_index = POWERPC_EXCP_IFTLB;
+                    cs->exception_index = POWERPC_EXCP_IFTLB;
                     env->error_code = 1 << 18;
                     env->spr[SPR_IMISS] = address;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     goto tlb_miss;
                 case POWERPC_MMU_SOFT_74xx:
-                    env->exception_index = POWERPC_EXCP_IFTLB;
+                    cs->exception_index = POWERPC_EXCP_IFTLB;
                     goto tlb_miss_74xx;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
-                    env->exception_index = POWERPC_EXCP_ITLB;
+                    cs->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     env->spr[SPR_40x_ESR] = 0x00000000;
@@ -1536,7 +1537,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     booke206_update_mas_tlb_miss(env, address, rw);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
-                    env->exception_index = POWERPC_EXCP_ITLB;
+                    cs->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
                     return -1;
@@ -1555,7 +1556,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 break;
             case -2:
                 /* Access rights violation */
-                env->exception_index = POWERPC_EXCP_ISI;
+                cs->exception_index = POWERPC_EXCP_ISI;
                 env->error_code = 0x08000000;
                 break;
             case -3:
@@ -1564,13 +1565,13 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_ESR] = 0x00000000;
                 }
-                env->exception_index = POWERPC_EXCP_ISI;
+                cs->exception_index = POWERPC_EXCP_ISI;
                 env->error_code = 0x10000000;
                 break;
             case -4:
                 /* Direct store exception */
                 /* No code fetch is allowed in direct-store areas */
-                env->exception_index = POWERPC_EXCP_ISI;
+                cs->exception_index = POWERPC_EXCP_ISI;
                 env->error_code = 0x10000000;
                 break;
             }
@@ -1581,10 +1582,10 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 switch (env->mmu_model) {
                 case POWERPC_MMU_SOFT_6xx:
                     if (rw == 1) {
-                        env->exception_index = POWERPC_EXCP_DSTLB;
+                        cs->exception_index = POWERPC_EXCP_DSTLB;
                         env->error_code = 1 << 16;
                     } else {
-                        env->exception_index = POWERPC_EXCP_DLTLB;
+                        cs->exception_index = POWERPC_EXCP_DLTLB;
                         env->error_code = 0;
                     }
                     env->spr[SPR_DMISS] = address;
@@ -1598,9 +1599,9 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     break;
                 case POWERPC_MMU_SOFT_74xx:
                     if (rw == 1) {
-                        env->exception_index = POWERPC_EXCP_DSTLB;
+                        cs->exception_index = POWERPC_EXCP_DSTLB;
                     } else {
-                        env->exception_index = POWERPC_EXCP_DLTLB;
+                        cs->exception_index = POWERPC_EXCP_DLTLB;
                     }
                 tlb_miss_74xx:
                     /* Implement LRU algorithm */
@@ -1611,7 +1612,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     break;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
-                    env->exception_index = POWERPC_EXCP_DTLB;
+                    cs->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     if (rw) {
@@ -1628,7 +1629,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     booke206_update_mas_tlb_miss(env, address, rw);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
-                    env->exception_index = POWERPC_EXCP_DTLB;
+                    cs->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
                     env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
@@ -1644,7 +1645,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 break;
             case -2:
                 /* Access rights violation */
-                env->exception_index = POWERPC_EXCP_DSI;
+                cs->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
                 if (env->mmu_model == POWERPC_MMU_SOFT_4xx
                     || env->mmu_model == POWERPC_MMU_SOFT_4xx_Z) {
@@ -1670,13 +1671,13 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 switch (access_type) {
                 case ACCESS_FLOAT:
                     /* Floating point load/store */
-                    env->exception_index = POWERPC_EXCP_ALIGN;
+                    cs->exception_index = POWERPC_EXCP_ALIGN;
                     env->error_code = POWERPC_EXCP_ALIGN_FP;
                     env->spr[SPR_DAR] = address;
                     break;
                 case ACCESS_RES:
                     /* lwarx, ldarx or stwcx. */
-                    env->exception_index = POWERPC_EXCP_DSI;
+                    cs->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
@@ -1687,7 +1688,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     break;
                 case ACCESS_EXT:
                     /* eciwx or ecowx */
-                    env->exception_index = POWERPC_EXCP_DSI;
+                    cs->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
@@ -1698,7 +1699,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     break;
                 default:
                     printf("DSI: invalid exception (%d)\n", ret);
-                    env->exception_index = POWERPC_EXCP_PROGRAM;
+                    cs->exception_index = POWERPC_EXCP_PROGRAM;
                     env->error_code =
                         POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
                     env->spr[SPR_DAR] = address;
@@ -1709,7 +1710,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
         }
 #if 0
         printf("%s: set exception to %d %02x\n", __func__,
-               env->exception, env->error_code);
+               cs->exception, env->error_code);
 #endif
         ret = 1;
     }
@@ -2909,6 +2910,6 @@ void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        helper_raise_exception_err(env, env->exception_index, env->error_code);
+        helper_raise_exception_err(env, cpu->exception_index, env->error_code);
     }
 }

@@ -496,7 +496,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
     env->cr[2] = addr;
     env->error_code = (is_write << PG_ERROR_W_BIT);
     env->error_code |= PG_ERROR_U_MASK;
-    env->exception_index = EXCP0E_PAGE;
+    cs->exception_index = EXCP0E_PAGE;
     return 1;
 }
 
@@ -561,7 +561,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
             sext = (int64_t)addr >> 47;
             if (sext != 0 && sext != -1) {
                 env->error_code = 0;
-                env->exception_index = EXCP0D_GPF;
+                cs->exception_index = EXCP0D_GPF;
                 return 1;
             }
 
@@ -892,7 +892,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
         env->cr[2] = addr;
     }
     env->error_code = error_code;
-    env->exception_index = EXCP0E_PAGE;
+    cs->exception_index = EXCP0E_PAGE;
     return 1;
 }
 

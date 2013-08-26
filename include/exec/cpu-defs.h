@@ -139,9 +139,6 @@ typedef struct CPUWatchpoint {
     QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;            \
     CPUWatchpoint *watchpoint_hit;                                      \
                                                                         \
-    /* Core interrupt code */                                           \
-    int exception_index;                                                \
-                                                                        \
     /* user data */                                                     \
     void *opaque;                                                       \
 

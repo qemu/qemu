@@ -47,9 +47,10 @@
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     int t;
 
-    env->exception_index = EXCP_PGM;
+    cs->exception_index = EXCP_PGM;
     env->int_pgm_code = excp;
 
     /* Use the (ultimate) callers address to find the insn that trapped.  */
@@ -66,8 +67,10 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
     HELPER_LOG("%s: exception %d\n", __func__, excp);
-    env->exception_index = excp;
+    cs->exception_index = excp;
     cpu_loop_exit(env);
 }
 
@@ -75,17 +78,21 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt(s390_env_get_cpu(env), KVM_S390_PROGRAM_INT, code);
+        kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 #endif
     } else {
+        CPUState *cs = CPU(cpu);
+
         env->int_pgm_code = code;
         env->int_pgm_ilen = ilen;
-        env->exception_index = EXCP_PGM;
+        cs->exception_index = EXCP_PGM;
         cpu_loop_exit(env);
     }
 }

@@ -48,7 +48,7 @@ static void openrisc_cpu_reset(CPUState *s)
 
     cpu->env.pc = 0x100;
     cpu->env.sr = SR_FO | SR_SM;
-    cpu->env.exception_index = -1;
+    s->exception_index = -1;
 
     cpu->env.upr = UPR_UP | UPR_DMP | UPR_IMP | UPR_PICP | UPR_TTP;
     cpu->env.cpucfgr = CPUCFGR_OB32S | CPUCFGR_OF32S;

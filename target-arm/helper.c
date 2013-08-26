@@ -2649,10 +2649,7 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 void arm_cpu_do_interrupt(CPUState *cs)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }
 
 int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
@@ -2662,10 +2659,10 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     CPUARMState *env = &cpu->env;
 
     if (rw == 2) {
-        env->exception_index = EXCP_PREFETCH_ABORT;
+        cs->exception_index = EXCP_PREFETCH_ABORT;
         env->cp15.c6_insn = address;
     } else {
-        env->exception_index = EXCP_DATA_ABORT;
+        cs->exception_index = EXCP_DATA_ABORT;
         env->cp15.c6_data = address;
     }
     return 1;
@@ -2851,7 +2848,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
     uint32_t addr;
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     lr = 0xfffffff1;
     if (env->v7m.current_sp)
@@ -2863,7 +2860,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
        handle it.  */
     /* TODO: Need to escalate if the current priority is higher than the
        one we're raising.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         return;
@@ -2895,7 +2892,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         do_v7m_exception_exit(env);
         return;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
 
@@ -2936,10 +2933,10 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     assert(!IS_M(env));
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     /* TODO: Vectored interrupt controller.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         new_mode = ARM_CPU_MODE_UND;
         addr = 0x04;
@@ -3020,7 +3017,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
@@ -3650,13 +3647,13 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     if (access_type == 2) {
         env->cp15.c5_insn = ret;
         env->cp15.c6_insn = address;
-        env->exception_index = EXCP_PREFETCH_ABORT;
+        cs->exception_index = EXCP_PREFETCH_ABORT;
     } else {
         env->cp15.c5_data = ret;
         if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6))
             env->cp15.c5_data |= (1 << 11);
         env->cp15.c6_data = address;
-        env->exception_index = EXCP_DATA_ABORT;
+        cs->exception_index = EXCP_DATA_ABORT;
     }
     return 1;
 }

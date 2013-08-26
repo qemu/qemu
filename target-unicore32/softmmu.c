@@ -79,7 +79,7 @@ void uc32_cpu_do_interrupt(CPUState *cs)
     uint32_t addr;
     int new_mode;
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case UC32_EXCP_PRIV:
         new_mode = ASR_MODE_PRIV;
         addr = 0x08;
@@ -99,7 +99,7 @@ void uc32_cpu_do_interrupt(CPUState *cs)
         addr = 0x18;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
         return;
     }
     /* High vectors.  */
@@ -257,9 +257,9 @@ int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     env->cp0.c3_faultstatus = ret;
     env->cp0.c4_faultaddr = address;
     if (access_type == 2) {
-        env->exception_index = UC32_EXCP_ITRAP;
+        cs->exception_index = UC32_EXCP_ITRAP;
     } else {
-        env->exception_index = UC32_EXCP_DTRAP;
+        cs->exception_index = UC32_EXCP_DTRAP;
     }
     return ret;
 }

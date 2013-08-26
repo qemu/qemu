@@ -935,7 +935,9 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 #if defined(CONFIG_USER_ONLY)
 void helper_syscall(CPUX86State *env, int next_eip_addend)
 {
-    env->exception_index = EXCP_SYSCALL;
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
+    cs->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
     cpu_loop_exit(env);
 }
@@ -1248,7 +1250,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* if user mode only, we simulate a fake exception
        which will be handled outside the cpu execution
        loop */
-    do_interrupt_user(env, env->exception_index,
+    do_interrupt_user(env, cs->exception_index,
                       env->exception_is_int,
                       env->error_code,
                       env->exception_next_eip);
@@ -1258,7 +1260,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* simulate a real cpu exception. On i386, it can
        trigger new exceptions, but we do not handle
        double or triple faults yet. */
-    do_interrupt_all(cpu, env->exception_index,
+    do_interrupt_all(cpu, cs->exception_index,
                      env->exception_is_int,
                      env->error_code,
                      env->exception_next_eip, 0);

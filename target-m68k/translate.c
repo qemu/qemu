@@ -43,6 +43,7 @@
 #undef DEFF64
 
 static TCGv_i32 cpu_halted;
+static TCGv_i32 cpu_exception_index;
 
 static TCGv_ptr cpu_env;
 
@@ -81,6 +82,10 @@ void m68k_tcg_init(void)
     cpu_halted = tcg_global_mem_new_i32(TCG_AREG0,
                                         -offsetof(M68kCPU, env) +
                                         offsetof(CPUState, halted), "HALTED");
+    cpu_exception_index = tcg_global_mem_new_i32(TCG_AREG0,
+                                                 -offsetof(M68kCPU, env) +
+                                                 offsetof(CPUState, exception_index),
+                                                 "EXCEPTION");
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 

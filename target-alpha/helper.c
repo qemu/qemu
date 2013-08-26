@@ -173,7 +173,7 @@ int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 {
     AlphaCPU *cpu = ALPHA_CPU(cs);
 
-    cpu->env.exception_index = EXCP_MMFAULT;
+    cs->exception_index = EXCP_MMFAULT;
     cpu->env.trap_arg0 = address;
     return 1;
 }
@@ -338,7 +338,7 @@ int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int rw,
 
     fail = get_physical_address(env, addr, 1 << rw, mmu_idx, &phys, &prot);
     if (unlikely(fail >= 0)) {
-        env->exception_index = EXCP_MMFAULT;
+        cs->exception_index = EXCP_MMFAULT;
         env->trap_arg0 = addr;
         env->trap_arg1 = fail;
         env->trap_arg2 = (rw == 2 ? -1 : rw);
@@ -355,7 +355,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
 {
     AlphaCPU *cpu = ALPHA_CPU(cs);
     CPUAlphaState *env = &cpu->env;
-    int i = env->exception_index;
+    int i = cs->exception_index;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
@@ -406,7 +406,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
                  ++count, name, env->error_code, env->pc, env->ir[IR_SP]);
     }
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
 
 #if !defined(CONFIG_USER_ONLY)
     switch (i) {
@@ -508,7 +508,10 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
    We expect that ENV->PC has already been updated.  */
 void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 {
-    env->exception_index = excp;
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
     env->error_code = error;
     cpu_loop_exit(env);
 }
@@ -517,7 +520,10 @@ void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
                                 int excp, int error)
 {
-    env->exception_index = excp;
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
     env->error_code = error;
     if (retaddr) {
         cpu_restore_state(env, retaddr);

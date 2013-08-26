@@ -15929,10 +15929,8 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
 
 void cpu_state_reset(CPUMIPSState *env)
 {
-#ifndef CONFIG_USER_ONLY
     MIPSCPU *cpu = mips_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-#endif
 
     /* Reset registers to their default values */
     env->CP0_PRid = env->cpu_model->CP0_PRid;
@@ -16063,7 +16061,7 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 #endif
     compute_hflags(env);
-    env->exception_index = EXCP_NONE;
+    cs->exception_index = EXCP_NONE;
 }
 
 void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb, int pc_pos)

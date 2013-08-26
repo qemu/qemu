@@ -8422,7 +8422,7 @@ static void ppc_cpu_reset(CPUState *s)
     env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
     env->pending_interrupts = 0;
-    env->exception_index = POWERPC_EXCP_NONE;
+    s->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)

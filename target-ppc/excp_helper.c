@@ -43,13 +43,15 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    env->exception_index = POWERPC_EXCP_NONE;
+    cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 }
 
 void ppc_hw_interrupt(CPUPPCState *env)
 {
-    env->exception_index = POWERPC_EXCP_NONE;
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
+    cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 }
 #else /* defined(CONFIG_USER_ONLY) */
@@ -68,8 +70,8 @@ static inline void dump_syscall(CPUPPCState *env)
  */
 static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 {
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    CPUState *cs;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1;
     int lpes0, lpes1, lev;
@@ -135,7 +137,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                 fprintf(stderr, "Machine check while not allowed. "
                         "Entering checkstop state\n");
             }
-            cs = CPU(cpu);
             cs->halted = 1;
             cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         }
@@ -204,7 +205,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 LOG_EXCP("Ignore floating point exception\n");
-                env->exception_index = POWERPC_EXCP_NONE;
+                cs->exception_index = POWERPC_EXCP_NONE;
                 env->error_code = 0;
                 return;
             }
@@ -662,7 +663,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     hreg_compute_hflags(env);
     env->nip = vector;
     /* Reset exception state */
-    env->exception_index = POWERPC_EXCP_NONE;
+    cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 
     if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
@@ -679,7 +680,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    powerpc_excp(cpu, env->excp_model, env->exception_index);
+    powerpc_excp(cpu, env->excp_model, cs->exception_index);
 }
 
 void ppc_hw_interrupt(CPUPPCState *env)
@@ -815,10 +816,12 @@ static void cpu_dump_rfi(target_ulong RA, target_ulong msr)
 void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
                                 uint32_t error_code)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
 #if 0
     printf("Raise exception %3x code : %d\n", exception, error_code);
 #endif
-    env->exception_index = exception;
+    cs->exception_index = exception;
     env->error_code = error_code;
     cpu_loop_exit(env);
 }

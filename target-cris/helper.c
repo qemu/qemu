@@ -41,7 +41,7 @@ void cris_cpu_do_interrupt(CPUState *cs)
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
     env->pregs[PR_ERP] = env->pc;
 }
 
@@ -55,7 +55,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 {
     CRISCPU *cpu = CRIS_CPU(cs);
 
-    cpu->env.exception_index = 0xaa;
+    cs->exception_index = 0xaa;
     cpu->env.pregs[PR_EDA] = address;
     cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
@@ -88,7 +88,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     miss = cris_mmu_translate(&res, env, address & TARGET_PAGE_MASK,
                               rw, mmu_idx, 0);
     if (miss) {
-        if (env->exception_index == EXCP_BUSFAULT) {
+        if (cs->exception_index == EXCP_BUSFAULT) {
             cpu_abort(env,
                       "CRIS: Illegal recursive bus fault."
                       "addr=%" VADDR_PRIx " rw=%d\n",
@@ -96,7 +96,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
         }
 
         env->pregs[PR_EDA] = address;
-        env->exception_index = EXCP_BUSFAULT;
+        cs->exception_index = EXCP_BUSFAULT;
         env->fault_vector = res.bf_vec;
         r = 1;
     } else {
@@ -125,7 +125,7 @@ void crisv10_cpu_do_interrupt(CPUState *cs)
     int ex_vec = -1;
 
     D_LOG("exception index=%d interrupt_req=%d\n",
-          env->exception_index,
+          cs->exception_index,
           cs->interrupt_request);
 
     if (env->dslot) {
@@ -134,7 +134,7 @@ void crisv10_cpu_do_interrupt(CPUState *cs)
     }
 
     assert(!(env->pregs[PR_CCS] & PFIX_FLAG));
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_BREAK:
         /* These exceptions are genereated by the core itself.
            ERP should point to the insn following the brk.  */
@@ -187,10 +187,10 @@ void cris_cpu_do_interrupt(CPUState *cs)
     int ex_vec = -1;
 
     D_LOG("exception index=%d interrupt_req=%d\n",
-          env->exception_index,
+          cs->exception_index,
           cs->interrupt_request);
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_BREAK:
         /* These exceptions are genereated by the core itself.
            ERP should point to the insn following the brk.  */
@@ -253,7 +253,7 @@ void cris_cpu_do_interrupt(CPUState *cs)
 
     /* Clear the excption_index to avoid spurios hw_aborts for recursive
        bus faults.  */
-    env->exception_index = -1;
+    cs->exception_index = -1;
 
     D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n",
           __func__, env->pc, ex_vec,

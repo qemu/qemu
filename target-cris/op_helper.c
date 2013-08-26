@@ -79,8 +79,10 @@ void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
 
 void helper_raise_exception(CPUCRISState *env, uint32_t index)
 {
-	env->exception_index = index;
-        cpu_loop_exit(env);
+    CPUState *cs = CPU(cris_env_get_cpu(env));
+
+    cs->exception_index = index;
+    cpu_loop_exit(env);
 }
 
 void helper_tlb_flush_pid(CPUCRISState *env, uint32_t pid)

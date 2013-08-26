@@ -204,6 +204,7 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
 static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                                 int rw, int tlb_error)
 {
+    CPUState *cs = CPU(mips_env_get_cpu(env));
     int exception = 0, error_code = 0;
 
     switch (tlb_error) {
@@ -249,7 +250,7 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                         ((address & 0xC00000000000ULL) >> (55 - env->SEGBITS)) |
                         ((address & ((1ULL << env->SEGBITS) - 1) & 0xFFFFFFFFFFFFE000ULL) >> 9);
 #endif
-    env->exception_index = exception;
+    cs->exception_index = exception;
     env->error_code = error_code;
 }
 
@@ -404,27 +405,29 @@ static void set_hflags_for_handler (CPUMIPSState *env)
 
 void mips_cpu_do_interrupt(CPUState *cs)
 {
+#if !defined(CONFIG_USER_ONLY)
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
-#if !defined(CONFIG_USER_ONLY)
     target_ulong offset;
     int cause = -1;
     const char *name;
 
-    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
-        if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
+    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
+        if (cs->exception_index < 0 || cs->exception_index > EXCP_LAST) {
             name = "unknown";
-        else
-            name = excp_names[env->exception_index];
+        } else {
+            name = excp_names[cs->exception_index];
+        }
 
         qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                  __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
-    if (env->exception_index == EXCP_EXT_INTERRUPT &&
-        (env->hflags & MIPS_HFLAG_DM))
-        env->exception_index = EXCP_DINT;
+    if (cs->exception_index == EXCP_EXT_INTERRUPT &&
+        (env->hflags & MIPS_HFLAG_DM)) {
+        cs->exception_index = EXCP_DINT;
+    }
     offset = 0x180;
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_DSS:
         env->CP0_Debug |= 1 << CP0DB_DSS;
         /* Debug single step cannot be raised inside a delay slot and
@@ -632,11 +635,11 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
-        qemu_log("Invalid MIPS exception %d. Exiting\n", env->exception_index);
-        printf("Invalid MIPS exception %d. Exiting\n", env->exception_index);
+        qemu_log("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
+        printf("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
         exit(1);
     }
-    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
+    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
                 __func__, env->active_tc.PC, env->CP0_EPC, cause,
@@ -644,7 +647,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
                 env->CP0_DEPC);
     }
 #endif
-    env->exception_index = EXCP_NONE;
+    cs->exception_index = EXCP_NONE;
 }
 
 #if !defined(CONFIG_USER_ONLY)

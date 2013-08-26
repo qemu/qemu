@@ -24,13 +24,17 @@
 
 void helper_raise_exception(CPUSPARCState *env, int tt)
 {
-    env->exception_index = tt;
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
+
+    cs->exception_index = tt;
     cpu_loop_exit(env);
 }
 
 void helper_debug(CPUSPARCState *env)
 {
-    env->exception_index = EXCP_DEBUG;
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
+
+    cs->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
 }
 
@@ -232,7 +236,7 @@ void helper_power_down(CPUSPARCState *env)
     CPUState *cs = CPU(sparc_env_get_cpu(env));
 
     cs->halted = 1;
-    env->exception_index = EXCP_HLT;
+    cs->exception_index = EXCP_HLT;
     env->pc = env->npc;
     env->npc = env->pc + 4;
     cpu_loop_exit(env);

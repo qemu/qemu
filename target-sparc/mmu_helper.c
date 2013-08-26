@@ -28,12 +28,10 @@
 int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                int mmu_idx)
 {
-    SPARCCPU *cpu = SPARC_CPU(cs);
-
     if (rw & 2) {
-        cpu->env.exception_index = TT_TFAULT;
+        cs->exception_index = TT_TFAULT;
     } else {
-        cpu->env.exception_index = TT_DFAULT;
+        cs->exception_index = TT_DFAULT;
     }
     return 1;
 }
@@ -239,9 +237,9 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
         return 0;
     } else {
         if (rw & 2) {
-            env->exception_index = TT_TFAULT;
+            cs->exception_index = TT_TFAULT;
         } else {
-            env->exception_index = TT_DFAULT;
+            cs->exception_index = TT_DFAULT;
         }
         return 1;
     }
@@ -491,6 +489,7 @@ static int get_physical_address_data(CPUSPARCState *env,
                                      hwaddr *physical, int *prot,
                                      target_ulong address, int rw, int mmu_idx)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     unsigned int i;
     uint64_t context;
     uint64_t sfsr = 0;
@@ -555,10 +554,10 @@ static int get_physical_address_data(CPUSPARCState *env,
 
             if (do_fault) {
                 /* faults above are reported with TT_DFAULT. */
-                env->exception_index = TT_DFAULT;
+                cs->exception_index = TT_DFAULT;
             } else if (!TTE_IS_W_OK(env->dtlb[i].tte) && (rw == 1)) {
                 do_fault = 1;
-                env->exception_index = TT_DPROT;
+                cs->exception_index = TT_DPROT;
 
                 trace_mmu_helper_dprot(address, context, mmu_idx, env->tl);
             }
@@ -602,7 +601,7 @@ static int get_physical_address_data(CPUSPARCState *env,
      * - JPS1: SFAR updated and some fields of SFSR updated
      */
     env->dmmu.tag_access = (address & ~0x1fffULL) | context;
-    env->exception_index = TT_DMISS;
+    cs->exception_index = TT_DMISS;
     return 1;
 }
 
@@ -610,6 +609,7 @@ static int get_physical_address_code(CPUSPARCState *env,
                                      hwaddr *physical, int *prot,
                                      target_ulong address, int mmu_idx)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     unsigned int i;
     uint64_t context;
 
@@ -653,7 +653,7 @@ static int get_physical_address_code(CPUSPARCState *env,
 
                 /* FIXME: ASI field in SFSR must be set */
                 env->immu.sfsr |= SFSR_FT_PRIV_BIT | SFSR_VALID_BIT;
-                env->exception_index = TT_TFAULT;
+                cs->exception_index = TT_TFAULT;
 
                 env->immu.tag_access = (address & ~0x1fffULL) | context;
 
@@ -671,7 +671,7 @@ static int get_physical_address_code(CPUSPARCState *env,
 
     /* Context is stored in DMMU (dmmuregs[1]) also for IMMU */
     env->immu.tag_access = (address & ~0x1fffULL) | context;
-    env->exception_index = TT_TMISS;
+    cs->exception_index = TT_TMISS;
     return 1;
 }
 

@@ -472,14 +472,13 @@ static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
 
     cpu_reset(cs);
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
     cs->halted = 1;
-    env->exception_index = EXCP_HLT;
+    cs->exception_index = EXCP_HLT;
 }
 
 static void ppce500_cpu_reset(void *opaque)

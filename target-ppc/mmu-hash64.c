@@ -457,6 +457,7 @@ static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
 int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
                                 int rwx, int mmu_idx)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
@@ -483,10 +484,10 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     if (!slb) {
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISEG;
+            cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
         } else {
-            env->exception_index = POWERPC_EXCP_DSEG;
+            cs->exception_index = POWERPC_EXCP_DSEG;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
         }
@@ -495,7 +496,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
-        env->exception_index = POWERPC_EXCP_ISI;
+        cs->exception_index = POWERPC_EXCP_ISI;
         env->error_code = 0x10000000;
         return 1;
     }
@@ -504,10 +505,10 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
     pte_offset = ppc_hash64_htab_lookup(env, slb, eaddr, &pte);
     if (pte_offset == -1) {
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x40000000;
         } else {
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (rwx == 1) {
@@ -530,12 +531,12 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x08000000;
         } else {
             target_ulong dsisr = 0;
 
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (need_prot[rwx] & ~pp_prot) {

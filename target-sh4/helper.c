@@ -33,10 +33,7 @@
 
 void superh_cpu_do_interrupt(CPUState *cs)
 {
-    SuperHCPU *cpu = SUPERH_CPU(cs);
-    CPUSH4State *env = &cpu->env;
-
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }
 
 int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
@@ -46,16 +43,16 @@ int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     CPUSH4State *env = &cpu->env;
 
     env->tea = address;
-    env->exception_index = -1;
+    cs->exception_index = -1;
     switch (rw) {
     case 0:
-        env->exception_index = 0x0a0;
+        cs->exception_index = 0x0a0;
         break;
     case 1:
-        env->exception_index = 0x0c0;
+        cs->exception_index = 0x0c0;
         break;
     case 2:
-        env->exception_index = 0x0a0;
+        cs->exception_index = 0x0a0;
         break;
     }
     return 1;
@@ -89,16 +86,16 @@ void superh_cpu_do_interrupt(CPUState *cs)
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
     int do_irq = cs->interrupt_request & CPU_INTERRUPT_HARD;
-    int do_exp, irq_vector = env->exception_index;
+    int do_exp, irq_vector = cs->exception_index;
 
     /* prioritize exceptions over interrupts */
 
-    do_exp = env->exception_index != -1;
-    do_irq = do_irq && (env->exception_index == -1);
+    do_exp = cs->exception_index != -1;
+    do_irq = do_irq && (cs->exception_index == -1);
 
     if (env->sr & SR_BL) {
-        if (do_exp && env->exception_index != 0x1e0) {
-            env->exception_index = 0x000; /* masked exception -> reset */
+        if (do_exp && cs->exception_index != 0x1e0) {
+            cs->exception_index = 0x000; /* masked exception -> reset */
         }
         if (do_irq && !env->in_sleep) {
             return; /* masked */
@@ -116,7 +113,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
 	const char *expname;
-	switch (env->exception_index) {
+        switch (cs->exception_index) {
 	case 0x0e0:
 	    expname = "addr_error";
 	    break;
@@ -180,8 +177,8 @@ void superh_cpu_do_interrupt(CPUState *cs)
         env->flags = 0;
 
     if (do_exp) {
-        env->expevt = env->exception_index;
-        switch (env->exception_index) {
+        env->expevt = cs->exception_index;
+        switch (cs->exception_index) {
         case 0x000:
         case 0x020:
         case 0x140:
@@ -472,33 +469,33 @@ int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 	switch (ret) {
 	case MMU_ITLB_MISS:
 	case MMU_DTLB_MISS_READ:
-	    env->exception_index = 0x040;
+            cs->exception_index = 0x040;
 	    break;
 	case MMU_DTLB_MULTIPLE:
 	case MMU_ITLB_MULTIPLE:
-	    env->exception_index = 0x140;
+            cs->exception_index = 0x140;
 	    break;
 	case MMU_ITLB_VIOLATION:
-	    env->exception_index = 0x0a0;
+            cs->exception_index = 0x0a0;
 	    break;
 	case MMU_DTLB_MISS_WRITE:
-	    env->exception_index = 0x060;
+            cs->exception_index = 0x060;
 	    break;
 	case MMU_DTLB_INITIAL_WRITE:
-	    env->exception_index = 0x080;
+            cs->exception_index = 0x080;
 	    break;
 	case MMU_DTLB_VIOLATION_READ:
-	    env->exception_index = 0x0a0;
+            cs->exception_index = 0x0a0;
 	    break;
 	case MMU_DTLB_VIOLATION_WRITE:
-	    env->exception_index = 0x0c0;
+            cs->exception_index = 0x0c0;
 	    break;
 	case MMU_IADDR_ERROR:
 	case MMU_DADDR_ERROR_READ:
-	    env->exception_index = 0x0e0;
+            cs->exception_index = 0x0e0;
 	    break;
 	case MMU_DADDR_ERROR_WRITE:
-	    env->exception_index = 0x100;
+            cs->exception_index = 0x100;
 	    break;
 	default:
             cpu_abort(env, "Unhandled MMU fault");
@@ -702,8 +699,10 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
             if (entry->vpn == vpn
                 && (!use_asid || entry->asid == asid || entry->sh)) {
 	        if (utlb_match_entry) {
+                    CPUState *cs = CPU(sh_env_get_cpu(s));
+
 		    /* Multiple TLB Exception */
-		    s->exception_index = 0x140;
+                    cs->exception_index = 0x140;
 		    s->tea = addr;
 		    break;
 	        }

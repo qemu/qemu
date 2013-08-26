@@ -169,6 +169,8 @@ static void handle_interrupt(CPUXtensaState *env)
             (env->config->level_mask[level] &
              env->sregs[INTSET] &
              env->sregs[INTENABLE])) {
+        CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
         if (level > 1) {
             env->sregs[EPC1 + level - 1] = env->pc;
             env->sregs[EPS2 + level - 2] = env->sregs[PS];
@@ -185,10 +187,10 @@ static void handle_interrupt(CPUXtensaState *env)
                 } else {
                     env->sregs[EPC1] = env->pc;
                 }
-                env->exception_index = EXC_DOUBLE;
+                cs->exception_index = EXC_DOUBLE;
             } else {
                 env->sregs[EPC1] = env->pc;
-                env->exception_index =
+                cs->exception_index =
                     (env->sregs[PS] & PS_UM) ? EXC_USER : EXC_KERNEL;
             }
             env->sregs[PS] |= PS_EXCM;
@@ -202,7 +204,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
 
-    if (env->exception_index == EXC_IRQ) {
+    if (cs->exception_index == EXC_IRQ) {
         qemu_log_mask(CPU_LOG_INT,
                 "%s(EXC_IRQ) level = %d, cintlevel = %d, "
                 "pc = %08x, a0 = %08x, ps = %08x, "
@@ -215,7 +217,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
         handle_interrupt(env);
     }
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXC_WINDOW_OVERFLOW4:
     case EXC_WINDOW_UNDERFLOW4:
     case EXC_WINDOW_OVERFLOW8:
@@ -228,15 +230,15 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     case EXC_DEBUG:
         qemu_log_mask(CPU_LOG_INT, "%s(%d) "
                 "pc = %08x, a0 = %08x, ps = %08x, ccount = %08x\n",
-                __func__, env->exception_index,
+                __func__, cs->exception_index,
                 env->pc, env->regs[0], env->sregs[PS], env->sregs[CCOUNT]);
-        if (env->config->exception_vector[env->exception_index]) {
+        if (env->config->exception_vector[cs->exception_index]) {
             env->pc = relocated_vector(env,
-                    env->config->exception_vector[env->exception_index]);
+                    env->config->exception_vector[cs->exception_index]);
             env->exception_taken = 1;
         } else {
             qemu_log("%s(pc = %08x) bad exception_index: %d\n",
-                    __func__, env->pc, env->exception_index);
+                    __func__, env->pc, cs->exception_index);
         }
         break;
 
@@ -245,7 +247,7 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
 
     default:
         qemu_log("%s(pc = %08x) unknown exception_index: %d\n",
-                __func__, env->pc, env->exception_index);
+                __func__, env->pc, cs->exception_index);
         break;
     }
     check_interrupts(env);

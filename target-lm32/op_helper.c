@@ -25,7 +25,9 @@
 
 void raise_exception(CPULM32State *env, int index)
 {
-    env->exception_index = index;
+    CPUState *cs = CPU(lm32_env_get_cpu(env));
+
+    cs->exception_index = index;
     cpu_loop_exit(env);
 }
 
@@ -39,7 +41,7 @@ void HELPER(hlt)(CPULM32State *env)
     CPUState *cs = CPU(lm32_env_get_cpu(env));
 
     cs->halted = 1;
-    env->exception_index = EXCP_HLT;
+    cs->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
 }
 

@@ -529,7 +529,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     hreg_compute_hflags(env);
     if (!cpu_has_work(cs)) {
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
     }
     return H_SUCCESS;

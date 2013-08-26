@@ -31,7 +31,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
     env->res_addr = RES_ADDR_NONE;
     env->regs[14] = env->sregs[SR_PC];
 }
@@ -39,9 +39,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
 int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                             int mmu_idx)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-
-    cpu->env.exception_index = 0xaa;
+    cs->exception_index = 0xaa;
     cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
@@ -99,12 +97,12 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                     break;
             }
 
-            if (env->exception_index == EXCP_MMU) {
+            if (cs->exception_index == EXCP_MMU) {
                 cpu_abort(env, "recursive faults\n");
             }
 
             /* TLB miss.  */
-            env->exception_index = EXCP_MMU;
+            cs->exception_index = EXCP_MMU;
         }
     } else {
         /* MMU disabled or not available.  */
@@ -127,7 +125,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
 /*    assert(env->sregs[SR_MSR] & (MSR_EE)); Only for HW exceptions.  */
     env->res_addr = RES_ADDR_NONE;
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
         case EXCP_HW_EXCP:
             if (!(env->pvr.regs[0] & PVR0_USE_EXC_MASK)) {
                 qemu_log("Exception raised on system without exceptions!\n");
@@ -253,7 +251,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             env->sregs[SR_MSR] |= t;
             env->sregs[SR_MSR] |= MSR_BIP;
-            if (env->exception_index == EXCP_HW_BREAK) {
+            if (cs->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->sregs[SR_PC];
                 env->sregs[SR_MSR] |= MSR_BIP;
                 env->sregs[SR_PC] = cpu->base_vectors + 0x18;
@@ -262,7 +260,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             break;
         default:
             cpu_abort(env, "unhandled exception type=%d\n",
-                      env->exception_index);
+                      cs->exception_index);
             break;
     }
 }

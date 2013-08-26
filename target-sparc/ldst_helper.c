@@ -1325,7 +1325,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             dump_asi("read ", last_addr, asi, size, ret);
 #endif
             /* env->exception_index is set in get_physical_address_data(). */
-            helper_raise_exception(env, env->exception_index);
+            helper_raise_exception(env, cs->exception_index);
         }
 
         /* convert nonfaulting load ASIs to normal load ASIs */

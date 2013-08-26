@@ -41,7 +41,9 @@
 static void exception_action(CPUArchState *env1)
 {
 #if defined(TARGET_I386)
-    raise_exception_err(env1, env1->exception_index, env1->error_code);
+    CPUState *cpu = ENV_GET_CPU(env1);
+
+    raise_exception_err(env1, cpu->exception_index, env1->error_code);
 #else
     cpu_loop_exit(env1);
 #endif
@@ -71,7 +73,7 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
         sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
     }
-    env1->exception_index = -1;
+    cpu->exception_index = -1;
     siglongjmp(cpu->jmp_env, 1);
 }
 

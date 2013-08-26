@@ -282,7 +282,7 @@ int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 {
     M68kCPU *cpu = M68K_CPU(cs);
 
-    cpu->env.exception_index = EXCP_ACCESS;
+    cs->exception_index = EXCP_ACCESS;
     cpu->env.mmu.ar = address;
     return 1;
 }

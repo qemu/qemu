@@ -774,8 +774,9 @@ static int
 setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 		 CPUX86State *env, abi_ulong mask, abi_ulong fpstate_addr)
 {
-	int err = 0;
-        uint16_t magic;
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+    int err = 0;
+    uint16_t magic;
 
 	/* already locked in setup_frame() */
 	err |= __put_user(env->segs[R_GS].selector, (unsigned int *)&sc->gs);
@@ -790,7 +791,7 @@ setup_sigcontext(struct target_sigcontext *sc, struct target_fpstate *fpstate,
 	err |= __put_user(env->regs[R_EDX], &sc->edx);
 	err |= __put_user(env->regs[R_ECX], &sc->ecx);
 	err |= __put_user(env->regs[R_EAX], &sc->eax);
-	err |= __put_user(env->exception_index, &sc->trapno);
+    err |= __put_user(cs->exception_index, &sc->trapno);
 	err |= __put_user(env->error_code, &sc->err);
 	err |= __put_user(env->eip, &sc->eip);
 	err |= __put_user(env->segs[R_CS].selector, (unsigned int *)&sc->cs);

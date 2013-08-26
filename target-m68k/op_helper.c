@@ -23,10 +23,7 @@
 
 void m68k_cpu_do_interrupt(CPUState *cs)
 {
-    M68kCPU *cpu = M68K_CPU(cs);
-    CPUM68KState *env = &cpu->env;
-
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }
 
 void do_interrupt_m68k_hardirq(CPUM68KState *env)
@@ -88,7 +85,7 @@ static void do_rte(CPUM68KState *env)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
-    CPUState *cs;
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
     uint32_t sp;
     uint32_t fmt;
     uint32_t retaddr;
@@ -98,7 +95,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     retaddr = env->pc;
 
     if (!is_hw) {
-        switch (env->exception_index) {
+        switch (cs->exception_index) {
         case EXCP_RTE:
             /* Return from an exception.  */
             do_rte(env);
@@ -113,20 +110,19 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
                 do_m68k_semihosting(env, env->dregs[0]);
                 return;
             }
-            cs = CPU(m68k_env_get_cpu(env));
             cs->halted = 1;
-            env->exception_index = EXCP_HLT;
+            cs->exception_index = EXCP_HLT;
             cpu_loop_exit(env);
             return;
         }
-        if (env->exception_index >= EXCP_TRAP0
-            && env->exception_index <= EXCP_TRAP15) {
+        if (cs->exception_index >= EXCP_TRAP0
+            && cs->exception_index <= EXCP_TRAP15) {
             /* Move the PC after the trap instruction.  */
             retaddr += 2;
         }
     }
 
-    vector = env->exception_index << 2;
+    vector = cs->exception_index << 2;
 
     sp = env->aregs[7];
 
@@ -169,7 +165,9 @@ void do_interrupt_m68k_hardirq(CPUM68KState *env)
 
 static void raise_exception(CPUM68KState *env, int tt)
 {
-    env->exception_index = tt;
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+    cs->exception_index = tt;
     cpu_loop_exit(env);
 }
 

@@ -136,15 +136,16 @@ void tlb_fill(CPUX86State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int ret;
 
-    ret = x86_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = x86_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        raise_exception_err(env, env->exception_index, env->error_code);
+        raise_exception_err(env, cs->exception_index, env->error_code);
     }
 }
 #endif

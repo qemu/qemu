@@ -85,10 +85,7 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
 
 void s390_cpu_do_interrupt(CPUState *cs)
 {
-    S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
-
-    env->exception_index = -1;
+    cs->exception_index = -1;
 }
 
 int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
@@ -96,7 +93,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 {
     S390CPU *cpu = S390_CPU(cs);
 
-    cpu->env.exception_index = EXCP_PGM;
+    cs->exception_index = EXCP_PGM;
     cpu->env.int_pgm_code = PGM_ADDRESSING;
     /* On real machines this value is dropped into LowMem.  Since this
        is userland, simply put this someplace that cpu_loop can find it.  */
@@ -110,7 +107,9 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 static void trigger_pgm_exception(CPUS390XState *env, uint32_t code,
                                   uint32_t ilen)
 {
-    env->exception_index = EXCP_PGM;
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    cs->exception_index = EXCP_PGM;
     env->int_pgm_code = code;
     env->int_pgm_ilen = ilen;
 }
@@ -429,7 +428,7 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
     CPUS390XState *env = &cpu->env;
     target_ulong raddr;
     int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    int old_exc = env->exception_index;
+    int old_exc = cs->exception_index;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
 
     /* 31-Bit mode */
@@ -438,7 +437,7 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
     }
 
     mmu_translate(env, vaddr, 2, asc, &raddr, &prot);
-    env->exception_index = old_exc;
+    cs->exception_index = old_exc;
 
     return raddr;
 }
@@ -456,7 +455,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
             }
         }
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
     }
 
     env->psw.addr = addr;
@@ -753,43 +752,43 @@ void s390_cpu_do_interrupt(CPUState *cs)
     CPUS390XState *env = &cpu->env;
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
-                  __func__, env->exception_index, env->psw.addr);
+                  __func__, cs->exception_index, env->psw.addr);
 
     s390_add_running_cpu(cpu);
     /* handle machine checks */
     if ((env->psw.mask & PSW_MASK_MCHECK) &&
-        (env->exception_index == -1)) {
+        (cs->exception_index == -1)) {
         if (env->pending_int & INTERRUPT_MCHK) {
-            env->exception_index = EXCP_MCHK;
+            cs->exception_index = EXCP_MCHK;
         }
     }
     /* handle external interrupts */
     if ((env->psw.mask & PSW_MASK_EXT) &&
-        env->exception_index == -1) {
+        cs->exception_index == -1) {
         if (env->pending_int & INTERRUPT_EXT) {
             /* code is already in env */
-            env->exception_index = EXCP_EXT;
+            cs->exception_index = EXCP_EXT;
         } else if (env->pending_int & INTERRUPT_TOD) {
             cpu_inject_ext(cpu, 0x1004, 0, 0);
-            env->exception_index = EXCP_EXT;
+            cs->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
         } else if (env->pending_int & INTERRUPT_CPUTIMER) {
             cpu_inject_ext(cpu, 0x1005, 0, 0);
-            env->exception_index = EXCP_EXT;
+            cs->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
         }
     }
     /* handle I/O interrupts */
     if ((env->psw.mask & PSW_MASK_IO) &&
-        (env->exception_index == -1)) {
+        (cs->exception_index == -1)) {
         if (env->pending_int & INTERRUPT_IO) {
-            env->exception_index = EXCP_IO;
+            cs->exception_index = EXCP_IO;
         }
     }
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_PGM:
         do_program_interrupt(env);
         break;
@@ -806,7 +805,7 @@ void s390_cpu_do_interrupt(CPUState *cs)
         do_mchk_interrupt(env);
         break;
     }
-    env->exception_index = -1;
+    cs->exception_index = -1;
 
     if (!env->pending_int) {
         cs->interrupt_request &= ~CPU_INTERRUPT_HARD;

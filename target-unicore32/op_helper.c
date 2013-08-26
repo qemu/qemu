@@ -16,7 +16,9 @@
 
 void HELPER(exception)(CPUUniCore32State *env, uint32_t excp)
 {
-    env->exception_index = excp;
+    CPUState *cs = CPU(uc32_env_get_cpu(env));
+
+    cs->exception_index = excp;
     cpu_loop_exit(env);
 }
 

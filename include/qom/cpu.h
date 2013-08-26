@@ -249,6 +249,7 @@ struct CPUState {
         icount_decr_u16 u16;
     } icount_decr;
     uint32_t can_do_io;
+    int32_t exception_index; /* used by m68k TCG */
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);

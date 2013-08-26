@@ -147,9 +147,9 @@ void lm32_cpu_do_interrupt(CPUState *cs)
     CPULM32State *env = &cpu->env;
 
     qemu_log_mask(CPU_LOG_INT,
-            "exception at pc=%x type=%x\n", env->pc, env->exception_index);
+            "exception at pc=%x type=%x\n", env->pc, cs->exception_index);
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_INSN_BUS_ERROR:
     case EXCP_DATA_BUS_ERROR:
     case EXCP_DIVIDE_BY_ZERO:
@@ -160,9 +160,9 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->ie |= (env->ie & IE_IE) ? IE_EIE : 0;
         env->ie &= ~IE_IE;
         if (env->dc & DC_RE) {
-            env->pc = env->deba + (env->exception_index * 32);
+            env->pc = env->deba + (cs->exception_index * 32);
         } else {
-            env->pc = env->eba + (env->exception_index * 32);
+            env->pc = env->eba + (cs->exception_index * 32);
         }
         log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
@@ -172,12 +172,12 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->regs[R_BA] = env->pc;
         env->ie |= (env->ie & IE_IE) ? IE_BIE : 0;
         env->ie &= ~IE_IE;
-        env->pc = env->deba + (env->exception_index * 32);
+        env->pc = env->deba + (cs->exception_index * 32);
         log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     default:
         cpu_abort(env, "unhandled exception type=%d\n",
-                  env->exception_index);
+                  cs->exception_index);
         break;
     }
 }

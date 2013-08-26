@@ -38,10 +38,12 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
                                                         int error_code,
                                                         uintptr_t pc)
 {
+    CPUState *cs = CPU(mips_env_get_cpu(env));
+
     if (exception < EXCP_SC) {
         qemu_log("%s: %d %d\n", __func__, exception, error_code);
     }
-    env->exception_index = exception;
+    cs->exception_index = exception;
     env->error_code = error_code;
 
     if (pc) {
@@ -2147,11 +2149,12 @@ void tlb_fill(CPUMIPSState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int ret;
 
-    ret = mips_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = mips_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
-        do_raise_exception_err(env, env->exception_index,
+        do_raise_exception_err(env, cs->exception_index,
                                env->error_code, retaddr);
     }
 }
