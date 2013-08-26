@@ -704,9 +704,7 @@ void tb_flush(CPUArchState *env1)
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
-        memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
+        memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
     }
 
     memset(tcg_ctx.tb_ctx.tb_phys_hash, 0, sizeof(tcg_ctx.tb_ctx.tb_phys_hash));
@@ -857,10 +855,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
-        if (env->tb_jmp_cache[h] == tb) {
-            env->tb_jmp_cache[h] = NULL;
+        if (cpu->tb_jmp_cache[h] == tb) {
+            cpu->tb_jmp_cache[h] = NULL;
         }
     }
 
@@ -1484,16 +1480,17 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 
 void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     unsigned int i;
 
     /* Discard jump cache entries for any tb which might potentially
        overlap the flushed page.  */
     i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
-    memset(&env->tb_jmp_cache[i], 0,
+    memset(&cpu->tb_jmp_cache[i], 0,
            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 
     i = tb_jmp_cache_hash_page(addr);
-    memset(&env->tb_jmp_cache[i], 0,
+    memset(&cpu->tb_jmp_cache[i], 0,
            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 

@@ -153,6 +153,9 @@ typedef struct icount_decr_u16 {
 struct KVMState;
 struct kvm_run;
 
+#define TB_JMP_CACHE_BITS 12
+#define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).
@@ -219,6 +222,7 @@ struct CPUState {
 
     void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;
+    struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];
     struct GDBRegisterState *gdb_regs;
     int gdb_num_regs;
     int gdb_num_g_regs;

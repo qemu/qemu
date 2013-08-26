@@ -244,6 +244,7 @@ static void cpu_common_reset(CPUState *cpu)
     cpu->icount_extra = 0;
     cpu->icount_decr.u32 = 0;
     cpu->can_do_io = 0;
+    memset(cpu->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
 }
 
 static bool cpu_common_has_work(CPUState *cs)
