@@ -242,6 +242,7 @@ static void cpu_common_reset(CPUState *cpu)
     cpu->mem_io_pc = 0;
     cpu->mem_io_vaddr = 0;
     cpu->icount_extra = 0;
+    cpu->icount_decr.u32 = 0;
     cpu->can_do_io = 0;
 }
 

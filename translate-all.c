@@ -217,7 +217,7 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
 
     if (use_icount) {
         /* Reset the cycle counter to the start of the block.  */
-        env->icount_decr.u16.low += tb->icount;
+        cpu->icount_decr.u16.low += tb->icount;
         /* Clear the IO flag.  */
         cpu->can_do_io = 0;
     }
@@ -242,7 +242,7 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
     while (s->gen_opc_instr_start[j] == 0) {
         j--;
     }
-    env->icount_decr.u16.low -= s->gen_opc_icount[j];
+    cpu->icount_decr.u16.low -= s->gen_opc_icount[j];
 
     restore_state_to_opc(env, tb, j);
 
@@ -1409,7 +1409,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
     }
 
     if (use_icount) {
-        env->icount_decr.u16.high = 0xffff;
+        cpu->icount_decr.u16.high = 0xffff;
         if (!cpu_can_do_io(cpu)
             && (mask & ~old_mask) != 0) {
             cpu_abort(env, "Raised interrupt while not in I/O function");
@@ -1425,6 +1425,7 @@ CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
    must be at the end of the TB */
 void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
@@ -1435,11 +1436,11 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
         cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
                   (void *)retaddr);
     }
-    n = env->icount_decr.u16.low + tb->icount;
+    n = cpu->icount_decr.u16.low + tb->icount;
     cpu_restore_state_from_tb(tb, env, retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
-    n = n - env->icount_decr.u16.low;
+    n = n - cpu->icount_decr.u16.low;
     /* Generate a new TB ending on the I/O insn.  */
     n++;
     /* On MIPS and SH, delay slot instructions can only be restarted if
@@ -1449,14 +1450,14 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 #if defined(TARGET_MIPS)
     if ((env->hflags & MIPS_HFLAG_BMASK) != 0 && n > 1) {
         env->active_tc.PC -= 4;
-        env->icount_decr.u16.low++;
+        cpu->icount_decr.u16.low++;
         env->hflags &= ~MIPS_HFLAG_BMASK;
     }
 #elif defined(TARGET_SH4)
     if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
             && n > 1) {
         env->pc -= 2;
-        env->icount_decr.u16.low++;
+        cpu->icount_decr.u16.low++;
         env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
     }
 #endif

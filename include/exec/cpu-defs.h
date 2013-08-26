@@ -118,18 +118,6 @@ QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
 #endif
 
 
-#ifdef HOST_WORDS_BIGENDIAN
-typedef struct icount_decr_u16 {
-    uint16_t high;
-    uint16_t low;
-} icount_decr_u16;
-#else
-typedef struct icount_decr_u16 {
-    uint16_t low;
-    uint16_t high;
-} icount_decr_u16;
-#endif
-
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
@@ -148,14 +136,6 @@ typedef struct CPUWatchpoint {
     /* soft mmu support */                                              \
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
-                                                                        \
-    /* Number of cycles left, with interrupt flag in high bit.          \
-       This allows a single read-compare-cbranch-write sequence to test \
-       for both decrementer underflow and exceptions.  */               \
-    union {                                                             \
-        uint32_t u32;                                                   \
-        icount_decr_u16 u16;                                            \
-    } icount_decr;                                                      \
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \

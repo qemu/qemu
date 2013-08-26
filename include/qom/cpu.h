@@ -138,6 +138,18 @@ typedef struct CPUClass {
     const char *gdb_core_xml_file;
 } CPUClass;
 
+#ifdef HOST_WORDS_BIGENDIAN
+typedef struct icount_decr_u16 {
+    uint16_t high;
+    uint16_t low;
+} icount_decr_u16;
+#else
+typedef struct icount_decr_u16 {
+    uint16_t low;
+    uint16_t high;
+} icount_decr_u16;
+#endif
+
 struct KVMState;
 struct kvm_run;
 
@@ -158,6 +170,9 @@ struct kvm_run;
  *           CPU and return to its top level loop.
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
+ * @icount_decr: Number of cycles left, with interrupt flag in high bit.
+ * This allows a single read-compare-cbranch-write sequence to test
+ * for both decrementer underflow and exceptions.
  * @can_do_io: Nonzero if memory-mapped IO is safe.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
@@ -223,6 +238,10 @@ struct CPUState {
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index; /* used by alpha TCG */
     uint32_t halted; /* used by alpha, cris, ppc TCG */
+    union {
+        uint32_t u32;
+        icount_decr_u16 u16;
+    } icount_decr;
     uint32_t can_do_io;
 };
 
