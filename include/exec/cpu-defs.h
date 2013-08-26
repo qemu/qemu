@@ -24,7 +24,6 @@
 #endif
 
 #include "config.h"
-#include <setjmp.h>
 #include <inttypes.h>
 #include "qemu/osdep.h"
 #include "qemu/queue.h"
@@ -141,7 +140,6 @@ typedef struct CPUWatchpoint {
     CPUWatchpoint *watchpoint_hit;                                      \
                                                                         \
     /* Core interrupt code */                                           \
-    sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
                                                                         \
     /* user data */                                                     \

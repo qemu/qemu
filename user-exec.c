@@ -52,6 +52,7 @@ static void exception_action(CPUArchState *env1)
  */
 void cpu_resume_from_signal(CPUArchState *env1, void *puc)
 {
+    CPUState *cpu = ENV_GET_CPU(env1);
 #ifdef __linux__
     struct ucontext *uc = puc;
 #elif defined(__OpenBSD__)
@@ -71,7 +72,7 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
 #endif
     }
     env1->exception_index = -1;
-    siglongjmp(env1->jmp_env, 1);
+    siglongjmp(cpu->jmp_env, 1);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
