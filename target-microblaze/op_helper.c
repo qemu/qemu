@@ -39,16 +39,19 @@
 #include "exec/softmmu_template.h"
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-void tlb_fill(CPUMBState *env, target_ulong addr, int is_write, int mmu_idx,
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ */
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
     int ret;
 
-    ret = mb_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = mb_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
+        MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+        CPUMBState *env = &cpu->env;
+
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);

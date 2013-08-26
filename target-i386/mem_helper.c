@@ -129,18 +129,20 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 
 #if !defined(CONFIG_USER_ONLY)
 /* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUX86State *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
     int ret;
 
     ret = x86_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
+        X86CPU *cpu = X86_CPU(cs);
+        CPUX86State *env = &cpu->env;
+
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);

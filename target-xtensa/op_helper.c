@@ -60,9 +60,11 @@ static void do_unaligned_access(CPUXtensaState *env,
     }
 }
 
-void tlb_fill(CPUXtensaState *env,
-        target_ulong vaddr, int is_write, int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs,
+              target_ulong vaddr, int is_write, int mmu_idx, uintptr_t retaddr)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;

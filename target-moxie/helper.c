@@ -46,13 +46,14 @@
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-void tlb_fill(CPUMoxieState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    MoxieCPU *cpu = moxie_env_get_cpu(env);
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+    CPUMoxieState *env = &cpu->env;
     int ret;
 
-    ret = moxie_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = moxie_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             cpu_restore_state(env, retaddr);

@@ -72,17 +72,19 @@ uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
 #include "exec/softmmu_template.h"
 
 /* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-void tlb_fill(CPUARMState *env, target_ulong addr, int is_write, int mmu_idx,
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ */
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
     int ret;
 
     ret = arm_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
+        ARMCPU *cpu = ARM_CPU(cs);
+        CPUARMState *env = &cpu->env;
+
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);

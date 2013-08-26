@@ -38,15 +38,17 @@
 #define SHIFT 3
 #include "exec/softmmu_template.h"
 
-void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    SuperHCPU *cpu = sh_env_get_cpu(env);
     int ret;
 
-    ret = superh_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = superh_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
+        SuperHCPU *cpu = SUPERH_CPU(cs);
+        CPUSH4State *env = &cpu->env;
+
         if (retaddr) {
             cpu_restore_state(env, retaddr);
         }

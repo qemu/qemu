@@ -2893,11 +2893,12 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    CPUState *cpu = CPU(ppc_env_get_cpu(env));
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+    CPUPPCState *env = &cpu->env;
     int ret;
 
     if (pcc->handle_mmu_fault) {
@@ -2910,6 +2911,6 @@ void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        helper_raise_exception_err(env, cpu->exception_index, env->error_code);
+        helper_raise_exception_err(env, cs->exception_index, env->error_code);
     }
 }

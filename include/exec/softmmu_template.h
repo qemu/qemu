@@ -158,7 +158,7 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -240,7 +240,7 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
             do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     }
 
@@ -360,7 +360,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 
@@ -436,7 +436,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
         }
 #endif
-        tlb_fill(env, addr, 1, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1, mmu_idx, retaddr);
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     }
 

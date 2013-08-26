@@ -2145,15 +2145,16 @@ static void do_unaligned_access(CPUMIPSState *env, target_ulong addr,
     do_raise_exception(env, (is_write == 1) ? EXCP_AdES : EXCP_AdEL, retaddr);
 }
 
-void tlb_fill(CPUMIPSState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
     int ret;
 
     ret = mips_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
+        MIPSCPU *cpu = MIPS_CPU(cs);
+        CPUMIPSState *env = &cpu->env;
+
         do_raise_exception_err(env, cs->exception_index,
                                env->error_code, retaddr);
     }

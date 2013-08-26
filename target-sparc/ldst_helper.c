@@ -2438,14 +2438,16 @@ static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUSPARCState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    SPARCCPU *cpu = sparc_env_get_cpu(env);
     int ret;
 
-    ret = sparc_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = sparc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
+        SPARCCPU *cpu = SPARC_CPU(cs);
+        CPUSPARCState *env = &cpu->env;
+
         if (retaddr) {
             cpu_restore_state(env, retaddr);
         }

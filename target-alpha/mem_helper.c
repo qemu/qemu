@@ -152,14 +152,16 @@ void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)
 {
-    AlphaCPU *cpu = alpha_env_get_cpu(env);
     int ret;
 
-    ret = alpha_cpu_handle_mmu_fault(CPU(cpu), addr, is_write, mmu_idx);
+    ret = alpha_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
+        AlphaCPU *cpu = ALPHA_CPU(cs);
+        CPUAlphaState *env = &cpu->env;
+
         if (retaddr) {
             cpu_restore_state(env, retaddr);
         }
