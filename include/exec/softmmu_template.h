@@ -29,21 +29,37 @@
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define LSUFFIX q
-#define DATA_TYPE uint64_t
+#define SDATA_TYPE  int64_t
 #elif DATA_SIZE == 4
 #define SUFFIX l
 #define LSUFFIX l
-#define DATA_TYPE uint32_t
+#define SDATA_TYPE  int32_t
 #elif DATA_SIZE == 2
 #define SUFFIX w
 #define LSUFFIX uw
-#define DATA_TYPE uint16_t
+#define SDATA_TYPE  int16_t
 #elif DATA_SIZE == 1
 #define SUFFIX b
 #define LSUFFIX ub
-#define DATA_TYPE uint8_t
+#define SDATA_TYPE  int8_t
 #else
 #error unsupported data size
+#endif
+
+#define DATA_TYPE   glue(u, SDATA_TYPE)
+
+/* For the benefit of TCG generated code, we want to avoid the complication
+   of ABI-specific return type promotion and always return a value extended
+   to the register size of the host.  This is tcg_target_long, except in the
+   case of a 32-bit host and 64-bit data, and for that we always have
+   uint64_t.  Don't bother with this widened value for SOFTMMU_CODE_ACCESS.  */
+#if defined(SOFTMMU_CODE_ACCESS) || DATA_SIZE == 8
+# define WORD_TYPE  DATA_TYPE
+# define USUFFIX    SUFFIX
+#else
+# define WORD_TYPE  tcg_target_ulong
+# define USUFFIX    glue(u, SUFFIX)
+# define SSUFFIX    glue(s, SUFFIX)
 #endif
 
 #ifdef SOFTMMU_CODE_ACCESS
@@ -77,10 +93,10 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
 #ifdef SOFTMMU_CODE_ACCESS
 static
 #endif
-DATA_TYPE
-glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
-                                             target_ulong addr, int mmu_idx,
-                                             uintptr_t retaddr)
+WORD_TYPE
+glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)(CPUArchState *env,
+                                              target_ulong addr, int mmu_idx,
+                                              uintptr_t retaddr)
 {
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
@@ -126,9 +142,9 @@ glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
         addr2 = addr1 + DATA_SIZE;
         /* Note the adjustment at the beginning of the function.
            Undo that for the recursion.  */
-        res1 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)
+        res1 = glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)
             (env, addr1, mmu_idx, retaddr + GETPC_ADJ);
-        res2 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)
+        res2 = glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)
             (env, addr2, mmu_idx, retaddr + GETPC_ADJ);
         shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -147,18 +163,32 @@ glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
 #endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
-    return glue(glue(ld, LSUFFIX), _raw)((uint8_t *)haddr);
+    /* Note that ldl_raw is defined with type "int".  */
+    return (DATA_TYPE) glue(glue(ld, LSUFFIX), _raw)((uint8_t *)haddr);
 }
 
 DATA_TYPE
 glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          int mmu_idx)
 {
-    return glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(env, addr, mmu_idx,
+    return glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)(env, addr, mmu_idx,
                                                         GETRA_EXT());
 }
 
 #ifndef SOFTMMU_CODE_ACCESS
+
+/* Provide signed versions of the load routines as well.  We can of course
+   avoid this for 64-bit data, or for 32-bit data on 32-bit host.  */
+#if DATA_SIZE * 8 < TCG_TARGET_REG_BITS
+WORD_TYPE
+glue(glue(helper_ret_ld, SSUFFIX), MMUSUFFIX)(CPUArchState *env,
+                                              target_ulong addr, int mmu_idx,
+                                              uintptr_t retaddr)
+{
+    return (SDATA_TYPE) glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)
+        (env, addr, mmu_idx, retaddr);
+}
+#endif
 
 static inline void glue(io_write, SUFFIX)(CPUArchState *env,
                                           hwaddr physaddr,
@@ -267,3 +297,7 @@ glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
 #undef LSUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
+#undef WORD_TYPE
+#undef SDATA_TYPE
+#undef USUFFIX
+#undef SSUFFIX

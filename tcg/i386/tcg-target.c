@@ -1025,9 +1025,9 @@ static void tcg_out_jmp(TCGContext *s, uintptr_t dest)
  *                                     int mmu_idx, uintptr_t ra)
  */
 static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldb_mmu,
-    helper_ret_ldw_mmu,
-    helper_ret_ldl_mmu,
+    helper_ret_ldub_mmu,
+    helper_ret_lduw_mmu,
+    helper_ret_ldul_mmu,
     helper_ret_ldq_mmu,
 };
 

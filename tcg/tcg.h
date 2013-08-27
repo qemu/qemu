@@ -754,14 +754,23 @@ void tcg_out_tb_finalize(TCGContext *s);
  * Memory helpers that will be used by TCG generated code.
  */
 #ifdef CONFIG_SOFTMMU
-uint8_t helper_ret_ldb_mmu(CPUArchState *env, target_ulong addr,
-                           int mmu_idx, uintptr_t retaddr);
-uint16_t helper_ret_ldw_mmu(CPUArchState *env, target_ulong addr,
-                            int mmu_idx, uintptr_t retaddr);
-uint32_t helper_ret_ldl_mmu(CPUArchState *env, target_ulong addr,
-                            int mmu_idx, uintptr_t retaddr);
+/* Value zero-extended to tcg register size.  */
+tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_ret_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_ret_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
 uint64_t helper_ret_ldq_mmu(CPUArchState *env, target_ulong addr,
                             int mmu_idx, uintptr_t retaddr);
+
+/* Value sign-extended to tcg register size.  */
+tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_ret_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_ret_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                     int mmu_idx, uintptr_t retaddr);
 
 void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
                         int mmu_idx, uintptr_t retaddr);
