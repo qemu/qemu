@@ -253,35 +253,38 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
     pc_q35_init(args);
 }
 
+#define PC_Q35_MACHINE_OPTIONS \
+    PC_DEFAULT_MACHINE_OPTIONS, \
+    .desc = "Standard PC (Q35 + ICH9, 2009)", \
+    .hot_add_cpu = pc_hot_add_cpu
+
+#define PC_Q35_1_6_MACHINE_OPTIONS PC_Q35_MACHINE_OPTIONS
+
 static QEMUMachine pc_q35_machine_v1_6 = {
+    PC_Q35_1_6_MACHINE_OPTIONS,
     .name = "pc-q35-1.6",
     .alias = "q35",
-    .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init_1_6,
-    .hot_add_cpu = pc_hot_add_cpu,
-    .max_cpus = 255,
-    .default_boot_order = "cad",
 };
 
 static QEMUMachine pc_q35_machine_v1_5 = {
+    PC_Q35_1_6_MACHINE_OPTIONS,
     .name = "pc-q35-1.5",
-    .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init_1_5,
-    .hot_add_cpu = pc_hot_add_cpu,
-    .max_cpus = 255,
-    .default_boot_order = "cad",
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_5,
         { /* end of list */ }
     },
 };
 
+#define PC_Q35_1_4_MACHINE_OPTIONS \
+    PC_Q35_1_6_MACHINE_OPTIONS, \
+    .hot_add_cpu = NULL
+
 static QEMUMachine pc_q35_machine_v1_4 = {
+    PC_Q35_1_4_MACHINE_OPTIONS,
     .name = "pc-q35-1.4",
-    .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init_1_4,
-    .max_cpus = 255,
-    .default_boot_order = "cad",
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,
         { /* end of list */ }

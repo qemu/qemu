@@ -325,4 +325,12 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .value    = stringify(0),\
         }
 
+#define PC_COMMON_MACHINE_OPTIONS \
+    .default_boot_order = "cad"
+
+#define PC_DEFAULT_MACHINE_OPTIONS \
+    PC_COMMON_MACHINE_OPTIONS, \
+    .hot_add_cpu = pc_hot_add_cpu, \
+    .max_cpus = 255
+
 #endif
