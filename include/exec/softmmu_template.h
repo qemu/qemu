@@ -28,19 +28,19 @@
 
 #if DATA_SIZE == 8
 #define SUFFIX q
-#define USUFFIX q
+#define LSUFFIX q
 #define DATA_TYPE uint64_t
 #elif DATA_SIZE == 4
 #define SUFFIX l
-#define USUFFIX l
+#define LSUFFIX l
 #define DATA_TYPE uint32_t
 #elif DATA_SIZE == 2
 #define SUFFIX w
-#define USUFFIX uw
+#define LSUFFIX uw
 #define DATA_TYPE uint16_t
 #elif DATA_SIZE == 1
 #define SUFFIX b
-#define USUFFIX ub
+#define LSUFFIX ub
 #define DATA_TYPE uint8_t
 #else
 #error unsupported data size
@@ -147,7 +147,7 @@ glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
 #endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
-    return glue(glue(ld, USUFFIX), _raw)((uint8_t *)haddr);
+    return glue(glue(ld, LSUFFIX), _raw)((uint8_t *)haddr);
 }
 
 DATA_TYPE
@@ -264,6 +264,6 @@ glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
 #undef SHIFT
 #undef DATA_TYPE
 #undef SUFFIX
-#undef USUFFIX
+#undef LSUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
