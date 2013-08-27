@@ -4035,7 +4035,7 @@ static void cmd_completion(Monitor *mon, const char *name, const char *list)
     }
 }
 
-static void file_completion(const char *input)
+static void file_completion(Monitor *mon, const char *input)
 {
     DIR *ffs;
     struct dirent *d;
@@ -4058,7 +4058,7 @@ static void file_completion(const char *input)
         pstrcpy(file_prefix, sizeof(file_prefix), p + 1);
     }
 #ifdef DEBUG_COMPLETION
-    monitor_printf(cur_mon, "input='%s' path='%s' prefix='%s'\n",
+    monitor_printf(mon, "input='%s' path='%s' prefix='%s'\n",
                    input, path, file_prefix);
 #endif
     ffs = opendir(path);
@@ -4085,7 +4085,7 @@ static void file_completion(const char *input)
             if (stat(file, &sb) == 0 && S_ISDIR(sb.st_mode)) {
                 pstrcat(file, sizeof(file), "/");
             }
-            readline_add_completion(cur_mon->rs, file);
+            readline_add_completion(mon->rs, file);
         }
     }
     closedir(ffs);
@@ -4196,7 +4196,7 @@ static void monitor_find_completion(const char *cmdline)
         case 'F':
             /* file completion */
             readline_set_completion_index(cur_mon->rs, strlen(str));
-            file_completion(str);
+            file_completion(mon, str);
             break;
         case 'B':
             /* block device name completion */
