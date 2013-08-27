@@ -1704,10 +1704,10 @@ if test "$gtk" != "no"; then
         fi
         gtk="no"
     else
-	gtk_cflags=`$pkg_config --cflags $gtkpackage 2>/dev/null`
-	gtk_libs=`$pkg_config --libs $gtkpackage 2>/dev/null`
-	vte_cflags=`$pkg_config --cflags $vtepackage 2>/dev/null`
-	vte_libs=`$pkg_config --libs $vtepackage 2>/dev/null`
+	gtk_cflags=`$pkg_config --cflags $gtkpackage`
+	gtk_libs=`$pkg_config --libs $gtkpackage`
+	vte_cflags=`$pkg_config --cflags $vtepackage`
+	vte_libs=`$pkg_config --libs $vtepackage`
 	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
 	gtk="yes"
     fi
@@ -1909,8 +1909,8 @@ int main(void) {
 }
 EOF
   if $pkg_config libpng --modversion >/dev/null 2>&1; then
-    vnc_png_cflags=`$pkg_config libpng --cflags 2> /dev/null`
-    vnc_png_libs=`$pkg_config libpng --libs 2> /dev/null`
+    vnc_png_cflags=`$pkg_config libpng --cflags`
+    vnc_png_libs=`$pkg_config libpng --libs`
   else
     vnc_png_cflags=""
     vnc_png_libs="-lpng"
@@ -2241,8 +2241,8 @@ else
 fi
 if $pkg_config --atleast-version=$glib_req_ver gthread-2.0 > /dev/null 2>&1
 then
-    glib_cflags=`$pkg_config --cflags gthread-2.0 2>/dev/null`
-    glib_libs=`$pkg_config --libs gthread-2.0 2>/dev/null`
+    glib_cflags=`$pkg_config --cflags gthread-2.0`
+    glib_libs=`$pkg_config --libs gthread-2.0`
     LIBS="$glib_libs $LIBS"
     libs_qga="$glib_libs $libs_qga"
 else
@@ -2271,8 +2271,8 @@ if test "$pixman" = "none"; then
   pixman_cflags=
   pixman_libs=
 elif test "$pixman" = "system"; then
-  pixman_cflags=`$pkg_config --cflags pixman-1 2>/dev/null`
-  pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
+  pixman_cflags=`$pkg_config --cflags pixman-1`
+  pixman_libs=`$pkg_config --libs pixman-1`
 else
   if test ! -d ${source_path}/pixman/pixman; then
     error_exit "pixman not present. Your options:" \
@@ -2592,8 +2592,8 @@ fi
 if test "$glusterfs" != "no" ; then
   if $pkg_config --atleast-version=3 glusterfs-api >/dev/null 2>&1; then
     glusterfs="yes"
-    glusterfs_cflags=`$pkg_config --cflags glusterfs-api 2>/dev/null`
-    glusterfs_libs=`$pkg_config --libs glusterfs-api 2>/dev/null`
+    glusterfs_cflags=`$pkg_config --cflags glusterfs-api`
+    glusterfs_libs=`$pkg_config --libs glusterfs-api`
     CFLAGS="$CFLAGS $glusterfs_cflags"
     libs_tools="$glusterfs_libs $libs_tools"
     libs_softmmu="$glusterfs_libs $libs_softmmu"
@@ -2962,8 +2962,8 @@ int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
   if $pkg_config --atleast-version=1.7.0 libiscsi --modversion >/dev/null 2>&1; then
     libiscsi="yes"
-    libiscsi_cflags=$($pkg_config --cflags libiscsi 2>/dev/null)
-    libiscsi_libs=$($pkg_config --libs libiscsi 2>/dev/null)
+    libiscsi_cflags=$($pkg_config --cflags libiscsi)
+    libiscsi_libs=$($pkg_config --libs libiscsi)
     CFLAGS="$CFLAGS $libiscsi_cflags"
     LIBS="$LIBS $libiscsi_libs"
   elif compile_prog "" "-liscsi" ; then
@@ -3085,8 +3085,8 @@ if test "$libusb" != "no" ; then
     if $pkg_config --atleast-version=1.0.13 libusb-1.0 >/dev/null 2>&1 ; then
         libusb="yes"
 	usb="libusb"
-        libusb_cflags=$($pkg_config --cflags libusb-1.0 2>/dev/null)
-        libusb_libs=$($pkg_config --libs libusb-1.0 2>/dev/null)
+        libusb_cflags=$($pkg_config --cflags libusb-1.0)
+        libusb_libs=$($pkg_config --libs libusb-1.0)
         QEMU_CFLAGS="$QEMU_CFLAGS $libusb_cflags"
         libs_softmmu="$libs_softmmu $libusb_libs"
     else
@@ -3101,8 +3101,8 @@ fi
 if test "$usb_redir" != "no" ; then
     if $pkg_config --atleast-version=0.6 libusbredirparser-0.5 >/dev/null 2>&1 ; then
         usb_redir="yes"
-        usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5 2>/dev/null)
-        usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5 2>/dev/null)
+        usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5)
+        usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5)
         QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
         libs_softmmu="$libs_softmmu $usb_redir_libs"
     else
