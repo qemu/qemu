@@ -86,6 +86,9 @@ glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     uintptr_t haddr;
 
+    /* Adjust the given return address.  */
+    retaddr -= GETPC_ADJ;
+
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
@@ -121,10 +124,12 @@ glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
 #endif
         addr1 = addr & ~(DATA_SIZE - 1);
         addr2 = addr1 + DATA_SIZE;
-        res1 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(env, addr1,
-                                                            mmu_idx, retaddr);
-        res2 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(env, addr2,
-                                                            mmu_idx, retaddr);
+        /* Note the adjustment at the beginning of the function.
+           Undo that for the recursion.  */
+        res1 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)
+            (env, addr1, mmu_idx, retaddr + GETPC_ADJ);
+        res2 = glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)
+            (env, addr2, mmu_idx, retaddr + GETPC_ADJ);
         shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
         res = (res1 << shift) | (res2 >> ((DATA_SIZE * 8) - shift));
@@ -150,7 +155,7 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          int mmu_idx)
 {
     return glue(glue(helper_ret_ld, SUFFIX), MMUSUFFIX)(env, addr, mmu_idx,
-                                                        GETPC_EXT());
+                                                        GETRA_EXT());
 }
 
 #ifndef SOFTMMU_CODE_ACCESS
@@ -181,6 +186,9 @@ glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     uintptr_t haddr;
+
+    /* Adjust the given return address.  */
+    retaddr -= GETPC_ADJ;
 
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
@@ -223,8 +231,10 @@ glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
 #else
             uint8_t val8 = val >> (i * 8);
 #endif
+            /* Note the adjustment at the beginning of the function.
+               Undo that for the recursion.  */
             glue(helper_ret_stb, MMUSUFFIX)(env, addr + i, val8,
-                                            mmu_idx, retaddr);
+                                            mmu_idx, retaddr + GETPC_ADJ);
         }
         return;
     }
@@ -245,7 +255,7 @@ glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          DATA_TYPE val, int mmu_idx)
 {
     glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(env, addr, val, mmu_idx,
-                                                 GETPC_EXT());
+                                                 GETRA_EXT());
 }
 
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */
