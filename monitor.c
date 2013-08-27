@@ -83,6 +83,7 @@
  * 'F'          filename
  * 'B'          block device name
  * 's'          string (accept optional quote)
+ * 'S'          it just appends the rest of the string (accept optional quote)
  * 'O'          option string of the form NAME=VALUE,...
  *              parsed according to QemuOptsList given by its name
  *              Example: 'device:O' uses qemu_device_opts.
@@ -4047,6 +4048,31 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 }
             }
             break;
+        case 'S':
+            {
+                /* package all remaining string */
+                int len;
+
+                while (qemu_isspace(*p)) {
+                    p++;
+                }
+                if (*typestr == '?') {
+                    typestr++;
+                    if (*p == '\0') {
+                        /* no remaining string: NULL argument */
+                        break;
+                    }
+                }
+                len = strlen(p);
+                if (len <= 0) {
+                    monitor_printf(mon, "%s: string expected\n",
+                                   cmdname);
+                    break;
+                }
+                qdict_put(qdict, key, qstring_from_str(p));
+                p += len;
+            }
+            break;
         default:
         bad_type:
             monitor_printf(mon, "%s: unknown type '%c'\n", cmdname, c);
@@ -4294,6 +4320,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             bdrv_iterate(block_completion_it, &mbs);
             break;
         case 's':
+        case 'S':
             if (!strcmp(cmd->name, "sendkey")) {
                 char *sep = strrchr(str, '-');
                 if (sep)

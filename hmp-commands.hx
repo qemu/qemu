@@ -11,7 +11,7 @@ ETEXI
 
     {
         .name       = "help|?",
-        .args_type  = "name:s?",
+        .args_type  = "name:S?",
         .params     = "[cmd]",
         .help       = "show the help",
         .mhandler.cmd = do_help_cmd,
