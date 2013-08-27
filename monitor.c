@@ -4330,10 +4330,8 @@ static void monitor_find_completion_by_table(Monitor *mon,
                     cmd_completion(mon, str, QKeyCode_lookup[i]);
                 }
             } else if (!strcmp(cmd->name, "help|?")) {
-                readline_set_completion_index(mon->rs, strlen(str));
-                for (cmd = cmd_table; cmd->name != NULL; cmd++) {
-                    cmd_completion(mon, str, cmd->name);
-                }
+                monitor_find_completion_by_table(mon, cmd_table,
+                                                 &args[1], nb_args - 1);
             }
             break;
         default:
