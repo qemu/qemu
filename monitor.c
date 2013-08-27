@@ -4262,6 +4262,12 @@ static void monitor_find_completion_by_table(Monitor *mon,
             return;
         }
 
+        if (cmd->sub_table) {
+            /* do the job again */
+            return monitor_find_completion_by_table(mon, cmd->sub_table,
+                                                    &args[1], nb_args - 1);
+        }
+
         ptype = next_arg_type(cmd->args_type);
         for(i = 0; i < nb_args - 2; i++) {
             if (*ptype != '\0') {
@@ -4288,13 +4294,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             bdrv_iterate(block_completion_it, &mbs);
             break;
         case 's':
-            /* XXX: more generic ? */
-            if (!strcmp(cmd->name, "info")) {
-                readline_set_completion_index(mon->rs, strlen(str));
-                for(cmd = info_cmds; cmd->name != NULL; cmd++) {
-                    cmd_completion(mon, str, cmd->name);
-                }
-            } else if (!strcmp(cmd->name, "sendkey")) {
+            if (!strcmp(cmd->name, "sendkey")) {
                 char *sep = strrchr(str, '-');
                 if (sep)
                     str = sep + 1;
