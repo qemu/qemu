@@ -276,7 +276,6 @@ void readline_set_completion_index(ReadLineState *rs, int index)
 
 static void readline_completion(ReadLineState *rs)
 {
-    Monitor *mon = cur_mon;
     int len, i, j, max_width, nb_cols, max_prefix;
     char *cmdline;
 
@@ -300,7 +299,7 @@ static void readline_completion(ReadLineState *rs)
         if (len > 0 && rs->completions[0][len - 1] != '/')
             readline_insert_char(rs, ' ');
     } else {
-        monitor_printf(mon, "\n");
+        monitor_printf(rs->mon, "\n");
         max_width = 0;
         max_prefix = 0;	
         for(i = 0; i < rs->nb_completions; i++) {
