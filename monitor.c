@@ -821,9 +821,33 @@ static int get_str(char *buf, int buf_size, const char **pp)
 
 #define MAX_ARGS 16
 
-/* NOTE: this parser is an approximate form of the real command parser */
-static void parse_cmdline(const char *cmdline,
-                          int *pnb_args, char **args)
+static void free_cmdline_args(char **args, int nb_args)
+{
+    int i;
+
+    assert(nb_args <= MAX_ARGS);
+
+    for (i = 0; i < nb_args; i++) {
+        g_free(args[i]);
+    }
+
+}
+
+/*
+ * Parse the command line to get valid args.
+ * @cmdline: command line to be parsed.
+ * @pnb_args: location to store the number of args, must NOT be NULL.
+ * @args: location to store the args, which should be freed by caller, must
+ *        NOT be NULL.
+ *
+ * Returns 0 on success, negative on failure.
+ *
+ * NOTE: this parser is an approximate form of the real command parser. Number
+ *       of args have a limit of MAX_ARGS. If cmdline contains more, it will
+ *       return with failure.
+ */
+static int parse_cmdline(const char *cmdline,
+                         int *pnb_args, char **args)
 {
     const char *p;
     int nb_args, ret;
@@ -839,16 +863,21 @@ static void parse_cmdline(const char *cmdline,
             break;
         }
         if (nb_args >= MAX_ARGS) {
-            break;
+            goto fail;
         }
         ret = get_str(buf, sizeof(buf), &p);
+        if (ret < 0) {
+            goto fail;
+        }
         args[nb_args] = g_strdup(buf);
         nb_args++;
-        if (ret < 0) {
-            break;
-        }
     }
     *pnb_args = nb_args;
+    return 0;
+
+ fail:
+    free_cmdline_args(args, nb_args);
+    return -1;
 }
 
 static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
@@ -4169,7 +4198,9 @@ static void monitor_find_completion(Monitor *mon,
     const mon_cmd_t *cmd;
     MonitorBlockComplete mbs;
 
-    parse_cmdline(cmdline, &nb_args, args);
+    if (parse_cmdline(cmdline, &nb_args, args) < 0) {
+        return;
+    }
 #ifdef DEBUG_COMPLETION
     for (i = 0; i < nb_args; i++) {
         monitor_printf(mon, "arg%d = '%s'\n", i, args[i]);
@@ -4259,9 +4290,7 @@ static void monitor_find_completion(Monitor *mon,
     }
 
 cleanup:
-    for (i = 0; i < nb_args; i++) {
-        g_free(args[i]);
-    }
+    free_cmdline_args(args, nb_args);
 }
 
 static int monitor_can_read(void *opaque)
