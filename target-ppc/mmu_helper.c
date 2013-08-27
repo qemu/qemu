@@ -2871,6 +2871,8 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 
 /*****************************************************************************/
 
+#include "exec/softmmu_exec.h"
+
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
