@@ -880,33 +880,75 @@ static int parse_cmdline(const char *cmdline,
     return -1;
 }
 
+static void help_cmd_dump_one(Monitor *mon,
+                              const mon_cmd_t *cmd,
+                              char **prefix_args,
+                              int prefix_args_nb)
+{
+    int i;
+
+    for (i = 0; i < prefix_args_nb; i++) {
+        monitor_printf(mon, "%s ", prefix_args[i]);
+    }
+    monitor_printf(mon, "%s %s -- %s\n", cmd->name, cmd->params, cmd->help);
+}
+
+/* @args[@arg_index] is the valid command need to find in @cmds */
 static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
-                          const char *prefix, const char *name)
+                          char **args, int nb_args, int arg_index)
 {
     const mon_cmd_t *cmd;
 
-    for(cmd = cmds; cmd->name != NULL; cmd++) {
-        if (!name || !strcmp(name, cmd->name))
-            monitor_printf(mon, "%s%s %s -- %s\n", prefix, cmd->name,
-                           cmd->params, cmd->help);
+    /* No valid arg need to compare with, dump all in *cmds */
+    if (arg_index >= nb_args) {
+        for (cmd = cmds; cmd->name != NULL; cmd++) {
+            help_cmd_dump_one(mon, cmd, args, arg_index);
+        }
+        return;
+    }
+
+    /* Find one entry to dump */
+    for (cmd = cmds; cmd->name != NULL; cmd++) {
+        if (compare_cmd(args[arg_index], cmd->name)) {
+            if (cmd->sub_table) {
+                /* continue with next arg */
+                help_cmd_dump(mon, cmd->sub_table,
+                              args, nb_args, arg_index + 1);
+            } else {
+                help_cmd_dump_one(mon, cmd, args, arg_index);
+            }
+            break;
+        }
     }
 }
 
 static void help_cmd(Monitor *mon, const char *name)
 {
-    if (name && !strcmp(name, "info")) {
-        help_cmd_dump(mon, info_cmds, "info ", NULL);
-    } else {
-        help_cmd_dump(mon, mon->cmd_table, "", name);
-        if (name && !strcmp(name, "log")) {
+    char *args[MAX_ARGS];
+    int nb_args = 0;
+
+    /* 1. parse user input */
+    if (name) {
+        /* special case for log, directly dump and return */
+        if (!strcmp(name, "log")) {
             const QEMULogItem *item;
             monitor_printf(mon, "Log items (comma separated):\n");
             monitor_printf(mon, "%-10s %s\n", "none", "remove all logs");
             for (item = qemu_log_items; item->mask != 0; item++) {
                 monitor_printf(mon, "%-10s %s\n", item->name, item->help);
             }
+            return;
+        }
+
+        if (parse_cmdline(name, &nb_args, args) < 0) {
+            return;
         }
     }
+
+    /* 2. dump the contents according to parsed args */
+    help_cmd_dump(mon, mon->cmd_table, args, nb_args, 0);
+
+    free_cmdline_args(args, nb_args);
 }
 
 static void do_help_cmd(Monitor *mon, const QDict *qdict)
