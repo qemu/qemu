@@ -4141,20 +4141,20 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
-static void monitor_find_completion(const char *cmdline)
+static void monitor_find_completion(Monitor *mon,
+                                    const char *cmdline)
 {
     const char *cmdname;
     char *args[MAX_ARGS];
     int nb_args, i, len;
     const char *ptype, *str;
     const mon_cmd_t *cmd;
-    Monitor *mon = cur_mon;
     MonitorBlockComplete mbs;
 
     parse_cmdline(cmdline, &nb_args, args);
 #ifdef DEBUG_COMPLETION
-    for(i = 0; i < nb_args; i++) {
-        monitor_printf(cur_mon, "arg%d = '%s'\n", i, (char *)args[i]);
+    for (i = 0; i < nb_args; i++) {
+        monitor_printf(mon, "arg%d = '%s'\n", i, args[i]);
     }
 #endif
 
@@ -4173,7 +4173,7 @@ static void monitor_find_completion(const char *cmdline)
             cmdname = "";
         else
             cmdname = args[0];
-        readline_set_completion_index(cur_mon->rs, strlen(cmdname));
+        readline_set_completion_index(mon->rs, strlen(cmdname));
         for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
             cmd_completion(mon, cmdname, cmd->name);
         }
@@ -4203,7 +4203,7 @@ static void monitor_find_completion(const char *cmdline)
         switch(*ptype) {
         case 'F':
             /* file completion */
-            readline_set_completion_index(cur_mon->rs, strlen(str));
+            readline_set_completion_index(mon->rs, strlen(str));
             file_completion(mon, str);
             break;
         case 'B':
@@ -4216,7 +4216,7 @@ static void monitor_find_completion(const char *cmdline)
         case 's':
             /* XXX: more generic ? */
             if (!strcmp(cmd->name, "info")) {
-                readline_set_completion_index(cur_mon->rs, strlen(str));
+                readline_set_completion_index(mon->rs, strlen(str));
                 for(cmd = info_cmds; cmd->name != NULL; cmd++) {
                     cmd_completion(mon, str, cmd->name);
                 }
@@ -4224,12 +4224,12 @@ static void monitor_find_completion(const char *cmdline)
                 char *sep = strrchr(str, '-');
                 if (sep)
                     str = sep + 1;
-                readline_set_completion_index(cur_mon->rs, strlen(str));
+                readline_set_completion_index(mon->rs, strlen(str));
                 for (i = 0; i < Q_KEY_CODE_MAX; i++) {
                     cmd_completion(mon, str, QKeyCode_lookup[i]);
                 }
             } else if (!strcmp(cmd->name, "help|?")) {
-                readline_set_completion_index(cur_mon->rs, strlen(str));
+                readline_set_completion_index(mon->rs, strlen(str));
                 for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
                     cmd_completion(mon, str, cmd->name);
                 }
