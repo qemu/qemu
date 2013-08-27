@@ -683,14 +683,24 @@ static int do_qmp_capabilities(Monitor *mon, const QDict *params,
 
 static void handle_user_command(Monitor *mon, const char *cmdline);
 
+static void monitor_data_init(Monitor *mon)
+{
+    memset(mon, 0, sizeof(Monitor));
+    mon->outbuf = qstring_new();
+}
+
+static void monitor_data_destroy(Monitor *mon)
+{
+    QDECREF(mon->outbuf);
+}
+
 char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
                                 int64_t cpu_index, Error **errp)
 {
     char *output = NULL;
     Monitor *old_mon, hmp;
 
-    memset(&hmp, 0, sizeof(hmp));
-    hmp.outbuf = qstring_new();
+    monitor_data_init(&hmp);
     hmp.skip_flush = true;
 
     old_mon = cur_mon;
@@ -716,7 +726,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     }
 
 out:
-    QDECREF(hmp.outbuf);
+    monitor_data_destroy(&hmp);
     return output;
 }
 
@@ -4767,8 +4777,8 @@ void monitor_init(CharDriverState *chr, int flags)
         is_first_init = 0;
     }
 
-    mon = g_malloc0(sizeof(*mon));
-    mon->outbuf = qstring_new();
+    mon = g_malloc(sizeof(*mon));
+    monitor_data_init(mon);
 
     mon->chr = chr;
     mon->flags = flags;
