@@ -475,6 +475,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
                 port->wPortChange_reported = port->wPortChange;
             }
             if (status != 0) {
+                trace_usb_hub_status_report(s->dev.addr, status);
                 for(i = 0; i < n; i++) {
                     buf[i] = status >> (8 * i);
                 }
