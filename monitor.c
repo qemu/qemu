@@ -4091,14 +4091,21 @@ static void file_completion(Monitor *mon, const char *input)
     closedir(ffs);
 }
 
+typedef struct MonitorBlockComplete {
+    Monitor *mon;
+    const char *input;
+} MonitorBlockComplete;
+
 static void block_completion_it(void *opaque, BlockDriverState *bs)
 {
     const char *name = bdrv_get_device_name(bs);
-    const char *input = opaque;
+    MonitorBlockComplete *mbc = opaque;
+    Monitor *mon = mbc->mon;
+    const char *input = mbc->input;
 
     if (input[0] == '\0' ||
         !strncmp(name, (char *)input, strlen(input))) {
-        readline_add_completion(cur_mon->rs, name);
+        readline_add_completion(mon->rs, name);
     }
 }
 
@@ -4142,6 +4149,7 @@ static void monitor_find_completion(const char *cmdline)
     const char *ptype, *str;
     const mon_cmd_t *cmd;
     Monitor *mon = cur_mon;
+    MonitorBlockComplete mbs;
 
     parse_cmdline(cmdline, &nb_args, args);
 #ifdef DEBUG_COMPLETION
@@ -4200,8 +4208,10 @@ static void monitor_find_completion(const char *cmdline)
             break;
         case 'B':
             /* block device name completion */
-            readline_set_completion_index(cur_mon->rs, strlen(str));
-            bdrv_iterate(block_completion_it, (void *)str);
+            mbs.mon = mon;
+            mbs.input = str;
+            readline_set_completion_index(mon->rs, strlen(str));
+            bdrv_iterate(block_completion_it, &mbs);
             break;
         case 's':
             /* XXX: more generic ? */
