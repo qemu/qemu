@@ -195,6 +195,7 @@ struct Monitor {
     CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
+    mon_cmd_t *cmd_table;
     QError *error;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
@@ -687,6 +688,8 @@ static void monitor_data_init(Monitor *mon)
 {
     memset(mon, 0, sizeof(Monitor));
     mon->outbuf = qstring_new();
+    /* Use *mon_cmds by default. */
+    mon->cmd_table = mon_cmds;
 }
 
 static void monitor_data_destroy(Monitor *mon)
@@ -767,7 +770,7 @@ static void help_cmd(Monitor *mon, const char *name)
     if (name && !strcmp(name, "info")) {
         help_cmd_dump(mon, info_cmds, "info ", NULL);
     } else {
-        help_cmd_dump(mon, mon_cmds, "", name);
+        help_cmd_dump(mon, mon->cmd_table, "", name);
         if (name && !strcmp(name, "log")) {
             const QEMULogItem *item;
             monitor_printf(mon, "Log items (comma separated):\n");
@@ -3995,7 +3998,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
 
     qdict = qdict_new();
 
-    cmd = monitor_parse_command(mon, cmdline, 0, mon_cmds, qdict);
+    cmd = monitor_parse_command(mon, cmdline, 0, mon->cmd_table, qdict);
     if (!cmd)
         goto out;
 
@@ -4184,12 +4187,12 @@ static void monitor_find_completion(Monitor *mon,
         else
             cmdname = args[0];
         readline_set_completion_index(mon->rs, strlen(cmdname));
-        for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
+        for (cmd = mon->cmd_table; cmd->name != NULL; cmd++) {
             cmd_completion(mon, cmdname, cmd->name);
         }
     } else {
         /* find the command */
-        for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+        for (cmd = mon->cmd_table; cmd->name != NULL; cmd++) {
             if (compare_cmd(args[0], cmd->name)) {
                 break;
             }
@@ -4240,7 +4243,7 @@ static void monitor_find_completion(Monitor *mon,
                 }
             } else if (!strcmp(cmd->name, "help|?")) {
                 readline_set_completion_index(mon->rs, strlen(str));
-                for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+                for (cmd = mon->cmd_table; cmd->name != NULL; cmd++) {
                     cmd_completion(mon, str, cmd->name);
                 }
             }
