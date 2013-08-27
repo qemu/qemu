@@ -270,7 +270,17 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
 
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
+
+#if !defined(CONFIG_USER_ONLY)
+int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
+                                       hwaddr *phys_addr);
+#endif
+
+#endif /* NEED_CPU_H */
+
 void kvm_cpu_synchronize_state(CPUState *cpu);
+void kvm_cpu_synchronize_post_reset(CPUState *cpu);
+void kvm_cpu_synchronize_post_init(CPUState *cpu);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
@@ -280,16 +290,6 @@ static inline void cpu_synchronize_state(CPUState *cpu)
         kvm_cpu_synchronize_state(cpu);
     }
 }
-
-#if !defined(CONFIG_USER_ONLY)
-int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
-                                       hwaddr *phys_addr);
-#endif
-
-#endif /* NEED_CPU_H */
-
-void kvm_cpu_synchronize_post_reset(CPUState *cpu);
-void kvm_cpu_synchronize_post_init(CPUState *cpu);
 
 static inline void cpu_synchronize_post_reset(CPUState *cpu)
 {

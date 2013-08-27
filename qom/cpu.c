@@ -162,6 +162,7 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->dump_state) {
+        cpu_synchronize_state(cpu);
         cc->dump_state(cpu, f, cpu_fprintf, flags);
     }
 }
