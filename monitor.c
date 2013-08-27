@@ -4763,6 +4763,7 @@ void monitor_init(CharDriverState *chr, int flags)
 
     if (is_first_init) {
         monitor_protocol_event_init();
+        sortcmdlist();
         is_first_init = 0;
     }
 
@@ -4792,8 +4793,6 @@ void monitor_init(CharDriverState *chr, int flags)
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
     if (!default_mon || (flags & MONITOR_IS_DEFAULT))
         default_mon = mon;
-
-    sortcmdlist();
 }
 
 static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
