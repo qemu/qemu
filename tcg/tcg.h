@@ -21,6 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#ifndef TCG_H
+#define TCG_H
+
 #include "qemu-common.h"
 
 #include "tcg-target.h"
@@ -745,3 +749,42 @@ void tcg_register_jit(void *buf, size_t buf_size);
 /* Generate TB finalization at the end of block */
 void tcg_out_tb_finalize(TCGContext *s);
 #endif
+
+/*
+ * Memory helpers that will be used by TCG generated code.
+ */
+#ifdef CONFIG_SOFTMMU
+uint8_t helper_ret_ldb_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
+uint16_t helper_ret_ldw_mmu(CPUArchState *env, target_ulong addr,
+                            int mmu_idx, uintptr_t retaddr);
+uint32_t helper_ret_ldl_mmu(CPUArchState *env, target_ulong addr,
+                            int mmu_idx, uintptr_t retaddr);
+uint64_t helper_ret_ldq_mmu(CPUArchState *env, target_ulong addr,
+                            int mmu_idx, uintptr_t retaddr);
+
+void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
+                        int mmu_idx, uintptr_t retaddr);
+void helper_ret_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                        int mmu_idx, uintptr_t retaddr);
+void helper_ret_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                        int mmu_idx, uintptr_t retaddr);
+void helper_ret_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                        int mmu_idx, uintptr_t retaddr);
+
+uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint32_t helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint64_t helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+
+void helper_stb_mmu(CPUArchState *env, target_ulong addr,
+                    uint8_t val, int mmu_idx);
+void helper_stw_mmu(CPUArchState *env, target_ulong addr,
+                    uint16_t val, int mmu_idx);
+void helper_stl_mmu(CPUArchState *env, target_ulong addr,
+                    uint32_t val, int mmu_idx);
+void helper_stq_mmu(CPUArchState *env, target_ulong addr,
+                    uint64_t val, int mmu_idx);
+#endif /* CONFIG_SOFTMMU */
+
+#endif /* TCG_H */

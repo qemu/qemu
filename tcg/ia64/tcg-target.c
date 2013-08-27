@@ -1490,9 +1490,6 @@ static inline void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGArg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* Load and compare a TLB entry, and return the result in (p6, p7).
    R2 is loaded with the address of the addend TLB entry.
    R57 is loaded with the address, zero extented on 32-bit targets. */

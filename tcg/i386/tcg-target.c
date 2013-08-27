@@ -1021,9 +1021,6 @@ static void tcg_out_jmp(TCGContext *s, uintptr_t dest)
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */

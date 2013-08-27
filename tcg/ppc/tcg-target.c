@@ -549,8 +549,6 @@ static void add_qemu_ldst_label (TCGContext *s,
     label->label_ptr[0] = label_ptr;
 }
 
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {

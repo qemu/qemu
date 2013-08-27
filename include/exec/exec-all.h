@@ -377,7 +377,10 @@ bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
 
-#include "exec/softmmu_defs.h"
+uint8_t helper_ldb_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
