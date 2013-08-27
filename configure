@@ -1470,7 +1470,7 @@ libs_softmmu="$libs_softmmu -lz"
 # libseccomp check
 
 if test "$seccomp" != "no" ; then
-    if $pkg_config --atleast-version=2.1.0 libseccomp --modversion >/dev/null 2>&1; then
+    if $pkg_config --atleast-version=2.1.0 libseccomp; then
         libs_softmmu="$libs_softmmu `$pkg_config --libs libseccomp`"
         QEMU_CFLAGS="$QEMU_CFLAGS `$pkg_config --cflags libseccomp`"
 	seccomp="yes"
@@ -1722,7 +1722,7 @@ if test "`basename $sdl_config`" != sdl-config && ! has ${sdl_config}; then
   sdl_config=sdl-config
 fi
 
-if $pkg_config sdl --modversion >/dev/null 2>&1; then
+if $pkg_config sdl --exists; then
   sdlconfig="$pkg_config sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
 elif has ${sdl_config}; then
@@ -1908,7 +1908,7 @@ int main(void) {
     return png_ptr != 0;
 }
 EOF
-  if $pkg_config libpng --modversion >/dev/null 2>&1; then
+  if $pkg_config libpng --exists; then
     vnc_png_cflags=`$pkg_config libpng --cflags`
     vnc_png_libs=`$pkg_config libpng --libs`
   else
@@ -2187,7 +2187,7 @@ fi
 ##########################################
 # curl probe
 if test "$curl" != "no" ; then
-  if $pkg_config libcurl --modversion >/dev/null 2>&1; then
+  if $pkg_config libcurl --exists; then
     curlconfig="$pkg_config libcurl"
   else
     curlconfig=curl-config
@@ -2239,8 +2239,7 @@ if test "$mingw32" = yes; then
 else
     glib_req_ver=2.12
 fi
-if $pkg_config --atleast-version=$glib_req_ver gthread-2.0 > /dev/null 2>&1
-then
+if $pkg_config --atleast-version=$glib_req_ver gthread-2.0; then
     glib_cflags=`$pkg_config --cflags gthread-2.0`
     glib_libs=`$pkg_config --libs gthread-2.0`
     LIBS="$glib_libs $LIBS"
@@ -2371,8 +2370,7 @@ fi
 # libssh2 probe
 min_libssh2_version=1.2.8
 if test "$libssh2" != "no" ; then
-  if $pkg_config --atleast-version=$min_libssh2_version libssh2 >/dev/null 2>&1
-  then
+  if $pkg_config --atleast-version=$min_libssh2_version libssh2; then
     libssh2_cflags=`$pkg_config libssh2 --cflags`
     libssh2_libs=`$pkg_config libssh2 --libs`
     libssh2=yes
@@ -2590,14 +2588,14 @@ fi
 ##########################################
 # glusterfs probe
 if test "$glusterfs" != "no" ; then
-  if $pkg_config --atleast-version=3 glusterfs-api >/dev/null 2>&1; then
+  if $pkg_config --atleast-version=3 glusterfs-api; then
     glusterfs="yes"
     glusterfs_cflags=`$pkg_config --cflags glusterfs-api`
     glusterfs_libs=`$pkg_config --libs glusterfs-api`
     CFLAGS="$CFLAGS $glusterfs_cflags"
     libs_tools="$glusterfs_libs $libs_tools"
     libs_softmmu="$glusterfs_libs $libs_softmmu"
-    if $pkg_config --atleast-version=5 glusterfs-api >/dev/null 2>&1; then
+    if $pkg_config --atleast-version=5 glusterfs-api; then
       glusterfs_discard="yes"
     fi
   else
@@ -2960,7 +2958,7 @@ if test "$libiscsi" != "no" ; then
 #include <iscsi/iscsi.h>
 int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
-  if $pkg_config --atleast-version=1.7.0 libiscsi --modversion >/dev/null 2>&1; then
+  if $pkg_config --atleast-version=1.7.0 libiscsi; then
     libiscsi="yes"
     libiscsi_cflags=$($pkg_config --cflags libiscsi)
     libiscsi_libs=$($pkg_config --libs libiscsi)
@@ -3030,8 +3028,8 @@ int main(void) { spice_server_new(); return 0; }
 EOF
   spice_cflags=$($pkg_config --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkg_config --libs spice-protocol spice-server 2>/dev/null)
-  if $pkg_config --atleast-version=0.12.0 spice-server >/dev/null 2>&1 && \
-     $pkg_config --atleast-version=0.12.3 spice-protocol > /dev/null 2>&1 && \
+  if $pkg_config --atleast-version=0.12.0 spice-server && \
+     $pkg_config --atleast-version=0.12.3 spice-protocol && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
@@ -3066,7 +3064,7 @@ EOF
         test_cflags="-Werror $test_cflags"
     fi
     if test -n "$libtool" &&
-            $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
+       $pkg_config --atleast-version=3.12.8 nss && \
       compile_prog "$test_cflags" "$libcacard_libs"; then
         smartcard_nss="yes"
         QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
@@ -3082,7 +3080,7 @@ fi
 
 # check for libusb
 if test "$libusb" != "no" ; then
-    if $pkg_config --atleast-version=1.0.13 libusb-1.0 >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=1.0.13 libusb-1.0; then
         libusb="yes"
 	usb="libusb"
         libusb_cflags=$($pkg_config --cflags libusb-1.0)
@@ -3099,7 +3097,7 @@ fi
 
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.6 libusbredirparser-0.5 >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=0.6 libusbredirparser-0.5; then
         usb_redir="yes"
         usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5)
         usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5)
