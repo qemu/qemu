@@ -4009,7 +4009,7 @@ out:
     QDECREF(qdict);
 }
 
-static void cmd_completion(const char *name, const char *list)
+static void cmd_completion(Monitor *mon, const char *name, const char *list)
 {
     const char *p, *pstart;
     char cmd[128];
@@ -4027,7 +4027,7 @@ static void cmd_completion(const char *name, const char *list)
         memcpy(cmd, pstart, len);
         cmd[len] = '\0';
         if (name[0] == '\0' || !strncmp(name, cmd, strlen(name))) {
-            readline_add_completion(cur_mon->rs, cmd);
+            readline_add_completion(mon->rs, cmd);
         }
         if (*p == '\0')
             break;
@@ -4141,6 +4141,7 @@ static void monitor_find_completion(const char *cmdline)
     int nb_args, i, len;
     const char *ptype, *str;
     const mon_cmd_t *cmd;
+    Monitor *mon = cur_mon;
 
     parse_cmdline(cmdline, &nb_args, args);
 #ifdef DEBUG_COMPLETION
@@ -4166,7 +4167,7 @@ static void monitor_find_completion(const char *cmdline)
             cmdname = args[0];
         readline_set_completion_index(cur_mon->rs, strlen(cmdname));
         for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
-            cmd_completion(cmdname, cmd->name);
+            cmd_completion(mon, cmdname, cmd->name);
         }
     } else {
         /* find the command */
@@ -4207,7 +4208,7 @@ static void monitor_find_completion(const char *cmdline)
             if (!strcmp(cmd->name, "info")) {
                 readline_set_completion_index(cur_mon->rs, strlen(str));
                 for(cmd = info_cmds; cmd->name != NULL; cmd++) {
-                    cmd_completion(str, cmd->name);
+                    cmd_completion(mon, str, cmd->name);
                 }
             } else if (!strcmp(cmd->name, "sendkey")) {
                 char *sep = strrchr(str, '-');
@@ -4215,12 +4216,12 @@ static void monitor_find_completion(const char *cmdline)
                     str = sep + 1;
                 readline_set_completion_index(cur_mon->rs, strlen(str));
                 for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-                    cmd_completion(str, QKeyCode_lookup[i]);
+                    cmd_completion(mon, str, QKeyCode_lookup[i]);
                 }
             } else if (!strcmp(cmd->name, "help|?")) {
                 readline_set_completion_index(cur_mon->rs, strlen(str));
                 for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
-                    cmd_completion(str, cmd->name);
+                    cmd_completion(mon, str, cmd->name);
                 }
             }
             break;
