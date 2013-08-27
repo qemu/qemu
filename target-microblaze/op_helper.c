@@ -56,7 +56,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif
@@ -101,7 +101,7 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     CPUState *cs = CPU(mb_env_get_cpu(env));
 
     cs->exception_index = index;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_debug(CPUMBState *env)

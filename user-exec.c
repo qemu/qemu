@@ -40,12 +40,12 @@
 
 static void exception_action(CPUArchState *env1)
 {
-#if defined(TARGET_I386)
     CPUState *cpu = ENV_GET_CPU(env1);
 
+#if defined(TARGET_I386)
     raise_exception_err(env1, cpu->exception_index, env1->error_code);
 #else
-    cpu_loop_exit(env1);
+    cpu_loop_exit(cpu);
 #endif
 }
 

@@ -52,7 +52,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
             cpu_restore_state(env, retaddr);
         }
         /* Raise Exception.  */
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif

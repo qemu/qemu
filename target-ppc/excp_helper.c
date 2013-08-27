@@ -823,7 +823,7 @@ void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
 #endif
     cs->exception_index = exception;
     env->error_code = error_code;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_raise_exception(CPUPPCState *env, uint32_t exception)

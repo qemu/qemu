@@ -51,7 +51,7 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
         cpu_restore_state(env, pc);
     }
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
@@ -280,7 +280,7 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
     lladdr = cpu_mips_translate_address(env, address, rw);
 
     if (lladdr == -1LL) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(mips_env_get_cpu(env)));
     } else {
         return lladdr;
     }

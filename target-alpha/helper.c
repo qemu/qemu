@@ -513,7 +513,7 @@ void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 
     cs->exception_index = excp;
     env->error_code = error;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
@@ -528,7 +528,7 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
     if (retaddr) {
         cpu_restore_state(env, retaddr);
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void QEMU_NORETURN arith_excp(CPUAlphaState *env, uintptr_t retaddr,

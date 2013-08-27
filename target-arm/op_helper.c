@@ -28,7 +28,7 @@ static void raise_exception(CPUARMState *env, int tt)
     CPUState *cs = CPU(cpu);
 
     cs->exception_index = tt;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
@@ -229,7 +229,7 @@ void HELPER(wfi)(CPUARMState *env)
 
     cs->exception_index = EXCP_HLT;
     cs->halted = 1;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void HELPER(wfe)(CPUARMState *env)
@@ -240,7 +240,7 @@ void HELPER(wfe)(CPUARMState *env)
      * level loop
      */
     cs->exception_index = EXCP_YIELD;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void HELPER(exception)(CPUARMState *env, uint32_t excp)
@@ -248,7 +248,7 @@ void HELPER(exception)(CPUARMState *env, uint32_t excp)
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
     cs->exception_index = excp;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 uint32_t HELPER(cpsr_read)(CPUARMState *env)

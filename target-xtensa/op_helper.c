@@ -105,7 +105,7 @@ void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
     if (excp == EXCP_DEBUG) {
         env->exception_taken = 0;
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void HELPER(exception_cause)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
@@ -391,7 +391,7 @@ void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
         (intlevel << PS_INTLEVEL_SHIFT);
     check_interrupts(env);
     if (env->pending_irq_level) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(xtensa_env_get_cpu(env)));
         return;
     }
 

@@ -27,7 +27,7 @@ void helper_raise_exception(CPUSPARCState *env, int tt)
     CPUState *cs = CPU(sparc_env_get_cpu(env));
 
     cs->exception_index = tt;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_debug(CPUSPARCState *env)
@@ -35,7 +35,7 @@ void helper_debug(CPUSPARCState *env)
     CPUState *cs = CPU(sparc_env_get_cpu(env));
 
     cs->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 #ifdef TARGET_SPARC64
@@ -239,6 +239,6 @@ void helper_power_down(CPUSPARCState *env)
     cs->exception_index = EXCP_HLT;
     env->pc = env->npc;
     env->npc = env->pc + 4;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 #endif

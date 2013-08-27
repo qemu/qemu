@@ -1608,7 +1608,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
                 tb_check_watchpoint(env);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     cpu->exception_index = EXCP_DEBUG;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit(cpu);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
                     tb_gen_code(env, pc, cs_base, cpu_flags, 1);

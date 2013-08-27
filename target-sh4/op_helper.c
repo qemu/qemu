@@ -52,7 +52,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
         if (retaddr) {
             cpu_restore_state(env, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -77,7 +77,7 @@ static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
     if (retaddr) {
         cpu_restore_state(env, retaddr);
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_raise_illegal_instruction(CPUSH4State *env)

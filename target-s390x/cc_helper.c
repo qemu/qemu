@@ -548,7 +548,7 @@ uint32_t HELPER(calc_cc)(CPUS390XState *env, uint32_t cc_op, uint64_t src,
 void HELPER(load_psw)(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     load_psw(env, mask, addr);
-    cpu_loop_exit(env);
+    cpu_loop_exit(CPU(s390_env_get_cpu(env)));
 }
 
 void HELPER(sacf)(CPUS390XState *env, uint64_t a1)

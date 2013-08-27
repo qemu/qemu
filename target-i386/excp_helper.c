@@ -108,7 +108,7 @@ static void QEMU_NORETURN raise_interrupt2(CPUX86State *env, int intno,
     env->error_code = error_code;
     env->exception_is_int = is_int;
     env->exception_next_eip = env->eip + next_eip_addend;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* shortcuts to generate exceptions */

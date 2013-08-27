@@ -67,7 +67,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -114,7 +114,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
             }
             cs->halted = 1;
             cs->exception_index = EXCP_HLT;
-            cpu_loop_exit(env);
+            cpu_loop_exit(cs);
             return;
         }
         if (cs->exception_index >= EXCP_TRAP0
@@ -170,7 +170,7 @@ static void raise_exception(CPUM68KState *env, int tt)
     CPUState *cs = CPU(m68k_env_get_cpu(env));
 
     cs->exception_index = tt;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)

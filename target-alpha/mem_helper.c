@@ -116,7 +116,7 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
     cs->exception_index = EXCP_UNALIGN;
     env->error_code = 0;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void alpha_cpu_unassigned_access(CPUState *cs, hwaddr addr,
@@ -166,7 +166,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
             cpu_restore_state(env, retaddr);
         }
         /* Exception index and error code are already set */
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif /* CONFIG_USER_ONLY */

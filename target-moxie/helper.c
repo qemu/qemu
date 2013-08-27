@@ -59,7 +59,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
             cpu_restore_state(env, retaddr);
         }
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_raise_exception(CPUMoxieState *env, int ex)
@@ -74,7 +74,7 @@ void helper_raise_exception(CPUMoxieState *env, int ex)
     env->sregs[5] = env->pc;
     /* Jump the the exception handline routine.  */
     env->pc = env->sregs[1];
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 uint32_t helper_div(CPUMoxieState *env, uint32_t a, uint32_t b)
@@ -104,7 +104,7 @@ void helper_debug(CPUMoxieState *env)
     CPUState *cs = CPU(moxie_env_get_cpu(env));
 
     cs->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 #if defined(CONFIG_USER_ONLY)

@@ -19,7 +19,7 @@ void HELPER(exception)(CPUUniCore32State *env, uint32_t excp)
     CPUState *cs = CPU(uc32_env_get_cpu(env));
 
     cs->exception_index = excp;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 static target_ulong asr_read(CPUUniCore32State *env)
@@ -271,7 +271,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif

@@ -23,10 +23,8 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
-void cpu_loop_exit(CPUArchState *env)
+void cpu_loop_exit(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     cpu->current_tb = NULL;
     siglongjmp(cpu->jmp_env, 1);
 }
@@ -325,7 +323,7 @@ int cpu_exec(CPUArchState *env)
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         cpu->exception_index = EXCP_DEBUG;
-                        cpu_loop_exit(env);
+                        cpu_loop_exit(cpu);
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
     defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
@@ -334,7 +332,7 @@ int cpu_exec(CPUArchState *env)
                         cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         cpu->halted = 1;
                         cpu->exception_index = EXCP_HLT;
-                        cpu_loop_exit(env);
+                        cpu_loop_exit(cpu);
                     }
 #endif
 #if defined(TARGET_I386)
@@ -349,7 +347,7 @@ int cpu_exec(CPUArchState *env)
                                                           0);
                             do_cpu_init(x86_cpu);
                             cpu->exception_index = EXCP_HALTED;
-                            cpu_loop_exit(env);
+                            cpu_loop_exit(cpu);
                     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
                             do_cpu_sipi(x86_cpu);
                     } else if (env->hflags2 & HF2_GIF_MASK) {
@@ -601,7 +599,7 @@ int cpu_exec(CPUArchState *env)
                 if (unlikely(cpu->exit_request)) {
                     cpu->exit_request = 0;
                     cpu->exception_index = EXCP_INTERRUPT;
-                    cpu_loop_exit(env);
+                    cpu_loop_exit(cpu);
                 }
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
@@ -672,7 +670,7 @@ int cpu_exec(CPUArchState *env)
                             }
                             cpu->exception_index = EXCP_INTERRUPT;
                             next_tb = 0;
-                            cpu_loop_exit(env);
+                            cpu_loop_exit(cpu);
                         }
                         break;
                     }

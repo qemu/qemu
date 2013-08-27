@@ -58,7 +58,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
             /* now we have a real cpu fault */
             cpu_restore_state(env, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -971,12 +971,12 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
     }
 
     if (mmu_translate(env, a1 & TARGET_PAGE_MASK, 1, mode1, &dest, &flags)) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     dest |= a1 & ~TARGET_PAGE_MASK;
 
     if (mmu_translate(env, a2 & TARGET_PAGE_MASK, 0, mode2, &src, &flags)) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     src |= a2 & ~TARGET_PAGE_MASK;
 

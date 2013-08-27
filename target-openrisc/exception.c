@@ -25,5 +25,5 @@ void QEMU_NORETURN raise_exception(OpenRISCCPU *cpu, uint32_t excp)
     CPUState *cs = CPU(cpu);
 
     cs->exception_index = excp;
-    cpu_loop_exit(&cpu->env);
+    cpu_loop_exit(cs);
 }

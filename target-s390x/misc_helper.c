@@ -61,7 +61,7 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
     env->int_pgm_ilen = t = get_ilen(t);
     env->psw.addr += 2 * t;
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* Raise an exception statically from a TB.  */
@@ -71,7 +71,7 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 
     HELPER_LOG("%s: exception %d\n", __func__, excp);
     cs->exception_index = excp;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -93,7 +93,7 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
         env->int_pgm_code = code;
         env->int_pgm_ilen = ilen;
         cs->exception_index = EXCP_PGM;
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -456,11 +456,11 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 #if !defined(CONFIG_USER_ONLY)
     case SIGP_RESTART:
         qemu_system_reset_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
     case SIGP_STOP:
         qemu_system_shutdown_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
 #endif
     default:
