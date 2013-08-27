@@ -28,7 +28,7 @@ typedef struct {
 
 static void bcm2835_st_update(bcm2835_st_state *s)
 {
-    int64_t now = qemu_get_clock_ns(vm_clock) / SCALE_US;
+    int64_t now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
     uint32_t clo = (uint32_t)now;
     uint32_t delta = -1;
     int i;
@@ -42,7 +42,7 @@ static void bcm2835_st_update(bcm2835_st_state *s)
             }
         }
     }
-    qemu_mod_timer(s->timer, now + delta);
+    timer_mod(s->timer, now + delta);
 }
 
 static void bcm2835_st_tick(void *opaque)
@@ -67,7 +67,7 @@ static uint64_t bcm2835_st_read(void *opaque, hwaddr offset,
 {
     bcm2835_st_state *s = (bcm2835_st_state *)opaque;
     uint32_t res = 0;
-    int64_t now = qemu_get_clock_ns(vm_clock) / SCALE_US;
+    int64_t now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
 
     assert(size == 4);
 
@@ -182,7 +182,7 @@ static int bcm2835_st_init(SysBusDevice *sbd)
     }
     s->match = 0;
 
-    s->timer = qemu_new_timer(vm_clock, SCALE_US, bcm2835_st_tick, s);
+    s->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, bcm2835_st_tick, s);
 
     bcm2835_st_update(s);
 

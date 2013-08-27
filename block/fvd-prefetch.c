@@ -72,9 +72,9 @@ void fvd_init_prefetch (void *opaque)
     }
 
     if (s->prefetch_timer) {
-        qemu_free_timer (s->prefetch_timer);
+        timer_free(s->prefetch_timer);
         s->prefetch_timer =
-            qemu_new_timer_ns (rt_clock, (QEMUTimerCB *) resume_prefetch, bs);
+            timer_new_ns(QEMU_CLOCK_REALTIME, (QEMUTimerCB *) resume_prefetch, bs);
     }
 
     s->pause_prefetch_requested = FALSE;
@@ -89,7 +89,7 @@ void fvd_init_prefetch (void *opaque)
     s->num_filled_prefetch_slots = 0;
     s->prefetch_read_active = FALSE;
 
-    do_next_prefetch_read (bs, qemu_get_clock_ns (rt_clock));
+    do_next_prefetch_read (bs, qemu_clock_get_ns(QEMU_CLOCK_REALTIME));
 }
 
 static void pause_prefetch (BDRVFvdState * s)
@@ -98,7 +98,7 @@ static void pause_prefetch (BDRVFvdState * s)
                                 * s->prefetch_throttle_time);
     QDEBUG ("Pause prefetch for %" PRId64 " milliseconds\n", ms);
     /* When the timer expires, it goes to resume_prefetch(). */
-    qemu_mod_timer (s->prefetch_timer, qemu_get_clock_ns (rt_clock) + ms);
+    timer_mod(s->prefetch_timer, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + ms);
 }
 
 static void terminate_prefetch (BlockDriverState * bs, int final_state)
@@ -119,8 +119,8 @@ static void terminate_prefetch (BlockDriverState * bs, int final_state)
     s->prefetch_acb = NULL;
 
     if (s->prefetch_timer) {
-        qemu_del_timer (s->prefetch_timer);
-        qemu_free_timer (s->prefetch_timer);
+        timer_del(s->prefetch_timer);
+        timer_free(s->prefetch_timer);
         s->prefetch_timer = NULL;
     }
 
@@ -229,7 +229,7 @@ static void finish_prefetch_write (void *opaque, int ret)
     BlockDriverState *bs = acb->common.bs;
     BDRVFvdState *s = bs->opaque;
     int64_t begin, end;
-    const int64_t current_time = qemu_get_clock_ns (rt_clock);
+    const int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     ASSERT (acb->nb_sectors > 0 && s->num_filled_prefetch_slots > 0);
 
@@ -454,7 +454,7 @@ static void finish_prefetch_read (void *opaque, int ret)
         return;
     }
 
-    const int64_t current_time = qemu_get_clock_ns (rt_clock);
+    const int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     const int64_t read_time = current_time -
                         acb->copy.last_prefetch_op_start_time;
     s->prefetch_read_time += read_time;
@@ -594,5 +594,5 @@ static void resume_prefetch (BlockDriverState * bs, int64_t current_time)
     s->prefetch_data_read = 0;
     s->prefetch_data_written = 0;
 
-    do_next_prefetch_read (bs, qemu_get_clock_ns (rt_clock));
+    do_next_prefetch_read (bs, qemu_clock_get_ns(QEMU_CLOCK_REALTIME));
 }

@@ -168,8 +168,8 @@ static void fvd_close (BlockDriverState * bs)
         s->prefetch_state = PREFETCH_STATE_DISABLED;
     }
     if (s->prefetch_timer) {
-        qemu_del_timer (s->prefetch_timer);
-        qemu_free_timer (s->prefetch_timer);
+        timer_del(s->prefetch_timer);
+        timer_free(s->prefetch_timer);
         s->prefetch_timer = NULL;
     }
 

@@ -11,6 +11,7 @@
 #include "trace.h"
 #include "qemu/range.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 
 /* #define DEBUG_IOMMU */
 

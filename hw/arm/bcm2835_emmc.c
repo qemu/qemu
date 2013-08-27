@@ -457,8 +457,8 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
                     s->status &= ~SDHCI_DATA_AVAILABLE;
 
 					if (COMPLETION_DELAY > 0) {
-						now = qemu_get_clock_ns(vm_clock) / SCALE_US;
-						qemu_mod_timer(s->delay_timer,
+						now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
+						timer_mod(s->delay_timer,
 							now + COMPLETION_DELAY);
 					} else {
 						s->interrupt |= SDHCI_INT_DATA_END;
@@ -690,8 +690,8 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                     // s->status &= ~SDHCI_SPACE_AVAILABLE;
 
 					if (COMPLETION_DELAY > 0) {
-						now = qemu_get_clock_ns(vm_clock) / SCALE_US;
-						qemu_mod_timer(s->delay_timer,
+						now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
+						timer_mod(s->delay_timer,
 							now + COMPLETION_DELAY);
 					} else {
 						s->interrupt |= SDHCI_INT_DATA_END;
@@ -811,7 +811,7 @@ static int bcm2835_emmc_init(SysBusDevice *sbd)
     s->acmd = 0;
     s->write_op = 0;
 
-    s->delay_timer = qemu_new_timer(vm_clock, SCALE_US, delayed_completion, s);
+    s->delay_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, delayed_completion, s);
 
     memory_region_init_io(&s->iomem, NULL, &bcm2835_emmc_ops, s,
         TYPE_BCM2835EMMC, 0x100000);

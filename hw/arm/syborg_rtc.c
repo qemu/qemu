@@ -70,7 +70,7 @@ static void syborg_rtc_write(void *opaque, hwaddr offset,
     offset &= 0xfff;
     switch (offset >> 2) {
     case RTC_LATCH:
-        now = qemu_get_clock_ns(vm_clock);
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         if (value >= 4) {
             s->offset = s->data - now;
         } else {

@@ -82,7 +82,7 @@ int64_t qemu_get_clock (QEMUClock * clock)
     return sim_get_time ();
 }
 
-void qemu_mod_timer (QEMUTimer * ts, int64_t expire_time)
+void timer_mod(QEMUTimer *ts, int64_t expire_time)
 {
     sim_mod_timer (ts, expire_time);
 }
@@ -92,12 +92,12 @@ QEMUTimer *qemu_new_timer (QEMUClock * clock, QEMUTimerCB * cb, void *opaque)
     return sim_new_timer (cb, opaque);
 }
 
-void qemu_free_timer (QEMUTimer * ts)
+void timer_free(QEMUTimer *ts)
 {
     sim_free_timer (ts);
 }
 
-void qemu_del_timer (QEMUTimer * ts)
+void timer_del(QEMUTimer *ts)
 {
     sim_del_timer (ts);
 }
@@ -783,7 +783,8 @@ int main (int argc, char **argv)
         parallel = 1;
     }
     srandom (seed);
-    rt_clock = (QEMUClock *) - 1; /* Convince FVD this is not in a qemu-tool. */
+    /* Convince FVD this is not in a qemu-tool. */
+    in_qemu_tool = false;
     enable_block_sim (FALSE /*no print */ , rand_time);
     fvd_enable_host_crash_test ();
     bdrv_init ();

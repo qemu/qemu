@@ -130,8 +130,8 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
     do {} while (qemu_co_enter_next(&bs->throttled_reqs));
 
     if (bs->block_timer) {
-        qemu_del_timer(bs->block_timer);
-        qemu_free_timer(bs->block_timer);
+        timer_del(bs->block_timer);
+        timer_free(bs->block_timer);
         bs->block_timer = NULL;
     }
 
@@ -148,7 +148,7 @@ static void bdrv_block_timer(void *opaque)
 
 void bdrv_io_limits_enable(BlockDriverState *bs)
 {
-    bs->block_timer = qemu_new_timer_ns(vm_clock, bdrv_block_timer, bs);
+    bs->block_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, bdrv_block_timer, bs);
     bs->io_limits_enabled = true;
 }
 
@@ -180,8 +180,8 @@ static void bdrv_io_limits_intercept(BlockDriverState *bs,
      */
 
     while (bdrv_exceed_io_limits(bs, nb_sectors, is_write, &wait_time)) {
-        qemu_mod_timer(bs->block_timer,
-                       wait_time + qemu_get_clock_ns(vm_clock));
+        timer_mod(bs->block_timer,
+                       wait_time + qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         qemu_co_queue_wait_insert_head(&bs->throttled_reqs);
     }
 
@@ -706,6 +706,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     bs->open_flags = flags;
     bs->buffer_alignment = 512;
+    bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
 
@@ -1402,6 +1403,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->valid_key = 0;
         bs->sg = 0;
         bs->growable = 0;
+        bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         bs->options = NULL;
 
@@ -2569,7 +2571,35 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         }
     }
 
-    ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+    if (!(bs->zero_beyond_eof && bs->growable)) {
+        ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+    } else {
+        /* Read zeros after EOF of growable BDSes */
+        int64_t len, total_sectors, max_nb_sectors;
+
+        len = bdrv_getlength(bs);
+        if (len < 0) {
+            ret = len;
+            goto out;
+        }
+
+        total_sectors = len >> BDRV_SECTOR_BITS;
+        max_nb_sectors = MAX(0, total_sectors - sector_num);
+        if (max_nb_sectors > 0) {
+            ret = drv->bdrv_co_readv(bs, sector_num,
+                                     MIN(nb_sectors, max_nb_sectors), qiov);
+        } else {
+            ret = 0;
+        }
+
+        /* Reading beyond end of file is supposed to produce zeroes */
+        if (ret == 0 && total_sectors < sector_num + nb_sectors) {
+            uint64_t offset = MAX(0, total_sectors - sector_num);
+            uint64_t bytes = (sector_num + nb_sectors - offset) *
+                              BDRV_SECTOR_SIZE;
+            qemu_iovec_memset(qiov, offset * BDRV_SECTOR_SIZE, 0, bytes);
+        }
+    }
 
 out:
     tracked_request_end(&req);
@@ -3717,7 +3747,7 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
     double   elapsed_time;
     int      bps_ret, iops_ret;
 
-    now = qemu_get_clock_ns(vm_clock);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     if (now > bs->slice_end) {
         bs->slice_start = now;
         bs->slice_end   = now + BLOCK_IO_SLICE_TIME;
@@ -3737,7 +3767,7 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
             *wait = max_wait;
         }
 
-        now = qemu_get_clock_ns(vm_clock);
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         if (bs->slice_end < now + max_wait) {
             bs->slice_end = now + max_wait;
         }

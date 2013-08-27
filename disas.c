@@ -158,6 +158,35 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
 }
 #endif
 
+static int print_insn_objdump(bfd_vma pc, disassemble_info *info,
+                              const char *prefix)
+{
+    int i, n = info->buffer_length;
+    uint8_t *buf = g_malloc(n);
+
+    info->read_memory_func(pc, buf, n, info);
+
+    for (i = 0; i < n; ++i) {
+        if (i % 32 == 0) {
+            info->fprintf_func(info->stream, "\n%s: ", prefix);
+        }
+        info->fprintf_func(info->stream, "%02x", buf[i]);
+    }
+
+    g_free(buf);
+    return n;
+}
+
+static int print_insn_od_host(bfd_vma pc, disassemble_info *info)
+{
+    return print_insn_objdump(pc, info, "OBJD-H");
+}
+
+static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
+{
+    return print_insn_objdump(pc, info, "OBJD-T");
+}
+
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
@@ -171,7 +200,7 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     target_ulong pc;
     int count;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
 
@@ -263,11 +292,10 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;
-#else
-    fprintf(out, "0x" TARGET_FMT_lx
-	    ": Asm output not supported on this arch\n", code);
-    return;
 #endif
+    if (print_insn == NULL) {
+        print_insn = print_insn_od_target;
+    }
 
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
@@ -303,7 +331,7 @@ void disas(FILE *out, void *code, unsigned long size)
     uintptr_t pc;
     int count;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
     s.info.print_address_func = generic_print_host_address;
@@ -347,11 +375,10 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_hppa;
 #elif defined(__ia64__)
     print_insn = print_insn_ia64;
-#else
-    fprintf(out, "0x%lx: Asm output not supported on this arch\n",
-	    (long) code);
-    return;
 #endif
+    if (print_insn == NULL) {
+        print_insn = print_insn_od_host;
+    }
     for (pc = (uintptr_t)code; size > 0; pc += count, size -= count) {
         fprintf(out, "0x%08" PRIxPTR ":  ", pc);
         count = print_insn(pc, &s.info);

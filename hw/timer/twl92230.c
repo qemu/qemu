@@ -72,14 +72,14 @@ static inline void menelaus_update(MenelausState *s)
 
 static inline void menelaus_rtc_start(MenelausState *s)
 {
-    s->rtc.next += qemu_get_clock_ms(rtc_clock);
-    qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
+    s->rtc.next += qemu_clock_get_ms(rtc_clock);
+    timer_mod(s->rtc.hz_tm, s->rtc.next);
 }
 
 static inline void menelaus_rtc_stop(MenelausState *s)
 {
-    qemu_del_timer(s->rtc.hz_tm);
-    s->rtc.next -= qemu_get_clock_ms(rtc_clock);
+    timer_del(s->rtc.hz_tm);
+    s->rtc.next -= qemu_clock_get_ms(rtc_clock);
     if (s->rtc.next < 1)
         s->rtc.next = 1;
 }
@@ -102,7 +102,7 @@ static void menelaus_rtc_hz(void *opaque)
     s->rtc.next_comp --;
     s->rtc.alm_sec --;
     s->rtc.next += 1000;
-    qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
+    timer_mod(s->rtc.hz_tm, s->rtc.next);
     if ((s->rtc.ctrl >> 3) & 3) {				/* EVERY */
         menelaus_rtc_update(s);
         if (((s->rtc.ctrl >> 3) & 3) == 1 && !s->rtc.tm.tm_sec)
@@ -782,7 +782,7 @@ static void menelaus_pre_save(void *opaque)
 {
     MenelausState *s = opaque;
     /* Should be <= 1000 */
-    s->rtc_next_vmstate =  s->rtc.next - qemu_get_clock_ms(rtc_clock);
+    s->rtc_next_vmstate =  s->rtc.next - qemu_clock_get_ms(rtc_clock);
 }
 
 static int menelaus_post_load(void *opaque, int version_id)
@@ -843,7 +843,7 @@ static int twl92230_init(I2CSlave *i2c)
 {
     MenelausState *s = FROM_I2C_SLAVE(MenelausState, i2c);
 
-    s->rtc.hz_tm = qemu_new_timer_ms(rtc_clock, menelaus_rtc_hz, s);
+    s->rtc.hz_tm = timer_new_ms(rtc_clock, menelaus_rtc_hz, s);
     /* Three output pins plus one interrupt pin.  */
     qdev_init_gpio_out(&i2c->qdev, s->out, 4);
 

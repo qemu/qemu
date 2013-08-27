@@ -699,7 +699,7 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 
 static uint64_t gt_get_countervalue(CPUARMState *env)
 {
-    return qemu_get_clock_ns(vm_clock) / GTIMER_SCALE;
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / GTIMER_SCALE;
 }
 
 static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
@@ -733,12 +733,12 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         if (nexttick > INT64_MAX / GTIMER_SCALE) {
             nexttick = INT64_MAX / GTIMER_SCALE;
         }
-        qemu_mod_timer(cpu->gt_timer[timeridx], nexttick);
+        timer_mod(cpu->gt_timer[timeridx], nexttick);
     } else {
         /* Timer disabled: ISTATUS and timer output always clear */
         gt->ctl &= ~4;
         qemu_set_irq(cpu->gt_timer_outputs[timeridx], 0);
-        qemu_del_timer(cpu->gt_timer[timeridx]);
+        timer_del(cpu->gt_timer[timeridx]);
     }
 }
 
@@ -758,7 +758,7 @@ static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     ARMCPU *cpu = arm_env_get_cpu(env);
     int timeridx = ri->opc1 & 1;
 
-    qemu_del_timer(cpu->gt_timer[timeridx]);
+    timer_del(cpu->gt_timer[timeridx]);
 }
 
 static int gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -941,7 +941,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 
 #else
 /* In user-mode none of the generic timer registers are accessible,
- * and their implementation depends on vm_clock and qdev gpio outputs,
+ * and their implementation depends on QEMU_CLOCK_VIRTUAL and qdev gpio outputs,
  * so instead just don't register any of them.
  */
 static const ARMCPRegInfo generic_timer_cp_reginfo[] = {

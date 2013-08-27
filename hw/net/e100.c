@@ -2307,8 +2307,8 @@ static void nic_cleanup(NetClientState *ncs)
     //~ E100State *s = qemu_get_nic_opaque(ncs);
 
 #if 0
-    qemu_del_timer(d->poll_timer);
-    qemu_free_timer(d->poll_timer);
+    timer_del(d->poll_timer);
+    timer_free(d->poll_timer);
 #endif
 }
 

@@ -144,8 +144,8 @@ static void bcm2835_usb_sof_tick(void *opaque) {
 
     bcm2835_usb_update_irq(s);
 
-    now = qemu_get_clock_ns(vm_clock) / SCALE_US;
-    qemu_mod_timer(s->sof_timer, now + SOF_DELAY);
+    now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
+    timer_mod(s->sof_timer, now + SOF_DELAY);
 }
 
 static void channel_enable(bcm2835_usb_hc_state *c) {
@@ -521,7 +521,7 @@ static void bcm2835_usb_write(void *opaque, hwaddr offset,
                 // Reset the device (that's probably not the right place)
                 usb_device_reset(s->port.dev);
                 s->reset_done = 1;
-                qemu_mod_timer(s->sof_timer, 0);
+                timer_mod(s->sof_timer, 0);
             }
         }
         s->hprt0 &= ~hprt0_prtpwr;
@@ -681,7 +681,7 @@ static int bcm2835_usb_init(SysBusDevice *sbd)
     s->attached = 0;
     s->reset_done = 0;
 
-    s->sof_timer = qemu_new_timer(vm_clock, SCALE_US, bcm2835_usb_sof_tick, s);
+    s->sof_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, bcm2835_usb_sof_tick, s);
 
     usb_bus_new(&s->bus, &bcm2835_usb_bus_ops, dev);
     usb_register_port(&s->bus, &s->port, s, 0, &bcm2835_usb_port_ops,

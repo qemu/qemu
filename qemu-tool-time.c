@@ -62,9 +62,9 @@ void qemu_bh_delete (QEMUBH * bh)
     g_free(bh);
 }
 
-void qemu_mod_timer (QEMUTimer * ts, int64_t expire_time)
+void timer_mod(QEMUTimer * ts, int64_t expire_time)
 {
-    fprintf (stderr, "qemu_mod_timer() should not be invoked in qemu-tool\n");
+    fprintf (stderr, "timer_mod() should not be invoked in qemu-tool\n");
     exit (1);
 }
 
@@ -75,14 +75,14 @@ QEMUTimer *qemu_new_timer (QEMUClock * clock, QEMUTimerCB * cb, void *opaque)
     return NULL;
 }
 
-void qemu_free_timer (QEMUTimer * ts)
+void timer_free(QEMUTimer * ts)
 {
-    fprintf (stderr, "qemu_free_timer() should not be invoked in qemu-tool\n");
+    fprintf (stderr, "timer_free() should not be invoked in qemu-tool\n");
     exit (1);
 }
 
-void qemu_del_timer (QEMUTimer * ts)
+void timer_del(QEMUTimer * ts)
 {
-    fprintf (stderr, "qemu_del_timer() should not be invoked in qemu-tool\n");
+    fprintf (stderr, "timer_del() should not be invoked in qemu-tool\n");
     exit (1);
 }

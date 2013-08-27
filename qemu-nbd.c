@@ -19,6 +19,7 @@
 #include "qemu-common.h"
 #include "block/block.h"
 #include "block/nbd.h"
+#include "qemu/main-loop.h"
 
 #include <stdarg.h>
 #include <stdio.h>

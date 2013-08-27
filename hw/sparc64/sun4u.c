@@ -363,7 +363,7 @@ void cpu_put_timer(QEMUFile *f, CPUTimer *s)
     qemu_put_be64s(f, &s->disabled_mask);
     qemu_put_sbe64s(f, &s->clock_offset);
 
-    qemu_put_timer(f, s->qtimer);
+    timer_put(f, s->qtimer);
 }
 
 void cpu_get_timer(QEMUFile *f, CPUTimer *s)
@@ -373,7 +373,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_be64s(f, &s->disabled_mask);
     qemu_get_sbe64s(f, &s->clock_offset);
 
-    qemu_get_timer(f, s->qtimer);
+    timer_get(f, s->qtimer);
 }
 
 static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
@@ -387,9 +387,9 @@ static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
     timer->disabled_mask = disabled_mask;
 
     timer->disabled = 1;
-    timer->clock_offset = qemu_get_clock_ns(vm_clock);
+    timer->clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, cpu);
+    timer->qtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cb, cpu);
 
     return timer;
 }
@@ -397,9 +397,9 @@ static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
 static void cpu_timer_reset(CPUTimer *timer)
 {
     timer->disabled = 1;
-    timer->clock_offset = qemu_get_clock_ns(vm_clock);
+    timer->clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    qemu_del_timer(timer->qtimer);
+    timer_del(timer->qtimer);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -495,7 +495,7 @@ void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
     uint64_t real_count = count & ~timer->disabled_mask;
     uint64_t disabled_bit = count & timer->disabled_mask;
 
-    int64_t vm_clock_offset = qemu_get_clock_ns(vm_clock) -
+    int64_t vm_clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
                     cpu_to_timer_ticks(real_count, timer->frequency);
 
     TIMER_DPRINTF("%s set_count count=0x%016lx (%s) p=%p\n",
@@ -509,7 +509,7 @@ void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
 uint64_t cpu_tick_get_count(CPUTimer *timer)
 {
     uint64_t real_count = timer_to_cpu_ticks(
-                    qemu_get_clock_ns(vm_clock) - timer->clock_offset,
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - timer->clock_offset,
                     timer->frequency);
 
     TIMER_DPRINTF("%s get_count count=0x%016lx (%s) p=%p\n",
@@ -524,7 +524,7 @@ uint64_t cpu_tick_get_count(CPUTimer *timer)
 
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
 {
-    int64_t now = qemu_get_clock_ns(vm_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     uint64_t real_limit = limit & ~timer->disabled_mask;
     timer->disabled = (limit & timer->disabled_mask) ? 1 : 0;
@@ -548,11 +548,11 @@ void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
     if (!real_limit) {
         TIMER_DPRINTF("%s set_limit limit=ZERO - not starting timer\n",
                 timer->name);
-        qemu_del_timer(timer->qtimer);
+        timer_del(timer->qtimer);
     } else if (timer->disabled) {
-        qemu_del_timer(timer->qtimer);
+        timer_del(timer->qtimer);
     } else {
-        qemu_mod_timer(timer->qtimer, expires);
+        timer_mod(timer->qtimer, expires);
     }
 }
 

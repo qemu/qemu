@@ -1228,8 +1228,8 @@ static void nic_cleanup(NetClientState *ncs)
     unregister_savevm(NULL, "dp8381x", s);
 
 #if 0
-    qemu_del_timer(d->poll_timer);
-    qemu_free_timer(d->poll_timer);
+    timer_del(d->poll_timer);
+    timer_free(d->poll_timer);
 #endif
 }
 

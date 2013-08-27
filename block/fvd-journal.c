@@ -53,9 +53,6 @@ static inline int64_t calc_min_journal_size (int64_t table_entries)
 static int init_journal (int read_only, BlockDriverState * bs,
                          FvdHeader * header)
 {
-    /* A trick to figure out whether it is runningin a qemu tool. */
-    const int in_qemu_tool = (rt_clock == NULL);
-
     BDRVFvdState *s = bs->opaque;
     s->journal_size = header->journal_size / 512;
     s->journal_offset = header->journal_offset / 512;
@@ -176,7 +173,7 @@ static void recycle_journal (BDRVFvdState * s)
     static int64_t recycle_count = 0;
     QDEBUG ("JOURNAL: start journal recycle %" PRId64 ".\n", recycle_count);
     recycle_count++;
-    int64_t begin_time = qemu_get_clock_ns (rt_clock);
+    int64_t begin_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 #endif
 
     /* Write fresh_bitmap to disk. */
@@ -213,7 +210,7 @@ static void recycle_journal (BDRVFvdState * s)
     s->next_journal_sector = 0;
 
 #ifdef FVD_DEBUG
-    int64_t end_time = qemu_get_clock_ns (rt_clock);
+    int64_t end_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     QDEBUG ("JOURNAL: journal recycle took %" PRId64 " ms.\n",
             (end_time - begin_time));
 #endif

@@ -419,7 +419,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_cpu, cpu);
+    idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
@@ -1136,7 +1136,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
         }
 
         /* Always wake up soon in case the interrupt was level based */
-        qemu_mod_timer(idle_timer, qemu_get_clock_ns(vm_clock) +
+        timer_mod(idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (get_ticks_per_sec() / 50));
     }
 
@@ -1807,7 +1807,7 @@ int kvmppc_get_htab_fd(bool write)
 
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
 {
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     uint8_t buf[bufsize];
     ssize_t rc;
 
@@ -1823,7 +1823,7 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
         }
     } while ((rc != 0)
              && ((max_ns < 0)
-                 || ((qemu_get_clock_ns(rt_clock) - starttime) < max_ns)));
+                 || ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) < max_ns)));
 
     return (rc == 0) ? 1 : 0;
 }

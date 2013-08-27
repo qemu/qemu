@@ -606,8 +606,8 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
 
     port = xc_evtchn_pending(state->xce_handle);
     if (port == state->bufioreq_local_port) {
-        qemu_mod_timer(state->buffered_io_timer,
-                BUFFER_IO_MAX_DELAY + qemu_get_clock_ms(rt_clock));
+        timer_mod(state->buffered_io_timer,
+                BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
         return NULL;
     }
 
@@ -828,10 +828,10 @@ static void handle_buffered_io(void *opaque)
     XenIOState *state = opaque;
 
     if (handle_buffered_iopage(state)) {
-        qemu_mod_timer(state->buffered_io_timer,
-                BUFFER_IO_MAX_DELAY + qemu_get_clock_ms(rt_clock));
+        timer_mod(state->buffered_io_timer,
+                BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     } else {
-        qemu_del_timer(state->buffered_io_timer);
+        timer_del(state->buffered_io_timer);
         xc_evtchn_unmask(state->xce_handle, state->bufioreq_local_port);
     }
 }
@@ -962,7 +962,7 @@ static void xen_main_loop_prepare(XenIOState *state)
         evtchn_fd = xc_evtchn_fd(state->xce_handle);
     }
 
-    state->buffered_io_timer = qemu_new_timer_ms(rt_clock, handle_buffered_io,
+    state->buffered_io_timer = timer_new_ms(QEMU_CLOCK_REALTIME, handle_buffered_io,
                                                  state);
 
     if (evtchn_fd != -1) {

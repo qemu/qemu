@@ -245,10 +245,10 @@ static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
 
     switch (addr) {
     case 0x38:
-        value = qemu_get_clock_ns(vm_clock);
+        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         break;
     case 0x3c:
-        value = qemu_get_clock_ns(vm_clock) >> 32;
+        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
         break;
     }
 

@@ -43,9 +43,6 @@ static int fvd_open(BlockDriverState * bs, QDict *options, int flags)
     FvdHeader header;
     BlockDriver *drv;
 
-    /* A trick to figure out whether it runs a qemu tool such as qemu-nbd. */
-    const int in_qemu_tool = (rt_clock == NULL);
-
     Error *local_err = NULL;
     const char *filename;
 
@@ -382,8 +379,6 @@ static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
     }
 
     if (header->need_zero_init && !bdrv_has_zero_init (s->fvd_data)) {
-        /* A trick to figure out whether it runs a qemu tool such as qemu-nbd.*/
-        const int in_qemu_tool = (rt_clock == NULL);
         if (in_qemu_tool) {
             /* Only give a warning to allow 'qemu-img update' to modify
              * need_zero_init if the user manually zero-init the device. */
@@ -454,8 +449,6 @@ static int init_bitmap (BlockDriverState * bs, BDRVFvdState * s,
 static void init_prefetch_timer (BlockDriverState * bs, BDRVFvdState * s)
 {
 #ifndef SIMULATED_TEST_WITH_QEMU_IO
-    /* A trick to figure out whether it is runningin a qemu tool. */
-    const int in_qemu_tool = (rt_clock == NULL);
     if (in_qemu_tool) {
         return;
     }
@@ -467,7 +460,7 @@ static void init_prefetch_timer (BlockDriverState * bs, BDRVFvdState * s)
     }
 
     /* Start prefetching after a delay. Times 1000 to convert sec to ms. */
-    int64_t expire = qemu_get_clock_ns (rt_clock) + s->prefetch_start_delay * 1000;
-    s->prefetch_timer = qemu_new_timer_ns (rt_clock, fvd_init_prefetch, bs);
-    qemu_mod_timer (s->prefetch_timer, expire);
+    int64_t expire = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + s->prefetch_start_delay * 1000;
+    s->prefetch_timer = timer_new_ns(QEMU_CLOCK_REALTIME, fvd_init_prefetch, bs);
+    timer_mod(s->prefetch_timer, expire);
 }

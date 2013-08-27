@@ -129,8 +129,8 @@ static void s390_cpu_initfn(Object *obj)
     env->tod_offset = TOD_UNIX_EPOCH +
                       (time2tod(mktimegm(&tm)) * 1000000000ULL);
     env->tod_basetime = 0;
-    env->tod_timer = qemu_new_timer_ns(vm_clock, s390x_tod_timer, cpu);
-    env->cpu_timer = qemu_new_timer_ns(vm_clock, s390x_cpu_timer, cpu);
+    env->tod_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
+    env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
     /* set CPUState::halted state to 1 to avoid decrementing the running
      * cpu counter in s390_cpu_reset to a negative number at
      * initial ipl */

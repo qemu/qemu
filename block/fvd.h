@@ -30,6 +30,8 @@
 #define FVD_MAGIC         (('Q' << 24) | ('C' << 16) | (0xF5 << 8) | 0xA9)
 #define FVD_VERSION         1
 
+extern bool in_qemu_tool;
+
 /* Profile-directed prefetch. (to be implemented). */
 typedef struct __attribute__ ((__packed__)) PrefetchProfileEntry {
     int64_t offset;        /* in bytes */

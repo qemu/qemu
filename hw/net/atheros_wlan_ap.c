@@ -135,7 +135,7 @@ void Atheros_WLAN_insert_frame(Atheros_WLANState *s, struct mac80211_frame *fram
         // running currently, let's schedule
         // one run...
         s->inject_timer_running = 1;
-        qemu_mod_timer(s->inject_timer, qemu_get_clock_ns(rt_clock) + 5);
+        timer_mod(s->inject_timer, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 5);
     }
 
     signal_semaphore(s->access_semaphore, 0);
@@ -152,7 +152,7 @@ static void Atheros_WLAN_beacon_timer(void *opaque)
         Atheros_WLAN_insert_frame(s, frame);
     }
 
-    qemu_mod_timer(s->beacon_timer, qemu_get_clock_ns(rt_clock) + 500);
+    timer_mod(s->beacon_timer, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 500);
 }
 
 static void Atheros_WLAN_inject_timer(void *opaque)
@@ -188,7 +188,7 @@ timer_done:
     if (s->inject_queue_size > 0) {
         // there are more packets... schedule
         // the timer for sending them as well
-        qemu_mod_timer(s->inject_timer, qemu_get_clock_ns(rt_clock) + 25);
+        timer_mod(s->inject_timer, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 25);
     } else {
         // we wait until a new packet schedules
         // us again
@@ -251,8 +251,8 @@ static void Atheros_WLAN_cleanup(NetClientState *ncs)
 {
 #if 0
     Atheros_WLANState *d = ncs->opaque;
-    qemu_del_timer(d->poll_timer);
-    qemu_free_timer(d->poll_timer);
+    timer_del(d->poll_timer);
+    timer_free(d->poll_timer);
 #endif
 }
 
@@ -286,12 +286,12 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
     s->access_semaphore = semget(ATHEROS_WLAN_ACCESS_SEM_KEY, 1, 0666 | IPC_CREAT);
     semctl(s->access_semaphore, 0, SETVAL, 1);
 
-    s->beacon_timer = qemu_new_timer_ns(rt_clock, Atheros_WLAN_beacon_timer, s);
-    qemu_mod_timer(s->beacon_timer, qemu_get_clock_ns(rt_clock));
+    s->beacon_timer = timer_new_ns(QEMU_CLOCK_REALTIME, Atheros_WLAN_beacon_timer, s);
+    timer_mod(s->beacon_timer, qemu_clock_get_ns(QEMU_CLOCK_REALTIME));
 
     // setup the timer but only schedule
     // it when necessary...
-    s->inject_timer = qemu_new_timer_ns(rt_clock, Atheros_WLAN_inject_timer, s);
+    s->inject_timer = timer_new_ns(QEMU_CLOCK_REALTIME, Atheros_WLAN_inject_timer, s);
 
     s->nic = qemu_new_nic(&net_info, &s->conf, nd->model, nd->name, s);
 

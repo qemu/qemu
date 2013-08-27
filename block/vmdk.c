@@ -401,6 +401,14 @@ static int vmdk_add_extent(BlockDriverState *bs,
         error_report("invalid granularity, image may be corrupt");
         return -EINVAL;
     }
+    if (l1_size > 512 * 1024 * 1024) {
+        /* Although with big capacity and small l1_entry_sectors, we can get a
+         * big l1_size, we don't want unbounded value to allocate the table.
+         * Limit it to 512M, which is 16PB for default cluster and L2 table
+         * size */
+        error_report("L1 size too big");
+        return -EFBIG;
+    }
 
     s->extents = g_realloc(s->extents,
                               (s->num_extents + 1) * sizeof(VmdkExtent));
@@ -473,9 +481,9 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent)
     return ret;
 }
 
-static int vmdk_open_vmdk3(BlockDriverState *bs,
-                           BlockDriverState *file,
-                           int flags)
+static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
+                                 BlockDriverState *file,
+                                 int flags)
 {
     int ret;
     uint32_t magic;
@@ -486,14 +494,14 @@ static int vmdk_open_vmdk3(BlockDriverState *bs,
     if (ret < 0) {
         return ret;
     }
-
-    ret = vmdk_add_extent(bs,
-                             bs->file, false,
-                             le32_to_cpu(header.disk_sectors),
-                             le32_to_cpu(header.l1dir_offset) << 9,
-                             0, 1 << 6, 1 << 9,
-                             le32_to_cpu(header.granularity),
-                             &extent);
+    ret = vmdk_add_extent(bs, file, false,
+                          le32_to_cpu(header.disk_sectors),
+                          le32_to_cpu(header.l1dir_offset) << 9,
+                          0,
+                          le32_to_cpu(header.l1dir_size),
+                          4096,
+                          le32_to_cpu(header.granularity),
+                          &extent);
     if (ret < 0) {
         return ret;
     }
@@ -598,14 +606,6 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     l1_size = (le64_to_cpu(header.capacity) + l1_entry_sectors - 1)
                 / l1_entry_sectors;
-    if (l1_size > 512 * 1024 * 1024) {
-        /* although with big capacity and small l1_entry_sectors, we can get a
-         * big l1_size, we don't want unbounded value to allocate the table.
-         * Limit it to 512M, which is 16PB for default cluster and L2 table
-         * size */
-        error_report("L1 size too big");
-        return -EFBIG;
-    }
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
@@ -674,7 +674,7 @@ static int vmdk_open_sparse(BlockDriverState *bs,
     magic = be32_to_cpu(magic);
     switch (magic) {
         case VMDK3_MAGIC:
-            return vmdk_open_vmdk3(bs, file, flags);
+            return vmdk_open_vmfs_sparse(bs, file, flags);
             break;
         case VMDK4_MAGIC:
             return vmdk_open_vmdk4(bs, file, flags);
@@ -718,7 +718,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         }
 
         if (sectors <= 0 ||
-            (strcmp(type, "FLAT") && strcmp(type, "SPARSE")) ||
+            (strcmp(type, "FLAT") && strcmp(type, "SPARSE") &&
+             strcmp(type, "VMFS") && strcmp(type, "VMFSSPARSE")) ||
             (strcmp(access, "RW"))) {
             goto next_line;
         }
@@ -731,7 +732,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         }
 
         /* save to extents array */
-        if (!strcmp(type, "FLAT")) {
+        if (!strcmp(type, "FLAT") || !strcmp(type, "VMFS")) {
             /* FLAT extent */
             VmdkExtent *extent;
 
@@ -741,8 +742,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                 return ret;
             }
             extent->flat_start_offset = flat_offset << 9;
-        } else if (!strcmp(type, "SPARSE")) {
-            /* SPARSE extent */
+        } else if (!strcmp(type, "SPARSE") || !strcmp(type, "VMFSSPARSE")) {
+            /* SPARSE extent and VMFSSPARSE extent are both "COWD" sparse file*/
             ret = vmdk_open_sparse(bs, extent_file, bs->open_flags);
             if (ret) {
                 bdrv_delete(extent_file);
@@ -789,6 +790,8 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
         goto exit;
     }
     if (strcmp(ct, "monolithicFlat") &&
+        strcmp(ct, "vmfs") &&
+        strcmp(ct, "vmfsSparse") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&
         strcmp(ct, "twoGbMaxExtentFlat")) {
         fprintf(stderr,
@@ -1380,7 +1383,6 @@ static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
-
 
 static int vmdk_create_extent(const char *filename, int64_t filesize,
                               bool flat, bool compress, bool zeroed_grain)

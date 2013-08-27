@@ -1195,13 +1195,13 @@ static void hmp_migrate_status_cb(void *opaque)
             monitor_flush(status->mon);
         }
 
-        qemu_mod_timer(status->timer, qemu_get_clock_ms(rt_clock) + 1000);
+        timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     } else {
         if (status->is_block_migration) {
             monitor_printf(status->mon, "\n");
         }
         monitor_resume(status->mon);
-        qemu_del_timer(status->timer);
+        timer_del(status->timer);
         g_free(status);
     }
 
@@ -1235,9 +1235,9 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
         status = g_malloc0(sizeof(*status));
         status->mon = mon;
         status->is_block_migration = blk || inc;
-        status->timer = qemu_new_timer_ms(rt_clock, hmp_migrate_status_cb,
+        status->timer = timer_new_ms(QEMU_CLOCK_REALTIME, hmp_migrate_status_cb,
                                           status);
-        qemu_mod_timer(status->timer, qemu_get_clock_ms(rt_clock));
+        timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     }
 }
 
