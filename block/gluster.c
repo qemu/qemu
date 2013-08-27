@@ -427,20 +427,9 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
         /*
          * Gluster AIO callback thread failed to notify the waiting
          * QEMU thread about IO completion.
-         *
-         * Complete this IO request and make the disk inaccessible for
-         * subsequent reads and writes.
          */
-        error_report("Gluster failed to notify QEMU about IO completion");
-
-        qemu_mutex_lock_iothread(); /* We are in gluster thread context */
-        acb->common.cb(acb->common.opaque, -EIO);
-        qemu_aio_release(acb);
-        close(s->fds[GLUSTER_FD_READ]);
-        close(s->fds[GLUSTER_FD_WRITE]);
-        qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ], NULL, NULL, NULL);
-        bs->drv = NULL; /* Make the disk inaccessible */
-        qemu_mutex_unlock_iothread();
+        error_report("Gluster AIO completion failed: %s", strerror(errno));
+        abort();
     }
 }
 
