@@ -1481,12 +1481,6 @@ static void add_qemu_ldst_label(TCGContext *s,
     }
 }
 
-/* See the GETPC definition in include/exec/exec-all.h.  */
-static inline uintptr_t do_getpc(uint8_t *raddr)
-{
-    return (uintptr_t)raddr - 1;
-}
-
 /*
  * Generate code for the slow path for a load at the end of block
  */
@@ -1520,14 +1514,14 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
         ofs += 4;
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, do_getpc(l->raddr));
+        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, (uintptr_t)l->raddr);
     } else {
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
                      l->mem_index);
         tcg_out_movi(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[3],
-                     do_getpc(l->raddr));
+                     (uintptr_t)l->raddr);
     }
 
     tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[s_bits]);
@@ -1582,6 +1576,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     int opc = l->opc;
     int s_bits = opc & 3;
     uint8_t **label_ptr = &l->label_ptr[0];
+    TCGReg retaddr;
 
     /* resolve label address */
     *(uint32_t *)label_ptr[0] = (uint32_t)(s->code_ptr - label_ptr[0] - 4);
@@ -1614,10 +1609,10 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, l->mem_index);
         ofs += 4;
 
-        tcg_out_sti(s, TCG_TYPE_I32, TCG_REG_ESP, ofs, do_getpc(l->raddr));
+        retaddr = TCG_REG_EAX;
+        tcg_out_movi(s, TCG_TYPE_I32, retaddr, (uintptr_t)l->raddr);
+        tcg_out_st(s, TCG_TYPE_I32, retaddr, TCG_REG_ESP, ofs);
     } else {
-        uintptr_t pc;
-
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
         tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
@@ -1625,19 +1620,19 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
                      l->mem_index);
 
-        pc = do_getpc(l->raddr);
         if (ARRAY_SIZE(tcg_target_call_iarg_regs) > 4) {
-            tcg_out_movi(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[4], pc);
-        } else if (pc == (int32_t)pc) {
-            tcg_out_sti(s, TCG_TYPE_PTR, TCG_REG_ESP, 0, pc);
+            retaddr = tcg_target_call_iarg_regs[4];
+            tcg_out_movi(s, TCG_TYPE_PTR, retaddr, (uintptr_t)l->raddr);
         } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RAX, pc);
-            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RAX, TCG_REG_ESP, 0);
+            retaddr = TCG_REG_RAX;
+            tcg_out_movi(s, TCG_TYPE_PTR, retaddr, (uintptr_t)l->raddr);
+            tcg_out_st(s, TCG_TYPE_PTR, retaddr, TCG_REG_ESP, 0);
         }
     }
 
-    tcg_out_calli(s, (uintptr_t)qemu_st_helpers[s_bits]);
-    tcg_out_jmp(s, (uintptr_t)l->raddr);
+    /* "Tail call" to the helper, with the return address back inline.  */
+    tcg_out_push(s, retaddr);
+    tcg_out_jmp(s, (uintptr_t)qemu_st_helpers[s_bits]);
 }
 
 /*
