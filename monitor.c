@@ -753,6 +753,104 @@ static int compare_cmd(const char *name, const char *list)
     return 0;
 }
 
+static int get_str(char *buf, int buf_size, const char **pp)
+{
+    const char *p;
+    char *q;
+    int c;
+
+    q = buf;
+    p = *pp;
+    while (qemu_isspace(*p)) {
+        p++;
+    }
+    if (*p == '\0') {
+    fail:
+        *q = '\0';
+        *pp = p;
+        return -1;
+    }
+    if (*p == '\"') {
+        p++;
+        while (*p != '\0' && *p != '\"') {
+            if (*p == '\\') {
+                p++;
+                c = *p++;
+                switch (c) {
+                case 'n':
+                    c = '\n';
+                    break;
+                case 'r':
+                    c = '\r';
+                    break;
+                case '\\':
+                case '\'':
+                case '\"':
+                    break;
+                default:
+                    qemu_printf("unsupported escape code: '\\%c'\n", c);
+                    goto fail;
+                }
+                if ((q - buf) < buf_size - 1) {
+                    *q++ = c;
+                }
+            } else {
+                if ((q - buf) < buf_size - 1) {
+                    *q++ = *p;
+                }
+                p++;
+            }
+        }
+        if (*p != '\"') {
+            qemu_printf("unterminated string\n");
+            goto fail;
+        }
+        p++;
+    } else {
+        while (*p != '\0' && !qemu_isspace(*p)) {
+            if ((q - buf) < buf_size - 1) {
+                *q++ = *p;
+            }
+            p++;
+        }
+    }
+    *q = '\0';
+    *pp = p;
+    return 0;
+}
+
+#define MAX_ARGS 16
+
+/* NOTE: this parser is an approximate form of the real command parser */
+static void parse_cmdline(const char *cmdline,
+                          int *pnb_args, char **args)
+{
+    const char *p;
+    int nb_args, ret;
+    char buf[1024];
+
+    p = cmdline;
+    nb_args = 0;
+    for (;;) {
+        while (qemu_isspace(*p)) {
+            p++;
+        }
+        if (*p == '\0') {
+            break;
+        }
+        if (nb_args >= MAX_ARGS) {
+            break;
+        }
+        ret = get_str(buf, sizeof(buf), &p);
+        args[nb_args] = g_strdup(buf);
+        nb_args++;
+        if (ret < 0) {
+            break;
+        }
+    }
+    *pnb_args = nb_args;
+}
+
 static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
                           const char *prefix, const char *name)
 {
@@ -3434,71 +3532,6 @@ static int get_double(Monitor *mon, double *pval, const char **pp)
     return 0;
 }
 
-static int get_str(char *buf, int buf_size, const char **pp)
-{
-    const char *p;
-    char *q;
-    int c;
-
-    q = buf;
-    p = *pp;
-    while (qemu_isspace(*p))
-        p++;
-    if (*p == '\0') {
-    fail:
-        *q = '\0';
-        *pp = p;
-        return -1;
-    }
-    if (*p == '\"') {
-        p++;
-        while (*p != '\0' && *p != '\"') {
-            if (*p == '\\') {
-                p++;
-                c = *p++;
-                switch(c) {
-                case 'n':
-                    c = '\n';
-                    break;
-                case 'r':
-                    c = '\r';
-                    break;
-                case '\\':
-                case '\'':
-                case '\"':
-                    break;
-                default:
-                    qemu_printf("unsupported escape code: '\\%c'\n", c);
-                    goto fail;
-                }
-                if ((q - buf) < buf_size - 1) {
-                    *q++ = c;
-                }
-            } else {
-                if ((q - buf) < buf_size - 1) {
-                    *q++ = *p;
-                }
-                p++;
-            }
-        }
-        if (*p != '\"') {
-            qemu_printf("unterminated string\n");
-            goto fail;
-        }
-        p++;
-    } else {
-        while (*p != '\0' && !qemu_isspace(*p)) {
-            if ((q - buf) < buf_size - 1) {
-                *q++ = *p;
-            }
-            p++;
-        }
-    }
-    *q = '\0';
-    *pp = p;
-    return 0;
-}
-
 /*
  * Store the command-name in cmdname, and return a pointer to
  * the remaining of the command string.
@@ -3554,8 +3587,6 @@ static char *key_get_info(const char *type, char **key)
 
 static int default_fmt_format = 'x';
 static int default_fmt_size = 4;
-
-#define MAX_ARGS 16
 
 static int is_valid_option(const char *c, const char *typestr)
 {
@@ -4120,32 +4151,6 @@ static void block_completion_it(void *opaque, BlockDriverState *bs)
         !strncmp(name, (char *)input, strlen(input))) {
         readline_add_completion(mon->rs, name);
     }
-}
-
-/* NOTE: this parser is an approximate form of the real command parser */
-static void parse_cmdline(const char *cmdline,
-                         int *pnb_args, char **args)
-{
-    const char *p;
-    int nb_args, ret;
-    char buf[1024];
-
-    p = cmdline;
-    nb_args = 0;
-    for(;;) {
-        while (qemu_isspace(*p))
-            p++;
-        if (*p == '\0')
-            break;
-        if (nb_args >= MAX_ARGS)
-            break;
-        ret = get_str(buf, sizeof(buf), &p);
-        args[nb_args] = g_strdup(buf);
-        nb_args++;
-        if (ret < 0)
-            break;
-    }
-    *pnb_args = nb_args;
 }
 
 static const char *next_arg_type(const char *typestr)
