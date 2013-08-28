@@ -725,6 +725,14 @@ static void io_remove_watch_poll(guint tag)
     g_source_destroy(&iwp->parent);
 }
 
+static void remove_fd_in_watch(CharDriverState *chr)
+{
+    if (chr->fd_in_tag) {
+        io_remove_watch_poll(chr->fd_in_tag);
+        chr->fd_in_tag = 0;
+    }
+}
+
 #ifndef _WIN32
 static GIOChannel *io_channel_from_fd(int fd)
 {
@@ -829,10 +837,7 @@ static gboolean fd_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     status = g_io_channel_read_chars(chan, (gchar *)buf,
                                      len, &bytes_read, NULL);
     if (status == G_IO_STATUS_EOF) {
-        if (chr->fd_in_tag) {
-            io_remove_watch_poll(chr->fd_in_tag);
-            chr->fd_in_tag = 0;
-        }
+        remove_fd_in_watch(chr);
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
         return FALSE;
     }
@@ -862,11 +867,7 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
 {
     FDCharDriver *s = chr->opaque;
 
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
-        chr->fd_in_tag = 0;
-    }
-
+    remove_fd_in_watch(chr);
     if (s->fd_in) {
         chr->fd_in_tag = io_add_watch_poll(s->fd_in, fd_chr_read_poll,
                                            fd_chr_read, chr);
@@ -877,11 +878,7 @@ static void fd_chr_close(struct CharDriverState *chr)
 {
     FDCharDriver *s = chr->opaque;
 
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
-        chr->fd_in_tag = 0;
-    }
-
+    remove_fd_in_watch(chr);
     if (s->fd_in) {
         g_io_channel_unref(s->fd_in);
     }
@@ -1126,10 +1123,7 @@ static void pty_chr_state(CharDriverState *chr, int connected)
     PtyCharDriver *s = chr->opaque;
 
     if (!connected) {
-        if (chr->fd_in_tag) {
-            io_remove_watch_poll(chr->fd_in_tag);
-            chr->fd_in_tag = 0;
-        }
+        remove_fd_in_watch(chr);
         s->connected = 0;
         /* (re-)connect poll interval for idle guests: once per second.
          * We check more frequently in case the guests sends data to
@@ -1155,10 +1149,7 @@ static void pty_chr_close(struct CharDriverState *chr)
     PtyCharDriver *s = chr->opaque;
     int fd;
 
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
-        chr->fd_in_tag = 0;
-    }
+    remove_fd_in_watch(chr);
     fd = g_io_channel_unix_get_fd(s->fd);
     g_io_channel_unref(s->fd);
     close(fd);
@@ -2220,10 +2211,7 @@ static gboolean udp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     s->bufcnt = bytes_read;
     s->bufptr = s->bufcnt;
     if (status != G_IO_STATUS_NORMAL) {
-        if (chr->fd_in_tag) {
-            io_remove_watch_poll(chr->fd_in_tag);
-            chr->fd_in_tag = 0;
-        }
+        remove_fd_in_watch(chr);
         return FALSE;
     }
 
@@ -2241,11 +2229,7 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
 
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
-        chr->fd_in_tag = 0;
-    }
-
+    remove_fd_in_watch(chr);
     if (s->chan) {
         chr->fd_in_tag = io_add_watch_poll(s->chan, udp_chr_read_poll,
                                            udp_chr_read, chr);
@@ -2255,10 +2239,8 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
 static void udp_chr_close(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
-    if (chr->fd_in_tag) {
-        io_remove_watch_poll(chr->fd_in_tag);
-        chr->fd_in_tag = 0;
-    }
+
+    remove_fd_in_watch(chr);
     if (s->chan) {
         g_io_channel_unref(s->chan);
         closesocket(s->fd);
@@ -2493,10 +2475,7 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
         if (s->listen_chan) {
             s->listen_tag = g_io_add_watch(s->listen_chan, G_IO_IN, tcp_chr_accept, chr);
         }
-        if (chr->fd_in_tag) {
-            io_remove_watch_poll(chr->fd_in_tag);
-            chr->fd_in_tag = 0;
-        }
+        remove_fd_in_watch(chr);
         g_io_channel_unref(s->chan);
         s->chan = NULL;
         closesocket(s->fd);
@@ -2610,10 +2589,7 @@ static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
     if (s->fd >= 0) {
-        if (chr->fd_in_tag) {
-            io_remove_watch_poll(chr->fd_in_tag);
-            chr->fd_in_tag = 0;
-        }
+        remove_fd_in_watch(chr);
         if (s->chan) {
             g_io_channel_unref(s->chan);
         }
