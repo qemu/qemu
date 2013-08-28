@@ -1506,13 +1506,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    /* The bswap routines do not work on non-R2 CPU. In that case
-       we let TCG generating the corresponding code. */
     case INDEX_op_bswap16_i32:
-        tcg_out_bswap16(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_WSBH, args[0], 0, args[1]);
         break;
     case INDEX_op_bswap32_i32:
-        tcg_out_bswap32(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_WSBH, args[0], 0, args[1]);
+        tcg_out_opc_sa(s, OPC_ROTR, args[0], args[0], 16);
         break;
 
     case INDEX_op_ext8s_i32:
