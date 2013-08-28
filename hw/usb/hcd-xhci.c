@@ -1274,7 +1274,7 @@ static void xhci_init_epctx(XHCIEPContext *epctx,
         epctx->ring.ccs = ctx[2] & 1;
     }
 
-    epctx->interval = 1 << (ctx[0] >> 16) & 0xff;
+    epctx->interval = 1 << ((ctx[0] >> 16) & 0xff);
 }
 
 static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
