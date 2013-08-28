@@ -270,8 +270,8 @@ static void slirp_update_timeout(uint32_t *timeout)
     if (*timeout <= TIMEOUT_FAST) {
         return;
     }
-    *timeout = MIN(1000, *timeout);
-    t = *timeout;
+
+    t = MIN(1000, *timeout);
 
     /* If we have tcp timeout with slirp, then we will fill @timeout with
      * more precise value.
