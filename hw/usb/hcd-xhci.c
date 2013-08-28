@@ -2076,6 +2076,7 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
 
     xhci->slots[slotid-1].enabled = 0;
     xhci->slots[slotid-1].addressed = 0;
+    xhci->slots[slotid-1].uport = NULL;
     return CC_SUCCESS;
 }
 
