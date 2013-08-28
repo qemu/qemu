@@ -193,6 +193,8 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     va_end(ap);
 }
 
+static void remove_fd_in_watch(CharDriverState *chr);
+
 void qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
@@ -203,6 +205,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
 
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         fe_open = 0;
+        remove_fd_in_watch(s);
     } else {
         fe_open = 1;
     }
