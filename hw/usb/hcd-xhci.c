@@ -2135,7 +2135,6 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     int i;
     TRBCCode res;
 
-    trace_usb_xhci_slot_address(slotid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
@@ -2168,6 +2167,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         fprintf(stderr, "xhci: port not found\n");
         return CC_TRB_ERROR;
     }
+    trace_usb_xhci_slot_address(slotid, uport->path);
 
     dev = uport->dev;
     if (!dev) {
