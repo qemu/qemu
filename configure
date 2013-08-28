@@ -1502,7 +1502,7 @@ libs_softmmu="$libs_softmmu -lz"
 # libseccomp check
 
 if test "$seccomp" != "no" ; then
-    if $pkg_config --atleast-version=2.1.0 libseccomp --modversion >/dev/null 2>&1; then
+    if $pkg_config --atleast-version=2.1.0 libseccomp; then
         libs_softmmu="$libs_softmmu `$pkg_config --libs libseccomp`"
         QEMU_CFLAGS="$QEMU_CFLAGS `$pkg_config --cflags libseccomp`"
 	seccomp="yes"
@@ -1737,9 +1737,9 @@ fi
 # VTE probe
 
 if test "$vte" != "no"; then
-    if $pkg_config --exists 'vte >= $vteversion'; then
-        vte_cflags=`$pkg_config --cflags vte`
-        vte_libs=`$pkg_config --libs vte`
+    if $pkg_config --exists "$vtepackage >= $vteversion"; then
+        vte_cflags=`$pkg_config --cflags $vtepackage`
+        vte_libs=`$pkg_config --libs $vtepackage`
         libs_softmmu="$vte_libs $libs_softmmu"
         vte="yes"
     else
@@ -1759,7 +1759,7 @@ if test "`basename $sdl_config`" != sdl-config && ! has ${sdl_config}; then
   sdl_config=sdl-config
 fi
 
-if $pkg_config sdl --modversion >/dev/null 2>&1; then
+if $pkg_config sdl --exists; then
   sdlconfig="$pkg_config sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
 elif has ${sdl_config}; then
@@ -1950,7 +1950,7 @@ int main(void) {
     return png_ptr != 0;
 }
 EOF
-  if $pkg_config libpng --modversion >/dev/null 2>&1; then
+  if $pkg_config libpng --exists; then
     vnc_png_cflags=`$pkg_config libpng --cflags 2> /dev/null`
     vnc_png_libs=`$pkg_config libpng --libs 2> /dev/null`
   else
