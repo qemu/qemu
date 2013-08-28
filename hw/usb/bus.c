@@ -47,6 +47,10 @@ static int usb_device_post_load(void *opaque, int version_id)
     } else {
         dev->attached = 1;
     }
+    if (dev->setup_index >= sizeof(dev->data_buf) ||
+        dev->setup_len >= sizeof(dev->data_buf)) {
+        return -EINVAL;
+    }
     return 0;
 }
 
