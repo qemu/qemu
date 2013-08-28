@@ -309,14 +309,13 @@ typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(QDict *bs_opts,
-                                BlockInterfaceType block_default_type,
+                                BlockInterfaceType type,
                                 DriveMediaType media)
 {
     const char *buf;
     const char *file = NULL;
     const char *serial;
     const char *mediastr = "";
-    BlockInterfaceType type;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
     int max_devs;
@@ -376,17 +375,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 
     file = qemu_opt_get(opts, "file");
     serial = qemu_opt_get(opts, "serial");
-
-    if ((buf = qemu_opt_get(opts, "if")) != NULL) {
-        for (type = 0; type < IF_COUNT && strcmp(buf, if_name[type]); type++)
-            ;
-        if (type == IF_COUNT) {
-            error_report("unsupported bus type '%s'", buf);
-            return NULL;
-	}
-    } else {
-        type = block_default_type;
-    }
 
     max_devs = if_max_devs[type];
 
@@ -752,6 +740,10 @@ QemuOptsList qemu_legacy_drive_opts = {
             .name = "media",
             .type = QEMU_OPT_STRING,
             .help = "media type (disk, cdrom)",
+        },{
+            .name = "if",
+            .type = QEMU_OPT_STRING,
+            .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
         },
         { /* end of list */ }
     },
@@ -764,6 +756,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     QDict *bs_opts;
     QemuOpts *legacy_opts;
     DriveMediaType media = MEDIA_DISK;
+    BlockInterfaceType type;
     Error *local_err = NULL;
 
     /* Change legacy command line options into QMP ones */
@@ -838,8 +831,23 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
     }
 
+    /* Controller type */
+    value = qemu_opt_get(legacy_opts, "if");
+    if (value) {
+        for (type = 0;
+             type < IF_COUNT && strcmp(value, if_name[type]);
+             type++) {
+        }
+        if (type == IF_COUNT) {
+            error_report("unsupported bus type '%s'", value);
+            goto fail;
+        }
+    } else {
+        type = block_default_type;
+    }
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(bs_opts, block_default_type, media);
+    dinfo = blockdev_init(bs_opts, type, media);
     if (dinfo == NULL) {
         goto fail;
     }
@@ -2190,10 +2198,6 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "unit",
             .type = QEMU_OPT_NUMBER,
             .help = "unit number (i.e. lun for scsi)",
-        },{
-            .name = "if",
-            .type = QEMU_OPT_STRING,
-            .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
         },{
             .name = "index",
             .type = QEMU_OPT_NUMBER,
