@@ -1159,6 +1159,7 @@ void early_gtk_display_init(void)
     register_vc_handler(gd_vc_handler);
 }
 
+#if defined(CONFIG_VTE)
 static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -1174,10 +1175,12 @@ static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     return TRUE;
 }
+#endif
 
 static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSList *group,
                           GtkWidget *view_menu)
 {
+#if defined(CONFIG_VTE)
     const char *label;
     char buffer[32];
     char path[32];
@@ -1185,11 +1188,9 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     VtePty *pty;
 #endif
     GIOChannel *chan;
-#if defined(CONFIG_VTE)
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
     int master_fd, slave_fd;
-#endif
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1207,13 +1208,8 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
     gtk_accel_map_add_entry(path, GDK_KEY_2 + index, HOTKEY_MODIFIERS);
 
-#if defined(CONFIG_VTE)
     vc->terminal = vte_terminal_new();
-#else
-    //~ vc->terminal = vte_terminal_new();
-#endif
 
-#if defined(CONFIG_VTE)
     master_fd = qemu_openpty_raw(&slave_fd, NULL);
     g_assert(master_fd != -1);
 
@@ -1234,18 +1230,13 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
 
     vc->fd = slave_fd;
-#else
-    vc->fd = -1;
-#endif
     vc->chr->opaque = vc;
-#if defined(CONFIG_VTE)
     vc->scrolled_window = scrolled_window;
 
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vc->scrolled_window),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
-#endif
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
@@ -1259,6 +1250,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     chan = g_io_channel_unix_new(vc->fd);
     g_io_add_watch(chan, G_IO_IN, gd_vc_in, vc);
 
+#endif /* CONFIG_GTK */
     return group;
 }
 
