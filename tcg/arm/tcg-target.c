@@ -1163,6 +1163,15 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
 
+/* We're expecting to use an 8-bit immediate and to mask.  */
+QEMU_BUILD_BUG_ON(CPU_TLB_BITS > 8);
+
+/* We're expecting to use an 8-bit immediate add + 8-bit ldrd offset.
+   Using the offset of the second entry in the last tlb table ensures
+   that we can index all of the elements of the first entry.  */
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
+                  > 0xffff);
+
 /* Load and compare a TLB entry, leaving the flags set.  Leaves R2 pointing
    to the tlb entry.  Clobbers R1 and TMP.  */
 
@@ -1190,14 +1199,10 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
      *   ldr    r0, [r2, r0]!                                     (3)
      *   cmp    r0, tmp                                           (4)
      */
-#  if CPU_TLB_BITS > 8
-#   error
-#  endif
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP,
                     0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
 
-    /* We assume that the offset is contained within 16 bits.  */
-    assert((tlb_offset & ~0xffff) == 0);
+    /* We checked that the offset is contained within 16 bits above.  */
     if (tlb_offset > 0xff) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
                         (24 << 7) | (tlb_offset >> 8));
