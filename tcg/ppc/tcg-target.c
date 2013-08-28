@@ -450,7 +450,9 @@ static const uint32_t tcg_to_bc[] = {
 
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
-    tcg_out32 (s, OR | SAB (arg, ret, arg));
+    if (ret != arg) {
+        tcg_out32(s, OR | SAB(arg, ret, arg));
+    }
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
