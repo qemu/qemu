@@ -5,3 +5,4 @@ obj-y += nvnet.o
 obj-y += nv2a.o nv2a_vsh.o
 obj-y += mcpx_apu.o mcpx_aci.o
 obj-y += lpc47m157.o
+obj-y += xid.o
