@@ -305,16 +305,18 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
     return true;
 }
 
+typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
+
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(QDict *bs_opts,
-                                BlockInterfaceType block_default_type)
+                                BlockInterfaceType block_default_type,
+                                DriveMediaType media)
 {
     const char *buf;
     const char *file = NULL;
     const char *serial;
     const char *mediastr = "";
     BlockInterfaceType type;
-    enum { MEDIA_DISK, MEDIA_CDROM } media;
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
     int max_devs;
@@ -335,7 +337,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
     BlockDriver *drv = NULL;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    media = MEDIA_DISK;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -422,19 +423,11 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 	}
     }
 
-    if ((buf = qemu_opt_get(opts, "media")) != NULL) {
-        if (!strcmp(buf, "disk")) {
-	    media = MEDIA_DISK;
-	} else if (!strcmp(buf, "cdrom")) {
-            if (cyls || secs || heads) {
-                error_report("CHS can't be set with media=%s", buf);
-	        return NULL;
-            }
-	    media = MEDIA_CDROM;
-	} else {
-	    error_report("'%s' invalid media", buf);
-	    return NULL;
-	}
+    if (media == MEDIA_CDROM) {
+        if (cyls || secs || heads) {
+            error_report("CHS can't be set with media=cdrom");
+            return NULL;
+        }
     }
 
     if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
@@ -751,11 +744,27 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
     }
 }
 
+QemuOptsList qemu_legacy_drive_opts = {
+    .name = "drive",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_legacy_drive_opts.head),
+    .desc = {
+        {
+            .name = "media",
+            .type = QEMU_OPT_STRING,
+            .help = "media type (disk, cdrom)",
+        },
+        { /* end of list */ }
+    },
+};
+
 DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
-    DriveInfo *dinfo;
+    DriveInfo *dinfo = NULL;
     QDict *bs_opts;
+    QemuOpts *legacy_opts;
+    DriveMediaType media = MEDIA_DISK;
+    Error *local_err = NULL;
 
     /* Change legacy command line options into QMP ones */
     qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
@@ -808,8 +817,29 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bs_opts = qdict_new();
     qemu_opts_to_qdict(all_opts, bs_opts);
 
+    legacy_opts = qemu_opts_create_nofail(&qemu_legacy_drive_opts);
+    qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        goto fail;
+    }
+
+    /* Media type */
+    value = qemu_opt_get(legacy_opts, "media");
+    if (value) {
+        if (!strcmp(value, "disk")) {
+            media = MEDIA_DISK;
+        } else if (!strcmp(value, "cdrom")) {
+            media = MEDIA_CDROM;
+        } else {
+            error_report("'%s' invalid media", value);
+            goto fail;
+        }
+    }
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(bs_opts, block_default_type);
+    dinfo = blockdev_init(bs_opts, block_default_type, media);
     if (dinfo == NULL) {
         goto fail;
     }
@@ -819,6 +849,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->opts = all_opts;
 
 fail:
+    qemu_opts_del(legacy_opts);
     return dinfo;
 }
 
@@ -2115,7 +2146,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    dinfo = blockdev_init(qdict, IF_NONE);
+    dinfo = blockdev_init(qdict, IF_NONE, MEDIA_DISK);
     if (!dinfo) {
         error_setg(errp, "Could not open image");
         goto fail;
@@ -2183,10 +2214,6 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "trans",
             .type = QEMU_OPT_STRING,
             .help = "chs translation (auto, lba. none)",
-        },{
-            .name = "media",
-            .type = QEMU_OPT_STRING,
-            .help = "media type (disk, cdrom)",
         },{
             .name = "snapshot",
             .type = QEMU_OPT_BOOL,
