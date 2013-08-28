@@ -1149,9 +1149,16 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
     if (argreg & 1) {
         argreg++;
     }
-    argreg = tcg_out_arg_reg32(s, argreg, arglo);
-    argreg = tcg_out_arg_reg32(s, argreg, arghi);
-    return argreg;
+    if (use_armv6_instructions && argreg >= 4
+        && (arglo & 1) == 0 && arghi == arglo + 1) {
+        tcg_out_strd_8(s, COND_AL, arglo,
+                       TCG_REG_CALL_STACK, (argreg - 4) * 4);
+        return argreg + 2;
+    } else {
+        argreg = tcg_out_arg_reg32(s, argreg, arglo);
+        argreg = tcg_out_arg_reg32(s, argreg, arghi);
+        return argreg;
+    }
 }
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
