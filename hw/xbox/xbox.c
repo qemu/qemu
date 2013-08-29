@@ -38,9 +38,7 @@
 #include "exec/address-spaces.h"
 
 #include "hw/xbox/xbox_pci.h"
-#include "hw/xbox/nvnet.h"
 #include "hw/xbox/nv2a.h"
-#include "hw/xbox/mcpx_apu.h"
 
 #include "hw/xbox/xbox.h"
 
@@ -169,15 +167,13 @@ void xbox_init_common(QEMUMachineInitArgs *args,
 
 
     /* init buses */
-    host_bus = xbox_pci_init(gsi,
-                             get_system_memory(), get_system_io(),
-                             pci_memory, ram_memory);
-
-
-    /* bridges */
-    agp_bus = xbox_agp_init(host_bus);
-    isa_bus = xbox_lpc_init(host_bus, gsi);
-    smbus = xbox_smbus_init(host_bus, gsi);
+    xbox_pci_init(gsi,
+                  get_system_memory(), get_system_io(),
+                  pci_memory, ram_memory,
+                  &host_bus,
+                  &isa_bus,
+                  &smbus,
+                  &agp_bus);
 
 
     /* irq shit */
@@ -211,6 +207,7 @@ void xbox_init_common(QEMUMachineInitArgs *args,
     pc_cmos_init(ram_size, 0, boot_device,
                  NULL, idebus[0], idebus[1], rtc_state);
 
+    /* smbus devices */
     uint8_t *eeprom_buf = g_malloc0(256);
     memcpy(eeprom_buf, default_eeprom, 256);
     smbus_eeprom_init_single(smbus, 0x54, eeprom_buf);
@@ -221,20 +218,25 @@ void xbox_init_common(QEMUMachineInitArgs *args,
 
 
     /* USB */
-    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
-    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
+    PCIDevice *usb1 = pci_create(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
+    qdev_prop_set_uint32(&usb1->qdev, "num-ports", 4);
+    qdev_init_nofail(&usb1->qdev);
+
+    PCIDevice *usb0 = pci_create(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
+    qdev_prop_set_uint32(&usb0->qdev, "num-ports", 4);
+    qdev_init_nofail(&usb0->qdev);
 
     /* Ethernet! */
-    nvnet_init(host_bus, PCI_DEVFN(4, 0), gsi[4]);
+    PCIDevice *nvnet = pci_create_simple(host_bus, PCI_DEVFN(4, 0), "nvnet");
 
     /* APU! */
-    mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
+    PCIDevice *apu = pci_create_simple(host_bus, PCI_DEVFN(5, 0), "mcpx-apu");
 
     /* ACI! */
-    mcpx_aci_init(host_bus, PCI_DEVFN(6, 0), gsi[6]);
+    PCIDevice *aci = pci_create_simple(host_bus, PCI_DEVFN(6, 0), "mcpx-aci");
 
     /* GPU! */
-    nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3], ram_memory);
+    nv2a_init(agp_bus, PCI_DEVFN(0, 0), ram_memory);
 
     *out_isa_bus = isa_bus;
 }

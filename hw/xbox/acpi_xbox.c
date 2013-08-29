@@ -51,7 +51,7 @@ static void xbox_pm_update_sci_fn(ACPIREGS *regs)
 
 #define XBOX_PM_BASE_BAR 0
 
-void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm/*, qemu_irq sci_irq*/) {
+void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm, qemu_irq sci_irq) {
 
     memory_region_init(&pm->bar, OBJECT(dev), "xbox-pm-bar", 256);
     pci_register_bar(dev, XBOX_PM_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
@@ -62,5 +62,5 @@ void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm/*, qemu_irq sci_irq*/) {
     acpi_pm1_evt_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->bar);
     acpi_pm1_cnt_init(&pm->acpi_regs, &pm->bar, 2);
 
-    //pm->irq = sci_irq;
+    pm->irq = sci_irq;
 }

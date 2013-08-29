@@ -53,6 +53,7 @@ typedef struct XBOX_LPCState {
 
     ISABus *isa_bus;
     XBOX_PMRegs pm;
+    qemu_irq *pic;
 
     int bootrom_size;
     uint8_t bootrom_data[512];
@@ -69,17 +70,14 @@ typedef struct XBOX_LPCState {
 
 
 
-PCIBus *xbox_pci_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io,
-                      MemoryRegion *pci_memory,
-                      MemoryRegion *ram_memory);
-
-PCIBus *xbox_agp_init(PCIBus *bus);
-
-ISABus *xbox_lpc_init(PCIBus *bus, qemu_irq *gsi);
-
-i2c_bus *xbox_smbus_init(PCIBus *bus, qemu_irq *gsi);
-
+void xbox_pci_init(qemu_irq *pic,
+                   MemoryRegion *address_space_mem,
+                   MemoryRegion *address_space_io,
+                   MemoryRegion *pci_memory,
+                   MemoryRegion *ram_memory,
+                   PCIBus **out_host_bus,
+                   ISABus **out_isa_bus,
+                   i2c_bus **out_smbus,
+                   PCIBus **out_agp_bus);
 
 #endif

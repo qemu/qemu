@@ -21,11 +21,8 @@
 #include "hw/pci/pci.h"
 #include "hw/audio/ac97_int.h"
 
-#include "hw/xbox/mcpx_apu.h"
-
 typedef struct MCPXACIState {
     PCIDevice dev;
-    qemu_irq irq;
 
     AC97LinkState ac97;
 
@@ -67,7 +64,7 @@ static int mcpx_aci_initfn(PCIDevice *dev)
 
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    ac97_common_init(&d->ac97, d->irq, pci_get_address_space(&d->dev));
+    ac97_common_init(&d->ac97, dev->irq[0], pci_get_address_space(&d->dev));
 
     return 0;
 }
@@ -98,13 +95,3 @@ static void mcpx_aci_register(void)
     type_register_static(&mcpx_aci_info);
 }
 type_init(mcpx_aci_register);
-
-
-void mcpx_aci_init(PCIBus *bus, int devfn, qemu_irq irq)
-{
-    PCIDevice *dev;
-    MCPXACIState *d;
-    dev = pci_create_simple(bus, devfn, "mcpx-aci");
-    d = MCPX_ACI_DEVICE(dev);
-    d->irq = irq;
-}

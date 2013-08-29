@@ -952,9 +952,9 @@ static void update_irq(NV2AState *d)
     }
 
     if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) {
-        qemu_irq_raise(d->irq);
+        qemu_irq_raise(d->dev.irq[0]);
     } else {
-        qemu_irq_lower(d->irq);
+        qemu_irq_lower(d->dev.irq[0]);
     }
 }
 
@@ -3904,14 +3904,9 @@ type_init(nv2a_register);
 
 
 
-void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq, MemoryRegion *ram)
+void nv2a_init(PCIBus *bus, int devfn, MemoryRegion *ram)
 {
-    PCIDevice *dev;
-    NV2AState *d;
-    dev = pci_create_simple(bus, devfn, "nv2a");
-    d = NV2A_DEVICE(dev);
-
+    PCIDevice *dev = pci_create_simple(bus, devfn, "nv2a");
+    NV2AState *d = NV2A_DEVICE(dev);
     nv2a_init_memory(d, ram);
-
-    d->irq = irq;
 }

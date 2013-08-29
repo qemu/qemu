@@ -20,9 +20,6 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 
-#include "hw/xbox/mcpx_apu.h"
-
-
 
 #define NV_PAPU_ISTS                                     0x00001000
 #   define NV_PAPU_ISTS_GINTSTS                               (1 << 0)
@@ -118,7 +115,6 @@ static const struct {
 
 typedef struct MCPXAPUState {
     PCIDevice dev;
-    qemu_irq irq;
 
     MemoryRegion mmio;
 
@@ -179,11 +175,11 @@ static void update_irq(MCPXAPUState *d)
 
         d->regs[NV_PAPU_ISTS] |= NV_PAPU_ISTS_GINTSTS;
         MCPX_DPRINTF("mcpx irq raise\n");
-        qemu_irq_raise(d->irq);
+        qemu_irq_raise(d->dev.irq[0]);
     } else {
         d->regs[NV_PAPU_ISTS] &= ~NV_PAPU_ISTS_GINTSTS;
         MCPX_DPRINTF("mcpx irq lower\n");
-        qemu_irq_lower(d->irq);
+        qemu_irq_lower(d->dev.irq[0]);
     }
 }
 
@@ -462,14 +458,3 @@ static void mcpx_apu_register(void)
     type_register_static(&mcpx_apu_info);
 }
 type_init(mcpx_apu_register);
-
-
-
-void mcpx_apu_init(PCIBus *bus, int devfn, qemu_irq irq)
-{
-    PCIDevice *dev;
-    MCPXAPUState *d;
-    dev = pci_create_simple(bus, devfn, "mcpx-apu");
-    d = MCPX_APU_DEVICE(dev);
-    d->irq = irq;
-}

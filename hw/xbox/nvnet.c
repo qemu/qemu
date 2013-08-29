@@ -20,8 +20,6 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 
-#include "hw/xbox/nvnet.h"
-
 
 #define IOPORT_SIZE 0x8
 #define MMIO_SIZE 0x400
@@ -36,8 +34,6 @@
 
 typedef struct NVNetState {
     PCIDevice dev;
-    qemu_irq irq;
-
     MemoryRegion mmio, io;
 } NVNetState;
 
@@ -119,13 +115,3 @@ static void nvnet_register(void)
     type_register_static(&nvnet_info);
 }
 type_init(nvnet_register);
-
-
-void nvnet_init(PCIBus *bus, int devfn, qemu_irq irq)
-{
-    PCIDevice *dev;
-    NVNetState *d;
-    dev = pci_create_simple(bus, devfn, "nvnet");
-    d = NVNET_DEVICE(dev);
-    d->irq = irq;
-}

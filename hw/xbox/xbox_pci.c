@@ -59,33 +59,105 @@
 
 
 
+#define XBOX_NUM_INT_IRQS 8
+#define XBOX_NUM_PIRQS    4
 
+#define XBOX_NUM_PIC_IRQS 16
 
-PCIBus *xbox_pci_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io,
-                      MemoryRegion *pci_memory,
-                      MemoryRegion *ram_memory)
+#define XBOX_LPC_ACPI_IRQ_ROUT 0x64
+#define XBOX_LPC_PIRQ_ROUT     0x68
+#define XBOX_LPC_INT_IRQ_ROUT  0x6C
 
+static void xbox_lpc_set_irq(void *opaque, int pirq, int level)
 {
-    DeviceState *dev;
+    XBOX_LPCState *lpc = opaque;
+
+    assert(pirq >= 0);
+    assert(pirq < XBOX_NUM_INT_IRQS + XBOX_NUM_PIRQS);
+
+    int pic_irq = 0;
+
+    if (pirq < XBOX_NUM_INT_IRQS) {
+        /* devices on the internal bus */
+        uint32_t routing = pci_get_long(lpc->dev.config + XBOX_LPC_INT_IRQ_ROUT);
+        pic_irq = (routing >> (pirq*4)) & 0xF;
+
+        if (pic_irq == 0) {
+            return;
+        }
+    } else {
+        /* pirqs */
+        pirq -= XBOX_NUM_INT_IRQS;
+        pic_irq = lpc->dev.config[XBOX_LPC_PIRQ_ROUT + pirq];
+    }
+
+    if (pic_irq >= XBOX_NUM_PIC_IRQS) {
+        return;
+    }
+    qemu_set_irq(lpc->pic[pic_irq], level);
+}
+
+static int xbox_lpc_map_irq(PCIDevice *pci_dev, int intx)
+{
+    int slot = PCI_SLOT(pci_dev->devfn);
+    switch (slot) {
+    /* devices on the internal bus */
+    case 2: return 0; /* usb0 */
+    case 3: return 1; /* usb1 */
+    case 4: return 2; /* nic */
+    case 5: return 3; /* apu */
+    case 6: return 4; /* aci */
+    case 9: return 6; /* ide */
+
+    case 30: /* agp bridge -> PIRQC? */
+        return XBOX_NUM_INT_IRQS + 2;
+    default:
+        /* don't actually know how this should work */
+        assert(false);
+        return XBOX_NUM_INT_IRQS + ((slot + intx) & 3);
+    }
+}
+
+static void xbox_lpc_set_acpi_irq(void *opaque, int irq_num, int level)
+{
+    XBOX_LPCState *lpc = opaque;
+    assert(irq_num == 0 || irq_num == 1);
+
+    uint32_t routing = pci_get_long(lpc->dev.config + XBOX_LPC_ACPI_IRQ_ROUT);
+    int irq = (routing >> (irq_num*8)) & 0xff;
+
+    if (irq == 0 || irq >= XBOX_NUM_PIC_IRQS) {
+        return;
+    }
+    qemu_set_irq(lpc->pic[irq], level);
+}
+
+
+
+void xbox_pci_init(qemu_irq *pic,
+                   MemoryRegion *address_space_mem,
+                   MemoryRegion *address_space_io,
+                   MemoryRegion *pci_memory,
+                   MemoryRegion *ram_memory,
+                   PCIBus **out_host_bus,
+                   ISABus **out_isa_bus,
+                   i2c_bus **out_smbus,
+                   PCIBus **out_agp_bus)
+{
+    DeviceState *host;
     PCIHostState *host_state;
     PCIBus *host_bus;
     PCIDevice *bridge;
     XBOX_PCIState *bridge_state;
 
     /* pci host bus */
-    dev = qdev_create(NULL, "xbox-pcihost");
-    host_state = PCI_HOST_BRIDGE(dev);
+    host = qdev_create(NULL, "xbox-pcihost");
+    host_state = PCI_HOST_BRIDGE(host);
 
-    host_bus = pci_bus_new(dev, NULL,
+    host_bus = pci_bus_new(host, NULL,
                            pci_memory, address_space_io, 0, TYPE_PCI_BUS);
     host_state->bus = host_bus;
-
-    //pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
-    //            PIIX_NUM_PIRQS);
-
-    qdev_init_nofail(dev);
+    qdev_init_nofail(host);
 
     bridge = pci_create_simple_multifunction(host_bus, PCI_DEVFN(0, 0),
                                              true, "xbox-pci");
@@ -95,6 +167,7 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
     bridge_state->system_memory = address_space_mem;
 
     /* PCI hole */
+    /* TODO: move to xbox-pci init */
     memory_region_init_alias(&bridge_state->pci_hole, OBJECT(bridge),
                              "pci-hole",
                              bridge_state->pci_address_space,
@@ -104,64 +177,42 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
                                 &bridge_state->pci_hole);
 
 
-    return host_bus;
-}
+    /* lpc bridge */
+    PCIDevice *lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(1, 0),
+                                                     true, "xbox-lpc");
+    XBOX_LPCState *lpc_state = XBOX_LPC_DEVICE(lpc);
+    lpc_state->pic = pic;
 
+    pci_bus_irqs(host_bus, xbox_lpc_set_irq, xbox_lpc_map_irq, lpc_state,
+                 XBOX_NUM_INT_IRQS + XBOX_NUM_PIRQS);
 
-PCIBus *xbox_agp_init(PCIBus *bus)
-{
-    PCIDevice *d;
-    PCIBridge *br;
-    //DeviceState *qdev;
-
-    /* AGP bus */
-    d = pci_create_simple(bus, PCI_DEVFN(30, 0), "xbox-agp");
-    if (!d) {
-        return NULL;
-    }
-
-    br = PCI_BRIDGE(d);
-    //qdev = &br->dev.qdev;
-    //qdev_init_nofail(qdev);
-
-    return pci_bridge_get_sec_bus(br);
-}
-
-
-ISABus *xbox_lpc_init(PCIBus *bus, qemu_irq *gsi)
-{
-    PCIDevice *d;
-    XBOX_LPCState *s;
-    //qemu_irq *sci_irq;
-
-    d = pci_create_simple_multifunction(bus, PCI_DEVFN(1, 0),
-                                        true, "xbox-lpc");
-
-    s = XBOX_LPC_DEVICE(d);
-
-    //sci_irq = qemu_allocate_irqs(xbox_set_sci, &s->irq_state, 1);
-    xbox_pm_init(d, &s->pm /*, sci_irq[0]*/);
+    qemu_irq *acpi_irq = qemu_allocate_irqs(xbox_lpc_set_acpi_irq,
+                                            lpc_state, 2);
+    xbox_pm_init(lpc, &lpc_state->pm, acpi_irq[0]);
     //xbox_lpc_reset(&s->dev.qdev);
 
-    return s->isa_bus;
+
+    /* smbus */
+    PCIDevice *smbus = pci_create_simple_multifunction(host_bus, PCI_DEVFN(1, 1),
+                                                       true, "xbox-smbus");
+
+    XBOX_SMBState *smbus_state = XBOX_SMBUS_DEVICE(smbus);
+    amd756_smbus_init(&smbus->qdev, &smbus_state->smb, acpi_irq[1]);
+
+
+    /* AGP bus */
+    PCIDevice *agp = pci_create_simple(host_bus, PCI_DEVFN(30, 0), "xbox-agp");
+    //qdev = &br->dev.qdev;
+    //qdev_init_nofail(qdev);
+    PCIBus *agp_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(agp));
+
+
+
+    *out_host_bus = host_bus;
+    *out_isa_bus = lpc_state->isa_bus;
+    *out_smbus = smbus_state->smb.smbus;
+    *out_agp_bus = agp_bus;
 }
-
-
-i2c_bus *xbox_smbus_init(PCIBus *bus, qemu_irq *gsi)
-{
-    PCIDevice *d;
-    XBOX_SMBState *s;
-    
-    d = pci_create_simple_multifunction(bus, PCI_DEVFN(1, 1),
-                                        true, "xbox-smbus");
-
-    s = XBOX_SMBUS_DEVICE(d);
-    amd756_smbus_init(&d->qdev, &s->smb, gsi[11]);
-
-    return s->smb.smbus;
-}
-
-
 
 
 #define XBOX_SMBUS_BASE_BAR 1
@@ -285,7 +336,7 @@ static void xbox_lpc_reset(DeviceState *dev)
     if (s->bootrom_size) {
         /* qemu's memory region shit is actually kinda broken -
          * Trying to execute off a non-page-aligned memory region
-         * is fucked, so we can't must map in the bootrom.
+         * is fucked, so we can't just map in the bootrom.
          *
          * We need to be able to disable it at runtime, and
          * it shouldn't be visible ontop of the bios mirrors. It'll have to
@@ -294,7 +345,7 @@ static void xbox_lpc_reset(DeviceState *dev)
          * Be lazy for now and just write it ontop of the bios.
          *
          * (We do this here since loader.c loads roms into memory in a reset
-         * handler, and here we /should/ be handler after it.)
+         * handler, and here we /should/ be handled after it.)
          */
 
         hwaddr bootrom_addr = (uint32_t)(-s->bootrom_size);
