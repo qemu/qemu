@@ -836,132 +836,101 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 }
 
 #if defined(CONFIG_SOFTMMU)
-static void tcg_out_qemu_ld_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
+static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    int s_bits;
-    int ir;
-    int opc = label->opc;
-    int mem_index = label->mem_index;
-    int data_reg = label->datalo_reg;
-    int data_reg2 = label->datahi_reg;
-    int addr_reg = label->addrlo_reg;
-    uint8_t *raddr = label->raddr;
-    uint8_t **label_ptr = &label->label_ptr[0];
+    TCGReg ir, datalo, datahi;
 
-    s_bits = opc & 3;
+    reloc_pc14 (l->label_ptr[0], (uintptr_t)s->code_ptr);
 
-    /* resolve label address */
-    reloc_pc14 (label_ptr[0], (tcg_target_long) s->code_ptr);
-
-    /* slow path */
-    ir = 4;
-#if TARGET_LONG_BITS == 32
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
-#else
+    ir = TCG_REG_R4;
+    if (TARGET_LONG_BITS == 32) {
+        tcg_out_mov(s, TCG_TYPE_I32, ir++, l->addrlo_reg);
+    } else {
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
-    ir |= 1;
+        ir |= 1;
 #endif
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, label->addrhi_reg);
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
-#endif
-    tcg_out_movi (s, TCG_TYPE_I32, ir++, mem_index);
-    tcg_out_movi (s, TCG_TYPE_I32, ir, (tcg_target_long) raddr);
-    tcg_out_b (s, LK, (tcg_target_long) ld_trampolines[s_bits]);
-    switch (opc) {
+        tcg_out_mov(s, TCG_TYPE_I32, ir++, l->addrhi_reg);
+        tcg_out_mov(s, TCG_TYPE_I32, ir++, l->addrlo_reg);
+    }
+    tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
+    tcg_out_movi(s, TCG_TYPE_PTR, ir, (uintptr_t)l->raddr);
+    tcg_out_b(s, LK, (uintptr_t)ld_trampolines[l->opc & 3]);
+
+    datalo = l->datalo_reg;
+    switch (l->opc) {
     case 0|4:
-        tcg_out32 (s, EXTSB | RA (data_reg) | RS (3));
+        tcg_out32(s, EXTSB | RA(datalo) | RS(TCG_REG_R3));
         break;
     case 1|4:
-        tcg_out32 (s, EXTSH | RA (data_reg) | RS (3));
+        tcg_out32(s, EXTSH | RA(datalo) | RS(TCG_REG_R3));
         break;
     case 0:
     case 1:
     case 2:
-        if (data_reg != 3)
-            tcg_out_mov (s, TCG_TYPE_I32, data_reg, 3);
+        tcg_out_mov(s, TCG_TYPE_I32, datalo, TCG_REG_R3);
         break;
     case 3:
-        if (data_reg == 3) {
-            if (data_reg2 == 4) {
-                tcg_out_mov (s, TCG_TYPE_I32, 0, 4);
-                tcg_out_mov (s, TCG_TYPE_I32, 4, 3);
-                tcg_out_mov (s, TCG_TYPE_I32, 3, 0);
-            }
-            else {
-                tcg_out_mov (s, TCG_TYPE_I32, data_reg2, 3);
-                tcg_out_mov (s, TCG_TYPE_I32, 3, 4);
-            }
-        }
-        else {
-            if (data_reg != 4) tcg_out_mov (s, TCG_TYPE_I32, data_reg, 4);
-            if (data_reg2 != 3) tcg_out_mov (s, TCG_TYPE_I32, data_reg2, 3);
+        datahi = l->datahi_reg;
+        if (datalo != TCG_REG_R3) {
+            tcg_out_mov(s, TCG_TYPE_I32, datalo, TCG_REG_R4);
+            tcg_out_mov(s, TCG_TYPE_I32, datahi, TCG_REG_R3);
+        } else if (datahi != TCG_REG_R4) {
+            tcg_out_mov(s, TCG_TYPE_I32, datahi, TCG_REG_R3);
+            tcg_out_mov(s, TCG_TYPE_I32, datalo, TCG_REG_R4);
+        } else {
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R0, TCG_REG_R4);
+            tcg_out_mov(s, TCG_TYPE_I32, datahi, TCG_REG_R3);
+            tcg_out_mov(s, TCG_TYPE_I32, datalo, TCG_REG_R0);
         }
         break;
     }
-    /* Jump to the code corresponding to next IR of qemu_st */
-    tcg_out_b (s, 0, (tcg_target_long) raddr);
+    tcg_out_b (s, 0, (uintptr_t)l->raddr);
 }
 
-static void tcg_out_qemu_st_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
+static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    int ir;
-    int opc = label->opc;
-    int mem_index = label->mem_index;
-    int data_reg = label->datalo_reg;
-    int data_reg2 = label->datahi_reg;
-    int addr_reg = label->addrlo_reg;
-    uint8_t *raddr = label->raddr;
-    uint8_t **label_ptr = &label->label_ptr[0];
+    TCGReg ir, datalo;
 
-    /* resolve label address */
-    reloc_pc14 (label_ptr[0], (tcg_target_long) s->code_ptr);
+    reloc_pc14 (l->label_ptr[0], (tcg_target_long) s->code_ptr);
 
-    /* slow path */
-    ir = 4;
-#if TARGET_LONG_BITS == 32
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
-#else
+    ir = TCG_REG_R4;
+    if (TARGET_LONG_BITS == 32) {
+        tcg_out_mov (s, TCG_TYPE_I32, ir++, l->addrlo_reg);
+    } else {
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
-    ir |= 1;
+        ir |= 1;
 #endif
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, label->addrhi_reg);
-    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
-#endif
+        tcg_out_mov (s, TCG_TYPE_I32, ir++, l->addrhi_reg);
+        tcg_out_mov (s, TCG_TYPE_I32, ir++, l->addrlo_reg);
+    }
 
-    switch (opc) {
+    datalo = l->datalo_reg;
+    switch (l->opc) {
     case 0:
-        tcg_out32 (s, (RLWINM
-                       | RA (ir)
-                       | RS (data_reg)
-                       | SH (0)
-                       | MB (24)
-                       | ME (31)));
+        tcg_out32(s, (RLWINM | RA (ir) | RS (datalo)
+                      | SH (0) | MB (24) | ME (31)));
         break;
     case 1:
-        tcg_out32 (s, (RLWINM
-                       | RA (ir)
-                       | RS (data_reg)
-                       | SH (0)
-                       | MB (16)
-                       | ME (31)));
+        tcg_out32(s, (RLWINM | RA (ir) | RS (datalo)
+                      | SH (0) | MB (16) | ME (31)));
         break;
     case 2:
-        tcg_out_mov (s, TCG_TYPE_I32, ir, data_reg);
+        tcg_out_mov(s, TCG_TYPE_I32, ir, datalo);
         break;
     case 3:
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
         ir |= 1;
 #endif
-        tcg_out_mov (s, TCG_TYPE_I32, ir++, data_reg2);
-        tcg_out_mov (s, TCG_TYPE_I32, ir, data_reg);
+        tcg_out_mov(s, TCG_TYPE_I32, ir++, l->datahi_reg);
+        tcg_out_mov(s, TCG_TYPE_I32, ir, datalo);
         break;
     }
     ir++;
 
-    tcg_out_movi (s, TCG_TYPE_I32, ir++, mem_index);
-    tcg_out_movi (s, TCG_TYPE_I32, ir, (tcg_target_long) raddr);
-    tcg_out32 (s, MTSPR | RS (ir) | LR);
-    tcg_out_b (s, 0, (tcg_target_long) st_trampolines[opc]);
+    tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
+    tcg_out_movi(s, TCG_TYPE_PTR, ir, (uintptr_t)l->raddr);
+    tcg_out32(s, MTSPR | RS(ir) | LR);
+    tcg_out_b(s, 0, (uintptr_t)st_trampolines[l->opc]);
 }
 
 void tcg_out_tb_finalize(TCGContext *s)
