@@ -26,3 +26,5 @@ FILESUBTYPE VFT2_UNKNOWN
     VALUE "Translation", 0x0409, 1252
   }
 }
+
+IDI_ICON1 ICON "pc-bios/qemu-nsis.ico"
