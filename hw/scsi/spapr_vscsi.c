@@ -977,29 +977,43 @@ static int vscsi_send_capabilities(VSCSIState *s, vscsi_req *req)
 static int vscsi_handle_mad_req(VSCSIState *s, vscsi_req *req)
 {
     union mad_iu *mad = &req->iu.mad;
+    bool request_handled = false;
+    uint64_t retlen = 0;
 
     switch (be32_to_cpu(mad->empty_iu.common.type)) {
     case VIOSRP_EMPTY_IU_TYPE:
         fprintf(stderr, "Unsupported EMPTY MAD IU\n");
+        retlen = sizeof(mad->empty_iu);
         break;
     case VIOSRP_ERROR_LOG_TYPE:
         fprintf(stderr, "Unsupported ERROR LOG MAD IU\n");
-        mad->error_log.common.status = cpu_to_be16(1);
-        vscsi_send_iu(s, req, sizeof(mad->error_log), VIOSRP_MAD_FORMAT);
+        retlen = sizeof(mad->error_log);
         break;
     case VIOSRP_ADAPTER_INFO_TYPE:
         vscsi_send_adapter_info(s, req);
+        request_handled = true;
         break;
     case VIOSRP_HOST_CONFIG_TYPE:
-        mad->host_config.common.status = cpu_to_be16(1);
-        vscsi_send_iu(s, req, sizeof(mad->host_config), VIOSRP_MAD_FORMAT);
+        retlen = sizeof(mad->host_config);
         break;
     case VIOSRP_CAPABILITIES_TYPE:
         vscsi_send_capabilities(s, req);
+        request_handled = true;
         break;
     default:
         fprintf(stderr, "VSCSI: Unknown MAD type %02x\n",
                 be32_to_cpu(mad->empty_iu.common.type));
+        /*
+         * PAPR+ says that "The length field is set to the length
+         * of the data structure(s) used in the command".
+         * As we did not recognize the request type, put zero there.
+         */
+        retlen = 0;
+    }
+
+    if (!request_handled) {
+        mad->empty_iu.common.status = cpu_to_be16(VIOSRP_MAD_NOT_SUPPORTED);
+        vscsi_send_iu(s, req, retlen, VIOSRP_MAD_FORMAT);
     }
 
     return 1;
