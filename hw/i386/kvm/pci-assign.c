@@ -568,8 +568,7 @@ static int get_real_device_id(const char *devpath, uint16_t *val)
     return get_real_id(devpath, "device", val);
 }
 
-static int get_real_device(AssignedDevice *pci_dev, uint16_t r_seg,
-                           uint8_t r_bus, uint8_t r_dev, uint8_t r_func)
+static int get_real_device(AssignedDevice *pci_dev)
 {
     char dir[128], name[128];
     int fd, r = 0, v;
@@ -582,7 +581,8 @@ static int get_real_device(AssignedDevice *pci_dev, uint16_t r_seg,
     dev->region_number = 0;
 
     snprintf(dir, sizeof(dir), "/sys/bus/pci/devices/%04x:%02x:%02x.%x/",
-             r_seg, r_bus, r_dev, r_func);
+             pci_dev->host.domain, pci_dev->host.bus,
+             pci_dev->host.slot, pci_dev->host.function);
 
     snprintf(name, sizeof(name), "%sconfig", dir);
 
@@ -1769,8 +1769,7 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     memcpy(dev->emulate_config_write, dev->emulate_config_read,
            sizeof(dev->emulate_config_read));
 
-    if (get_real_device(dev, dev->host.domain, dev->host.bus,
-                        dev->host.slot, dev->host.function)) {
+    if (get_real_device(dev)) {
         error_report("pci-assign: Error: Couldn't get real device (%s)!",
                      dev->dev.qdev.id);
         goto out;

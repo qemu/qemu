@@ -65,11 +65,15 @@ static bool has_msr_star;
 static bool has_msr_hsave_pa;
 static bool has_msr_tsc_adjust;
 static bool has_msr_tsc_deadline;
+static bool has_msr_feature_control;
 static bool has_msr_async_pf_en;
 static bool has_msr_pv_eoi_en;
 static bool has_msr_misc_enable;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
+
+static bool has_msr_architectural_pmu;
+static uint32_t num_architectural_pmu_counters;
 
 bool kvm_allows_irq0_override(void)
 {
@@ -597,6 +601,25 @@ int kvm_arch_init_vcpu(CPUState *cs)
             break;
         }
     }
+
+    if (limit >= 0x0a) {
+        uint32_t ver;
+
+        cpu_x86_cpuid(env, 0x0a, 0, &ver, &unused, &unused, &unused);
+        if ((ver & 0xff) > 0) {
+            has_msr_architectural_pmu = true;
+            num_architectural_pmu_counters = (ver & 0xff00) >> 8;
+
+            /* Shouldn't be more than 32, since that's the number of bits
+             * available in EBX to tell us _which_ counters are available.
+             * Play it safe.
+             */
+            if (num_architectural_pmu_counters > MAX_GP_COUNTERS) {
+                num_architectural_pmu_counters = MAX_GP_COUNTERS;
+            }
+        }
+    }
+
     cpu_x86_cpuid(env, 0x80000000, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0x80000000; i <= limit; i++) {
@@ -659,6 +682,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     qemu_add_vm_change_state_handler(cpu_update_state, env);
+
+    c = cpuid_find_entry(&cpuid_data.cpuid, 1, 0);
+    if (c) {
+        has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
+                                  !!(c->ecx & CPUID_EXT_SMX);
+    }
 
     cpuid_data.cpuid.padding = 0;
     r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
@@ -1060,6 +1089,26 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
     entry->data = value;
 }
 
+static int kvm_put_tscdeadline_msr(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    struct kvm_msr_entry *msrs = msr_data.entries;
+
+    if (!has_msr_tsc_deadline) {
+        return 0;
+    }
+
+    kvm_msr_entry_set(&msrs[0], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
+
+    msr_data.info.nmsrs = 1;
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -1068,7 +1117,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         struct kvm_msr_entry entries[100];
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
-    int n = 0;
+    int n = 0, i;
 
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -1082,9 +1131,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
     if (has_msr_tsc_adjust) {
         kvm_msr_entry_set(&msrs[n++], MSR_TSC_ADJUST, env->tsc_adjust);
-    }
-    if (has_msr_tsc_deadline) {
-        kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
     }
     if (has_msr_misc_enable) {
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_MISC_ENABLE,
@@ -1110,9 +1156,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
     }
     /*
-     * The following paravirtual MSRs have side effects on the guest or are
-     * too heavy for normal writeback. Limit them to reset or full state
-     * updates.
+     * The following MSRs have side effects on the guest or are too heavy
+     * for normal writeback. Limit them to reset or full state updates.
      */
     if (level >= KVM_PUT_RESET_STATE) {
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
@@ -1130,12 +1175,43 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_STEAL_TIME,
                               env->steal_time_msr);
         }
+        if (has_msr_architectural_pmu) {
+            /* Stop the counter.  */
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_CTRL, 0);
+
+            /* Set the counter values.  */
+            for (i = 0; i < MAX_FIXED_COUNTERS; i++) {
+                kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_FIXED_CTR0 + i,
+                                  env->msr_fixed_counters[i]);
+            }
+            for (i = 0; i < num_architectural_pmu_counters; i++) {
+                kvm_msr_entry_set(&msrs[n++], MSR_P6_PERFCTR0 + i,
+                                  env->msr_gp_counters[i]);
+                kvm_msr_entry_set(&msrs[n++], MSR_P6_EVNTSEL0 + i,
+                                  env->msr_gp_evtsel[i]);
+            }
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_STATUS,
+                              env->msr_global_status);
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_OVF_CTRL,
+                              env->msr_global_ovf_ctrl);
+
+            /* Now start the PMU.  */
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_FIXED_CTR_CTRL,
+                              env->msr_fixed_ctr_ctrl);
+            kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_CTRL,
+                              env->msr_global_ctrl);
+        }
         if (hyperv_hypercall_available(cpu)) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
         }
         if (cpu->hyperv_vapic) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
+        }
+        if (has_msr_feature_control) {
+            kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL,
+                              env->msr_ia32_feature_control);
         }
     }
     if (env->mcg_cap) {
@@ -1361,6 +1437,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_misc_enable) {
         msrs[n++].index = MSR_IA32_MISC_ENABLE;
     }
+    if (has_msr_feature_control) {
+        msrs[n++].index = MSR_IA32_FEATURE_CONTROL;
+    }
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
@@ -1386,6 +1465,19 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_kvm_steal_time) {
         msrs[n++].index = MSR_KVM_STEAL_TIME;
     }
+    if (has_msr_architectural_pmu) {
+        msrs[n++].index = MSR_CORE_PERF_FIXED_CTR_CTRL;
+        msrs[n++].index = MSR_CORE_PERF_GLOBAL_CTRL;
+        msrs[n++].index = MSR_CORE_PERF_GLOBAL_STATUS;
+        msrs[n++].index = MSR_CORE_PERF_GLOBAL_OVF_CTRL;
+        for (i = 0; i < MAX_FIXED_COUNTERS; i++) {
+            msrs[n++].index = MSR_CORE_PERF_FIXED_CTR0 + i;
+        }
+        for (i = 0; i < num_architectural_pmu_counters; i++) {
+            msrs[n++].index = MSR_P6_PERFCTR0 + i;
+            msrs[n++].index = MSR_P6_EVNTSEL0 + i;
+        }
+    }
 
     if (env->mcg_cap) {
         msrs[n++].index = MSR_MCG_STATUS;
@@ -1402,7 +1494,8 @@ static int kvm_get_msrs(X86CPU *cpu)
     }
 
     for (i = 0; i < ret; i++) {
-        switch (msrs[i].index) {
+        uint32_t index = msrs[i].index;
+        switch (index) {
         case MSR_IA32_SYSENTER_CS:
             env->sysenter_cs = msrs[i].data;
             break;
@@ -1459,6 +1552,9 @@ static int kvm_get_msrs(X86CPU *cpu)
         case MSR_IA32_MISC_ENABLE:
             env->msr_ia32_misc_enable = msrs[i].data;
             break;
+        case MSR_IA32_FEATURE_CONTROL:
+            env->msr_ia32_feature_control = msrs[i].data;
+            break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&
                 msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {
@@ -1473,6 +1569,27 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_KVM_STEAL_TIME:
             env->steal_time_msr = msrs[i].data;
+            break;
+        case MSR_CORE_PERF_FIXED_CTR_CTRL:
+            env->msr_fixed_ctr_ctrl = msrs[i].data;
+            break;
+        case MSR_CORE_PERF_GLOBAL_CTRL:
+            env->msr_global_ctrl = msrs[i].data;
+            break;
+        case MSR_CORE_PERF_GLOBAL_STATUS:
+            env->msr_global_status = msrs[i].data;
+            break;
+        case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+            env->msr_global_ovf_ctrl = msrs[i].data;
+            break;
+        case MSR_CORE_PERF_FIXED_CTR0 ... MSR_CORE_PERF_FIXED_CTR0 + MAX_FIXED_COUNTERS - 1:
+            env->msr_fixed_counters[index - MSR_CORE_PERF_FIXED_CTR0] = msrs[i].data;
+            break;
+        case MSR_P6_PERFCTR0 ... MSR_P6_PERFCTR0 + MAX_GP_COUNTERS - 1:
+            env->msr_gp_counters[index - MSR_P6_PERFCTR0] = msrs[i].data;
+            break;
+        case MSR_P6_EVNTSEL0 ... MSR_P6_EVNTSEL0 + MAX_GP_COUNTERS - 1:
+            env->msr_gp_evtsel[index - MSR_P6_EVNTSEL0] = msrs[i].data;
             break;
         }
     }
@@ -1724,6 +1841,12 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
             return ret;
         }
     }
+
+    ret = kvm_put_tscdeadline_msr(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
