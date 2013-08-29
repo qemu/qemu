@@ -131,7 +131,7 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
-int loader_exec(const char * filename, char ** argv, char ** envp,
+int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
              struct target_pt_regs * regs, struct image_info *infop,
              struct linux_binprm *bprm)
 {
@@ -140,11 +140,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
 
     bprm->p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
     memset(bprm->page, 0, sizeof(bprm->page));
-    retval = open(filename, O_RDONLY);
-    if (retval < 0) {
-        return -errno;
-    }
-    bprm->fd = retval;
+    bprm->fd = fdexec;
     bprm->filename = (char *)filename;
     bprm->argc = count(argv);
     bprm->argv = argv;
