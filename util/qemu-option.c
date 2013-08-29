@@ -275,6 +275,8 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
         return -1;
     }
 
+    list->assigned = true;
+
     return 0;
 }
 
@@ -305,6 +307,8 @@ int set_option_parameter_int(QEMUOptionParameter *list, const char *name,
     default:
         return -1;
     }
+
+    list->assigned = true;
 
     return 0;
 }
@@ -397,6 +401,7 @@ QEMUOptionParameter *parse_option_parameters(const char *param,
     char value[256];
     char *param_delim, *value_delim;
     char next_delim;
+    int i;
 
     if (list == NULL) {
         return NULL;
@@ -404,6 +409,10 @@ QEMUOptionParameter *parse_option_parameters(const char *param,
 
     if (dest == NULL) {
         dest = allocated = append_option_parameters(NULL, list);
+    }
+
+    for (i = 0; dest[i].name; i++) {
+        dest[i].assigned = false;
     }
 
     while (*param) {
