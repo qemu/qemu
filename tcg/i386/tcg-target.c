@@ -1531,20 +1531,17 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     case 1 | 4:
         tcg_out_ext16s(s, data_reg, TCG_REG_EAX, P_REXW);
         break;
-    case 0:
-        tcg_out_ext8u(s, data_reg, TCG_REG_EAX);
-        break;
-    case 1:
-        tcg_out_ext16u(s, data_reg, TCG_REG_EAX);
-        break;
-    case 2:
-        tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
-        break;
 #if TCG_TARGET_REG_BITS == 64
     case 2 | 4:
         tcg_out_ext32s(s, data_reg, TCG_REG_EAX);
         break;
 #endif
+    case 0:
+    case 1:
+        /* Note that the helpers have zero-extended to tcg_target_long.  */
+    case 2:
+        tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
+        break;
     case 3:
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_RAX);
