@@ -326,9 +326,7 @@ extern uintptr_t tci_tb_ptr;
    (6) jump to corresponding code of the next of fast path
  */
 # if defined(__i386__) || defined(__x86_64__)
-#  define GETRA() ((uintptr_t)__builtin_return_address(0))
-/* The return address argument for ldst is passed directly.  */
-#  define GETPC_LDST()  (abort(), 0)
+#  define GETPC_EXT()  GETPC()
 # elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
 #  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
@@ -349,7 +347,7 @@ static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
                                    not the start of the next opcode  */
     return ra;
 }
-#elif defined(__aarch64__)
+# elif defined(__aarch64__)
 #  define GETRA()       ((uintptr_t)__builtin_return_address(0))
 #  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
 static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
@@ -367,7 +365,9 @@ static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
 #  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif
 bool is_tcg_gen_code(uintptr_t pc_ptr);
-# define GETPC_EXT() (is_tcg_gen_code(GETRA()) ? GETPC_LDST() : GETPC())
+# ifndef GETPC_EXT
+#  define GETPC_EXT() (is_tcg_gen_code(GETRA()) ? GETPC_LDST() : GETPC())
+# endif
 #else
 # define GETPC_EXT() GETPC()
 #endif
