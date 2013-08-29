@@ -854,7 +854,7 @@ static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
         now = remain;
         if (int128_lt(remain.size, page_size)) {
             register_subpage(d, &now);
-        } else if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
+        } else if (remain.offset_within_address_space & ~TARGET_PAGE_MASK) {
             now.size = page_size;
             register_subpage(d, &now);
         } else {
