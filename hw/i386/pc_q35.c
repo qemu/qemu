@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
+#include "hw/loader.h"
 #include "sysemu/arch_init.h"
 #include "hw/i2c/smbus.h"
 #include "hw/boards.h"
@@ -52,12 +53,6 @@ static bool has_pci_info = true;
 /* PC hardware initialisation */
 static void pc_q35_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
     PCIHostState *phb;
@@ -85,17 +80,17 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(cpu_model, icc_bridge);
+    pc_cpus_init(args->cpu_model, icc_bridge);
     pc_acpi_init("q35-acpi-dsdt.aml");
 
     kvmclock_create();
 
-    if (ram_size >= 0xb0000000) {
-        above_4g_mem_size = ram_size - 0xb0000000;
+    if (args->ram_size >= 0xb0000000) {
+        above_4g_mem_size = args->ram_size - 0xb0000000;
         below_4g_mem_size = 0xb0000000;
     } else {
         above_4g_mem_size = 0;
-        below_4g_mem_size = ram_size;
+        below_4g_mem_size = args->ram_size;
     }
 
     /* pci enabled */
@@ -114,8 +109,10 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        pc_memory_init(get_system_memory(), kernel_filename, kernel_cmdline,
-                       initrd_filename, below_4g_mem_size, above_4g_mem_size,
+        pc_memory_init(get_system_memory(),
+                       args->kernel_filename, args->kernel_cmdline,
+                       args->initrd_filename,
+                       below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
 
@@ -203,7 +200,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
                                     0xb100),
                       8, NULL, 0);
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_device,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
@@ -218,23 +215,41 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
-static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
+static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
+    rom_file_in_ram = false;
+}
+
+static void pc_compat_1_5(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
+    has_pvpanic = true;
+}
+
+static void pc_compat_1_4(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_5(args);
+    has_pvpanic = false;
+    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_1_6(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
     pc_q35_init(args);
 }
 
 static void pc_q35_init_1_5(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = true;
-    pc_q35_init_1_6(args);
+    pc_compat_1_5(args);
+    pc_q35_init(args);
 }
 
 static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
 {
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
-    has_pci_info = false;
+    pc_compat_1_4(args);
     pc_q35_init(args);
 }
 

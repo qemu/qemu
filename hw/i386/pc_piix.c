@@ -25,6 +25,7 @@
 #include <glib.h>
 
 #include "hw/hw.h"
+#include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
 #include "hw/pci/pci.h"
@@ -60,17 +61,12 @@ static bool has_pvpanic;
 static bool has_pci_info = true;
 
 /* PC hardware initialisation */
-static void pc_init1(MemoryRegion *system_memory,
-                     MemoryRegion *system_io,
-                     ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename,
-                     const char *kernel_cmdline,
-                     const char *initrd_filename,
-                     const char *cpu_model,
+static void pc_init1(QEMUMachineInitArgs *args,
                      int pci_enabled,
                      int kvmclock_enabled)
 {
+    MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *system_io = get_system_io();
     int i;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
@@ -102,18 +98,18 @@ static void pc_init1(MemoryRegion *system_memory,
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(cpu_model, icc_bridge);
+    pc_cpus_init(args->cpu_model, icc_bridge);
 
     if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
     }
 
-    if (ram_size >= 0xe0000000 ) {
-        above_4g_mem_size = ram_size - 0xe0000000;
+    if (args->ram_size >= 0xe0000000) {
+        above_4g_mem_size = args->ram_size - 0xe0000000;
         below_4g_mem_size = 0xe0000000;
     } else {
         above_4g_mem_size = 0;
-        below_4g_mem_size = ram_size;
+        below_4g_mem_size = args->ram_size;
     }
 
     if (pci_enabled) {
@@ -132,7 +128,8 @@ static void pc_init1(MemoryRegion *system_memory,
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         fw_cfg = pc_memory_init(system_memory,
-                       kernel_filename, kernel_cmdline, initrd_filename,
+                       args->kernel_filename, args->kernel_cmdline,
+                       args->initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
@@ -148,7 +145,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
-                              system_memory, system_io, ram_size,
+                              system_memory, system_io, args->ram_size,
                               below_4g_mem_size,
                               0x100000000ULL - below_4g_mem_size,
                               above_4g_mem_size,
@@ -207,7 +204,7 @@ static void pc_init1(MemoryRegion *system_memory,
         }
     }
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_device,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled(false)) {
@@ -236,95 +233,91 @@ static void pc_init1(MemoryRegion *system_memory,
 
 static void pc_init_pci(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 1, 1);
+    pc_init1(args, 1, 1);
+}
+
+static void pc_compat_1_6(QEMUMachineInitArgs *args)
+{
+    has_pci_info = false;
+    rom_file_in_ram = false;
+}
+
+static void pc_compat_1_5(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_6(args);
+    has_pvpanic = true;
+}
+
+static void pc_compat_1_4(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_5(args);
+    has_pvpanic = false;
+    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_compat_1_3(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_4(args);
+    enable_compat_apic_id_mode();
+}
+
+/* PC compat function for pc-0.14 to pc-1.2 */
+static void pc_compat_1_2(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_3(args);
+    disable_kvm_pv_eoi();
 }
 
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
 {
-    has_pci_info = false;
+    pc_compat_1_6(args);
     pc_init_pci(args);
 }
 
 static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
 {
-    has_pvpanic = true;
-    pc_init_pci_1_6(args);
+    pc_compat_1_5(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
-    has_pci_info = false;
+    pc_compat_1_4(args);
     pc_init_pci(args);
 }
 
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 {
-    enable_compat_apic_id_mode();
-    pc_init_pci_1_4(args);
+    pc_compat_1_3(args);
+    pc_init_pci(args);
 }
 
-/* PC machine init function for pc-1.1 to pc-1.2 */
+/* PC machine init function for pc-0.14 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
-    disable_kvm_pv_eoi();
-    pc_init_pci_1_3(args);
-}
-
-/* PC machine init function for pc-0.14 to pc-1.0 */
-static void pc_init_pci_1_0(QEMUMachineInitArgs *args)
-{
-    pc_init_pci_1_2(args);
+    pc_compat_1_2(args);
+    pc_init_pci(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
 static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
     has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 1, 0);
+    pc_init1(args, 1, 0);
 }
 
 static void pc_init_isa(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
     has_pci_info = false;
-    if (cpu_model == NULL)
-        cpu_model = "486";
+    if (!args->cpu_model) {
+        args->cpu_model = "486";
+    }
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
-    pc_init1(get_system_memory(),
-             get_system_io(),
-             ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 0, 1);
+    pc_init1(args, 0, 1);
 }
 
 #ifdef CONFIG_XEN
@@ -516,7 +509,7 @@ static QEMUMachine pc_machine_v1_1 = {
 static QEMUMachine pc_machine_v1_0 = {
     .name = "pc-1.0",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_0,
@@ -532,7 +525,7 @@ static QEMUMachine pc_machine_v1_0 = {
 static QEMUMachine pc_machine_v0_15 = {
     .name = "pc-0.15",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_15,
@@ -565,7 +558,7 @@ static QEMUMachine pc_machine_v0_15 = {
 static QEMUMachine pc_machine_v0_14 = {
     .name = "pc-0.14",
     .desc = "Standard PC",
-    .init = pc_init_pci_1_0,
+    .init = pc_init_pci_1_2,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_14, 
