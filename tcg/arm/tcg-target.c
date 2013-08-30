@@ -1172,42 +1172,39 @@ QEMU_BUILD_BUG_ON(CPU_TLB_BITS > 8);
 QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
                   > 0xffff);
 
-/* Load and compare a TLB entry, leaving the flags set.  Leaves R2 pointing
-   to the tlb entry.  Clobbers R1 and TMP.  */
+/* Load and compare a TLB entry, leaving the flags set.  Leaves R1 containing
+   the addend of the tlb entry.  Clobbers R0, R2, TMP.  */
 
 static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                             int s_bits, int tlb_offset)
+                             int s_bits, int mem_index, bool is_load)
 {
     TCGReg base = TCG_AREG0;
+    int cmp_off =
+        (is_load
+         ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
+         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write));
+    int add_off = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
 
     /* Should generate something like the following:
-     * pre-v7:
      *   shr    tmp, addr_reg, #TARGET_PAGE_BITS                  (1)
-     *   add    r2, env, #off & 0xff00
+     *   add    r2, env, #high
      *   and    r0, tmp, #(CPU_TLB_SIZE - 1)                      (2)
      *   add    r2, r2, r0, lsl #CPU_TLB_ENTRY_BITS               (3)
-     *   ldr    r0, [r2, #off & 0xff]!                            (4)
+     *   ldr    r0, [r2, #cmp]                                    (4)
      *   tst    addr_reg, #s_mask
      *   cmpeq  r0, tmp, lsl #TARGET_PAGE_BITS                    (5)
-     *
-     * v7 (not implemented yet):
-     *   ubfx   r2, addr_reg, #TARGET_PAGE_BITS, #CPU_TLB_BITS    (1)
-     *   movw   tmp, #~TARGET_PAGE_MASK & ~s_mask
-     *   movw   r0, #off
-     *   add    r2, env, r2, lsl #CPU_TLB_ENTRY_BITS              (2)
-     *   bic    tmp, addr_reg, tmp
-     *   ldr    r0, [r2, r0]!                                     (3)
-     *   cmp    r0, tmp                                           (4)
+     *   ldr    r1, [r2, #add]
      */
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP,
                     0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
 
     /* We checked that the offset is contained within 16 bits above.  */
-    if (tlb_offset > 0xff) {
+    if (add_off > 0xfff || (use_armv6_instructions && cmp_off > 0xff)) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
-                        (24 << 7) | (tlb_offset >> 8));
-        tlb_offset &= 0xff;
+                        (24 << 7) | (cmp_off >> 8));
         base = TCG_REG_R2;
+        add_off -= cmp_off & 0xff00;
+        cmp_off &= 0xff;
     }
 
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
@@ -1219,14 +1216,11 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
        but due to how the pointer needs setting up, ldm isn't useful.
        Base arm5 doesn't have ldrd, but armv5te does.  */
     if (use_armv6_instructions && TARGET_LONG_BITS == 64) {
-        tcg_out_memop_8(s, COND_AL, INSN_LDRD_IMM, TCG_REG_R0,
-                        TCG_REG_R2, tlb_offset, 1, 1);
+        tcg_out_ldrd_8(s, COND_AL, TCG_REG_R0, TCG_REG_R2, cmp_off);
     } else {
-        tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R0,
-                         TCG_REG_R2, tlb_offset, 1, 1);
+        tcg_out_ld32_12(s, COND_AL, TCG_REG_R0, TCG_REG_R2, cmp_off);
         if (TARGET_LONG_BITS == 64) {
-            tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R1,
-                             TCG_REG_R2, 4, 1, 0);
+            tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2, cmp_off + 4);
         }
     }
 
@@ -1243,6 +1237,9 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
                         TCG_REG_R1, addrhi, SHIFT_IMM_LSL(0));
     }
+
+    /* Load the tlb addend.  */
+    tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2, add_off);
 }
 
 /* Record the context of a call to the out of line helper code for the slow
@@ -1386,17 +1383,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     mem_index = *args;
     s_bits = opc & 3;
 
-    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits,
-                     offsetof(CPUArchState, tlb_table[mem_index][0].addr_read));
+    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 1);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
     label_ptr = s->code_ptr;
     tcg_out_bl_noaddr(s, COND_NE);
-
-    tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2,
-                    offsetof(CPUTLBEntry, addend)
-                    - offsetof(CPUTLBEntry, addr_read));
 
     switch (opc) {
     case 0:
@@ -1533,13 +1525,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     mem_index = *args;
     s_bits = opc & 3;
 
-    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits,
-                     offsetof(CPUArchState,
-                              tlb_table[mem_index][0].addr_write));
-
-    tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2,
-                    offsetof(CPUTLBEntry, addend)
-                    - offsetof(CPUTLBEntry, addr_write));
+    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 0);
 
     switch (opc) {
     case 0:
