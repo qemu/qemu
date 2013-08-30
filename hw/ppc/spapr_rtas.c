@@ -202,6 +202,28 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
     rtas_st(rets, 0, -3);
 }
 
+static void rtas_stop_self(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                           uint32_t token, uint32_t nargs,
+                           target_ulong args,
+                           uint32_t nret, target_ulong rets)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    cs->halted = 1;
+    cpu_exit(cs);
+    /*
+     * While stopping a CPU, the guest calls H_CPPR which
+     * effectively disables interrupts on XICS level.
+     * However decrementer interrupts in TCG can still
+     * wake the CPU up so here we disable interrupts in MSR
+     * as well.
+     * As rtas_start_cpu() resets the whole MSR anyway, there is
+     * no need to bother with specific bits, we just clear it.
+     */
+    env->msr = 0;
+}
+
 static struct rtas_call {
     const char *name;
     spapr_rtas_fn fn;
@@ -322,6 +344,7 @@ static void core_rtas_register_types(void)
     spapr_rtas_register("query-cpu-stopped-state",
                         rtas_query_cpu_stopped_state);
     spapr_rtas_register("start-cpu", rtas_start_cpu);
+    spapr_rtas_register("stop-self", rtas_stop_self);
 }
 
 type_init(core_rtas_register_types)
