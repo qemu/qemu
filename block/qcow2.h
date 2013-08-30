@@ -119,9 +119,12 @@ enum {
 /* Incompatible feature bits */
 enum {
     QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
+    QCOW2_INCOMPAT_CORRUPT_BITNR = 1,
     QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+    QCOW2_INCOMPAT_CORRUPT       = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
 
-    QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY,
+    QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY
+                                 | QCOW2_INCOMPAT_CORRUPT,
 };
 
 /* Compatible feature bits */
@@ -361,6 +364,8 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
 
 int qcow2_mark_dirty(BlockDriverState *bs);
+int qcow2_mark_corrupt(BlockDriverState *bs);
+int qcow2_mark_consistent(BlockDriverState *bs);
 int qcow2_update_header(BlockDriverState *bs);
 
 /* qcow2-refcount.c functions */

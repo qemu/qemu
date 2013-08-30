@@ -272,6 +272,37 @@ static int qcow2_mark_clean(BlockDriverState *bs)
     return 0;
 }
 
+/*
+ * Marks the image as corrupt.
+ */
+int qcow2_mark_corrupt(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    s->incompatible_features |= QCOW2_INCOMPAT_CORRUPT;
+    return qcow2_update_header(bs);
+}
+
+/*
+ * Marks the image as consistent, i.e., unsets the corrupt bit, and flushes
+ * before if necessary.
+ */
+int qcow2_mark_consistent(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_CORRUPT) {
+        int ret = bdrv_flush(bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_CORRUPT;
+        return qcow2_update_header(bs);
+    }
+    return 0;
+}
+
 static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
                        BdrvCheckMode fix)
 {
@@ -400,6 +431,17 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
                                    ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
         goto fail;
+    }
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_CORRUPT) {
+        /* Corrupt images may not be written to unless they are being repaired
+         */
+        if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_CHECK)) {
+            error_report("qcow2: Image is corrupt; cannot be opened "
+                    "read/write.");
+            ret = -EACCES;
+            goto fail;
+        }
     }
 
     /* Check support for various header values */
@@ -1128,6 +1170,11 @@ int qcow2_update_header(BlockDriverState *bs)
             .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
             .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
             .name = "dirty bit",
+        },
+        {
+            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+            .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
+            .name = "corrupt bit",
         },
         {
             .type = QCOW2_FEAT_TYPE_COMPATIBLE,
