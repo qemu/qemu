@@ -31,6 +31,7 @@
 
 #if !defined(CONFIG_USER_ONLY)
 #include "exec/softmmu_exec.h"
+#include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
 #endif
 
@@ -178,6 +179,75 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
     }
     return r;
 }
+
+#ifndef CONFIG_USER_ONLY
+static void cpu_reset_all(void)
+{
+    CPUState *cpu;
+    S390CPUClass *scc;
+
+    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+        scc = S390_CPU_GET_CLASS(CPU(cpu));
+        scc->cpu_reset(CPU(cpu));
+    }
+}
+
+static int load_normal_reset(S390CPU *cpu)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+
+    pause_all_vcpus();
+    cpu_synchronize_all_states();
+    cpu_reset_all();
+    io_subsystem_reset();
+    scc->initial_cpu_reset(CPU(cpu));
+    scc->load_normal(CPU(cpu));
+    cpu_synchronize_all_post_reset();
+    resume_all_vcpus();
+    return 0;
+}
+
+#define DIAG_308_RC_NO_CONF         0x0102
+#define DIAG_308_RC_INVALID         0x0402
+void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    uint64_t addr =  env->regs[r1];
+    uint64_t subcode = env->regs[r3];
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        program_interrupt(env, PGM_PRIVILEGED, ILEN_LATER_INC);
+        return;
+    }
+
+    if ((subcode & ~0x0ffffULL) || (subcode > 6)) {
+        program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+        return;
+    }
+
+    switch (subcode) {
+    case 1:
+        load_normal_reset(s390_env_get_cpu(env));
+        break;
+    case 5:
+        if ((r1 & 1) || (addr & 0x0fffULL)) {
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            return;
+        }
+        env->regs[r1+1] = DIAG_308_RC_INVALID;
+        return;
+    case 6:
+        if ((r1 & 1) || (addr & 0x0fffULL)) {
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            return;
+        }
+        env->regs[r1+1] = DIAG_308_RC_NO_CONF;
+        return;
+    default:
+        hw_error("Unhandled diag308 subcode %" PRIx64, subcode);
+        break;
+    }
+}
+#endif
 
 /* DIAG */
 uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,

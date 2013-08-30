@@ -72,6 +72,7 @@
 #define PRIV_XSCH                       0x76
 #define PRIV_SQBS                       0x8a
 #define PRIV_EQBS                       0x9c
+#define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
 #define DIAG_KVM_BREAKPOINT             0x501
 
@@ -578,32 +579,45 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     return 0;
 }
 
+static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
+{
+    uint64_t r1, r3;
+
+    cpu_synchronize_state(CPU(cpu));
+    r1 = (run->s390_sieic.ipa & 0x00f0) >> 8;
+    r3 = run->s390_sieic.ipa & 0x000f;
+    handle_diag_308(&cpu->env, r1, r3);
+}
+
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
 {
     int r = 0;
 
     switch (ipb_code) {
-        case DIAG_KVM_HYPERCALL:
-            r = handle_hypercall(cpu, run);
-            break;
-        case DIAG_KVM_BREAKPOINT:
-            sleep(10);
-            break;
-        default:
-            DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
-            r = -1;
-            break;
+    case DIAG_IPL:
+        kvm_handle_diag_308(cpu, run);
+        break;
+    case DIAG_KVM_HYPERCALL:
+        r = handle_hypercall(cpu, run);
+        break;
+    case DIAG_KVM_BREAKPOINT:
+        sleep(10);
+        break;
+    default:
+        DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
+        r = -1;
+        break;
     }
 
     return r;
 }
 
-static int s390_cpu_restart(S390CPU *cpu)
+int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
     s390_add_running_cpu(cpu);
     qemu_cpu_kick(CPU(cpu));
-    DPRINTF("DONE: SIGP cpu restart: %p\n", &cpu->env);
+    DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
@@ -672,7 +686,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 
     switch (order_code) {
         case SIGP_RESTART:
-            r = s390_cpu_restart(target_cpu);
+            r = kvm_s390_cpu_restart(target_cpu);
             break;
         case SIGP_STORE_STATUS_ADDR:
             r = s390_store_status(target_env, parameter);

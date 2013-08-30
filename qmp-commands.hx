@@ -487,7 +487,7 @@ Example:
 <- { "return": {} }
 
 Note: inject-nmi fails when the guest doesn't support injecting.
-      Currently, only x86 guests do.
+      Currently, only x86 (NMI) and s390x (RESTART) guests do.
 
 EQMP
 

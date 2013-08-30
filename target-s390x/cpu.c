@@ -65,8 +65,50 @@ static void s390_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.psw.addr = value;
 }
 
-/* CPUClass::reset() */
+#if !defined(CONFIG_USER_ONLY)
+/* S390CPUClass::load_normal() */
+static void s390_cpu_load_normal(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    cpu->env.psw.addr = ldl_phys(4) & PSW_MASK_ESA_ADDR;
+    cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
+    s390_add_running_cpu(cpu);
+}
+#endif
+
+/* S390CPUClass::cpu_reset() */
 static void s390_cpu_reset(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    CPUS390XState *env = &cpu->env;
+
+    s390_del_running_cpu(cpu);
+    scc->parent_reset(s);
+#if !defined(CONFIG_USER_ONLY)
+    s->halted = 1;
+#endif
+    tlb_flush(env, 1);
+}
+
+/* S390CPUClass::initial_reset() */
+static void s390_cpu_initial_reset(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    CPUS390XState *env = &cpu->env;
+
+    s390_cpu_reset(s);
+    /* initial reset does not touch regs,fregs and aregs */
+    memset(&env->fpc, 0, offsetof(CPUS390XState, breakpoints) -
+                         offsetof(CPUS390XState, fpc));
+
+    /* architectured initial values for CR 0 and 14 */
+    env->cregs[0] = CR0_RESET;
+    env->cregs[14] = CR14_RESET;
+}
+
+/* CPUClass:reset() */
+static void s390_cpu_full_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
@@ -169,8 +211,12 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = s390_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
-    cc->reset = s390_cpu_reset;
-
+#if !defined(CONFIG_USER_ONLY)
+    scc->load_normal = s390_cpu_load_normal;
+#endif
+    scc->cpu_reset = s390_cpu_reset;
+    scc->initial_cpu_reset = s390_cpu_initial_reset;
+    cc->reset = s390_cpu_full_reset;
     cc->do_interrupt = s390_cpu_do_interrupt;
     cc->dump_state = s390_cpu_dump_state;
     cc->set_pc = s390_cpu_set_pc;
