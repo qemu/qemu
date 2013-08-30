@@ -1183,8 +1183,8 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
      *   add    r2, r2, r0, lsl #CPU_TLB_ENTRY_BITS               (3)
      *   ldr    r0, [r2, #cmp]                                    (4)
      *   tst    addr_reg, #s_mask
-     *   cmpeq  r0, tmp, lsl #TARGET_PAGE_BITS                    (5)
-     *   ldr    r1, [r2, #add]
+     *   ldr    r1, [r2, #add]                                    (5)
+     *   cmpeq  r0, tmp, lsl #TARGET_PAGE_BITS
      */
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP,
                     0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
@@ -1221,6 +1221,9 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
                         0, addrlo, (1 << s_bits) - 1);
     }
 
+    /* Load the tlb addend.  */
+    tcg_out_ld32_12(s, COND_AL, TCG_REG_R2, TCG_REG_R2, add_off);
+
     tcg_out_dat_reg(s, (s_bits ? COND_EQ : COND_AL), ARITH_CMP, 0,
                     TCG_REG_R0, TCG_REG_TMP, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
 
@@ -1229,9 +1232,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
                         TCG_REG_R1, addrhi, SHIFT_IMM_LSL(0));
     }
 
-    /* Load the tlb addend.  */
-    tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2, add_off);
-    return TCG_REG_R1;
+    return TCG_REG_R2;
 }
 
 /* Record the context of a call to the out of line helper code for the slow
