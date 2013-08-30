@@ -183,15 +183,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R14);
 #endif
         break;
-    case 'L':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
-#ifdef CONFIG_SOFTMMU
-        /* r1 is still needed to load data_reg or data_reg2,
-           so don't use it. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#endif
-        break;
 
     /* qemu_st address & data_reg */
     case 's':
@@ -1314,8 +1305,17 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
         tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
         break;
     case 3:
-        tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
-        tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
+        if (data_reg != TCG_REG_R1) {
+            tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
+            tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
+        } else if (data_reg2 != TCG_REG_R0) {
+            tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
+            tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
+        } else {
+            tcg_out_mov_reg(s, COND_AL, TCG_REG_TMP, TCG_REG_R0);
+            tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
+            tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_TMP);
+        }
         break;
     }
 
@@ -1420,17 +1420,27 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
         }
         break;
     case 3:
-        if (bswap) {
-            tcg_out_ld32_rwb(s, COND_AL, data_reg2, addend, addr_reg);
-            tcg_out_ld32_12(s, COND_AL, data_reg, addend, 4);
-            tcg_out_bswap32(s, COND_AL, data_reg2, data_reg2);
-            tcg_out_bswap32(s, COND_AL, data_reg, data_reg);
-        } else if (use_armv6_instructions
-                   && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
-            tcg_out_ldrd_r(s, COND_AL, data_reg, addr_reg, addend);
-        } else {
-            tcg_out_ld32_rwb(s, COND_AL, data_reg, addend, addr_reg);
-            tcg_out_ld32_12(s, COND_AL, data_reg2, addend, 4);
+        {
+            /* Be careful not to modify data_reg and data_reg2
+               for the slow path below.  */
+            TCGReg dl = (bswap ? data_reg2 : data_reg);
+            TCGReg dh = (bswap ? data_reg : data_reg2);
+
+            if (use_armv6_instructions && (dl & 1) == 0 && dh == dl + 1) {
+                tcg_out_ldrd_r(s, COND_AL, dl, addr_reg, addend);
+            } else if (dl != addend) {
+                tcg_out_ld32_rwb(s, COND_AL, dl, addend, addr_reg);
+                tcg_out_ld32_12(s, COND_AL, dh, addend, 4);
+            } else {
+                tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_TMP,
+                                addend, addr_reg, SHIFT_IMM_LSL(0));
+                tcg_out_ld32_12(s, COND_AL, dl, TCG_REG_TMP, 0);
+                tcg_out_ld32_12(s, COND_AL, dh, TCG_REG_TMP, 4);
+            }
+            if (bswap) {
+                tcg_out_bswap32(s, COND_AL, dh, dh);
+                tcg_out_bswap32(s, COND_AL, dl, dl);
+            }
         }
         break;
     }
@@ -2025,7 +2035,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "l" } },
     { INDEX_op_qemu_ld16s, { "r", "l" } },
     { INDEX_op_qemu_ld32, { "r", "l" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "l" } },
+    { INDEX_op_qemu_ld64, { "r", "r", "l" } },
 
     { INDEX_op_qemu_st8, { "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s" } },
@@ -2037,7 +2047,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "l", "l" } },
     { INDEX_op_qemu_ld16s, { "r", "l", "l" } },
     { INDEX_op_qemu_ld32, { "r", "l", "l" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "l", "l" } },
+    { INDEX_op_qemu_ld64, { "r", "r", "l", "l" } },
 
     { INDEX_op_qemu_st8, { "s", "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s", "s" } },
