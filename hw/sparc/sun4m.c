@@ -836,12 +836,10 @@ static void dummy_fdc_tc(void *opaque, int irq, int level)
 {
 }
 
-static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
+                          QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
     unsigned int i;
     void *iommu, *espdma, *ledma, *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS],
@@ -867,10 +865,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
 
     /* set up devices */
-    ram_init(0, RAM_size, hwdef->max_mem);
+    ram_init(0, args->ram_size, hwdef->max_mem);
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
-        empty_slot_init(RAM_size, hwdef->max_mem - RAM_size);
+        empty_slot_init(args->ram_size, hwdef->max_mem - args->ram_size);
     }
 
     prom_init(hwdef->slavio_base, bios_name);
@@ -993,11 +991,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         empty_slot_init(hwdef->bpp_base, 0x20);
     }
 
-    kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
-                                    RAM_size);
+    kernel_size = sun4m_load_kernel(args->kernel_filename,
+                                    args->initrd_filename,
+                                    args->ram_size);
 
-    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
-               boot_device, RAM_size, kernel_size, graphic_width,
+    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, args->kernel_cmdline,
+               args->boot_device, args->ram_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->nvram_machine_id,
                "Sun4m");
 
@@ -1015,19 +1014,20 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_HEIGHT, graphic_height);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, KERNEL_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
-    if (kernel_cmdline) {
+    if (args->kernel_cmdline) {
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, CMDLINE_ADDR);
-        pstrcpy_targphys("cmdline", CMDLINE_ADDR, TARGET_PAGE_SIZE, kernel_cmdline);
-        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
+        pstrcpy_targphys("cmdline", CMDLINE_ADDR, TARGET_PAGE_SIZE,
+                         args->kernel_cmdline);
+        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, args->kernel_cmdline);
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                       strlen(kernel_cmdline) + 1);
+                       strlen(args->kernel_cmdline) + 1);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, 0);
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, 0);
     }
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, INITRD_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, 0); // not used
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_device[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
@@ -1291,118 +1291,55 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
 /* SPARCstation 5 hardware initialisation */
 static void ss5_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[0], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[0], args);
 }
 
 /* SPARCstation 10 hardware initialisation */
 static void ss10_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[1], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[1], args);
 }
 
 /* SPARCserver 600MP hardware initialisation */
 static void ss600mp_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[2], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[2], args);
 }
 
 /* SPARCstation 20 hardware initialisation */
 static void ss20_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[3], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[3], args);
 }
 
 /* SPARCstation Voyager hardware initialisation */
 static void vger_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[4], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[4], args);
 }
 
 /* SPARCstation LX hardware initialisation */
 static void ss_lx_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[5], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[5], args);
 }
 
 /* SPARCstation 4 hardware initialisation */
 static void ss4_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[6], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[6], args);
 }
 
 /* SPARCClassic hardware initialisation */
 static void scls_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[7], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[7], args);
 }
 
 /* SPARCbook hardware initialisation */
 static void sbook_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t RAM_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    sun4m_hw_init(&sun4m_hwdefs[8], RAM_size, boot_device, kernel_filename,
-                  kernel_cmdline, initrd_filename, cpu_model);
+    sun4m_hw_init(&sun4m_hwdefs[8], args);
 }
 
 static QEMUMachine ss5_machine = {

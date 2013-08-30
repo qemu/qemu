@@ -646,7 +646,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     vector->virq = msg ? kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
     if (vector->virq < 0 ||
         kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                       vector->virq) < 0) {
+                                       NULL, vector->virq) < 0) {
         if (vector->virq >= 0) {
             kvm_irqchip_release_virq(kvm_state, vector->virq);
             vector->virq = -1;
@@ -814,7 +814,7 @@ retry:
         vector->virq = kvm_irqchip_add_msi_route(kvm_state, msg);
         if (vector->virq < 0 ||
             kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                           vector->virq) < 0) {
+                                           NULL, vector->virq) < 0) {
             qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
                                 vfio_msi_interrupt, NULL, vector);
         }

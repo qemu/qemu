@@ -1230,13 +1230,19 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     return kvm_update_routing_entry(s, &kroute);
 }
 
-static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
+static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int rfd, int virq,
+                                    bool assign)
 {
     struct kvm_irqfd irqfd = {
         .fd = fd,
         .gsi = virq,
         .flags = assign ? 0 : KVM_IRQFD_FLAG_DEASSIGN,
     };
+
+    if (rfd != -1) {
+        irqfd.flags |= KVM_IRQFD_FLAG_RESAMPLE;
+        irqfd.resamplefd = rfd;
+    }
 
     if (!kvm_irqfds_enabled()) {
         return -ENOSYS;
@@ -1276,14 +1282,17 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
+                                   EventNotifier *rn, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, true);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n),
+           rn ? event_notifier_get_fd(rn) : -1, virq, true);
 }
 
 int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, false);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), -1, virq,
+           false);
 }
 
 static int kvm_irqchip_create(KVMState *s)
@@ -1388,6 +1397,13 @@ int kvm_init(void)
         ret = -EINVAL;
         fprintf(stderr, "Number of SMP cpus requested (%d) exceeds max cpus "
                 "supported by KVM (%d)\n", smp_cpus, max_vcpus);
+        goto err;
+    }
+
+    if (max_cpus > max_vcpus) {
+        ret = -EINVAL;
+        fprintf(stderr, "Number of hotpluggable cpus requested (%d) exceeds max cpus "
+                "supported by KVM (%d)\n", max_cpus, max_vcpus);
         goto err;
     }
 
@@ -1499,32 +1515,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        if (direction == KVM_EXIT_IO_IN) {
-            switch (size) {
-            case 1:
-                stb_p(ptr, cpu_inb(port));
-                break;
-            case 2:
-                stw_p(ptr, cpu_inw(port));
-                break;
-            case 4:
-                stl_p(ptr, cpu_inl(port));
-                break;
-            }
-        } else {
-            switch (size) {
-            case 1:
-                cpu_outb(port, ldub_p(ptr));
-                break;
-            case 2:
-                cpu_outw(port, lduw_p(ptr));
-                break;
-            case 4:
-                cpu_outl(port, ldl_p(ptr));
-                break;
-            }
-        }
-
+        address_space_rw(&address_space_io, port, ptr, size,
+                         direction == KVM_EXIT_IO_OUT);
         ptr += size;
     }
 }
