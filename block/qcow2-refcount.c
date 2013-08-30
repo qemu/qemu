@@ -1225,7 +1225,8 @@ fail:
  * been already detected and sufficiently signaled by the calling function
  * (qcow2_check_refcounts) by the time this function is called).
  */
-static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res)
+static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
+                              BdrvCheckMode fix)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table = qemu_blockalign(bs, s->cluster_size);
@@ -1236,6 +1237,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res)
     for (i = 0; i < s->l1_size; i++) {
         uint64_t l1_entry = s->l1_table[i];
         uint64_t l2_offset = l1_entry & L1E_OFFSET_MASK;
+        bool l2_dirty = false;
 
         if (!l2_offset) {
             continue;
@@ -1247,10 +1249,24 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res)
             continue;
         }
         if ((refcount == 1) != ((l1_entry & QCOW_OFLAG_COPIED) != 0)) {
-            fprintf(stderr, "ERROR OFLAG_COPIED L2 cluster: l1_index=%d "
+            fprintf(stderr, "%s OFLAG_COPIED L2 cluster: l1_index=%d "
                     "l1_entry=%" PRIx64 " refcount=%d\n",
+                    fix & BDRV_FIX_ERRORS ? "Repairing" :
+                                            "ERROR",
                     i, l1_entry, refcount);
-            res->corruptions++;
+            if (fix & BDRV_FIX_ERRORS) {
+                s->l1_table[i] = refcount == 1
+                               ? l1_entry |  QCOW_OFLAG_COPIED
+                               : l1_entry & ~QCOW_OFLAG_COPIED;
+                ret = qcow2_write_l1_entry(bs, i);
+                if (ret < 0) {
+                    res->check_errors++;
+                    goto fail;
+                }
+                res->corruptions_fixed++;
+            } else {
+                res->corruptions++;
+            }
         }
 
         ret = bdrv_pread(bs->file, l2_offset, l2_table,
@@ -1275,11 +1291,41 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res)
                     continue;
                 }
                 if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
-                    fprintf(stderr, "ERROR OFLAG_COPIED data cluster: "
+                    fprintf(stderr, "%s OFLAG_COPIED data cluster: "
                             "l2_entry=%" PRIx64 " refcount=%d\n",
+                            fix & BDRV_FIX_ERRORS ? "Repairing" :
+                                                    "ERROR",
                             l2_entry, refcount);
-                    res->corruptions++;
+                    if (fix & BDRV_FIX_ERRORS) {
+                        l2_table[j] = cpu_to_be64(refcount == 1
+                                    ? l2_entry |  QCOW_OFLAG_COPIED
+                                    : l2_entry & ~QCOW_OFLAG_COPIED);
+                        l2_dirty = true;
+                        res->corruptions_fixed++;
+                    } else {
+                        res->corruptions++;
+                    }
                 }
+            }
+        }
+
+        if (l2_dirty) {
+            ret = qcow2_pre_write_overlap_check(bs,
+                    QCOW2_OL_DEFAULT & ~QCOW2_OL_ACTIVE_L2, l2_offset,
+                    s->cluster_size);
+            if (ret < 0) {
+                fprintf(stderr, "ERROR: Could not write L2 table; metadata "
+                        "overlap check failed: %s\n", strerror(-ret));
+                res->check_errors++;
+                goto fail;
+            }
+
+            ret = bdrv_pwrite(bs->file, l2_offset, l2_table, s->cluster_size);
+            if (ret < 0) {
+                fprintf(stderr, "ERROR: Could not write L2 table: %s\n",
+                        strerror(-ret));
+                res->check_errors++;
+                goto fail;
             }
         }
     }
@@ -1427,7 +1473,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     /* check OFLAG_COPIED */
-    ret = check_oflag_copied(bs, res);
+    ret = check_oflag_copied(bs, res, fix);
     if (ret < 0) {
         goto fail;
     }

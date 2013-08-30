@@ -432,6 +432,7 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int chk, int64_t offset,
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
+int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
 void qcow2_l2_cache_reset(BlockDriverState *bs);
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
 void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,

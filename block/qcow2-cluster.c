@@ -145,7 +145,7 @@ static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
  * and we really don't want bdrv_pread to perform a read-modify-write)
  */
 #define L1_ENTRIES_PER_SECTOR (512 / 8)
-static int write_l1_entry(BlockDriverState *bs, int l1_index)
+int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t buf[L1_ENTRIES_PER_SECTOR];
@@ -254,7 +254,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     /* update the L1 entry */
     trace_qcow2_l2_allocate_write_l1(bs, l1_index);
     s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
-    ret = write_l1_entry(bs, l1_index);
+    ret = qcow2_write_l1_entry(bs, l1_index);
     if (ret < 0) {
         goto fail;
     }
