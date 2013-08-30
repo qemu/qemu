@@ -583,16 +583,16 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
     int r = 0;
 
     switch (ipb_code) {
-        case DIAG_KVM_HYPERCALL:
-            r = handle_hypercall(cpu, run);
-            break;
-        case DIAG_KVM_BREAKPOINT:
-            sleep(10);
-            break;
-        default:
-            DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
-            r = -1;
-            break;
+    case DIAG_KVM_HYPERCALL:
+        r = handle_hypercall(cpu, run);
+        break;
+    case DIAG_KVM_BREAKPOINT:
+        sleep(10);
+        break;
+    default:
+        DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
+        r = -1;
+        break;
     }
 
     return r;
