@@ -861,11 +861,14 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             }
 
             for(j = 0; j < s->l2_size; j++) {
+                uint64_t cluster_index;
+
                 offset = be64_to_cpu(l2_table[j]);
-                if (offset != 0) {
-                    old_offset = offset;
-                    offset &= ~QCOW_OFLAG_COPIED;
-                    if (offset & QCOW_OFLAG_COMPRESSED) {
+                old_offset = offset;
+                offset &= ~QCOW_OFLAG_COPIED;
+
+                switch (qcow2_get_cluster_type(offset)) {
+                    case QCOW2_CLUSTER_COMPRESSED:
                         nb_csectors = ((offset >> s->csize_shift) &
                                        s->csize_mask) + 1;
                         if (addend != 0) {
@@ -880,8 +883,16 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         }
                         /* compressed clusters are never modified */
                         refcount = 2;
-                    } else {
-                        uint64_t cluster_index = (offset & L2E_OFFSET_MASK) >> s->cluster_bits;
+                        break;
+
+                    case QCOW2_CLUSTER_NORMAL:
+                    case QCOW2_CLUSTER_ZERO:
+                        cluster_index = (offset & L2E_OFFSET_MASK) >> s->cluster_bits;
+                        if (!cluster_index) {
+                            /* unallocated */
+                            refcount = 0;
+                            break;
+                        }
                         if (addend != 0) {
                             refcount = update_cluster_refcount(bs, cluster_index, addend,
                                                                QCOW2_DISCARD_SNAPSHOT);
@@ -893,19 +904,26 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             ret = refcount;
                             goto fail;
                         }
-                    }
+                        break;
 
-                    if (refcount == 1) {
-                        offset |= QCOW_OFLAG_COPIED;
+                    case QCOW2_CLUSTER_UNALLOCATED:
+                        refcount = 0;
+                        break;
+
+                    default:
+                        abort();
+                }
+
+                if (refcount == 1) {
+                    offset |= QCOW_OFLAG_COPIED;
+                }
+                if (offset != old_offset) {
+                    if (addend > 0) {
+                        qcow2_cache_set_dependency(bs, s->l2_table_cache,
+                            s->refcount_block_cache);
                     }
-                    if (offset != old_offset) {
-                        if (addend > 0) {
-                            qcow2_cache_set_dependency(bs, s->l2_table_cache,
-                                s->refcount_block_cache);
-                        }
-                        l2_table[j] = cpu_to_be64(offset);
-                        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
-                    }
+                    l2_table[j] = cpu_to_be64(offset);
+                    qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
                 }
             }
 
