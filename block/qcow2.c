@@ -624,6 +624,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
     qcow2_free_snapshots(bs);
     qcow2_refcount_close(bs);
     g_free(s->l1_table);
+    /* else pre-write overlap checks in cache_destroy may crash */
+    s->l1_table = NULL;
     if (s->l2_table_cache) {
         qcow2_cache_destroy(bs, s->l2_table_cache);
     }
@@ -923,6 +925,13 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                cluster_offset + index_in_cluster * BDRV_SECTOR_SIZE,
+                cur_nr_sectors * BDRV_SECTOR_SIZE);
+        if (ret < 0) {
+            goto fail;
+        }
+
         qemu_co_mutex_unlock(&s->lock);
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
@@ -989,6 +998,8 @@ static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     g_free(s->l1_table);
+    /* else pre-write overlap checks in cache_destroy may crash */
+    s->l1_table = NULL;
 
     qcow2_cache_flush(bs, s->l2_table_cache);
     qcow2_cache_flush(bs, s->refcount_block_cache);
@@ -1668,6 +1679,14 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
+
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                sector_num * BDRV_SECTOR_SIZE,
+                s->cluster_sectors * BDRV_SECTOR_SIZE);
+        if (ret < 0) {
+            goto fail;
+        }
+
         ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
@@ -1680,6 +1699,13 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
             goto fail;
         }
         cluster_offset &= s->cluster_offset_mask;
+
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                cluster_offset, out_len);
+        if (ret < 0) {
+            goto fail;
+        }
+
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
         ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
         if (ret < 0) {
