@@ -312,7 +312,11 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
     }
 
     if (fix && result->check_errors == 0 && result->corruptions == 0) {
-        return qcow2_mark_clean(bs);
+        ret = qcow2_mark_clean(bs);
+        if (ret < 0) {
+            return ret;
+        }
+        return qcow2_mark_consistent(bs);
     }
     return ret;
 }
