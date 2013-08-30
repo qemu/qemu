@@ -289,6 +289,40 @@ enum {
     QCOW2_CLUSTER_ZERO
 };
 
+typedef enum QCow2MetadataOverlap {
+    QCOW2_OL_MAIN_HEADER_BITNR    = 0,
+    QCOW2_OL_ACTIVE_L1_BITNR      = 1,
+    QCOW2_OL_ACTIVE_L2_BITNR      = 2,
+    QCOW2_OL_REFCOUNT_TABLE_BITNR = 3,
+    QCOW2_OL_REFCOUNT_BLOCK_BITNR = 4,
+    QCOW2_OL_SNAPSHOT_TABLE_BITNR = 5,
+    QCOW2_OL_INACTIVE_L1_BITNR    = 6,
+    QCOW2_OL_INACTIVE_L2_BITNR    = 7,
+
+    QCOW2_OL_MAX_BITNR            = 8,
+
+    QCOW2_OL_NONE           = 0,
+    QCOW2_OL_MAIN_HEADER    = (1 << QCOW2_OL_MAIN_HEADER_BITNR),
+    QCOW2_OL_ACTIVE_L1      = (1 << QCOW2_OL_ACTIVE_L1_BITNR),
+    QCOW2_OL_ACTIVE_L2      = (1 << QCOW2_OL_ACTIVE_L2_BITNR),
+    QCOW2_OL_REFCOUNT_TABLE = (1 << QCOW2_OL_REFCOUNT_TABLE_BITNR),
+    QCOW2_OL_REFCOUNT_BLOCK = (1 << QCOW2_OL_REFCOUNT_BLOCK_BITNR),
+    QCOW2_OL_SNAPSHOT_TABLE = (1 << QCOW2_OL_SNAPSHOT_TABLE_BITNR),
+    QCOW2_OL_INACTIVE_L1    = (1 << QCOW2_OL_INACTIVE_L1_BITNR),
+    /* NOTE: Checking overlaps with inactive L2 tables will result in bdrv
+     * reads. */
+    QCOW2_OL_INACTIVE_L2    = (1 << QCOW2_OL_INACTIVE_L2_BITNR),
+} QCow2MetadataOverlap;
+
+/* Perform all overlap checks which don't require disk access */
+#define QCOW2_OL_CACHED \
+    (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_ACTIVE_L2 | \
+     QCOW2_OL_REFCOUNT_TABLE | QCOW2_OL_REFCOUNT_BLOCK | \
+     QCOW2_OL_SNAPSHOT_TABLE | QCOW2_OL_INACTIVE_L1)
+
+/* The default checks to perform */
+#define QCOW2_OL_DEFAULT QCOW2_OL_CACHED
+
 #define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_COMPRESSED_OFFSET_SIZE_MASK 0x3fffffffffffffffULL
@@ -389,6 +423,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix);
 
 void qcow2_process_discards(BlockDriverState *bs, int ret);
+
+int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
+                                 int64_t size);
+int qcow2_pre_write_overlap_check(BlockDriverState *bs, int chk, int64_t offset,
+                                  int64_t size);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,

@@ -25,6 +25,8 @@
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "block/qcow2.h"
+#include "qemu/range.h"
+#include "qapi/qmp/types.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
@@ -1390,3 +1392,173 @@ fail:
     return ret;
 }
 
+#define overlaps_with(ofs, sz) \
+    ranges_overlap(offset, size, ofs, sz)
+
+/*
+ * Checks if the given offset into the image file is actually free to use by
+ * looking for overlaps with important metadata sections (L1/L2 tables etc.),
+ * i.e. a sanity check without relying on the refcount tables.
+ *
+ * The chk parameter specifies exactly what checks to perform (being a bitmask
+ * of QCow2MetadataOverlap values).
+ *
+ * Returns:
+ * - 0 if writing to this offset will not affect the mentioned metadata
+ * - a positive QCow2MetadataOverlap value indicating one overlapping section
+ * - a negative value (-errno) indicating an error while performing a check,
+ *   e.g. when bdrv_read failed on QCOW2_OL_INACTIVE_L2
+ */
+int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
+                                 int64_t size)
+{
+    BDRVQcowState *s = bs->opaque;
+    int i, j;
+
+    if (!size) {
+        return 0;
+    }
+
+    if (chk & QCOW2_OL_MAIN_HEADER) {
+        if (offset < s->cluster_size) {
+            return QCOW2_OL_MAIN_HEADER;
+        }
+    }
+
+    /* align range to test to cluster boundaries */
+    size = align_offset(offset_into_cluster(s, offset) + size, s->cluster_size);
+    offset = start_of_cluster(s, offset);
+
+    if ((chk & QCOW2_OL_ACTIVE_L1) && s->l1_size) {
+        if (overlaps_with(s->l1_table_offset, s->l1_size * sizeof(uint64_t))) {
+            return QCOW2_OL_ACTIVE_L1;
+        }
+    }
+
+    if ((chk & QCOW2_OL_REFCOUNT_TABLE) && s->refcount_table_size) {
+        if (overlaps_with(s->refcount_table_offset,
+            s->refcount_table_size * sizeof(uint64_t))) {
+            return QCOW2_OL_REFCOUNT_TABLE;
+        }
+    }
+
+    if ((chk & QCOW2_OL_SNAPSHOT_TABLE) && s->snapshots_size) {
+        if (overlaps_with(s->snapshots_offset, s->snapshots_size)) {
+            return QCOW2_OL_SNAPSHOT_TABLE;
+        }
+    }
+
+    if ((chk & QCOW2_OL_INACTIVE_L1) && s->snapshots) {
+        for (i = 0; i < s->nb_snapshots; i++) {
+            if (s->snapshots[i].l1_size &&
+                overlaps_with(s->snapshots[i].l1_table_offset,
+                s->snapshots[i].l1_size * sizeof(uint64_t))) {
+                return QCOW2_OL_INACTIVE_L1;
+            }
+        }
+    }
+
+    if ((chk & QCOW2_OL_ACTIVE_L2) && s->l1_table) {
+        for (i = 0; i < s->l1_size; i++) {
+            if ((s->l1_table[i] & L1E_OFFSET_MASK) &&
+                overlaps_with(s->l1_table[i] & L1E_OFFSET_MASK,
+                s->cluster_size)) {
+                return QCOW2_OL_ACTIVE_L2;
+            }
+        }
+    }
+
+    if ((chk & QCOW2_OL_REFCOUNT_BLOCK) && s->refcount_table) {
+        for (i = 0; i < s->refcount_table_size; i++) {
+            if ((s->refcount_table[i] & REFT_OFFSET_MASK) &&
+                overlaps_with(s->refcount_table[i] & REFT_OFFSET_MASK,
+                s->cluster_size)) {
+                return QCOW2_OL_REFCOUNT_BLOCK;
+            }
+        }
+    }
+
+    if ((chk & QCOW2_OL_INACTIVE_L2) && s->snapshots) {
+        for (i = 0; i < s->nb_snapshots; i++) {
+            uint64_t l1_ofs = s->snapshots[i].l1_table_offset;
+            uint32_t l1_sz  = s->snapshots[i].l1_size;
+            uint64_t *l1 = g_malloc(l1_sz * sizeof(uint64_t));
+            int ret;
+
+            ret = bdrv_read(bs->file, l1_ofs / BDRV_SECTOR_SIZE, (uint8_t *)l1,
+                            l1_sz * sizeof(uint64_t) / BDRV_SECTOR_SIZE);
+
+            if (ret < 0) {
+                g_free(l1);
+                return ret;
+            }
+
+            for (j = 0; j < l1_sz; j++) {
+                if ((l1[j] & L1E_OFFSET_MASK) &&
+                    overlaps_with(l1[j] & L1E_OFFSET_MASK, s->cluster_size)) {
+                    g_free(l1);
+                    return QCOW2_OL_INACTIVE_L2;
+                }
+            }
+
+            g_free(l1);
+        }
+    }
+
+    return 0;
+}
+
+static const char *metadata_ol_names[] = {
+    [QCOW2_OL_MAIN_HEADER_BITNR]    = "qcow2_header",
+    [QCOW2_OL_ACTIVE_L1_BITNR]      = "active L1 table",
+    [QCOW2_OL_ACTIVE_L2_BITNR]      = "active L2 table",
+    [QCOW2_OL_REFCOUNT_TABLE_BITNR] = "refcount table",
+    [QCOW2_OL_REFCOUNT_BLOCK_BITNR] = "refcount block",
+    [QCOW2_OL_SNAPSHOT_TABLE_BITNR] = "snapshot table",
+    [QCOW2_OL_INACTIVE_L1_BITNR]    = "inactive L1 table",
+    [QCOW2_OL_INACTIVE_L2_BITNR]    = "inactive L2 table",
+};
+
+/*
+ * First performs a check for metadata overlaps (through
+ * qcow2_check_metadata_overlap); if that fails with a negative value (error
+ * while performing a check), that value is returned. If an impending overlap
+ * is detected, the BDS will be made unusable, the qcow2 file marked corrupt
+ * and -EIO returned.
+ *
+ * Returns 0 if there were neither overlaps nor errors while checking for
+ * overlaps; or a negative value (-errno) on error.
+ */
+int qcow2_pre_write_overlap_check(BlockDriverState *bs, int chk, int64_t offset,
+                                  int64_t size)
+{
+    int ret = qcow2_check_metadata_overlap(bs, chk, offset, size);
+
+    if (ret < 0) {
+        return ret;
+    } else if (ret > 0) {
+        int metadata_ol_bitnr = ffs(ret) - 1;
+        char *message;
+        QObject *data;
+
+        assert(metadata_ol_bitnr < QCOW2_OL_MAX_BITNR);
+
+        fprintf(stderr, "qcow2: Preventing invalid write on metadata (overlaps "
+                "with %s); image marked as corrupt.\n",
+                metadata_ol_names[metadata_ol_bitnr]);
+        message = g_strdup_printf("Prevented %s overwrite",
+                metadata_ol_names[metadata_ol_bitnr]);
+        data = qobject_from_jsonf("{ 'device': %s, 'msg': %s, 'offset': %"
+                PRId64 ", 'size': %" PRId64 " }", bs->device_name, message,
+                offset, size);
+        monitor_protocol_event(QEVENT_BLOCK_IMAGE_CORRUPTED, data);
+        g_free(message);
+        qobject_decref(data);
+
+        qcow2_mark_corrupt(bs);
+        bs->drv = NULL; /* make BDS unusable */
+        return -EIO;
+    }
+
+    return 0;
+}
