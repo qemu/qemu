@@ -1053,7 +1053,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
     uint64_t next_contiguous_offset = 0;
-    int i, l2_size, nb_csectors, refcount;
+    int i, l2_size, nb_csectors;
 
     /* Read L2 table from disk */
     l2_size = s->l2_size * sizeof(uint64_t);
@@ -1105,22 +1105,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
         case QCOW2_CLUSTER_NORMAL:
         {
-            /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
-
-            if (flags & CHECK_OFLAG_COPIED) {
-                refcount = get_refcount(bs, offset >> s->cluster_bits);
-                if (refcount < 0) {
-                    fprintf(stderr, "Can't get refcount for offset %"
-                        PRIx64 ": %s\n", l2_entry, strerror(-refcount));
-                    goto fail;
-                }
-                if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
-                    fprintf(stderr, "ERROR OFLAG_COPIED: offset=%"
-                        PRIx64 " refcount=%d\n", l2_entry, refcount);
-                    res->corruptions++;
-                }
-            }
 
             if (flags & CHECK_FRAG_INFO) {
                 res->bfi.allocated_clusters++;
@@ -1178,7 +1163,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, l2_offset, l1_size2;
-    int i, refcount, ret;
+    int i, ret;
 
     l1_size2 = l1_size * sizeof(uint64_t);
 
@@ -1202,22 +1187,6 @@ static int check_refcounts_l1(BlockDriverState *bs,
     for(i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
-            /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
-            if (flags & CHECK_OFLAG_COPIED) {
-                refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED)
-                    >> s->cluster_bits);
-                if (refcount < 0) {
-                    fprintf(stderr, "Can't get refcount for l2_offset %"
-                        PRIx64 ": %s\n", l2_offset, strerror(-refcount));
-                    goto fail;
-                }
-                if ((refcount == 1) != ((l2_offset & QCOW_OFLAG_COPIED) != 0)) {
-                    fprintf(stderr, "ERROR OFLAG_COPIED: l2_offset=%" PRIx64
-                        " refcount=%d\n", l2_offset, refcount);
-                    res->corruptions++;
-                }
-            }
-
             /* Mark L2 table as used */
             l2_offset &= L1E_OFFSET_MASK;
             inc_refcounts(bs, res, refcount_table, refcount_table_size,
@@ -1246,6 +1215,80 @@ fail:
     res->check_errors++;
     g_free(l1_table);
     return -EIO;
+}
+
+/*
+ * Checks the OFLAG_COPIED flag for all L1 and L2 entries.
+ *
+ * This function does not print an error message nor does it increment
+ * check_errors if get_refcount fails (this is because such an error will have
+ * been already detected and sufficiently signaled by the calling function
+ * (qcow2_check_refcounts) by the time this function is called).
+ */
+static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t *l2_table = qemu_blockalign(bs, s->cluster_size);
+    int ret;
+    int refcount;
+    int i, j;
+
+    for (i = 0; i < s->l1_size; i++) {
+        uint64_t l1_entry = s->l1_table[i];
+        uint64_t l2_offset = l1_entry & L1E_OFFSET_MASK;
+
+        if (!l2_offset) {
+            continue;
+        }
+
+        refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
+        if (refcount < 0) {
+            /* don't print message nor increment check_errors */
+            continue;
+        }
+        if ((refcount == 1) != ((l1_entry & QCOW_OFLAG_COPIED) != 0)) {
+            fprintf(stderr, "ERROR OFLAG_COPIED L2 cluster: l1_index=%d "
+                    "l1_entry=%" PRIx64 " refcount=%d\n",
+                    i, l1_entry, refcount);
+            res->corruptions++;
+        }
+
+        ret = bdrv_pread(bs->file, l2_offset, l2_table,
+                         s->l2_size * sizeof(uint64_t));
+        if (ret < 0) {
+            fprintf(stderr, "ERROR: Could not read L2 table: %s\n",
+                    strerror(-ret));
+            res->check_errors++;
+            goto fail;
+        }
+
+        for (j = 0; j < s->l2_size; j++) {
+            uint64_t l2_entry = be64_to_cpu(l2_table[j]);
+            uint64_t data_offset = l2_entry & L2E_OFFSET_MASK;
+            int cluster_type = qcow2_get_cluster_type(l2_entry);
+
+            if ((cluster_type == QCOW2_CLUSTER_NORMAL) ||
+                ((cluster_type == QCOW2_CLUSTER_ZERO) && (data_offset != 0))) {
+                refcount = get_refcount(bs, data_offset >> s->cluster_bits);
+                if (refcount < 0) {
+                    /* don't print message nor increment check_errors */
+                    continue;
+                }
+                if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
+                    fprintf(stderr, "ERROR OFLAG_COPIED data cluster: "
+                            "l2_entry=%" PRIx64 " refcount=%d\n",
+                            l2_entry, refcount);
+                    res->corruptions++;
+                }
+            }
+        }
+    }
+
+    ret = 0;
+
+fail:
+    qemu_vfree(l2_table);
+    return ret;
 }
 
 /*
@@ -1381,6 +1424,12 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                 res->leaks++;
             }
         }
+    }
+
+    /* check OFLAG_COPIED */
+    ret = check_oflag_copied(bs, res);
+    if (ret < 0) {
+        goto fail;
     }
 
     res->image_end_offset = (highest_cluster + 1) * s->cluster_size;
