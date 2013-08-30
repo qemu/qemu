@@ -1172,11 +1172,11 @@ QEMU_BUILD_BUG_ON(CPU_TLB_BITS > 8);
 QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
                   > 0xffff);
 
-/* Load and compare a TLB entry, leaving the flags set.  Leaves R1 containing
-   the addend of the tlb entry.  Clobbers R0, R2, TMP.  */
+/* Load and compare a TLB entry, leaving the flags set.  Returns the register
+   containing the addend of the tlb entry.  Clobbers R0, R1, R2, TMP.  */
 
-static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                             int s_bits, int mem_index, bool is_load)
+static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
+                               int s_bits, int mem_index, bool is_load)
 {
     TCGReg base = TCG_AREG0;
     int cmp_off =
@@ -1240,6 +1240,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
 
     /* Load the tlb addend.  */
     tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R2, add_off);
+    return TCG_REG_R1;
 }
 
 /* Record the context of a call to the out of line helper code for the slow
@@ -1366,7 +1367,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     bool bswap;
 #ifdef CONFIG_SOFTMMU
     int mem_index, s_bits;
-    TCGReg addr_reg2;
+    TCGReg addr_reg2, addend;
     uint8_t *label_ptr;
 #endif
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -1383,7 +1384,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     mem_index = *args;
     s_bits = opc & 3;
 
-    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 1);
+    addend = tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 1);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
@@ -1392,44 +1393,44 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 
     switch (opc) {
     case 0:
-        tcg_out_ld8_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+        tcg_out_ld8_r(s, COND_AL, data_reg, addr_reg, addend);
         break;
     case 0 | 4:
-        tcg_out_ld8s_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+        tcg_out_ld8s_r(s, COND_AL, data_reg, addr_reg, addend);
         break;
     case 1:
-        tcg_out_ld16u_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+        tcg_out_ld16u_r(s, COND_AL, data_reg, addr_reg, addend);
         if (bswap) {
             tcg_out_bswap16(s, COND_AL, data_reg, data_reg);
         }
         break;
     case 1 | 4:
         if (bswap) {
-            tcg_out_ld16u_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_ld16u_r(s, COND_AL, data_reg, addr_reg, addend);
             tcg_out_bswap16s(s, COND_AL, data_reg, data_reg);
         } else {
-            tcg_out_ld16s_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_ld16s_r(s, COND_AL, data_reg, addr_reg, addend);
         }
         break;
     case 2:
     default:
-        tcg_out_ld32_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+        tcg_out_ld32_r(s, COND_AL, data_reg, addr_reg, addend);
         if (bswap) {
             tcg_out_bswap32(s, COND_AL, data_reg, data_reg);
         }
         break;
     case 3:
         if (bswap) {
-            tcg_out_ld32_rwb(s, COND_AL, data_reg2, TCG_REG_R1, addr_reg);
-            tcg_out_ld32_12(s, COND_AL, data_reg, TCG_REG_R1, 4);
+            tcg_out_ld32_rwb(s, COND_AL, data_reg2, addend, addr_reg);
+            tcg_out_ld32_12(s, COND_AL, data_reg, addend, 4);
             tcg_out_bswap32(s, COND_AL, data_reg2, data_reg2);
             tcg_out_bswap32(s, COND_AL, data_reg, data_reg);
         } else if (use_armv6_instructions
                    && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
-            tcg_out_ldrd_r(s, COND_AL, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_ldrd_r(s, COND_AL, data_reg, addr_reg, addend);
         } else {
-            tcg_out_ld32_rwb(s, COND_AL, data_reg, TCG_REG_R1, addr_reg);
-            tcg_out_ld32_12(s, COND_AL, data_reg2, TCG_REG_R1, 4);
+            tcg_out_ld32_rwb(s, COND_AL, data_reg, addend, addr_reg);
+            tcg_out_ld32_12(s, COND_AL, data_reg2, addend, 4);
         }
         break;
     }
@@ -1508,7 +1509,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     bool bswap;
 #ifdef CONFIG_SOFTMMU
     int mem_index, s_bits;
-    TCGReg addr_reg2;
+    TCGReg addr_reg2, addend;
     uint8_t *label_ptr;
 #endif
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -1525,41 +1526,41 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     mem_index = *args;
     s_bits = opc & 3;
 
-    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 0);
+    addend = tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits, mem_index, 0);
 
     switch (opc) {
     case 0:
-        tcg_out_st8_r(s, COND_EQ, data_reg, addr_reg, TCG_REG_R1);
+        tcg_out_st8_r(s, COND_EQ, data_reg, addr_reg, addend);
         break;
     case 1:
         if (bswap) {
             tcg_out_bswap16st(s, COND_EQ, TCG_REG_R0, data_reg);
-            tcg_out_st16_r(s, COND_EQ, TCG_REG_R0, addr_reg, TCG_REG_R1);
+            tcg_out_st16_r(s, COND_EQ, TCG_REG_R0, addr_reg, addend);
         } else {
-            tcg_out_st16_r(s, COND_EQ, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_st16_r(s, COND_EQ, data_reg, addr_reg, addend);
         }
         break;
     case 2:
     default:
         if (bswap) {
             tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, data_reg);
-            tcg_out_st32_r(s, COND_EQ, TCG_REG_R0, addr_reg, TCG_REG_R1);
+            tcg_out_st32_r(s, COND_EQ, TCG_REG_R0, addr_reg, addend);
         } else {
-            tcg_out_st32_r(s, COND_EQ, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_st32_r(s, COND_EQ, data_reg, addr_reg, addend);
         }
         break;
     case 3:
         if (bswap) {
             tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, data_reg2);
-            tcg_out_st32_rwb(s, COND_EQ, TCG_REG_R0, TCG_REG_R1, addr_reg);
+            tcg_out_st32_rwb(s, COND_EQ, TCG_REG_R0, addend, addr_reg);
             tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, data_reg);
-            tcg_out_st32_12(s, COND_EQ, TCG_REG_R0, TCG_REG_R1, 4);
+            tcg_out_st32_12(s, COND_EQ, TCG_REG_R0, addend, 4);
         } else if (use_armv6_instructions
                    && (data_reg & 1) == 0 && data_reg2 == data_reg + 1) {
-            tcg_out_strd_r(s, COND_EQ, data_reg, addr_reg, TCG_REG_R1);
+            tcg_out_strd_r(s, COND_EQ, data_reg, addr_reg, addend);
         } else {
-            tcg_out_st32_rwb(s, COND_EQ, data_reg, TCG_REG_R1, addr_reg);
-            tcg_out_st32_12(s, COND_EQ, data_reg2, TCG_REG_R1, 4);
+            tcg_out_st32_rwb(s, COND_EQ, data_reg, addend, addr_reg);
+            tcg_out_st32_12(s, COND_EQ, data_reg2, addend, 4);
         }
         break;
     }
