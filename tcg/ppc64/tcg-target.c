@@ -173,14 +173,17 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R31
 };
 
+static inline bool in_range_b(tcg_target_long target)
+{
+    return target == sextract64(target, 0, 26);
+}
+
 static uint32_t reloc_pc24_val(void *pc, tcg_target_long target)
 {
     tcg_target_long disp;
 
     disp = target - (tcg_target_long)pc;
-    if ((disp << 38) >> 38 != disp) {
-        tcg_abort();
-    }
+    assert(in_range_b(disp));
 
     return disp & 0x3fffffc;
 }
@@ -694,7 +697,7 @@ static void tcg_out_b(TCGContext *s, int mask, tcg_target_long target)
     tcg_target_long disp;
 
     disp = target - (tcg_target_long)s->code_ptr;
-    if ((disp << 38) >> 38 == disp) {
+    if (in_range_b(disp)) {
         tcg_out32(s, B | (disp & 0x3fffffc) | mask);
     } else {
         tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R0, (tcg_target_long)target);
@@ -717,6 +720,18 @@ static void tcg_out_call(TCGContext *s, tcg_target_long arg, int const_arg)
     int ofs = 0;
 
     if (const_arg) {
+        /* Look through the descriptor.  If the branch is in range, and we
+           don't have to spend too much effort on building the toc.  */
+        intptr_t tgt = ((intptr_t *)arg)[0];
+        intptr_t toc = ((intptr_t *)arg)[1];
+        intptr_t diff = tgt - (intptr_t)s->code_ptr;
+
+        if (in_range_b(diff) && toc == (uint32_t)toc) {
+            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R2, toc);
+            tcg_out_b(s, LK, tgt);
+            return;
+        }
+
         /* Fold the low bits of the constant into the addresses below.  */
         ofs = (int16_t)arg;
         if (ofs + 8 < 0x8000) {
