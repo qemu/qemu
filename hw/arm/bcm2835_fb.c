@@ -100,6 +100,13 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
             b = ((rgb565 >>  0) & 0x1f) << 3;
             s += 2;
             break;
+        case 24:
+            rgb888 = ldl_raw(s);
+            r = (rgb888 >> 0) & 0xff;
+            g = (rgb888 >> 8) & 0xff;
+            b = (rgb888 >> 16) & 0xff;
+            s += 3;
+            break;
         case 32:
             rgb888 = ldl_raw(s);
             r = (rgb888 >> 0) & 0xff;
