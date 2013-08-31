@@ -997,9 +997,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size;
-#ifndef __APPLE__
-    uint64_t addr;
-#endif
 
     frame_size = 0
         + 8                     /* back chain */
@@ -1020,8 +1017,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 #ifndef __APPLE__
     /* First emit adhoc function descriptor */
-    addr = (uint64_t) s->code_ptr + 24;
-    tcg_out32(s, addr >> 32); tcg_out32(s, addr); /* entry point */
+    tcg_out64(s, (uint64_t)s->code_ptr + 24); /* entry point */
     s->code_ptr += 16;          /* skip TOC and environment pointer */
 #endif
 
