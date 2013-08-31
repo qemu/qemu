@@ -204,6 +204,18 @@ static void reloc_pc14(void *pc, tcg_target_long target)
     *(uint32_t *)pc = (*(uint32_t *)pc & ~0xfffc) | reloc_pc14_val(pc, target);
 }
 
+static inline void tcg_out_b_noaddr(TCGContext *s, int insn)
+{
+    unsigned retrans = *(uint32_t *)s->code_ptr & 0x3fffffc;
+    tcg_out32(s, insn | retrans);
+}
+
+static inline void tcg_out_bc_noaddr(TCGContext *s, int insn)
+{
+    unsigned retrans = *(uint32_t *)s->code_ptr & 0xfffc;
+    tcg_out32(s, insn | retrans);
+}
+
 static void patch_reloc(uint8_t *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -1362,11 +1374,8 @@ static void tcg_out_bc(TCGContext *s, int bc, int label_index)
     if (l->has_value) {
         tcg_out32(s, bc | reloc_pc14_val(s->code_ptr, l->u.value));
     } else {
-        uint16_t val = *(uint16_t *) &s->code_ptr[2];
-
-        /* Thanks to Andrzej Zaborowski */
-        tcg_out32(s, bc | (val & 0xfffc));
-        tcg_out_reloc(s, s->code_ptr - 4, R_PPC_REL14, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, label_index, 0);
+        tcg_out_bc_noaddr(s, bc);
     }
 }
 
@@ -1466,11 +1475,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             if (l->has_value) {
                 tcg_out_b(s, 0, l->u.value);
             } else {
-                uint32_t val = *(uint32_t *) s->code_ptr;
-
-                /* Thanks to Andrzej Zaborowski */
-                tcg_out32(s, B | (val & 0x3fffffc));
-                tcg_out_reloc(s, s->code_ptr - 4, R_PPC_REL24, args[0], 0);
+                tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, args[0], 0);
+                tcg_out_b_noaddr(s, B);
             }
         }
         break;
