@@ -713,16 +713,24 @@ static void tcg_out_call(TCGContext *s, tcg_target_long arg, int const_arg)
         tcg_out32(s, BCLR | BO_ALWAYS | LK);
     }
 #else
-    int reg = arg;
+    TCGReg reg = arg;
+    int ofs = 0;
 
     if (const_arg) {
+        /* Fold the low bits of the constant into the addresses below.  */
+        ofs = (int16_t)arg;
+        if (ofs + 8 < 0x8000) {
+            arg -= ofs;
+        } else {
+            ofs = 0;
+        }
         reg = TCG_REG_R2;
         tcg_out_movi(s, TCG_TYPE_I64, reg, arg);
     }
 
-    tcg_out32(s, LD | TAI(TCG_REG_R0, reg, 0));
+    tcg_out32(s, LD | TAI(TCG_REG_R0, reg, ofs));
     tcg_out32(s, MTSPR | RA(TCG_REG_R0) | CTR);
-    tcg_out32(s, LD | TAI(TCG_REG_R2, reg, 8));
+    tcg_out32(s, LD | TAI(TCG_REG_R2, reg, ofs + 8));
     tcg_out32(s, BCCTR | BO_ALWAYS | LK);
 #endif
 }
