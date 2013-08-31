@@ -718,10 +718,10 @@ static void tcg_out_call(TCGContext *s, tcg_target_long arg, int const_arg)
         tcg_out_movi(s, TCG_TYPE_I64, reg, arg);
     }
 
-    tcg_out32(s, LD | RT(0) | RA(reg));
+    tcg_out32(s, LD | TAI(0, reg, 0));
     tcg_out32(s, MTSPR | RA(0) | CTR);
-    tcg_out32(s, LD | RT(11) | RA(reg) | 16);
-    tcg_out32(s, LD | RT(2) | RA(reg) | 8);
+    tcg_out32(s, LD | TAI(11, reg, 16));
+    tcg_out32(s, LD | TAI(2, reg, 8));
     tcg_out32(s, BCCTR | BO_ALWAYS | LK);
 #endif
 }
@@ -963,12 +963,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     reloc_pc14(label1_ptr, (tcg_target_long)s->code_ptr);
 #endif
 
-    tcg_out32(s, (LD
-                   | RT(r0)
-                   | RA(r0)
-                   | (offsetof(CPUTLBEntry, addend)
-                      - offsetof(CPUTLBEntry, addr_write))
-                   ));
+    tcg_out32(s, LD | TAI(r0, r0, 
+                          offsetof(CPUTLBEntry, addend)
+                          - offsetof(CPUTLBEntry, addr_write)));
     /* r0 = env->tlb_table[mem_index][index].addend */
     tcg_out32(s, ADD | TAB(r0, r0, addr_reg));
     /* r0 = env->tlb_table[mem_index][index].addend + addr */
@@ -1030,15 +1027,12 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Prologue */
     tcg_out32(s, MFSPR | RT(0) | LR);
-    tcg_out32(s, STDU | RS(1) | RA(1) | (-frame_size & 0xffff));
-    for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i)
-        tcg_out32(s, (STD
-                       | RS(tcg_target_callee_save_regs[i])
-                       | RA(1)
-                       | (i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE)
-                       )
-            );
-    tcg_out32(s, STD | RS(0) | RA(1) | (frame_size + 16));
+    tcg_out32(s, STDU | SAI(1, 1, -frame_size));
+    for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
+        tcg_out32(s, STD | SAI(tcg_target_callee_save_regs[i], 1, 
+                               i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE));
+    }
+    tcg_out32(s, STD | SAI(0, 1, frame_size + 16));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
@@ -1054,13 +1048,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* Epilogue */
     tb_ret_addr = s->code_ptr;
 
-    for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i)
-        tcg_out32(s, (LD
-                       | RT(tcg_target_callee_save_regs[i])
-                       | RA(1)
-                       | (i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE)
-                       )
-            );
+    for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
+        tcg_out32(s, LD | TAI(tcg_target_callee_save_regs[i], 1,
+                              i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE));
+    }
     tcg_out32(s, LD | TAI(0, 1, frame_size + 16));
     tcg_out32(s, MTSPR | RS(0) | LR);
     tcg_out32(s, ADDI | TAI(1, 1, frame_size));
