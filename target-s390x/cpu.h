@@ -228,6 +228,8 @@ typedef struct CPUS390XState {
 #undef PSW_MASK_CC
 #undef PSW_MASK_PM
 #undef PSW_MASK_64
+#undef PSW_MASK_32
+#undef PSW_MASK_ESA_ADDR
 
 #define PSW_MASK_PER            0x4000000000000000ULL
 #define PSW_MASK_DAT            0x0400000000000000ULL
@@ -243,6 +245,7 @@ typedef struct CPUS390XState {
 #define PSW_MASK_PM             0x00000F0000000000ULL
 #define PSW_MASK_64             0x0000000100000000ULL
 #define PSW_MASK_32             0x0000000080000000ULL
+#define PSW_MASK_ESA_ADDR       0x000000007fffffffULL
 
 #undef PSW_ASC_PRIMARY
 #undef PSW_ASC_ACCREG
@@ -400,6 +403,7 @@ void cpu_unlock(void);
 typedef struct SubchDev SubchDev;
 
 #ifndef CONFIG_USER_ONLY
+extern void io_subsystem_reset(void);
 SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
                          uint16_t schid);
 bool css_subch_visible(SubchDev *sch);
@@ -1047,6 +1051,9 @@ uint32_t set_cc_nz_f64(float64 v);
 uint32_t set_cc_nz_f128(float128 v);
 
 /* misc_helper.c */
+#ifndef CONFIG_USER_ONLY
+void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
+#endif
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);
@@ -1062,6 +1069,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_get_registers_partial(CPUState *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
+int kvm_s390_cpu_restart(S390CPU *cpu);
 #else
 static inline void kvm_s390_io_interrupt(S390CPU *cpu,
                                         uint16_t subchannel_id,
@@ -1086,7 +1094,19 @@ static inline int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier,
 {
     return -ENOSYS;
 }
+static inline int kvm_s390_cpu_restart(S390CPU *cpu)
+{
+    return -ENOSYS;
+}
 #endif
+
+static inline int s390_cpu_restart(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_cpu_restart(cpu);
+    }
+    return -ENOSYS;
+}
 
 static inline void s390_io_interrupt(S390CPU *cpu,
                                      uint16_t subchannel_id,
