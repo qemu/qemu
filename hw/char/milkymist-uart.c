@@ -195,22 +195,26 @@ static void milkymist_uart_reset(DeviceState *d)
     s->regs[R_STAT] = STAT_THRE;
 }
 
-static int milkymist_uart_init(SysBusDevice *dev)
+static void milkymist_uart_realize(DeviceState *dev, Error **errp)
 {
     MilkymistUartState *s = MILKYMIST_UART(dev);
-
-    sysbus_init_irq(dev, &s->irq);
-
-    memory_region_init_io(&s->regs_region, OBJECT(s), &uart_mmio_ops, s,
-                          "milkymist-uart", R_MAX * 4);
-    sysbus_init_mmio(dev, &s->regs_region);
 
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
     }
+}
 
-    return 0;
+static void milkymist_uart_init(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    MilkymistUartState *s = MILKYMIST_UART(obj);
+
+    sysbus_init_irq(sbd, &s->irq);
+
+    memory_region_init_io(&s->regs_region, OBJECT(s), &uart_mmio_ops, s,
+                          "milkymist-uart", R_MAX * 4);
+    sysbus_init_mmio(sbd, &s->regs_region);
 }
 
 static const VMStateDescription vmstate_milkymist_uart = {
@@ -227,9 +231,8 @@ static const VMStateDescription vmstate_milkymist_uart = {
 static void milkymist_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_uart_init;
+    dc->realize = milkymist_uart_realize;
     dc->reset = milkymist_uart_reset;
     dc->vmsd = &vmstate_milkymist_uart;
 }
@@ -238,6 +241,7 @@ static const TypeInfo milkymist_uart_info = {
     .name          = TYPE_MILKYMIST_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistUartState),
+    .instance_init = milkymist_uart_init,
     .class_init    = milkymist_uart_class_init,
 };
 
