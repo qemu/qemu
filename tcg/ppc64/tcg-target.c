@@ -1043,25 +1043,26 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 #endif
 }
 
+#define FRAME_SIZE ((int) \
+    ((8                     /* back chain */              \
+      + 8                   /* CR */                      \
+      + 8                   /* LR */                      \
+      + 8                   /* compiler doubleword */     \
+      + 8                   /* link editor doubleword */  \
+      + 8                   /* TOC save area */           \
+      + TCG_STATIC_CALL_ARGS_SIZE                         \
+      + CPU_TEMP_BUF_NLONGS * sizeof(long)                \
+      + ARRAY_SIZE(tcg_target_callee_save_regs) * 8       \
+      + 15) & ~15))
+
+#define REG_SAVE_BOT (FRAME_SIZE - ARRAY_SIZE(tcg_target_callee_save_regs) * 8)
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    int i, frame_size;
+    int i;
 
-    frame_size = 0
-        + 8                     /* back chain */
-        + 8                     /* CR */
-        + 8                     /* LR */
-        + 8                     /* compiler doubleword */
-        + 8                     /* link editor doubleword */
-        + 8                     /* TOC save area */
-        + TCG_STATIC_CALL_ARGS_SIZE
-        + ARRAY_SIZE(tcg_target_callee_save_regs) * 8
-        + CPU_TEMP_BUF_NLONGS * sizeof(long)
-        ;
-    frame_size = (frame_size + 15) & ~15;
-
-    tcg_set_frame(s, TCG_REG_CALL_STACK, frame_size
-                  - CPU_TEMP_BUF_NLONGS * sizeof(long),
+    tcg_set_frame(s, TCG_REG_CALL_STACK,
+                  REG_SAVE_BOT - CPU_TEMP_BUF_NLONGS * sizeof(long),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
 #ifndef __APPLE__
@@ -1072,12 +1073,12 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Prologue */
     tcg_out32(s, MFSPR | RT(TCG_REG_R0) | LR);
-    tcg_out32(s, STDU | SAI(TCG_REG_R1, TCG_REG_R1, -frame_size));
+    tcg_out32(s, STDU | SAI(TCG_REG_R1, TCG_REG_R1, -FRAME_SIZE));
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
         tcg_out32(s, STD | SAI(tcg_target_callee_save_regs[i], 1, 
-                               i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE));
+                               REG_SAVE_BOT + i * 8));
     }
-    tcg_out32(s, STD | SAI(TCG_REG_R0, TCG_REG_R1, frame_size + 16));
+    tcg_out32(s, STD | SAI(TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
@@ -1095,11 +1096,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i) {
         tcg_out32(s, LD | TAI(tcg_target_callee_save_regs[i], TCG_REG_R1,
-                              i * 8 + 48 + TCG_STATIC_CALL_ARGS_SIZE));
+                              REG_SAVE_BOT + i * 8));
     }
-    tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R1, frame_size + 16));
+    tcg_out32(s, LD | TAI(TCG_REG_R0, TCG_REG_R1, FRAME_SIZE + 16));
     tcg_out32(s, MTSPR | RS(TCG_REG_R0) | LR);
-    tcg_out32(s, ADDI | TAI(TCG_REG_R1, TCG_REG_R1, frame_size));
+    tcg_out32(s, ADDI | TAI(TCG_REG_R1, TCG_REG_R1, FRAME_SIZE));
     tcg_out32(s, BCLR | BO_ALWAYS);
 }
 
@@ -2153,4 +2154,53 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13); /* thread pointer */
 
     tcg_add_target_add_op_defs(ppc_op_defs);
+}
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[ARRAY_SIZE(tcg_target_callee_save_regs) * 2 + 3];
+} DebugFrame;
+
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
+
+#define ELF_HOST_MACHINE EM_PPC64
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = 0x78,             /* sleb128 -8 */
+    .cie.return_column = 65,
+
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
+        12, 1,                          /* DW_CFA_def_cfa r1, ... */
+        (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
+        (FRAME_SIZE >> 7)
+    },
+    .fde_reg_ofs = {
+        0x11, 65, 0x7e,                 /* DW_CFA_offset_extended_sf, lr, 16 */
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    uint8_t *p = &debug_frame.fde_reg_ofs[3];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); ++i, p += 2) {
+        p[0] = 0x80 + tcg_target_callee_save_regs[i];
+        p[1] = (FRAME_SIZE - (REG_SAVE_BOT + i * 8)) / 8;
+    }
+
+    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
