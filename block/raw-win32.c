@@ -535,13 +535,29 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;
+    int ret = 0;
     DWORD overlapped;
     char device_name[64];
-    const char *filename = qdict_get_str(options, "filename");
+
+    Error *local_err = NULL;
+    const char *filename;
+
+    QemuOpts *opts = qemu_opts_create_nofail(&raw_runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto done;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     if (strstart(filename, "/dev/cdrom", NULL)) {
-        if (find_cdrom(device_name, sizeof(device_name)) < 0)
-            return -ENOENT;
+        if (find_cdrom(device_name, sizeof(device_name)) < 0) {
+            ret = -ENOENT;
+            goto done;
+        }
         filename = device_name;
     } else {
         /* transform drive letters into device name */
@@ -564,11 +580,17 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
     if (s->hfile == INVALID_HANDLE_VALUE) {
         int err = GetLastError();
 
-        if (err == ERROR_ACCESS_DENIED)
-            return -EACCES;
-        return -1;
+        if (err == ERROR_ACCESS_DENIED) {
+            ret = -EACCES;
+        } else {
+            ret = -1;
+        }
+        goto done;
     }
-    return 0;
+
+done:
+    qemu_opts_del(opts);
+    return ret;
 }
 
 static BlockDriver bdrv_host_device = {
