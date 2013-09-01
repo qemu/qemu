@@ -85,7 +85,7 @@ void page_size_init(void);
 
 void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
-TranslationBlock *tb_gen_code(CPUArchState *env, 
+TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
