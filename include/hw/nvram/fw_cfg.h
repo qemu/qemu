@@ -60,6 +60,7 @@ typedef struct FWCfgFiles {
 } FWCfgFiles;
 
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
+typedef void (*FWCfgReadCallback)(void *opaque, uint32_t offset);
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
@@ -70,6 +71,9 @@ void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
                          void *callback_opaque, void *data, size_t len);
 void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
                      size_t len);
+void fw_cfg_add_file_callback(FWCfgState *s, const char *filename,
+                              FWCfgReadCallback callback, void *callback_opaque,
+                              void *data, size_t len);
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr crl_addr, hwaddr data_addr);
 
