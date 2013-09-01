@@ -799,8 +799,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
             break;
         }
 
-        r = virtio_pci_set_guest_notifier(d, n, assign,
-                                          kvm_msi_via_irqfd_enabled());
+        r = virtio_pci_set_guest_notifier(d, n, assign, with_irqfd);
         if (r < 0) {
             goto assign_error;
         }
