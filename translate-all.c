@@ -1419,9 +1419,9 @@ CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
 
 /* in deterministic execution mode, instructions doing device I/Os
    must be at the end of the TB */
-void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
+void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
