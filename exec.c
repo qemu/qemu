@@ -1605,7 +1605,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
             wp->flags |= BP_WATCHPOINT_HIT;
             if (!cpu->watchpoint_hit) {
                 cpu->watchpoint_hit = wp;
-                tb_check_watchpoint(env);
+                tb_check_watchpoint(cpu);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     cpu->exception_index = EXCP_DEBUG;
                     cpu_loop_exit(cpu);

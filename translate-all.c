@@ -1371,9 +1371,9 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 
-void tb_check_watchpoint(CPUArchState *env)
+void tb_check_watchpoint(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
 
     tb = tb_find_pc(cpu->mem_io_pc);
