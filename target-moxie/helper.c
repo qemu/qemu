@@ -49,14 +49,12 @@
 void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    MoxieCPU *cpu = MOXIE_CPU(cs);
-    CPUMoxieState *env = &cpu->env;
     int ret;
 
     ret = moxie_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
     }
     cpu_loop_exit(cs);
@@ -70,7 +68,7 @@ void helper_raise_exception(CPUMoxieState *env, int ex)
     /* Stash the exception type.  */
     env->sregs[2] = ex;
     /* Stash the address where the exception occurred.  */
-    cpu_restore_state(env, GETPC());
+    cpu_restore_state(cs, GETPC());
     env->sregs[5] = env->pc;
     /* Jump the the exception handline routine.  */
     env->pc = env->sregs[1];

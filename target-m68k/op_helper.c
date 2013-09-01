@@ -60,12 +60,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
     ret = m68k_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
-        M68kCPU *cpu = M68K_CPU(cs);
-        CPUM68KState *env = &cpu->env;
-
         if (retaddr) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         cpu_loop_exit(cs);
     }

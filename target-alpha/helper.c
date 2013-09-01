@@ -526,7 +526,7 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
     cs->exception_index = excp;
     env->error_code = error;
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
     }
     cpu_loop_exit(cs);
 }

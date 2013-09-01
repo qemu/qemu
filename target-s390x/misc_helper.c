@@ -54,7 +54,7 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
     env->int_pgm_code = excp;
 
     /* Use the (ultimate) callers address to find the insn that trapped.  */
-    cpu_restore_state(env, retaddr);
+    cpu_restore_state(cs, retaddr);
 
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);

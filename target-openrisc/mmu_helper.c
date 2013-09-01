@@ -44,12 +44,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write,
     ret = openrisc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
 
     if (ret) {
-        OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-        CPUOpenRISCState *env = &cpu->env;
-
         if (retaddr) {
             /* now we have a real cpu fault.  */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         /* Raise Exception.  */
         cpu_loop_exit(cs);

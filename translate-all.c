@@ -253,8 +253,9 @@ static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
     return 0;
 }
 
-bool cpu_restore_state(CPUArchState *env, uintptr_t retaddr)
+bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
 {
+    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
 
     tb = tb_find_pc(retaddr);

@@ -2424,12 +2424,13 @@ static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
                                               target_ulong addr, int is_write,
                                               int is_user, uintptr_t retaddr)
 {
+    SPARCCPU *cpu = sparc_env_get_cpu(env);
 #ifdef DEBUG_UNALIGNED
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
            "\n", addr, env->pc);
 #endif
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(CPU(cpu), retaddr);
     }
     helper_raise_exception(env, TT_UNALIGNED);
 }
@@ -2445,11 +2446,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
     ret = sparc_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
-        SPARCCPU *cpu = SPARC_CPU(cs);
-        CPUSPARCState *env = &cpu->env;
-
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         cpu_loop_exit(cs);
     }

@@ -48,7 +48,7 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
 
     if (pc) {
         /* now we have a real cpu fault */
-        cpu_restore_state(env, pc);
+        cpu_restore_state(cs, pc);
     }
 
     cpu_loop_exit(cs);

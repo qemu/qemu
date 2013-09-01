@@ -67,7 +67,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            if (cpu_restore_state(env, retaddr)) {
+            if (cpu_restore_state(cs, retaddr)) {
 		/* Evaluate flags after retranslation.  */
                 helper_top_evaluate_flags(env);
             }

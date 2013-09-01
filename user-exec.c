@@ -117,7 +117,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
     /* now we have a real cpu fault */
-    cpu_restore_state(env, pc);
+    cpu_restore_state(cpu, pc);
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */

@@ -2909,7 +2909,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         helper_raise_exception_err(env, cs->exception_index, env->error_code);
     }

@@ -51,12 +51,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
     ret = s390_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
-        S390CPU *cpu = S390_CPU(cs);
-        CPUS390XState *env = &cpu->env;
-
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         cpu_loop_exit(cs);
     }

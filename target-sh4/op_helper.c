@@ -46,11 +46,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
     ret = superh_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
-        SuperHCPU *cpu = SUPERH_CPU(cs);
-        CPUSH4State *env = &cpu->env;
-
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
         cpu_loop_exit(cs);
     }
@@ -75,7 +72,7 @@ static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
 
     cs->exception_index = index;
     if (retaddr) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
     }
     cpu_loop_exit(cs);
 }
