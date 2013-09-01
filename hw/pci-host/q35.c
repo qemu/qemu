@@ -214,6 +214,16 @@ static void mch_update_pciexbar(MCHPCIState *mch)
     }
     addr = pciexbar & addr_mask;
     pcie_host_mmcfg_update(pehb, enable, addr, length);
+    /* Leave enough space for the MCFG BAR */
+    /*
+     * TODO: this matches current bios behaviour, but it's not a power of two,
+     * which means an MTRR can't cover it exactly.
+     */
+    if (enable) {
+        mch->pci_info.w32.begin = addr + length;
+    } else {
+        mch->pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+    }
 }
 
 /* PAM */
