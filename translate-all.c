@@ -1479,9 +1479,8 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cpu_resume_from_signal(env, NULL);
 }
 
-void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
+void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     unsigned int i;
 
     /* Discard jump cache entries for any tb which might potentially

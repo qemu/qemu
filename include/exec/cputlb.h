@@ -31,7 +31,7 @@ void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
 extern int tlb_flush_count;
 
 /* exec.c */
-void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr);
+void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
 
 MemoryRegionSection *
 address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,

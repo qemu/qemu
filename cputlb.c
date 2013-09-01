@@ -106,7 +106,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
         tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
     }
 
-    tb_flush_jmp_cache(env, addr);
+    tb_flush_jmp_cache(cpu, addr);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
