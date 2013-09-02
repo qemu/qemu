@@ -69,6 +69,7 @@ void lm32_breakpoint_remove(CPULM32State *env, int idx)
 void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
                             lm32_wp_t wp_type)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
     int flags = 0;
 
     switch (wp_type) {
@@ -87,18 +88,20 @@ void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
     }
 
     if (flags != 0) {
-        cpu_watchpoint_insert(env, address, 1, flags,
+        cpu_watchpoint_insert(CPU(cpu), address, 1, flags,
                 &env->cpu_watchpoint[idx]);
     }
 }
 
 void lm32_watchpoint_remove(CPULM32State *env, int idx)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
     if (!env->cpu_watchpoint[idx]) {
         return;
     }
 
-    cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[idx]);
+    cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[idx]);
     env->cpu_watchpoint[idx] = NULL;
 }
 

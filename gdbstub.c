@@ -657,8 +657,7 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_watchpoint_insert(env, addr, len, xlat_gdb_type[type],
+            err = cpu_watchpoint_insert(cpu, addr, len, xlat_gdb_type[type],
                                         NULL);
             if (err)
                 break;
@@ -695,8 +694,7 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_ACCESS:
         CPU_FOREACH(cpu) {
-            env = cpu->env_ptr;
-            err = cpu_watchpoint_remove(env, addr, len, xlat_gdb_type[type]);
+            err = cpu_watchpoint_remove(cpu, addr, len, xlat_gdb_type[type]);
             if (err)
                 break;
         }
@@ -721,7 +719,7 @@ static void gdb_breakpoint_remove_all(void)
         env = cpu->env_ptr;
         cpu_breakpoint_remove_all(env, BP_GDB);
 #ifndef CONFIG_USER_ONLY
-        cpu_watchpoint_remove_all(env, BP_GDB);
+        cpu_watchpoint_remove_all(cpu, BP_GDB);
 #endif
     }
 }
@@ -1593,13 +1591,16 @@ int gdbserver_start(int port)
 /* Disable gdb stub for child processes.  */
 void gdbserver_fork(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     GDBState *s = gdbserver_state;
-    if (gdbserver_fd < 0 || s->fd < 0)
-      return;
+
+    if (gdbserver_fd < 0 || s->fd < 0) {
+        return;
+    }
     close(s->fd);
     s->fd = -1;
     cpu_breakpoint_remove_all(env, BP_GDB);
-    cpu_watchpoint_remove_all(env, BP_GDB);
+    cpu_watchpoint_remove_all(cpu, BP_GDB);
 }
 #else
 static int gdb_chr_can_receive(void *opaque)

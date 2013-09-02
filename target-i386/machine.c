@@ -290,6 +290,7 @@ static void cpu_pre_save(void *opaque)
 static int cpu_post_load(void *opaque, int version_id)
 {
     X86CPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int i;
 
@@ -320,7 +321,7 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 
     cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
+    cpu_watchpoint_remove_all(cs, BP_CPU);
     for (i = 0; i < DR7_MAX_BP; i++) {
         hw_breakpoint_insert(env, i);
     }

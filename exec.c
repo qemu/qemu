@@ -33,6 +33,7 @@
 #include "hw/xen/xen.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "exec/memory.h"
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
@@ -527,30 +528,30 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 #endif /* TARGET_HAS_ICE */
 
 #if defined(CONFIG_USER_ONLY)
-void cpu_watchpoint_remove_all(CPUArchState *env, int mask)
+void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
 
 {
 }
 
-int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len,
+int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           int flags, CPUWatchpoint **watchpoint)
 {
     return -ENOSYS;
 }
 #else
 /* Add a watchpoint.  */
-int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len,
+int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           int flags, CPUWatchpoint **watchpoint)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-    target_ulong len_mask = ~(len - 1);
+    CPUArchState *env = cpu->env_ptr;
+    vaddr len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
     if ((len & (len - 1)) || (addr & ~len_mask) ||
             len == 0 || len > TARGET_PAGE_SIZE) {
-        fprintf(stderr, "qemu: tried to set invalid watchpoint at "
-                TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
+        error_report("tried to set invalid watchpoint at %"
+                     VADDR_PRIx ", len=%" VADDR_PRIu, addr, len);
         return -EINVAL;
     }
     wp = g_malloc(sizeof(*wp));
@@ -574,17 +575,16 @@ int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len
 }
 
 /* Remove a specific watchpoint.  */
-int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len,
+int cpu_watchpoint_remove(CPUState *cpu, vaddr addr, vaddr len,
                           int flags)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-    target_ulong len_mask = ~(len - 1);
+    vaddr len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         if (addr == wp->vaddr && len_mask == wp->len_mask
                 && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
-            cpu_watchpoint_remove_by_ref(env, wp);
+            cpu_watchpoint_remove_by_ref(cpu, wp);
             return 0;
         }
     }
@@ -592,9 +592,9 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr, target_ulong len
 }
 
 /* Remove a specific watchpoint by reference.  */
-void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint)
+void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
 
     QTAILQ_REMOVE(&cpu->watchpoints, watchpoint, entry);
 
@@ -604,14 +604,14 @@ void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint)
 }
 
 /* Remove all matching watchpoints.  */
-void cpu_watchpoint_remove_all(CPUArchState *env, int mask)
+void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUWatchpoint *wp, *next;
 
     QTAILQ_FOREACH_SAFE(wp, &cpu->watchpoints, entry, next) {
-        if (wp->flags & mask)
-            cpu_watchpoint_remove_by_ref(env, wp);
+        if (wp->flags & mask) {
+            cpu_watchpoint_remove_by_ref(cpu, wp);
+        }
     }
 }
 #endif

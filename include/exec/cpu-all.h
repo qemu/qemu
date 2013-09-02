@@ -427,12 +427,6 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
 int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
 void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint);
 void cpu_breakpoint_remove_all(CPUArchState *env, int mask);
-int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len,
-                          int flags, CPUWatchpoint **watchpoint);
-int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
-                          target_ulong len, int flags);
-void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
-void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
 #if !defined(CONFIG_USER_ONLY)
 

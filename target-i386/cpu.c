@@ -2474,7 +2474,7 @@ static void x86_cpu_reset(CPUState *s)
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
     cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
+    cpu_watchpoint_remove_all(s, BP_CPU);
 
     env->tsc_adjust = 0;
     env->tsc = 0;
