@@ -44,6 +44,22 @@ typedef struct MemoryRegionPortioList {
     MemoryRegionPortio ports[];
 } MemoryRegionPortioList;
 
+static uint64_t unassigned_io_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return -1ULL;
+}
+
+static void unassigned_io_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+}
+
+const MemoryRegionOps unassigned_io_ops = {
+    .read = unassigned_io_read,
+    .write = unassigned_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 void cpu_outb(pio_addr_t addr, uint8_t val)
 {
     LOG_IOPORT("outb: %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
