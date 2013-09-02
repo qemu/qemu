@@ -53,16 +53,21 @@ hwaddr lm32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
 void lm32_breakpoint_insert(CPULM32State *env, int idx, target_ulong address)
 {
-    cpu_breakpoint_insert(env, address, BP_CPU, &env->cpu_breakpoint[idx]);
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
+    cpu_breakpoint_insert(CPU(cpu), address, BP_CPU,
+                          &env->cpu_breakpoint[idx]);
 }
 
 void lm32_breakpoint_remove(CPULM32State *env, int idx)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
     if (!env->cpu_breakpoint[idx]) {
         return;
     }
 
-    cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[idx]);
+    cpu_breakpoint_remove_by_ref(CPU(cpu), env->cpu_breakpoint[idx]);
     env->cpu_breakpoint[idx] = NULL;
 }
 

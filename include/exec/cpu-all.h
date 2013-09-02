@@ -413,21 +413,6 @@ void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
-/* Breakpoint/watchpoint flags */
-#define BP_MEM_READ           0x01
-#define BP_MEM_WRITE          0x02
-#define BP_MEM_ACCESS         (BP_MEM_READ | BP_MEM_WRITE)
-#define BP_STOP_BEFORE_ACCESS 0x04
-#define BP_WATCHPOINT_HIT     0x08
-#define BP_GDB                0x10
-#define BP_CPU                0x20
-
-int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
-                          CPUBreakpoint **breakpoint);
-int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
-void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint);
-void cpu_breakpoint_remove_all(CPUArchState *env, int mask);
-
 #if !defined(CONFIG_USER_ONLY)
 
 /* memory API */

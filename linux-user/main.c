@@ -3455,7 +3455,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
     QTAILQ_INIT(&cpu->watchpoints);
 #if defined(TARGET_HAS_ICE)
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-        cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
+        cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
     }
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         cpu_watchpoint_insert(new_cpu, wp->vaddr, (~wp->len_mask) + 1,

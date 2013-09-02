@@ -320,7 +320,7 @@ static int cpu_post_load(void *opaque, int version_id)
         env->fptags[i] = (env->fptag_vmstate >> i) & 1;
     }
 
-    cpu_breakpoint_remove_all(env, BP_CPU);
+    cpu_breakpoint_remove_all(cs, BP_CPU);
     cpu_watchpoint_remove_all(cs, BP_CPU);
     for (i = 0; i < DR7_MAX_BP; i++) {
         hw_breakpoint_insert(env, i);

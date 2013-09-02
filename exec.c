@@ -617,11 +617,10 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
 #endif
 
 /* Add a breakpoint.  */
-int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
+int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
                           CPUBreakpoint **breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp;
 
     bp = g_malloc(sizeof(*bp));
@@ -648,15 +647,14 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
 }
 
 /* Remove a specific breakpoint.  */
-int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags)
+int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp;
 
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
-            cpu_breakpoint_remove_by_ref(env, bp);
+            cpu_breakpoint_remove_by_ref(cpu, bp);
             return 0;
         }
     }
@@ -667,11 +665,9 @@ int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags)
 }
 
 /* Remove a specific breakpoint by reference.  */
-void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint)
+void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUState *cpu = ENV_GET_CPU(env);
-
     QTAILQ_REMOVE(&cpu->breakpoints, breakpoint, entry);
 
     breakpoint_invalidate(cpu, breakpoint->pc);
@@ -681,15 +677,15 @@ void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint)
 }
 
 /* Remove all matching breakpoints. */
-void cpu_breakpoint_remove_all(CPUArchState *env, int mask)
+void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUBreakpoint *bp, *next;
 
     QTAILQ_FOREACH_SAFE(bp, &cpu->breakpoints, entry, next) {
-        if (bp->flags & mask)
-            cpu_breakpoint_remove_by_ref(env, bp);
+        if (bp->flags & mask) {
+            cpu_breakpoint_remove_by_ref(cpu, bp);
+        }
     }
 #endif
 }

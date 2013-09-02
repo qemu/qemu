@@ -999,7 +999,7 @@ void hw_breakpoint_insert(CPUX86State *env, int index)
     switch (hw_breakpoint_type(env->dr[7], index)) {
     case DR7_TYPE_BP_INST:
         if (hw_breakpoint_enabled(env->dr[7], index)) {
-            err = cpu_breakpoint_insert(env, env->dr[index], BP_CPU,
+            err = cpu_breakpoint_insert(cs, env->dr[index], BP_CPU,
                                         &env->cpu_breakpoint[index]);
         }
         break;
@@ -1036,7 +1036,7 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
     switch (hw_breakpoint_type(env->dr[7], index)) {
     case DR7_TYPE_BP_INST:
         if (hw_breakpoint_enabled(env->dr[7], index)) {
-            cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[index]);
+            cpu_breakpoint_remove_by_ref(cs, env->cpu_breakpoint[index]);
         }
         break;
     case DR7_TYPE_DATA_WR:
