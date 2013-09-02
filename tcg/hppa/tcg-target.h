@@ -25,10 +25,6 @@
 #ifndef TCG_TARGET_HPPA
 #define TCG_TARGET_HPPA 1
 
-#if TCG_TARGET_REG_BITS != 32
-#error unsupported
-#endif
-
 #define TCG_TARGET_WORDS_BIGENDIAN
 
 #define TCG_TARGET_NB_REGS 32
@@ -100,6 +96,8 @@ typedef enum {
 #define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_muls2_i32        0
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_neg_i32          0 /* sub rd, 0, rs */
@@ -109,8 +107,7 @@ typedef enum {
 #define TCG_AREG0 TCG_REG_R17
 
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
     start &= ~31;
     while (start <= stop) {

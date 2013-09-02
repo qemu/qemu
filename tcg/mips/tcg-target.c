@@ -108,33 +108,33 @@ static const TCGReg tcg_target_call_oarg_regs[2] = {
 
 static uint8_t *tb_ret_addr;
 
-static inline uint32_t reloc_lo16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_lo16_val(void *pc, intptr_t target)
 {
     return target & 0xffff;
 }
 
-static inline void reloc_lo16 (void *pc, tcg_target_long target)
+static inline void reloc_lo16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_lo16_val(pc, target);
 }
 
-static inline uint32_t reloc_hi16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_hi16_val(void *pc, intptr_t target)
 {
     return (target >> 16) & 0xffff;
 }
 
-static inline void reloc_hi16 (void *pc, tcg_target_long target)
+static inline void reloc_hi16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_hi16_val(pc, target);
 }
 
-static inline uint32_t reloc_pc16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_pc16_val(void *pc, intptr_t target)
 {
     int32_t disp;
 
-    disp = target - (tcg_target_long) pc - 4;
+    disp = target - (intptr_t)pc - 4;
     if (disp != (disp << 14) >> 14) {
         tcg_abort ();
     }
@@ -157,14 +157,14 @@ static inline uint32_t reloc_26_val (void *pc, tcg_target_long target)
     return (target >> 2) & 0x3ffffff;
 }
 
-static inline void reloc_pc26 (void *pc, tcg_target_long target)
+static inline void reloc_pc26(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0x3ffffff)
                        | reloc_26_val(pc, target);
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     value += addend;
     switch(type) {
@@ -514,13 +514,13 @@ static inline void tcg_out_ldst(TCGContext *s, int opc, TCGArg arg,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, OPC_LW, arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, OPC_SW, arg, arg1, arg2);
 }
@@ -919,9 +919,6 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -1423,6 +1420,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
         tcg_out_opc_reg(s, OPC_MFHI, args[1], 0, 0);
         break;
+    case INDEX_op_mulsh_i32:
+        tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
+        break;
+    case INDEX_op_muluh_i32:
+        tcg_out_opc_reg(s, OPC_MULTU, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
+        break;
     case INDEX_op_div_i32:
         tcg_out_opc_reg(s, OPC_DIV, 0, args[1], args[2]);
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
@@ -1601,6 +1606,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
+    { INDEX_op_mulsh_i32, { "r", "rZ", "rZ" } },
+    { INDEX_op_muluh_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },

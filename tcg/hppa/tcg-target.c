@@ -22,6 +22,10 @@
  * THE SOFTWARE.
  */
 
+#if TCG_TARGET_REG_BITS != 32
+#error unsupported
+#endif
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0", "%r1", "%rp", "%r3", "%r4", "%r5", "%r6", "%r7",
@@ -145,14 +149,14 @@ static int reassemble_21(int as21)
 #define R_PARISC_PCREL12F  R_PARISC_NONE
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     uint32_t *insn_ptr = (uint32_t *)code_ptr;
     uint32_t insn = *insn_ptr;
-    tcg_target_long pcrel;
+    intptr_t pcrel;
 
     value += addend;
-    pcrel = (value - ((tcg_target_long)code_ptr + 8)) >> 2;
+    pcrel = (value - ((intptr_t)code_ptr + 8)) >> 2;
 
     switch (type) {
     case R_PARISC_PCREL12F:
@@ -388,14 +392,14 @@ static void tcg_out_ldst(TCGContext *s, int ret, int addr,
 
 /* This function is required by tcg.c.  */
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_LDW);
 }
 
 /* This function is required by tcg.c.  */
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_STW);
 }
@@ -906,8 +910,6 @@ static void tcg_out_movcond(TCGContext *s, int cond, TCGArg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {

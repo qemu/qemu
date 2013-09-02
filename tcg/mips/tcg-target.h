@@ -110,6 +110,8 @@ extern bool use_mips32r2_instructions;
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_muls2_i32        1
+#define TCG_TARGET_HAS_muluh_i32        1
+#define TCG_TARGET_HAS_mulsh_i32        1
 
 /* optional instructions detected at runtime */
 #define TCG_TARGET_HAS_movcond_i32      use_movnz_instructions
@@ -133,8 +135,7 @@ extern bool use_mips32r2_instructions;
 #include <sys/cachectl.h>
 #endif
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
     cacheflush ((void *)start, stop-start, ICACHE);
 }

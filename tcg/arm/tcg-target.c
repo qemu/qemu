@@ -108,21 +108,21 @@ static const int tcg_target_call_oarg_regs[2] = {
 
 #define TCG_REG_TMP  TCG_REG_R12
 
-static inline void reloc_abs32(void *code_ptr, tcg_target_long target)
+static inline void reloc_abs32(void *code_ptr, intptr_t target)
 {
     *(uint32_t *) code_ptr = target;
 }
 
-static inline void reloc_pc24(void *code_ptr, tcg_target_long target)
+static inline void reloc_pc24(void *code_ptr, intptr_t target)
 {
-    uint32_t offset = ((target - ((tcg_target_long) code_ptr + 8)) >> 2);
+    uint32_t offset = ((target - ((intptr_t)code_ptr + 8)) >> 2);
 
     *(uint32_t *) code_ptr = ((*(uint32_t *) code_ptr) & ~0xffffff)
                              | (offset & 0xffffff);
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     switch (type) {
     case R_ARM_ABS32:
@@ -1057,8 +1057,6 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 }
 
 #ifdef CONFIG_SOFTMMU
-
-#include "exec/softmmu_defs.h"
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
@@ -2065,13 +2063,13 @@ static void tcg_target_init(TCGContext *s)
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ld32u(s, COND_AL, arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_st32(s, COND_AL, arg, arg1, arg2);
 }

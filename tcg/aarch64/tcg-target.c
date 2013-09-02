@@ -88,7 +88,7 @@ static inline void reloc_pc19(void *code_ptr, tcg_target_long target)
 }
 
 static inline void patch_reloc(uint8_t *code_ptr, int type,
-                               tcg_target_long value, tcg_target_long addend)
+                               intptr_t value, intptr_t addend)
 {
     value += addend;
 
@@ -423,14 +423,14 @@ static inline void tcg_out_mov(TCGContext *s,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_LD,
                  arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_ST,
                  arg, arg1, arg2);
@@ -778,8 +778,6 @@ static inline void tcg_out_nop(TCGContext *s)
 }
 
 #ifdef CONFIG_SOFTMMU
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {

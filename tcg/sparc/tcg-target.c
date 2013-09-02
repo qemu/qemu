@@ -252,7 +252,7 @@ static inline int check_fit_i32(uint32_t val, unsigned int bits)
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     uint32_t insn;
     value += addend;
@@ -264,7 +264,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         *(uint32_t *)code_ptr = value;
         break;
     case R_SPARC_WDISP16:
-        value -= (long)code_ptr;
+        value -= (intptr_t)code_ptr;
         if (!check_fit_tl(value >> 2, 16)) {
             tcg_abort();
         }
@@ -274,7 +274,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         *(uint32_t *)code_ptr = insn;
         break;
     case R_SPARC_WDISP19:
-        value -= (long)code_ptr;
+        value -= (intptr_t)code_ptr;
         if (!check_fit_tl(value >> 2, 19)) {
             tcg_abort();
         }
@@ -436,13 +436,13 @@ static inline void tcg_out_ldst(TCGContext *s, int ret, int addr,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, (type == TCG_TYPE_I32 ? LDUW : LDX));
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, arg, arg1, arg2, (type == TCG_TYPE_I32 ? STW : STX));
 }
@@ -830,8 +830,6 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */

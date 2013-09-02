@@ -295,47 +295,42 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     }
 }
 
-/* The return address may point to the start of the next instruction.
-   Subtracting one gets us the call instruction itself.  */
+/* GETRA is the true target of the return instruction that we'll execute,
+   defined here for simplicity of defining the follow-up macros.  */
 #if defined(CONFIG_TCG_INTERPRETER)
 extern uintptr_t tci_tb_ptr;
-# define GETPC() tci_tb_ptr
-#elif defined(__s390__) && !defined(__s390x__)
-# define GETPC() \
-    (((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1)
-#elif defined(__arm__)
-/* Thumb return addresses have the low bit set, so we need to subtract two.
-   This is still safe in ARM mode because instructions are 4 bytes.  */
-# define GETPC() ((uintptr_t)__builtin_return_address(0) - 2)
+# define GETRA() tci_tb_ptr
 #else
-# define GETPC() ((uintptr_t)__builtin_return_address(0) - 1)
+# define GETRA() \
+    ((uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0)))
 #endif
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* qemu_ld/st optimization split code generation to fast and slow path, thus,
-   it needs special handling for an MMU helper which is called from the slow
-   path, to get the fast path's pc without any additional argument.
-   It uses a tricky solution which embeds the fast path pc into the slow path.
+/* The true return address will often point to a host insn that is part of
+   the next translated guest insn.  Adjust the address backward to point to
+   the middle of the call insn.  Subtracting one would do the job except for
+   several compressed mode architectures (arm, mips) which set the low bit
+   to indicate the compressed mode; subtracting two works around that.  It
+   is also the case that there are no host isas that contain a call insn
+   smaller than 4 bytes, so we don't worry about special-casing this.  */
+#if defined(CONFIG_TCG_INTERPRETER)
+# define GETPC_ADJ   0
+#else
+# define GETPC_ADJ   2
+#endif
 
-   Code flow in slow path:
-   (1) pre-process
-   (2) call MMU helper
-   (3) jump to (5)
-   (4) fast path information (implementation specific)
-   (5) post-process (e.g. stack adjust)
-   (6) jump to corresponding code of the next of fast path
- */
-# if defined(__i386__) || defined(__x86_64__)
-#  define GETPC_EXT()  GETPC()
-# elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
-#  define GETRA() ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
+#define GETPC()  (GETRA() - GETPC_ADJ)
+
+/* The LDST optimizations splits code generation into fast and slow path.
+   In some implementations, we pass the "logical" return address manually;
+   in others, we must infer the logical return from the true return.  */
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+# if defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
+#  define GETRA_LDST(RA)   (*(int32_t *)((RA) - 4))
 # elif defined(__arm__)
 /* We define two insns between the return address and the branch back to
    straight-line.  Find and decode that branch insn.  */
-#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
-static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+#  define GETRA_LDST(RA)   tcg_getra_ldst(RA)
+static inline uintptr_t tcg_getra_ldst(uintptr_t ra)
 {
     int32_t b;
     ra += 8;                    /* skip the two insns */
@@ -343,33 +338,32 @@ static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
     b = (b << 8) >> (8 - 2);    /* extract the displacement */
     ra += 8;                    /* branches are relative to pc+8 */
     ra += b;                    /* apply the displacement */
-    ra -= 4;                    /* return a pointer into the current opcode,
-                                   not the start of the next opcode  */
     return ra;
 }
 # elif defined(__aarch64__)
-#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
-static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+#  define GETRA_LDST(RA)  tcg_getra_ldst(RA)
+static inline uintptr_t tcg_getra_ldst(uintptr_t ra)
 {
     int32_t b;
     ra += 4;                    /* skip one instruction */
     b = *(int32_t *)ra;         /* load the branch insn */
     b = (b << 6) >> (6 - 2);    /* extract the displacement */
     ra += b;                    /* apply the displacement  */
-    ra -= 4;                    /* return a pointer into the current opcode,
-                                   not the start of the next opcode  */
     return ra;
 }
-# else
-#  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif
+#endif /* CONFIG_QEMU_LDST_OPTIMIZATION */
+
+/* ??? Delete these once they are no longer used.  */
 bool is_tcg_gen_code(uintptr_t pc_ptr);
-# ifndef GETPC_EXT
-#  define GETPC_EXT() (is_tcg_gen_code(GETRA()) ? GETPC_LDST() : GETPC())
-# endif
+#ifdef GETRA_LDST
+# define GETRA_EXT()  tcg_getra_ext(GETRA())
+static inline uintptr_t tcg_getra_ext(uintptr_t ra)
+{
+    return is_tcg_gen_code(ra) ? GETRA_LDST(ra) : ra;
+}
 #else
-# define GETPC_EXT() GETPC()
+# define GETRA_EXT()  GETRA()
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -383,7 +377,10 @@ bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
 
-#include "exec/softmmu_defs.h"
+uint8_t helper_ldb_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
+uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
