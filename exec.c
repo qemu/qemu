@@ -1805,7 +1805,8 @@ static void memory_map_init(void)
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, NULL, "io", 65536);
+    memory_region_init_io(system_io, NULL, &unassigned_io_ops, NULL, "io",
+                          65536);
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
