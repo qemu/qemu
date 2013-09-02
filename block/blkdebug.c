@@ -168,6 +168,7 @@ static const char *event_names[BLKDBG_EVENT_MAX] = {
 
     [BLKDBG_REFTABLE_LOAD]                  = "reftable_load",
     [BLKDBG_REFTABLE_GROW]                  = "reftable_grow",
+    [BLKDBG_REFTABLE_UPDATE]                = "reftable_update",
 
     [BLKDBG_REFBLOCK_LOAD]                  = "refblock_load",
     [BLKDBG_REFBLOCK_UPDATE]                = "refblock_update",
