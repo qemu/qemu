@@ -232,6 +232,32 @@ void bdrv_query_info(BlockDriverState *bs,
             info->inserted->iops    = cfg.buckets[THROTTLE_OPS_TOTAL].avg;
             info->inserted->iops_rd = cfg.buckets[THROTTLE_OPS_READ].avg;
             info->inserted->iops_wr = cfg.buckets[THROTTLE_OPS_WRITE].avg;
+
+            info->inserted->has_bps_max     =
+                cfg.buckets[THROTTLE_BPS_TOTAL].max;
+            info->inserted->bps_max         =
+                cfg.buckets[THROTTLE_BPS_TOTAL].max;
+            info->inserted->has_bps_rd_max  =
+                cfg.buckets[THROTTLE_BPS_READ].max;
+            info->inserted->bps_rd_max      =
+                cfg.buckets[THROTTLE_BPS_READ].max;
+            info->inserted->has_bps_wr_max  =
+                cfg.buckets[THROTTLE_BPS_WRITE].max;
+            info->inserted->bps_wr_max      =
+                cfg.buckets[THROTTLE_BPS_WRITE].max;
+
+            info->inserted->has_iops_max    =
+                cfg.buckets[THROTTLE_OPS_TOTAL].max;
+            info->inserted->iops_max        =
+                cfg.buckets[THROTTLE_OPS_TOTAL].max;
+            info->inserted->has_iops_rd_max =
+                cfg.buckets[THROTTLE_OPS_READ].max;
+            info->inserted->iops_rd_max     =
+                cfg.buckets[THROTTLE_OPS_READ].max;
+            info->inserted->has_iops_wr_max =
+                cfg.buckets[THROTTLE_OPS_WRITE].max;
+            info->inserted->iops_wr_max     =
+                cfg.buckets[THROTTLE_OPS_WRITE].max;
         }
 
         bs0 = bs;

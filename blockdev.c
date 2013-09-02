@@ -494,13 +494,18 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     cfg.buckets[THROTTLE_OPS_WRITE].avg =
         qemu_opt_get_number(opts, "throttling.iops-write", 0);
 
-    cfg.buckets[THROTTLE_BPS_TOTAL].max = 0;
-    cfg.buckets[THROTTLE_BPS_READ].max  = 0;
-    cfg.buckets[THROTTLE_BPS_WRITE].max = 0;
-
-    cfg.buckets[THROTTLE_OPS_TOTAL].max = 0;
-    cfg.buckets[THROTTLE_OPS_READ].max  = 0;
-    cfg.buckets[THROTTLE_OPS_WRITE].max = 0;
+    cfg.buckets[THROTTLE_BPS_TOTAL].max =
+        qemu_opt_get_number(opts, "throttling.bps-total-max", 0);
+    cfg.buckets[THROTTLE_BPS_READ].max  =
+        qemu_opt_get_number(opts, "throttling.bps-read-max", 0);
+    cfg.buckets[THROTTLE_BPS_WRITE].max =
+        qemu_opt_get_number(opts, "throttling.bps-write-max", 0);
+    cfg.buckets[THROTTLE_OPS_TOTAL].max =
+        qemu_opt_get_number(opts, "throttling.iops-total-max", 0);
+    cfg.buckets[THROTTLE_OPS_READ].max =
+        qemu_opt_get_number(opts, "throttling.iops-read-max", 0);
+    cfg.buckets[THROTTLE_OPS_WRITE].max =
+        qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
 
     cfg.op_size = 0;
 
@@ -760,6 +765,14 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
     qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
     qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+
+    qemu_opt_rename(all_opts, "iops_max", "throttling.iops-total-max");
+    qemu_opt_rename(all_opts, "iops_rd_max", "throttling.iops-read-max");
+    qemu_opt_rename(all_opts, "iops_wr_max", "throttling.iops-write-max");
+
+    qemu_opt_rename(all_opts, "bps_max", "throttling.bps-total-max");
+    qemu_opt_rename(all_opts, "bps_rd_max", "throttling.bps-read-max");
+    qemu_opt_rename(all_opts, "bps_wr_max", "throttling.bps-write-max");
 
     qemu_opt_rename(all_opts, "readonly", "read-only");
 
@@ -1245,8 +1258,22 @@ void qmp_change_blockdev(const char *device, const char *filename,
 
 /* throttling disk I/O limits */
 void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
-                               int64_t bps_wr, int64_t iops, int64_t iops_rd,
-                               int64_t iops_wr, Error **errp)
+                               int64_t bps_wr,
+                               int64_t iops,
+                               int64_t iops_rd,
+                               int64_t iops_wr,
+                               bool has_bps_max,
+                               int64_t bps_max,
+                               bool has_bps_rd_max,
+                               int64_t bps_rd_max,
+                               bool has_bps_wr_max,
+                               int64_t bps_wr_max,
+                               bool has_iops_max,
+                               int64_t iops_max,
+                               bool has_iops_rd_max,
+                               int64_t iops_rd_max,
+                               bool has_iops_wr_max,
+                               int64_t iops_wr_max, Error **errp)
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
@@ -1266,13 +1293,24 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     cfg.buckets[THROTTLE_OPS_READ].avg  = iops_rd;
     cfg.buckets[THROTTLE_OPS_WRITE].avg = iops_wr;
 
-    cfg.buckets[THROTTLE_BPS_TOTAL].max = 0;
-    cfg.buckets[THROTTLE_BPS_READ].max  = 0;
-    cfg.buckets[THROTTLE_BPS_WRITE].max = 0;
-
-    cfg.buckets[THROTTLE_OPS_TOTAL].max = 0;
-    cfg.buckets[THROTTLE_OPS_READ].max  = 0;
-    cfg.buckets[THROTTLE_OPS_WRITE].max = 0;
+    if (has_bps_max) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].max = bps_max;
+    }
+    if (has_bps_rd_max) {
+        cfg.buckets[THROTTLE_BPS_READ].max = bps_rd_max;
+    }
+    if (has_bps_wr_max) {
+        cfg.buckets[THROTTLE_BPS_WRITE].max = bps_wr_max;
+    }
+    if (has_iops_max) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].max = iops_max;
+    }
+    if (has_iops_rd_max) {
+        cfg.buckets[THROTTLE_OPS_READ].max = iops_rd_max;
+    }
+    if (has_iops_wr_max) {
+        cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
+    }
 
     cfg.op_size = 0;
 
@@ -1975,6 +2013,30 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.bps-write",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write bytes per second",
+        },{
+            .name = "throttling.iops-total-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations burst",
+        },{
+            .name = "throttling.iops-read-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations read burst",
+        },{
+            .name = "throttling.iops-write-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations write burst",
+        },{
+            .name = "throttling.bps-total-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes burst",
+        },{
+            .name = "throttling.bps-read-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes read burst",
+        },{
+            .name = "throttling.bps-write-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes write burst",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

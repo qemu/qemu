@@ -344,14 +344,28 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
         {
             monitor_printf(mon, "    I/O throttling:   bps=%" PRId64
                             " bps_rd=%" PRId64  " bps_wr=%" PRId64
+                            " bps_max=%" PRId64
+                            " bps_rd_max=%" PRId64
+                            " bps_wr_max=%" PRId64
                             " iops=%" PRId64 " iops_rd=%" PRId64
-                            " iops_wr=%" PRId64 "\n",
+                            " iops_wr=%" PRId64
+                            " iops_max=%" PRId64
+                            " iops_rd_max=%" PRId64
+                            " iops_wr_max=%" PRId64 "\n",
                             info->value->inserted->bps,
                             info->value->inserted->bps_rd,
                             info->value->inserted->bps_wr,
+                            info->value->inserted->bps_max,
+                            info->value->inserted->bps_rd_max,
+                            info->value->inserted->bps_wr_max,
                             info->value->inserted->iops,
                             info->value->inserted->iops_rd,
-                            info->value->inserted->iops_wr);
+                            info->value->inserted->iops_wr,
+                            info->value->inserted->iops_max,
+                            info->value->inserted->iops_rd_max,
+                            info->value->inserted->iops_wr_max);
+        } else {
+            monitor_printf(mon, " [not inserted]");
         }
 
         if (verbose) {
@@ -1098,7 +1112,19 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
                               qdict_get_int(qdict, "bps_wr"),
                               qdict_get_int(qdict, "iops"),
                               qdict_get_int(qdict, "iops_rd"),
-                              qdict_get_int(qdict, "iops_wr"), &err);
+                              qdict_get_int(qdict, "iops_wr"),
+                              false, /* no burst max via HMP */
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0,
+                              false,
+                              0, &err);
     hmp_handle_error(mon, &err);
 }
 

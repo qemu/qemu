@@ -785,6 +785,18 @@
 #
 # @image: the info of image used (since: 1.6)
 #
+# @bps_max: #optional total max in bytes (Since 1.7)
+#
+# @bps_rd_max: #optional read max in bytes (Since 1.7)
+#
+# @bps_wr_max: #optional write max in bytes (Since 1.7)
+#
+# @iops_max: #optional total I/O operations max (Since 1.7)
+#
+# @iops_rd_max: #optional read I/O operations max (Since 1.7)
+#
+# @iops_wr_max: #optional write I/O operations max (Since 1.7)
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
@@ -795,7 +807,10 @@
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
-            'image': 'ImageInfo' } }
+            'image': 'ImageInfo',
+            '*bps_max': 'int', '*bps_rd_max': 'int',
+            '*bps_wr_max': 'int', '*iops_max': 'int',
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -2174,6 +2189,18 @@
 #
 # @iops_wr: write I/O operations per second
 #
+# @bps_max: #optional total max in bytes (Since 1.7)
+#
+# @bps_rd_max: #optional read max in bytes (Since 1.7)
+#
+# @bps_wr_max: #optional write max in bytes (Since 1.7)
+#
+# @iops_max: #optional total I/O operations max (Since 1.7)
+#
+# @iops_rd_max: #optional read I/O operations max (Since 1.7)
+#
+# @iops_wr_max: #optional write I/O operations max (Since 1.7)
+#
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
@@ -2181,7 +2208,10 @@
 ##
 { 'command': 'block_set_io_throttle',
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+            '*bps_max': 'int', '*bps_rd_max': 'int',
+            '*bps_wr_max': 'int', '*iops_max': 'int',
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int' } }
 
 ##
 # @block-stream:

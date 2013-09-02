@@ -409,7 +409,10 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "       [,cache=writethrough|writeback|none|directsync|unsafe][,format=f]\n"
     "       [,serial=s][,addr=A][,id=name][,aio=threads|native]\n"
     "       [,readonly=on|off][,copy-on-read=on|off]\n"
-    "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]][[,iops=i]|[[,iops_rd=r][,iops_wr=w]]\n"
+    "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]]\n"
+    "       [[,iops=i]|[[,iops_rd=r][,iops_wr=w]]]\n"
+    "       [[,bps_max=bm]|[[,bps_rd_max=rm][,bps_wr_max=wm]]]\n"
+    "       [[,iops_max=im]|[[,iops_rd_max=irm][,iops_wr_max=iwm]]]\n"
     "                use 'file' as a drive image\n", QEMU_ARCH_ALL)
 STEXI
 @item -drive @var{option}[,@var{option}[,@var{option}[,...]]]
