@@ -280,32 +280,16 @@ static int parse_block_error_action(const char *buf, bool is_read)
     }
 }
 
-static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
+static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
-    bool bps_flag;
-    bool iops_flag;
-
-    assert(io_limits);
-
-    bps_flag  = (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] != 0)
-                 && ((io_limits->bps[BLOCK_IO_LIMIT_READ] != 0)
-                 || (io_limits->bps[BLOCK_IO_LIMIT_WRITE] != 0));
-    iops_flag = (io_limits->iops[BLOCK_IO_LIMIT_TOTAL] != 0)
-                 && ((io_limits->iops[BLOCK_IO_LIMIT_READ] != 0)
-                 || (io_limits->iops[BLOCK_IO_LIMIT_WRITE] != 0));
-    if (bps_flag || iops_flag) {
-        error_setg(errp, "bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
-                         "cannot be used at the same time");
+    if (throttle_conflicting(cfg)) {
+        error_setg(errp, "bps/iops/max total values and read/write values"
+                         " cannot be used at the same time");
         return false;
     }
 
-    if (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] < 0 ||
-        io_limits->bps[BLOCK_IO_LIMIT_WRITE] < 0 ||
-        io_limits->bps[BLOCK_IO_LIMIT_READ] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_TOTAL] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_WRITE] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_READ] < 0) {
-        error_setg(errp, "bps and iops values must be 0 or greater");
+    if (!throttle_is_valid(cfg)) {
+        error_setg(errp, "bps/iops/maxs values must be 0 or greater");
         return false;
     }
 
@@ -330,7 +314,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     int on_read_error, on_write_error;
     const char *devaddr;
     DriveInfo *dinfo;
-    BlockIOLimit io_limits;
+    ThrottleConfig cfg;
     int snapshot = 0;
     bool copy_on_read;
     int ret;
@@ -496,20 +480,31 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     }
 
     /* disk I/O throttling */
-    io_limits.bps[BLOCK_IO_LIMIT_TOTAL]  =
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.buckets[THROTTLE_BPS_TOTAL].avg =
         qemu_opt_get_number(opts, "throttling.bps-total", 0);
-    io_limits.bps[BLOCK_IO_LIMIT_READ]   =
+    cfg.buckets[THROTTLE_BPS_READ].avg  =
         qemu_opt_get_number(opts, "throttling.bps-read", 0);
-    io_limits.bps[BLOCK_IO_LIMIT_WRITE]  =
+    cfg.buckets[THROTTLE_BPS_WRITE].avg =
         qemu_opt_get_number(opts, "throttling.bps-write", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_TOTAL] =
+    cfg.buckets[THROTTLE_OPS_TOTAL].avg =
         qemu_opt_get_number(opts, "throttling.iops-total", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_READ]  =
+    cfg.buckets[THROTTLE_OPS_READ].avg =
         qemu_opt_get_number(opts, "throttling.iops-read", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_WRITE] =
+    cfg.buckets[THROTTLE_OPS_WRITE].avg =
         qemu_opt_get_number(opts, "throttling.iops-write", 0);
 
-    if (!do_check_io_limits(&io_limits, &error)) {
+    cfg.buckets[THROTTLE_BPS_TOTAL].max = 0;
+    cfg.buckets[THROTTLE_BPS_READ].max  = 0;
+    cfg.buckets[THROTTLE_BPS_WRITE].max = 0;
+
+    cfg.buckets[THROTTLE_OPS_TOTAL].max = 0;
+    cfg.buckets[THROTTLE_OPS_READ].max  = 0;
+    cfg.buckets[THROTTLE_OPS_WRITE].max = 0;
+
+    cfg.op_size = 0;
+
+    if (!check_throttle_config(&cfg, &error)) {
         error_report("%s", error_get_pretty(error));
         error_free(error);
         return NULL;
@@ -636,7 +631,10 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
 
     /* disk I/O throttling */
-    bdrv_set_io_limits(dinfo->bdrv, &io_limits);
+    if (throttle_enabled(&cfg)) {
+        bdrv_io_limits_enable(dinfo->bdrv);
+        bdrv_set_io_limits(dinfo->bdrv, &cfg);
+    }
 
     switch(type) {
     case IF_IDE:
@@ -1250,7 +1248,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                int64_t bps_wr, int64_t iops, int64_t iops_rd,
                                int64_t iops_wr, Error **errp)
 {
-    BlockIOLimit io_limits;
+    ThrottleConfig cfg;
     BlockDriverState *bs;
 
     bs = bdrv_find(device);
@@ -1259,27 +1257,37 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         return;
     }
 
-    io_limits.bps[BLOCK_IO_LIMIT_TOTAL] = bps;
-    io_limits.bps[BLOCK_IO_LIMIT_READ]  = bps_rd;
-    io_limits.bps[BLOCK_IO_LIMIT_WRITE] = bps_wr;
-    io_limits.iops[BLOCK_IO_LIMIT_TOTAL]= iops;
-    io_limits.iops[BLOCK_IO_LIMIT_READ] = iops_rd;
-    io_limits.iops[BLOCK_IO_LIMIT_WRITE]= iops_wr;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
+    cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
+    cfg.buckets[THROTTLE_BPS_WRITE].avg = bps_wr;
 
-    if (!do_check_io_limits(&io_limits, errp)) {
+    cfg.buckets[THROTTLE_OPS_TOTAL].avg = iops;
+    cfg.buckets[THROTTLE_OPS_READ].avg  = iops_rd;
+    cfg.buckets[THROTTLE_OPS_WRITE].avg = iops_wr;
+
+    cfg.buckets[THROTTLE_BPS_TOTAL].max = 0;
+    cfg.buckets[THROTTLE_BPS_READ].max  = 0;
+    cfg.buckets[THROTTLE_BPS_WRITE].max = 0;
+
+    cfg.buckets[THROTTLE_OPS_TOTAL].max = 0;
+    cfg.buckets[THROTTLE_OPS_READ].max  = 0;
+    cfg.buckets[THROTTLE_OPS_WRITE].max = 0;
+
+    cfg.op_size = 0;
+
+    if (!check_throttle_config(&cfg, errp)) {
         return;
     }
 
-    bs->io_limits = io_limits;
-
-    if (!bs->io_limits_enabled && bdrv_io_limits_enabled(bs)) {
+    if (!bs->io_limits_enabled && throttle_enabled(&cfg)) {
         bdrv_io_limits_enable(bs);
-    } else if (bs->io_limits_enabled && !bdrv_io_limits_enabled(bs)) {
+    } else if (bs->io_limits_enabled && !throttle_enabled(&cfg)) {
         bdrv_io_limits_disable(bs);
-    } else {
-        if (bs->block_timer) {
-            timer_mod(bs->block_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-        }
+    }
+
+    if (bs->io_limits_enabled) {
+        bdrv_set_io_limits(bs, &cfg);
     }
 }
 
