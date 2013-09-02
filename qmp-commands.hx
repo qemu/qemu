@@ -1389,7 +1389,7 @@ EQMP
 
     {
         .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,iops_size:l?",
         .mhandler.cmd_new = qmp_marshal_input_block_set_io_throttle,
     },
 
@@ -1414,6 +1414,7 @@ Arguments:
 - "iops_max":  total I/O operations max (json-int)
 - "iops_rd_max":  read I/O operations max (json-int)
 - "iops_wr_max":  write I/O operations max (json-int)
+- "iops_size":  I/O size in bytes when limiting (json-int)
 
 Example:
 
@@ -1429,7 +1430,8 @@ Example:
                                                "bps_wr_max": 0,
                                                "iops_max": 0,
                                                "iops_rd_max": 0,
-                                               "iops_wr_max": 0 } }
+                                               "iops_wr_max": 0,
+                                               "iops_size": 0 } }
 <- { "return": {} }
 
 EQMP
@@ -1776,6 +1778,7 @@ Each json-object contain the following:
          - "iops_max":  total I/O operations max (json-int)
          - "iops_rd_max":  read I/O operations max (json-int)
          - "iops_wr_max":  write I/O operations max (json-int)
+         - "iops_size": I/O size when limiting by iops (json-int)
          - "image": the detail of the image, it is a json-object containing
             the following:
              - "filename": image file name (json-string)
@@ -1851,6 +1854,7 @@ Example:
                "iops_max": 0,
                "iops_rd_max": 0,
                "iops_wr_max": 0,
+               "iops_size": 0,
                "image":{
                   "filename":"disks/test.qcow2",
                   "format":"qcow2",

@@ -258,6 +258,9 @@ void bdrv_query_info(BlockDriverState *bs,
                 cfg.buckets[THROTTLE_OPS_WRITE].max;
             info->inserted->iops_wr_max     =
                 cfg.buckets[THROTTLE_OPS_WRITE].max;
+
+            info->inserted->has_iops_size = cfg.op_size;
+            info->inserted->iops_size = cfg.op_size;
         }
 
         bs0 = bs;

@@ -351,7 +351,8 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                             " iops_wr=%" PRId64
                             " iops_max=%" PRId64
                             " iops_rd_max=%" PRId64
-                            " iops_wr_max=%" PRId64 "\n",
+                            " iops_wr_max=%" PRId64
+                            " iops_size=%" PRId64 "\n",
                             info->value->inserted->bps,
                             info->value->inserted->bps_rd,
                             info->value->inserted->bps_wr,
@@ -363,7 +364,8 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                             info->value->inserted->iops_wr,
                             info->value->inserted->iops_max,
                             info->value->inserted->iops_rd_max,
-                            info->value->inserted->iops_wr_max);
+                            info->value->inserted->iops_wr_max,
+                            info->value->inserted->iops_size);
         } else {
             monitor_printf(mon, " [not inserted]");
         }
@@ -1124,6 +1126,8 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
                               false,
                               0,
                               false,
+                              0,
+                              false, /* No default I/O size */
                               0, &err);
     hmp_handle_error(mon, &err);
 }

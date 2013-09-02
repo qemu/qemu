@@ -797,6 +797,8 @@
 #
 # @iops_wr_max: #optional write I/O operations max (Since 1.7)
 #
+# @iops_size: #optional an I/O size in bytes (Since 1.7)
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
@@ -810,7 +812,8 @@
             'image': 'ImageInfo',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
-            '*iops_rd_max': 'int', '*iops_wr_max': 'int' } }
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+            '*iops_size': 'int' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -2201,6 +2204,8 @@
 #
 # @iops_wr_max: #optional write I/O operations max (Since 1.7)
 #
+# @iops_size: #optional an I/O size in bytes (Since 1.7)
+#
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
@@ -2211,7 +2216,8 @@
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
-            '*iops_rd_max': 'int', '*iops_wr_max': 'int' } }
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+            '*iops_size': 'int' } }
 
 ##
 # @block-stream:

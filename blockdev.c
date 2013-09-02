@@ -507,7 +507,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     cfg.buckets[THROTTLE_OPS_WRITE].max =
         qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
 
-    cfg.op_size = 0;
+    cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
     if (!check_throttle_config(&cfg, &error)) {
         error_report("%s", error_get_pretty(error));
@@ -773,6 +773,9 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     qemu_opt_rename(all_opts, "bps_max", "throttling.bps-total-max");
     qemu_opt_rename(all_opts, "bps_rd_max", "throttling.bps-read-max");
     qemu_opt_rename(all_opts, "bps_wr_max", "throttling.bps-write-max");
+
+    qemu_opt_rename(all_opts,
+                    "iops_size", "throttling.iops-size");
 
     qemu_opt_rename(all_opts, "readonly", "read-only");
 
@@ -1273,7 +1276,9 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                bool has_iops_rd_max,
                                int64_t iops_rd_max,
                                bool has_iops_wr_max,
-                               int64_t iops_wr_max, Error **errp)
+                               int64_t iops_wr_max,
+                               bool has_iops_size,
+                               int64_t iops_size, Error **errp)
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
@@ -1312,7 +1317,9 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
     }
 
-    cfg.op_size = 0;
+    if (has_iops_size) {
+        cfg.op_size = iops_size;
+    }
 
     if (!check_throttle_config(&cfg, errp)) {
         return;
@@ -2037,6 +2044,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.bps-write-max",
             .type = QEMU_OPT_NUMBER,
             .help = "total bytes write burst",
+        },{
+            .name = "throttling.iops-size",
+            .type = QEMU_OPT_NUMBER,
+            .help = "when limiting by iops max size of an I/O in bytes",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
