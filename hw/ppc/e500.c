@@ -123,13 +123,14 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     }
 }
 
-static int ppce500_load_device_tree(CPUPPCState *env,
-                                    QEMUMachineInitArgs *args,
+static int ppce500_load_device_tree(QEMUMachineInitArgs *args,
                                     PPCE500Params *params,
                                     hwaddr addr,
                                     hwaddr initrd_base,
-                                    hwaddr initrd_size)
+                                    hwaddr initrd_size,
+                                    bool dry_run)
 {
+    CPUPPCState *env = first_cpu->env_ptr;
     int ret = -1;
     uint64_t mem_reg_property[] = { 0, cpu_to_be64(args->ram_size) };
     int fdt_size;
@@ -369,18 +370,51 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     }
 
 done:
-    qemu_devtree_dumpdtb(fdt, fdt_size);
-    ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    if (ret < 0) {
-        goto out;
+    if (!dry_run) {
+        qemu_devtree_dumpdtb(fdt, fdt_size);
+        cpu_physical_memory_write(addr, fdt, fdt_size);
     }
-    g_free(fdt);
     ret = fdt_size;
 
 out:
     g_free(pci_map);
 
     return ret;
+}
+
+typedef struct DeviceTreeParams {
+    QEMUMachineInitArgs args;
+    PPCE500Params params;
+    hwaddr addr;
+    hwaddr initrd_base;
+    hwaddr initrd_size;
+} DeviceTreeParams;
+
+static void ppce500_reset_device_tree(void *opaque)
+{
+    DeviceTreeParams *p = opaque;
+    ppce500_load_device_tree(&p->args, &p->params, p->addr, p->initrd_base,
+                             p->initrd_size, false);
+}
+
+static int ppce500_prep_device_tree(QEMUMachineInitArgs *args,
+                                    PPCE500Params *params,
+                                    hwaddr addr,
+                                    hwaddr initrd_base,
+                                    hwaddr initrd_size)
+{
+    DeviceTreeParams *p = g_new(DeviceTreeParams, 1);
+    p->args = *args;
+    p->params = *params;
+    p->addr = addr;
+    p->initrd_base = initrd_base;
+    p->initrd_size = initrd_size;
+
+    qemu_register_reset(ppce500_reset_device_tree, p);
+
+    /* Issue the device tree loader once, so that we get the size of the blob */
+    return ppce500_load_device_tree(args, params, addr, initrd_base,
+                                    initrd_size, true);
 }
 
 /* Create -kernel TLB entries for BookE.  */
@@ -746,7 +780,7 @@ void ppce500_init(QEMUMachineInitArgs *args, PPCE500Params *params)
         struct boot_info *boot_info;
         int dt_size;
 
-        dt_size = ppce500_load_device_tree(env, args, params, dt_base,
+        dt_size = ppce500_prep_device_tree(args, params, dt_base,
                                            initrd_base, initrd_size);
         if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");

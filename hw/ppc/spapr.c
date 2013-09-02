@@ -88,6 +88,9 @@ int spapr_allocate_irq(int hint, bool lsi)
 
     if (hint) {
         irq = hint;
+        if (hint >= spapr->next_irq) {
+            spapr->next_irq = hint + 1;
+        }
         /* FIXME: we should probably check for collisions somehow */
     } else {
         irq = spapr->next_irq++;
@@ -103,22 +106,39 @@ int spapr_allocate_irq(int hint, bool lsi)
     return irq;
 }
 
-/* Allocate block of consequtive IRQs, returns a number of the first */
-int spapr_allocate_irq_block(int num, bool lsi)
+/*
+ * Allocate block of consequtive IRQs, returns a number of the first.
+ * If msi==true, aligns the first IRQ number to num.
+ */
+int spapr_allocate_irq_block(int num, bool lsi, bool msi)
 {
     int first = -1;
-    int i;
+    int i, hint = 0;
+
+    /*
+     * MSIMesage::data is used for storing VIRQ so
+     * it has to be aligned to num to support multiple
+     * MSI vectors. MSI-X is not affected by this.
+     * The hint is used for the first IRQ, the rest should
+     * be allocated continously.
+     */
+    if (msi) {
+        assert((num == 1) || (num == 2) || (num == 4) ||
+               (num == 8) || (num == 16) || (num == 32));
+        hint = (spapr->next_irq + num - 1) & ~(num - 1);
+    }
 
     for (i = 0; i < num; ++i) {
         int irq;
 
-        irq = spapr_allocate_irq(0, lsi);
+        irq = spapr_allocate_irq(hint, lsi);
         if (!irq) {
             return -1;
         }
 
         if (0 == i) {
             first = irq;
+            hint = 0;
         }
 
         /* If the above doesn't create a consecutive block then that's
@@ -262,7 +282,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
-        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
+        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk\0hcall-set-mode";
     char qemu_hypertas_prop[] = "hcall-memop1";
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
@@ -1214,6 +1234,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     spapr_create_nvram(spapr);
 
     /* Set up PCI */
+    spapr_pci_msi_init(spapr, SPAPR_PCI_MSI_WINDOW);
     spapr_pci_rtas_init();
 
     phb = spapr_create_phb(spapr, 0);

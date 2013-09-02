@@ -27,9 +27,11 @@
 #include "hw/timer/m48t59.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "block/block.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
@@ -42,7 +44,7 @@
 
 #define USE_FLASH_BIOS
 
-#define DEBUG_BOARD_INIT
+//#define DEBUG_BOARD_INIT
 
 /*****************************************************************************/
 /* PPC405EP reference board (IBM) */
@@ -252,17 +254,20 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
         if (filename) {
             bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
+            if (bios_size < 0 || bios_size > BIOS_SIZE) {
+                error_report("Could not load PowerPC BIOS '%s'", bios_name);
+                exit(1);
+            }
+            bios_size = (bios_size + 0xfff) & ~0xfff;
+            memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
+        } else if (!qtest_enabled() || kernel_filename != NULL) {
+            error_report("Could not load PowerPC BIOS '%s'", bios_name);
+            exit(1);
         } else {
+            /* Avoid an uninitialized variable warning */
             bios_size = -1;
         }
-        if (bios_size < 0 || bios_size > BIOS_SIZE) {
-            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n",
-                    bios_name);
-            exit(1);
-        }
-        bios_size = (bios_size + 0xfff) & ~0xfff;
         memory_region_set_readonly(bios, true);
-        memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
     }
     /* Register FPGA */
 #ifdef DEBUG_BOARD_INIT
@@ -353,9 +358,9 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
         bdloc = 0;
     }
 #ifdef DEBUG_BOARD_INIT
+    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
     printf("%s: Done\n", __func__);
 #endif
-    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
 }
 
 static QEMUMachine ref405ep_machine = {
@@ -569,17 +574,17 @@ static void taihu_405ep_init(QEMUMachineInitArgs *args)
         if (filename) {
             bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
-        } else {
-            bios_size = -1;
-        }
-        if (bios_size < 0 || bios_size > BIOS_SIZE) {
-            fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n",
-                    bios_name);
+            if (bios_size < 0 || bios_size > BIOS_SIZE) {
+                error_report("Could not load PowerPC BIOS '%s'", bios_name);
+                exit(1);
+            }
+            bios_size = (bios_size + 0xfff) & ~0xfff;
+            memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
+        } else if (!qtest_enabled()) {
+            error_report("Could not load PowerPC BIOS '%s'", bios_name);
             exit(1);
         }
-        bios_size = (bios_size + 0xfff) & ~0xfff;
         memory_region_set_readonly(bios, true);
-        memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
     }
     /* Register Linux flash */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);

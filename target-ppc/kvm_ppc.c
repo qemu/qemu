@@ -15,6 +15,7 @@
 #include "qemu/timer.h"
 #include "kvm_ppc.h"
 #include "sysemu/device_tree.h"
+#include "qemu/main-loop.h"
 
 #define PROC_DEVTREE_PATH "/proc/device-tree"
 

@@ -657,6 +657,54 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                               target_ulong opcode, target_ulong *args)
+{
+    CPUState *cs;
+    target_ulong mflags = args[0];
+    target_ulong resource = args[1];
+    target_ulong value1 = args[2];
+    target_ulong value2 = args[3];
+    target_ulong ret = H_P2;
+
+    if (resource == H_SET_MODE_ENDIAN) {
+        if (value1) {
+            ret = H_P3;
+            goto out;
+        }
+        if (value2) {
+            ret = H_P4;
+            goto out;
+        }
+
+        switch (mflags) {
+        case H_SET_MODE_ENDIAN_BIG:
+            for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+                PowerPCCPU *cp = POWERPC_CPU(cs);
+                CPUPPCState *env = &cp->env;
+                env->spr[SPR_LPCR] &= ~LPCR_ILE;
+            }
+            ret = H_SUCCESS;
+            break;
+
+        case H_SET_MODE_ENDIAN_LITTLE:
+            for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+                PowerPCCPU *cp = POWERPC_CPU(cs);
+                CPUPPCState *env = &cp->env;
+                env->spr[SPR_LPCR] |= LPCR_ILE;
+            }
+            ret = H_SUCCESS;
+            break;
+
+        default:
+            ret = H_UNSUPPORTED_FLAG;
+        }
+    }
+
+out:
+    return ret;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -734,6 +782,8 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
+
+    spapr_register_hypercall(H_SET_MODE, h_set_mode);
 }
 
 type_init(hypercall_register_types)

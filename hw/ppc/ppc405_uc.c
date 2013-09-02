@@ -30,15 +30,15 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
-#define DEBUG_OPBA
-#define DEBUG_SDRAM
-#define DEBUG_GPIO
-#define DEBUG_SERIAL
-#define DEBUG_OCM
+//#define DEBUG_OPBA
+//#define DEBUG_SDRAM
+//#define DEBUG_GPIO
+//#define DEBUG_SERIAL
+//#define DEBUG_OCM
 //#define DEBUG_I2C
-#define DEBUG_GPT
-#define DEBUG_MAL
-#define DEBUG_CLOCKS
+//#define DEBUG_GPT
+//#define DEBUG_MAL
+//#define DEBUG_CLOCKS
 //#define DEBUG_CLOCKS_LL
 
 ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
