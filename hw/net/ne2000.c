@@ -693,7 +693,7 @@ static void ne2000_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ne2000_ops = {
     .read = ne2000_read,
     .write = ne2000_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /***********************************************************/
