@@ -2902,7 +2902,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
     int ret;
 
     if (pcc->handle_mmu_fault) {
-        ret = pcc->handle_mmu_fault(env, addr, is_write, mmu_idx);
+        ret = pcc->handle_mmu_fault(cpu, addr, is_write, mmu_idx);
     } else {
         ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
     }

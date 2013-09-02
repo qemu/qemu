@@ -454,10 +454,11 @@ static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
     return (rpn & ~mask) | (eaddr & mask);
 }
 
-int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
                                 int rwx, int mmu_idx)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;

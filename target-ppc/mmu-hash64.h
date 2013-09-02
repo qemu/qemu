@@ -7,7 +7,7 @@
 void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr);
-int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
                                 int mmu_idx);
 void ppc_hash64_store_hpte(CPUPPCState *env, target_ulong index,
                            target_ulong pte0, target_ulong pte1);
