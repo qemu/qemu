@@ -96,6 +96,14 @@ Second image format
 Strict mode - fail on on different image size or sector allocation
 @end table
 
+Parameters to convert subcommand:
+
+@table @option
+
+@item -n
+Skip the creation of the target volume
+@end table
+
 Command description:
 
 @table @option
@@ -171,7 +179,7 @@ Error on reading data
 
 @end table
 
-@item convert [-c] [-p] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_name} to disk image @var{output_filename}
 using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -189,6 +197,11 @@ You can use the @var{backing_file} option to force the output image to be
 created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,
 however the path, image format, etc may differ.
+
+If the @code{-n} option is specified, the target volume creation will be
+skipped. This is useful for formats such as @code{rbd} if the target
+volume has already been created with site specific options that cannot
+be supplied through qemu-img.
 
 @item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 
