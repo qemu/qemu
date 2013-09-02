@@ -511,7 +511,9 @@ SpiceInfo *qmp_query_spice(Error **errp)
     int port, tls_port;
     const char *addr;
     SpiceInfo *info;
-    char version_string[20]; /* 12 = |255.255.255\0| is the max */
+    unsigned int major;
+    unsigned int minor;
+    unsigned int micro;
 
     info = g_malloc0(sizeof(*info));
 
@@ -534,11 +536,10 @@ SpiceInfo *qmp_query_spice(Error **errp)
     info->host = g_strdup(addr ? addr : "0.0.0.0");
 
     info->has_compiled_version = true;
-    snprintf(version_string, sizeof(version_string), "%d.%d.%d",
-             (SPICE_SERVER_VERSION & 0xff0000) >> 16,
-             (SPICE_SERVER_VERSION & 0xff00) >> 8,
-             SPICE_SERVER_VERSION & 0xff);
-    info->compiled_version = g_strdup(version_string);
+    major = (SPICE_SERVER_VERSION & 0xff0000) >> 16;
+    minor = (SPICE_SERVER_VERSION & 0xff00) >> 8;
+    micro = SPICE_SERVER_VERSION & 0xff;
+    info->compiled_version = g_strdup_printf("%d.%d.%d", major, minor, micro);
 
     if (port) {
         info->has_port = true;
@@ -640,7 +641,7 @@ void qemu_spice_init(void)
     char *x509_key_file = NULL,
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
-    int port, tls_port, len, addr_flags;
+    int port, tls_port, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
     bool seamless_migration;
@@ -671,30 +672,29 @@ void qemu_spice_init(void)
         if (NULL == x509_dir) {
             x509_dir = ".";
         }
-        len = strlen(x509_dir) + 32;
 
         str = qemu_opt_get(opts, "x509-key-file");
         if (str) {
             x509_key_file = g_strdup(str);
         } else {
-            x509_key_file = g_malloc(len);
-            snprintf(x509_key_file, len, "%s/%s", x509_dir, X509_SERVER_KEY_FILE);
+            x509_key_file = g_strdup_printf("%s/%s", x509_dir,
+                                            X509_SERVER_KEY_FILE);
         }
 
         str = qemu_opt_get(opts, "x509-cert-file");
         if (str) {
             x509_cert_file = g_strdup(str);
         } else {
-            x509_cert_file = g_malloc(len);
-            snprintf(x509_cert_file, len, "%s/%s", x509_dir, X509_SERVER_CERT_FILE);
+            x509_cert_file = g_strdup_printf("%s/%s", x509_dir,
+                                             X509_SERVER_CERT_FILE);
         }
 
         str = qemu_opt_get(opts, "x509-cacert-file");
         if (str) {
             x509_cacert_file = g_strdup(str);
         } else {
-            x509_cacert_file = g_malloc(len);
-            snprintf(x509_cacert_file, len, "%s/%s", x509_dir, X509_CA_CERT_FILE);
+            x509_cacert_file = g_strdup_printf("%s/%s", x509_dir,
+                                               X509_CA_CERT_FILE);
         }
 
         x509_key_password = qemu_opt_get(opts, "x509-key-password");
