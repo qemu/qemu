@@ -923,6 +923,57 @@ static int vscsi_send_adapter_info(VSCSIState *s, vscsi_req *req)
     return vscsi_send_iu(s, req, sizeof(*sinfo), VIOSRP_MAD_FORMAT);
 }
 
+static int vscsi_send_capabilities(VSCSIState *s, vscsi_req *req)
+{
+    struct viosrp_capabilities *vcap;
+    struct capabilities cap = { };
+    uint16_t len, req_len;
+    uint64_t buffer;
+    int rc;
+
+    vcap = &req->iu.mad.capabilities;
+    req_len = len = be16_to_cpu(vcap->common.length);
+    buffer = be64_to_cpu(vcap->buffer);
+    if (len > sizeof(cap)) {
+        fprintf(stderr, "vscsi_send_capabilities: capabilities size mismatch !\n");
+
+        /*
+         * Just read and populate the structure that is known.
+         * Zero rest of the structure.
+         */
+        len = sizeof(cap);
+    }
+    rc = spapr_vio_dma_read(&s->vdev, buffer, &cap, len);
+    if (rc)  {
+        fprintf(stderr, "vscsi_send_capabilities: DMA read failure !\n");
+    }
+
+    /*
+     * Current implementation does not suppport any migration or
+     * reservation capabilities. Construct the response telling the
+     * guest not to use them.
+     */
+    cap.flags = 0;
+    cap.migration.ecl = 0;
+    cap.reserve.type = 0;
+    cap.migration.common.server_support = 0;
+    cap.reserve.common.server_support = 0;
+
+    rc = spapr_vio_dma_write(&s->vdev, buffer, &cap, len);
+    if (rc)  {
+        fprintf(stderr, "vscsi_send_capabilities: DMA write failure !\n");
+    }
+    if (req_len > len) {
+        /*
+         * Being paranoid and lets not worry about the error code
+         * here. Actual write of the cap is done above.
+         */
+        spapr_vio_dma_set(&s->vdev, (buffer + len), 0, (req_len - len));
+    }
+    vcap->common.status = rc ? cpu_to_be32(1) : 0;
+    return vscsi_send_iu(s, req, sizeof(*vcap), VIOSRP_MAD_FORMAT);
+}
+
 static int vscsi_handle_mad_req(VSCSIState *s, vscsi_req *req)
 {
     union mad_iu *mad = &req->iu.mad;
@@ -942,6 +993,9 @@ static int vscsi_handle_mad_req(VSCSIState *s, vscsi_req *req)
     case VIOSRP_HOST_CONFIG_TYPE:
         mad->host_config.common.status = cpu_to_be16(1);
         vscsi_send_iu(s, req, sizeof(mad->host_config), VIOSRP_MAD_FORMAT);
+        break;
+    case VIOSRP_CAPABILITIES_TYPE:
+        vscsi_send_capabilities(s, req);
         break;
     default:
         fprintf(stderr, "VSCSI: Unknown MAD type %02x\n",
