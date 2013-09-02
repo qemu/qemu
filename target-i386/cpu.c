@@ -486,6 +486,7 @@ typedef struct x86_def_t {
     int stepping;
     FeatureWordArray features;
     char model_id[48];
+    bool cache_info_passthrough;
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -1139,6 +1140,7 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     assert(kvm_enabled());
 
     x86_cpu_def->name = "host";
+    x86_cpu_def->cache_info_passthrough = true;
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
     x86_cpu_vendor_words2str(x86_cpu_def->vendor, ebx, edx, ecx);
 
@@ -1888,6 +1890,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
     env->features[FEAT_C000_0001_EDX] = def->features[FEAT_C000_0001_EDX];
     env->features[FEAT_7_0_EBX] = def->features[FEAT_7_0_EBX];
     env->cpuid_xlevel2 = def->xlevel2;
+    cpu->cache_info_passthrough = def->cache_info_passthrough;
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
 }
@@ -2062,6 +2065,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
         *eax = 1; /* Number of CPUID[EAX=2] calls required */
         *ebx = 0;
         *ecx = 0;
@@ -2071,6 +2078,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 4:
         /* cache info: needed for Core compatibility */
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, count, eax, ebx, ecx, edx);
+            break;
+        }
         if (cs->nr_cores > 1) {
             *eax = (cs->nr_cores - 1) << 26;
         } else {
@@ -2228,6 +2239,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000005:
         /* cache info (L1 cache) */
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
         *eax = (L1_DTLB_2M_ASSOC << 24) | (L1_DTLB_2M_ENTRIES << 16) | \
                (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
         *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) | \
@@ -2239,6 +2254,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000006:
         /* cache info (L2 cache) */
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
         *eax = (AMD_ENC_ASSOC(L2_DTLB_2M_ASSOC) << 28) | \
                (L2_DTLB_2M_ENTRIES << 16) | \
                (AMD_ENC_ASSOC(L2_ITLB_2M_ASSOC) << 12) | \
