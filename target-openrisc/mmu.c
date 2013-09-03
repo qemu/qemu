@@ -187,7 +187,7 @@ int openrisc_cpu_handle_mmu_fault(CPUState *cs,
                                      address, rw);
 
     if (ret == TLBRET_MATCH) {
-        tlb_set_page(&cpu->env, address & TARGET_PAGE_MASK,
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;

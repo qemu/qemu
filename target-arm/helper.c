@@ -3676,7 +3676,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         /* Map a single [sub]page.  */
         phys_addr &= ~(hwaddr)0x3ff;
         address &= ~(uint32_t)0x3ff;
-        tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
+        tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
 

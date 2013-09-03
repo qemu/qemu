@@ -303,12 +303,11 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
 {
-    M68kCPU *cpu = M68K_CPU(cs);
     int prot;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    tlb_set_page(&cpu->env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
 

@@ -877,7 +877,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     vaddr = virt_addr + page_offset;
 
-    tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+    tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
     return 0;
  do_fault_protect:
     error_code = PG_ERROR_P_MASK;

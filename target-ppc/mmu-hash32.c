@@ -400,7 +400,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
         /* Translation is off */
         raddr = eaddr;
-        tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
         return 0;
@@ -427,7 +427,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
                 return 1;
             }
 
-            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK,
                          raddr & TARGET_PAGE_MASK, prot, mmu_idx,
                          TARGET_PAGE_SIZE);
             return 0;
@@ -441,7 +441,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
     if (sr & SR32_T) {
         if (ppc_hash32_direct_store(env, sr, eaddr, rwx,
                                     &raddr, &prot) == 0) {
-            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK,
                          raddr & TARGET_PAGE_MASK, prot, mmu_idx,
                          TARGET_PAGE_SIZE);
             return 0;
@@ -522,7 +522,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
 
     raddr = ppc_hash32_pte_raddr(sr, pte, eaddr);
 
-    tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
 
     return 0;

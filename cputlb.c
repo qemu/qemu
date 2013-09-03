@@ -221,10 +221,11 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
 /* Add a new TLB entry. At most one entry for a given virtual address
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
-void tlb_set_page(CPUArchState *env, target_ulong vaddr,
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size)
 {
+    CPUArchState *env = cpu->env_ptr;
     MemoryRegionSection *section;
     unsigned int index;
     target_ulong address;
@@ -232,7 +233,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     uintptr_t addend;
     CPUTLBEntry *te;
     hwaddr iotlb, xlat, sz;
-    CPUState *cpu = ENV_GET_CPU(env);
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {

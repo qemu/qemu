@@ -106,7 +106,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
          */
         phy = res.phy & ~0x80000000;
         prot = res.prot;
-        tlb_set_page(env, address & TARGET_PAGE_MASK, phy,
+        tlb_set_page(cs, address & TARGET_PAGE_MASK, phy,
                      prot, mmu_idx, TARGET_PAGE_SIZE);
         r = 0;
     }

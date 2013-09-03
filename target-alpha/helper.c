@@ -345,7 +345,7 @@ int alpha_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int rw,
         return 1;
     }
 
-    tlb_set_page(env, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
+    tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }

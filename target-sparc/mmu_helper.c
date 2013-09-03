@@ -217,7 +217,7 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
         printf("Translate at %" VADDR_PRIx " -> " TARGET_FMT_plx ", vaddr "
                TARGET_FMT_lx "\n", address, paddr, vaddr);
 #endif
-        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+        tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
         return 0;
     }
 
@@ -233,7 +233,7 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
            neverland. Fake/overridden mappings will be flushed when
            switching to normal mode. */
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
         return 0;
     } else {
         if (rw & 2) {
@@ -729,7 +729,7 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                    env->dmmu.mmu_primary_context,
                                    env->dmmu.mmu_secondary_context);
 
-        tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
+        tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
         return 0;
     }
     /* XXX */

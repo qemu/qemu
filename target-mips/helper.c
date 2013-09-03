@@ -300,7 +300,7 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
              " prot %d\n",
              __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK,
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;

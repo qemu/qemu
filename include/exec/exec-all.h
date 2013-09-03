@@ -100,7 +100,7 @@ void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */
 void tlb_flush_page(CPUState *cpu, target_ulong addr);
 void tlb_flush(CPUState *cpu, int flush_global);
-void tlb_set_page(CPUArchState *env, target_ulong vaddr,
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);

@@ -1514,7 +1514,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
     }
     ret = get_physical_address(env, &ctx, address, rw, access_type);
     if (ret == 0) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK,
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;

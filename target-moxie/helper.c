@@ -148,7 +148,7 @@ int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         phy = res.phy;
         r = 0;
     }
-    tlb_set_page(env, address, phy, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, phy, prot, mmu_idx, TARGET_PAGE_SIZE);
     return r;
 }
 

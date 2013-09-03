@@ -253,7 +253,7 @@ int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         /* Map a single page.  */
         phys_addr &= TARGET_PAGE_MASK;
         address &= TARGET_PAGE_MASK;
-        tlb_set_page(env, address, phys_addr, prot, mmu_idx, page_size);
+        tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
 

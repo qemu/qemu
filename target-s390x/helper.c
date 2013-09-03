@@ -417,7 +417,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
     DPRINTF("%s: set tlb %" PRIx64 " -> %" PRIx64 " (%x)\n", __func__,
             (uint64_t)vaddr, (uint64_t)raddr, prot);
 
-    tlb_set_page(env, orig_vaddr, raddr, prot,
+    tlb_set_page(cs, orig_vaddr, raddr, prot,
                  mmu_idx, TARGET_PAGE_SIZE);
 
     return 0;

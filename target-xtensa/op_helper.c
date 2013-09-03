@@ -77,10 +77,10 @@ void tlb_fill(CPUState *cs,
             vaddr, is_write, mmu_idx, paddr, ret);
 
     if (ret == 0) {
-        tlb_set_page(env,
-                vaddr & TARGET_PAGE_MASK,
-                paddr & TARGET_PAGE_MASK,
-                access, mmu_idx, page_size);
+        tlb_set_page(cs,
+                     vaddr & TARGET_PAGE_MASK,
+                     paddr & TARGET_PAGE_MASK,
+                     access, mmu_idx, page_size);
     } else {
         cpu_restore_state(cs, retaddr);
         HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);

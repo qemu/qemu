@@ -30,10 +30,10 @@ int lm32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     address &= TARGET_PAGE_MASK;
     prot = PAGE_BITS;
     if (env->flags & LM32_FLAG_IGNORE_MSB) {
-        tlb_set_page(env, address, address & 0x7fffffff, prot, mmu_idx,
-                TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address, address & 0x7fffffff, prot, mmu_idx,
+                     TARGET_PAGE_SIZE);
     } else {
-        tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
     }
 
     return 0;
