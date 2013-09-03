@@ -783,6 +783,12 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
+        /* 32-bit ops (non 64-bit ops and non load/store ops) generate 32-bit
+           results */
+        if (!(tcg_op_defs[op].flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_64BIT))) {
+            mask &= 0xffffffffu;
+        }
+
         if (mask == 0) {
             assert(def->nb_oargs == 1);
             s->gen_opc_buf[op_index] = op_to_movi(op);
