@@ -24,4 +24,6 @@ typedef struct DisasContext {
     int vec_stride;
 } DisasContext;
 
+extern TCGv_ptr cpu_env;
+
 #endif /* TARGET_ARM_TRANSLATE_H */
