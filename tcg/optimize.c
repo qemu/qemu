@@ -691,7 +691,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* Simplify using known-zero bits */
+        /* Simplify using known-zero bits. Currently only ops with a single
+           output argument is supported. */
         mask = -1;
         affected = -1;
         switch (op) {
@@ -1149,6 +1150,11 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             } else {
                 for (i = 0; i < def->nb_oargs; i++) {
                     reset_temp(args[i]);
+                    /* Save the corresponding known-zero bits mask for the
+                       first output argument (only one supported so far). */
+                    if (i == 0) {
+                        temps[args[i]].mask = mask;
+                    }
                 }
             }
             for (i = 0; i < def->nb_args; i++) {
