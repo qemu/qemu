@@ -881,8 +881,10 @@ DISAS_INSN(undef_fpu)
 
 DISAS_INSN(undef)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     gen_exception(s, s->pc - 2, EXCP_UNSUPPORTED);
-    cpu_abort(env, "Illegal instruction: %04x @ %08x", insn, s->pc - 2);
+    cpu_abort(CPU(cpu), "Illegal instruction: %04x @ %08x", insn, s->pc - 2);
 }
 
 DISAS_INSN(mulw)
@@ -2082,12 +2084,14 @@ DISAS_INSN(wddata)
 
 DISAS_INSN(wdebug)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     if (IS_USER(s)) {
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
     /* TODO: Implement wdebug.  */
-    cpu_abort(env, "WDEBUG not implemented");
+    cpu_abort(CPU(cpu), "WDEBUG not implemented");
 }
 
 DISAS_INSN(trap)
@@ -2461,14 +2465,18 @@ DISAS_INSN(fbcc)
 
 DISAS_INSN(frestore)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     /* TODO: Implement frestore.  */
-    cpu_abort(env, "FRESTORE not implemented");
+    cpu_abort(CPU(cpu), "FRESTORE not implemented");
 }
 
 DISAS_INSN(fsave)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     /* TODO: Implement fsave.  */
-    cpu_abort(env, "FSAVE not implemented");
+    cpu_abort(CPU(cpu), "FSAVE not implemented");
 }
 
 static inline TCGv gen_mac_extract_word(DisasContext *s, TCGv val, int upper)

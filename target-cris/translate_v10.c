@@ -340,7 +340,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
         default:
             LOG_DIS("pc=%x mode=%x quickimm %d r%d r%d\n",
                      dc->pc, dc->mode, dc->opcode, dc->src, dc->dst);
-            cpu_abort(dc->env, "Unhandled quickimm\n");
+            cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled quickimm\n");
             break;
     }
     return 2;
@@ -651,7 +651,7 @@ static unsigned int dec10_reg(DisasContext *dc)
                     case 2: tmp = 1; break;
                     case 1: tmp = 0; break;
                     default:
-                        cpu_abort(dc->env, "Unhandled BIAP");
+                        cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled BIAP");
                         break;
                 }
 
@@ -669,7 +669,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                cpu_abort(dc->env, "Unhandled opcode");
+                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
                 break;
         }
     } else {
@@ -745,7 +745,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                cpu_abort(dc->env, "Unhandled opcode");
+                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
                 break;
         }
     }
@@ -1105,7 +1105,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             default:
                 LOG_DIS("pc=%x var-ind.%d %d r%d r%d\n",
                           dc->pc, size, dc->opcode, dc->src, dc->dst);
-                cpu_abort(dc->env, "Unhandled opcode");
+                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
                 break;
         }
         return insn_len;
@@ -1198,7 +1198,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             break;
         default:
             LOG_DIS("ERROR pc=%x opcode=%d\n", dc->pc, dc->opcode);
-            cpu_abort(dc->env, "Unhandled opcode");
+            cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
             break;
     }
 

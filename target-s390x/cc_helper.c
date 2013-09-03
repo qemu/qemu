@@ -407,6 +407,7 @@ static uint32_t cc_calc_flogr(uint64_t dst)
 static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
                                   uint64_t src, uint64_t dst, uint64_t vr)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint32_t r = 0;
 
     switch (cc_op) {
@@ -524,7 +525,7 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         break;
 
     default:
-        cpu_abort(env, "Unknown CC operation: %s\n", cc_name(cc_op));
+        cpu_abort(CPU(cpu), "Unknown CC operation: %s\n", cc_name(cc_op));
     }
 
     HELPER_LOG("%s: %15s 0x%016lx 0x%016lx 0x%016lx = %d\n", __func__,

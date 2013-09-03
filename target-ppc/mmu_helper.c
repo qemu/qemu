@@ -746,9 +746,11 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
 void store_40x_sler(CPUPPCState *env, uint32_t val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     /* XXX: TO BE FIXED */
     if (val != 0x00000000) {
-        cpu_abort(env, "Little-endian regions are not supported by now\n");
+        cpu_abort(CPU(cpu), "Little-endian regions are not supported by now\n");
     }
     env->spr[SPR_405_SLER] = val;
 }
@@ -1344,6 +1346,7 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
 static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                 target_ulong eaddr, int rw, int access_type)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int ret = -1;
     bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
         || (access_type != ACCESS_CODE && msr_dr == 0);
@@ -1388,17 +1391,17 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
-        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_REAL:
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, rw);
         } else {
-            cpu_abort(env, "PowerPC in real mode do not do any translation\n");
+            cpu_abort(CPU(cpu), "PowerPC in real mode do not do any translation\n");
         }
         return -1;
     default:
-        cpu_abort(env, "Unknown or invalid MMU model\n");
+        cpu_abort(CPU(cpu), "Unknown or invalid MMU model\n");
         return -1;
     }
 #if 0
@@ -1543,14 +1546,14 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     return -1;
                 case POWERPC_MMU_MPC8xx:
                     /* XXX: TODO */
-                    cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+                    cpu_abort(cs, "MPC8xx MMU model is not implemented\n");
                     break;
                 case POWERPC_MMU_REAL:
-                    cpu_abort(env, "PowerPC in real mode should never raise "
+                    cpu_abort(cs, "PowerPC in real mode should never raise "
                               "any MMU exceptions\n");
                     return -1;
                 default:
-                    cpu_abort(env, "Unknown or invalid MMU model\n");
+                    cpu_abort(cs, "Unknown or invalid MMU model\n");
                     return -1;
                 }
                 break;
@@ -1623,7 +1626,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     break;
                 case POWERPC_MMU_MPC8xx:
                     /* XXX: TODO */
-                    cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+                    cpu_abort(cs, "MPC8xx MMU model is not implemented\n");
                     break;
                 case POWERPC_MMU_BOOKE206:
                     booke206_update_mas_tlb_miss(env, address, rw);
@@ -1635,11 +1638,11 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
                     return -1;
                 case POWERPC_MMU_REAL:
-                    cpu_abort(env, "PowerPC in real mode should never raise "
+                    cpu_abort(cs, "PowerPC in real mode should never raise "
                               "any MMU exceptions\n");
                     return -1;
                 default:
-                    cpu_abort(env, "Unknown or invalid MMU model\n");
+                    cpu_abort(cs, "Unknown or invalid MMU model\n");
                     return -1;
                 }
                 break;
@@ -1893,6 +1896,8 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 /* TLB management */
 void ppc_tlb_invalidate_all(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
@@ -1903,11 +1908,11 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         ppc4xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_REAL:
-        cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        cpu_abort(CPU(cpu), "No TLB for PowerPC 4xx in real mode\n");
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
-        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
         tlb_flush(env, 1);
@@ -1927,7 +1932,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         break;
     default:
         /* XXX: TODO */
-        cpu_abort(env, "Unknown MMU model\n");
+        cpu_abort(CPU(cpu), "Unknown MMU model\n");
         break;
     }
 }
@@ -1935,6 +1940,8 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     addr &= TARGET_PAGE_MASK;
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
@@ -1949,19 +1956,19 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         ppc4xx_tlb_invalidate_virt(env, addr, env->spr[SPR_40x_PID]);
         break;
     case POWERPC_MMU_REAL:
-        cpu_abort(env, "No TLB for PowerPC 4xx in real mode\n");
+        cpu_abort(CPU(cpu), "No TLB for PowerPC 4xx in real mode\n");
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
-        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
+        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
         /* XXX: TODO */
-        cpu_abort(env, "BookE MMU model is not implemented\n");
+        cpu_abort(CPU(cpu), "BookE MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE206:
         /* XXX: TODO */
-        cpu_abort(env, "BookE 2.06 MMU model is not implemented\n");
+        cpu_abort(CPU(cpu), "BookE 2.06 MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -2002,7 +2009,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 #endif /* defined(TARGET_PPC64) */
     default:
         /* XXX: TODO */
-        cpu_abort(env, "Unknown MMU model\n");
+        cpu_abort(CPU(cpu), "Unknown MMU model\n");
         break;
     }
 #else
@@ -2317,6 +2324,7 @@ target_ulong helper_4xx_tlbre_lo(CPUPPCState *env, target_ulong entry)
 void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
@@ -2340,7 +2348,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
      * of the ppc or ppc64 one
      */
     if ((val & PPC4XX_TLBHI_V) && tlb->size < TARGET_PAGE_SIZE) {
-        cpu_abort(env, "TLB size " TARGET_FMT_lu " < %u "
+        cpu_abort(CPU(cpu), "TLB size " TARGET_FMT_lu " < %u "
                   "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
@@ -2349,7 +2357,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         tlb->prot |= PAGE_VALID;
         if (val & PPC4XX_TLBHI_E) {
             /* XXX: TO BE FIXED */
-            cpu_abort(env,
+            cpu_abort(CPU(cpu),
                       "Little-endian TLB entries are not supported by now\n");
         }
     } else {
@@ -2545,6 +2553,7 @@ target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
 
 static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint32_t tlbncfg = 0;
     int esel = (env->spr[SPR_BOOKE_MAS0] & MAS0_ESEL_MASK) >> MAS0_ESEL_SHIFT;
     int ea = (env->spr[SPR_BOOKE_MAS2] & MAS2_EPN_MASK);
@@ -2554,7 +2563,7 @@ static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
     tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlb];
 
     if ((tlbncfg & TLBnCFG_HES) && (env->spr[SPR_BOOKE_MAS0] & MAS0_HES)) {
-        cpu_abort(env, "we don't support HES yet\n");
+        cpu_abort(CPU(cpu), "we don't support HES yet\n");
     }
 
     return booke206_get_tlbm(env, tlb, ea, esel);
@@ -2569,6 +2578,7 @@ void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
 
 void helper_booke206_tlbwe(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint32_t tlbncfg, tlbn;
     ppcmas_tlb_t *tlb;
     uint32_t size_tlb, size_ps;
@@ -2622,7 +2632,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     }
 
     if (msr_gs) {
-        cpu_abort(env, "missing HV implementation\n");
+        cpu_abort(CPU(cpu), "missing HV implementation\n");
     }
     tlb->mas7_3 = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
         env->spr[SPR_BOOKE_MAS3];

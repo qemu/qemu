@@ -116,6 +116,7 @@ static void trigger_pgm_exception(CPUS390XState *env, uint32_t code,
 
 static int trans_bits(CPUS390XState *env, uint64_t mode)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int bits = 0;
 
     switch (mode) {
@@ -129,7 +130,7 @@ static int trans_bits(CPUS390XState *env, uint64_t mode)
         bits = 3;
         break;
     default:
-        cpu_abort(env, "unknown asc mode\n");
+        cpu_abort(CPU(cpu), "unknown asc mode\n");
         break;
     }
 
@@ -479,13 +480,14 @@ static uint64_t get_psw_mask(CPUS390XState *env)
 
 static LowCore *cpu_map_lowcore(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     LowCore *lowcore;
     hwaddr len = sizeof(LowCore);
 
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
     if (len < sizeof(LowCore)) {
-        cpu_abort(env, "Could not map lowcore\n");
+        cpu_abort(CPU(cpu), "Could not map lowcore\n");
     }
 
     return lowcore;
@@ -583,16 +585,17 @@ static void do_program_interrupt(CPUS390XState *env)
 
 static void do_ext_interrupt(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
     LowCore *lowcore;
     ExtQueue *q;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
-        cpu_abort(env, "Ext int w/o ext mask\n");
+        cpu_abort(CPU(cpu), "Ext int w/o ext mask\n");
     }
 
     if (env->ext_index < 0 || env->ext_index > MAX_EXT_QUEUE) {
-        cpu_abort(env, "Ext queue overrun: %d\n", env->ext_index);
+        cpu_abort(CPU(cpu), "Ext queue overrun: %d\n", env->ext_index);
     }
 
     q = &env->ext_queue[env->ext_index];
@@ -622,6 +625,7 @@ static void do_ext_interrupt(CPUS390XState *env)
 
 static void do_io_interrupt(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     LowCore *lowcore;
     IOIntQueue *q;
     uint8_t isc;
@@ -629,7 +633,7 @@ static void do_io_interrupt(CPUS390XState *env)
     int found = 0;
 
     if (!(env->psw.mask & PSW_MASK_IO)) {
-        cpu_abort(env, "I/O int w/o I/O mask\n");
+        cpu_abort(CPU(cpu), "I/O int w/o I/O mask\n");
     }
 
     for (isc = 0; isc < ARRAY_SIZE(env->io_index); isc++) {
@@ -639,7 +643,7 @@ static void do_io_interrupt(CPUS390XState *env)
             continue;
         }
         if (env->io_index[isc] > MAX_IO_QUEUE) {
-            cpu_abort(env, "I/O queue overrun for isc %d: %d\n",
+            cpu_abort(CPU(cpu), "I/O queue overrun for isc %d: %d\n",
                       isc, env->io_index[isc]);
         }
 
@@ -686,24 +690,25 @@ static void do_io_interrupt(CPUS390XState *env)
 
 static void do_mchk_interrupt(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
     LowCore *lowcore;
     MchkQueue *q;
     int i;
 
     if (!(env->psw.mask & PSW_MASK_MCHECK)) {
-        cpu_abort(env, "Machine check w/o mchk mask\n");
+        cpu_abort(CPU(cpu), "Machine check w/o mchk mask\n");
     }
 
     if (env->mchk_index < 0 || env->mchk_index > MAX_MCHK_QUEUE) {
-        cpu_abort(env, "Mchk queue overrun: %d\n", env->mchk_index);
+        cpu_abort(CPU(cpu), "Mchk queue overrun: %d\n", env->mchk_index);
     }
 
     q = &env->mchk_queue[env->mchk_index];
 
     if (q->type != 1) {
         /* Don't know how to handle this... */
-        cpu_abort(env, "Unknown machine check type %d\n", q->type);
+        cpu_abort(CPU(cpu), "Unknown machine check type %d\n", q->type);
     }
     if (!(env->cregs[14] & (1 << 28))) {
         /* CRW machine checks disabled */

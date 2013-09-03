@@ -461,7 +461,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
 #endif
         return;
     default:
-        cpu_abort(env, "Unsupported semihosting syscall %d\n", nr);
+        cpu_abort(CPU(m68k_env_get_cpu(env)), "Unsupported semihosting syscall %d\n", nr);
         result = 0;
     }
 failed:

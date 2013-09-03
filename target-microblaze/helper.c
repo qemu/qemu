@@ -98,7 +98,7 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
             }
 
             if (cs->exception_index == EXCP_MMU) {
-                cpu_abort(env, "recursive faults\n");
+                cpu_abort(cs, "recursive faults\n");
             }
 
             /* TLB miss.  */
@@ -259,7 +259,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 env->sregs[SR_PC] = env->btarget;
             break;
         default:
-            cpu_abort(env, "unhandled exception type=%d\n",
+            cpu_abort(cs, "unhandled exception type=%d\n",
                       cs->exception_index);
             break;
     }

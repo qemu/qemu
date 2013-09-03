@@ -370,7 +370,7 @@ static void dec_pattern(DisasContext *dc)
             }
             break;
         default:
-            cpu_abort(dc->env,
+            cpu_abort(CPU(mb_env_get_cpu(dc->env)),
                       "unsupported pattern insn opcode=%x\n", dc->opcode);
             break;
     }
@@ -441,6 +441,8 @@ static inline void msr_write(DisasContext *dc, TCGv v)
 
 static void dec_msr(DisasContext *dc)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(dc->env);
+    CPUState *cs = CPU(cpu);
     TCGv t0, t1;
     unsigned int sr, to, rn;
     int mem_index = cpu_mmu_index(dc->env);
@@ -537,7 +539,7 @@ static void dec_msr(DisasContext *dc)
                 tcg_gen_st_tl(cpu_R[dc->ra], cpu_env, offsetof(CPUMBState, shr));
                 break;
             default:
-                cpu_abort(dc->env, "unknown mts reg %x\n", sr);
+                cpu_abort(CPU(mb_env_get_cpu(dc->env)), "unknown mts reg %x\n", sr);
                 break;
         }
     } else {
@@ -586,7 +588,7 @@ static void dec_msr(DisasContext *dc)
                               cpu_env, offsetof(CPUMBState, pvr.regs[rn]));
                 break;
             default:
-                cpu_abort(dc->env, "unknown mfs reg %x\n", sr);
+                cpu_abort(cs, "unknown mfs reg %x\n", sr);
                 break;
         }
     }
@@ -684,7 +686,7 @@ static void dec_mul(DisasContext *dc)
             t_gen_mulu(d[0], cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
             break;
         default:
-            cpu_abort(dc->env, "unknown MUL insn %x\n", subcode);
+            cpu_abort(CPU(mb_env_get_cpu(dc->env)), "unknown MUL insn %x\n", subcode);
             break;
     }
 done:
@@ -752,6 +754,8 @@ static void dec_barrel(DisasContext *dc)
 
 static void dec_bit(DisasContext *dc)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(dc->env);
+    CPUState *cs = CPU(cpu);
     TCGv t0;
     unsigned int op;
     int mem_index = cpu_mmu_index(dc->env);
@@ -839,8 +843,8 @@ static void dec_bit(DisasContext *dc)
             tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
             break;
         default:
-            cpu_abort(dc->env, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
-                     dc->pc, op, dc->rd, dc->ra, dc->rb);
+            cpu_abort(cs, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
+                      dc->pc, op, dc->rd, dc->ra, dc->rb);
             break;
     }
 }
@@ -991,7 +995,7 @@ static void dec_load(DisasContext *dc)
                 }
                 break;
             default:
-                cpu_abort(dc->env, "Invalid reverse size\n");
+                cpu_abort(CPU(mb_env_get_cpu(dc->env)), "Invalid reverse size\n");
                 break;
         }
     }
@@ -1142,7 +1146,7 @@ static void dec_store(DisasContext *dc)
                 }
                 break;
             default:
-                cpu_abort(dc->env, "Invalid reverse size\n");
+                cpu_abort(CPU(mb_env_get_cpu(dc->env)), "Invalid reverse size\n");
                 break;
         }
     }
@@ -1193,7 +1197,7 @@ static inline void eval_cc(DisasContext *dc, unsigned int cc,
             tcg_gen_setcond_tl(TCG_COND_GT, d, a, b);
             break;
         default:
-            cpu_abort(dc->env, "Unknown condition code %x.\n", cc);
+            cpu_abort(CPU(mb_env_get_cpu(dc->env)), "Unknown condition code %x.\n", cc);
             break;
     }
 }
@@ -1637,8 +1641,9 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 
         LOG_DIS("nr_nops=%d\t", dc->nr_nops);
         dc->nr_nops++;
-        if (dc->nr_nops > 4)
-            cpu_abort(dc->env, "fetching nop sequence\n");
+        if (dc->nr_nops > 4) {
+            cpu_abort(CPU(mb_env_get_cpu(dc->env)), "fetching nop sequence\n");
+        }
     }
     /* bit 2 seems to indicate insn type.  */
     dc->type_b = ir & (1 << 29);
@@ -1709,8 +1714,9 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
     dc->abort_at_next_insn = 0;
     dc->nr_nops = 0;
 
-    if (pc_start & 3)
-        cpu_abort(env, "Microblaze: unaligned PC=%x\n", pc_start);
+    if (pc_start & 3) {
+        cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
+    }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 #if !SIM_COMPAT

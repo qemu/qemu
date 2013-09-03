@@ -129,7 +129,7 @@ static void gen_BUG(DisasContext *dc, const char *file, int line)
 {
     printf("BUG: pc=%x %s %d\n", dc->pc, file, line);
     qemu_log("BUG: pc=%x %s %d\n", dc->pc, file, line);
-    cpu_abort(dc->env, "%s:%d\n", file, line);
+    cpu_abort(CPU(cris_env_get_cpu(dc->env)), "%s:%d\n", file, line);
 }
 
 static const char *regnames[] =
@@ -272,7 +272,7 @@ static int cris_fetch(CPUCRISState *env, DisasContext *dc, uint32_t addr,
         break;
     }
     default:
-        cpu_abort(dc->env, "Invalid fetch size %d\n", size);
+        cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Invalid fetch size %d\n", size);
         break;
     }
     return r;

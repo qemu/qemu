@@ -185,7 +185,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     default:
-        cpu_abort(env, "unhandled exception type=%d\n",
+        cpu_abort(cs, "unhandled exception type=%d\n",
                   cs->exception_index);
         break;
     }

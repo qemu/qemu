@@ -57,7 +57,7 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     if (cs->exception_index > 0 && cs->exception_index < EXCP_NR) {
         env->pc = (cs->exception_index << 8);
     } else {
-        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
     }
 #endif
 

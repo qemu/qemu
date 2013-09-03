@@ -234,15 +234,21 @@ static void update_itlb_use(CPUSH4State * env, int itlbnb)
 
 static int itlb_replacement(CPUSH4State * env)
 {
-    if ((env->mmucr & 0xe0000000) == 0xe0000000)
+    SuperHCPU *cpu = sh_env_get_cpu(env);
+
+    if ((env->mmucr & 0xe0000000) == 0xe0000000) {
 	return 0;
-    if ((env->mmucr & 0x98000000) == 0x18000000)
+    }
+    if ((env->mmucr & 0x98000000) == 0x18000000) {
 	return 1;
-    if ((env->mmucr & 0x54000000) == 0x04000000)
+    }
+    if ((env->mmucr & 0x54000000) == 0x04000000) {
 	return 2;
-    if ((env->mmucr & 0x2c000000) == 0x00000000)
+    }
+    if ((env->mmucr & 0x2c000000) == 0x00000000) {
 	return 3;
-    cpu_abort(env, "Unhandled itlb_replacement");
+    }
+    cpu_abort(CPU(cpu), "Unhandled itlb_replacement");
 }
 
 /* Find the corresponding entry in the right TLB
@@ -498,7 +504,7 @@ int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
             cs->exception_index = 0x100;
 	    break;
 	default:
-            cpu_abort(env, "Unhandled MMU fault");
+            cpu_abort(cs, "Unhandled MMU fault");
 	}
 	return 1;
     }
@@ -522,6 +528,7 @@ hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
 void cpu_load_tlb(CPUSH4State * env)
 {
+    SuperHCPU *cpu = sh_env_get_cpu(env);
     int n = cpu_mmucr_urc(env->mmucr);
     tlb_t * entry = &env->utlb[n];
 
@@ -551,7 +558,7 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->size = 1024 * 1024; /* 1M */
         break;
     default:
-        cpu_abort(env, "Unhandled load_tlb");
+        cpu_abort(CPU(cpu), "Unhandled load_tlb");
         break;
     }
     entry->sh   = (uint8_t)cpu_ptel_sh(env->ptel);

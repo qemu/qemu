@@ -58,8 +58,10 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 void helper_ldtlb(CPUSH4State *env)
 {
 #ifdef CONFIG_USER_ONLY
+    SuperHCPU *cpu = sh_env_get_cpu(env);
+
     /* XXXXX */
-    cpu_abort(env, "Unhandled ldtlb");
+    cpu_abort(CPU(cpu), "Unhandled ldtlb");
 #else
     cpu_load_tlb(env);
 #endif

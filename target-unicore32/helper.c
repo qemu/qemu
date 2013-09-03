@@ -229,26 +229,22 @@ void helper_cp1_putc(target_ulong x)
 #ifdef CONFIG_USER_ONLY
 void switch_mode(CPUUniCore32State *env, int mode)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     if (mode != ASR_MODE_USER) {
-        cpu_abort(env, "Tried to switch out of user mode\n");
+        cpu_abort(CPU(cpu), "Tried to switch out of user mode\n");
     }
 }
 
 void uc32_cpu_do_interrupt(CPUState *cs)
 {
-    UniCore32CPU *cpu = UNICORE32_CPU(cs);
-    CPUUniCore32State *env = &cpu->env;
-
-    cpu_abort(env, "NO interrupt in user mode\n");
+    cpu_abort(cs, "NO interrupt in user mode\n");
 }
 
 int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                               int access_type, int mmu_idx)
 {
-    UniCore32CPU *cpu = UNICORE32_CPU(cs);
-    CPUUniCore32State *env = &cpu->env;
-
-    cpu_abort(env, "NO mmu fault in user mode\n");
+    cpu_abort(cs, "NO mmu fault in user mode\n");
     return 1;
 }
 #endif

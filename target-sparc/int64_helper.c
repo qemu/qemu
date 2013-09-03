@@ -111,7 +111,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
 #endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->tl >= env->maxtl) {
-        cpu_abort(env, "Trap 0x%04x while trap level (%d) >= MAXTL (%d),"
+        cpu_abort(cs, "Trap 0x%04x while trap level (%d) >= MAXTL (%d),"
                   " Error state", cs->exception_index, env->tl, env->maxtl);
         return;
     }

@@ -688,7 +688,7 @@ static void page_flush_tb(void)
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUArchState *env1)
 {
-    CPUState *cpu;
+    CPUState *cpu = ENV_GET_CPU(env1);
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
@@ -699,7 +699,7 @@ void tb_flush(CPUArchState *env1)
 #endif
     if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
         > tcg_ctx.code_gen_buffer_size) {
-        cpu_abort(env1, "Internal error: code buffer overflow\n");
+        cpu_abort(cpu, "Internal error: code buffer overflow\n");
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
@@ -1374,12 +1374,11 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 
 void tb_check_watchpoint(CPUState *cpu)
 {
-    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
 
     tb = tb_find_pc(cpu->mem_io_pc);
     if (!tb) {
-        cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
+        cpu_abort(cpu, "check_watchpoint: could not find TB for pc=%p",
                   (void *)cpu->mem_io_pc);
     }
     cpu_restore_state_from_tb(cpu, tb, cpu->mem_io_pc);
@@ -1390,7 +1389,6 @@ void tb_check_watchpoint(CPUState *cpu)
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
-    CPUArchState *env = cpu->env_ptr;
     int old_mask;
 
     old_mask = cpu->interrupt_request;
@@ -1409,7 +1407,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
         cpu->icount_decr.u16.high = 0xffff;
         if (!cpu_can_do_io(cpu)
             && (mask & ~old_mask) != 0) {
-            cpu_abort(env, "Raised interrupt while not in I/O function");
+            cpu_abort(cpu, "Raised interrupt while not in I/O function");
         }
     } else {
         cpu->tcg_exit_req = 1;
@@ -1422,7 +1420,9 @@ CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
    must be at the end of the TB */
 void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 {
+#if defined(TARGET_MIPS) || defined(TARGET_SH4)
     CPUArchState *env = cpu->env_ptr;
+#endif
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
@@ -1430,7 +1430,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 
     tb = tb_find_pc(retaddr);
     if (!tb) {
-        cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
+        cpu_abort(cpu, "cpu_io_recompile: could not find TB for pc=%p",
                   (void *)retaddr);
     }
     n = cpu->icount_decr.u16.low + tb->icount;
@@ -1460,7 +1460,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 #endif
     /* This should never happen.  */
     if (n > CF_COUNT_MASK) {
-        cpu_abort(env, "TB too big during recompile");
+        cpu_abort(cpu, "TB too big during recompile");
     }
 
     cflags = n | CF_LAST_IO;

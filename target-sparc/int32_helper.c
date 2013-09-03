@@ -109,7 +109,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
             env->def->features & CPU_FEATURE_TA0_SHUTDOWN) {
             qemu_system_shutdown_request();
         } else {
-            cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state",
+            cpu_abort(cs, "Trap 0x%02x while interrupts disabled, Error state",
                       cs->exception_index);
         }
         return;

@@ -629,6 +629,8 @@ static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 
 static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+
     env->tlb = g_malloc0(sizeof(CPUMIPSTLBContext));
 
     switch (def->mmu_type) {
@@ -645,7 +647,7 @@ static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
         case MMU_TYPE_R6000:
         case MMU_TYPE_R8000:
         default:
-            cpu_abort(env, "MMU type not supported\n");
+            cpu_abort(CPU(cpu), "MMU type not supported\n");
     }
 }
 #endif /* CONFIG_USER_ONLY */

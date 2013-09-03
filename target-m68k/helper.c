@@ -132,6 +132,7 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
     int flags;
     uint32_t src;
     uint32_t dest;
@@ -204,7 +205,7 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
             flags |= CCF_C;
         break;
     default:
-        cpu_abort(env, "Bad CC_OP %d", cc_op);
+        cpu_abort(CPU(cpu), "Bad CC_OP %d", cc_op);
     }
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = flags;
@@ -212,6 +213,8 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
 
 void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
     switch (reg) {
     case 0x02: /* CACR */
         env->cacr = val;
@@ -225,7 +228,7 @@ void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
         break;
     /* TODO: Implement control registers.  */
     default:
-        cpu_abort(env, "Unimplemented control register write 0x%x = 0x%x\n",
+        cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
                   reg, val);
     }
 }

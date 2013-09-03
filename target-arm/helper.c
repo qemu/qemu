@@ -2671,29 +2671,40 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
 }
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
     return 0;
 }
 
 void switch_mode(CPUARMState *env, int mode)
 {
-    if (mode != ARM_CPU_MODE_USR)
-        cpu_abort(env, "Tried to switch out of user mode\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (mode != ARM_CPU_MODE_USR) {
+        cpu_abort(CPU(cpu), "Tried to switch out of user mode\n");
+    }
 }
 
 void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
-    cpu_abort(env, "banked r13 write\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 write\n");
 }
 
 uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
-    cpu_abort(env, "banked r13 read\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 read\n");
     return 0;
 }
 
@@ -2892,7 +2903,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         do_v7m_exception_exit(env);
         return;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
 
@@ -3017,7 +3028,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
@@ -3695,6 +3706,8 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         return xpsr_read(env) & 0xf8000000;
@@ -3725,13 +3738,15 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return env->v7m.control;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register read (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register read (%d)\n", reg);
         return 0;
     }
 }
 
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         xpsr_write(env, val, 0xf8000000);
@@ -3794,7 +3809,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
         break;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register write (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register write (%d)\n", reg);
         return;
     }
 }

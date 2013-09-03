@@ -33,6 +33,8 @@
 /* Map CPU modes onto saved register banks.  */
 static inline int bank_number(CPUUniCore32State *env, int mode)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+
     switch (mode) {
     case ASR_MODE_USER:
     case ASR_MODE_SUSR:
@@ -46,7 +48,7 @@ static inline int bank_number(CPUUniCore32State *env, int mode)
     case ASR_MODE_INTR:
         return 4;
     }
-    cpu_abort(env, "Bad mode %x\n", mode);
+    cpu_abort(CPU(cpu), "Bad mode %x\n", mode);
     return -1;
 }
 
@@ -99,7 +101,7 @@ void uc32_cpu_do_interrupt(CPUState *cs)
         addr = 0x18;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", cs->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return;
     }
     /* High vectors.  */
@@ -121,7 +123,8 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         int access_type, int is_user, uint32_t *phys_ptr, int *prot,
         target_ulong *page_size)
 {
-    CPUState *cs = CPU(uc32_env_get_cpu(env));
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int code;
     uint32_t table;
     uint32_t desc;
@@ -168,11 +171,11 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
             *page_size = TARGET_PAGE_SIZE;
             break;
         default:
-            cpu_abort(env, "wrong page type!");
+            cpu_abort(CPU(cpu), "wrong page type!");
         }
         break;
     default:
-        cpu_abort(env, "wrong page type!");
+        cpu_abort(CPU(cpu), "wrong page type!");
     }
 
     *phys_ptr = phys_addr;
@@ -268,6 +271,6 @@ hwaddr uc32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     UniCore32CPU *cpu = UNICORE32_CPU(cs);
 
-    cpu_abort(&cpu->env, "%s not supported yet\n", __func__);
+    cpu_abort(CPU(cpu), "%s not supported yet\n", __func__);
     return addr;
 }

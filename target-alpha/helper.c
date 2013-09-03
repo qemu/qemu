@@ -452,7 +452,7 @@ void alpha_cpu_do_interrupt(CPUState *cs)
         }
         break;
     default:
-        cpu_abort(env, "Unhandled CPU exception");
+        cpu_abort(cs, "Unhandled CPU exception");
     }
 
     /* Remember where the exception happened.  Emulate real hardware in

@@ -95,6 +95,7 @@ static inline void load_seg_vm(CPUX86State *env, int seg, int selector)
 static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
                                        uint32_t *esp_ptr, int dpl)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int type, index, shift;
 
 #if 0
@@ -112,11 +113,11 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK)) {
-        cpu_abort(env, "invalid tss");
+        cpu_abort(CPU(cpu), "invalid tss");
     }
     type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
     if ((type & 7) != 1) {
-        cpu_abort(env, "invalid tss type");
+        cpu_abort(CPU(cpu), "invalid tss type");
     }
     shift = type >> 3;
     index = (dpl * 4 + 2) << shift;
@@ -782,6 +783,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
 static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int index;
 
 #if 0
@@ -790,7 +792,7 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK)) {
-        cpu_abort(env, "invalid tss");
+        cpu_abort(CPU(cpu), "invalid tss");
     }
     index = 8 * level + 4;
     if ((index + 7) > env->tr.limit) {

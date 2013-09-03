@@ -72,6 +72,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
                             uint8_t byte)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     hwaddr dest_phys;
     hwaddr len = l;
     void *dest_p;
@@ -80,7 +81,7 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
 
     if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
         cpu_stb_data(env, dest, byte);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     dest_phys |= dest & ~TARGET_PAGE_MASK;
 
@@ -94,6 +95,7 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
 static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
                              uint64_t src)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     hwaddr dest_phys;
     hwaddr src_phys;
     hwaddr len = l;
@@ -104,13 +106,13 @@ static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
 
     if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
         cpu_stb_data(env, dest, 0);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     dest_phys |= dest & ~TARGET_PAGE_MASK;
 
     if (mmu_translate(env, src, 0, asc, &src_phys, &flags)) {
         cpu_ldub_data(env, src);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     src_phys |= src & ~TARGET_PAGE_MASK;
 
@@ -483,6 +485,7 @@ static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,
 uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                     uint64_t addr, uint64_t ret)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint16_t insn = cpu_lduw_code(env, addr);
 
     HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __func__, v1, addr,
@@ -534,7 +537,7 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         cc = helper_icm(env, r1, get_address(env, 0, b2, d2), r3);
     } else {
     abort:
-        cpu_abort(env, "EXECUTE on instruction prefix 0x%x not implemented\n",
+        cpu_abort(CPU(cpu), "EXECUTE on instruction prefix 0x%x not implemented\n",
                   insn);
     }
     return cc;

@@ -1344,6 +1344,7 @@ void helper_mtc0_compare(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
     uint32_t val, old;
     uint32_t mask = env->CP0_Status_rw_bitmask;
 
@@ -1365,7 +1366,9 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
         case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
-        default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+        default:
+            cpu_abort(CPU(cpu), "Invalid MMU mode!\n");
+            break;
         }
     }
 }
@@ -1985,6 +1988,8 @@ static void debug_pre_eret(CPUMIPSState *env)
 
 static void debug_post_eret(CPUMIPSState *env)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
                 env->active_tc.PC, env->CP0_EPC);
@@ -1996,7 +2001,9 @@ static void debug_post_eret(CPUMIPSState *env)
         case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
-        default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+        default:
+            cpu_abort(CPU(cpu), "Invalid MMU mode!\n");
+            break;
         }
     }
 }

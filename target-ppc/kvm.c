@@ -1504,7 +1504,6 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_enable_cap cap = {};
     int ret;
@@ -1513,7 +1512,7 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
 
     if (ret) {
-        cpu_abort(env, "This KVM version does not support PAPR\n");
+        cpu_abort(cs, "This KVM version does not support PAPR\n");
     }
 
     /* Update the capability flag so we sync the right information
@@ -1523,7 +1522,6 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
 
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
-    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_enable_cap cap = {};
     int ret;
@@ -1533,7 +1531,7 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
     ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
 
     if (ret && mpic_proxy) {
-        cpu_abort(env, "This KVM version does not support EPR\n");
+        cpu_abort(cs, "This KVM version does not support EPR\n");
     }
 }
 

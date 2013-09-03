@@ -322,7 +322,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
         if (cc->do_unassigned_access) {
             cc->do_unassigned_access(cpu, addr, false, true, 0, 4);
         } else {
-            cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x"
+            cpu_abort(cpu, "Trying to execute code outside RAM or ROM at 0x"
                       TARGET_FMT_lx "\n", addr);
         }
     }
