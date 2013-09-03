@@ -4737,7 +4737,7 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
 {
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) && defined(TARGET_ABI32)
     if (((CPUARMState *)cpu_env)->eabi) {
         struct target_eabi_stat64 *target_st;
 
@@ -6381,7 +6381,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
-#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || \
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
     defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_MICROBLAZE) \
     || defined(TARGET_S390X)
         {
