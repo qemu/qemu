@@ -455,6 +455,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
         ret = -ENOTSUP;
         goto fail;
     }
+    s->refcount_order = header.refcount_order;
 
     if (header.cluster_bits < MIN_CLUSTER_BITS ||
         header.cluster_bits > MAX_CLUSTER_BITS) {
@@ -1143,7 +1144,7 @@ int qcow2_update_header(BlockDriverState *bs)
         .incompatible_features  = cpu_to_be64(s->incompatible_features),
         .compatible_features    = cpu_to_be64(s->compatible_features),
         .autoclear_features     = cpu_to_be64(s->autoclear_features),
-        .refcount_order         = cpu_to_be32(3 + REFCOUNT_SHIFT),
+        .refcount_order         = cpu_to_be32(s->refcount_order),
         .header_length          = cpu_to_be32(header_length),
     };
 
