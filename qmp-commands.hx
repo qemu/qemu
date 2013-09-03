@@ -1402,22 +1402,22 @@ Change I/O throttle limits for a block drive.
 Arguments:
 
 - "device": device name (json-string)
-- "bps":  total throughput limit in bytes per second(json-int)
-- "bps_rd":  read throughput limit in bytes per second(json-int)
-- "bps_wr":  read throughput limit in bytes per second(json-int)
-- "iops":  total I/O operations per second(json-int)
-- "iops_rd":  read I/O operations per second(json-int)
-- "iops_wr":  write I/O operations per second(json-int)
+- "bps": total throughput limit in bytes per second (json-int)
+- "bps_rd": read throughput limit in bytes per second (json-int)
+- "bps_wr": write throughput limit in bytes per second (json-int)
+- "iops": total I/O operations per second (json-int)
+- "iops_rd": read I/O operations per second (json-int)
+- "iops_wr": write I/O operations per second (json-int)
 
 Example:
 
 -> { "execute": "block_set_io_throttle", "arguments": { "device": "virtio0",
-                                               "bps": "1000000",
-                                               "bps_rd": "0",
-                                               "bps_wr": "0",
-                                               "iops": "0",
-                                               "iops_rd": "0",
-                                               "iops_wr": "0" } }
+                                               "bps": 1000000,
+                                               "bps_rd": 0,
+                                               "bps_wr": 0,
+                                               "iops": 0,
+                                               "iops_rd": 0,
+                                               "iops_wr": 0 } }
 <- { "return": {} }
 
 EQMP
@@ -1791,7 +1791,7 @@ Each json-object contain the following:
                  - "vm-state-size": size of the VM state in bytes (json-int)
                  - "date-sec": UTC date of the snapshot in seconds (json-int)
                  - "date-nsec": fractional part in nanoseconds to be used with
-                                date-sec(json-int)
+                                date-sec (json-int)
                  - "vm-clock-sec": VM clock relative to boot in seconds
                                    (json-int)
                  - "vm-clock-nsec": fractional part in nanoseconds to be used

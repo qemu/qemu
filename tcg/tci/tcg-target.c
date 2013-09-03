@@ -415,13 +415,6 @@ static void tcg_out_i(TCGContext *s, tcg_target_ulong v)
     s->code_ptr += sizeof(tcg_target_ulong);
 }
 
-/* Write 64 bit value. */
-static void tcg_out64(TCGContext *s, uint64_t v)
-{
-    *(uint64_t *)s->code_ptr = v;
-    s->code_ptr += sizeof(v);
-}
-
 /* Write opcode. */
 static void tcg_out_op_t(TCGContext *s, TCGOpcode op)
 {

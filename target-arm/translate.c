@@ -6715,6 +6715,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             /* setend */
             if (((insn >> 9) & 1) != s->bswap_code) {
                 /* Dynamic endianness switching not implemented. */
+                qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
                 goto illegal_op;
             }
             return;
@@ -8740,6 +8741,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
 
                 if (insn & (1 << 26)) {
                     /* Secure monitor call (v6Z) */
+                    qemu_log_mask(LOG_UNIMP,
+                                  "arm: unimplemented secure monitor call\n");
                     goto illegal_op; /* not implemented.  */
                 } else {
                     op = (insn >> 20) & 7;
@@ -9779,6 +9782,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 ARCH(6);
                 if (((insn >> 3) & 1) != s->bswap_code) {
                     /* Dynamic endianness switching not implemented. */
+                    qemu_log_mask(LOG_UNIMP, "arm: unimplemented setend\n");
                     goto illegal_op;
                 }
                 break;

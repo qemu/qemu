@@ -640,8 +640,8 @@ typedef struct {
 #define OCF_SETUP_SYNC_CONN		0x0028
 typedef struct {
     uint16_t	handle;
-    uint32_t	tx_bandwith;
-    uint32_t	rx_bandwith;
+    uint32_t	tx_bandwidth;
+    uint32_t	rx_bandwidth;
     uint16_t	max_latency;
     uint16_t	voice_setting;
     uint8_t	retrans_effort;
@@ -652,8 +652,8 @@ typedef struct {
 #define OCF_ACCEPT_SYNC_CONN_REQ	0x0029
 typedef struct {
     bdaddr_t	bdaddr;
-    uint32_t	tx_bandwith;
-    uint32_t	rx_bandwith;
+    uint32_t	tx_bandwidth;
+    uint32_t	rx_bandwidth;
     uint16_t	max_latency;
     uint16_t	voice_setting;
     uint8_t	retrans_effort;

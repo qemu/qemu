@@ -232,7 +232,7 @@ vcard_apdu_set_class(VCardAPDU *apdu) {
     case 0xf0:
     default:
         apdu->a_gen_type =
-            (apdu->a_cla == 0xff) ? VCARD_7816_PTS : VCARD_7816_PROPIETARY;
+            (apdu->a_cla == 0xff) ? VCARD_7816_PTS : VCARD_7816_PROPRIETARY;
         break;
     }
     return VCARD7816_STATUS_SUCCESS;
