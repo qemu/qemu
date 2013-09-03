@@ -46,6 +46,7 @@ typedef struct QEMUOptionParameter {
         char* s;
     } value;
     const char *help;
+    bool assigned;
 } QEMUOptionParameter;
 
 
