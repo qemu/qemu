@@ -4579,3 +4579,11 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
 {
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
+
+int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
+{
+    if (bs->drv->bdrv_amend_options == NULL) {
+        return -ENOTSUP;
+    }
+    return bs->drv->bdrv_amend_options(bs, options);
+}

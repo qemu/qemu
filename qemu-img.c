@@ -2525,6 +2525,90 @@ out:
     return 0;
 }
 
+static int img_amend(int argc, char **argv)
+{
+    int c, ret = 0;
+    char *options = NULL;
+    QEMUOptionParameter *create_options = NULL, *options_param = NULL;
+    const char *fmt = NULL, *filename;
+    bool quiet = false;
+    BlockDriverState *bs = NULL;
+
+    for (;;) {
+        c = getopt(argc, argv, "hqf:o:");
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+            case 'h':
+            case '?':
+                help();
+                break;
+            case 'o':
+                options = optarg;
+                break;
+            case 'f':
+                fmt = optarg;
+                break;
+            case 'q':
+                quiet = true;
+                break;
+        }
+    }
+
+    if (optind != argc - 1) {
+        help();
+    }
+
+    if (!options) {
+        help();
+    }
+
+    filename = argv[argc - 1];
+
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
+    if (!bs) {
+        error_report("Could not open image '%s'", filename);
+        ret = -1;
+        goto out;
+    }
+
+    fmt = bs->drv->format_name;
+
+    if (is_help_option(options)) {
+        ret = print_block_option_help(filename, fmt);
+        goto out;
+    }
+
+    create_options = append_option_parameters(create_options,
+            bs->drv->create_options);
+    options_param = parse_option_parameters(options, create_options,
+            options_param);
+    if (options_param == NULL) {
+        error_report("Invalid options for file format '%s'", fmt);
+        ret = -1;
+        goto out;
+    }
+
+    ret = bdrv_amend_options(bs, options_param);
+    if (ret < 0) {
+        error_report("Error while amending options: %s", strerror(-ret));
+        goto out;
+    }
+
+out:
+    if (bs) {
+        bdrv_unref(bs);
+    }
+    free_option_parameters(create_options);
+    free_option_parameters(options_param);
+    if (ret) {
+        return 1;
+    }
+    return 0;
+}
+
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },

@@ -188,6 +188,9 @@ struct BlockDriver {
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
+    int (*bdrv_amend_options)(BlockDriverState *bs,
+        QEMUOptionParameter *options);
+
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
     /* TODO Better pass a option string/QDict/QemuOpts to add any rule? */

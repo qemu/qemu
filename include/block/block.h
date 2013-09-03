@@ -241,6 +241,8 @@ typedef enum {
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
+int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options);
+
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
                                      int sector_num);
