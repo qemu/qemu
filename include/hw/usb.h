@@ -442,9 +442,6 @@ int set_usb_string(uint8_t *buf, const char *str);
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
 void usb_host_info(Monitor *mon, const QDict *qdict);
 
-/* usb-bt.c */
-USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci);
-
 /* usb ports of the VM */
 
 #define VM_USB_HUB_SIZE 8
