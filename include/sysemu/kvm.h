@@ -46,6 +46,7 @@ extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_irqfds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
+extern bool kvm_gsi_direct_mapping;
 extern bool kvm_readonly_mem_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
@@ -108,6 +109,13 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_gsi_routing_enabled() (kvm_gsi_routing_allowed)
 
 /**
+ * kvm_gsi_direct_mapping:
+ *
+ * Returns: true if GSI direct mapping is enabled.
+ */
+#define kvm_gsi_direct_mapping() (kvm_gsi_direct_mapping)
+
+/**
  * kvm_readonly_mem_enabled:
  *
  * Returns: true if KVM readonly memory is enabled (ie the kernel
@@ -123,6 +131,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_irqfds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
+#define kvm_gsi_direct_mapping() (false)
 #define kvm_readonly_mem_enabled() (false)
 #endif
 

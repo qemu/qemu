@@ -111,6 +111,7 @@ bool kvm_halt_in_kernel_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
+bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 
@@ -1069,6 +1070,10 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
     struct kvm_irq_routing_entry *e;
     int i;
 
+    if (kvm_gsi_direct_mapping()) {
+        return;
+    }
+
     for (i = 0; i < s->irq_routes->nr; i++) {
         e = &s->irq_routes->entries[i];
         if (e->gsi == virq) {
@@ -1190,6 +1195,10 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     struct kvm_irq_routing_entry kroute = {};
     int virq;
 
+    if (kvm_gsi_direct_mapping()) {
+        return msg.data & 0xffff;
+    }
+
     if (!kvm_gsi_routing_enabled()) {
         return -ENOSYS;
     }
@@ -1215,6 +1224,10 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 {
     struct kvm_irq_routing_entry kroute = {};
+
+    if (kvm_gsi_direct_mapping()) {
+        return 0;
+    }
 
     if (!kvm_irqchip_in_kernel()) {
         return -ENOSYS;
