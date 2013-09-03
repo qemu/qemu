@@ -510,9 +510,7 @@ static void vapic_reset(DeviceState *dev)
 {
     VAPICROMState *s = VAPIC(dev);
 
-    if (s->state == VAPIC_ACTIVE) {
-        s->state = VAPIC_STANDBY;
-    }
+    s->state = VAPIC_INACTIVE;
     vapic_enable_tpr_reporting(false);
 }
 
