@@ -114,6 +114,8 @@ void arm_translate_init(void)
         offsetof(CPUARMState, exclusive_info), "exclusive_info");
 #endif
 
+    a64_translate_init();
+
 #define GEN_HELPER 2
 #include "helper.h"
 }
@@ -907,7 +909,11 @@ DO_GEN_ST(st32)
 
 static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
-    tcg_gen_movi_i32(cpu_R[15], val);
+    if (s->aarch64) {
+        gen_a64_set_pc_im(val);
+    } else {
+        tcg_gen_movi_i32(cpu_R[15], val);
+    }
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
@@ -10099,7 +10105,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     do {
 #ifdef CONFIG_USER_ONLY
         /* Intercept jump to the magic kernel page.  */
-        if (dc->pc >= 0xffff0000) {
+        if (!dc->aarch64 && dc->pc >= 0xffff0000) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
             gen_exception(EXCP_KERNEL_TRAP);
@@ -10147,7 +10153,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             tcg_gen_debug_insn_start(dc->pc);
         }
 
-        if (dc->thumb) {
+        if (dc->aarch64) {
+            disas_a64_insn(env, dc);
+        } else if (dc->thumb) {
             disas_thumb_insn(env, dc);
             if (dc->condexec_mask) {
                 dc->condexec_cond = (dc->condexec_cond & 0xe)
