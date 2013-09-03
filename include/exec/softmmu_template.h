@@ -172,7 +172,7 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          int mmu_idx)
 {
     return glue(glue(helper_ret_ld, USUFFIX), MMUSUFFIX)(env, addr, mmu_idx,
-                                                        GETRA_EXT());
+                                                         GETRA());
 }
 
 #ifndef SOFTMMU_CODE_ACCESS
@@ -285,7 +285,7 @@ glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          DATA_TYPE val, int mmu_idx)
 {
     glue(glue(helper_ret_st, SUFFIX), MMUSUFFIX)(env, addr, val, mmu_idx,
-                                                 GETRA_EXT());
+                                                 GETRA());
 }
 
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */

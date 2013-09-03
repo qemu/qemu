@@ -320,18 +320,6 @@ extern uintptr_t tci_tb_ptr;
 
 #define GETPC()  (GETRA() - GETPC_ADJ)
 
-/* ??? Delete these once they are no longer used.  */
-bool is_tcg_gen_code(uintptr_t pc_ptr);
-#ifdef GETRA_LDST
-# define GETRA_EXT()  tcg_getra_ext(GETRA())
-static inline uintptr_t tcg_getra_ext(uintptr_t ra)
-{
-    return is_tcg_gen_code(ra) ? GETRA_LDST(ra) : ra;
-}
-#else
-# define GETRA_EXT()  GETRA()
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 
 void phys_mem_set_alloc(void *(*alloc)(ram_addr_t));
