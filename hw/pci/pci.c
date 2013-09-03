@@ -312,13 +312,13 @@ bool pci_bus_is_root(PCIBus *bus)
     return !bus->parent_dev;
 }
 
-void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
+void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename)
 {
-    qbus_create_inplace(bus, typename, parent, name);
+    qbus_create_inplace(bus, bus_size, typename, parent, name);
     pci_bus_init(bus, parent, name, address_space_mem,
                  address_space_io, devfn_min);
 }

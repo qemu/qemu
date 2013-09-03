@@ -72,7 +72,8 @@ extern const VMStateDescription vmstate_ipack_device;
     VMSTATE_STRUCT(_field, _state, 1, vmstate_ipack_device, IPackDevice)
 
 IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot);
-void ipack_bus_new_inplace(IPackBus *bus, DeviceState *parent,
+void ipack_bus_new_inplace(IPackBus *bus, size_t bus_size,
+                           DeviceState *parent,
                            const char *name, uint8_t n_slots,
                            qemu_irq_handler handler);
 

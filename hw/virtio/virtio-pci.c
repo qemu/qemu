@@ -92,7 +92,8 @@
 /* HACK for virtio to determine if it's running a big endian guest */
 bool virtio_is_big_endian(void);
 
-static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
+static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtIOPCIProxy *dev);
 
 /* virtio device */
 /* DeviceState to VirtIOPCIProxy. For use off data-path. TODO: use QOM. */
@@ -918,7 +919,7 @@ static void virtio_9p_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_9p_pci_instance_init(Object *obj)
 {
     V9fsPCIState *dev = VIRTIO_9P_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_9P);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_9P);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -986,7 +987,7 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
-    virtio_pci_bus_new(&dev->bus, dev);
+    virtio_pci_bus_new(&dev->bus, sizeof(dev->bus), dev);
     if (k->init != NULL) {
         return k->init(dev);
     }
@@ -1078,7 +1079,7 @@ static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_blk_pci_instance_init(Object *obj)
 {
     VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1148,7 +1149,7 @@ static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_scsi_pci_instance_init(Object *obj)
 {
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1205,7 +1206,7 @@ static void vhost_scsi_pci_class_init(ObjectClass *klass, void *data)
 static void vhost_scsi_pci_instance_init(Object *obj)
 {
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VHOST_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1286,7 +1287,7 @@ static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_balloon_pci_instance_init(Object *obj)
 {
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BALLOON);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 
     object_property_add(obj, "guest-stats", "guest statistics",
@@ -1372,7 +1373,7 @@ static void virtio_serial_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_serial_pci_instance_init(Object *obj)
 {
     VirtIOSerialPCI *dev = VIRTIO_SERIAL_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SERIAL);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1431,7 +1432,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_net_pci_instance_init(Object *obj)
 {
     VirtIONetPCI *dev = VIRTIO_NET_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1487,7 +1488,7 @@ static void virtio_rng_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_rng_initfn(Object *obj)
 {
     VirtIORngPCI *dev = VIRTIO_RNG_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_RNG);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng, NULL);
@@ -1504,13 +1505,14 @@ static const TypeInfo virtio_rng_pci_info = {
 
 /* virtio-pci-bus */
 
-static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
+static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtIOPCIProxy *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
-    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_PCI_BUS, qdev,
+    qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_PCI_BUS, qdev,
                         virtio_bus_name);
     qbus = BUS(bus);
     qbus->allow_hotplug = 1;

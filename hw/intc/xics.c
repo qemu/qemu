@@ -661,7 +661,7 @@ static void xics_realize(DeviceState *dev, Error **errp)
     icp->ss = g_malloc0(icp->nr_servers*sizeof(ICPState));
     for (i = 0; i < icp->nr_servers; i++) {
         char buffer[32];
-        object_initialize(&icp->ss[i], TYPE_ICP);
+        object_initialize(&icp->ss[i], sizeof(icp->ss[i]), TYPE_ICP);
         snprintf(buffer, sizeof(buffer), "icp[%d]", i);
         object_property_add_child(OBJECT(icp), buffer, OBJECT(&icp->ss[i]), NULL);
         qdev_init_nofail(DEVICE(&icp->ss[i]));

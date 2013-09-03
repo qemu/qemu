@@ -2520,7 +2520,7 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
         return;
     }
 
-    usb_bus_new(&s->bus, &ehci_bus_ops, dev);
+    usb_bus_new(&s->bus, sizeof(s->bus), &ehci_bus_ops, dev);
     for (i = 0; i < s->portnr; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);

@@ -1254,7 +1254,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
             return -1;
         }
     } else {
-        usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
+        usb_bus_new(&s->bus, sizeof(s->bus), &uhci_bus_ops, DEVICE(dev));
         for (i = 0; i < NB_PORTS; i++) {
             usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);

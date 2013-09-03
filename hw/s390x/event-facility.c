@@ -324,8 +324,8 @@ static int init_event_facility(S390SCLPDevice *sdev)
     sdev->event_pending = event_pending;
 
     /* Spawn a new sclp-events facility */
-    qbus_create_inplace(&event_facility->sbus.qbus,
-                        TYPE_SCLP_EVENTS_BUS, (DeviceState *)sdev, NULL);
+    qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
+                        TYPE_SCLP_EVENTS_BUS, DEVICE(sdev), NULL);
     event_facility->sbus.qbus.allow_hotplug = 0;
     event_facility->qdev = (DeviceState *) sdev;
 

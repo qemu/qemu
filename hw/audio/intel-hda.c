@@ -40,11 +40,11 @@ static const TypeInfo hda_codec_bus_info = {
     .instance_size = sizeof(HDACodecBus),
 };
 
-void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
+void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
                         hda_codec_response_func response,
                         hda_codec_xfer_func xfer)
 {
-    qbus_create_inplace(&bus->qbus, TYPE_HDA_BUS, dev, NULL);
+    qbus_create_inplace(bus, bus_size, TYPE_HDA_BUS, dev, NULL);
     bus->response = response;
     bus->xfer = xfer;
 }
@@ -1142,7 +1142,7 @@ static int intel_hda_init(PCIDevice *pci)
         msi_init(&d->pci, 0x50, 1, true, false);
     }
 
-    hda_codec_bus_init(DEVICE(pci), &d->codecs,
+    hda_codec_bus_init(DEVICE(pci), &d->codecs, sizeof(d->codecs),
                        intel_hda_response, intel_hda_xfer);
 
     return 0;

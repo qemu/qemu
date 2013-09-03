@@ -249,7 +249,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     MyClass parent_class;
  *
  *     MyDoSomething parent_do_something;
- * } MyClass;
+ * } DerivedClass;
  *
  * static void derived_do_something(MyState *obj)
  * {
@@ -585,25 +585,27 @@ Object *object_new_with_type(Type type);
 
 /**
  * object_initialize_with_type:
- * @obj: A pointer to the memory to be used for the object.
+ * @data: A pointer to the memory to be used for the object.
+ * @size: The maximum size available at @data for the object.
  * @type: The type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
  */
-void object_initialize_with_type(void *data, Type type);
+void object_initialize_with_type(void *data, size_t size, Type type);
 
 /**
  * object_initialize:
  * @obj: A pointer to the memory to be used for the object.
+ * @size: The maximum size available at @obj for the object.
  * @typename: The name of the type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
  */
-void object_initialize(void *obj, const char *typename);
+void object_initialize(void *obj, size_t size, const char *typename);
 
 /**
  * object_dynamic_cast:
