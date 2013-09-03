@@ -405,6 +405,7 @@ void pci_device_deassert_intx(PCIDevice *dev);
 
 typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
+AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 
 static inline void

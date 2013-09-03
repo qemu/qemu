@@ -216,7 +216,6 @@ static QEMUMachine leon3_generic_machine = {
     .name     = "leon3_generic",
     .desc     = "Leon-3 generic",
     .init     = leon3_generic_hw_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void leon3_machine_init(void)

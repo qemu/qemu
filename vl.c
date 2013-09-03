@@ -4123,7 +4123,7 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = qemu_opt_get(machine_opts, "append");
 
     if (!boot_order) {
-        boot_order = machine->boot_order;
+        boot_order = machine->default_boot_order;
     }
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
@@ -4311,7 +4311,7 @@ int main(int argc, char **argv, char **envp)
     qdev_machine_init();
 
     QEMUMachineInitArgs args = { .ram_size = ram_size,
-                                 .boot_device = boot_order,
+                                 .boot_order = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,
                                  .initrd_filename = initrd_filename,

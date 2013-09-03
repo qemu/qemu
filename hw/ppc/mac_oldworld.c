@@ -78,7 +78,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    const char *boot_device = args->boot_order;
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
@@ -350,7 +350,7 @@ static QEMUMachine heathrow_machine = {
 #ifndef TARGET_PPC64
     .is_default = 1,
 #endif
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "cd", /* TOFIX "cad" when Mac floppy is implemented */
 };
 
 static void heathrow_machine_init(void)
