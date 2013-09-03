@@ -411,6 +411,9 @@ int qcow2_update_header(BlockDriverState *bs);
 int qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
+int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
+                                  int addend, enum qcow2_discard_type type);
+
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size);
 int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
     int nb_clusters);
@@ -457,6 +460,8 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
     int nb_sectors, enum qcow2_discard_type type);
 int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors);
+
+int qcow2_expand_zero_clusters(BlockDriverState *bs);
 
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);

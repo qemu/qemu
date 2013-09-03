@@ -601,10 +601,10 @@ fail:
  * If the return value is non-negative, it is the new refcount of the cluster.
  * If it is negative, it is -errno and indicates an error.
  */
-static int update_cluster_refcount(BlockDriverState *bs,
-                                   int64_t cluster_index,
-                                   int addend,
-                                   enum qcow2_discard_type type)
+int qcow2_update_cluster_refcount(BlockDriverState *bs,
+                                  int64_t cluster_index,
+                                  int addend,
+                                  enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
@@ -733,8 +733,8 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
         if (free_in_cluster == 0)
             s->free_byte_offset = 0;
         if ((offset & (s->cluster_size - 1)) != 0)
-            update_cluster_refcount(bs, offset >> s->cluster_bits, 1,
-                                    QCOW2_DISCARD_NEVER);
+            qcow2_update_cluster_refcount(bs, offset >> s->cluster_bits, 1,
+                                          QCOW2_DISCARD_NEVER);
     } else {
         offset = qcow2_alloc_clusters(bs, s->cluster_size);
         if (offset < 0) {
@@ -744,8 +744,8 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
         if ((cluster_offset + s->cluster_size) == offset) {
             /* we are lucky: contiguous data */
             offset = s->free_byte_offset;
-            update_cluster_refcount(bs, offset >> s->cluster_bits, 1,
-                                    QCOW2_DISCARD_NEVER);
+            qcow2_update_cluster_refcount(bs, offset >> s->cluster_bits, 1,
+                                          QCOW2_DISCARD_NEVER);
             s->free_byte_offset += size;
         } else {
             s->free_byte_offset = offset;
@@ -754,8 +754,8 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     }
 
     /* The cluster refcount was incremented, either by qcow2_alloc_clusters()
-     * or explicitly by update_cluster_refcount().  Refcount blocks must be
-     * flushed before the caller's L2 table updates.
+     * or explicitly by qcow2_update_cluster_refcount().  Refcount blocks must
+     * be flushed before the caller's L2 table updates.
      */
     qcow2_cache_set_dependency(bs, s->l2_table_cache, s->refcount_block_cache);
     return offset;
@@ -896,8 +896,9 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             break;
                         }
                         if (addend != 0) {
-                            refcount = update_cluster_refcount(bs, cluster_index, addend,
-                                                               QCOW2_DISCARD_SNAPSHOT);
+                            refcount = qcow2_update_cluster_refcount(bs,
+                                    cluster_index, addend,
+                                    QCOW2_DISCARD_SNAPSHOT);
                         } else {
                             refcount = get_refcount(bs, cluster_index);
                         }
@@ -936,8 +937,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
 
             if (addend != 0) {
-                refcount = update_cluster_refcount(bs, l2_offset >> s->cluster_bits, addend,
-                                                   QCOW2_DISCARD_SNAPSHOT);
+                refcount = qcow2_update_cluster_refcount(bs, l2_offset >>
+                        s->cluster_bits, addend, QCOW2_DISCARD_SNAPSHOT);
             } else {
                 refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
             }
