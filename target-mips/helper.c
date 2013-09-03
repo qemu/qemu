@@ -653,6 +653,8 @@ void mips_cpu_do_interrupt(CPUState *cs)
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+    CPUState *cs;
     r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
@@ -678,6 +680,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
     /* 1k pages are not supported. */
     mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
+        cs = CPU(cpu);
         addr = tlb->VPN & ~mask;
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -686,11 +689,12 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | (mask >> 1);
         while (addr < end) {
-            tlb_flush_page (env, addr);
+            tlb_flush_page(cs, addr);
             addr += TARGET_PAGE_SIZE;
         }
     }
     if (tlb->V1) {
+        cs = CPU(cpu);
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -699,7 +703,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | mask;
         while (addr - 1 < end) {
-            tlb_flush_page (env, addr);
+            tlb_flush_page(cs, addr);
             addr += TARGET_PAGE_SIZE;
         }
     }

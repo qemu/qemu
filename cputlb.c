@@ -77,9 +77,9 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
     }
 }
 
-void tlb_flush_page(CPUArchState *env, target_ulong addr)
+void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     int i;
     int mmu_idx;
 

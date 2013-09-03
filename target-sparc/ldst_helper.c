@@ -141,6 +141,7 @@ static void replace_tlb_entry(SparcTLBEntry *tlb,
 
     /* flush page range if translation is valid */
     if (TTE_IS_VALID(tlb->tte)) {
+        CPUState *cs = CPU(sparc_env_get_cpu(env1));
 
         mask = 0xffffffffffffe000ULL;
         mask <<= 3 * ((tlb->tte >> 61) & 3);
@@ -149,7 +150,7 @@ static void replace_tlb_entry(SparcTLBEntry *tlb,
         va = tlb->tag & mask;
 
         for (offset = 0; offset < size; offset += TARGET_PAGE_SIZE) {
-            tlb_flush_page(env1, va + offset);
+            tlb_flush_page(cs, va + offset);
         }
     }
 
@@ -716,7 +717,9 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                    int size)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    SPARCCPU *cpu = sparc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
     helper_check_align(env, addr, size - 1);
     switch (asi) {
     case 2: /* SuperSparc MXCC registers and Leon3 cache control */
@@ -862,7 +865,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
             DPRINTF_MMU("mmu flush level %d\n", mmulev);
             switch (mmulev) {
             case 0: /* flush page */
-                tlb_flush_page(env, addr & 0xfffff000);
+                tlb_flush_page(CPU(cpu), addr & 0xfffff000);
                 break;
             case 1: /* flush segment (256k) */
             case 2: /* flush region (16M) */

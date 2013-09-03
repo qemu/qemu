@@ -687,7 +687,7 @@ void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
         uint32_t wi;
         xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         if (entry->variable && entry->asid) {
-            tlb_flush_page(env, entry->vaddr);
+            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
             entry->asid = 0;
         }
     }
@@ -732,21 +732,23 @@ void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     xtensa_tlb_entry *entry = xtensa_tlb_get_entry(env, dtlb, wi, ei);
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         if (entry->variable) {
             if (entry->asid) {
-                tlb_flush_page(env, entry->vaddr);
+                tlb_flush_page(cs, entry->vaddr);
             }
             xtensa_tlb_set_entry_mmu(env, entry, dtlb, wi, ei, vpn, pte);
-            tlb_flush_page(env, entry->vaddr);
+            tlb_flush_page(cs, entry->vaddr);
         } else {
             qemu_log("%s %d, %d, %d trying to set immutable entry\n",
                     __func__, dtlb, wi, ei);
         }
     } else {
-        tlb_flush_page(env, entry->vaddr);
+        tlb_flush_page(cs, entry->vaddr);
         if (xtensa_option_enabled(env->config,
                     XTENSA_OPTION_REGION_TRANSLATION)) {
             entry->paddr = pte & REGION_PAGE_MASK;

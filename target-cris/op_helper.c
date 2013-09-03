@@ -98,8 +98,11 @@ void helper_tlb_flush_pid(CPUCRISState *env, uint32_t pid)
 void helper_spc_write(CPUCRISState *env, uint32_t new_spc)
 {
 #if !defined(CONFIG_USER_ONLY)
-	tlb_flush_page(env, env->pregs[PR_SPC]);
-	tlb_flush_page(env, new_spc);
+    CRISCPU *cpu = cris_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    tlb_flush_page(cs, env->pregs[PR_SPC]);
+    tlb_flush_page(cs, new_spc);
 #endif
 }
 
@@ -114,6 +117,9 @@ void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 
 void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 {
+#if !defined(CONFIG_USER_ONLY)
+    CRISCPU *cpu = cris_env_get_cpu(env);
+#endif
 	uint32_t srs;
 	srs = env->pregs[PR_SRS];
 	srs &= 3;
@@ -155,7 +161,7 @@ void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
 				  vaddr, tlb_v, env->pc);
 			if (tlb_v) {
-				tlb_flush_page(env, vaddr);
+                tlb_flush_page(CPU(cpu), vaddr);
 			}
 		}
 	}

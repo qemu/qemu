@@ -221,8 +221,10 @@ void helper_lmsw(CPUX86State *env, target_ulong t0)
 
 void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0);
-    tlb_flush_page(env, addr);
+    tlb_flush_page(CPU(cpu), addr);
 }
 
 void helper_rdtsc(CPUX86State *env)

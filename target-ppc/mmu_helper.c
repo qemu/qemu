@@ -252,6 +252,7 @@ static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
                                                int is_code, int match_epn)
 {
 #if !defined(FLUSH_ALL_TLBS)
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     ppc6xx_tlb_t *tlb;
     int way, nr;
 
@@ -263,7 +264,7 @@ static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
             LOG_SWTLB("TLB invalidate %d/%d " TARGET_FMT_lx "\n", nr,
                       env->nb_tlb, eaddr);
             pte_invalidate(&tlb->pte0);
-            tlb_flush_page(env, tlb->EPN);
+            tlb_flush_page(cs, tlb->EPN);
         }
     }
 #else
@@ -657,6 +658,7 @@ static inline void ppc4xx_tlb_invalidate_virt(CPUPPCState *env,
                                               target_ulong eaddr, uint32_t pid)
 {
 #if !defined(FLUSH_ALL_TLBS)
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     ppcemb_tlb_t *tlb;
     hwaddr raddr;
     target_ulong page, end;
@@ -667,7 +669,7 @@ static inline void ppc4xx_tlb_invalidate_virt(CPUPPCState *env,
         if (ppcemb_tlb_check(env, tlb, &raddr, eaddr, pid, 0, i) == 0) {
             end = tlb->EPN + tlb->size;
             for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-                tlb_flush_page(env, page);
+                tlb_flush_page(cs, page);
             }
             tlb->prot &= ~PAGE_VALID;
             break;
@@ -1727,6 +1729,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
 static inline void do_invalidate_BAT(CPUPPCState *env, target_ulong BATu,
                                      target_ulong mask)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     target_ulong base, end, page;
 
     base = BATu & ~0x0001FFFF;
@@ -1734,7 +1737,7 @@ static inline void do_invalidate_BAT(CPUPPCState *env, target_ulong BATu,
     LOG_BATS("Flush BAT from " TARGET_FMT_lx " to " TARGET_FMT_lx " ("
              TARGET_FMT_lx ")\n", base, end, mask);
     for (page = base; page != end; page += TARGET_PAGE_SIZE) {
-        tlb_flush_page(env, page);
+        tlb_flush_page(cs, page);
     }
     LOG_BATS("Flush done\n");
 }
@@ -1941,6 +1944,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs;
 
     addr &= TARGET_PAGE_MASK;
     switch (env->mmu_model) {
@@ -1974,25 +1978,26 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_601:
         /* tlbie invalidate TLBs for all segments */
         addr &= ~((target_ulong)-1ULL << 28);
+        cs = CPU(cpu);
         /* XXX: this case should be optimized,
          * giving a mask to tlb_flush_page
          */
-        tlb_flush_page(env, addr | (0x0 << 28));
-        tlb_flush_page(env, addr | (0x1 << 28));
-        tlb_flush_page(env, addr | (0x2 << 28));
-        tlb_flush_page(env, addr | (0x3 << 28));
-        tlb_flush_page(env, addr | (0x4 << 28));
-        tlb_flush_page(env, addr | (0x5 << 28));
-        tlb_flush_page(env, addr | (0x6 << 28));
-        tlb_flush_page(env, addr | (0x7 << 28));
-        tlb_flush_page(env, addr | (0x8 << 28));
-        tlb_flush_page(env, addr | (0x9 << 28));
-        tlb_flush_page(env, addr | (0xA << 28));
-        tlb_flush_page(env, addr | (0xB << 28));
-        tlb_flush_page(env, addr | (0xC << 28));
-        tlb_flush_page(env, addr | (0xD << 28));
-        tlb_flush_page(env, addr | (0xE << 28));
-        tlb_flush_page(env, addr | (0xF << 28));
+        tlb_flush_page(cs, addr | (0x0 << 28));
+        tlb_flush_page(cs, addr | (0x1 << 28));
+        tlb_flush_page(cs, addr | (0x2 << 28));
+        tlb_flush_page(cs, addr | (0x3 << 28));
+        tlb_flush_page(cs, addr | (0x4 << 28));
+        tlb_flush_page(cs, addr | (0x5 << 28));
+        tlb_flush_page(cs, addr | (0x6 << 28));
+        tlb_flush_page(cs, addr | (0x7 << 28));
+        tlb_flush_page(cs, addr | (0x8 << 28));
+        tlb_flush_page(cs, addr | (0x9 << 28));
+        tlb_flush_page(cs, addr | (0xA << 28));
+        tlb_flush_page(cs, addr | (0xB << 28));
+        tlb_flush_page(cs, addr | (0xC << 28));
+        tlb_flush_page(cs, addr | (0xD << 28));
+        tlb_flush_page(cs, addr | (0xE << 28));
+        tlb_flush_page(cs, addr | (0xF << 28));
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
@@ -2325,6 +2330,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
@@ -2338,7 +2344,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         LOG_SWTLB("%s: invalidate old TLB %d start " TARGET_FMT_lx " end "
                   TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-            tlb_flush_page(env, page);
+            tlb_flush_page(cs, page);
         }
     }
     tlb->size = booke_tlb_to_page_size((val >> PPC4XX_TLBHI_SIZE_SHIFT)
@@ -2348,7 +2354,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
      * of the ppc or ppc64 one
      */
     if ((val & PPC4XX_TLBHI_V) && tlb->size < TARGET_PAGE_SIZE) {
-        cpu_abort(CPU(cpu), "TLB size " TARGET_FMT_lu " < %u "
+        cpu_abort(cs, "TLB size " TARGET_FMT_lu " < %u "
                   "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
@@ -2357,7 +2363,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         tlb->prot |= PAGE_VALID;
         if (val & PPC4XX_TLBHI_E) {
             /* XXX: TO BE FIXED */
-            cpu_abort(CPU(cpu),
+            cpu_abort(cs,
                       "Little-endian TLB entries are not supported by now\n");
         }
     } else {
@@ -2377,7 +2383,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         LOG_SWTLB("%s: invalidate TLB %d start " TARGET_FMT_lx " end "
                   TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-            tlb_flush_page(env, page);
+            tlb_flush_page(cs, page);
         }
     }
 }
@@ -2666,7 +2672,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     }
 
     if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
-        tlb_flush_page(env, tlb->mas2 & MAS2_EPN_MASK);
+        tlb_flush_page(CPU(cpu), tlb->mas2 & MAS2_EPN_MASK);
     } else {
         tlb_flush(env, 1);
     }
@@ -2775,6 +2781,8 @@ static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
 
 void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     if (address & 0x4) {
         /* flush all entries */
         if (address & 0x8) {
@@ -2794,7 +2802,7 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
     } else {
         /* flush TLB0 entries */
         booke206_invalidate_ea_tlb(env, 0, address);
-        tlb_flush_page(env, address & MAS2_EPN_MASK);
+        tlb_flush_page(CPU(cpu), address & MAS2_EPN_MASK);
     }
 }
 

@@ -34,6 +34,7 @@ static unsigned int tlb_decode_size(unsigned int f)
 
 static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
 {
+    CPUState *cs = CPU(mb_env_get_cpu(env));
     struct microblaze_mmu *mmu = &env->mmu;
     unsigned int tlb_size;
     uint32_t tlb_tag, end, t;
@@ -47,7 +48,7 @@ static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
     end = tlb_tag + tlb_size;
 
     while (tlb_tag < end) {
-        tlb_flush_page(env, tlb_tag);
+        tlb_flush_page(cs, tlb_tag);
         tlb_tag += TARGET_PAGE_SIZE;
     }
 }

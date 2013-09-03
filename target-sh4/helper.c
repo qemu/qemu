@@ -304,7 +304,7 @@ static int copy_utlb_entry_itlb(CPUSH4State *env, int utlb)
     itlb = itlb_replacement(env);
     ientry = &env->itlb[itlb];
     if (ientry->v) {
-        tlb_flush_page(env, ientry->vpn << 10);
+        tlb_flush_page(CPU(sh_env_get_cpu(env)), ientry->vpn << 10);
     }
     *ientry = env->utlb[utlb];
     update_itlb_use(env, itlb);
@@ -535,7 +535,7 @@ void cpu_load_tlb(CPUSH4State * env)
     if (entry->v) {
         /* Overwriting valid entry in utlb. */
         target_ulong address = entry->vpn << 10;
-	tlb_flush_page(env, address);
+        tlb_flush_page(CPU(cpu), address);
     }
 
     /* Take values into cpu status from registers. */
@@ -611,7 +611,7 @@ void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, hwaddr addr,
     if (entry->v) {
         /* Overwriting valid entry in itlb. */
         target_ulong address = entry->vpn << 10;
-        tlb_flush_page(s, address);
+        tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
     }
     entry->asid = asid;
     entry->vpn = vpn;
@@ -653,7 +653,7 @@ void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, hwaddr addr,
         if (entry->v) {
             /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-            tlb_flush_page(s, address);
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
         }
         entry->ppn = (mem_value & 0x1ffffc00) >> 10;
         entry->v   = (mem_value & 0x00000100) >> 8;
@@ -737,16 +737,19 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
 	    }
 	}
 
-	if (needs_tlb_flush)
-	    tlb_flush_page(s, vpn << 10);
+        if (needs_tlb_flush) {
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), vpn << 10);
+        }
         
     } else {
         int index = (addr & 0x00003f00) >> 8;
         tlb_t * entry = &s->utlb[index];
 	if (entry->v) {
+            CPUState *cs = CPU(sh_env_get_cpu(s));
+
 	    /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-	    tlb_flush_page(s, address);
+            tlb_flush_page(cs, address);
 	}
 	entry->asid = asid;
 	entry->vpn = vpn;
@@ -797,7 +800,7 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
         if (entry->v) {
             /* Overwriting valid entry in utlb. */
             target_ulong address = entry->vpn << 10;
-            tlb_flush_page(s, address);
+            tlb_flush_page(CPU(sh_env_get_cpu(s)), address);
         }
         entry->ppn = (mem_value & 0x1ffffc00) >> 10;
         entry->v   = (mem_value & 0x00000100) >> 8;

@@ -237,11 +237,13 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint32_t prefix = a1 & 0x7fffe000;
+
     env->psa = prefix;
     qemu_log("prefix: %#x\n", prefix);
-    tlb_flush_page(env, 0);
-    tlb_flush_page(env, TARGET_PAGE_SIZE);
+    tlb_flush_page(cs, 0);
+    tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
 static inline uint64_t clock_value(CPUS390XState *env)

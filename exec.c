@@ -543,7 +543,6 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
 int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           int flags, CPUWatchpoint **watchpoint)
 {
-    CPUArchState *env = cpu->env_ptr;
     vaddr len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
@@ -567,7 +566,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
         QTAILQ_INSERT_TAIL(&cpu->watchpoints, wp, entry);
     }
 
-    tlb_flush_page(env, addr);
+    tlb_flush_page(cpu, addr);
 
     if (watchpoint)
         *watchpoint = wp;
@@ -594,11 +593,9 @@ int cpu_watchpoint_remove(CPUState *cpu, vaddr addr, vaddr len,
 /* Remove a specific watchpoint by reference.  */
 void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint)
 {
-    CPUArchState *env = cpu->env_ptr;
-
     QTAILQ_REMOVE(&cpu->watchpoints, watchpoint, entry);
 
-    tlb_flush_page(env, watchpoint->vaddr);
+    tlb_flush_page(cpu, watchpoint->vaddr);
 
     g_free(watchpoint);
 }

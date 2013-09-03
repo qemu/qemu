@@ -469,6 +469,7 @@ void helper_skinit(CPUX86State *env)
 
 void helper_invlpga(CPUX86State *env, int aflag)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0);
@@ -481,7 +482,7 @@ void helper_invlpga(CPUX86State *env, int aflag)
 
     /* XXX: could use the ASID to see if it is needed to do the
        flush */
-    tlb_flush_page(env, addr);
+    tlb_flush_page(CPU(cpu), addr);
 }
 
 void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
