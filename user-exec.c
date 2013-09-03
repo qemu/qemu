@@ -52,9 +52,8 @@ static void exception_action(CPUArchState *env1)
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
-void cpu_resume_from_signal(CPUArchState *env1, void *puc)
+void cpu_resume_from_signal(CPUState *cpu, void *puc)
 {
-    CPUState *cpu = ENV_GET_CPU(env1);
 #ifdef __linux__
     struct ucontext *uc = puc;
 #elif defined(__OpenBSD__)

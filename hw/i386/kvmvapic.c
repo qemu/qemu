@@ -449,7 +449,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     if (!kvm_enabled()) {
         cs->current_tb = NULL;
         tb_gen_code(cs, current_pc, current_cs_base, current_flags, 1);
-        cpu_resume_from_signal(env, NULL);
+        cpu_resume_from_signal(cs, NULL);
     }
 }
 

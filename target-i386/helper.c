@@ -1102,7 +1102,7 @@ void breakpoint_handler(CPUX86State *env)
             if (check_hw_breakpoints(env, false)) {
                 raise_exception(env, EXCP01_DB);
             } else {
-                cpu_resume_from_signal(env, NULL);
+                cpu_resume_from_signal(cs, NULL);
             }
         }
     } else {

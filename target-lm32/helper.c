@@ -135,7 +135,7 @@ void lm32_debug_excp_handler(CPULM32State *env)
             if (check_watchpoints(env)) {
                 raise_exception(env, EXCP_WATCHPOINT);
             } else {
-                cpu_resume_from_signal(env, NULL);
+                cpu_resume_from_signal(cs, NULL);
             }
         }
     } else {

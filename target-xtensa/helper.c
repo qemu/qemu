@@ -92,7 +92,7 @@ void xtensa_breakpoint_handler(CPUXtensaState *env)
             if (cause) {
                 debug_exception_env(env, cause);
             }
-            cpu_resume_from_signal(env, NULL);
+            cpu_resume_from_signal(cs, NULL);
         }
     }
 }

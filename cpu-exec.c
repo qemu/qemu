@@ -33,10 +33,8 @@ void cpu_loop_exit(CPUState *cpu)
    restored in a state compatible with the CPU emulator
  */
 #if defined(CONFIG_SOFTMMU)
-void cpu_resume_from_signal(CPUArchState *env, void *puc)
+void cpu_resume_from_signal(CPUState *cpu, void *puc)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     /* XXX: restore cpu registers saved in host registers */
 
     cpu->exception_index = -1;
