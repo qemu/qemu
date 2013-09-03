@@ -84,6 +84,11 @@ static void arm_cpu_reset(CPUState *s)
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
     }
 
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        /* 64 bit CPUs always start in 64 bit mode */
+        env->aarch64 = 1;
+    }
+
 #if defined(CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
     /* For user mode we must enable access to coprocessors */
@@ -834,6 +839,9 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+#ifdef TARGET_AARCH64
+    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+#endif
     cpu->midr = 0xffffffff;
 }
 #endif

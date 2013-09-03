@@ -22,6 +22,7 @@ typedef struct DisasContext {
     int vfp_enabled;
     int vec_len;
     int vec_stride;
+    int aarch64;
 } DisasContext;
 
 extern TCGv_ptr cpu_env;

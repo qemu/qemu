@@ -10012,16 +10012,32 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->pc = pc_start;
     dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
-    dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
-    dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
-    dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
-    dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
+
+    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
+        dc->aarch64 = 1;
+        dc->thumb = 0;
+        dc->bswap_code = 0;
+        dc->condexec_mask = 0;
+        dc->condexec_cond = 0;
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+        dc->user = 0;
 #endif
-    dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
-    dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
-    dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+        dc->vfp_enabled = 0;
+        dc->vec_len = 0;
+        dc->vec_stride = 0;
+    } else {
+        dc->aarch64 = 0;
+        dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
+        dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
+        dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
+        dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
+#if !defined(CONFIG_USER_ONLY)
+        dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+#endif
+        dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
+        dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
+        dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+    }
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
@@ -10324,6 +10340,10 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
 void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
+    if (is_a64(env)) {
+        env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    } else {
+        env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
+    }
     env->condexec_bits = gen_opc_condexec_bits[pc_pos];
 }
