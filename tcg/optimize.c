@@ -779,13 +779,37 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             mask = temps[args[3]].mask | temps[args[4]].mask;
             break;
 
+        CASE_OP_32_64(ld8u):
+        case INDEX_op_qemu_ld8u:
+            mask = 0xff;
+            break;
+        CASE_OP_32_64(ld16u):
+        case INDEX_op_qemu_ld16u:
+            mask = 0xffff;
+            break;
+        case INDEX_op_ld32u_i64:
+#if TCG_TARGET_REG_BITS == 64
+        case INDEX_op_qemu_ld32u:
+#endif
+            mask = 0xffffffffu;
+            break;
+
+        CASE_OP_32_64(qemu_ld):
+            {
+                TCGMemOp mop = args[def->nb_oargs + def->nb_iargs];
+                if (!(mop & MO_SIGN)) {
+                    mask = (2ULL << ((8 << (mop & MO_SIZE)) - 1)) - 1;
+                }
+            }
+            break;
+
         default:
             break;
         }
 
         /* 32-bit ops (non 64-bit ops and non load/store ops) generate 32-bit
            results */
-        if (!(tcg_op_defs[op].flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_64BIT))) {
+        if (!(def->flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_64BIT))) {
             mask &= 0xffffffffu;
         }
 
