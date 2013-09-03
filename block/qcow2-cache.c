@@ -202,6 +202,24 @@ void qcow2_cache_depends_on_flush(Qcow2Cache *c)
     c->depends_on_flush = true;
 }
 
+int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
+{
+    int ret, i;
+
+    ret = qcow2_cache_flush(bs, c);
+    if (ret < 0) {
+        return ret;
+    }
+
+    for (i = 0; i < c->size; i++) {
+        assert(c->entries[i].ref == 0);
+        c->entries[i].offset = 0;
+        c->entries[i].cache_hits = 0;
+    }
+
+    return 0;
+}
+
 static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)
 {
     int i;
