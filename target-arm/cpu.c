@@ -288,8 +288,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     acc->parent_realize(dev, errp);
 }
 
-/* CPU models */
-
 static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -308,6 +306,9 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     }
     return oc;
 }
+
+/* CPU models. These are not needed for the AArch64 linux-user build. */
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
 static void arm926_initfn(Object *obj)
 {
@@ -837,6 +838,8 @@ static void arm_any_initfn(Object *obj)
 }
 #endif
 
+#endif /* !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64) */
+
 typedef struct ARMCPUInfo {
     const char *name;
     void (*initfn)(Object *obj);
@@ -844,6 +847,7 @@ typedef struct ARMCPUInfo {
 } ARMCPUInfo;
 
 static const ARMCPUInfo arm_cpus[] = {
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
     { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
@@ -878,6 +882,7 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "pxa270-c5",   .initfn = pxa270c5_initfn },
 #ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = arm_any_initfn },
+#endif
 #endif
 };
 
