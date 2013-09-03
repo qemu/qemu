@@ -1007,7 +1007,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
     CPUState *cpu = current_cpu;
-#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_HAS_PRECISE_SMC)
     CPUArchState *env = NULL;
 #endif
     tb_page_addr_t tb_start, tb_end;
@@ -1032,7 +1032,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         /* build code bitmap */
         build_page_bitmap(p);
     }
-#if defined(TARGET_HAS_PRECISE_SMC) || !defined(CONFIG_USER_ONLY)
+#if defined(TARGET_HAS_PRECISE_SMC)
     if (cpu != NULL) {
         env = cpu->env_ptr;
     }
@@ -1102,7 +1102,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-            tlb_unprotect_code_phys(env, start, cpu->mem_io_vaddr);
+            tlb_unprotect_code_phys(cpu, start, cpu->mem_io_vaddr);
         }
     }
 #endif

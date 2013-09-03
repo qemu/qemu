@@ -119,7 +119,7 @@ void tlb_protect_code(ram_addr_t ram_addr)
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
    tested for self modifying code */
-void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
+void tlb_unprotect_code_phys(CPUState *cpu, ram_addr_t ram_addr,
                              target_ulong vaddr)
 {
     cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_CODE);

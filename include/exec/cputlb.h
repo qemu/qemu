@@ -22,7 +22,7 @@
 #if !defined(CONFIG_USER_ONLY)
 /* cputlb.c */
 void tlb_protect_code(ram_addr_t ram_addr);
-void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
+void tlb_unprotect_code_phys(CPUState *cpu, ram_addr_t ram_addr,
                              target_ulong vaddr);
 void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length);
