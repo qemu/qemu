@@ -113,6 +113,9 @@ struct UASDevice {
     QTAILQ_HEAD(, UASStatus)  results;
     QTAILQ_HEAD(, UASRequest) requests;
 
+    /* properties */
+    uint32_t                  requestlog;
+
     /* usb 2.0 only */
     USBPacket                 *status2;
     UASRequest                *datain2;
@@ -692,9 +695,9 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
     req->req = scsi_req_new(req->dev, req->tag,
                             usb_uas_get_lun(req->lun),
                             ui->command.cdb, req);
-#if 1
-    scsi_req_print(req->req);
-#endif
+    if (uas->requestlog) {
+        scsi_req_print(req->req);
+    }
     len = scsi_req_enqueue(req->req);
     if (len) {
         req->data_size = len;
@@ -903,6 +906,11 @@ static const VMStateDescription vmstate_usb_uas = {
     }
 };
 
+static Property uas_properties[] = {
+    DEFINE_PROP_UINT32("log-scsi-req", UASDevice, requestlog, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_uas_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -920,6 +928,7 @@ static void usb_uas_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
     dc->vmsd = &vmstate_usb_uas;
+    dc->props = uas_properties;
 }
 
 static const TypeInfo uas_info = {

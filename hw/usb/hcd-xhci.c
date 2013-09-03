@@ -355,6 +355,7 @@ typedef struct XHCITransfer {
     unsigned int streamid;
     bool in_xfer;
     bool iso_xfer;
+    bool timed_xfer;
 
     unsigned int trb_count;
     unsigned int trb_alloced;
@@ -586,6 +587,14 @@ static const char *TRBCCode_names[] = {
     [CC_SPLIT_TRANSACTION_ERROR]       = "CC_SPLIT_TRANSACTION_ERROR",
 };
 
+static const char *ep_state_names[] = {
+    [EP_DISABLED] = "disabled",
+    [EP_RUNNING]  = "running",
+    [EP_HALTED]   = "halted",
+    [EP_STOPPED]  = "stopped",
+    [EP_ERROR]    = "error",
+};
+
 static const char *lookup_name(uint32_t index, const char **list, uint32_t llen)
 {
     if (index >= llen || list[index] == NULL) {
@@ -604,6 +613,12 @@ static const char *event_name(XHCIEvent *event)
 {
     return lookup_name(event->ccode, TRBCCode_names,
                        ARRAY_SIZE(TRBCCode_names));
+}
+
+static const char *ep_state_name(uint32_t state)
+{
+    return lookup_name(state, ep_state_names,
+                       ARRAY_SIZE(ep_state_names));
 }
 
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
@@ -1164,8 +1179,6 @@ static XHCIStreamContext *xhci_find_stream(XHCIEPContext *epctx,
 
     if (sctx->sct == -1) {
         xhci_dma_read_u32s(epctx->xhci, sctx->pctx, ctx, sizeof(ctx));
-        fprintf(stderr, "%s: init sctx #%d @ " DMA_ADDR_FMT ": %08x %08x\n",
-                __func__, streamid, sctx->pctx, ctx[0], ctx[1]);
         sct = (ctx[0] >> 1) & 0x07;
         if (epctx->lsa && sct != 1) {
             *cc_error = CC_INVALID_STREAM_TYPE_ERROR;
@@ -1205,6 +1218,11 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
     }
 
     xhci_dma_write_u32s(xhci, epctx->pctx, ctx, sizeof(ctx));
+    if (epctx->state != state) {
+        trace_usb_xhci_ep_state(epctx->slotid, epctx->epid,
+                                ep_state_name(epctx->state),
+                                ep_state_name(state));
+    }
     epctx->state = state;
 }
 
@@ -1257,7 +1275,7 @@ static void xhci_init_epctx(XHCIEPContext *epctx,
         epctx->ring.ccs = ctx[2] & 1;
     }
 
-    epctx->interval = 1 << (ctx[0] >> 16) & 0xff;
+    epctx->interval = 1 << ((ctx[0] >> 16) & 0xff);
 }
 
 static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
@@ -1803,6 +1821,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 
     xfer->in_xfer = bmRequestType & USB_DIR_IN;
     xfer->iso_xfer = false;
+    xfer->timed_xfer = false;
 
     if (xhci_setup_packet(xfer) < 0) {
         return -1;
@@ -1816,6 +1835,17 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
         xhci_kick_ep(xhci, xfer->slotid, xfer->epid, 0);
     }
     return 0;
+}
+
+static void xhci_calc_intr_kick(XHCIState *xhci, XHCITransfer *xfer,
+                                XHCIEPContext *epctx, uint64_t mfindex)
+{
+    uint64_t asap = ((mfindex + epctx->interval - 1) &
+                     ~(epctx->interval-1));
+    uint64_t kick = epctx->mfindex_last + epctx->interval;
+
+    assert(epctx->interval != 0);
+    xfer->mfindex_kick = MAX(asap, kick);
 }
 
 static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
@@ -1840,8 +1870,8 @@ static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
     }
 }
 
-static void xhci_check_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
-                                XHCIEPContext *epctx, uint64_t mfindex)
+static void xhci_check_intr_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
+                                     XHCIEPContext *epctx, uint64_t mfindex)
 {
     if (xfer->mfindex_kick > mfindex) {
         timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -1866,18 +1896,30 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     switch(epctx->type) {
     case ET_INTR_OUT:
     case ET_INTR_IN:
+        xfer->pkts = 0;
+        xfer->iso_xfer = false;
+        xfer->timed_xfer = true;
+        mfindex = xhci_mfindex_get(xhci);
+        xhci_calc_intr_kick(xhci, xfer, epctx, mfindex);
+        xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
+        if (xfer->running_retry) {
+            return -1;
+        }
+        break;
     case ET_BULK_OUT:
     case ET_BULK_IN:
         xfer->pkts = 0;
         xfer->iso_xfer = false;
+        xfer->timed_xfer = false;
         break;
     case ET_ISO_OUT:
     case ET_ISO_IN:
         xfer->pkts = 1;
         xfer->iso_xfer = true;
+        xfer->timed_xfer = true;
         mfindex = xhci_mfindex_get(xhci);
         xhci_calc_iso_kick(xhci, xfer, epctx, mfindex);
-        xhci_check_iso_kick(xhci, xfer, epctx, mfindex);
+        xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
         if (xfer->running_retry) {
             return -1;
         }
@@ -1938,13 +1980,18 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
-        if (xfer->iso_xfer) {
-            /* retry delayed iso transfer */
+        if (xfer->timed_xfer) {
+            /* time to kick the transfer? */
             mfindex = xhci_mfindex_get(xhci);
-            xhci_check_iso_kick(xhci, xfer, epctx, mfindex);
+            xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
             if (xfer->running_retry) {
                 return;
             }
+            xfer->timed_xfer = 0;
+            xfer->running_retry = 1;
+        }
+        if (xfer->iso_xfer) {
+            /* retry iso transfer */
             if (xhci_setup_packet(xfer) < 0) {
                 return;
             }
@@ -2030,7 +2077,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
                 ep = xfer->packet.ep;
             } else {
-                if (!xfer->iso_xfer) {
+                if (!xfer->timed_xfer) {
                     fprintf(stderr, "xhci: error firing data transfer\n");
                 }
             }
@@ -2076,6 +2123,7 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
 
     xhci->slots[slotid-1].enabled = 0;
     xhci->slots[slotid-1].addressed = 0;
+    xhci->slots[slotid-1].uport = NULL;
     return CC_SUCCESS;
 }
 
@@ -2118,7 +2166,6 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     int i;
     TRBCCode res;
 
-    trace_usb_xhci_slot_address(slotid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
@@ -2151,6 +2198,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         fprintf(stderr, "xhci: port not found\n");
         return CC_TRB_ERROR;
     }
+    trace_usb_xhci_slot_address(slotid, uport->path);
 
     dev = uport->dev;
     if (!dev) {
