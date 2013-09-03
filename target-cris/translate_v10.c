@@ -96,7 +96,7 @@ static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
 static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
                        unsigned int size)
 {
-    int mem_index = cpu_mmu_index(dc->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -340,7 +340,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
         default:
             LOG_DIS("pc=%x mode=%x quickimm %d r%d r%d\n",
                      dc->pc, dc->mode, dc->opcode, dc->src, dc->dst);
-            cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled quickimm\n");
+            cpu_abort(CPU(dc->cpu), "Unhandled quickimm\n");
             break;
     }
     return 2;
@@ -651,7 +651,7 @@ static unsigned int dec10_reg(DisasContext *dc)
                     case 2: tmp = 1; break;
                     case 1: tmp = 0; break;
                     default:
-                        cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled BIAP");
+                        cpu_abort(CPU(dc->cpu), "Unhandled BIAP");
                         break;
                 }
 
@@ -669,7 +669,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
+                cpu_abort(CPU(dc->cpu), "Unhandled opcode");
                 break;
         }
     } else {
@@ -745,7 +745,7 @@ static unsigned int dec10_reg(DisasContext *dc)
             default:
                 LOG_DIS("pc=%x reg %d r%d r%d\n", dc->pc,
                          dc->opcode, dc->src, dc->dst);
-                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
+                cpu_abort(CPU(dc->cpu), "Unhandled opcode");
                 break;
         }
     }
@@ -1006,7 +1006,7 @@ static int dec10_bdap_m(CPUCRISState *env, DisasContext *dc, int size)
     if (!dc->postinc && (dc->ir & (1 << 11))) {
         int simm = dc->ir & 0xff;
 
-        /* cpu_abort(dc->env, "Unhandled opcode"); */
+        /* cpu_abort(CPU(dc->cpu), "Unhandled opcode"); */
         /* sign extended.  */
         simm = (int8_t)simm;
 
@@ -1105,7 +1105,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             default:
                 LOG_DIS("pc=%x var-ind.%d %d r%d r%d\n",
                           dc->pc, size, dc->opcode, dc->src, dc->dst);
-                cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
+                cpu_abort(CPU(dc->cpu), "Unhandled opcode");
                 break;
         }
         return insn_len;
@@ -1198,7 +1198,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             break;
         default:
             LOG_DIS("ERROR pc=%x opcode=%d\n", dc->pc, dc->opcode);
-            cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Unhandled opcode");
+            cpu_abort(CPU(dc->cpu), "Unhandled opcode");
             break;
     }
 

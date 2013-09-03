@@ -74,7 +74,7 @@ static TCGv env_pc;
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
-    CPUCRISState *env;
+    CRISCPU *cpu;
     target_ulong pc, ppc;
 
     /* Decoder.  */
@@ -129,7 +129,7 @@ static void gen_BUG(DisasContext *dc, const char *file, int line)
 {
     printf("BUG: pc=%x %s %d\n", dc->pc, file, line);
     qemu_log("BUG: pc=%x %s %d\n", dc->pc, file, line);
-    cpu_abort(CPU(cris_env_get_cpu(dc->env)), "%s:%d\n", file, line);
+    cpu_abort(CPU(dc->cpu), "%s:%d\n", file, line);
 }
 
 static const char *regnames[] =
@@ -272,7 +272,7 @@ static int cris_fetch(CPUCRISState *env, DisasContext *dc, uint32_t addr,
         break;
     }
     default:
-        cpu_abort(CPU(cris_env_get_cpu(dc->env)), "Invalid fetch size %d\n", size);
+        cpu_abort(CPU(dc->cpu), "Invalid fetch size %d\n", size);
         break;
     }
     return r;
@@ -1125,7 +1125,7 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 
 static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
 {
-    int mem_index = cpu_mmu_index(dc->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -1139,7 +1139,7 @@ static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
 static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
              unsigned int size, int sign)
 {
-    int mem_index = cpu_mmu_index(dc->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -1154,7 +1154,7 @@ static void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
                unsigned int size)
 {
-    int mem_index = cpu_mmu_index(dc->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -3170,7 +3170,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
      * delayslot, like in real hw.
      */
     pc_start = tb->pc & ~1;
-    dc->env = env;
+    dc->cpu = cpu;
     dc->tb = tb;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
@@ -3391,7 +3391,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 #if !DISAS_CRIS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         log_target_disas(env, pc_start, dc->pc - pc_start,
-                                 dc->env->pregs[PR_VR]);
+                         env->pregs[PR_VR]);
         qemu_log("\nisize=%d osize=%td\n",
             dc->pc - pc_start, tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf);
     }
