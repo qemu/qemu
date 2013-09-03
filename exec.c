@@ -799,14 +799,13 @@ static void cpu_physical_memory_set_dirty_tracking(bool enable)
     in_migration = enable;
 }
 
-hwaddr memory_region_section_get_iotlb(CPUArchState *env,
+hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section,
                                        target_ulong vaddr,
                                        hwaddr paddr, hwaddr xlat,
                                        int prot,
                                        target_ulong *address)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     hwaddr iotlb;
     CPUWatchpoint *wp;
 
