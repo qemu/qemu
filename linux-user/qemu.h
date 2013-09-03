@@ -197,6 +197,7 @@ extern THREAD CPUState *thread_cpu;
 void cpu_loop(CPUArchState *env);
 char *target_strerror(int err);
 int get_osversion(void);
+void init_qemu_uname_release(void);
 void fork_start(void);
 void fork_end(int child);
 

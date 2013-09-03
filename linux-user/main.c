@@ -3676,6 +3676,8 @@ int main(int argc, char **argv, char **envp)
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
 
+    init_qemu_uname_release();
+
     if (cpu_model == NULL) {
 #if defined(TARGET_I386)
 #ifdef TARGET_X86_64
