@@ -86,7 +86,7 @@ static bool all_cpu_threads_idle(void)
 {
     CPUState *cpu;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         if (!cpu_thread_is_idle(cpu)) {
             return false;
         }
@@ -416,7 +416,7 @@ void hw_error(const char *fmt, ...)
     fprintf(stderr, "qemu: hardware error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
         cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU);
     }
@@ -428,7 +428,7 @@ void cpu_synchronize_all_states(void)
 {
     CPUState *cpu;
 
-    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         cpu_synchronize_state(cpu);
     }
 }
@@ -437,7 +437,7 @@ void cpu_synchronize_all_post_reset(void)
 {
     CPUState *cpu;
 
-    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         cpu_synchronize_post_reset(cpu);
     }
 }
@@ -446,7 +446,7 @@ void cpu_synchronize_all_post_init(void)
 {
     CPUState *cpu;
 
-    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         cpu_synchronize_post_init(cpu);
     }
 }
@@ -760,7 +760,7 @@ static void qemu_tcg_wait_io_event(void)
         qemu_cond_wait(&qemu_io_proceeded_cond, &qemu_global_mutex);
     }
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         qemu_wait_io_event_common(cpu);
     }
 }
@@ -854,12 +854,6 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 
 static void tcg_exec_all(void);
 
-static void tcg_signal_cpu_creation(CPUState *cpu, void *data)
-{
-    cpu->thread_id = qemu_get_thread_id();
-    cpu->created = true;
-}
-
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
@@ -868,15 +862,18 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
 
     qemu_mutex_lock(&qemu_global_mutex);
-    qemu_for_each_cpu(tcg_signal_cpu_creation, NULL);
+    CPU_FOREACH(cpu) {
+        cpu->thread_id = qemu_get_thread_id();
+        cpu->created = true;
+    }
     qemu_cond_signal(&qemu_cpu_cond);
 
     /* wait for initial kick-off after machine start */
-    while (first_cpu->stopped) {
+    while (QTAILQ_FIRST(&cpus)->stopped) {
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
 
         /* process any pending work */
-        for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPU_FOREACH(cpu) {
             qemu_wait_io_event_common(cpu);
         }
     }
@@ -991,13 +988,12 @@ void qemu_mutex_unlock_iothread(void)
 
 static int all_vcpus_paused(void)
 {
-    CPUState *cpu = first_cpu;
+    CPUState *cpu;
 
-    while (cpu) {
+    CPU_FOREACH(cpu) {
         if (!cpu->stopped) {
             return 0;
         }
-        cpu = cpu->next_cpu;
     }
 
     return 1;
@@ -1005,23 +1001,20 @@ static int all_vcpus_paused(void)
 
 void pause_all_vcpus(void)
 {
-    CPUState *cpu = first_cpu;
+    CPUState *cpu;
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
-    while (cpu) {
+    CPU_FOREACH(cpu) {
         cpu->stop = true;
         qemu_cpu_kick(cpu);
-        cpu = cpu->next_cpu;
     }
 
     if (qemu_in_vcpu_thread()) {
         cpu_stop_current();
         if (!kvm_enabled()) {
-            cpu = first_cpu;
-            while (cpu) {
+            CPU_FOREACH(cpu) {
                 cpu->stop = false;
                 cpu->stopped = true;
-                cpu = cpu->next_cpu;
             }
             return;
         }
@@ -1029,10 +1022,8 @@ void pause_all_vcpus(void)
 
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
-        cpu = first_cpu;
-        while (cpu) {
+        CPU_FOREACH(cpu) {
             qemu_cpu_kick(cpu);
-            cpu = cpu->next_cpu;
         }
     }
 }
@@ -1046,12 +1037,11 @@ void cpu_resume(CPUState *cpu)
 
 void resume_all_vcpus(void)
 {
-    CPUState *cpu = first_cpu;
+    CPUState *cpu;
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
-    while (cpu) {
+    CPU_FOREACH(cpu) {
         cpu_resume(cpu);
-        cpu = cpu->next_cpu;
     }
 }
 
@@ -1215,7 +1205,7 @@ static void tcg_exec_all(void)
     if (next_cpu == NULL) {
         next_cpu = first_cpu;
     }
-    for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
+    for (; next_cpu != NULL && !exit_request; next_cpu = CPU_NEXT(next_cpu)) {
         CPUState *cpu = next_cpu;
         CPUArchState *env = cpu->env_ptr;
 
@@ -1240,7 +1230,7 @@ void set_numa_modes(void)
     CPUState *cpu;
     int i;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         for (i = 0; i < nb_numa_nodes; i++) {
             if (test_bit(cpu->cpu_index, node_cpumask[i])) {
                 cpu->numa_node = i;
@@ -1262,7 +1252,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
     CpuInfoList *head = NULL, *cur_item = NULL;
     CPUState *cpu;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CpuInfoList *info;
 #if defined(TARGET_I386)
         X86CPU *x86_cpu = X86_CPU(cpu);
@@ -1391,7 +1381,7 @@ void qmp_inject_nmi(Error **errp)
 #if defined(TARGET_I386)
     CPUState *cs;
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         X86CPU *cpu = X86_CPU(cs);
         CPUX86State *env = &cpu->env;
 
@@ -1405,7 +1395,7 @@ void qmp_inject_nmi(Error **errp)
     CPUState *cs;
     S390CPU *cpu;
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         cpu = S390_CPU(cs);
         if (cpu->env.cpu_num == monitor_get_cpu_index()) {
             if (s390_cpu_restart(S390_CPU(cs)) == -1) {

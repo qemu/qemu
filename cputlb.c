@@ -189,7 +189,7 @@ void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length)
     CPUState *cpu;
     CPUArchState *env;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         int mmu_idx;
 
         env = cpu->env_ptr;

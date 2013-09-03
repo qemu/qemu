@@ -183,12 +183,12 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 #ifndef CONFIG_USER_ONLY
 static void cpu_reset_all(void)
 {
-    CPUState *cpu;
+    CPUState *cs;
     S390CPUClass *scc;
 
-    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
-        scc = S390_CPU_GET_CLASS(CPU(cpu));
-        scc->cpu_reset(CPU(cpu));
+    CPU_FOREACH(cs) {
+        scc = S390_CPU_GET_CLASS(cs);
+        scc->cpu_reset(cs);
     }
 }
 

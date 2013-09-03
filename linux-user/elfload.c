@@ -2668,7 +2668,7 @@ static int fill_note_info(struct elf_note_info *info,
 
     /* read and fill status of all threads */
     cpu_list_lock();
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         if (cpu == thread_cpu) {
             continue;
         }

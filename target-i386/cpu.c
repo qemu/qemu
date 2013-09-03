@@ -48,6 +48,118 @@
 #include "hw/i386/apic_internal.h"
 #endif
 
+
+/* Cache topology CPUID constants: */
+
+/* CPUID Leaf 2 Descriptors */
+
+#define CPUID_2_L1D_32KB_8WAY_64B 0x2c
+#define CPUID_2_L1I_32KB_8WAY_64B 0x30
+#define CPUID_2_L2_2MB_8WAY_64B   0x7d
+
+
+/* CPUID Leaf 4 constants: */
+
+/* EAX: */
+#define CPUID_4_TYPE_DCACHE  1
+#define CPUID_4_TYPE_ICACHE  2
+#define CPUID_4_TYPE_UNIFIED 3
+
+#define CPUID_4_LEVEL(l)          ((l) << 5)
+
+#define CPUID_4_SELF_INIT_LEVEL (1 << 8)
+#define CPUID_4_FULLY_ASSOC     (1 << 9)
+
+/* EDX: */
+#define CPUID_4_NO_INVD_SHARING (1 << 0)
+#define CPUID_4_INCLUSIVE       (1 << 1)
+#define CPUID_4_COMPLEX_IDX     (1 << 2)
+
+#define ASSOC_FULL 0xFF
+
+/* AMD associativity encoding used on CPUID Leaf 0x80000006: */
+#define AMD_ENC_ASSOC(a) (a <=   1 ? a   : \
+                          a ==   2 ? 0x2 : \
+                          a ==   4 ? 0x4 : \
+                          a ==   8 ? 0x6 : \
+                          a ==  16 ? 0x8 : \
+                          a ==  32 ? 0xA : \
+                          a ==  48 ? 0xB : \
+                          a ==  64 ? 0xC : \
+                          a ==  96 ? 0xD : \
+                          a == 128 ? 0xE : \
+                          a == ASSOC_FULL ? 0xF : \
+                          0 /* invalid value */)
+
+
+/* Definitions of the hardcoded cache entries we expose: */
+
+/* L1 data cache: */
+#define L1D_LINE_SIZE         64
+#define L1D_ASSOCIATIVITY      8
+#define L1D_SETS              64
+#define L1D_PARTITIONS         1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 32KiB */
+#define L1D_DESCRIPTOR CPUID_2_L1D_32KB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
+#define L1D_LINES_PER_TAG      1
+#define L1D_SIZE_KB_AMD       64
+#define L1D_ASSOCIATIVITY_AMD  2
+
+/* L1 instruction cache: */
+#define L1I_LINE_SIZE         64
+#define L1I_ASSOCIATIVITY      8
+#define L1I_SETS              64
+#define L1I_PARTITIONS         1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 32KiB */
+#define L1I_DESCRIPTOR CPUID_2_L1I_32KB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
+#define L1I_LINES_PER_TAG      1
+#define L1I_SIZE_KB_AMD       64
+#define L1I_ASSOCIATIVITY_AMD  2
+
+/* Level 2 unified cache: */
+#define L2_LINE_SIZE          64
+#define L2_ASSOCIATIVITY      16
+#define L2_SETS             4096
+#define L2_PARTITIONS          1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 4MiB */
+/*FIXME: CPUID leaf 2 descriptor is inconsistent with CPUID leaf 4 */
+#define L2_DESCRIPTOR CPUID_2_L2_2MB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000006 is inconsistent with leaves 2 & 4 */
+#define L2_LINES_PER_TAG       1
+#define L2_SIZE_KB_AMD       512
+
+/* No L3 cache: */
+#define L3_SIZE_KB             0 /* disabled */
+#define L3_ASSOCIATIVITY       0 /* disabled */
+#define L3_LINES_PER_TAG       0 /* disabled */
+#define L3_LINE_SIZE           0 /* disabled */
+
+/* TLB definitions: */
+
+#define L1_DTLB_2M_ASSOC       1
+#define L1_DTLB_2M_ENTRIES   255
+#define L1_DTLB_4K_ASSOC       1
+#define L1_DTLB_4K_ENTRIES   255
+
+#define L1_ITLB_2M_ASSOC       1
+#define L1_ITLB_2M_ENTRIES   255
+#define L1_ITLB_4K_ASSOC       1
+#define L1_ITLB_4K_ENTRIES   255
+
+#define L2_DTLB_2M_ASSOC       0 /* disabled */
+#define L2_DTLB_2M_ENTRIES     0 /* disabled */
+#define L2_DTLB_4K_ASSOC       4
+#define L2_DTLB_4K_ENTRIES   512
+
+#define L2_ITLB_2M_ASSOC       0 /* disabled */
+#define L2_ITLB_2M_ENTRIES     0 /* disabled */
+#define L2_ITLB_4K_ASSOC       4
+#define L2_ITLB_4K_ENTRIES   512
+
+
+
 static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
                                      uint32_t vendor2, uint32_t vendor3)
 {
@@ -1950,10 +2062,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
-        *eax = 1;
+        *eax = 1; /* Number of CPUID[EAX=2] calls required */
         *ebx = 0;
         *ecx = 0;
-        *edx = 0x2c307d;
+        *edx = (L1D_DESCRIPTOR << 16) | \
+               (L1I_DESCRIPTOR <<  8) | \
+               (L2_DESCRIPTOR);
         break;
     case 4:
         /* cache info: needed for Core compatibility */
@@ -1964,25 +2078,37 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         switch (count) {
             case 0: /* L1 dcache info */
-                *eax |= 0x0000121;
-                *ebx = 0x1c0003f;
-                *ecx = 0x000003f;
-                *edx = 0x0000001;
+                *eax |= CPUID_4_TYPE_DCACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL;
+                *ebx = (L1D_LINE_SIZE - 1) | \
+                       ((L1D_PARTITIONS - 1) << 12) | \
+                       ((L1D_ASSOCIATIVITY - 1) << 22);
+                *ecx = L1D_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             case 1: /* L1 icache info */
-                *eax |= 0x0000122;
-                *ebx = 0x1c0003f;
-                *ecx = 0x000003f;
-                *edx = 0x0000001;
+                *eax |= CPUID_4_TYPE_ICACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL;
+                *ebx = (L1I_LINE_SIZE - 1) | \
+                       ((L1I_PARTITIONS - 1) << 12) | \
+                       ((L1I_ASSOCIATIVITY - 1) << 22);
+                *ecx = L1I_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             case 2: /* L2 cache info */
-                *eax |= 0x0000143;
+                *eax |= CPUID_4_TYPE_UNIFIED | \
+                        CPUID_4_LEVEL(2) | \
+                        CPUID_4_SELF_INIT_LEVEL;
                 if (cs->nr_threads > 1) {
                     *eax |= (cs->nr_threads - 1) << 14;
                 }
-                *ebx = 0x3c0003f;
-                *ecx = 0x0000fff;
-                *edx = 0x0000001;
+                *ebx = (L2_LINE_SIZE - 1) | \
+                       ((L2_PARTITIONS - 1) << 12) | \
+                       ((L2_ASSOCIATIVITY - 1) << 22);
+                *ecx = L2_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             default: /* end of info */
                 *eax = 0;
@@ -2102,17 +2228,31 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000005:
         /* cache info (L1 cache) */
-        *eax = 0x01ff01ff;
-        *ebx = 0x01ff01ff;
-        *ecx = 0x40020140;
-        *edx = 0x40020140;
+        *eax = (L1_DTLB_2M_ASSOC << 24) | (L1_DTLB_2M_ENTRIES << 16) | \
+               (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
+        *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) | \
+               (L1_ITLB_4K_ASSOC <<  8) | (L1_ITLB_4K_ENTRIES);
+        *ecx = (L1D_SIZE_KB_AMD << 24) | (L1D_ASSOCIATIVITY_AMD << 16) | \
+               (L1D_LINES_PER_TAG << 8) | (L1D_LINE_SIZE);
+        *edx = (L1I_SIZE_KB_AMD << 24) | (L1I_ASSOCIATIVITY_AMD << 16) | \
+               (L1I_LINES_PER_TAG << 8) | (L1I_LINE_SIZE);
         break;
     case 0x80000006:
         /* cache info (L2 cache) */
-        *eax = 0;
-        *ebx = 0x42004200;
-        *ecx = 0x02008140;
-        *edx = 0;
+        *eax = (AMD_ENC_ASSOC(L2_DTLB_2M_ASSOC) << 28) | \
+               (L2_DTLB_2M_ENTRIES << 16) | \
+               (AMD_ENC_ASSOC(L2_ITLB_2M_ASSOC) << 12) | \
+               (L2_ITLB_2M_ENTRIES);
+        *ebx = (AMD_ENC_ASSOC(L2_DTLB_4K_ASSOC) << 28) | \
+               (L2_DTLB_4K_ENTRIES << 16) | \
+               (AMD_ENC_ASSOC(L2_ITLB_4K_ASSOC) << 12) | \
+               (L2_ITLB_4K_ENTRIES);
+        *ecx = (L2_SIZE_KB_AMD << 16) | \
+               (AMD_ENC_ASSOC(L2_ASSOCIATIVITY) << 12) | \
+               (L2_LINES_PER_TAG << 8) | (L2_LINE_SIZE);
+        *edx = ((L3_SIZE_KB/512) << 18) | \
+               (AMD_ENC_ASSOC(L3_ASSOCIATIVITY) << 12) | \
+               (L3_LINES_PER_TAG << 8) | (L3_LINE_SIZE);
         break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */

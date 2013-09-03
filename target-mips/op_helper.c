@@ -1699,15 +1699,14 @@ target_ulong helper_dvpe(CPUMIPSState *env)
     CPUState *other_cs = first_cpu;
     target_ulong prev = env->mvp->CP0_MVPControl;
 
-    do {
+    CPU_FOREACH(other_cs) {
         MIPSCPU *other_cpu = MIPS_CPU(other_cs);
         /* Turn off all VPEs except the one executing the dvpe.  */
         if (&other_cpu->env != env) {
             other_cpu->env.mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
             mips_vpe_sleep(other_cpu);
         }
-        other_cs = other_cs->next_cpu;
-    } while (other_cs);
+    }
     return prev;
 }
 
@@ -1716,7 +1715,7 @@ target_ulong helper_evpe(CPUMIPSState *env)
     CPUState *other_cs = first_cpu;
     target_ulong prev = env->mvp->CP0_MVPControl;
 
-    do {
+    CPU_FOREACH(other_cs) {
         MIPSCPU *other_cpu = MIPS_CPU(other_cs);
 
         if (&other_cpu->env != env
@@ -1726,8 +1725,7 @@ target_ulong helper_evpe(CPUMIPSState *env)
             other_cpu->env.mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
             mips_vpe_wake(other_cpu); /* And wake it up.  */
         }
-        other_cs = other_cs->next_cpu;
-    } while (other_cs);
+    }
     return prev;
 }
 #endif /* !CONFIG_USER_ONLY */
