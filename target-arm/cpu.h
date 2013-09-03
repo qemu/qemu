@@ -823,7 +823,7 @@ static inline bool cpu_has_work(CPUState *cpu)
 #include "exec/exec-all.h"
 
 /* Load an instruction and return it in the standard little-endian order */
-static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
+static inline uint32_t arm_ldl_code(CPUARMState *env, target_ulong addr,
                                     bool do_swap)
 {
     uint32_t insn = cpu_ldl_code(env, addr);
@@ -834,7 +834,7 @@ static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
 }
 
 /* Ditto, for a halfword (Thumb) instruction */
-static inline uint16_t arm_lduw_code(CPUARMState *env, uint32_t addr,
+static inline uint16_t arm_lduw_code(CPUARMState *env, target_ulong addr,
                                      bool do_swap)
 {
     uint16_t insn = cpu_lduw_code(env, addr);

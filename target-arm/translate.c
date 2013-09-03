@@ -905,7 +905,7 @@ DO_GEN_ST(st8)
 DO_GEN_ST(st16)
 DO_GEN_ST(st32)
 
-static inline void gen_set_pc_im(uint32_t val)
+static inline void gen_set_pc_im(target_ulong val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
 }
@@ -3413,7 +3413,7 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
-static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
+static inline void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
 {
     TranslationBlock *tb;
 
@@ -9997,7 +9997,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     uint16_t *gen_opc_end;
     int j, lj;
     target_ulong pc_start;
-    uint32_t next_page_start;
+    target_ulong next_page_start;
     int num_insns;
     int max_insns;
 
@@ -10151,7 +10151,8 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         }
 
         if (tcg_check_temp_count()) {
-            fprintf(stderr, "TCG temporary leak before %08x\n", dc->pc);
+            fprintf(stderr, "TCG temporary leak before "TARGET_FMT_lx"\n",
+                    dc->pc);
         }
 
         /* Translation stops when a conditional branch is encountered.
