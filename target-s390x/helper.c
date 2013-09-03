@@ -170,6 +170,20 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     trigger_pgm_exception(env, type, ilen);
 }
 
+/**
+ * Translate real address to absolute (= physical)
+ * address by taking care of the prefix mapping.
+ */
+static target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
+{
+    if (raddr < 0x2000) {
+        return raddr + env->psa;    /* Map the lowcore. */
+    } else if (raddr >= env->psa && raddr < env->psa + 0x2000) {
+        return raddr - env->psa;    /* Map the 0 page. */
+    }
+    return raddr;
+}
+
 static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, int level,
                               target_ulong *raddr, int *flags, int rw)
@@ -363,9 +377,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
  out:
     /* Convert real address -> absolute address */
-    if (*raddr < 0x2000) {
-        *raddr = *raddr + env->psa;
-    }
+    *raddr = mmu_real2abs(env, *raddr);
 
     if (*raddr <= ram_size) {
         sk = &env->storage_keys[*raddr / TARGET_PAGE_SIZE];
