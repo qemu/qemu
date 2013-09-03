@@ -108,12 +108,15 @@ struct bt_device_s {
     uint16_t clkoff;	/* Note: Always little-endian */
 };
 
+extern struct HCIInfo null_hci;
 /* bt.c */
 void bt_device_init(struct bt_device_s *dev, struct bt_scatternet_s *net);
 void bt_device_done(struct bt_device_s *dev);
+struct bt_scatternet_s *qemu_find_bt_vlan(int id);
 
 /* bt-hci.c */
 struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net);
+struct HCIInfo *hci_init(const char *str);
 
 /* bt-vhci.c */
 void bt_vhci_init(struct HCIInfo *info);
