@@ -774,29 +774,66 @@ void tcg_register_jit(void *buf, size_t buf_size);
 /* Value zero-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
                                      int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-uint64_t helper_ret_ldq_mmu(CPUArchState *env, target_ulong addr,
-                            int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
 
 /* Value sign-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
                                      int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
 
 void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
                         int mmu_idx, uintptr_t retaddr);
-void helper_ret_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                        int mmu_idx, uintptr_t retaddr);
-void helper_ret_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                        int mmu_idx, uintptr_t retaddr);
-void helper_ret_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                        int mmu_idx, uintptr_t retaddr);
+void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+
+/* Temporary aliases until backends are converted.  */
+#ifdef TARGET_WORDS_BIGENDIAN
+# define helper_ret_ldsw_mmu  helper_be_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_be_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_be_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_be_ldul_mmu
+# define helper_ret_ldq_mmu   helper_be_ldq_mmu
+# define helper_ret_stw_mmu   helper_be_stw_mmu
+# define helper_ret_stl_mmu   helper_be_stl_mmu
+# define helper_ret_stq_mmu   helper_be_stq_mmu
+#else
+# define helper_ret_ldsw_mmu  helper_le_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_le_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_le_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_le_ldul_mmu
+# define helper_ret_ldq_mmu   helper_le_ldq_mmu
+# define helper_ret_stw_mmu   helper_le_stw_mmu
+# define helper_ret_stl_mmu   helper_le_stl_mmu
+# define helper_ret_stq_mmu   helper_le_stq_mmu
+#endif
 
 uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
