@@ -38,11 +38,12 @@
 
 //#define DEBUG_SIGNAL
 
-static void exception_action(CPUArchState *env1)
+static void exception_action(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env1);
-
 #if defined(TARGET_I386)
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env1 = &x86_cpu->env;
+
     raise_exception_err(env1, cpu->exception_index, env1->error_code);
 #else
     cpu_loop_exit(cpu);
@@ -86,7 +87,6 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
 {
     CPUState *cpu;
     CPUClass *cc;
-    CPUArchState *env;
     int ret;
 
 #if defined(DEBUG_SIGNAL)
@@ -105,7 +105,6 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
 
     cpu = current_cpu;
     cc = CPU_GET_CLASS(cpu);
-    env = cpu->env_ptr;
     /* see if it is an MMU fault */
     g_assert(cc->handle_mmu_fault);
     ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
@@ -121,7 +120,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(env);
+    exception_action(cpu);
 
     /* never comes here */
     return 1;
