@@ -126,18 +126,31 @@ static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
     return 0;
 }
 
-static inline int is_bit_set(BlockDriverState *bs, int64_t bitnum)
+#define BITS_PER_BITMAP_SECTOR (512 * 8)
+
+/* Cannot use bitmap.c on big-endian machines.  */
+static int cow_test_bit(int64_t bitnum, const uint8_t *bitmap)
 {
-    uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
-    uint8_t bitmap;
-    int ret;
+    return (bitmap[bitnum / 8] & (1 << (bitnum & 7))) != 0;
+}
 
-    ret = bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap));
-    if (ret < 0) {
-       return ret;
+static int cow_find_streak(const uint8_t *bitmap, int value, int start, int nb_sectors)
+{
+    int streak_value = value ? 0xFF : 0;
+    int last = MIN(start + nb_sectors, BITS_PER_BITMAP_SECTOR);
+    int bitnum = start;
+    while (bitnum < last) {
+        if ((bitnum & 7) == 0 && bitmap[bitnum / 8] == streak_value) {
+            bitnum += 8;
+            continue;
+        }
+        if (cow_test_bit(bitnum, bitmap) == value) {
+            bitnum++;
+            continue;
+        }
+        break;
     }
-
-    return !!(bitmap & (1 << (bitnum % 8)));
+    return MIN(bitnum, last) - start;
 }
 
 /* Return true if first block has been changed (ie. current version is
@@ -146,23 +159,20 @@ static inline int is_bit_set(BlockDriverState *bs, int64_t bitnum)
 static int coroutine_fn cow_co_is_allocated(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *num_same)
 {
+    int64_t bitnum = sector_num + sizeof(struct cow_header_v2) * 8;
+    uint64_t offset = (bitnum / 8) & -BDRV_SECTOR_SIZE;
+    uint8_t bitmap[BDRV_SECTOR_SIZE];
+    int ret;
     int changed;
 
-    if (nb_sectors == 0) {
-	*num_same = nb_sectors;
-	return 0;
+    ret = bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap));
+    if (ret < 0) {
+        return ret;
     }
 
-    changed = is_bit_set(bs, sector_num);
-    if (changed < 0) {
-        return 0; /* XXX: how to return I/O errors? */
-    }
-
-    for (*num_same = 1; *num_same < nb_sectors; (*num_same)++) {
-	if (is_bit_set(bs, sector_num + *num_same) != changed)
-	    break;
-    }
-
+    bitnum &= BITS_PER_BITMAP_SECTOR - 1;
+    changed = cow_test_bit(bitnum, bitmap);
+    *num_same = cow_find_streak(bitmap, changed, bitnum, nb_sectors);
     return changed;
 }
 
