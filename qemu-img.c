@@ -1502,28 +1502,26 @@ static int img_convert(int argc, char **argv)
                 n = bs_offset + bs_sectors - sector_num;
             }
 
-            if (has_zero_init) {
-                /* If the output image is being created as a copy on write image,
-                   assume that sectors which are unallocated in the input image
-                   are present in both the output's and input's base images (no
-                   need to copy them). */
-                if (out_baseimg) {
-                    ret = bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
-                                            n, &n1);
-                    if (ret < 0) {
-                        error_report("error while reading metadata for sector "
-                                     "%" PRId64 ": %s",
-                                     sector_num - bs_offset, strerror(-ret));
-                        goto out;
-                    }
-                    if (!ret) {
-                        sector_num += n1;
-                        continue;
-                    }
-                    /* The next 'n1' sectors are allocated in the input image. Copy
-                       only those as they may be followed by unallocated sectors. */
-                    n = n1;
+            /* If the output image is being created as a copy on write image,
+               assume that sectors which are unallocated in the input image
+               are present in both the output's and input's base images (no
+               need to copy them). */
+            if (out_baseimg) {
+                ret = bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
+                                        n, &n1);
+                if (ret < 0) {
+                    error_report("error while reading metadata for sector "
+                                 "%" PRId64 ": %s",
+                                 sector_num - bs_offset, strerror(-ret));
+                    goto out;
                 }
+                if (!ret) {
+                    sector_num += n1;
+                    continue;
+                }
+                /* The next 'n1' sectors are allocated in the input image. Copy
+                   only those as they may be followed by unallocated sectors. */
+                n = n1;
             } else {
                 n1 = n;
             }
