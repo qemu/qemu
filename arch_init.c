@@ -710,14 +710,19 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      */
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
+    bytes_transferred += total_sent;
+
+    /*
+     * Do not count these 8 bytes into total_sent, so that we can
+     * return 0 if no page had been dirtied.
+     */
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+    bytes_transferred += 8;
+
+    ret = qemu_file_get_error(f);
     if (ret < 0) {
-        bytes_transferred += total_sent;
         return ret;
     }
-
-    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-    total_sent += 8;
-    bytes_transferred += total_sent;
 
     return total_sent;
 }
