@@ -106,7 +106,7 @@ static int cow_open(BlockDriverState *bs, QDict *options, int flags)
  * XXX(hch): right now these functions are extremely inefficient.
  * We should just read the whole bitmap we'll need in one go instead.
  */
-static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
+static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum, bool *first)
 {
     uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
     uint8_t bitmap;
@@ -117,9 +117,21 @@ static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
        return ret;
     }
 
+    if (bitmap & (1 << (bitnum % 8))) {
+        return 0;
+    }
+
+    if (*first) {
+        ret = bdrv_flush(bs->file);
+        if (ret < 0) {
+            return ret;
+        }
+        *first = false;
+    }
+
     bitmap |= (1 << (bitnum % 8));
 
-    ret = bdrv_pwrite_sync(bs->file, offset, &bitmap, sizeof(bitmap));
+    ret = bdrv_pwrite(bs->file, offset, &bitmap, sizeof(bitmap));
     if (ret < 0) {
        return ret;
     }
@@ -181,9 +193,10 @@ static int cow_update_bitmap(BlockDriverState *bs, int64_t sector_num,
 {
     int error = 0;
     int i;
+    bool first = true;
 
     for (i = 0; i < nb_sectors; i++) {
-        error = cow_set_bit(bs, sector_num + i);
+        error = cow_set_bit(bs, sector_num + i, &first);
         if (error) {
             break;
         }
