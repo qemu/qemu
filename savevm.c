@@ -566,6 +566,13 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
     return f;
 }
 
+/*
+ * Get last error for stream f
+ *
+ * Return negative error value if there has been an error on previous
+ * operations, return 0 if no error happened.
+ *
+ */
 int qemu_file_get_error(QEMUFile *f)
 {
     return f->last_error;
