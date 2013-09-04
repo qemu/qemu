@@ -396,7 +396,7 @@ static void test_timer_schedule(void)
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
 
-    sleep(1);
+    g_usleep(1 * G_USEC_PER_SEC);
     g_assert_cmpint(data.n, ==, 0);
 
     g_assert(aio_poll(ctx, false));
@@ -729,7 +729,7 @@ static void test_source_timer_schedule(void)
 
     g_assert_cmpint(data.n, ==, 0);
 
-    sleep(1);
+    g_usleep(1 * G_USEC_PER_SEC);
     g_assert_cmpint(data.n, ==, 0);
 
     g_assert(g_main_context_iteration(NULL, false));
@@ -739,7 +739,7 @@ static void test_source_timer_schedule(void)
     do {
         g_assert(g_main_context_iteration(NULL, true));
     } while (qemu_clock_get_ns(data.clock_type) <= expiry);
-    sleep(1);
+    g_usleep(1 * G_USEC_PER_SEC);
     g_main_context_iteration(NULL, false);
 
     g_assert_cmpint(data.n, ==, 2);

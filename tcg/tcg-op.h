@@ -1039,10 +1039,18 @@ static inline void tcg_gen_mul_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i32();
 
-    tcg_gen_op4_i32(INDEX_op_mulu2_i32, TCGV_LOW(t0), TCGV_HIGH(t0),
-                    TCGV_LOW(arg1), TCGV_LOW(arg2));
-    /* Allow the optimizer room to replace mulu2 with two moves.  */
-    tcg_gen_op0(INDEX_op_nop);
+    if (TCG_TARGET_HAS_mulu2_i32) {
+        tcg_gen_op4_i32(INDEX_op_mulu2_i32, TCGV_LOW(t0), TCGV_HIGH(t0),
+                        TCGV_LOW(arg1), TCGV_LOW(arg2));
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        tcg_debug_assert(TCG_TARGET_HAS_muluh_i32);
+        tcg_gen_op3_i32(INDEX_op_mul_i32, TCGV_LOW(t0),
+                        TCGV_LOW(arg1), TCGV_LOW(arg2));
+        tcg_gen_op3_i32(INDEX_op_muluh_i32, TCGV_HIGH(t0),
+                        TCGV_LOW(arg1), TCGV_LOW(arg2));
+    }
 
     tcg_gen_mul_i32(t1, TCGV_LOW(arg1), TCGV_HIGH(arg2));
     tcg_gen_add_i32(TCGV_HIGH(t0), TCGV_HIGH(t0), t1);
@@ -2401,6 +2409,12 @@ static inline void tcg_gen_mulu2_i32(TCGv_i32 rl, TCGv_i32 rh,
         tcg_gen_op4_i32(INDEX_op_mulu2_i32, rl, rh, arg1, arg2);
         /* Allow the optimizer room to replace mulu2 with two moves.  */
         tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_HAS_muluh_i32) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_op3_i32(INDEX_op_mul_i32, t, arg1, arg2);
+        tcg_gen_op3_i32(INDEX_op_muluh_i32, rh, arg1, arg2);
+        tcg_gen_mov_i32(rl, t);
+        tcg_temp_free_i32(t);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         TCGv_i64 t1 = tcg_temp_new_i64();
@@ -2420,6 +2434,12 @@ static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
         tcg_gen_op4_i32(INDEX_op_muls2_i32, rl, rh, arg1, arg2);
         /* Allow the optimizer room to replace muls2 with two moves.  */
         tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_HAS_mulsh_i32) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_op3_i32(INDEX_op_mul_i32, t, arg1, arg2);
+        tcg_gen_op3_i32(INDEX_op_mulsh_i32, rh, arg1, arg2);
+        tcg_gen_mov_i32(rl, t);
+        tcg_temp_free_i32(t);
     } else if (TCG_TARGET_REG_BITS == 32 && TCG_TARGET_HAS_mulu2_i32) {
         TCGv_i32 t0 = tcg_temp_new_i32();
         TCGv_i32 t1 = tcg_temp_new_i32();
@@ -2499,6 +2519,12 @@ static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op4_i64(INDEX_op_mulu2_i64, rl, rh, arg1, arg2);
         /* Allow the optimizer room to replace mulu2 with two moves.  */
         tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_HAS_muluh_i64) {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_op3_i64(INDEX_op_mul_i64, t, arg1, arg2);
+        tcg_gen_op3_i64(INDEX_op_muluh_i64, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t);
+        tcg_temp_free_i64(t);
     } else if (TCG_TARGET_HAS_mulu2_i64) {
         TCGv_i64 t0 = tcg_temp_new_i64();
         TCGv_i64 t1 = tcg_temp_new_i64();
@@ -2540,6 +2566,12 @@ static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
         tcg_gen_op4_i64(INDEX_op_muls2_i64, rl, rh, arg1, arg2);
         /* Allow the optimizer room to replace muls2 with two moves.  */
         tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_HAS_mulsh_i64) {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_op3_i64(INDEX_op_mul_i64, t, arg1, arg2);
+        tcg_gen_op3_i64(INDEX_op_mulsh_i64, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t);
+        tcg_temp_free_i64(t);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         int sizemask = 0;
@@ -2599,7 +2631,7 @@ static inline void tcg_gen_debug_insn_start(uint64_t pc)
 #endif
 }
 
-static inline void tcg_gen_exit_tb(tcg_target_long val)
+static inline void tcg_gen_exit_tb(uintptr_t val)
 {
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }

@@ -38,7 +38,7 @@ void arp_table_add(Slirp *slirp, uint32_t ip_addr, uint8_t ethaddr[ETH_ALEN])
                 ethaddr[3], ethaddr[4], ethaddr[5]));
 
     /* Check 0.0.0.0/8 invalid source-only addresses */
-    if ((ip_addr & htonl(~(0xf << 28))) == 0) {
+    if ((ip_addr & htonl(~(0xfU << 28))) == 0) {
         return;
     }
 
@@ -74,7 +74,7 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
     DEBUG_ARG("ip = 0x%x", ip_addr);
 
     /* Check 0.0.0.0/8 invalid source-only addresses */
-    assert((ip_addr & htonl(~(0xf << 28))) != 0);
+    assert((ip_addr & htonl(~(0xfU << 28))) != 0);
 
     /* If broadcast address */
     if (ip_addr == 0xffffffff || ip_addr == broadcast_addr) {

@@ -289,7 +289,7 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], DEVICE(dev), i, 2);
+        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(dev), i, 2);
         ide_init2(&d->bus[i], irq[i]);
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);

@@ -208,7 +208,7 @@ static void reloc_pc14 (void *pc, tcg_target_long target)
 }
 
 static void patch_reloc (uint8_t *code_ptr, int type,
-                         tcg_target_long value, tcg_target_long addend)
+                         intptr_t value, intptr_t addend)
 {
     value += addend;
     switch (type) {
@@ -750,9 +750,6 @@ static void tcg_out_ldsta(TCGContext *s, TCGReg ret, TCGReg addr,
 }
 
 #if defined (CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -1072,8 +1069,8 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32(s, BCLR | BO_ALWAYS);
 }
 
-static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                        tcg_target_long arg2)
+static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
+                       intptr_t arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, ret, arg1, arg2, LWZ, LWZX);
@@ -1081,8 +1078,8 @@ static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
         tcg_out_ldsta (s, ret, arg1, arg2, LD, LDX);
 }
 
-static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                        tcg_target_long arg2)
+static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
+                       intptr_t arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, arg, arg1, arg2, STW, STWX);
@@ -1975,29 +1972,11 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
-    case INDEX_op_mulu2_i64:
-    case INDEX_op_muls2_i64:
-        {
-            int oph = (opc == INDEX_op_mulu2_i64 ? MULHDU : MULHD);
-            TCGReg outl = args[0], outh = args[1];
-            a0 = args[2], a1 = args[3];
-
-            if (outl == a0 || outl == a1) {
-                if (outh == a0 || outh == a1) {
-                    outl = TCG_REG_R0;
-                } else {
-                    tcg_out32(s, oph | TAB(outh, a0, a1));
-                    oph = 0;
-                }
-            }
-            tcg_out32(s, MULLD | TAB(outl, a0, a1));
-            if (oph != 0) {
-                tcg_out32(s, oph | TAB(outh, a0, a1));
-            }
-            if (outl != args[0]) {
-                tcg_out_mov(s, TCG_TYPE_I64, args[0], outl);
-            }
-        }
+    case INDEX_op_muluh_i64:
+        tcg_out32(s, MULHDU | TAB(args[0], args[1], args[2]));
+        break;
+    case INDEX_op_mulsh_i64:
+        tcg_out32(s, MULHD | TAB(args[0], args[1], args[2]));
         break;
 
     default:
@@ -2124,8 +2103,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
     { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
-    { INDEX_op_muls2_i64, { "r", "r", "r", "r" } },
-    { INDEX_op_mulu2_i64, { "r", "r", "r", "r" } },
+    { INDEX_op_mulsh_i64, { "r", "r", "r" } },
+    { INDEX_op_muluh_i64, { "r", "r", "r" } },
 
     { -1 },
 };

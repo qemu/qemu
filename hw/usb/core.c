@@ -403,7 +403,7 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
         p->ep->halted = false;
     }
 
-    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
+    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline || p->stream) {
         usb_process_one(p);
         if (p->status == USB_RET_ASYNC) {
             /* hcd drivers cannot handle async for isoc */
@@ -420,7 +420,8 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
              * When pipelining is enabled usb-devices must always return async,
              * otherwise packets can complete out of order!
              */
-            assert(!p->ep->pipeline || QTAILQ_EMPTY(&p->ep->queue));
+            assert(p->stream || !p->ep->pipeline ||
+                   QTAILQ_EMPTY(&p->ep->queue));
             if (p->status != USB_RET_NAK) {
                 usb_packet_set_state(p, USB_PACKET_COMPLETE);
             }
@@ -434,7 +435,7 @@ void usb_packet_complete_one(USBDevice *dev, USBPacket *p)
 {
     USBEndpoint *ep = p->ep;
 
-    assert(QTAILQ_FIRST(&ep->queue) == p);
+    assert(p->stream || QTAILQ_FIRST(&ep->queue) == p);
     assert(p->status != USB_RET_ASYNC && p->status != USB_RET_NAK);
 
     if (p->status != USB_RET_SUCCESS ||

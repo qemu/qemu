@@ -996,7 +996,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                                     args->ram_size);
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, args->kernel_cmdline,
-               args->boot_device, args->ram_size, kernel_size, graphic_width,
+               args->boot_order, args->ram_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->nvram_machine_id,
                "Sun4m");
 
@@ -1027,7 +1027,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     }
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, INITRD_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, 0); // not used
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_device[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, args->boot_order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
@@ -1348,7 +1348,7 @@ static QEMUMachine ss5_machine = {
     .init = ss5_init,
     .block_default_type = IF_SCSI,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine ss10_machine = {
@@ -1357,7 +1357,7 @@ static QEMUMachine ss10_machine = {
     .init = ss10_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine ss600mp_machine = {
@@ -1366,7 +1366,7 @@ static QEMUMachine ss600mp_machine = {
     .init = ss600mp_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine ss20_machine = {
@@ -1375,7 +1375,7 @@ static QEMUMachine ss20_machine = {
     .init = ss20_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine voyager_machine = {
@@ -1383,7 +1383,7 @@ static QEMUMachine voyager_machine = {
     .desc = "Sun4m platform, SPARCstation Voyager",
     .init = vger_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine ss_lx_machine = {
@@ -1391,7 +1391,7 @@ static QEMUMachine ss_lx_machine = {
     .desc = "Sun4m platform, SPARCstation LX",
     .init = ss_lx_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine ss4_machine = {
@@ -1399,7 +1399,7 @@ static QEMUMachine ss4_machine = {
     .desc = "Sun4m platform, SPARCstation 4",
     .init = ss4_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine scls_machine = {
@@ -1407,7 +1407,7 @@ static QEMUMachine scls_machine = {
     .desc = "Sun4m platform, SPARCClassic",
     .init = scls_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static QEMUMachine sbook_machine = {
@@ -1415,7 +1415,7 @@ static QEMUMachine sbook_machine = {
     .desc = "Sun4m platform, SPARCbook",
     .init = sbook_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "c",
 };
 
 static void sun4m_register_types(void)

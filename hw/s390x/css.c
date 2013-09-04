@@ -124,7 +124,7 @@ static void sch_handle_clear_func(SubchDev *sch)
     /* Path management: In our simple css, we always choose the only path. */
     path = 0x80;
 
-    /* Reset values prior to 'issueing the clear signal'. */
+    /* Reset values prior to 'issuing the clear signal'. */
     p->lpum = 0;
     p->pom = 0xff;
     s->flags &= ~SCSW_FLAGS_MASK_PNO;

@@ -290,7 +290,7 @@ static void coroutine_fn backup_run(void *opaque)
 
                 for (i = 0; i < BACKUP_SECTORS_PER_CLUSTER;) {
                     /* bdrv_co_is_allocated() only returns true/false based
-                     * on the first set of sectors it comes accross that
+                     * on the first set of sectors it comes across that
                      * are are all in the same state.
                      * For that reason we must verify each sector in the
                      * backup cluster length.  We end up copying more than

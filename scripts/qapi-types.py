@@ -57,12 +57,8 @@ typedef struct %(name)sList
 ''',
                  name=name)
 
-def generate_struct(structname, fieldname, members):
-    ret = mcgen('''
-struct %(name)s
-{
-''',
-          name=structname)
+def generate_struct_fields(members):
+    ret = ''
 
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
@@ -79,6 +75,17 @@ struct %(name)s
     %(c_type)s %(c_name)s;
 ''',
                      c_type=c_type(argentry), c_name=c_var(argname))
+
+    return ret
+
+def generate_struct(structname, fieldname, members):
+    ret = mcgen('''
+struct %(name)s
+{
+''',
+          name=structname)
+
+    ret += generate_struct_fields(members)
 
     if len(fieldname):
         fieldname = " " + fieldname

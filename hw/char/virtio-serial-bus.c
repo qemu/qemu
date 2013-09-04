@@ -911,8 +911,8 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
                 sizeof(struct virtio_console_config));
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
-    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, qdev,
-                        vdev->bus_name);
+    qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
+                        qdev, vdev->bus_name);
     vser->bus.qbus.allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);

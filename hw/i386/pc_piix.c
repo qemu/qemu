@@ -204,7 +204,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
         }
     }
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_device,
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, args->boot_order,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled(false)) {
@@ -334,40 +334,43 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 }
 #endif
 
+#define PC_I440FX_MACHINE_OPTIONS \
+    PC_DEFAULT_MACHINE_OPTIONS, \
+    .desc = "Standard PC (i440FX + PIIX, 1996)", \
+    .hot_add_cpu = pc_hot_add_cpu
+
+#define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
+
 static QEMUMachine pc_i440fx_machine_v1_6 = {
+    PC_I440FX_1_6_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.6",
     .alias = "pc",
-    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci_1_6,
-    .hot_add_cpu = pc_hot_add_cpu,
-    .max_cpus = 255,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine pc_i440fx_machine_v1_5 = {
+    PC_I440FX_1_6_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.5",
-    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci_1_5,
-    .hot_add_cpu = pc_hot_add_cpu,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_5,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
+#define PC_I440FX_1_4_MACHINE_OPTIONS \
+    PC_I440FX_1_6_MACHINE_OPTIONS, \
+    .hot_add_cpu = NULL
+
 static QEMUMachine pc_i440fx_machine_v1_4 = {
+    PC_I440FX_1_4_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.4",
-    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci_1_4,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_3 \
@@ -391,15 +394,13 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
         }
 
 static QEMUMachine pc_machine_v1_3 = {
+    PC_I440FX_1_4_MACHINE_OPTIONS,
     .name = "pc-1.3",
-    .desc = "Standard PC",
     .init = pc_init_pci_1_3,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_3,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_2 \
@@ -430,16 +431,17 @@ static QEMUMachine pc_machine_v1_3 = {
             .value    = "off",\
         }
 
+#define PC_I440FX_1_2_MACHINE_OPTIONS \
+    PC_I440FX_1_4_MACHINE_OPTIONS, \
+    .init = pc_init_pci_1_2
+
 static QEMUMachine pc_machine_v1_2 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.2",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_2,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_1 \
@@ -475,15 +477,12 @@ static QEMUMachine pc_machine_v1_2 = {
         }
 
 static QEMUMachine pc_machine_v1_1 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.1",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_1,
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_0 \
@@ -507,32 +506,26 @@ static QEMUMachine pc_machine_v1_1 = {
         }
 
 static QEMUMachine pc_machine_v1_0 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-1.0",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_0,
         { /* end of list */ }
     },
     .hw_version = "1.0",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_15 \
         PC_COMPAT_1_0
 
 static QEMUMachine pc_machine_v0_15 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-0.15",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_15,
         { /* end of list */ }
     },
     .hw_version = "0.15",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_14 \
@@ -556,10 +549,8 @@ static QEMUMachine pc_machine_v0_15 = {
         }
 
 static QEMUMachine pc_machine_v0_14 = {
+    PC_I440FX_1_2_MACHINE_OPTIONS,
     .name = "pc-0.14",
-    .desc = "Standard PC",
-    .init = pc_init_pci_1_2,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_14, 
         {
@@ -574,7 +565,6 @@ static QEMUMachine pc_machine_v0_14 = {
         { /* end of list */ }
     },
     .hw_version = "0.14",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_13 \
@@ -589,11 +579,13 @@ static QEMUMachine pc_machine_v0_14 = {
             .value    = stringify(1),\
         }
 
+#define PC_I440FX_0_13_MACHINE_OPTIONS \
+    PC_I440FX_1_2_MACHINE_OPTIONS, \
+    .init = pc_init_pci_no_kvmclock
+
 static QEMUMachine pc_machine_v0_13 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.13",
-    .desc = "Standard PC",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_13,
         {
@@ -612,7 +604,6 @@ static QEMUMachine pc_machine_v0_13 = {
         { /* end of list */ }
     },
     .hw_version = "0.13",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_12 \
@@ -640,10 +631,8 @@ static QEMUMachine pc_machine_v0_13 = {
         }
 
 static QEMUMachine pc_machine_v0_12 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.12",
-    .desc = "Standard PC",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_12,
         {
@@ -658,7 +647,6 @@ static QEMUMachine pc_machine_v0_12 = {
         { /* end of list */ }
     },
     .hw_version = "0.12",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_11 \
@@ -674,10 +662,8 @@ static QEMUMachine pc_machine_v0_12 = {
         }
 
 static QEMUMachine pc_machine_v0_11 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.11",
-    .desc = "Standard PC, qemu 0.11",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_11,
         {
@@ -692,14 +678,11 @@ static QEMUMachine pc_machine_v0_11 = {
         { /* end of list */ }
     },
     .hw_version = "0.11",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine pc_machine_v0_10 = {
+    PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.10",
-    .desc = "Standard PC, qemu 0.10",
-    .init = pc_init_pci_no_kvmclock,
-    .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_11,
         {
@@ -726,10 +709,10 @@ static QEMUMachine pc_machine_v0_10 = {
         { /* end of list */ }
     },
     .hw_version = "0.10",
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine isapc_machine = {
+    PC_COMMON_MACHINE_OPTIONS,
     .name = "isapc",
     .desc = "ISA-only PC",
     .init = pc_init_isa,
@@ -737,17 +720,16 @@ static QEMUMachine isapc_machine = {
     .compat_props = (GlobalProperty[]) {
         { /* end of list */ }
     },
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 #ifdef CONFIG_XEN
 static QEMUMachine xenfv_machine = {
+    PC_COMMON_MACHINE_OPTIONS,
     .name = "xenfv",
     .desc = "Xen Fully-virtualized PC",
     .init = pc_xen_hvm_init,
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
-    DEFAULT_MACHINE_OPTIONS,
 };
 #endif
 

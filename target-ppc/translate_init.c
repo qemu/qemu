@@ -7227,7 +7227,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205;
-    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->msr_mask = 0x800000000204FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;

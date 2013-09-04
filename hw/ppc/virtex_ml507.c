@@ -141,22 +141,31 @@ static int xilinx_load_device_tree(hwaddr addr,
 {
     char *path;
     int fdt_size;
-    void *fdt;
+    void *fdt = NULL;
     int r;
+    const char *dtb_filename;
 
-    /* Try the local "ppc.dtb" override.  */
-    fdt = load_device_tree("ppc.dtb", &fdt_size);
-    if (!fdt) {
-        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
-        if (path) {
-            fdt = load_device_tree(path, &fdt_size);
-            g_free(path);
-        }
+    dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
+    if (dtb_filename) {
+        fdt = load_device_tree(dtb_filename, &fdt_size);
         if (!fdt) {
-            return 0;
+            error_report("Error while loading device tree file '%s'",
+                dtb_filename);
+        }
+    } else {
+        /* Try the local "ppc.dtb" override.  */
+        fdt = load_device_tree("ppc.dtb", &fdt_size);
+        if (!fdt) {
+            path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+            if (path) {
+                fdt = load_device_tree(path, &fdt_size);
+                g_free(path);
+            }
         }
     }
-
+    if (!fdt) {
+        return 0;
+    }
     r = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
@@ -245,7 +254,6 @@ static QEMUMachine virtex_machine = {
     .name = "virtex-ml507",
     .desc = "Xilinx Virtex ML507 reference design",
     .init = virtex_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void virtex_machine_init(void)

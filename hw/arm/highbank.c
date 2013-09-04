@@ -363,7 +363,6 @@ static QEMUMachine highbank_machine = {
     .init = highbank_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine midway_machine = {
@@ -372,7 +371,6 @@ static QEMUMachine midway_machine = {
     .init = midway_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void calxeda_machines_init(void)

@@ -371,7 +371,7 @@ usb_xhci_port_link(uint32_t port, uint32_t pls) "port %d, pls %d"
 usb_xhci_port_notify(uint32_t port, uint32_t pls) "port %d, bits %x"
 usb_xhci_slot_enable(uint32_t slotid) "slotid %d"
 usb_xhci_slot_disable(uint32_t slotid) "slotid %d"
-usb_xhci_slot_address(uint32_t slotid) "slotid %d"
+usb_xhci_slot_address(uint32_t slotid, const char *port) "slotid %d, port %s"
 usb_xhci_slot_configure(uint32_t slotid) "slotid %d"
 usb_xhci_slot_evaluate(uint32_t slotid) "slotid %d"
 usb_xhci_slot_reset(uint32_t slotid) "slotid %d"
@@ -381,6 +381,7 @@ usb_xhci_ep_set_dequeue(uint32_t slotid, uint32_t epid, uint32_t streamid, uint6
 usb_xhci_ep_kick(uint32_t slotid, uint32_t epid, uint32_t streamid) "slotid %d, epid %d, streamid %d"
 usb_xhci_ep_stop(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_reset(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
+usb_xhci_ep_state(uint32_t slotid, uint32_t epid, const char *os, const char *ns) "slotid %d, epid %d, %s -> %s"
 usb_xhci_xfer_start(void *xfer, uint32_t slotid, uint32_t epid, uint32_t streamid) "%p: slotid %d, epid %d, streamid %d"
 usb_xhci_xfer_async(void *xfer) "%p"
 usb_xhci_xfer_nak(void *xfer) "%p"
@@ -410,6 +411,7 @@ usb_hub_set_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feat
 usb_hub_clear_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feature %s"
 usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
+usb_hub_status_report(int addr, int status) "dev %d, status 0x%x"
 
 # hw/usb/dev-uas.c
 usb_uas_reset(int addr) "dev %d"
@@ -1133,6 +1135,11 @@ xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
 
+# hw/ppc/spapr_iommu.c
+spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
+spapr_iommu_xlate(uint64_t liobn, uint64_t ioba, uint64_t tce, unsigned perm, unsigned pgsize) "liobn=%"PRIx64" 0x%"PRIx64" -> 0x%"PRIx64" perm=%u mask=%x"
+spapr_iommu_new_table(uint64_t liobn, void *tcet, void *table, int fd) "liobn=%"PRIx64" tcet=%p table=%p fd=%d"
+
 # util/hbitmap.c
 hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
 hbitmap_reset(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
@@ -1176,3 +1183,7 @@ object_class_dynamic_cast_assert(const char *type, const char *target, const cha
 # hw/xen/xen_pvdevice.c
 xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address %"PRIx64")"
 xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address %"PRIx64")"
+
+# hw/pci/pci_host.c
+pci_cfg_read(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x -> 0x%x"
+pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x <- 0x%x"

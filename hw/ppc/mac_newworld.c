@@ -147,7 +147,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    const char *boot_device = args->boot_order;
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
@@ -477,7 +477,7 @@ static QEMUMachine core99_machine = {
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "cd",
 };
 
 static void core99_machine_init(void)

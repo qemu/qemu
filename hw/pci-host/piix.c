@@ -320,6 +320,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     PCII440FXState *f;
     unsigned i;
     I440FXState *i440fx;
+    uint64_t pci_hole64_size;
 
     dev = qdev_create(NULL, TYPE_I440FX_PCI_HOST_BRIDGE);
     s = PCI_HOST_BRIDGE(dev);
@@ -351,13 +352,15 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
                              pci_hole_start, pci_hole_size);
     memory_region_add_subregion(f->system_memory, pci_hole_start, &f->pci_hole);
 
+    pci_hole64_size = pci_host_get_hole64_size(i440fx->pci_hole64_size);
+
     pc_init_pci64_hole(&i440fx->pci_info, 0x100000000ULL + above_4g_mem_size,
-                       i440fx->pci_hole64_size);
+                       pci_hole64_size);
     memory_region_init_alias(&f->pci_hole_64bit, OBJECT(d), "pci-hole64",
                              f->pci_address_space,
                              i440fx->pci_info.w64.begin,
-                             i440fx->pci_hole64_size);
-    if (i440fx->pci_hole64_size) {
+                             pci_hole64_size);
+    if (pci_hole64_size) {
         memory_region_add_subregion(f->system_memory,
                                     i440fx->pci_info.w64.begin,
                                     &f->pci_hole_64bit);

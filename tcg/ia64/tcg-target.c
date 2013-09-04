@@ -668,16 +668,16 @@ static inline uint64_t tcg_opc_x3(int qp, uint64_t opc, uint64_t imm)
  * Relocations
  */
 
-static inline void reloc_pcrel21b (void *pc, tcg_target_long target)
+static inline void reloc_pcrel21b(void *pc, intptr_t target)
 {
     uint64_t imm;
     int64_t disp;
     int slot;
 
-    slot = (tcg_target_long) pc & 3;
-    pc = (void *)((tcg_target_long) pc & ~3);
+    slot = (intptr_t)pc & 3;
+    pc = (void *)((intptr_t)pc & ~3);
 
-    disp = target - (tcg_target_long) pc;
+    disp = target - (intptr_t)pc;
     imm = (uint64_t) disp >> 4;
 
     switch(slot) {
@@ -728,12 +728,12 @@ static inline uint64_t get_reloc_pcrel21b (void *pc)
     }
 }
 
-static inline void reloc_pcrel60b (void *pc, tcg_target_long target)
+static inline void reloc_pcrel60b(void *pc, intptr_t target)
 {
     int64_t disp;
     uint64_t imm;
 
-    disp = target - (tcg_target_long) pc;
+    disp = target - (intptr_t)pc;
     imm = (uint64_t) disp >> 4;
 
     *(uint64_t *)(pc + 8) = (*(uint64_t *)(pc + 8) & 0xf700000fff800000ull)
@@ -759,7 +759,7 @@ static inline uint64_t get_reloc_pcrel60b (void *pc)
 
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     value += addend;
     switch (type) {
@@ -993,7 +993,7 @@ static inline void tcg_out_st_rel(TCGContext *s, uint64_t opc_m4, TCGArg arg,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_ld_rel(s, OPC_LD4_M1, arg, arg1, arg2);
@@ -1003,7 +1003,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_st_rel(s, OPC_ST4_M4, arg, arg1, arg2);
@@ -1490,9 +1490,6 @@ static inline void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGArg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* Load and compare a TLB entry, and return the result in (p6, p7).
    R2 is loaded with the address of the addend TLB entry.
    R57 is loaded with the address, zero extented on 32-bit targets. */

@@ -272,6 +272,37 @@ static int qcow2_mark_clean(BlockDriverState *bs)
     return 0;
 }
 
+/*
+ * Marks the image as corrupt.
+ */
+int qcow2_mark_corrupt(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    s->incompatible_features |= QCOW2_INCOMPAT_CORRUPT;
+    return qcow2_update_header(bs);
+}
+
+/*
+ * Marks the image as consistent, i.e., unsets the corrupt bit, and flushes
+ * before if necessary.
+ */
+int qcow2_mark_consistent(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_CORRUPT) {
+        int ret = bdrv_flush(bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_CORRUPT;
+        return qcow2_update_header(bs);
+    }
+    return 0;
+}
+
 static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
                        BdrvCheckMode fix)
 {
@@ -281,7 +312,11 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
     }
 
     if (fix && result->check_errors == 0 && result->corruptions == 0) {
-        return qcow2_mark_clean(bs);
+        ret = qcow2_mark_clean(bs);
+        if (ret < 0) {
+            return ret;
+        }
+        return qcow2_mark_consistent(bs);
     }
     return ret;
 }
@@ -400,6 +435,17 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
                                    ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
         goto fail;
+    }
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_CORRUPT) {
+        /* Corrupt images may not be written to unless they are being repaired
+         */
+        if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_CHECK)) {
+            error_report("qcow2: Image is corrupt; cannot be opened "
+                    "read/write.");
+            ret = -EACCES;
+            goto fail;
+        }
     }
 
     /* Check support for various header values */
@@ -582,6 +628,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
     qcow2_free_snapshots(bs);
     qcow2_refcount_close(bs);
     g_free(s->l1_table);
+    /* else pre-write overlap checks in cache_destroy may crash */
+    s->l1_table = NULL;
     if (s->l2_table_cache) {
         qcow2_cache_destroy(bs, s->l2_table_cache);
     }
@@ -881,6 +929,13 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                cluster_offset + index_in_cluster * BDRV_SECTOR_SIZE,
+                cur_nr_sectors * BDRV_SECTOR_SIZE);
+        if (ret < 0) {
+            goto fail;
+        }
+
         qemu_co_mutex_unlock(&s->lock);
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
@@ -947,6 +1002,8 @@ static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     g_free(s->l1_table);
+    /* else pre-write overlap checks in cache_destroy may crash */
+    s->l1_table = NULL;
 
     qcow2_cache_flush(bs, s->l2_table_cache);
     qcow2_cache_flush(bs, s->refcount_block_cache);
@@ -1128,6 +1185,11 @@ int qcow2_update_header(BlockDriverState *bs)
             .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
             .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
             .name = "dirty bit",
+        },
+        {
+            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+            .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
+            .name = "corrupt bit",
         },
         {
             .type = QCOW2_FEAT_TYPE_COMPATIBLE,
@@ -1429,7 +1491,9 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options)
                 return -EINVAL;
             }
         } else if (!strcmp(options->name, BLOCK_OPT_COMPAT_LEVEL)) {
-            if (!options->value.s || !strcmp(options->value.s, "0.10")) {
+            if (!options->value.s) {
+                /* keep the default */
+            } else if (!strcmp(options->value.s, "0.10")) {
                 version = 2;
             } else if (!strcmp(options->value.s, "1.1")) {
                 version = 3;
@@ -1619,6 +1683,14 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
+
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                sector_num * BDRV_SECTOR_SIZE,
+                s->cluster_sectors * BDRV_SECTOR_SIZE);
+        if (ret < 0) {
+            goto fail;
+        }
+
         ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
@@ -1631,6 +1703,13 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
             goto fail;
         }
         cluster_offset &= s->cluster_offset_mask;
+
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+                cluster_offset, out_len);
+        if (ret < 0) {
+            goto fail;
+        }
+
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
         ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
         if (ret < 0) {

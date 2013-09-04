@@ -696,7 +696,7 @@ void tb_flush(CPUArchState *env1)
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
@@ -850,7 +850,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         if (env->tb_jmp_cache[h] == tb) {

@@ -46,7 +46,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    96
+length                    144
 data                      <binary>
 
 *** done

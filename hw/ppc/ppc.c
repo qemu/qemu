@@ -443,7 +443,7 @@ void ppce500_set_mpic_proxy(bool enabled)
 {
     CPUState *cs;
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         cpu->env.mpic_proxy = enabled;

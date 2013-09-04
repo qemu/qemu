@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "helper.h"
 #include "qemu/host-utils.h"
+#include "exec/softmmu_exec.h"
 
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr);

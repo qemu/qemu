@@ -284,9 +284,9 @@ static void Adlib_fini (AdlibState *s)
 }
 
 static MemoryRegionPortio adlib_portio_list[] = {
-    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
     { 0, 4, 1, .read = adlib_read, .write = adlib_write, },
     { 0, 2, 1, .read = adlib_read, .write = adlib_write, },
+    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
     PORTIO_END_OF_LIST(),
 };
 

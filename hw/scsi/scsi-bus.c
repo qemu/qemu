@@ -72,10 +72,10 @@ static void scsi_device_unit_attention_reported(SCSIDevice *s)
 }
 
 /* Create a scsi bus, and attach devices to it.  */
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info,
-                  const char *bus_name)
+void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
+                  const SCSIBusInfo *info, const char *bus_name)
 {
-    qbus_create_inplace(&bus->qbus, TYPE_SCSI_BUS, host, bus_name);
+    qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
     bus->qbus.allow_hotplug = 1;

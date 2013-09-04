@@ -191,13 +191,12 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
     if (env->apic_state) {
-        while (cs) {
+        CPU_FOREACH(cs) {
             cpu = X86_CPU(cs);
             env = &cpu->env;
             if (apic_accept_pic_intr(env->apic_state)) {
                 apic_deliver_pic_intr(env->apic_state, level);
             }
-            cs = cs->next_cpu;
         }
     } else {
         if (level) {

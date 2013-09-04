@@ -756,7 +756,7 @@ static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
  * connections (both IPv4 and IPv6) if the destination machine does not have
  * a regular infiniband network available for use.
  *
- * The only way to gaurantee that an error is thrown for broken kernels is
+ * The only way to guarantee that an error is thrown for broken kernels is
  * for the management software to choose a *specific* interface at bind time
  * and validate what time of hardware it is.
  *
@@ -778,7 +778,7 @@ static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
  * Infiniband. 
  *
  * If we detect that we have a *pure* RoCE environment, then we can safely
- * thrown an error even if the management sofware has specified '[::]' as the
+ * thrown an error even if the management software has specified '[::]' as the
  * bind address.
  *
  * However, if there is are multiple hetergeneous devices, then we cannot make
@@ -801,7 +801,7 @@ static int qemu_rdma_broken_ipv6_kernel(Error **errp, struct ibv_context *verbs)
      * devices (non-ethernet).
      * 
      * If not, then we can safely proceed with the migration.
-     * Otherwise, there are no gaurantees until the bug is fixed in linux.
+     * Otherwise, there are no guarantees until the bug is fixed in linux.
      */
     if (!verbs) {
 	    int num_devices, x;
@@ -920,9 +920,11 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
         ret = rdma_resolve_addr(rdma->cm_id, NULL, e->ai_dst_addr,
                 RDMA_RESOLVE_TIMEOUT_MS);
         if (!ret) {
-            ret = qemu_rdma_broken_ipv6_kernel(errp, rdma->cm_id->verbs);
-            if (ret) {
-                continue;
+            if (e->ai_family == AF_INET6) {
+                ret = qemu_rdma_broken_ipv6_kernel(errp, rdma->cm_id->verbs);
+                if (ret) {
+                    continue;
+                }
             }
             goto route;
         }

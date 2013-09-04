@@ -683,7 +683,7 @@ static int bcm2835_usb_init(SysBusDevice *sbd)
 
     s->sof_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, bcm2835_usb_sof_tick, s);
 
-    usb_bus_new(&s->bus, &bcm2835_usb_bus_ops, dev);
+    usb_bus_new(&s->bus, sizeof(s->bus), &bcm2835_usb_bus_ops, dev);
     usb_register_port(&s->bus, &s->port, s, 0, &bcm2835_usb_port_ops,
         USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL );
     return 0;

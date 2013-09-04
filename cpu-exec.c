@@ -53,7 +53,7 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
 static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
 {
     CPUArchState *env = cpu->env_ptr;
-    tcg_target_ulong next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    uintptr_t next_tb = tcg_qemu_tb_exec(env, tb_ptr);
     if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
         /* We didn't start executing this TB (eg because the instruction
          * counter hit zero); we must restore the guest PC to the address
@@ -209,7 +209,7 @@ int cpu_exec(CPUArchState *env)
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    tcg_target_ulong next_tb;
+    uintptr_t next_tb;
 
     if (cpu->halted) {
         if (!cpu_has_work(cpu)) {

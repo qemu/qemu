@@ -498,7 +498,7 @@ static void vapic_enable_tpr_reporting(bool enable)
     X86CPU *cpu;
     CPUX86State *env;
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         cpu = X86_CPU(cs);
         env = &cpu->env;
         info.apic = env->apic_state;

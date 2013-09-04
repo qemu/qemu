@@ -506,6 +506,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_BALLOON_CHANGE] = "BALLOON_CHANGE",
     [QEVENT_SPICE_MIGRATE_COMPLETED] = "SPICE_MIGRATE_COMPLETED",
     [QEVENT_GUEST_PANICKED] = "GUEST_PANICKED",
+    [QEVENT_BLOCK_IMAGE_CORRUPTED] = "BLOCK_IMAGE_CORRUPTED",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
@@ -2002,7 +2003,7 @@ static void do_info_numa(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
     for (i = 0; i < nb_numa_nodes; i++) {
         monitor_printf(mon, "node %d cpus:", i);
-        for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPU_FOREACH(cpu) {
             if (cpu->numa_node == i) {
                 monitor_printf(mon, " %d", cpu->cpu_index);
             }

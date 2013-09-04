@@ -572,12 +572,6 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     acb->nb_sectors = nb_sectors;
 
     acb->bh = qemu_bh_new(curl_readv_bh_cb, acb);
-
-    if (!acb->bh) {
-        DPRINTF("CURL: qemu_bh_new failed\n");
-        return NULL;
-    }
-
     qemu_bh_schedule(acb->bh);
     return &acb->common;
 }

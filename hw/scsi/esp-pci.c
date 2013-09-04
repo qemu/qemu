@@ -363,7 +363,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
     s->irq = dev->irq[0];
 
-    scsi_bus_new(&s->bus, d, &esp_pci_scsi_info, NULL);
+    scsi_bus_new(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info, NULL);
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
