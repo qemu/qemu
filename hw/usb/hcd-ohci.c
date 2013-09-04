@@ -1109,17 +1109,19 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         }
     }
 
+    if (ret >= 0) {
+        if ((td.cbp & 0xfff) + ret > 0xfff) {
+            td.cbp = (td.be & ~0xfff) + ((td.cbp + ret) & 0xfff);
+        } else {
+            td.cbp += ret;
+        }
+    }
+
     /* Writeback */
     if (ret == pktlen || (dir == OHCI_TD_DIR_IN && ret >= 0 && flag_r)) {
         /* Transmission succeeded.  */
         if (ret == len) {
             td.cbp = 0;
-        } else {
-            if ((td.cbp & 0xfff) + ret > 0xfff) {
-                td.cbp = (td.be & ~0xfff) + ((td.cbp + ret) & 0xfff);
-            } else {
-                td.cbp += ret;
-            }
         }
         td.flags |= OHCI_TD_T1;
         td.flags ^= OHCI_TD_T0;
@@ -1173,6 +1175,8 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     i = OHCI_BM(td.flags, TD_DI);
     if (i < ohci->done_count)
         ohci->done_count = i;
+    if (OHCI_BM(td.flags, TD_CC) != OHCI_CC_NOERROR)
+        ohci->done_count = 0;
 exit_no_retire:
     if (ohci_put_td(ohci, addr, &td)) {
         ohci_die(ohci);
