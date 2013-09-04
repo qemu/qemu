@@ -1089,7 +1089,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                             int nb_sectors, int *pnum)
 {
     off_t start, data, hole;
-    int ret;
+    int64_t ret;
 
     ret = fd_open(bs);
     if (ret < 0) {
@@ -1097,6 +1097,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     }
 
     start = sector_num * BDRV_SECTOR_SIZE;
+    ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
 
 #ifdef CONFIG_FIEMAP
 
@@ -1114,7 +1115,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     if (ioctl(s->fd, FS_IOC_FIEMAP, &f) == -1) {
         /* Assume everything is allocated.  */
         *pnum = nb_sectors;
-        return 1;
+        return ret;
     }
 
     if (f.fm.fm_mapped_extents == 0) {
@@ -1141,7 +1142,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 
         /* Most likely EINVAL.  Assume everything is allocated.  */
         *pnum = nb_sectors;
-        return 1;
+        return ret;
     }
 
     if (hole > start) {
@@ -1154,19 +1155,21 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
         }
     }
 #else
-    *pnum = nb_sectors;
-    return 1;
+    data = 0;
+    hole = start + nb_sectors * BDRV_SECTOR_SIZE;
 #endif
 
     if (data <= start) {
         /* On a data extent, compute sectors to the end of the extent.  */
         *pnum = MIN(nb_sectors, (hole - start) / BDRV_SECTOR_SIZE);
-        return 1;
     } else {
         /* On a hole, compute sectors to the beginning of the next extent.  */
         *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
-        return 0;
+        ret &= ~BDRV_BLOCK_DATA;
+        ret |= BDRV_BLOCK_ZERO;
     }
+
+    return ret;
 }
 
 static coroutine_fn BlockDriverAIOCB *raw_aio_discard(BlockDriverState *bs,
