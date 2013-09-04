@@ -649,7 +649,7 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
 
 void ram_control_load_hook(QEMUFile *f, uint64_t flags)
 {
-    int ret = 0;
+    int ret = -EINVAL;
 
     if (f->ops->hook_ram_load) {
         ret = f->ops->hook_ram_load(f, f->opaque, flags);
