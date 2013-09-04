@@ -18,8 +18,16 @@
  */
 
 #include "hw/hw.h"
+#include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
+
+//#define DEBUG_XID
+#ifdef DEBUG_XID
+#define DPRINTF printf
+#else
+#define DPRINTF(...)
+#endif
 
 /*
  * http://xbox-linux.cvs.sourceforge.net/viewvc/xbox-linux/kernel-2.6/drivers/usb/input/xpad.c
@@ -35,9 +43,40 @@
 #define HID_SET_REPORT       0x09
 #define XID_GET_CAPABILITIES 0x01
 
+
+
+typedef struct XIDDesc {
+    uint8_t bLength;
+    uint8_t bDescriptorType;
+    uint16_t bcdXid;
+    uint8_t bType;
+    uint8_t bSubType;
+    uint8_t bMaxInputReportSize;
+    uint8_t bMaxOutputReportSize;
+    uint16_t wAlternateProductIds[4];
+} QEMU_PACKED XIDDesc;
+
+typedef struct XIDGamepadReport {
+    uint8_t bReportId;
+    uint8_t bLength;
+    uint16_t wButtons;
+    uint8_t bAnalogButtons[8];
+    int16_t sThumbLX;
+    int16_t sThumbLY;
+    int16_t sThumbRX;
+    int16_t sThumbRY;
+} QEMU_PACKED XIDGamepadReport;
+
+
+
 typedef struct USBXIDState {
     USBDevice dev;
     USBEndpoint *intr;
+
+    const XIDDesc *xid_desc;
+
+    QEMUPutKbdEntry *kbd_entry;
+    XIDGamepadReport in_state;
 } USBXIDState;
 
 static const USBDescIface desc_iface_xbox_gamepad = {
@@ -46,25 +85,6 @@ static const USBDescIface desc_iface_xbox_gamepad = {
     .bInterfaceClass               = USB_CLASS_XID,
     .bInterfaceSubClass            = 0x42,
     .bInterfaceProtocol            = 0x00,
-    .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* XID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_XID,    /*  u8  bDescriptorType */
-                0x00, 0x01,    /*  u16 bcdXid */
-                0x01,          /*  u8  bType */
-                0x01,          /*  u8  bSubType */
-                0x20,          /*  u8  bMaxInputReportSize */
-                0x06,          /*  u8  bMaxOutputReportSize */
-                0xff, 0xff,    /*  u16 wAlternateProductIds[4] */
-                0xff, 0xff,
-                0xff, 0xff,
-                0xff, 0xff,
-            },
-        },
-    },
     .eps = (USBDescEndpoint[]) {
         {
             .bEndpointAddress      = USB_DIR_IN | 0x02,
@@ -106,19 +126,93 @@ static const USBDesc desc_xbox_gamepad = {
     .full = &desc_device_xbox_gamepad,
 };
 
+static const XIDDesc desc_xid_xbox_gamepad = {
+    .bLength = 0x10,
+    .bDescriptorType = USB_DT_XID,
+    .bcdXid = 1,
+    .bType = 1,
+    .bSubType = 1,
+    .bMaxInputReportSize = 0x20,
+    .bMaxOutputReportSize = 0x6,
+    .wAlternateProductIds = {-1, -1, -1, -1},
+};
+
+
+#define GAMEPAD_A                0
+#define GAMEPAD_B                1
+#define GAMEPAD_X                2
+#define GAMEPAD_Y                3
+#define GAMEPAD_BLACK            4
+#define GAMEPAD_WHITE            5
+#define GAMEPAD_LEFT_TRIGGER     6
+#define GAMEPAD_RIGHT_TRIGGER    7
+
+#define GAMEPAD_DPAD_UP          8
+#define GAMEPAD_DPAD_DOWN        9
+#define GAMEPAD_DPAD_LEFT        10
+#define GAMEPAD_DPAD_RIGHT       11
+#define GAMEPAD_START            12
+#define GAMEPAD_BACK             13
+#define GAMEPAD_LEFT_THUMB       14
+#define GAMEPAD_RIGHT_THUMB      15
+
+static const int gamepad_mapping[] = {
+    [0 ... Q_KEY_CODE_MAX] = -1,
+
+    [Q_KEY_CODE_UP]    = GAMEPAD_DPAD_UP,
+    [Q_KEY_CODE_DOWN]  = GAMEPAD_DPAD_DOWN,
+    [Q_KEY_CODE_LEFT]  = GAMEPAD_DPAD_LEFT,
+    [Q_KEY_CODE_RIGHT] = GAMEPAD_DPAD_RIGHT,
+    [Q_KEY_CODE_RET]   = GAMEPAD_START,
+    [Q_KEY_CODE_BACKSPACE] = GAMEPAD_BACK,
+
+    [Q_KEY_CODE_Z]     = GAMEPAD_A,
+    [Q_KEY_CODE_X]     = GAMEPAD_B,
+    [Q_KEY_CODE_A]     = GAMEPAD_X,
+    [Q_KEY_CODE_S]     = GAMEPAD_Y,
+};
+
+static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
+{
+    USBXIDState *s = opaque;
+
+    bool up = keycode & 0x80;
+    QKeyCode code = index_from_keycode(keycode & 0x7f);
+    if (code >= Q_KEY_CODE_MAX) return;
+
+    int button = gamepad_mapping[code];
+
+    DPRINTF("xid keyboard_event %x - %d %d %d\n", keycode, code, button, up);
+
+    uint16_t mask;
+    switch (button) {
+    case GAMEPAD_A ... GAMEPAD_RIGHT_TRIGGER:
+        s->in_state.bAnalogButtons[button] = up?0:0xff;
+        break;
+    case GAMEPAD_DPAD_UP ... GAMEPAD_RIGHT_THUMB:
+        mask = ((!up) << (button-GAMEPAD_DPAD_UP));
+        s->in_state.wButtons &= ~mask;
+        s->in_state.wButtons |= mask;
+        break;
+    default:
+        break;
+    }
+}
+
 
 static void usb_xid_handle_reset(USBDevice *dev)
 {
-    USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
+    DPRINTF("xid reset\n");
 }
 
 static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
-    int ret;
 
-    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
+    DPRINTF("xid handle_control %x %x\n", request, value);
+
+    int ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         return;
     }
@@ -126,17 +220,31 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
     switch (request) {
     /* HID requests */
     case ClassInterfaceRequest | HID_GET_REPORT:
-        printf("xid GET_REPORT\n");
+        DPRINTF("xid GET_REPORT %x\n", value);
+        if (value == 0x100) { /* input */
+            memcpy(data, &s->in_state, s->in_state.bLength);
+            p->actual_length = s->in_state.bLength;
+        } else {
+            assert(false);
+        }
         break;
     case ClassInterfaceOutRequest | HID_SET_REPORT:
-        printf("xid SET_REPORT\n");
+        DPRINTF("xid SET_REPORT %x\n", value);
+        assert(false);
         break;
     /* XID requests */
     case InterfaceRequestVendor | USB_REQ_GET_DESCRIPTOR:
-        printf("xid GET_DESCRIPTOR %x\n", value);
+        DPRINTF("xid GET_DESCRIPTOR %x\n", value);
+        if (value == 0x4200) {
+            memcpy(data, s->xid_desc, s->xid_desc->bLength);
+            p->actual_length = s->xid_desc->bLength;
+        } else {
+            assert(false);
+        }
         break;
     case InterfaceRequestVendor | XID_GET_CAPABILITIES:
-        printf("xid XID_GET_CAPABILITIES %x\n", value);
+        DPRINTF("xid XID_GET_CAPABILITIES %x\n", value);
+        assert(false);
         break;
     default:
         p->status = USB_RET_STALL;
@@ -147,12 +255,27 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
 {
-    printf("xid handle_data\n");
+    USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
+
+    DPRINTF("xid handle_data %x %d %zx\n", p->pid, p->ep->nr, p->iov.size);
+
+    switch (p->pid) {
+    case USB_TOKEN_IN:
+        if (p->ep->nr == 2) {
+            usb_packet_copy(p, &s->in_state, s->in_state.bLength);
+        } else {
+            assert(false);
+        }
+        break;
+    default:
+        assert(false);
+        break;
+    }
 }
 
 static void usb_xid_handle_destroy(USBDevice *dev)
 {
-    printf("xid handle_destroy\n");
+    DPRINTF("xid handle_destroy\n");
 }
 
 static void usb_xid_class_initfn(ObjectClass *klass, void *data)
@@ -171,7 +294,10 @@ static int usb_xbox_gamepad_initfn(USBDevice *dev)
     USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 2);
-    printf("xid usb_xbox_gamepad_initfn\n");
+
+    s->in_state.bLength = sizeof(s->in_state);
+    s->kbd_entry = qemu_add_kbd_event_handler(xbox_gamepad_keyboard_event, s);
+    s->xid_desc = &desc_xid_xbox_gamepad;
 
     return 0;
 }
