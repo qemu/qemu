@@ -511,19 +511,21 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    int *resp_idx,
                                    int (*callback)(RDMAContext *rdma));
 
-static inline uint64_t ram_chunk_index(uint8_t *start, uint8_t *host)
+static inline uint64_t ram_chunk_index(const uint8_t *start,
+                                       const uint8_t *host)
 {
     return ((uintptr_t) host - (uintptr_t) start) >> RDMA_REG_CHUNK_SHIFT;
 }
 
-static inline uint8_t *ram_chunk_start(RDMALocalBlock *rdma_ram_block,
+static inline uint8_t *ram_chunk_start(const RDMALocalBlock *rdma_ram_block,
                                        uint64_t i)
 {
     return (uint8_t *) (((uintptr_t) rdma_ram_block->local_host_addr)
                                     + (i << RDMA_REG_CHUNK_SHIFT));
 }
 
-static inline uint8_t *ram_chunk_end(RDMALocalBlock *rdma_ram_block, uint64_t i)
+static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
+                                     uint64_t i)
 {
     uint8_t *result = ram_chunk_start(rdma_ram_block, i) +
                                          (1UL << RDMA_REG_CHUNK_SHIFT);
