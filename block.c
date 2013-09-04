@@ -3075,7 +3075,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 {
     int64_t length;
     int64_t n;
-    int64_t ret;
+    int64_t ret, ret2;
 
     length = bdrv_getlength(bs);
     if (length < 0) {
@@ -3117,6 +3117,20 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
             }
         }
     }
+
+    if (bs->file &&
+        (ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO) &&
+        (ret & BDRV_BLOCK_OFFSET_VALID)) {
+        ret2 = bdrv_co_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
+                                        *pnum, pnum);
+        if (ret2 >= 0) {
+            /* Ignore errors.  This is just providing extra information, it
+             * is useful but not necessary.
+             */
+            ret |= (ret2 & BDRV_BLOCK_ZERO);
+        }
+    }
+
     return ret;
 }
 
