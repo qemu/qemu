@@ -130,7 +130,7 @@ typedef enum {
 #define TCG_TARGET_HAS_mulsh_i64        0
 #endif
 
-#define TCG_TARGET_HAS_new_ldst         0
+#define TCG_TARGET_HAS_new_ldst         1
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
     (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \

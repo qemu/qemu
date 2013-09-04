@@ -1026,21 +1026,27 @@ static void tcg_out_jmp(TCGContext *s, uintptr_t dest)
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldub_mmu,
-    helper_ret_lduw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+static const void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
  *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_ret_stw_mmu,
-    helper_ret_stl_mmu,
-    helper_ret_stq_mmu,
+static const void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
 /* Perform the TLB load and compare.
@@ -1165,7 +1171,6 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGMemOp opc = l->opc;
-    TCGMemOp s_bits = opc & MO_SIZE;
     TCGReg data_reg;
     uint8_t **label_ptr = &l->label_ptr[0];
 
@@ -1202,7 +1207,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
                      (uintptr_t)l->raddr);
     }
 
-    tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[s_bits]);
+    tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[opc & ~MO_SIGN]);
 
     data_reg = l->datalo_reg;
     switch (opc & MO_SSIZE) {
@@ -1307,7 +1312,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     /* "Tail call" to the helper, with the return address back inline.  */
     tcg_out_push(s, retaddr);
-    tcg_out_jmp(s, (uintptr_t)qemu_st_helpers[s_bits]);
+    tcg_out_jmp(s, (uintptr_t)qemu_st_helpers[opc]);
 }
 #elif defined(__x86_64__) && defined(__linux__)
 # include <asm/prctl.h>
@@ -1411,22 +1416,24 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 /* XXX: qemu_ld and qemu_st could be modified to clobber only EDX and
    EAX. It will be useful once fixed registers globals are less
    common. */
-static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 {
     TCGReg datalo, datahi, addrlo;
+    TCGReg addrhi __attribute__((unused));
+    TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
-    TCGReg addrhi;
     int mem_index;
     TCGMemOp s_bits;
     uint8_t *label_ptr[2];
 #endif
 
     datalo = *args++;
-    datahi = (TCG_TARGET_REG_BITS == 32 && opc == 3 ? *args++ : 0);
+    datahi = (TCG_TARGET_REG_BITS == 32 && is64 ? *args++ : 0);
     addrlo = *args++;
+    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
+    opc = *args++;
 
 #if defined(CONFIG_SOFTMMU)
-    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
     mem_index = *args++;
     s_bits = opc & MO_SIZE;
 
@@ -1531,22 +1538,24 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
-static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 {
     TCGReg datalo, datahi, addrlo;
+    TCGReg addrhi __attribute__((unused));
+    TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
-    TCGReg addrhi;
     int mem_index;
     TCGMemOp s_bits;
     uint8_t *label_ptr[2];
 #endif
 
     datalo = *args++;
-    datahi = (TCG_TARGET_REG_BITS == 32 && opc == 3 ? *args++ : 0);
+    datahi = (TCG_TARGET_REG_BITS == 32 && is64 ? *args++ : 0);
     addrlo = *args++;
+    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
+    opc = *args++;
 
 #if defined(CONFIG_SOFTMMU)
-    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
     mem_index = *args++;
     s_bits = opc & MO_SIZE;
 
@@ -1810,39 +1819,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext16u(s, args[0], args[1]);
         break;
 
-    case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, args, MO_UB);
+    case INDEX_op_qemu_ld_i32:
+        tcg_out_qemu_ld(s, args, 0);
         break;
-    case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, args, MO_SB);
+    case INDEX_op_qemu_ld_i64:
+        tcg_out_qemu_ld(s, args, 1);
         break;
-    case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_TEUW);
+    case INDEX_op_qemu_st_i32:
+        tcg_out_qemu_st(s, args, 0);
         break;
-    case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_TESW);
-        break;
-#if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_qemu_ld32u:
-#endif
-    case INDEX_op_qemu_ld32:
-        tcg_out_qemu_ld(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_TEQ);
-        break;
-
-    case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, args, MO_UB);
-        break;
-    case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_TEUW);
-        break;
-    case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_TEQ);
+    case INDEX_op_qemu_st_i64:
+        tcg_out_qemu_st(s, args, 1);
         break;
 
     OP_32_64(mulu2):
@@ -1901,9 +1888,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         } else {
             tcg_out_st(s, TCG_TYPE_I64, args[0], args[1], args[2]);
         }
-        break;
-    case INDEX_op_qemu_ld32s:
-        tcg_out_qemu_ld(s, args, MO_TESL);
         break;
 
     case INDEX_op_brcond_i64:
@@ -2069,43 +2053,20 @@ static const TCGTargetOpDef x86_op_defs[] = {
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_qemu_ld8u, { "r", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L" } },
-    { INDEX_op_qemu_ld32u, { "r", "L" } },
-    { INDEX_op_qemu_ld32s, { "r", "L" } },
-    { INDEX_op_qemu_ld64, { "r", "L" } },
-
-    { INDEX_op_qemu_st8, { "L", "L" } },
-    { INDEX_op_qemu_st16, { "L", "L" } },
-    { INDEX_op_qemu_st32, { "L", "L" } },
-    { INDEX_op_qemu_st64, { "L", "L" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_st_i32, { "L", "L" } },
+    { INDEX_op_qemu_ld_i64, { "r", "L" } },
+    { INDEX_op_qemu_st_i64, { "L", "L" } },
 #elif TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
-    { INDEX_op_qemu_ld8u, { "r", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L" } },
-    { INDEX_op_qemu_ld64, { "r", "r", "L" } },
-
-    { INDEX_op_qemu_st8, { "L", "L" } },
-    { INDEX_op_qemu_st16, { "L", "L" } },
-    { INDEX_op_qemu_st32, { "L", "L" } },
-    { INDEX_op_qemu_st64, { "L", "L", "L" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_st_i32, { "L", "L" } },
+    { INDEX_op_qemu_ld_i64, { "r", "r", "L" } },
+    { INDEX_op_qemu_st_i64, { "L", "L", "L" } },
 #else
-    { INDEX_op_qemu_ld8u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
-
-    { INDEX_op_qemu_st8, { "L", "L", "L" } },
-    { INDEX_op_qemu_st16, { "L", "L", "L" } },
-    { INDEX_op_qemu_st32, { "L", "L", "L" } },
-    { INDEX_op_qemu_st64, { "L", "L", "L", "L" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L", "L" } },
+    { INDEX_op_qemu_st_i32, { "L", "L", "L" } },
+    { INDEX_op_qemu_ld_i64, { "r", "r", "L", "L" } },
+    { INDEX_op_qemu_st_i64, { "L", "L", "L", "L" } },
 #endif
     { -1 },
 };
