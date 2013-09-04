@@ -2739,6 +2739,9 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
         bs->wr_highest_sector = sector_num + nb_sectors - 1;
     }
+    if (bs->growable && ret >= 0) {
+        bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
+    }
 
     tracked_request_end(&req);
 
@@ -2813,7 +2816,7 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (bs->growable || bdrv_dev_has_removable_media(bs)) {
+    if (bdrv_dev_has_removable_media(bs)) {
         if (drv->bdrv_getlength) {
             return drv->bdrv_getlength(bs);
         }
