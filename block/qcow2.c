@@ -688,7 +688,7 @@ static int qcow2_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static int coroutine_fn qcow2_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     BDRVQcowState *s = bs->opaque;
@@ -1866,7 +1866,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated = qcow2_co_is_allocated,
+    .bdrv_co_get_block_status = qcow2_co_get_block_status,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 

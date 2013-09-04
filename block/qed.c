@@ -667,7 +667,7 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
     }
 }
 
-static int coroutine_fn bdrv_qed_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
                                                  int64_t sector_num,
                                                  int nb_sectors, int *pnum)
 {
@@ -1575,7 +1575,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
     .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated     = bdrv_qed_co_is_allocated,
+    .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
     .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,

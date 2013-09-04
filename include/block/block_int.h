@@ -118,7 +118,7 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
-    int coroutine_fn (*bdrv_co_is_allocated)(BlockDriverState *bs,
+    int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum);
 
     /*

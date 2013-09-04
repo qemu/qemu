@@ -3044,15 +3044,15 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
-typedef struct BdrvCoIsAllocatedData {
+typedef struct BdrvCoGetBlockStatusData {
     BlockDriverState *bs;
     BlockDriverState *base;
     int64_t sector_num;
     int nb_sectors;
     int *pnum;
-    int ret;
+    int64_t ret;
     bool done;
-} BdrvCoIsAllocatedData;
+} BdrvCoGetBlockStatusData;
 
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
@@ -3069,9 +3069,9 @@ typedef struct BdrvCoIsAllocatedData {
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
  * beyond the end of the disk image it will be clamped.
  */
-static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
-                                             int64_t sector_num,
-                                             int nb_sectors, int *pnum)
+static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
+                                                     int64_t sector_num,
+                                                     int nb_sectors, int *pnum)
 {
     int64_t length;
     int64_t n;
@@ -3091,35 +3091,35 @@ static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
         nb_sectors = n;
     }
 
-    if (!bs->drv->bdrv_co_is_allocated) {
+    if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = nb_sectors;
         return 1;
     }
 
-    return bs->drv->bdrv_co_is_allocated(bs, sector_num, nb_sectors, pnum);
+    return bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
 }
 
-/* Coroutine wrapper for bdrv_is_allocated() */
-static void coroutine_fn bdrv_is_allocated_co_entry(void *opaque)
+/* Coroutine wrapper for bdrv_get_block_status() */
+static void coroutine_fn bdrv_get_block_status_co_entry(void *opaque)
 {
-    BdrvCoIsAllocatedData *data = opaque;
+    BdrvCoGetBlockStatusData *data = opaque;
     BlockDriverState *bs = data->bs;
 
-    data->ret = bdrv_co_is_allocated(bs, data->sector_num, data->nb_sectors,
-                                     data->pnum);
+    data->ret = bdrv_co_get_block_status(bs, data->sector_num, data->nb_sectors,
+                                         data->pnum);
     data->done = true;
 }
 
 /*
- * Synchronous wrapper around bdrv_co_is_allocated().
+ * Synchronous wrapper around bdrv_co_get_block_status().
  *
- * See bdrv_co_is_allocated() for details.
+ * See bdrv_co_get_block_status() for details.
  */
-int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                      int *pnum)
+int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
+                              int nb_sectors, int *pnum)
 {
     Coroutine *co;
-    BdrvCoIsAllocatedData data = {
+    BdrvCoGetBlockStatusData data = {
         .bs = bs,
         .sector_num = sector_num,
         .nb_sectors = nb_sectors,
@@ -3129,15 +3129,21 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
-        bdrv_is_allocated_co_entry(&data);
+        bdrv_get_block_status_co_entry(&data);
     } else {
-        co = qemu_coroutine_create(bdrv_is_allocated_co_entry);
+        co = qemu_coroutine_create(bdrv_get_block_status_co_entry);
         qemu_coroutine_enter(co, &data);
         while (!data.done) {
             qemu_aio_wait();
         }
     }
     return data.ret;
+}
+
+int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
+                                   int nb_sectors, int *pnum)
+{
+    return bdrv_get_block_status(bs, sector_num, nb_sectors, pnum);
 }
 
 /*

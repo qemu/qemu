@@ -1084,7 +1084,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
  * beyond the end of the disk image it will be clamped.
  */
-static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                             int64_t sector_num,
                                             int nb_sectors, int *pnum)
 {
@@ -1200,7 +1200,7 @@ static BlockDriver bdrv_file = {
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated = raw_co_is_allocated,
+    .bdrv_co_get_block_status = raw_co_get_block_status,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,

@@ -2270,9 +2270,9 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
     return acb->ret;
 }
 
-static coroutine_fn int
-sd_co_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                   int *pnum)
+static coroutine_fn int64_t
+sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                       int *pnum)
 {
     BDRVSheepdogState *s = bs->opaque;
     SheepdogInode *inode = &s->inode;
@@ -2338,7 +2338,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
-    .bdrv_co_is_allocated = sd_co_is_allocated,
+    .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2366,7 +2366,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
-    .bdrv_co_is_allocated = sd_co_is_allocated,
+    .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2394,7 +2394,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
-    .bdrv_co_is_allocated = sd_co_is_allocated,
+    .bdrv_co_get_block_status = sd_co_get_block_status,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
