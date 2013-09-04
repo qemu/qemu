@@ -811,6 +811,188 @@ void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
 }
 #endif
 
+static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
+{
+    switch (op & MO_SIZE) {
+    case MO_8:
+        op &= ~MO_BSWAP;
+        break;
+    case MO_16:
+        break;
+    case MO_32:
+        if (!is64) {
+            op &= ~MO_SIGN;
+        }
+        break;
+    case MO_64:
+        if (!is64) {
+            tcg_abort();
+        }
+        break;
+    }
+    if (st) {
+        op &= ~MO_SIGN;
+    }
+    return op;
+}
+
+static const TCGOpcode old_ld_opc[8] = {
+    [MO_UB] = INDEX_op_qemu_ld8u,
+    [MO_SB] = INDEX_op_qemu_ld8s,
+    [MO_UW] = INDEX_op_qemu_ld16u,
+    [MO_SW] = INDEX_op_qemu_ld16s,
+#if TCG_TARGET_REG_BITS == 32
+    [MO_UL] = INDEX_op_qemu_ld32,
+    [MO_SL] = INDEX_op_qemu_ld32,
+#else
+    [MO_UL] = INDEX_op_qemu_ld32u,
+    [MO_SL] = INDEX_op_qemu_ld32s,
+#endif
+    [MO_Q]  = INDEX_op_qemu_ld64,
+};
+
+static const TCGOpcode old_st_opc[4] = {
+    [MO_UB] = INDEX_op_qemu_st8,
+    [MO_UW] = INDEX_op_qemu_st16,
+    [MO_UL] = INDEX_op_qemu_st32,
+    [MO_Q]  = INDEX_op_qemu_st64,
+};
+
+void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 0, 0);
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i32;
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_ld_opc[memop & MO_SSIZE] != 0);
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+    } else {
+        TCGv_i64 val64 = tcg_temp_new_i64();
+
+        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+        tcg_add_param_i64(val64);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+
+        tcg_gen_trunc_i64_i32(val, val64);
+        tcg_temp_free_i64(val64);
+    }
+}
+
+void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 0, 1);
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i32;
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_st_opc[memop & MO_SIZE] != 0);
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+    } else {
+        TCGv_i64 val64 = tcg_temp_new_i64();
+
+        tcg_gen_extu_i32_i64(val64, val);
+
+        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+        tcg_add_param_i64(val64);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+
+        tcg_temp_free_i64(val64);
+    }
+}
+
+void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 1, 0);
+
+#if TCG_TARGET_REG_BITS == 32
+    if ((memop & MO_SIZE) < MO_64) {
+        tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);
+        if (memop & MO_SIGN) {
+            tcg_gen_sari_i32(TCGV_HIGH(val), TCGV_LOW(val), 31);
+        } else {
+            tcg_gen_movi_i32(TCGV_HIGH(val), 0);
+        }
+        return;
+    }
+#endif
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i64;
+        tcg_add_param_i64(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_ld_opc[memop & MO_SSIZE] != 0);
+
+    *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+    tcg_add_param_i64(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = idx;
+}
+
+void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 1, 1);
+
+#if TCG_TARGET_REG_BITS == 32
+    if ((memop & MO_SIZE) < MO_64) {
+        tcg_gen_qemu_st_i32(TCGV_LOW(val), addr, idx, memop);
+        return;
+    }
+#endif
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i64;
+        tcg_add_param_i64(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_st_opc[memop & MO_SIZE] != 0);
+
+    *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+    tcg_add_param_i64(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = idx;
+}
 
 static void tcg_reg_alloc_start(TCGContext *s)
 {
@@ -891,6 +1073,22 @@ static const char * const cond_name[] =
     [TCG_COND_GEU] = "geu",
     [TCG_COND_LEU] = "leu",
     [TCG_COND_GTU] = "gtu"
+};
+
+static const char * const ldst_name[] =
+{
+    [MO_UB]   = "ub",
+    [MO_SB]   = "sb",
+    [MO_LEUW] = "leuw",
+    [MO_LESW] = "lesw",
+    [MO_LEUL] = "leul",
+    [MO_LESL] = "lesl",
+    [MO_LEQ]  = "leq",
+    [MO_BEUW] = "beuw",
+    [MO_BESW] = "besw",
+    [MO_BEUL] = "beul",
+    [MO_BESL] = "besl",
+    [MO_BEQ]  = "beq",
 };
 
 void tcg_dump_ops(TCGContext *s)
@@ -1016,6 +1214,17 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_movcond_i64:
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
                     qemu_log(",%s", cond_name[args[k++]]);
+                } else {
+                    qemu_log(",$0x%" TCG_PRIlx, args[k++]);
+                }
+                i = 1;
+                break;
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i64:
+                if (args[k] < ARRAY_SIZE(ldst_name) && ldst_name[args[k]]) {
+                    qemu_log(",%s", ldst_name[args[k++]]);
                 } else {
                     qemu_log(",$0x%" TCG_PRIlx, args[k++]);
                 }
