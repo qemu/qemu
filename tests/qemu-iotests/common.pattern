@@ -106,8 +106,8 @@ function io_test2() {
     local num=$3
 
     # Pattern (repeat after 9 clusters):
-    #	used - used - free - used - compressed - compressed -
-    #	free - free - compressed
+    #        used - used - free - used - compressed - compressed -
+    #        free - free - compressed
 
     # Write the clusters to be compressed
     echo === Clusters to be compressed [1]
