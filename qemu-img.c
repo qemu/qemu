@@ -1801,6 +1801,197 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
+
+typedef struct MapEntry {
+    int flags;
+    int depth;
+    int64_t start;
+    int64_t length;
+    int64_t offset;
+    BlockDriverState *bs;
+} MapEntry;
+
+static void dump_map_entry(OutputFormat output_format, MapEntry *e,
+                           MapEntry *next)
+{
+    switch (output_format) {
+    case OFORMAT_HUMAN:
+        if ((e->flags & BDRV_BLOCK_DATA) &&
+            !(e->flags & BDRV_BLOCK_OFFSET_VALID)) {
+            error_report("File contains external, encrypted or compressed clusters.");
+            exit(1);
+        }
+        if ((e->flags & (BDRV_BLOCK_DATA|BDRV_BLOCK_ZERO)) == BDRV_BLOCK_DATA) {
+            printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
+                   e->start, e->length, e->offset, e->bs->filename);
+        }
+        /* This format ignores the distinction between 0, ZERO and ZERO|DATA.
+         * Modify the flags here to allow more coalescing.
+         */
+        if (next &&
+            (next->flags & (BDRV_BLOCK_DATA|BDRV_BLOCK_ZERO)) != BDRV_BLOCK_DATA) {
+            next->flags &= ~BDRV_BLOCK_DATA;
+            next->flags |= BDRV_BLOCK_ZERO;
+        }
+        break;
+    case OFORMAT_JSON:
+        printf("%s{ \"start\": %"PRId64", \"length\": %"PRId64", \"depth\": %d,"
+               " \"zero\": %s, \"data\": %s",
+               (e->start == 0 ? "[" : ",\n"),
+               e->start, e->length, e->depth,
+               (e->flags & BDRV_BLOCK_ZERO) ? "true" : "false",
+               (e->flags & BDRV_BLOCK_DATA) ? "true" : "false");
+        if (e->flags & BDRV_BLOCK_OFFSET_VALID) {
+            printf(", 'offset': %"PRId64"", e->offset);
+        }
+        putchar('}');
+
+        if (!next) {
+            printf("]\n");
+        }
+        break;
+    }
+}
+
+static int get_block_status(BlockDriverState *bs, int64_t sector_num,
+                            int nb_sectors, MapEntry *e)
+{
+    int64_t ret;
+    int depth;
+
+    /* As an optimization, we could cache the current range of unallocated
+     * clusters in each file of the chain, and avoid querying the same
+     * range repeatedly.
+     */
+
+    depth = 0;
+    for (;;) {
+        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &nb_sectors);
+        if (ret < 0) {
+            return ret;
+        }
+        assert(nb_sectors);
+        if (ret & (BDRV_BLOCK_ZERO|BDRV_BLOCK_DATA)) {
+            break;
+        }
+        bs = bs->backing_hd;
+        if (bs == NULL) {
+            ret = 0;
+            break;
+        }
+
+        depth++;
+    }
+
+    e->start = sector_num * BDRV_SECTOR_SIZE;
+    e->length = nb_sectors * BDRV_SECTOR_SIZE;
+    e->flags = ret & ~BDRV_BLOCK_OFFSET_MASK;
+    e->offset = ret & BDRV_BLOCK_OFFSET_MASK;
+    e->depth = depth;
+    e->bs = bs;
+    return 0;
+}
+
+static int img_map(int argc, char **argv)
+{
+    int c;
+    OutputFormat output_format = OFORMAT_HUMAN;
+    BlockDriverState *bs;
+    const char *filename, *fmt, *output;
+    int64_t length;
+    MapEntry curr = { .length = 0 }, next;
+    int ret = 0;
+
+    fmt = NULL;
+    output = NULL;
+    for (;;) {
+        int option_index = 0;
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"format", required_argument, 0, 'f'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "f:h",
+                        long_options, &option_index);
+        if (c == -1) {
+            break;
+        }
+        switch (c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case OPTION_OUTPUT:
+            output = optarg;
+            break;
+        }
+    }
+    if (optind >= argc) {
+        help();
+    }
+    filename = argv[optind++];
+
+    if (output && !strcmp(output, "json")) {
+        output_format = OFORMAT_JSON;
+    } else if (output && !strcmp(output, "human")) {
+        output_format = OFORMAT_HUMAN;
+    } else if (output) {
+        error_report("--output must be used with human or json as argument.");
+        return 1;
+    }
+
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS, true, false);
+    if (!bs) {
+        return 1;
+    }
+
+    if (output_format == OFORMAT_HUMAN) {
+        printf("%-16s%-16s%-16s%s\n", "Offset", "Length", "Mapped to", "File");
+    }
+
+    length = bdrv_getlength(bs);
+    while (curr.start + curr.length < length) {
+        int64_t nsectors_left;
+        int64_t sector_num;
+        int n;
+
+        sector_num = (curr.start + curr.length) >> BDRV_SECTOR_BITS;
+
+        /* Probe up to 1 GiB at a time.  */
+        nsectors_left = DIV_ROUND_UP(length, BDRV_SECTOR_SIZE) - sector_num;
+        n = MIN(1 << (30 - BDRV_SECTOR_BITS), nsectors_left);
+        ret = get_block_status(bs, sector_num, n, &next);
+
+        if (ret < 0) {
+            error_report("Could not read file metadata: %s", strerror(-ret));
+            goto out;
+        }
+
+        if (curr.length != 0 && curr.flags == next.flags &&
+            curr.depth == next.depth &&
+            ((curr.flags & BDRV_BLOCK_OFFSET_VALID) == 0 ||
+             curr.offset + curr.length == next.offset)) {
+            curr.length += next.length;
+            continue;
+        }
+
+        if (curr.length > 0) {
+            dump_map_entry(output_format, &curr, &next);
+        }
+        curr = next;
+    }
+
+    dump_map_entry(output_format, &curr, NULL);
+
+out:
+    bdrv_unref(bs);
+    return ret < 0;
+}
+
 #define SNAPSHOT_LIST   1
 #define SNAPSHOT_CREATE 2
 #define SNAPSHOT_APPLY  3
