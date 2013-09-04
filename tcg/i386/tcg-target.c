@@ -1479,6 +1479,12 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
+        /* In 32-bit mode, 8-byte stores can only happen from [abcd]x.
+           Use the scratch register if necessary.  */
+        if (TCG_TARGET_REG_BITS == 32 && datalo >= 4) {
+            tcg_out_mov(s, TCG_TYPE_I32, scratch, datalo);
+            datalo = scratch;
+        }
         tcg_out_modrm_offset(s, OPC_MOVB_EvGv + P_REXB_R + seg,
                              datalo, base, ofs);
         break;
@@ -2084,7 +2090,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_qemu_ld32, { "r", "L" } },
     { INDEX_op_qemu_ld64, { "r", "r", "L" } },
 
-    { INDEX_op_qemu_st8, { "cb", "L" } },
+    { INDEX_op_qemu_st8, { "L", "L" } },
     { INDEX_op_qemu_st16, { "L", "L" } },
     { INDEX_op_qemu_st32, { "L", "L" } },
     { INDEX_op_qemu_st64, { "L", "L", "L" } },
@@ -2096,7 +2102,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_qemu_ld32, { "r", "L", "L" } },
     { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
 
-    { INDEX_op_qemu_st8, { "cb", "L", "L" } },
+    { INDEX_op_qemu_st8, { "L", "L", "L" } },
     { INDEX_op_qemu_st16, { "L", "L", "L" } },
     { INDEX_op_qemu_st32, { "L", "L", "L" } },
     { INDEX_op_qemu_st64, { "L", "L", "L", "L" } },
