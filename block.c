@@ -3102,8 +3102,16 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (!(ret & BDRV_BLOCK_DATA) && bdrv_has_zero_init(bs)) {
-        ret |= BDRV_BLOCK_ZERO;
+    if (!(ret & BDRV_BLOCK_DATA)) {
+        if (bdrv_has_zero_init(bs)) {
+            ret |= BDRV_BLOCK_ZERO;
+        } else {
+            BlockDriverState *bs2 = bs->backing_hd;
+            int64_t length2 = bdrv_getlength(bs2);
+            if (length2 >= 0 && sector_num >= (length2 >> BDRV_SECTOR_BITS)) {
+                ret |= BDRV_BLOCK_ZERO;
+            }
+        }
     }
     return ret;
 }
