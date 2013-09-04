@@ -693,7 +693,8 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t cluster_offset;
-    int ret;
+    int index_in_cluster, ret;
+    int64_t status = 0;
 
     *pnum = nb_sectors;
     qemu_co_mutex_lock(&s->lock);
@@ -703,7 +704,18 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    return (cluster_offset != 0) || (ret == QCOW2_CLUSTER_ZERO);
+    if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
+        !s->crypt_method) {
+        index_in_cluster = sector_num & (s->cluster_sectors - 1);
+        cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+        status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
+    }
+    if (ret == QCOW2_CLUSTER_ZERO) {
+        status |= BDRV_BLOCK_ZERO;
+    } else if (ret != QCOW2_CLUSTER_UNALLOCATED) {
+        status |= BDRV_BLOCK_DATA;
+    }
+    return status;
 }
 
 /* handle reading after the end of the backing file */

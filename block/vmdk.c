@@ -1059,7 +1059,24 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
                             sector_num * 512, 0, &offset);
     qemu_co_mutex_unlock(&s->lock);
 
-    ret = (ret == VMDK_OK || ret == VMDK_ZEROED);
+    switch (ret) {
+    case VMDK_ERROR:
+        ret = -EIO;
+        break;
+    case VMDK_UNALLOC:
+        ret = 0;
+        break;
+    case VMDK_ZEROED:
+        ret = BDRV_BLOCK_ZERO;
+        break;
+    case VMDK_OK:
+        ret = BDRV_BLOCK_DATA;
+        if (extent->file == bs->file) {
+            ret |= BDRV_BLOCK_OFFSET_VALID | offset;
+        }
+
+        break;
+    }
 
     index_in_cluster = sector_num % extent->cluster_sectors;
     n = extent->cluster_sectors - index_in_cluster;

@@ -2280,7 +2280,7 @@ sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                   end = DIV_ROUND_UP((sector_num + nb_sectors) *
                                      BDRV_SECTOR_SIZE, SD_DATA_OBJ_SIZE);
     unsigned long idx;
-    int ret = 1;
+    int64_t ret = BDRV_BLOCK_DATA;
 
     for (idx = start; idx < end; idx++) {
         if (inode->data_vdi_id[idx] == 0) {

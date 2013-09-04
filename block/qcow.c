@@ -410,7 +410,14 @@ static int64_t coroutine_fn qcow_co_get_block_status(BlockDriverState *bs,
     if (n > nb_sectors)
         n = nb_sectors;
     *pnum = n;
-    return (cluster_offset != 0);
+    if (!cluster_offset) {
+        return 0;
+    }
+    if ((cluster_offset & QCOW_OFLAG_COMPRESSED) || s->crypt_method) {
+        return BDRV_BLOCK_DATA;
+    }
+    cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | cluster_offset;
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,

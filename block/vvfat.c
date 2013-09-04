@@ -2879,11 +2879,12 @@ static int64_t coroutine_fn vvfat_co_get_block_status(BlockDriverState *bs,
 {
     BDRVVVFATState* s = bs->opaque;
     *n = s->sector_count - sector_num;
-    if (*n > nb_sectors)
-	*n = nb_sectors;
-    else if (*n < 0)
-	return 0;
-    return 1;
+    if (*n > nb_sectors) {
+        *n = nb_sectors;
+    } else if (*n < 0) {
+        return 0;
+    }
+    return BDRV_BLOCK_DATA;
 }
 
 static int write_target_commit(BlockDriverState *bs, int64_t sector_num,
