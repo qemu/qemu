@@ -179,8 +179,6 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
  */
 int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors);
-int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors, int *pnum);
 int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
                                             BlockDriverState *base,
                                             int64_t sector_num,

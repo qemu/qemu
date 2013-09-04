@@ -62,7 +62,7 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
                                             int64_t sector_num, int nb_sectors,
                                             int *pnum)
 {
-    return bdrv_co_is_allocated(bs->file, sector_num, nb_sectors, pnum);
+    return bdrv_is_allocated(bs->file, sector_num, nb_sectors, pnum);
 }
 
 static int coroutine_fn raw_co_write_zeroes(BlockDriverState *bs,

@@ -2587,7 +2587,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     if (flags & BDRV_REQ_COPY_ON_READ) {
         int pnum;
 
-        ret = bdrv_co_is_allocated(bs, sector_num, nb_sectors, &pnum);
+        ret = bdrv_is_allocated(bs, sector_num, nb_sectors, &pnum);
         if (ret < 0) {
             goto out;
         }
@@ -3061,8 +3061,9 @@ typedef struct BdrvCoIsAllocatedData {
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
  * beyond the end of the disk image it will be clamped.
  */
-int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                                      int nb_sectors, int *pnum)
+static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
+                                             int64_t sector_num,
+                                             int nb_sectors, int *pnum)
 {
     int64_t n;
 
@@ -3112,10 +3113,15 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         .done = false,
     };
 
-    co = qemu_coroutine_create(bdrv_is_allocated_co_entry);
-    qemu_coroutine_enter(co, &data);
-    while (!data.done) {
-        qemu_aio_wait();
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_is_allocated_co_entry(&data);
+    } else {
+        co = qemu_coroutine_create(bdrv_is_allocated_co_entry);
+        qemu_coroutine_enter(co, &data);
+        while (!data.done) {
+            qemu_aio_wait();
+        }
     }
     return data.ret;
 }
@@ -3143,8 +3149,8 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
     intermediate = top;
     while (intermediate && intermediate != base) {
         int pnum_inter;
-        ret = bdrv_co_is_allocated(intermediate, sector_num, nb_sectors,
-                                   &pnum_inter);
+        ret = bdrv_is_allocated(intermediate, sector_num, nb_sectors,
+                                &pnum_inter);
         if (ret < 0) {
             return ret;
         } else if (ret) {

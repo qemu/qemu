@@ -119,8 +119,8 @@ wait:
             break;
         }
 
-        ret = bdrv_co_is_allocated(bs, sector_num,
-                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        ret = bdrv_is_allocated(bs, sector_num,
+                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
             copy = false;
