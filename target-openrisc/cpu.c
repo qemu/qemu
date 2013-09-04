@@ -47,7 +47,7 @@ static void openrisc_cpu_reset(CPUState *s)
     memset(&cpu->env, 0, offsetof(CPUOpenRISCState, irq));
 #endif
 
-    tlb_flush(&cpu->env, 1);
+    tlb_flush(s, 1);
     /*tb_flush(&cpu->env);    FIXME: Do we need it?  */
 
     cpu->env.pc = 0x100;

@@ -128,7 +128,7 @@ static void lm32_cpu_reset(CPUState *s)
     memset(env, 0, offsetof(CPULM32State, eba));
 
     lm32_cpu_init_cfg_reg(cpu);
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 }
 
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)

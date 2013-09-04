@@ -64,7 +64,7 @@ void helper_call_pal(CPUAlphaState *env, uint64_t pc, uint64_t entry_ofs)
 
 void helper_tbia(CPUAlphaState *env)
 {
-    tlb_flush(env, 1);
+    tlb_flush(CPU(alpha_env_get_cpu(env)), 1);
 }
 
 void helper_tbis(CPUAlphaState *env, uint64_t p)

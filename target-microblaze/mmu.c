@@ -219,6 +219,7 @@ uint32_t mmu_read(CPUMBState *env, uint32_t rn)
 
 void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
     unsigned int i;
     D(qemu_log("%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]));
 
@@ -252,7 +253,7 @@ void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
             /* Changes to the zone protection reg flush the QEMU TLB.
                Fortunately, these are very uncommon.  */
             if (v != env->mmu.regs[rn]) {
-                tlb_flush(env, 1);
+                tlb_flush(CPU(cpu), 1);
             }
             env->mmu.regs[rn] = v;
             break;

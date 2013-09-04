@@ -325,7 +325,7 @@ static int cpu_post_load(void *opaque, int version_id)
     for (i = 0; i < DR7_MAX_BP; i++) {
         hw_breakpoint_insert(env, i);
     }
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     return 0;
 }

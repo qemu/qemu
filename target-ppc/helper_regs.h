@@ -83,7 +83,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
         /* Flush all tlb when changing translation mode */
-        tlb_flush(env, 1);
+        tlb_flush(cs, 1);
         excp = POWERPC_EXCP_NONE;
         cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
     }

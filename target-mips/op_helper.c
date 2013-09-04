@@ -1787,8 +1787,10 @@ target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
 /* TLB management */
 static void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+
     /* Flush qemu's TLB and discard all shadowed entries.  */
-    tlb_flush (env, flush_global);
+    tlb_flush(CPU(cpu), flush_global);
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
 

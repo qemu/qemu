@@ -121,7 +121,7 @@ static void uc32_cpu_initfn(Object *obj)
     env->regs[31] = 0x03000000;
 #endif
 
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     if (tcg_enabled() && !inited) {
         inited = true;

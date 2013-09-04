@@ -8435,7 +8435,7 @@ static void ppc_cpu_reset(CPUState *s)
 #endif /* TARGET_PPC64 */
 
     /* Flush all TLBs */
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 }
 
 static void ppc_cpu_initfn(Object *obj)

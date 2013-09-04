@@ -810,6 +810,7 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
 #if !defined(CONFIG_USER_ONLY)
 void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int i;
     uint64_t src = a2;
 
@@ -824,11 +825,12 @@ void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int i;
     uint64_t src = a2;
 
@@ -842,7 +844,7 @@ void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(stctg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
@@ -935,6 +937,7 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 /* compare and swap and purge */
 uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint32_t cc;
     uint32_t o1 = env->regs[r1];
     uint64_t a2 = r2 & ~3ULL;
@@ -944,7 +947,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
         cpu_stl_data(env, a2, env->regs[(r1 + 1) & 15]);
         if (r2 & 0x3) {
             /* flush TLB / ALB */
-            tlb_flush(env, 1);
+            tlb_flush(CPU(cpu), 1);
         }
         cc = 0;
     } else {
@@ -1040,7 +1043,9 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 /* flush local tlb */
 void HELPER(ptlb)(CPUS390XState *env)
 {
-    tlb_flush(env, 1);
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), 1);
 }
 
 /* store using real address */

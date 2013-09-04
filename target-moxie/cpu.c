@@ -45,7 +45,7 @@ static void moxie_cpu_reset(CPUState *s)
     memset(env, 0, sizeof(CPUMoxieState));
     env->pc = 0x1000;
 
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 }
 
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)

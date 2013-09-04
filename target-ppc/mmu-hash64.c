@@ -99,6 +99,7 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 
 void helper_slbia(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int n, do_invalidate;
 
     do_invalidate = 0;
@@ -116,12 +117,13 @@ void helper_slbia(CPUPPCState *env)
         }
     }
     if (do_invalidate) {
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 
 void helper_slbie(CPUPPCState *env, target_ulong addr)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_slb_t *slb;
 
     slb = slb_lookup(env, addr);
@@ -136,7 +138,7 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 

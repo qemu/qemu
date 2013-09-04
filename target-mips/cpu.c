@@ -84,7 +84,7 @@ static void mips_cpu_reset(CPUState *s)
     mcc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUMIPSState, mvp));
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 
     cpu_state_reset(env);
 }

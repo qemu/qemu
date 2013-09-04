@@ -2412,7 +2412,7 @@ static void x86_cpu_reset(CPUState *s)
 
     memset(env, 0, offsetof(CPUX86State, pat));
 
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 
     env->old_exception = -1;
 

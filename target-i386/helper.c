@@ -385,22 +385,25 @@ void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 
     a20_state = (a20_state != 0);
     if (a20_state != ((env->a20_mask >> 20) & 1)) {
+        CPUState *cs = CPU(cpu);
+
 #if defined(DEBUG_MMU)
         printf("A20 update: a20=%d\n", a20_state);
 #endif
         /* if the cpu is currently executing code, we must unlink it and
            all the potentially executing TB */
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
-        tlb_flush(env, 1);
+        tlb_flush(cs, 1);
         env->a20_mask = ~(1 << 20) | (a20_state << 20);
     }
 }
 
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int pe_state;
 
 #if defined(DEBUG_MMU)
@@ -408,7 +411,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 #endif
     if ((new_cr0 & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK)) !=
         (env->cr[0] & (CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK))) {
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 
 #ifdef TARGET_X86_64
@@ -444,24 +447,28 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
    the PDPT */
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     env->cr[3] = new_cr3;
     if (env->cr[0] & CR0_PG_MASK) {
 #if defined(DEBUG_MMU)
         printf("CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
 #endif
-        tlb_flush(env, 0);
+        tlb_flush(CPU(cpu), 0);
     }
 }
 
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
 #if defined(DEBUG_MMU)
     printf("CR4 update: CR4=%08x\n", (uint32_t)env->cr[4]);
 #endif
     if ((new_cr4 ^ env->cr[4]) &
         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
          CR4_SMEP_MASK | CR4_SMAP_MASK)) {
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     /* SSE handling */
     if (!(env->features[FEAT_1_EDX] & CPUID_SSE)) {

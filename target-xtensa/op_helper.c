@@ -487,10 +487,12 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
         env->sregs[RASID] = v;
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 

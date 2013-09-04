@@ -258,7 +258,7 @@ static void alpha_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(env);
-    tlb_flush(env, 1);
+    tlb_flush(cs, 1);
 
     alpha_translate_init();
 

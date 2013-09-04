@@ -1834,14 +1834,12 @@ static void tcg_commit(MemoryListener *listener)
        reset the modified entries */
     /* XXX: slow ! */
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
         /* FIXME: Disentangle the cpu.h circular files deps so we can
            directly get the right CPU from listener.  */
         if (cpu->tcg_as_listener != listener) {
             continue;
         }
-        tlb_flush(env, 1);
+        tlb_flush(cpu, 1);
     }
 }
 

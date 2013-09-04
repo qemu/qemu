@@ -34,7 +34,7 @@ static void sparc_cpu_reset(CPUState *s)
     scc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUSPARCState, version));
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
     env->cwp = 0;
 #ifndef TARGET_SPARC64
     env->wim = 1;

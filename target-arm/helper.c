@@ -303,17 +303,21 @@ void init_cpreg_list(ARMCPU *cpu)
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     env->cp15.c3 = value;
-    tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
+    tlb_flush(CPU(cpu), 1); /* Flush TLB as domain not tracked in TLB */
 }
 
 static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (env->cp15.c13_fcse != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
         env->cp15.c13_fcse = value;
     }
 }
@@ -321,12 +325,14 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
          * For PMSA it is purely a process ID and no action is needed.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     env->cp15.c13_context = value;
 }
@@ -335,7 +341,9 @@ static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate all (TLBIALL) */
-    tlb_flush(env, 1);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), 1);
 }
 
 static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -351,7 +359,9 @@ static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate by ASID (TLBIASID) */
-    tlb_flush(env, value == 0);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), value == 0);
 }
 
 static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1352,11 +1362,13 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
          * via the TTBCR.A1 bit, so do a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     vmsa_ttbcr_raw_write(env, ri, value);
 }
@@ -1371,8 +1383,10 @@ static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
     env->cp15.c2_control = value;
 }
 
@@ -1383,7 +1397,9 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * must flush the TLB.
      */
     if (cpreg_field_is_64bit(ri)) {
-        tlb_flush(env, 1);
+        ARMCPU *cpu = arm_env_get_cpu(env);
+
+        tlb_flush(CPU(cpu), 1);
     }
     raw_write(env, ri, value);
 }
@@ -1708,8 +1724,9 @@ static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
     /* Invalidate by ASID (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int asid = extract64(value, 48, 16);
-    tlb_flush(env, asid == 0);
+    tlb_flush(CPU(cpu), asid == 0);
 }
 
 static const ARMCPRegInfo v8_cp_reginfo[] = {
@@ -1835,10 +1852,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     env->cp15.c1_sys = value;
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)

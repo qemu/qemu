@@ -585,7 +585,7 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->v = 0;
     }
 
-    tlb_flush(s, 1);
+    tlb_flush(CPU(sh_env_get_cpu(s)), 1);
 }
 
 uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,
