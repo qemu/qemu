@@ -1128,6 +1128,9 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     } else {
         data = f.fe.fe_logical;
         hole = f.fe.fe_logical + f.fe.fe_length;
+        if (f.fe.fe_flags & FIEMAP_EXTENT_UNWRITTEN) {
+            ret |= BDRV_BLOCK_ZERO;
+        }
     }
 
 #elif defined SEEK_HOLE && defined SEEK_DATA
