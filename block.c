@@ -3094,7 +3094,11 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = nb_sectors;
-        return BDRV_BLOCK_DATA;
+        ret = BDRV_BLOCK_DATA;
+        if (bs->drv->protocol_name) {
+            ret |= BDRV_BLOCK_OFFSET_VALID | (sector_num * BDRV_SECTOR_SIZE);
+        }
+        return ret;
     }
 
     ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
