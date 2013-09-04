@@ -212,7 +212,11 @@ static int coroutine_fn cow_read(BlockDriverState *bs, int64_t sector_num,
     int ret, n;
 
     while (nb_sectors > 0) {
-        if (cow_co_is_allocated(bs, sector_num, nb_sectors, &n)) {
+        ret = cow_co_is_allocated(bs, sector_num, nb_sectors, &n);
+        if (ret < 0) {
+            return ret;
+        }
+        if (ret) {
             ret = bdrv_pread(bs->file,
                         s->cow_sectors_offset + sector_num * 512,
                         buf, n * 512);

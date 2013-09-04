@@ -1830,6 +1830,10 @@ static int alloc_f(BlockDriverState *bs, int argc, char **argv)
     sector_num = offset >> 9;
     while (remaining) {
         ret = bdrv_is_allocated(bs, sector_num, remaining, &num);
+        if (ret < 0) {
+            printf("is_allocated failed: %s\n", strerror(-ret));
+            return 0;
+        }
         sector_num += num;
         remaining -= num;
         if (ret) {

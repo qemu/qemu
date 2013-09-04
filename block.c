@@ -1857,8 +1857,11 @@ int bdrv_commit(BlockDriverState *bs)
     buf = g_malloc(COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
 
     for (sector = 0; sector < total_sectors; sector += n) {
-        if (bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n)) {
-
+        ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
+        if (ret < 0) {
+            goto ro_cleanup;
+        }
+        if (ret) {
             if (bdrv_read(bs, sector, buf, n) != 0) {
                 ret = -EIO;
                 goto ro_cleanup;

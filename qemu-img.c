@@ -1508,8 +1508,15 @@ static int img_convert(int argc, char **argv)
                    are present in both the output's and input's base images (no
                    need to copy them). */
                 if (out_baseimg) {
-                    if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
-                                           n, &n1)) {
+                    ret = bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
+                                            n, &n1);
+                    if (ret < 0) {
+                        error_report("error while reading metadata for sector "
+                                     "%" PRId64 ": %s",
+                                     sector_num - bs_offset, strerror(-ret));
+                        goto out;
+                    }
+                    if (!ret) {
                         sector_num += n1;
                         continue;
                     }
@@ -2099,6 +2106,11 @@ static int img_rebase(int argc, char **argv)
 
             /* If the cluster is allocated, we don't need to take action */
             ret = bdrv_is_allocated(bs, sector, n, &n);
+            if (ret < 0) {
+                error_report("error while reading image metadata: %s",
+                             strerror(-ret));
+                goto out;
+            }
             if (ret) {
                 continue;
             }
