@@ -338,10 +338,19 @@ static int init_event_facility(S390SCLPDevice *sdev)
     return 0;
 }
 
+static void reset_event_facility(DeviceState *dev)
+{
+    S390SCLPDevice *sdev = SCLP_S390_DEVICE(dev);
+
+    sdev->ef->receive_mask = 0;
+}
+
 static void init_event_facility_class(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     S390SCLPDeviceClass *k = SCLP_S390_DEVICE_CLASS(klass);
 
+    dc->reset = reset_event_facility;
     k->init = init_event_facility;
 }
 

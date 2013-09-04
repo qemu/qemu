@@ -105,11 +105,19 @@ static int quiesce_init(SCLPEvent *event)
     return 0;
 }
 
+static void quiesce_reset(DeviceState *dev)
+{
+   SCLPEvent *event = SCLP_EVENT(dev);
+
+   event->event_pending = false;
+}
+
 static void quiesce_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCLPEventClass *k = SCLP_EVENT_CLASS(klass);
 
+    dc->reset = quiesce_reset;
     dc->vmsd = &vmstate_sclpquiesce;
     k->init = quiesce_init;
 

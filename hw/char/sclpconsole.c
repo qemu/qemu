@@ -228,10 +228,6 @@ static int console_init(SCLPEvent *event)
         return -1;
     }
     console_available = true;
-    scon->iov_sclp = 0;
-    scon->iov_bs = 0;
-    scon->iov_data_len = 0;
-    scon->iov_sclp_rest = 0;
     event->event_type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     if (scon->chr) {
         qemu_chr_add_handlers(scon->chr, chr_can_read,
@@ -241,6 +237,18 @@ static int console_init(SCLPEvent *event)
                                                NULL, 1);
 
     return 0;
+}
+
+static void console_reset(DeviceState *dev)
+{
+   SCLPEvent *event = SCLP_EVENT(dev);
+   SCLPConsole *scon = DO_UPCAST(SCLPConsole, event, event);
+
+   event->event_pending = false;
+   scon->iov_sclp = 0;
+   scon->iov_bs = 0;
+   scon->iov_data_len = 0;
+   scon->iov_sclp_rest = 0;
 }
 
 static int console_exit(SCLPEvent *event)
@@ -259,6 +267,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     dc->props = console_properties;
+    dc->reset = console_reset;
     dc->vmsd = &vmstate_sclpconsole;
     ec->init = console_init;
     ec->exit = console_exit;
