@@ -160,9 +160,14 @@ static const int gamepad_mapping[] = {
     [0 ... Q_KEY_CODE_MAX] = -1,
 
     [Q_KEY_CODE_UP]    = GAMEPAD_DPAD_UP,
+    [Q_KEY_CODE_KP_8]  = GAMEPAD_DPAD_UP,
     [Q_KEY_CODE_DOWN]  = GAMEPAD_DPAD_DOWN,
+    [Q_KEY_CODE_KP_2]  = GAMEPAD_DPAD_DOWN,
     [Q_KEY_CODE_LEFT]  = GAMEPAD_DPAD_LEFT,
+    [Q_KEY_CODE_KP_4]  = GAMEPAD_DPAD_LEFT,
     [Q_KEY_CODE_RIGHT] = GAMEPAD_DPAD_RIGHT,
+    [Q_KEY_CODE_KP_6]  = GAMEPAD_DPAD_RIGHT,
+
     [Q_KEY_CODE_RET]   = GAMEPAD_START,
     [Q_KEY_CODE_BACKSPACE] = GAMEPAD_BACK,
 
@@ -190,9 +195,9 @@ static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
         s->in_state.bAnalogButtons[button] = up?0:0xff;
         break;
     case GAMEPAD_DPAD_UP ... GAMEPAD_RIGHT_THUMB:
-        mask = ((!up) << (button-GAMEPAD_DPAD_UP));
+        mask = (1 << (button-GAMEPAD_DPAD_UP));
         s->in_state.wButtons &= ~mask;
-        s->in_state.wButtons |= mask;
+        if (!up) s->in_state.wButtons |= mask;
         break;
     default:
         break;
