@@ -239,12 +239,18 @@ do
                 echo -n " [failed, exit status $sts]"
                 err=true
             fi
-            if [ ! -f $seq.out ]
+
+            reference=$seq.out
+            if (echo $QEMU_IO_OPTIONS | grep -s -- '--nocache' > /dev/null); then
+                [ -f $seq.out.nocache ] && reference=$seq.out.nocache
+            fi
+
+            if [ ! -f $reference ]
             then
                 echo " - no qualified output"
                 err=true
             else
-                if diff -w $seq.out $tmp.out >/dev/null 2>&1
+                if diff -w $reference $tmp.out >/dev/null 2>&1
                 then
                     echo ""
                     if $err
@@ -256,7 +262,7 @@ do
                 else
                     echo " - output mismatch (see $seq.out.bad)"
                     mv $tmp.out $seq.out.bad
-                    $diff -w $seq.out $seq.out.bad
+                    $diff -w $reference $seq.out.bad
                     err=true
                 fi
             fi
