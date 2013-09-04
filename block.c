@@ -3093,7 +3093,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = nb_sectors;
-        return 1;
+        return BDRV_BLOCK_DATA;
     }
 
     return bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
@@ -3143,7 +3143,13 @@ int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
                                    int nb_sectors, int *pnum)
 {
-    return bdrv_get_block_status(bs, sector_num, nb_sectors, pnum);
+    int64_t ret = bdrv_get_block_status(bs, sector_num, nb_sectors, pnum);
+    if (ret < 0) {
+        return ret;
+    }
+    return
+        (ret & BDRV_BLOCK_DATA) ||
+        ((ret & BDRV_BLOCK_ZERO) && !bdrv_has_zero_init(bs));
 }
 
 /*

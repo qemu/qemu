@@ -81,6 +81,32 @@ typedef struct BlockDevOps {
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
+/* BDRV_BLOCK_DATA: data is read from bs->file or another file
+ * BDRV_BLOCK_ZERO: sectors read as zero
+ * BDRV_BLOCK_OFFSET_VALID: sector stored in bs->file as raw data
+ *
+ * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 represent the offset in
+ * bs->file where sector data can be read from as raw data.
+ *
+ * DATA == 0 && ZERO == 0 means that data is read from backing_hd if present.
+ *
+ * DATA ZERO OFFSET_VALID
+ *  t    t        t       sectors read as zero, bs->file is zero at offset
+ *  t    f        t       sectors read as valid from bs->file at offset
+ *  f    t        t       sectors preallocated, read as zero, bs->file not
+ *                        necessarily zero at offset
+ *  f    f        t       sectors preallocated but read from backing_hd,
+ *                        bs->file contains garbage at offset
+ *  t    t        f       sectors preallocated, read as zero, unknown offset
+ *  t    f        f       sectors read from unknown file or offset
+ *  f    t        f       not allocated or unknown offset, read as zero
+ *  f    f        f       not allocated or unknown offset, read from backing_hd
+ */
+#define BDRV_BLOCK_DATA         1
+#define BDRV_BLOCK_ZERO         2
+#define BDRV_BLOCK_OFFSET_VALID 4
+#define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
+
 typedef enum {
     BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
 } BlockErrorAction;
