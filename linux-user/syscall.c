@@ -66,6 +66,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/wireless.h>
 #include <linux/icmp.h>
 #include "qemu-common.h"
+#include "qemu/sockets.h"
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
