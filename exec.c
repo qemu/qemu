@@ -1810,7 +1810,9 @@ static void memory_map_init(void)
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
-    memory_listener_register(&tcg_memory_listener, &address_space_memory);
+    if (tcg_enabled()) {
+        memory_listener_register(&tcg_memory_listener, &address_space_memory);
+    }
 }
 
 MemoryRegion *get_system_memory(void)
