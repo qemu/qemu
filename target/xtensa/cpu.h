@@ -269,6 +269,8 @@ typedef enum {
     INTTYPE_MAX
 } interrupt_type;
 
+struct CPUXtensaState;
+
 typedef struct xtensa_tlb_entry {
     uint32_t vaddr;
     uint32_t paddr;
@@ -297,6 +299,11 @@ typedef struct XtensaGdbRegmap {
     /* PC + a + ar + sr + ur */
     XtensaGdbReg reg[1 + 16 + 64 + 256 + 256];
 } XtensaGdbRegmap;
+
+typedef struct XtensaCcompareTimer {
+    struct CPUXtensaState *env;
+    QEMUTimer *timer;
+} XtensaCcompareTimer;
 
 struct XtensaConfig {
     const char *name;
@@ -369,9 +376,10 @@ typedef struct CPUXtensaState {
     bool runstall;
     int pending_irq_level; /* level of last raised IRQ */
     void **irq_inputs;
-    QEMUTimer *ccompare_timer;
-    uint32_t wake_ccount;
-    int64_t halt_clock;
+    XtensaCcompareTimer ccompare[MAX_NCCOMPARE];
+    uint64_t time_base;
+    uint64_t ccount_time;
+    uint32_t ccount_base;
 
     int exception_taken;
     unsigned static_vectors;
@@ -439,9 +447,7 @@ void xtensa_register_core(XtensaConfigList *node);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUXtensaState *env);
 void *xtensa_get_extint(CPUXtensaState *env, unsigned extint);
-void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d);
 void xtensa_timer_irq(CPUXtensaState *env, uint32_t id, uint32_t active);
-void xtensa_rearm_ccompare_timer(CPUXtensaState *env);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void xtensa_sync_window_from_phys(CPUXtensaState *env);

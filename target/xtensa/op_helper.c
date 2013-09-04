@@ -398,22 +398,39 @@ void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
     }
 
     cpu = CPU(xtensa_env_get_cpu(env));
-    env->halt_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     cpu->halted = 1;
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
-        xtensa_rearm_ccompare_timer(env);
-    }
     HELPER(exception)(env, EXCP_HLT);
 }
 
-void HELPER(timer_irq)(CPUXtensaState *env, uint32_t id, uint32_t active)
+void HELPER(update_ccount)(CPUXtensaState *env)
 {
-    xtensa_timer_irq(env, id, active);
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    env->ccount_time = now;
+    env->sregs[CCOUNT] = env->ccount_base +
+        (uint32_t)((now - env->time_base) *
+                   env->config->clock_freq_khz / 1000000);
 }
 
-void HELPER(advance_ccount)(CPUXtensaState *env, uint32_t d)
+void HELPER(wsr_ccount)(CPUXtensaState *env, uint32_t v)
 {
-    xtensa_advance_ccount(env, d);
+    int i;
+
+    HELPER(update_ccount)(env);
+    env->ccount_base += v - env->sregs[CCOUNT];
+    for (i = 0; i < env->config->nccompare; ++i) {
+        HELPER(update_ccompare)(env, i);
+    }
+}
+
+void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
+{
+    uint64_t dcc;
+
+    HELPER(update_ccount)(env);
+    dcc = (uint64_t)(env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] - 1) + 1;
+    timer_mod(env->ccompare[i].timer,
+              env->ccount_time + (dcc * 1000000) / env->config->clock_freq_khz);
 }
 
 void HELPER(check_interrupts)(CPUXtensaState *env)
