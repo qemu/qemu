@@ -42,6 +42,7 @@ typedef struct {
 
 struct VirtIOBlockDataPlane {
     bool started;
+    bool starting;
     bool stopping;
     QEMUBH *start_bh;
     QemuThread thread;
@@ -451,8 +452,15 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         return;
     }
 
+    if (s->starting) {
+        return;
+    }
+
+    s->starting = true;
+
     vq = virtio_get_queue(s->vdev, 0);
     if (!vring_setup(&s->vring, s->vdev, 0)) {
+        s->starting = false;
         return;
     }
 
@@ -482,6 +490,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     s->io_notifier = *ioq_get_notifier(&s->ioqueue);
     aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
 
+    s->starting = false;
     s->started = true;
     trace_virtio_blk_data_plane_start(s);
 
