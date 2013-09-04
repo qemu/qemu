@@ -86,6 +86,7 @@ static void sdl_update(DisplayChangeListener *dcl,
 static void do_sdl_resize(int width, int height, int bpp)
 {
     int flags;
+    SDL_Surface *tmp_screen;
 
     //    printf("resizing to %d %d\n", w, h);
 
@@ -98,12 +99,26 @@ static void do_sdl_resize(int width, int height, int bpp)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
-    real_screen = SDL_SetVideoMode(width, height, bpp, flags);
+    tmp_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
-	fprintf(stderr, "Could not open SDL display (%dx%dx%d): %s\n", width, 
-		height, bpp, SDL_GetError());
-        exit(1);
+        if (!tmp_screen) {
+            fprintf(stderr, "Could not open SDL display (%dx%dx%d): %s\n",
+                    width, height, bpp, SDL_GetError());
+            exit(1);
+        }
+    } else {
+        /*
+         * Revert to the previous video mode if the change of resizing or
+         * resolution failed.
+         */
+        if (!tmp_screen) {
+            fprintf(stderr, "Failed to set SDL display (%dx%dx%d): %s\n",
+                    width, height, bpp, SDL_GetError());
+            return;
+        }
     }
+
+    real_screen = tmp_screen;
 }
 
 static void sdl_switch(DisplayChangeListener *dcl,
