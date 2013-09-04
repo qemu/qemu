@@ -338,8 +338,8 @@ static void coroutine_fn mirror_run(void *opaque)
         base = s->mode == MIRROR_SYNC_MODE_FULL ? NULL : bs->backing_hd;
         for (sector_num = 0; sector_num < end; ) {
             int64_t next = (sector_num | (sectors_per_chunk - 1)) + 1;
-            ret = bdrv_co_is_allocated_above(bs, base,
-                                             sector_num, next - sector_num, &n);
+            ret = bdrv_is_allocated_above(bs, base,
+                                          sector_num, next - sector_num, &n);
 
             if (ret < 0) {
                 goto immediate_exit;

@@ -3144,10 +3144,10 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
  *  allocated/unallocated state.
  *
  */
-int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
-                                            BlockDriverState *base,
-                                            int64_t sector_num,
-                                            int nb_sectors, int *pnum)
+int bdrv_is_allocated_above(BlockDriverState *top,
+                            BlockDriverState *base,
+                            int64_t sector_num,
+                            int nb_sectors, int *pnum)
 {
     BlockDriverState *intermediate;
     int ret, n = nb_sectors;
@@ -3181,44 +3181,6 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
 
     *pnum = n;
     return 0;
-}
-
-/* Coroutine wrapper for bdrv_is_allocated_above() */
-static void coroutine_fn bdrv_is_allocated_above_co_entry(void *opaque)
-{
-    BdrvCoIsAllocatedData *data = opaque;
-    BlockDriverState *top = data->bs;
-    BlockDriverState *base = data->base;
-
-    data->ret = bdrv_co_is_allocated_above(top, base, data->sector_num,
-                                           data->nb_sectors, data->pnum);
-    data->done = true;
-}
-
-/*
- * Synchronous wrapper around bdrv_co_is_allocated_above().
- *
- * See bdrv_co_is_allocated_above() for details.
- */
-int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
-                            int64_t sector_num, int nb_sectors, int *pnum)
-{
-    Coroutine *co;
-    BdrvCoIsAllocatedData data = {
-        .bs = top,
-        .base = base,
-        .sector_num = sector_num,
-        .nb_sectors = nb_sectors,
-        .pnum = pnum,
-        .done = false,
-    };
-
-    co = qemu_coroutine_create(bdrv_is_allocated_above_co_entry);
-    qemu_coroutine_enter(co, &data);
-    while (!data.done) {
-        qemu_aio_wait();
-    }
-    return data.ret;
 }
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs)

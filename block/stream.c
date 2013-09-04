@@ -127,8 +127,8 @@ wait:
         } else {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
-            ret = bdrv_co_is_allocated_above(bs->backing_hd, base,
-                                             sector_num, n, &n);
+            ret = bdrv_is_allocated_above(bs->backing_hd, base,
+                                          sector_num, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
