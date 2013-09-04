@@ -1537,14 +1537,7 @@ static int img_convert(int argc, char **argv)
                should add a specific call to have the info to go faster */
             buf1 = buf;
             while (n > 0) {
-                /* If the output image is being created as a copy on write image,
-                   copy all sectors even the ones containing only NUL bytes,
-                   because they may differ from the sectors in the base image.
-
-                   If the output is to a host device, we also write out
-                   sectors that are entirely 0, since whatever data was
-                   already there is garbage, not 0s. */
-                if (!has_zero_init || out_baseimg ||
+                if (!has_zero_init ||
                     is_allocated_sectors_min(buf1, n, &n1, min_sparse)) {
                     ret = bdrv_write(out_bs, sector_num, buf1, n1);
                     if (ret < 0) {
