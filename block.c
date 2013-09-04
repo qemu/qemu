@@ -3065,9 +3065,15 @@ static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
                                              int64_t sector_num,
                                              int nb_sectors, int *pnum)
 {
+    int64_t length;
     int64_t n;
 
-    if (sector_num >= bs->total_sectors) {
+    length = bdrv_getlength(bs);
+    if (length < 0) {
+        return length;
+    }
+
+    if (sector_num >= (length >> BDRV_SECTOR_BITS)) {
         *pnum = 0;
         return 0;
     }
