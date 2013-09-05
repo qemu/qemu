@@ -1044,31 +1044,26 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     }
 }
 
-static inline void tcg_out_alu(TCGContext *s, uint64_t opc_a1, TCGArg ret,
-                               TCGArg arg1, int const_arg1,
-                               TCGArg arg2, int const_arg2)
+static void tcg_out_alu(TCGContext *s, uint64_t opc_a1, TCGReg ret, TCGArg arg1,
+                        int const_arg1, TCGArg arg2, int const_arg2)
 {
-    uint64_t opc1, opc2;
+    uint64_t opc1 = 0, opc2 = 0;
 
     if (const_arg1 && arg1 != 0) {
         opc1 = tcg_opc_a5(TCG_REG_P0, OPC_ADDL_A5,
                           TCG_REG_R2, arg1, TCG_REG_R0);
         arg1 = TCG_REG_R2;
-    } else {
-        opc1 = INSN_NOP_M;
     }
 
     if (const_arg2 && arg2 != 0) {
         opc2 = tcg_opc_a5(TCG_REG_P0, OPC_ADDL_A5,
                           TCG_REG_R3, arg2, TCG_REG_R0);
         arg2 = TCG_REG_R3;
-    } else {
-        opc2 = INSN_NOP_I;
     }
 
-    tcg_out_bundle(s, mII,
-                   opc1,
-                   opc2,
+    tcg_out_bundle(s, (opc1 || opc2 ? mII : miI),
+                   opc1 ? opc1 : INSN_NOP_M,
+                   opc2 ? opc2 : INSN_NOP_I,
                    tcg_opc_a1(TCG_REG_P0, opc_a1, ret, arg1, arg2));
 }
 
