@@ -146,6 +146,19 @@ _check_test_img
 $QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
 
 echo
+echo "=== Testing zero expansion on shared L2 table ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+
+echo
 echo "=== Testing zero expansion on backed image ==="
 echo
 IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
@@ -171,6 +184,21 @@ $QEMU_IO -c "read -P 0x42 0 128k" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
 $QEMU_IO -c "read -P 0 0 64k" -c "read -P 0x2a 64k 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing zero expansion on backed image with shared L2 table ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 128k" "$TEST_IMG.base" | _filter_qemu_io
+IMGOPTS="compat=1.1,backing_file=$TEST_IMG.base" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"
