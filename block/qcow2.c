@@ -350,7 +350,8 @@ static QemuOptsList qcow2_runtime_opts = {
     },
 };
 
-static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
+static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, ret = 0;
@@ -1060,7 +1061,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
               qbool_from_int(s->use_lazy_refcounts));
 
     memset(s, 0, sizeof(BDRVQcowState));
-    qcow2_open(bs, options, flags);
+    qcow2_open(bs, options, flags, NULL);
 
     QDECREF(options);
 

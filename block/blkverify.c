@@ -116,7 +116,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int blkverify_open(BlockDriverState *bs, QDict *options, int flags)
+static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp)
 {
     BDRVBlkverifyState *s = bs->opaque;
     QemuOpts *opts;

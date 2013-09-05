@@ -80,8 +80,10 @@ struct BlockDriver {
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
-    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp);
+    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,

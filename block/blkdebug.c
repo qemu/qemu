@@ -350,7 +350,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags)
+static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;

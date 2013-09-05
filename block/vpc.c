@@ -155,7 +155,8 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int vpc_open(BlockDriverState *bs, QDict *options, int flags)
+static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVVPCState *s = bs->opaque;
     int i;

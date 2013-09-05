@@ -170,7 +170,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
     if (bs->file) {
         drv->bdrv_close(bs);
         ret = bdrv_snapshot_goto(bs->file, snapshot_id);
-        open_ret = drv->bdrv_open(bs, NULL, bs->open_flags);
+        open_ret = drv->bdrv_open(bs, NULL, bs->open_flags, NULL);
         if (open_ret < 0) {
             bdrv_unref(bs->file);
             bs->drv = NULL;

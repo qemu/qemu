@@ -806,7 +806,8 @@ exit:
     return ret;
 }
 
-static int vmdk_open(BlockDriverState *bs, QDict *options, int flags)
+static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;

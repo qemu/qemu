@@ -373,7 +373,8 @@ static void bdrv_qed_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
-static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags)
+static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader le_header;
@@ -1547,7 +1548,7 @@ static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
 
     bdrv_qed_close(bs);
     memset(s, 0, sizeof(BDRVQEDState));
-    bdrv_qed_open(bs, NULL, bs->open_flags);
+    bdrv_qed_open(bs, NULL, bs->open_flags, NULL);
 }
 
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,

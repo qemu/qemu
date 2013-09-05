@@ -58,7 +58,8 @@ static int cow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int cow_open(BlockDriverState *bs, QDict *options, int flags)
+static int cow_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVCowState *s = bs->opaque;
     struct cow_header_v2 cow_header;

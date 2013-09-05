@@ -446,7 +446,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags)
+static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
     char pool[RBD_MAX_POOL_NAME_SIZE];

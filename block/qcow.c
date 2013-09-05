@@ -92,7 +92,8 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int qcow_open(BlockDriverState *bs, QDict *options, int flags)
+static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, shift, ret;

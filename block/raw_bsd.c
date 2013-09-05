@@ -135,7 +135,8 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
     return bdrv_create_file(filename, options);
 }
 
-static int raw_open(BlockDriverState *bs, QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     bs->sg = bs->file->sg;
     return 0;

@@ -395,7 +395,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int curl_open(BlockDriverState *bs, QDict *options, int flags)
+static int curl_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVCURLState *s = bs->opaque;
     CURLState *state = NULL;

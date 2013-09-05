@@ -335,7 +335,8 @@ fail:
     return ret;
 }
 
-static int raw_open(BlockDriverState *bs, QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1331,7 +1332,8 @@ static int check_hdev_writable(BDRVRawState *s)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
+static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1565,7 +1567,8 @@ static BlockDriver bdrv_host_device = {
 };
 
 #ifdef __linux__
-static int floppy_open(BlockDriverState *bs, QDict *options, int flags)
+static int floppy_open(BlockDriverState *bs, QDict *options, int flags,
+                       Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1686,7 +1689,8 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_eject         = floppy_eject,
 };
 
-static int cdrom_open(BlockDriverState *bs, QDict *options, int flags)
+static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
