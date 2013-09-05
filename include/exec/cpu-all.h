@@ -279,9 +279,7 @@ struct RAMBlock {
     uint32_t flags;
     /* Protected by iothread lock.  */
     char idstr[256];
-    /* Reads can take either the iothread or the ramlist lock.
-     * Writes must take both locks.
-     */
+    /* RCU-enabled, writes protected by the ramlist lock */
     QLIST_ENTRY(RAMBlock) next;
     int fd;
 };
@@ -298,7 +296,7 @@ typedef struct RAMList {
     /* Protected by the iothread lock.  */
     unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
-    /* Protected by the ramlist lock.  */
+    /* RCU-enabled, writes protected by the ramlist lock. */
     QLIST_HEAD(, RAMBlock) blocks;
     uint32_t version;
 } RAMList;
