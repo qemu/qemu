@@ -277,6 +277,7 @@ struct RAMBlock {
     ram_addr_t max_length;
     void (*resized)(const char*, uint64_t length, void *host);
     uint32_t flags;
+    /* Protected by iothread lock.  */
     char idstr[256];
     /* Reads can take either the iothread or the ramlist lock.
      * Writes must take both locks.

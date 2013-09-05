@@ -487,7 +487,6 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 }
 
 
-/* Needs iothread lock! */
 /* Fix me: there are too many global variables used in migration process. */
 static int64_t start_time;
 static int64_t bytes_xfer_prev;
@@ -500,6 +499,7 @@ static void migration_bitmap_sync_init(void)
     num_dirty_pages_period = 0;
 }
 
+/* Called with iothread lock held, to protect ram_list.dirty_memory[] */
 static void migration_bitmap_sync(void)
 {
     RAMBlock *block;
@@ -688,9 +688,9 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
             }
         }
     }
+
     last_seen_block = block;
     last_offset = offset;
-
     return bytes_sent;
 }
 
@@ -816,6 +816,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         acct_clear();
     }
 
+    /* iothread lock needed for ram_list.dirty_memory[] */
     qemu_mutex_lock_iothread();
     qemu_mutex_lock_ramlist();
     bytes_transferred = 0;
@@ -928,6 +929,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     return total_sent;
 }
 
+/* Called with iothread lock */
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
     qemu_mutex_lock_ramlist();
@@ -1117,7 +1119,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-
             ch = qemu_get_byte(f);
             ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
             break;
@@ -1128,7 +1129,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
         case RAM_SAVE_FLAG_XBZRLE:
@@ -1138,7 +1138,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-
             if (load_xbzrle(f, addr, host) < 0) {
                 error_report("Failed to decompress XBZRLE page at "
                              RAM_ADDR_FMT, addr);

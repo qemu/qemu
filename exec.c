@@ -1265,11 +1265,12 @@ static RAMBlock *find_ram_block(ram_addr_t addr)
     return NULL;
 }
 
+/* Called with iothread lock held.  */
 void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 {
-    RAMBlock *new_block = find_ram_block(addr);
-    RAMBlock *block;
+    RAMBlock *new_block, *block;
 
+    new_block = find_ram_block(addr);
     assert(new_block);
     assert(!new_block->idstr[0]);
 
@@ -1282,7 +1283,6 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
     }
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
-    /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (block != new_block && !strcmp(block->idstr, new_block->idstr)) {
@@ -1294,10 +1294,17 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
     qemu_mutex_unlock_ramlist();
 }
 
+/* Called with iothread lock held.  */
 void qemu_ram_unset_idstr(ram_addr_t addr)
 {
-    RAMBlock *block = find_ram_block(addr);
+    RAMBlock *block;
 
+    /* FIXME: arch_init.c assumes that this is not called throughout
+     * migration.  Ignore the problem since hot-unplug during migration
+     * does not work anyway.
+     */
+
+    block = find_ram_block(addr);
     if (block) {
         memset(block->idstr, 0, sizeof(block->idstr));
     }
@@ -1405,6 +1412,8 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
 
     if (new_ram_size > old_ram_size) {
         int i;
+
+        /* ram_list.dirty_memory[] is protected by the iothread lock.  */
         for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
             ram_list.dirty_memory[i] =
                 bitmap_zero_extend(ram_list.dirty_memory[i],
@@ -1583,7 +1592,6 @@ void qemu_ram_free(ram_addr_t addr)
         }
     }
     qemu_mutex_unlock_ramlist();
-
 }
 
 #ifndef _WIN32
@@ -1631,7 +1639,6 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                 memory_try_enable_merging(vaddr, length);
                 qemu_ram_setup_dump(vaddr, length);
             }
-            return;
         }
     }
 }
@@ -1639,49 +1646,60 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 
 int qemu_get_ram_fd(ram_addr_t addr)
 {
-    RAMBlock *block = qemu_get_ram_block(addr);
+    RAMBlock *block;
+    int fd;
 
-    return block->fd;
+    block = qemu_get_ram_block(addr);
+    fd = block->fd;
+    return fd;
 }
 
 void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
 {
-    RAMBlock *block = qemu_get_ram_block(addr);
+    RAMBlock *block;
+    void *ptr;
 
-    return ramblock_ptr(block, 0);
+    block = qemu_get_ram_block(addr);
+    ptr = ramblock_ptr(block, 0);
+    return ptr;
 }
 
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
-   With the exception of the softmmu code in this file, this should
-   only be used for local memory (e.g. video ram) that the device owns,
-   and knows it isn't going to access beyond the end of the block.
-
-   It should not be used for general purpose DMA.
-   Use cpu_physical_memory_map/cpu_physical_memory_rw instead.
+ * This should not be used for general purpose DMA.  Use address_space_map
+ * or address_space_rw instead. For local memory (e.g. video ram) that the
+ * device owns, use memory_region_get_ram_ptr.
  */
 void *qemu_get_ram_ptr(ram_addr_t addr)
 {
-    RAMBlock *block = qemu_get_ram_block(addr);
+    RAMBlock *block;
+    void *ptr;
 
-    if (xen_enabled()) {
+    block = qemu_get_ram_block(addr);
+
+    if (xen_enabled() && block->host == NULL) {
         /* We need to check if the requested address is in the RAM
          * because we don't want to map the entire memory in QEMU.
          * In that case just map until the end of the page.
          */
         if (block->offset == 0) {
-            return xen_map_cache(addr, 0, 0);
-        } else if (block->host == NULL) {
-            block->host =
-                xen_map_cache(block->offset, block->max_length, 1);
+            ptr = xen_map_cache(addr, 0, 0);
+            goto done;
         }
+
+        block->host = xen_map_cache(block->offset, block->max_length, 1);
     }
-    return ramblock_ptr(block, addr - block->offset);
+    ptr = ramblock_ptr(block, addr - block->offset);
+
+done:
+    return ptr;
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
- * but takes a size argument */
+ * but takes a size argument.
+ */
 static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
 {
+    void *ptr;
     if (*size == 0) {
         return NULL;
     }
@@ -1689,12 +1707,12 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
         return xen_map_cache(addr, *size, 1);
     } else {
         RAMBlock *block;
-
         QTAILQ_FOREACH(block, &ram_list.blocks, next) {
             if (addr - block->offset < block->max_length) {
                 if (addr - block->offset + *size > block->max_length)
                     *size = block->max_length - addr + block->offset;
-                return ramblock_ptr(block, addr - block->offset);
+                ptr = ramblock_ptr(block, addr - block->offset);
+                return ptr;
             }
         }
 
@@ -1704,15 +1722,24 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
 }
 
 /* Some of the softmmu routines need to translate from a host pointer
-   (typically a TLB entry) back to a ram offset.  */
+ * (typically a TLB entry) back to a ram offset.
+ *
+ * By the time this function returns, the returned pointer is not protected
+ * by RCU anymore.  If the caller is not within an RCU critical section and
+ * does not hold the iothread lock, it must have other means of protecting the
+ * pointer, such as a reference to the region that includes the incoming
+ * ram_addr_t.
+ */
 MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
+    MemoryRegion *mr;
 
     if (xen_enabled()) {
         *ram_addr = xen_ram_addr_from_mapcache(ptr);
-        return qemu_get_ram_block(*ram_addr)->mr;
+        mr = qemu_get_ram_block(*ram_addr)->mr;
+        return mr;
     }
 
     block = ram_list.mru_block;
@@ -1734,7 +1761,8 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 
 found:
     *ram_addr = block->offset + (host - block->host);
-    return block->mr;
+    mr = block->mr;
+    return mr;
 }
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
