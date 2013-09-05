@@ -1067,6 +1067,19 @@ static void tcg_out_alu(TCGContext *s, uint64_t opc_a1, TCGReg ret, TCGArg arg1,
                    tcg_opc_a1(TCG_REG_P0, opc_a1, ret, arg1, arg2));
 }
 
+static inline void tcg_out_add(TCGContext *s, TCGReg ret, TCGReg arg1,
+                               TCGArg arg2, int const_arg2)
+{
+    if (const_arg2 && arg2 == sextract64(arg2, 0, 14)) {
+        tcg_out_bundle(s, mmI,
+                       INSN_NOP_M,
+                       INSN_NOP_M,
+                       tcg_opc_a4(TCG_REG_P0, OPC_ADDS_A4, ret, arg2, arg1));
+    } else {
+        tcg_out_alu(s, OPC_ADD_A1, ret, arg1, 0, arg2, const_arg2);
+    }
+}
+
 static inline void tcg_out_eqv(TCGContext *s, TCGArg ret,
                                TCGArg arg1, int const_arg1,
                                TCGArg arg2, int const_arg2)
@@ -2068,8 +2081,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_add_i32:
     case INDEX_op_add_i64:
-        tcg_out_alu(s, OPC_ADD_A1, args[0], args[1], const_args[1],
-                    args[2], const_args[2]);
+        tcg_out_add(s, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
@@ -2275,7 +2287,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_st16_i32, { "rZ", "r" } },
     { INDEX_op_st_i32, { "rZ", "r" } },
 
-    { INDEX_op_add_i32, { "r", "rI", "rI" } },
+    { INDEX_op_add_i32, { "r", "rZ", "rI" } },
     { INDEX_op_sub_i32, { "r", "rI", "rI" } },
 
     { INDEX_op_and_i32, { "r", "rI", "rI" } },
@@ -2322,7 +2334,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_st32_i64, { "rZ", "r" } },
     { INDEX_op_st_i64, { "rZ", "r" } },
 
-    { INDEX_op_add_i64, { "r", "rI", "rI" } },
+    { INDEX_op_add_i64, { "r", "rZ", "rI" } },
     { INDEX_op_sub_i64, { "r", "rI", "rI" } },
 
     { INDEX_op_and_i64, { "r", "rI", "rI" } },
