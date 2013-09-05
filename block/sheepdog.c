@@ -1438,7 +1438,8 @@ out:
     return ret;
 }
 
-static int sd_create(const char *filename, QEMUOptionParameter *options)
+static int sd_create(const char *filename, QEMUOptionParameter *options,
+                     Error **errp)
 {
     int ret = 0;
     uint32_t vid = 0, base_vid = 0;

@@ -1468,7 +1468,8 @@ out:
     return ret;
 }
 
-static int qcow2_create(const char *filename, QEMUOptionParameter *options)
+static int qcow2_create(const char *filename, QEMUOptionParameter *options,
+                        Error **errp)
 {
     const char *backing_file = NULL;
     const char *backing_fmt = NULL;

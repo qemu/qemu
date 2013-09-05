@@ -651,7 +651,8 @@ static QEMUOptionParameter ssh_create_options[] = {
     { NULL }
 };
 
-static int ssh_create(const char *filename, QEMUOptionParameter *options)
+static int ssh_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int r, ret;
     Error *local_err = NULL;

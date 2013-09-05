@@ -295,7 +295,8 @@ static void cow_close(BlockDriverState *bs)
 {
 }
 
-static int cow_create(const char *filename, QEMUOptionParameter *options)
+static int cow_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     struct cow_header_v2 cow_header;
     struct stat st;

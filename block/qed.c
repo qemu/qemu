@@ -604,7 +604,8 @@ out:
     return ret;
 }
 
-static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options)
+static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options,
+                           Error **errp)
 {
     uint64_t image_size = 0;
     uint32_t cluster_size = QED_DEFAULT_CLUSTER_SIZE;

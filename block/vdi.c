@@ -645,7 +645,8 @@ static int vdi_co_write(BlockDriverState *bs,
     return ret;
 }
 
-static int vdi_create(const char *filename, QEMUOptionParameter *options)
+static int vdi_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int fd;
     int result = 0;

@@ -287,7 +287,8 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf)
     return ret;
 }
 
-static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options)
+static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options,
+                           Error **errp)
 {
     int64_t bytes = 0;
     int64_t objsize;

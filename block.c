@@ -401,7 +401,7 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     CreateCo *cco = opaque;
     assert(cco->drv);
 
-    cco->ret = cco->drv->bdrv_create(cco->filename, cco->options);
+    cco->ret = cco->drv->bdrv_create(cco->filename, cco->options, NULL);
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,

@@ -1552,7 +1552,8 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
     return VMDK_OK;
 }
 
-static int vmdk_create(const char *filename, QEMUOptionParameter *options)
+static int vmdk_create(const char *filename, QEMUOptionParameter *options,
+                       Error **errp)
 {
     int fd, idx = 0;
     char desc[BUF_SIZE];

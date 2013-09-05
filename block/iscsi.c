@@ -1238,7 +1238,8 @@ static int iscsi_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
-static int iscsi_create(const char *filename, QEMUOptionParameter *options)
+static int iscsi_create(const char *filename, QEMUOptionParameter *options,
+                        Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
