@@ -1444,38 +1444,16 @@ static inline uint64_t tcg_opc_cmp_a(int qp, TCGCond cond, TCGArg arg1,
     }
 }
 
-static inline void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGArg arg1,
-                                  int const_arg1, TCGArg arg2, int const_arg2,
-                                  int label_index, int cmp4)
+static inline void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
+                                  TCGReg arg2, int label_index, int cmp4)
 {
     TCGLabel *l = &s->labels[label_index];
-    uint64_t opc1, opc2;
 
-    if (const_arg1 && arg1 != 0) {
-        opc1 = tcg_opc_a5(TCG_REG_P0, OPC_ADDL_A5, TCG_REG_R2,
-                          arg1, TCG_REG_R0);
-        arg1 = TCG_REG_R2;
-    } else {
-        opc1 = INSN_NOP_M;
-    }
-
-    if (const_arg2 && arg2 != 0) {
-        opc2 = tcg_opc_a5(TCG_REG_P0, OPC_ADDL_A5, TCG_REG_R3,
-                          arg2, TCG_REG_R0);
-        arg2 = TCG_REG_R3;
-    } else {
-        opc2 = INSN_NOP_I;
-    }
-
-    tcg_out_bundle(s, mII,
-                   opc1,
-                   opc2,
-                   tcg_opc_cmp_a(TCG_REG_P0, cond, arg1, arg2, cmp4));
-    tcg_out_bundle(s, mmB,
+    tcg_out_bundle(s, miB,
                    INSN_NOP_M,
-                   INSN_NOP_M,
-                   tcg_opc_b1 (TCG_REG_P6, OPC_BR_DPTK_FEW_B1,
-                               get_reloc_pcrel21b(s->code_ptr + 2)));
+                   tcg_opc_cmp_a(TCG_REG_P0, cond, arg1, arg2, cmp4),
+                   tcg_opc_b1(TCG_REG_P6, OPC_BR_DPTK_FEW_B1,
+                              get_reloc_pcrel21b(s->code_ptr + 2)));
 
     if (l->has_value) {
         reloc_pcrel21b((s->code_ptr - 16) + 2, l->u.value);
@@ -2224,12 +2202,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_brcond(s, args[2], args[0], const_args[0],
-                       args[1], const_args[1], args[3], 1);
+        tcg_out_brcond(s, args[2], args[0], args[1], args[3], 1);
         break;
     case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, args[2], args[0], const_args[0],
-                       args[1], const_args[1], args[3], 0);
+        tcg_out_brcond(s, args[2], args[0], args[1], args[3], 0);
         break;
     case INDEX_op_setcond_i32:
         tcg_out_setcond(s, args[3], args[0], args[1], args[2], 1);
@@ -2333,7 +2309,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_bswap16_i32, { "r", "rZ" } },
     { INDEX_op_bswap32_i32, { "r", "rZ" } },
 
-    { INDEX_op_brcond_i32, { "rI", "rI" } },
+    { INDEX_op_brcond_i32, { "rZ", "rZ" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rI", "rI" } },
 
@@ -2383,7 +2359,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_bswap32_i64, { "r", "rZ" } },
     { INDEX_op_bswap64_i64, { "r", "rZ" } },
 
-    { INDEX_op_brcond_i64, { "rI", "rI" } },
+    { INDEX_op_brcond_i64, { "rZ", "rZ" } },
     { INDEX_op_setcond_i64, { "r", "rZ", "rZ" } },
     { INDEX_op_movcond_i64, { "r", "rZ", "rZ", "rI", "rI" } },
 
