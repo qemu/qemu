@@ -226,6 +226,7 @@ enum {
     OPC_BR_CALL_SPTK_MANY_B5  = 0x02100001000ull,
     OPC_BR_RET_SPTK_MANY_B4   = 0x00108001100ull,
     OPC_BRL_SPTK_MANY_X3      = 0x18000001000ull,
+    OPC_BRL_CALL_SPTK_MANY_X4 = 0x1a000001000ull,
     OPC_CMP_LT_A6             = 0x18000000000ull,
     OPC_CMP_LTU_A6            = 0x1a000000000ull,
     OPC_CMP_EQ_A6             = 0x1c000000000ull,
@@ -584,6 +585,8 @@ static inline uint64_t tcg_opc_l3(uint64_t imm)
     return (imm & 0x07fffffffff00000ull) >> 18;
 }
 
+#define tcg_opc_l4  tcg_opc_l3
+
 static inline uint64_t tcg_opc_m1(int qp, uint64_t opc, int r1, int r3)
 {
     return opc
@@ -665,6 +668,15 @@ static inline uint64_t tcg_opc_x3(int qp, uint64_t opc, uint64_t imm)
     return opc
            | ((imm & 0x0800000000000000ull) >> 23) /* i */
            | ((imm & 0x00000000000fffffull) << 13) /* imm20b */
+           | (qp & 0x3f);
+}
+
+static inline uint64_t tcg_opc_x4(int qp, uint64_t opc, int b1, uint64_t imm)
+{
+    return opc
+           | ((imm & 0x0800000000000000ull) >> 23) /* i */
+           | ((imm & 0x00000000000fffffull) << 13) /* imm20b */
+           | ((b1 & 0x7) << 6)
            | (qp & 0x3f);
 }
 
@@ -893,7 +905,23 @@ static void tcg_out_br(TCGContext *s, int label_index)
     }
 }
 
-static inline void tcg_out_call(TCGContext *s, TCGArg addr)
+static inline void tcg_out_calli(TCGContext *s, uintptr_t addr)
+{
+    /* Look through the function descriptor.  */
+    uintptr_t disp, *desc = (uintptr_t *)addr;
+    tcg_out_bundle(s, mlx,
+                   INSN_NOP_M,
+                   tcg_opc_l2 (desc[1]),
+                   tcg_opc_x2 (TCG_REG_P0, OPC_MOVL_X2, TCG_REG_R1, desc[1]));
+    disp = (desc[0] - (uintptr_t)s->code_ptr) >> 4;
+    tcg_out_bundle(s, mLX,
+                   INSN_NOP_M,
+                   tcg_opc_l4 (disp),
+                   tcg_opc_x4 (TCG_REG_P0, OPC_BRL_CALL_SPTK_MANY_X4,
+                               TCG_REG_B0, disp));
+}
+
+static inline void tcg_out_callr(TCGContext *s, TCGReg addr)
 {
     tcg_out_bundle(s, MmI,
                    tcg_opc_m1 (TCG_REG_P0, OPC_LD8_M1, TCG_REG_R2, addr),
@@ -2004,7 +2032,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_br(s, args[0]);
         break;
     case INDEX_op_call:
-        tcg_out_call(s, args[0]);
+        if (likely(const_args[0])) {
+            tcg_out_calli(s, args[0]);
+        } else {
+            tcg_out_callr(s, args[0]);
+        }
         break;
     case INDEX_op_goto_tb:
         tcg_out_goto_tb(s, args[0]);
@@ -2257,7 +2289,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
 static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_br, { } },
-    { INDEX_op_call, { "r" } },
+    { INDEX_op_call, { "ri" } },
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
 
