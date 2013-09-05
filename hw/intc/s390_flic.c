@@ -63,6 +63,34 @@ static int flic_get_all_irqs(KVMS390FLICState *flic,
     return rc == -1 ? -errno : rc;
 }
 
+static void flic_enable_pfault(KVMS390FLICState *flic)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_APF_ENABLE,
+    };
+    int rc;
+
+    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+
+    if (rc) {
+        fprintf(stderr, "flic: couldn't enable pfault\n");
+    }
+}
+
+static void flic_disable_wait_pfault(KVMS390FLICState *flic)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_FLIC_APF_DISABLE_WAIT,
+    };
+    int rc;
+
+    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+
+    if (rc) {
+        fprintf(stderr, "flic: couldn't disable pfault\n");
+    }
+}
+
 /** flic_enqueue_irqs - returns 0 on success
  * @buf: pointer to buffer which is passed to kernel
  * @len: length of buffer
@@ -136,6 +164,8 @@ static void kvm_flic_save(QEMUFile *f, void *opaque)
     void *buf;
     int count;
 
+    flic_disable_wait_pfault((struct KVMS390FLICState *) opaque);
+
     buf = g_try_malloc0(len);
     if (!buf) {
         /* Storing FLIC_FAILED into the count field here will cause the
@@ -183,6 +213,8 @@ static int kvm_flic_load(QEMUFile *f, void *opaque, int version_id)
         r = -EINVAL;
         goto out;
     }
+
+    flic_enable_pfault((struct KVMS390FLICState *) opaque);
 
     count = qemu_get_be64(f);
     len = count * sizeof(struct kvm_s390_irq);
@@ -256,10 +288,14 @@ static void kvm_s390_flic_reset(DeviceState *dev)
         return;
     }
 
+    flic_disable_wait_pfault(flic);
+
     rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (rc) {
         trace_flic_reset_failed(errno);
     }
+
+    flic_enable_pfault(flic);
 }
 
 static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)

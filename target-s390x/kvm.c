@@ -87,12 +87,14 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 };
 
 static int cap_sync_regs;
+static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size);
 
 int kvm_arch_init(KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
+    cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
         phys_mem_set_alloc(legacy_s390_alloc);
@@ -176,6 +178,29 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
         return ret;
+    }
+
+    if (cap_async_pf) {
+        reg.id = KVM_REG_S390_PFTOKEN;
+        reg.addr = (__u64)&(env->pfault_token);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_PFCOMPARE;
+        reg.addr = (__u64)&(env->pfault_compare);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_PFSELECT;
+        reg.addr = (__u64)&(env->pfault_select);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     if (cap_sync_regs &&
@@ -280,6 +305,29 @@ int kvm_arch_get_registers(CPUState *cs)
     r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (r < 0) {
         return r;
+    }
+
+    if (cap_async_pf) {
+        reg.id = KVM_REG_S390_PFTOKEN;
+        reg.addr = (__u64)&(env->pfault_token);
+        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (r < 0) {
+            return r;
+        }
+
+        reg.id = KVM_REG_S390_PFCOMPARE;
+        reg.addr = (__u64)&(env->pfault_compare);
+        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (r < 0) {
+            return r;
+        }
+
+        reg.id = KVM_REG_S390_PFSELECT;
+        reg.addr = (__u64)&(env->pfault_select);
+        r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (r < 0) {
+            return r;
+        }
     }
 
     return 0;

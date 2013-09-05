@@ -121,6 +121,10 @@ typedef struct CPUS390XState {
     uint64_t cputm;
     uint32_t todpr;
 
+    uint64_t pfault_token;
+    uint64_t pfault_compare;
+    uint64_t pfault_select;
+
     CPU_COMMON
 
     /* reset does memset(0) up to here */
