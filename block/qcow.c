@@ -668,6 +668,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
     int64_t total_size = 0;
     const char *backing_file = NULL;
     int flags = 0;
+    Error *local_err = NULL;
     int ret;
     BlockDriverState *qcow_bs;
 
@@ -688,8 +689,10 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
         return ret;
     }
 
-    ret = bdrv_file_open(&qcow_bs, filename, NULL, BDRV_O_RDWR);
+    ret = bdrv_file_open(&qcow_bs, filename, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

@@ -302,6 +302,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options,
     struct stat st;
     int64_t image_sectors = 0;
     const char *image_filename = NULL;
+    Error *local_err = NULL;
     int ret;
     BlockDriverState *cow_bs;
 
@@ -320,8 +321,10 @@ static int cow_create(const char *filename, QEMUOptionParameter *options,
         return ret;
     }
 
-    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR);
+    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

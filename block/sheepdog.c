@@ -1401,10 +1401,13 @@ static int sd_prealloc(const char *filename)
     uint32_t idx, max_idx;
     int64_t vdi_size;
     void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
+    Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto out;
     }
 
@@ -1449,6 +1452,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
     char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     bool prealloc = false;
+    Error *local_err = NULL;
 
     s = g_malloc0(sizeof(BDRVSheepdogState));
 
@@ -1502,8 +1506,10 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             goto out;
         }
 
-        ret = bdrv_file_open(&bs, backing_file, NULL, 0);
+        ret = bdrv_file_open(&bs, backing_file, NULL, 0, &local_err);
         if (ret < 0) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             goto out;
         }
 

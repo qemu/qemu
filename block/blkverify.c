@@ -141,8 +141,10 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_file_open(&bs->file, raw, NULL, flags);
+    ret = bdrv_file_open(&bs->file, raw, NULL, flags, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto fail;
     }
 
@@ -154,8 +156,10 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->test_file = bdrv_new("");
-    ret = bdrv_open(s->test_file, filename, NULL, flags, NULL);
+    ret = bdrv_open(s->test_file, filename, NULL, flags, NULL, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         bdrv_unref(s->test_file);
         s->test_file = NULL;
         goto fail;

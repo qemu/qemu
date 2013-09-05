@@ -551,6 +551,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     QEDHeader le_header;
     uint8_t *l1_table = NULL;
     size_t l1_size = header.cluster_size * header.table_size;
+    Error *local_err = NULL;
     int ret = 0;
     BlockDriverState *bs = NULL;
 
@@ -559,8 +560,11 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB,
+                         &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

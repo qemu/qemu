@@ -355,6 +355,7 @@ int main(int argc, char **argv)
 #endif
     pthread_t client_thread;
     const char *fmt = NULL;
+    Error *local_err = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -573,10 +574,11 @@ int main(int argc, char **argv)
 
     bs = bdrv_new("hda");
     srcpath = argv[optind];
-    ret = bdrv_open(bs, srcpath, NULL, flags, drv);
+    ret = bdrv_open(bs, srcpath, NULL, flags, drv, &local_err);
     if (ret < 0) {
         errno = -ret;
-        err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
+        err(EXIT_FAILURE, "Failed to bdrv_open '%s': %s", argv[optind],
+            error_get_pretty(local_err));
     }
 
     fd_size = bdrv_getlength(bs);

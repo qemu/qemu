@@ -710,17 +710,11 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     }
 
     QINCREF(bs_opts);
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
 
     if (ret < 0) {
-        if (ret == -EMEDIUMTYPE) {
-            error_report("could not open disk image %s: not in %s format",
-                         file ?: dinfo->id, drv ? drv->format_name :
-                         qdict_get_str(bs_opts, "driver"));
-        } else {
-            error_report("could not open disk image %s: %s",
-                         file ?: dinfo->id, strerror(-ret));
-        }
+        error_report("could not open disk image %s: %s",
+                     file ?: dinfo->id, error_get_pretty(error));
         goto err;
     }
 
@@ -1156,9 +1150,9 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
     ret = bdrv_open(state->new_bs, new_image_file, NULL,
-                    flags | BDRV_O_NO_BACKING, drv);
+                    flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret != 0) {
-        error_setg_file_open(errp, -ret, new_image_file);
+        error_propagate(errp, local_err);
     }
 }
 
@@ -1393,11 +1387,12 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
 {
+    Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv);
+    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv, &local_err);
     if (ret < 0) {
-        error_setg_file_open(errp, -ret, filename);
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1817,10 +1812,10 @@ void qmp_drive_backup(const char *device, const char *target,
     }
 
     target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags, drv);
+    ret = bdrv_open(target_bs, target, NULL, flags, drv, &local_err);
     if (ret < 0) {
         bdrv_unref(target_bs);
-        error_setg_file_open(errp, -ret, target);
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1952,10 +1947,11 @@ void qmp_drive_mirror(const char *device, const char *target,
      * file.
      */
     target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
+    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv,
+                    &local_err);
     if (ret < 0) {
         bdrv_unref(target_bs);
-        error_setg_file_open(errp, -ret, target);
+        error_propagate(errp, local_err);
         return;
     }
 

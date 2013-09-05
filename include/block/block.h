@@ -151,10 +151,10 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename,
-                   QDict *options, int flags);
-int bdrv_open_backing_file(BlockDriverState *bs, QDict *options);
+                   QDict *options, int flags, Error **errp);
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
 int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
-              int flags, BlockDriver *drv);
+              int flags, BlockDriver *drv, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs, int flags);
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);

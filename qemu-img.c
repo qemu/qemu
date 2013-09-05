@@ -266,6 +266,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     BlockDriverState *bs;
     BlockDriver *drv;
     char password[256];
+    Error *local_err = NULL;
     int ret;
 
     bs = bdrv_new("image");
@@ -280,9 +281,11 @@ static BlockDriverState *bdrv_new_open(const char *filename,
         drv = NULL;
     }
 
-    ret = bdrv_open(bs, filename, NULL, flags, drv);
+    ret = bdrv_open(bs, filename, NULL, flags, drv, &local_err);
     if (ret < 0) {
-        error_report("Could not open '%s': %s", filename, strerror(-ret));
+        error_report("Could not open '%s': %s", filename,
+                     error_get_pretty(local_err));
+        error_free(local_err);
         goto fail;
     }
 
@@ -2127,6 +2130,7 @@ static int img_rebase(int argc, char **argv)
     int unsafe = 0;
     int progress = 0;
     bool quiet = false;
+    Error *local_err = NULL;
 
     /* Parse commandline parameters */
     fmt = NULL;
@@ -2230,18 +2234,21 @@ static int img_rebase(int argc, char **argv)
         bs_old_backing = bdrv_new("old_backing");
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
         ret = bdrv_open(bs_old_backing, backing_name, NULL, BDRV_O_FLAGS,
-                        old_backing_drv);
+                        old_backing_drv, &local_err);
         if (ret) {
-            error_report("Could not open old backing file '%s'", backing_name);
+            error_report("Could not open old backing file '%s': %s",
+                         backing_name, error_get_pretty(local_err));
+            error_free(local_err);
             goto out;
         }
         if (out_baseimg[0]) {
             bs_new_backing = bdrv_new("new_backing");
             ret = bdrv_open(bs_new_backing, out_baseimg, NULL, BDRV_O_FLAGS,
-                        new_backing_drv);
+                        new_backing_drv, &local_err);
             if (ret) {
-                error_report("Could not open new backing file '%s'",
-                             out_baseimg);
+                error_report("Could not open new backing file '%s': %s",
+                             out_baseimg, error_get_pretty(local_err));
+                error_free(local_err);
                 goto out;
             }
         }
