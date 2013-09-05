@@ -490,7 +490,8 @@ static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
     }
 }
 
-static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
+static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg,
+                          int lk)
 {
 #ifdef _CALL_AIX
     int reg;
@@ -504,14 +505,14 @@ static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
     tcg_out32 (s, LWZ | RT (0) | RA (reg));
     tcg_out32 (s, MTSPR | RA (0) | CTR);
     tcg_out32 (s, LWZ | RT (2) | RA (reg) | 4);
-    tcg_out32 (s, BCCTR | BO_ALWAYS | LK);
+    tcg_out32 (s, BCCTR | BO_ALWAYS | lk);
 #else
     if (const_arg) {
-        tcg_out_b (s, LK, arg);
+        tcg_out_b (s, lk, arg);
     }
     else {
         tcg_out32 (s, MTSPR | RS (arg) | LR);
-        tcg_out32 (s, BCLR | BO_ALWAYS | LK);
+        tcg_out32 (s, BCLR | BO_ALWAYS | lk);
     }
 #endif
 }
@@ -860,7 +861,7 @@ static void tcg_out_qemu_ld_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
     tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #endif
     tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
-    tcg_out_call (s, (tcg_target_long) ld_trampolines[s_bits], 1);
+    tcg_out_b (s, LK, (tcg_target_long) ld_trampolines[s_bits]);
     tcg_out32 (s, (tcg_target_long) raddr);
     switch (opc) {
     case 0|4:
@@ -954,7 +955,7 @@ static void tcg_out_qemu_st_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
     ir++;
 
     tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
-    tcg_out_call (s, (tcg_target_long) st_trampolines[opc], 1);
+    tcg_out_b (s, LK, (tcg_target_long) st_trampolines[opc]);
     tcg_out32 (s, (tcg_target_long) raddr);
     tcg_out_b (s, 0, (tcg_target_long) raddr);
 }
@@ -984,7 +985,7 @@ static void emit_ldst_trampoline (TCGContext *s, const void *ptr)
     tcg_out32 (s, ADDI | RT (3) | RA (3) | 4);
     tcg_out32 (s, MTSPR | RS (3) | LR);
     tcg_out_mov (s, TCG_TYPE_I32, 3, TCG_AREG0);
-    tcg_out_b (s, 0, (tcg_target_long) ptr);
+    tcg_out_call (s, (tcg_target_long) ptr, 1, 0);
 }
 #endif
 
@@ -1493,7 +1494,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
     case INDEX_op_call:
-        tcg_out_call (s, args[0], const_args[0]);
+        tcg_out_call (s, args[0], const_args[0], LK);
         break;
     case INDEX_op_movi_i32:
         tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
