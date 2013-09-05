@@ -1564,38 +1564,69 @@ static inline void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGArg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
+/* We're expecting to use an signed 22-bit immediate add.  */
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
+                  > 0x1fffff)
+
 /* Load and compare a TLB entry, and return the result in (p6, p7).
    R2 is loaded with the address of the addend TLB entry.
-   R57 is loaded with the address, zero extented on 32-bit targets. */
-static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
-                                    TCGMemOp s_bits, uint64_t offset_rw,
-                                    uint64_t offset_addend)
+   R57 is loaded with the address, zero extented on 32-bit targets.
+   R1, R3 are clobbered. */
+static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
+                                    TCGMemOp s_bits, int off_rw, int off_add)
 {
-    tcg_out_bundle(s, mII,
-                   INSN_NOP_M,
-                   tcg_opc_i11(TCG_REG_P0, OPC_EXTR_U_I11, TCG_REG_R2,
+     /*
+        .mii
+        mov	r2 = off_rw
+        extr.u	r3 = addr_reg, ...		# extract tlb page
+        zxt4	r57 = addr_reg                  # or mov for 64-bit guest
+        ;;
+        .mii
+        addl	r2 = r2, areg0
+        shl	r3 = r3, cteb                   # via dep.z
+        dep	r1 = 0, r57, ...                # zero page ofs, keep align
+        ;;
+        .mmi
+        add	r2 = r2, r3
+        ;;
+        ld4	r3 = [r2], off_add-off_rw	# or ld8 for 64-bit guest
+        nop
+        ;;
+        .mmi
+        nop
+        cmp.eq	p6, p7 = r3, r58
+        nop
+        ;;
+      */
+    tcg_out_bundle(s, miI,
+                   tcg_opc_movi_a(TCG_REG_P0, TCG_REG_R2, off_rw),
+                   tcg_opc_i11(TCG_REG_P0, OPC_EXTR_U_I11, TCG_REG_R3,
                                addr_reg, TARGET_PAGE_BITS, CPU_TLB_BITS - 1),
-                   tcg_opc_i12(TCG_REG_P0, OPC_DEP_Z_I12, TCG_REG_R2,
-                               TCG_REG_R2, 63 - CPU_TLB_ENTRY_BITS,
-                               63 - CPU_TLB_ENTRY_BITS));
-    tcg_out_bundle(s, mII,
-                   tcg_opc_a5 (TCG_REG_P0, OPC_ADDL_A5, TCG_REG_R2,
-                               offset_rw, TCG_REG_R2),
                    tcg_opc_ext_i(TCG_REG_P0,
                                  TARGET_LONG_BITS == 32 ? MO_UL : MO_Q,
-                                 TCG_REG_R57, addr_reg),
+                                 TCG_REG_R57, addr_reg));
+    tcg_out_bundle(s, miI,
                    tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1, TCG_REG_R2,
-                               TCG_REG_R2, TCG_AREG0));
-    tcg_out_bundle(s, mII,
+                               TCG_REG_R2, TCG_AREG0),
+                   tcg_opc_i12(TCG_REG_P0, OPC_DEP_Z_I12, TCG_REG_R3,
+                               TCG_REG_R3, 63 - CPU_TLB_ENTRY_BITS,
+                               63 - CPU_TLB_ENTRY_BITS),
+                   tcg_opc_i14(TCG_REG_P0, OPC_DEP_I14, TCG_REG_R1, 0,
+                               TCG_REG_R57, 63 - s_bits,
+                               TARGET_PAGE_BITS - s_bits - 1));
+    tcg_out_bundle(s, MmI,
+                   tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1,
+                               TCG_REG_R2, TCG_REG_R2, TCG_REG_R3),
                    tcg_opc_m3 (TCG_REG_P0,
                                (TARGET_LONG_BITS == 32
-                                ? OPC_LD4_M3 : OPC_LD8_M3), TCG_REG_R56,
-                               TCG_REG_R2, offset_addend - offset_rw),
-                   tcg_opc_i14(TCG_REG_P0, OPC_DEP_I14, TCG_REG_R3, 0,
-                               TCG_REG_R57, 63 - s_bits,
-                               TARGET_PAGE_BITS - s_bits - 1),
+                                ? OPC_LD4_M3 : OPC_LD8_M3), TCG_REG_R3,
+                               TCG_REG_R2, off_add - off_rw),
+                   INSN_NOP_I);
+    tcg_out_bundle(s, mmI,
+                   INSN_NOP_M,
                    tcg_opc_a6 (TCG_REG_P0, OPC_CMP_EQ_A6, TCG_REG_P6,
-                               TCG_REG_P7, TCG_REG_R3, TCG_REG_R56));
+                               TCG_REG_P7, TCG_REG_R1, TCG_REG_R3),
+                   INSN_NOP_I);
 }
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
