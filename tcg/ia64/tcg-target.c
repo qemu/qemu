@@ -1080,6 +1080,28 @@ static inline void tcg_out_add(TCGContext *s, TCGReg ret, TCGReg arg1,
     }
 }
 
+static inline void tcg_out_sub(TCGContext *s, TCGReg ret, TCGArg arg1,
+                               int const_arg1, TCGArg arg2, int const_arg2)
+{
+    if (const_arg1 && arg1 == (int8_t)arg1) {
+        if (const_arg2) {
+            tcg_out_movi(s, TCG_TYPE_I64, ret, arg1 - arg2);
+            return;
+        }
+        tcg_out_bundle(s, mmI,
+                       INSN_NOP_M,
+                       INSN_NOP_M,
+                       tcg_opc_a3(TCG_REG_P0, OPC_SUB_A3, ret, arg1, arg2));
+    } else if (const_arg2 && -arg2 == sextract64(-arg2, 0, 14)) {
+        tcg_out_bundle(s, mmI,
+                       INSN_NOP_M,
+                       INSN_NOP_M,
+                       tcg_opc_a4(TCG_REG_P0, OPC_ADDS_A4, ret, -arg2, arg1));
+    } else {
+        tcg_out_alu(s, OPC_SUB_A1, ret, arg1, const_arg1, arg2, const_arg2);
+    }
+}
+
 static inline void tcg_out_eqv(TCGContext *s, TCGArg ret,
                                TCGArg arg1, int const_arg1,
                                TCGArg arg2, int const_arg2)
@@ -2085,8 +2107,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
-        tcg_out_alu(s, OPC_SUB_A1, args[0], args[1], const_args[1],
-                    args[2], const_args[2]);
+        tcg_out_sub(s, args[0], args[1], const_args[1], args[2], const_args[2]);
         break;
 
     case INDEX_op_and_i32:
