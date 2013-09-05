@@ -550,22 +550,24 @@ static void add_qemu_ldst_label (TCGContext *s,
     label->label_ptr[0] = label_ptr;
 }
 
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
+/* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
+ *                                     int mmu_idx, uintptr_t ra)
+ */
 static const void * const qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
+    helper_ret_ldub_mmu,
+    helper_ret_lduw_mmu,
+    helper_ret_ldul_mmu,
+    helper_ret_ldq_mmu,
 };
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
+/* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
+ *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
+ */
 static const void * const qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
+    helper_ret_stb_mmu,
+    helper_ret_stw_mmu,
+    helper_ret_stl_mmu,
+    helper_ret_stq_mmu,
 };
 
 static void *ld_trampolines[4];
@@ -860,9 +862,9 @@ static void tcg_out_qemu_ld_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
     tcg_out_mov (s, TCG_TYPE_I32, ir++, label->addrhi_reg);
     tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #endif
-    tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
+    tcg_out_movi (s, TCG_TYPE_I32, ir++, mem_index);
+    tcg_out_movi (s, TCG_TYPE_I32, ir, (tcg_target_long) raddr);
     tcg_out_b (s, LK, (tcg_target_long) ld_trampolines[s_bits]);
-    tcg_out32 (s, (tcg_target_long) raddr);
     switch (opc) {
     case 0|4:
         tcg_out32 (s, EXTSB | RA (data_reg) | RS (3));
@@ -954,10 +956,10 @@ static void tcg_out_qemu_st_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
     }
     ir++;
 
-    tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
-    tcg_out_b (s, LK, (tcg_target_long) st_trampolines[opc]);
-    tcg_out32 (s, (tcg_target_long) raddr);
-    tcg_out_b (s, 0, (tcg_target_long) raddr);
+    tcg_out_movi (s, TCG_TYPE_I32, ir++, mem_index);
+    tcg_out_movi (s, TCG_TYPE_I32, ir, (tcg_target_long) raddr);
+    tcg_out32 (s, MTSPR | RS (ir) | LR);
+    tcg_out_b (s, 0, (tcg_target_long) st_trampolines[opc]);
 }
 
 void tcg_out_tb_finalize(TCGContext *s)
@@ -981,9 +983,6 @@ void tcg_out_tb_finalize(TCGContext *s)
 #ifdef CONFIG_SOFTMMU
 static void emit_ldst_trampoline (TCGContext *s, const void *ptr)
 {
-    tcg_out32 (s, MFSPR | RT (3) | LR);
-    tcg_out32 (s, ADDI | RT (3) | RA (3) | 4);
-    tcg_out32 (s, MTSPR | RS (3) | LR);
     tcg_out_mov (s, TCG_TYPE_I32, 3, TCG_AREG0);
     tcg_out_call (s, (tcg_target_long) ptr, 1, 0);
 }
