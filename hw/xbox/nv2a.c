@@ -252,6 +252,12 @@
 #define NV_PGRAPH_CHANNEL_CTX_TRIGGER                    0x00000788
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
+#define NV_PGRAPH_CLEARRECTX                             0x00001864
+#       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
+#       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
+#define NV_PGRAPH_CLEARRECTY                             0x00001868
+#       define NV_PGRAPH_CLEARRECTY_YMIN                          0x00000FFF
+#       define NV_PGRAPH_CLEARRECTY_YMAX                          0x0FFF0000
 #define NV_PGRAPH_COLORCLEARVALUE                        0x0000186C
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 
@@ -277,6 +283,8 @@
 #define NV_PFB_CFG0                                      0x00000200
 #   define NV_PFB_CFG0_PART                                   0x00000003
 #define NV_PFB_CSTATUS                                   0x0000020C
+#define NV_PFB_WBC                                       0x00000410
+#   define NV_PFB_WBC_FLUSH                                     (1 << 16)
 
 
 #define NV_PRAMDAC_NVPLL_COEFF                           0x00000500
@@ -476,6 +484,8 @@
 #       define NV097_CLEAR_SURFACE_G                                (1 << 5)
 #       define NV097_CLEAR_SURFACE_B                                (1 << 6)
 #       define NV097_CLEAR_SURFACE_A                                (1 << 7)
+#   define NV097_SET_CLEAR_RECT_HORIZONTAL                    0x00971D98
+#   define NV097_SET_CLEAR_RECT_VERTICAL                      0x00971D9C
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
@@ -666,8 +676,6 @@ typedef struct Texture {
 typedef struct Surface {
     bool draw_dirty;
     unsigned int pitch;
-    unsigned int x, y;
-    unsigned int width, height;
     unsigned int format;
 
     hwaddr offset;
@@ -685,6 +693,10 @@ typedef struct KelvinState {
 
     Surface surface_color;
     Surface surface_zeta;
+    unsigned int surface_x, surface_y;
+    unsigned int surface_width, surface_height;
+
+
     uint32_t color_mask;
 
     unsigned int vertexshader_start_slot;
@@ -753,9 +765,6 @@ typedef struct GraphicsContext {
     unsigned int subchannel;
 
     GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
-
-    uint32_t zstencil_clear_value;
-    uint32_t color_clear_value;
 
     GloContext *gl_context;
 
@@ -874,6 +883,10 @@ typedef struct NV2AState {
     } ptimer;
 
     struct {
+        uint32_t regs[0x1000];
+    } pfb;
+
+    struct {
         QemuMutex lock;
 
         uint32_t pending_interrupts;
@@ -896,6 +909,8 @@ typedef struct NV2AState {
         unsigned int channel_id;
         bool channel_valid;
         GraphicsContext context[NV2A_NUM_CHANNELS];
+
+        uint32_t regs[0x2000];
     } pgraph;
 
     struct {
@@ -1442,7 +1457,7 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
         assert(color_dma.address + kelvin->surface_color.offset != 0);
         assert(kelvin->surface_color.offset <= color_dma.limit);
         assert(kelvin->surface_color.offset 
-                + kelvin->surface_color.pitch * kelvin->surface_color.height
+                + kelvin->surface_color.pitch * kelvin->surface_height
                     <= color_dma.limit + 1);
 
 
@@ -1469,19 +1484,21 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
         }
 
         /* TODO */
-        assert(kelvin->surface_color.x == 0 && kelvin->surface_color.y == 0);
+        assert(kelvin->surface_x == 0 && kelvin->surface_y == 0);
 
         if (upload && memory_region_test_and_clear_dirty(d->vram,
                                                color_dma.address
                                                  + kelvin->surface_color.offset,
                                                kelvin->surface_color.pitch
-                                                 * kelvin->surface_color.height,
+                                                 * kelvin->surface_height,
                                                DIRTY_MEMORY_NV2A)) {
             /* surface modified (or moved) by the cpu.
              * copy it into the opengl renderbuffer */
             assert(!kelvin->surface_color.draw_dirty);
 
             assert(kelvin->surface_color.pitch % bytes_per_pixel == 0);
+
+            glDisable(GL_FRAGMENT_PROGRAM_ARB);
 
             int rl, pa;
             glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rl);
@@ -1493,15 +1510,27 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
             /* glDrawPixels is crazy deprecated, but there really isn't
              * an easy alternative */
 
-            glRasterPos2i(0, 0);
-            glDrawPixels(kelvin->surface_color.width,
-                         kelvin->surface_color.height,
+            glWindowPos2i(0, kelvin->surface_height);
+            glPixelZoom(1, -1);
+            glDrawPixels(kelvin->surface_width,
+                         kelvin->surface_height,
                          gl_format, gl_type,
                          color_data + kelvin->surface_color.offset);
             assert(glGetError() == GL_NO_ERROR);
 
             glPixelStorei(GL_UNPACK_ROW_LENGTH, rl);
             glPixelStorei(GL_UNPACK_ALIGNMENT, pa);
+
+            uint8_t *out = color_data + kelvin->surface_color.offset;
+            NV2A_DPRINTF("upload_surface 0x%llx - 0x%llx, "
+                          "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
+                color_dma.address, color_dma.address + color_dma.limit,
+                color_dma.address + kelvin->surface_color.offset,
+                color_dma.address + kelvin->surface_color.pitch * kelvin->surface_height,
+                kelvin->surface_x, kelvin->surface_y,
+                kelvin->surface_width, kelvin->surface_height,
+                kelvin->surface_color.pitch,
+                out[0], out[1], out[2], out[3]);
         }
 
         if (!upload && kelvin->surface_color.draw_dirty) {
@@ -1509,7 +1538,7 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
 
             glo_readpixels(gl_format, gl_type,
                            bytes_per_pixel, kelvin->surface_color.pitch,
-                           kelvin->surface_color.width, kelvin->surface_color.height,
+                           kelvin->surface_width, kelvin->surface_height,
                            color_data + kelvin->surface_color.offset);
             assert(glGetError() == GL_NO_ERROR);
 
@@ -1517,7 +1546,7 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
                                            color_dma.address
                                                 + kelvin->surface_color.offset,
                                            kelvin->surface_color.pitch
-                                                * kelvin->surface_color.height,
+                                                * kelvin->surface_height,
                                            DIRTY_MEMORY_VGA);
 
             kelvin->surface_color.draw_dirty = false;
@@ -1527,9 +1556,9 @@ static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin, bool upload
                           "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
                 color_dma.address, color_dma.address + color_dma.limit,
                 color_dma.address + kelvin->surface_color.offset,
-                color_dma.address + kelvin->surface_color.pitch * kelvin->surface_color.height,
-                kelvin->surface_color.x, kelvin->surface_color.y,
-                kelvin->surface_color.width, kelvin->surface_color.height,
+                color_dma.address + kelvin->surface_color.pitch * kelvin->surface_height,
+                kelvin->surface_x, kelvin->surface_y,
+                kelvin->surface_width, kelvin->surface_height,
                 kelvin->surface_color.pitch,
                 out[0], out[1], out[2], out[3]);
         }
@@ -1830,17 +1859,17 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
         kelvin_update_surface(d, kelvin, false);
 
-        kelvin->surface_color.x =
+        kelvin->surface_x =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
-        kelvin->surface_color.width =
+        kelvin->surface_width =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
         break;
     case NV097_SET_SURFACE_CLIP_VERTICAL:
         kelvin_update_surface(d, kelvin, false);
 
-        kelvin->surface_color.y =
+        kelvin->surface_y =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
-        kelvin->surface_color.height =
+        kelvin->surface_height =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
         break;
     case NV097_SET_SURFACE_FORMAT:
@@ -2166,15 +2195,11 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     case NV097_SET_ZSTENCIL_CLEAR_VALUE:
-        context->zstencil_clear_value = parameter;
+        d->pgraph.regs[NV_PGRAPH_ZSTENCILCLEARVALUE] = parameter;
         break;
 
     case NV097_SET_COLOR_CLEAR_VALUE:
-        glClearColor( ((parameter >> 16) & 0xFF) / 255.0f, /* red */
-                      ((parameter >> 8) & 0xFF) / 255.0f,  /* green */
-                      (parameter & 0xFF) / 255.0f,         /* blue */
-                      ((parameter >> 24) & 0xFF) / 255.0f);/* alpha */
-        context->color_clear_value = parameter;
+        d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE] = parameter;
         break;
 
     case NV097_CLEAR_SURFACE:
@@ -2189,15 +2214,49 @@ static void pgraph_method(NV2AState *d,
         if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
             gl_mask |= GL_STENCIL_BUFFER_BIT;
         }
+
         if (parameter & (NV097_CLEAR_SURFACE_COLOR)) {
             gl_mask |= GL_COLOR_BUFFER_BIT;
             kelvin_update_surface(d, kelvin, true);
+
+            uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
+            glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
+                          ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
+                          (clear_color & 0xFF) / 255.0f,         /* blue */
+                          ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
+
         }
+
+        glEnable(GL_SCISSOR_TEST);
+
+        unsigned int xmin = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTX],
+                NV_PGRAPH_CLEARRECTX_XMIN);
+        unsigned int xmax = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTX],
+                NV_PGRAPH_CLEARRECTX_XMAX);
+        unsigned int ymin = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTY],
+                NV_PGRAPH_CLEARRECTY_YMIN);
+        unsigned int ymax = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTY],
+                NV_PGRAPH_CLEARRECTY_YMAX);
+        glScissor(xmin, kelvin->surface_height-ymax, xmax-xmin, ymax-ymin);
+
+        NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d ---------------\n",
+            parameter, xmin, ymin, xmax, ymax);
+
         glClear(gl_mask);
+
+        glDisable(GL_SCISSOR_TEST);
+
 
         if (parameter & NV097_CLEAR_SURFACE_COLOR) {
             kelvin->surface_color.draw_dirty = true;
         }
+        break;
+
+    case NV097_SET_CLEAR_RECT_HORIZONTAL:
+        d->pgraph.regs[NV_PGRAPH_CLEARRECTX] = parameter;
+        break;
+    case NV097_SET_CLEAR_RECT_VERTICAL:
+        d->pgraph.regs[NV_PGRAPH_CLEARRECTY] = parameter;
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
@@ -3014,7 +3073,7 @@ static void prmvio_write(void *opaque, hwaddr addr,
 
 
 static uint64_t pfb_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+                         hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
 
@@ -3027,7 +3086,11 @@ static uint64_t pfb_read(void *opaque,
     case NV_PFB_CSTATUS:
         r = memory_region_size(d->vram);
         break;
+    case NV_PFB_WBC:
+        r = 0; /* Flush not pending. */
+        break;
     default:
+        r = d->pfb.regs[addr];
         break;
     }
 
@@ -3035,9 +3098,17 @@ static uint64_t pfb_read(void *opaque,
     return r;
 }
 static void pfb_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                       uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     reg_log_write(NV_PFB, addr, val);
+
+    switch (addr) {
+    default:
+        d->pfb.regs[addr] = val;
+        break;
+    }
 }
 
 
@@ -3097,13 +3168,8 @@ static uint64_t pgraph_read(void *opaque,
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
         r = d->pgraph.context_address >> 4;
         break;
-    case NV_PGRAPH_COLORCLEARVALUE:
-        r = d->pgraph.context[d->pgraph.channel_id].color_clear_value;
-        break;
-    case NV_PGRAPH_ZSTENCILCLEARVALUE:
-        r = d->pgraph.context[d->pgraph.channel_id].zstencil_clear_value;
-        break;
     default:
+        r = d->pgraph.regs[addr];
         break;
     }
 
@@ -3181,10 +3247,8 @@ static void pgraph_write(void *opaque, hwaddr addr,
 
         qemu_mutex_unlock(&d->pgraph.lock);
         break;
-    case NV_PGRAPH_ZSTENCILCLEARVALUE:
-        d->pgraph.context[d->pgraph.channel_id].zstencil_clear_value = val;
-        break;
     default:
+        d->pgraph.regs[addr] = val;
         break;
     }
 }
