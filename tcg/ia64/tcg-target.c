@@ -1569,7 +1569,7 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
                   > 0x1fffff)
 
 /* Load and compare a TLB entry, and return the result in (p6, p7).
-   R2 is loaded with the address of the addend TLB entry.
+   R2 is loaded with the addend TLB entry.
    R57 is loaded with the address, zero extented on 32-bit targets.
    R1, R3 are clobbered, leaving R56 free for...
    BSWAP_1, BSWAP_2 and I-slot insns for swapping data for store.  */
@@ -1625,7 +1625,7 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
                                TCG_REG_R2, off_add - off_rw),
                    bswap1);
     tcg_out_bundle(s, mmI,
-                   INSN_NOP_M,
+                   tcg_opc_m1 (TCG_REG_P0, OPC_LD8_M1, TCG_REG_R2, TCG_REG_R2),
                    tcg_opc_a6 (TCG_REG_P0, OPC_CMP_EQ_A6, TCG_REG_P6,
                                TCG_REG_P7, TCG_REG_R1, TCG_REG_R3),
                    bswap2);
@@ -1668,30 +1668,30 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                    tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R2,
                                (tcg_target_long) qemu_ld_helpers[s_bits]));
     tcg_out_bundle(s, MmI,
-                   tcg_opc_m3 (TCG_REG_P0, OPC_LD8_M3, TCG_REG_R3,
+                   tcg_opc_m3 (TCG_REG_P7, OPC_LD8_M3, TCG_REG_R3,
                                TCG_REG_R2, 8),
-                   tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R3,
-                               TCG_REG_R3, TCG_REG_R57),
+                   tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
+                               TCG_REG_R2, TCG_REG_R57),
                    tcg_opc_i21(TCG_REG_P7, OPC_MOV_I21, TCG_REG_B6,
                                TCG_REG_R3, 0));
     if (bswap && s_bits == MO_16) {
         tcg_out_bundle(s, MmI,
                        tcg_opc_m1 (TCG_REG_P6, opc_ld_m1[s_bits],
-                                   TCG_REG_R8, TCG_REG_R3),
+                                   TCG_REG_R8, TCG_REG_R2),
                        tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R2),
                        tcg_opc_i12(TCG_REG_P6, OPC_DEP_Z_I12,
                                    TCG_REG_R8, TCG_REG_R8, 15, 15));
     } else if (bswap && s_bits == MO_32) {
         tcg_out_bundle(s, MmI,
                        tcg_opc_m1 (TCG_REG_P6, opc_ld_m1[s_bits],
-                                   TCG_REG_R8, TCG_REG_R3),
+                                   TCG_REG_R8, TCG_REG_R2),
                        tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R2),
                        tcg_opc_i12(TCG_REG_P6, OPC_DEP_Z_I12,
                                    TCG_REG_R8, TCG_REG_R8, 31, 31));
     } else {
         tcg_out_bundle(s, mmI,
                        tcg_opc_m1 (TCG_REG_P6, opc_ld_m1[s_bits],
-                                   TCG_REG_R8, TCG_REG_R3),
+                                   TCG_REG_R8, TCG_REG_R2),
                        tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R2),
                        INSN_NOP_I);
     }
@@ -1763,10 +1763,10 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                    tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R2,
                                (tcg_target_long) qemu_st_helpers[s_bits]));
     tcg_out_bundle(s, MmI,
-                   tcg_opc_m3 (TCG_REG_P0, OPC_LD8_M3, TCG_REG_R3,
+                   tcg_opc_m3 (TCG_REG_P7, OPC_LD8_M3, TCG_REG_R3,
                                TCG_REG_R2, 8),
-                   tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R3,
-                               TCG_REG_R3, TCG_REG_R57),
+                   tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
+                               TCG_REG_R2, TCG_REG_R57),
                    tcg_opc_i21(TCG_REG_P7, OPC_MOV_I21, TCG_REG_B6,
                                TCG_REG_R3, 0));
     tcg_out_bundle(s, mii,
@@ -1776,7 +1776,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                    INSN_NOP_I);
     tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[s_bits],
-                               store_reg, TCG_REG_R3),
+                               store_reg, TCG_REG_R2),
                    tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, mem_index),
                    tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
                                TCG_REG_B0, TCG_REG_B6));
