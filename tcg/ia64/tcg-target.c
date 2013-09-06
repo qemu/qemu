@@ -23,8 +23,6 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-be-null.h"
-
 /*
  * Register definitions
  */
@@ -221,6 +219,7 @@ enum {
     OPC_ALLOC_M34             = 0x02c00000000ull,
     OPC_BR_DPTK_FEW_B1        = 0x08400000000ull,
     OPC_BR_SPTK_MANY_B1       = 0x08000001000ull,
+    OPC_BR_CALL_SPNT_FEW_B3   = 0x0a200000000ull,
     OPC_BR_SPTK_MANY_B4       = 0x00100001000ull,
     OPC_BR_CALL_SPTK_MANY_B5  = 0x02100001000ull,
     OPC_BR_RET_SPTK_MANY_B4   = 0x00108001100ull,
@@ -354,6 +353,15 @@ static inline uint64_t tcg_opc_b1(int qp, uint64_t opc, uint64_t imm)
     return opc
            | ((imm & 0x100000) << 16) /* s */
            | ((imm & 0x0fffff) << 13) /* imm20b */
+           | (qp & 0x3f);
+}
+
+static inline uint64_t tcg_opc_b3(int qp, uint64_t opc, int b1, uint64_t imm)
+{
+    return opc
+           | ((imm & 0x100000) << 16) /* s */
+           | ((imm & 0x0fffff) << 13) /* imm20b */
+           | ((b1 & 0x7) << 6)
            | (qp & 0x3f);
 }
 
@@ -1633,14 +1641,87 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
                    bswap2);
 }
 
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx, uintptr_t retaddr) */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldub_mmu,
-    helper_le_lduw_mmu,
-    helper_le_ldul_mmu,
-    helper_le_ldq_mmu,
-};
+#define TCG_MAX_QEMU_LDST       640
+
+typedef struct TCGLabelQemuLdst {
+    bool is_ld;
+    TCGMemOp size;
+    uint8_t *label_ptr;     /* label pointers to be updated */
+} TCGLabelQemuLdst;
+
+typedef struct TCGBackendData {
+    int nb_ldst_labels;
+    TCGLabelQemuLdst ldst_labels[TCG_MAX_QEMU_LDST];
+} TCGBackendData;
+
+static inline void tcg_out_tb_init(TCGContext *s)
+{
+    s->be->nb_ldst_labels = 0;
+}
+
+static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
+                                uint8_t *label_ptr)
+{
+    TCGBackendData *be = s->be;
+    TCGLabelQemuLdst *l = &be->ldst_labels[be->nb_ldst_labels++];
+
+    assert(be->nb_ldst_labels <= TCG_MAX_QEMU_LDST);
+    l->is_ld = is_ld;
+    l->size = opc & MO_SIZE;
+    l->label_ptr = label_ptr;
+}
+
+static void tcg_out_tb_finalize(TCGContext *s)
+{
+    static const void * const helpers[8] = {
+        helper_ret_stb_mmu,
+        helper_le_stw_mmu,
+        helper_le_stl_mmu,
+        helper_le_stq_mmu,
+        helper_ret_ldub_mmu,
+        helper_le_lduw_mmu,
+        helper_le_ldul_mmu,
+        helper_le_ldq_mmu,
+    };
+    uintptr_t thunks[8] = { };
+    TCGBackendData *be = s->be;
+    size_t i, n = be->nb_ldst_labels;
+
+    for (i = 0; i < n; i++) {
+        TCGLabelQemuLdst *l = &be->ldst_labels[i];
+        long x = l->is_ld * 4 + l->size;
+        uintptr_t dest = thunks[x];
+
+        /* The out-of-line thunks are all the same; load the return address
+           from B0, load the GP, and branch to the code.  Note that we are
+           always post-call, so the register window has rolled, so we're
+           using incomming parameter register numbers, not outgoing.  */
+        if (dest == 0) {
+            uintptr_t disp, *desc = (uintptr_t *)helpers[x];
+
+            thunks[x] = dest = (uintptr_t)s->code_ptr;
+
+            tcg_out_bundle(s, mlx,
+                           INSN_NOP_M,
+                           tcg_opc_l2 (desc[1]),
+                           tcg_opc_x2 (TCG_REG_P0, OPC_MOVL_X2,
+                                       TCG_REG_R1, desc[1]));
+            tcg_out_bundle(s, mii,
+                           INSN_NOP_M,
+                           INSN_NOP_I,
+                           tcg_opc_i22(TCG_REG_P0, OPC_MOV_I22,
+                                       l->is_ld ? TCG_REG_R35 : TCG_REG_R36,
+                                       TCG_REG_B0));
+            disp = (desc[0] - (uintptr_t)s->code_ptr) >> 4;
+            tcg_out_bundle(s, mLX,
+                           INSN_NOP_M,
+                           tcg_opc_l3 (disp),
+                           tcg_opc_x3 (TCG_REG_P0, OPC_BRL_SPTK_MANY_X3, disp));
+        }
+
+        reloc_pcrel21b(l->label_ptr, dest);
+    }
+}
 
 static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                                    TCGMemOp opc)
@@ -1650,7 +1731,8 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     };
     int addr_reg, data_reg, mem_index;
     TCGMemOp s_bits;
-    uint64_t fin1, fin2, *desc, func, gp, here;
+    uint64_t fin1, fin2;
+    uint8_t *label_ptr;
 
     data_reg = *args++;
     addr_reg = *args++;
@@ -1678,31 +1760,20 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         fin1 = tcg_opc_ext_i(TCG_REG_P0, opc, data_reg, TCG_REG_R8);
     }
 
-    desc = (uintptr_t *)qemu_ld_helpers[s_bits];
-    func = desc[0];
-    gp = desc[1];
-    here = (uintptr_t)s->code_ptr;
-
-    tcg_out_bundle(s, mlx,
+    tcg_out_bundle(s, mmI,
                    tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R56, TCG_AREG0),
-                   tcg_opc_l2 (here),
-                   tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R59, here));
-    tcg_out_bundle(s, mLX,
                    tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_REG_R57),
-                   tcg_opc_l2 (gp),
-                   tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R1, gp));
-    tcg_out_bundle(s, mmi,
+                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R58, mem_index));
+    label_ptr = s->code_ptr + 2;
+    tcg_out_bundle(s, miB,
                    tcg_opc_m1 (TCG_REG_P6, opc_ld_m1[s_bits],
                                TCG_REG_R8, TCG_REG_R2),
-                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R58, mem_index),
-                   INSN_NOP_I);
-    func -= (uintptr_t)s->code_ptr;
-    tcg_out_bundle(s, mLX,
-                   INSN_NOP_M,
-                   tcg_opc_l4 (func >> 4),
-                   tcg_opc_x4 (TCG_REG_P7, OPC_BRL_CALL_SPNT_MANY_X4,
-                               TCG_REG_B0, func >> 4));
+                   INSN_NOP_I,
+                   tcg_opc_b3 (TCG_REG_P7, OPC_BR_CALL_SPNT_FEW_B3, TCG_REG_B0,
+                               get_reloc_pcrel21b(label_ptr)));
+
+    add_qemu_ldst_label(s, 1, opc, label_ptr);
 
     /* Note that we always use LE helper functions, so the bswap insns
        here for the fast path also apply to the slow path.  */
@@ -1712,15 +1783,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                    fin2 ? fin2 : INSN_NOP_I);
 }
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx, uintptr_t retaddr) */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_le_stw_mmu,
-    helper_le_stl_mmu,
-    helper_le_stq_mmu,
-};
-
 static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                                    TCGMemOp opc)
 {
@@ -1729,8 +1791,9 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     };
     TCGReg addr_reg, data_reg;
     int mem_index;
-    uint64_t pre1, pre2, *desc, func, gp, here;
+    uint64_t pre1, pre2;
     TCGMemOp s_bits;
+    uint8_t *label_ptr;
 
     data_reg = *args++;
     addr_reg = *args++;
@@ -1759,35 +1822,24 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                      pre1, pre2);
 
     /* P6 is the fast path, and P7 the slow path */
-
-    desc = (uintptr_t *)qemu_st_helpers[s_bits];
-    func = desc[0];
-    gp = desc[1];
-    here = (uintptr_t)s->code_ptr;
-
-    tcg_out_bundle(s, mlx,
+    tcg_out_bundle(s, mmI,
                    tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R56, TCG_AREG0),
-                   tcg_opc_l2 (here),
-                   tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R60, here));
-    tcg_out_bundle(s, mLX,
                    tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_REG_R57),
-                   tcg_opc_l2 (gp),
-                   tcg_opc_x2 (TCG_REG_P7, OPC_MOVL_X2, TCG_REG_R1, gp));
-    tcg_out_bundle(s, mmi,
+                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, mem_index));
+    label_ptr = s->code_ptr + 2;
+    tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[s_bits],
                                TCG_REG_R58, TCG_REG_R2),
-                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, mem_index),
-                   INSN_NOP_I);
-    func -= (uintptr_t)s->code_ptr;
-    tcg_out_bundle(s, mLX,
-                   INSN_NOP_M,
-                   tcg_opc_l4 (func >> 4),
-                   tcg_opc_x4 (TCG_REG_P7, OPC_BRL_CALL_SPNT_MANY_X4,
-                               TCG_REG_B0, func >> 4));
+                   INSN_NOP_I,
+                   tcg_opc_b3 (TCG_REG_P7, OPC_BR_CALL_SPNT_FEW_B3, TCG_REG_B0,
+                               get_reloc_pcrel21b(label_ptr)));
+
+    add_qemu_ldst_label(s, 0, opc, label_ptr);
 }
 
 #else /* !CONFIG_SOFTMMU */
+# include "tcg-be-null.h"
 
 static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                                    TCGMemOp opc)
