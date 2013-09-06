@@ -963,6 +963,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
         label_ptr[0] = (uint32_t *)s->code_ptr;
         tcg_out_bpcc0(s, COND_NE, BPCC_PN
                       | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
+        tcg_out_nop(s);
 
         /* TLB Hit.  */
         /* Load all 64-bits into an O/G register.  */
