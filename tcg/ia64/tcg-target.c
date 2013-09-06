@@ -1571,9 +1571,11 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
 /* Load and compare a TLB entry, and return the result in (p6, p7).
    R2 is loaded with the address of the addend TLB entry.
    R57 is loaded with the address, zero extented on 32-bit targets.
-   R1, R3 are clobbered. */
+   R1, R3 are clobbered, leaving R56 free for...
+   BSWAP_1, BSWAP_2 and I-slot insns for swapping data for store.  */
 static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
-                                    TCGMemOp s_bits, int off_rw, int off_add)
+                                    TCGMemOp s_bits, int off_rw, int off_add,
+                                    uint64_t bswap1, uint64_t bswap2)
 {
      /*
         .mii
@@ -1621,12 +1623,12 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
                                (TARGET_LONG_BITS == 32
                                 ? OPC_LD4_M3 : OPC_LD8_M3), TCG_REG_R3,
                                TCG_REG_R2, off_add - off_rw),
-                   INSN_NOP_I);
+                   bswap1);
     tcg_out_bundle(s, mmI,
                    INSN_NOP_M,
                    tcg_opc_a6 (TCG_REG_P0, OPC_CMP_EQ_A6, TCG_REG_P6,
                                TCG_REG_P7, TCG_REG_R1, TCG_REG_R3),
-                   INSN_NOP_I);
+                   bswap2);
 }
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
@@ -1656,7 +1658,8 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     /* Read the TLB entry */
     tcg_out_qemu_tlb(s, addr_reg, s_bits,
                      offsetof(CPUArchState, tlb_table[mem_index][0].addr_read),
-                     offsetof(CPUArchState, tlb_table[mem_index][0].addend));
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addend),
+                     INSN_NOP_I, INSN_NOP_I);
 
     /* P6 is the fast path, and P7 the slow path */
     tcg_out_bundle(s, mLX,
@@ -1727,17 +1730,31 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     static const uint64_t opc_st_m4[4] = {
         OPC_ST1_M4, OPC_ST2_M4, OPC_ST4_M4, OPC_ST8_M4
     };
-    int addr_reg, data_reg, mem_index;
+    TCGReg addr_reg, data_reg, store_reg;
+    int mem_index;
+    uint64_t bswap1, bswap2;
     TCGMemOp s_bits;
 
-    data_reg = *args++;
+    store_reg = data_reg = *args++;
     addr_reg = *args++;
     mem_index = *args;
     s_bits = opc & MO_SIZE;
 
+    bswap1 = bswap2 = INSN_NOP_I;
+    if (opc & MO_BSWAP) {
+        store_reg = TCG_REG_R56;
+        bswap1 = tcg_opc_bswap64_i(TCG_REG_P0, store_reg, data_reg);
+        if (s_bits < MO_64) {
+            int shift = 64 - (8 << s_bits);
+            bswap2 = tcg_opc_i11(TCG_REG_P0, OPC_EXTR_U_I11,
+                                 store_reg, store_reg, shift, 63 - shift);
+        }
+    }
+
     tcg_out_qemu_tlb(s, addr_reg, s_bits,
                      offsetof(CPUArchState, tlb_table[mem_index][0].addr_write),
-                     offsetof(CPUArchState, tlb_table[mem_index][0].addend));
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addend),
+                     bswap1, bswap2);
 
     /* P6 is the fast path, and P7 the slow path */
     tcg_out_bundle(s, mLX,
@@ -1752,63 +1769,14 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                                TCG_REG_R3, TCG_REG_R57),
                    tcg_opc_i21(TCG_REG_P7, OPC_MOV_I21, TCG_REG_B6,
                                TCG_REG_R3, 0));
-
-    switch (opc) {
-    case MO_8:
-    case MO_16:
-    case MO_32:
-    case MO_64:
-        tcg_out_bundle(s, mii,
-                       tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1,
-                                   TCG_REG_R1, TCG_REG_R2),
-                       tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R58, data_reg),
-                       INSN_NOP_I);
-        break;
-
-    case MO_16 | MO_BSWAP:
-        tcg_out_bundle(s, miI,
-                       tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1,
-                                   TCG_REG_R1, TCG_REG_R2),
-                       INSN_NOP_I,
-                       tcg_opc_i12(TCG_REG_P6, OPC_DEP_Z_I12,
-                                   TCG_REG_R2, data_reg, 15, 15));
-        tcg_out_bundle(s, miI,
-                       tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R58, data_reg),
-                       INSN_NOP_I,
-                       tcg_opc_bswap64_i(TCG_REG_P6, TCG_REG_R2, TCG_REG_R2));
-        data_reg = TCG_REG_R2;
-        break;
-
-    case MO_32 | MO_BSWAP:
-        tcg_out_bundle(s, miI,
-                       tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1,
-                                   TCG_REG_R1, TCG_REG_R2),
-                       INSN_NOP_I,
-                       tcg_opc_i12(TCG_REG_P6, OPC_DEP_Z_I12,
-                                   TCG_REG_R2, data_reg, 31, 31));
-        tcg_out_bundle(s, miI,
-                       tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R58, data_reg),
-                       INSN_NOP_I,
-                       tcg_opc_bswap64_i(TCG_REG_P6, TCG_REG_R2, TCG_REG_R2));
-        data_reg = TCG_REG_R2;
-        break;
-
-    case MO_64 | MO_BSWAP:
-        tcg_out_bundle(s, miI,
-                       tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1,
-                                   TCG_REG_R1, TCG_REG_R2),
-                       tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R58, data_reg),
-                       tcg_opc_bswap64_i(TCG_REG_P6, TCG_REG_R2, data_reg));
-        data_reg = TCG_REG_R2;
-        break;
-
-    default:
-        tcg_abort();
-    }
-
+    tcg_out_bundle(s, mii,
+                   tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1,
+                               TCG_REG_R1, TCG_REG_R2),
+                   tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R58, data_reg),
+                   INSN_NOP_I);
     tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[s_bits],
-                               data_reg, TCG_REG_R3),
+                               store_reg, TCG_REG_R3),
                    tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, mem_index),
                    tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
                                TCG_REG_B0, TCG_REG_B6));
