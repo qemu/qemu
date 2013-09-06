@@ -2928,8 +2928,10 @@ static int enable_write_target(BDRVVVFATState *s)
     set_option_parameter_int(options, BLOCK_OPT_SIZE, s->sector_count * 512);
     set_option_parameter(options, BLOCK_OPT_BACKING_FILE, "fat:");
 
-    ret = bdrv_create(bdrv_qcow, s->qcow_filename, options);
+    ret = bdrv_create(bdrv_qcow, s->qcow_filename, options, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto err;
     }
 

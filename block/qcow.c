@@ -684,8 +684,10 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
         options++;
     }
 
-    ret = bdrv_create_file(filename, options);
+    ret = bdrv_create_file(filename, options, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

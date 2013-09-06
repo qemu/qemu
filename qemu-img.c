@@ -1139,6 +1139,7 @@ static int img_convert(int argc, char **argv)
     float local_progress = 0;
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
     bool quiet = false;
+    Error *local_err = NULL;
 
     fmt = NULL;
     out_fmt = "raw";
@@ -1341,18 +1342,11 @@ static int img_convert(int argc, char **argv)
 
     if (!skip_create) {
         /* Create the new image */
-        ret = bdrv_create(drv, out_filename, param);
+        ret = bdrv_create(drv, out_filename, param, &local_err);
         if (ret < 0) {
-            if (ret == -ENOTSUP) {
-                error_report("Formatting not supported for file format '%s'",
-                             out_fmt);
-            } else if (ret == -EFBIG) {
-                error_report("The image size is too large for file format '%s'",
-                             out_fmt);
-            } else {
-                error_report("%s: error while converting %s: %s",
-                             out_filename, out_fmt, strerror(-ret));
-            }
+            error_report("%s: error while converting %s: %s",
+                         out_filename, out_fmt, error_get_pretty(local_err));
+            error_free(local_err);
             goto out;
         }
     }

@@ -394,18 +394,26 @@ typedef struct CreateCo {
     char *filename;
     QEMUOptionParameter *options;
     int ret;
+    Error *err;
 } CreateCo;
 
 static void coroutine_fn bdrv_create_co_entry(void *opaque)
 {
+    Error *local_err = NULL;
+    int ret;
+
     CreateCo *cco = opaque;
     assert(cco->drv);
 
-    cco->ret = cco->drv->bdrv_create(cco->filename, cco->options, NULL);
+    ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(&cco->err, local_err);
+    }
+    cco->ret = ret;
 }
 
 int bdrv_create(BlockDriver *drv, const char* filename,
-    QEMUOptionParameter *options)
+    QEMUOptionParameter *options, Error **errp)
 {
     int ret;
 
@@ -415,9 +423,11 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         .filename = g_strdup(filename),
         .options = options,
         .ret = NOT_DONE,
+        .err = NULL,
     };
 
     if (!drv->bdrv_create) {
+        error_setg(errp, "Driver '%s' does not support image creation", drv->format_name);
         ret = -ENOTSUP;
         goto out;
     }
@@ -434,22 +444,37 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     }
 
     ret = cco.ret;
+    if (ret < 0) {
+        if (error_is_set(&cco.err)) {
+            error_propagate(errp, cco.err);
+        } else {
+            error_setg_errno(errp, -ret, "Could not create image");
+        }
+    }
 
 out:
     g_free(cco.filename);
     return ret;
 }
 
-int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
+int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
+                     Error **errp)
 {
     BlockDriver *drv;
+    Error *local_err = NULL;
+    int ret;
 
     drv = bdrv_find_protocol(filename, true);
     if (drv == NULL) {
+        error_setg(errp, "Could not find protocol for file '%s'", filename);
         return -ENOENT;
     }
 
-    return bdrv_create(drv, filename, options);
+    ret = bdrv_create(drv, filename, options, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+    }
+    return ret;
 }
 
 /*
@@ -1082,11 +1107,14 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
                 drv->format_name);
         }
 
-        ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options);
+        ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
         free_option_parameters(create_options);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not create temporary overlay "
-                             "'%s'", tmp_filename);
+                             "'%s': %s", tmp_filename,
+                             error_get_pretty(local_err));
+            error_free(local_err);
+            local_err = NULL;
             goto fail;
         }
 
@@ -4461,6 +4489,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
+    Error *local_err = NULL;
     int ret = 0;
 
     /* Find driver and parse its options */
@@ -4547,10 +4576,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
             bs = bdrv_new("");
 
             ret = bdrv_open(bs, backing_file->value.s, NULL, back_flags,
-                            backing_drv, NULL);
+                            backing_drv, &local_err);
             if (ret < 0) {
-                error_setg_errno(errp, -ret, "Could not open '%s'",
-                                 backing_file->value.s);
+                error_setg_errno(errp, -ret, "Could not open '%s': %s",
+                                 backing_file->value.s,
+                                 error_get_pretty(local_err));
+                error_free(local_err);
+                local_err = NULL;
                 goto out;
             }
             bdrv_get_geometry(bs, &size);
@@ -4569,22 +4601,19 @@ void bdrv_img_create(const char *filename, const char *fmt,
         print_option_parameters(param);
         puts("");
     }
-    ret = bdrv_create(drv, filename, param);
-    if (ret < 0) {
-        if (ret == -ENOTSUP) {
-            error_setg(errp,"Formatting or formatting option not supported for "
-                            "file format '%s'", fmt);
-        } else if (ret == -EFBIG) {
-            const char *cluster_size_hint = "";
-            if (get_option_parameter(create_options, BLOCK_OPT_CLUSTER_SIZE)) {
-                cluster_size_hint = " (try using a larger cluster size)";
-            }
-            error_setg(errp, "The image size is too large for file format '%s'%s",
-                       fmt, cluster_size_hint);
-        } else {
-            error_setg(errp, "%s: error while creating %s: %s", filename, fmt,
-                       strerror(-ret));
+    ret = bdrv_create(drv, filename, param, &local_err);
+    if (ret == -EFBIG) {
+        /* This is generally a better message than whatever the driver would
+         * deliver (especially because of the cluster_size_hint), since that
+         * is most probably not much different from "image too large". */
+        const char *cluster_size_hint = "";
+        if (get_option_parameter(create_options, BLOCK_OPT_CLUSTER_SIZE)) {
+            cluster_size_hint = " (try using a larger cluster size)";
         }
+        error_setg(errp, "The image size is too large for file format '%s'"
+                   "%s", fmt, cluster_size_hint);
+        error_free(local_err);
+        local_err = NULL;
     }
 
 out:
@@ -4593,6 +4622,9 @@ out:
 
     if (bs) {
         bdrv_unref(bs);
+    }
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
     }
 }
 

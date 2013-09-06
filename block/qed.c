@@ -555,8 +555,10 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     int ret = 0;
     BlockDriverState *bs = NULL;
 
-    ret = bdrv_create_file(filename, NULL);
+    ret = bdrv_create_file(filename, NULL, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
