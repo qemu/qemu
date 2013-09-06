@@ -2051,6 +2051,24 @@ static ExitStatus op_efpc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_epsw(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r2 = get_field(s->fields, r2);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    /* Note the "subsequently" in the PoO, which implies a defined result
+       if r1 == r2.  Thus we cannot defer these writes to an output hook.  */
+    tcg_gen_shri_i64(t, psw_mask, 32);
+    store_reg32_i64(r1, t);
+    if (r2 != 0) {
+        store_reg32_i64(r2, psw_mask);
+    }
+
+    tcg_temp_free_i64(t);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ex(DisasContext *s, DisasOps *o)
 {
     /* ??? Perhaps a better way to implement EXECUTE is to set a bit in
