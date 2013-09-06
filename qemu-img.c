@@ -412,7 +412,7 @@ static int img_create(int argc, char **argv)
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, BDRV_O_FLAGS, &local_err, quiet);
     if (error_is_set(&local_err)) {
-        error_report("%s", error_get_pretty(local_err));
+        error_report("%s: %s", filename, error_get_pretty(local_err));
         error_free(local_err);
         return 1;
     }
