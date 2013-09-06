@@ -1338,7 +1338,7 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
  * clusters.
  */
 static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
-    unsigned int nb_clusters)
+    unsigned int nb_clusters, enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table;
@@ -1367,7 +1367,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         l2_table[l2_index + i] = cpu_to_be64(0);
 
         /* Then decrease the refcount */
-        qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
+        qcow2_free_any_clusters(bs, old_offset, 1, type);
     }
 
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
@@ -1379,7 +1379,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
 }
 
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
-    int nb_sectors)
+    int nb_sectors, enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t end_offset;
@@ -1402,7 +1402,7 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     /* Each L2 table is handled by its own loop iteration */
     while (nb_clusters > 0) {
-        ret = discard_single_l2(bs, offset, nb_clusters);
+        ret = discard_single_l2(bs, offset, nb_clusters, type);
         if (ret < 0) {
             goto fail;
         }
