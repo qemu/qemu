@@ -2925,19 +2925,42 @@ static ExitStatus op_sacf(DisasContext *s, DisasOps *o)
     /* Addressing mode has changed, so end the block.  */
     return EXIT_PC_STALE;
 }
+#endif
 
 static ExitStatus op_sam(DisasContext *s, DisasOps *o)
 {
     int sam = s->insn->data;
-    TCGv_i64 tsam = tcg_const_i64(sam);
+    TCGv_i64 tsam;
+    uint64_t mask;
 
-    /* Overwrite PSW_MASK_64 and PSW_MASK_32 */
+    switch (sam) {
+    case 0:
+        mask = 0xffffff;
+        break;
+    case 1:
+        mask = 0x7fffffff;
+        break;
+    default:
+        mask = -1;
+        break;
+    }
+
+    /* Bizzare but true, we check the address of the current insn for the
+       specification exception, not the next to be executed.  Thus the PoO
+       documents that Bad Things Happen two bytes before the end.  */
+    if (s->pc & ~mask) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    s->next_pc &= mask;
+
+    tsam = tcg_const_i64(sam);
     tcg_gen_deposit_i64(psw_mask, psw_mask, tsam, 31, 2);
-
     tcg_temp_free_i64(tsam);
+
+    /* Always exit the TB, since we (may have) changed execution mode.  */
     return EXIT_PC_STALE;
 }
-#endif
 
 static ExitStatus op_sar(DisasContext *s, DisasOps *o)
 {
