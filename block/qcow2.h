@@ -361,6 +361,11 @@ static inline int64_t align_offset(int64_t offset, int n)
     return offset;
 }
 
+static inline int64_t qcow2_vm_state_offset(BDRVQcowState *s)
+{
+    return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
+}
+
 static inline int qcow2_get_cluster_type(uint64_t l2_entry)
 {
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {

@@ -1757,11 +1757,6 @@ static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
     return 0;
 }
 
-static int64_t qcow2_vm_state_offset(BDRVQcowState *s)
-{
-	return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
-}
-
 static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BDRVQcowState *s = bs->opaque;
