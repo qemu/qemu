@@ -863,8 +863,7 @@ static const void * const qemu_st_helpers[4] = {
 /* Perform the TLB load and compare.
 
    Inputs:
-   ADDRLO_IDX contains the index into ARGS of the low part of the
-   address; the high part of the address is at ADDR_LOW_IDX+1.
+   ADDRLO and ADDRHI contain the possible two parts of the address.
 
    MEM_INDEX and S_BITS are the memory context and log2 size of the load.
 
@@ -874,20 +873,19 @@ static const void * const qemu_st_helpers[4] = {
    The result of the TLB comparison is in %[ix]cc.  The sanitized address
    is in the returned register, maybe %o0.  The TLB addend is in %o1.  */
 
-static int tcg_out_tlb_load(TCGContext *s, int addrlo_idx, int mem_index,
-                            TCGMemOp s_bits, const TCGArg *args, int which)
+static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
+                               int mem_index, TCGMemOp s_bits, int which)
 {
-    const int addrlo = args[addrlo_idx];
-    const int r0 = TCG_REG_O0;
-    const int r1 = TCG_REG_O1;
-    const int r2 = TCG_REG_O2;
-    int addr = addrlo;
+    const TCGReg r0 = TCG_REG_O0;
+    const TCGReg r1 = TCG_REG_O1;
+    const TCGReg r2 = TCG_REG_O2;
+    TCGReg addr = addrlo;
     int tlb_ofs;
 
     if (TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 64) {
         /* Assemble the 64-bit address in R0.  */
         tcg_out_arithi(s, r0, addrlo, 0, SHIFT_SRL);
-        tcg_out_arithi(s, r1, args[addrlo_idx + 1], 32, SHIFT_SLLX);
+        tcg_out_arithi(s, r1, addrhi, 32, SHIFT_SLLX);
         tcg_out_arith(s, r0, r0, r1, ARITH_OR);
         addr = r0;
     }
@@ -965,24 +963,23 @@ static const int qemu_st_opc[16] = {
 
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
 {
-    int addrlo_idx = 1, datalo, datahi, addr_reg;
+    TCGReg addrlo, datalo, datahi, addr_reg;
     TCGMemOp s_bits = memop & MO_SIZE;
 #if defined(CONFIG_SOFTMMU)
-    int memi_idx, memi, n;
+    TCGReg addrhi;
+    int memi, n;
     uint32_t *label_ptr[2];
 #endif
 
-    datahi = datalo = args[0];
-    if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
-        datahi = args[1];
-        addrlo_idx = 2;
-    }
+    datalo = *args++;
+    datahi = (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64 ? *args++ : 0);
+    addr_reg = addrlo = *args++;
 
 #if defined(CONFIG_SOFTMMU)
-    memi_idx = addrlo_idx + 1 + (TARGET_LONG_BITS > TCG_TARGET_REG_BITS);
-    memi = args[memi_idx];
+    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
+    memi = *args++;
 
-    addr_reg = tcg_out_tlb_load(s, addrlo_idx, memi, s_bits, args,
+    addr_reg = tcg_out_tlb_load(s, addrlo, addrhi, memi, s_bits,
                                 offsetof(CPUTLBEntry, addr_read));
 
     if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
@@ -1031,11 +1028,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     n = 0;
     tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[n++], TCG_AREG0);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++],
-                    args[addrlo_idx + 1]);
+        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrhi);
     }
-    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++],
-                args[addrlo_idx]);
+    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrlo);
 
     /* qemu_ld_helper[s_bits](arg0, arg1) */
     tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[s_bits]);
@@ -1076,7 +1071,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     *label_ptr[1] |= INSN_OFF19((unsigned long)s->code_ptr -
                                 (unsigned long)label_ptr[1]);
 #else
-    addr_reg = args[addrlo_idx];
     if (TCG_TARGET_REG_BITS == 64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr_reg, 0, SHIFT_SRL);
         addr_reg = TCG_REG_T1;
@@ -1102,24 +1096,23 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
 
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
 {
-    int addrlo_idx = 1, datalo, datahi, addr_reg;
+    TCGReg addrlo, datalo, datahi, addr_reg;
     TCGMemOp s_bits = memop & MO_SIZE;
 #if defined(CONFIG_SOFTMMU)
-    int memi_idx, memi, n, datafull;
+    TCGReg addrhi, datafull;
+    int memi, n;
     uint32_t *label_ptr;
 #endif
 
-    datahi = datalo = args[0];
-    if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
-        datahi = args[1];
-        addrlo_idx = 2;
-    }
+    datalo = *args++;
+    datahi = (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64 ? *args++ : 0);
+    addr_reg = addrlo = *args++;
 
 #if defined(CONFIG_SOFTMMU)
-    memi_idx = addrlo_idx + 1 + (TARGET_LONG_BITS > TCG_TARGET_REG_BITS);
-    memi = args[memi_idx];
+    addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
+    memi = *args++;
 
-    addr_reg = tcg_out_tlb_load(s, addrlo_idx, memi, s_bits, args,
+    addr_reg = tcg_out_tlb_load(s, addrlo, addrhi, memi, s_bits,
                                 offsetof(CPUTLBEntry, addr_write));
 
     datafull = datalo;
@@ -1145,11 +1138,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     n = 0;
     tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[n++], TCG_AREG0);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++],
-                    args[addrlo_idx + 1]);
+        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrhi);
     }
-    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++],
-                args[addrlo_idx]);
+    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrlo);
     if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
         tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], datahi);
     }
@@ -1163,7 +1154,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     *label_ptr |= INSN_OFF19((unsigned long)s->code_ptr -
                              (unsigned long)label_ptr);
 #else
-    addr_reg = args[addrlo_idx];
     if (TCG_TARGET_REG_BITS == 64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr_reg, 0, SHIFT_SRL);
         addr_reg = TCG_REG_T1;
