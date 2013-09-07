@@ -118,11 +118,9 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 #define QEMU_HDA_AMP_NONE    (0)
 #define QEMU_HDA_AMP_STEPS   0x4a
 
-#ifdef CONFIG_MIXEMU
 #define   PARAM mixemu
 #define   HDA_MIXER
 #include "hda-codec-common.h"
-#endif
 
 #define   PARAM nomixemu
 #include  "hda-codec-common.h"
@@ -594,11 +592,7 @@ static const VMStateDescription vmstate_hda_audio = {
 
 static Property hda_audio_properties[] = {
     DEFINE_PROP_UINT32("debug", HDAAudioState, debug,   0),
-#ifdef CONFIG_MIXEMU
     DEFINE_PROP_BOOL("mixer", HDAAudioState, mixer,  true),
-#else
-    DEFINE_PROP_BOOL("mixer", HDAAudioState, mixer, false),
-#endif
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -609,15 +603,7 @@ static int hda_audio_init_output(HDACodecDevice *hda)
     if (!a->mixer) {
         return hda_audio_init(hda, &output_nomixemu);
     } else {
-
-#ifdef CONFIG_MIXEMU
         return hda_audio_init(hda, &output_mixemu);
-#else
-        fprintf(stderr, "ERROR: "
-                "hda-codec : Mixer emulation has not been compiled in!\n");
-        return -1;
-#endif
-
     }
 }
 
@@ -628,15 +614,7 @@ static int hda_audio_init_duplex(HDACodecDevice *hda)
     if (!a->mixer) {
         return hda_audio_init(hda, &duplex_nomixemu);
     } else {
-
-#ifdef CONFIG_MIXEMU
         return hda_audio_init(hda, &duplex_mixemu);
-#else
-        fprintf(stderr, "ERROR: "
-                "hda-codec : Mixer emulation has not been compiled in!\n");
-        return -1;
-#endif
-
     }
 }
 
@@ -647,15 +625,7 @@ static int hda_audio_init_micro(HDACodecDevice *hda)
     if (!a->mixer) {
         return hda_audio_init(hda, &micro_nomixemu);
     } else {
-
-#ifdef CONFIG_MIXEMU
         return hda_audio_init(hda, &micro_mixemu);
-#else
-        fprintf(stderr, "ERROR: "
-                "hda-codec : Mixer emulation has not been compiled in!\n");
-        return -1;
-#endif
-
     }
 }
 

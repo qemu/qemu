@@ -215,7 +215,6 @@ linux_user="no"
 bsd_user="no"
 guest_base="yes"
 uname_release=""
-mixemu="no"
 aix="no"
 blobs="yes"
 pkgversion=""
@@ -873,8 +872,6 @@ for opt do
   ;;
   --enable-fdt) fdt="yes"
   ;;
-  --enable-mixemu) mixemu="yes"
-  ;;
   --disable-linux-aio) linux_aio="no"
   ;;
   --enable-linux-aio) linux_aio="yes"
@@ -1107,7 +1104,6 @@ echo "                           (affects only QEMU, not qemu-img)"
 echo "  --block-drv-ro-whitelist=L"
 echo "                           set block driver read-only whitelist"
 echo "                           (affects only QEMU, not qemu-img)"
-echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
 echo "  --enable-xen             enable xen backend driver support"
 echo "  --disable-xen-pci-passthrough"
@@ -3699,7 +3695,6 @@ echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
 echo "Block whitelist (rw) $block_drv_rw_whitelist"
 echo "Block whitelist (ro) $block_drv_ro_whitelist"
-echo "Mixer emulation   $mixemu"
 echo "VirtFS support    $virtfs"
 echo "VNC support       $vnc"
 if test "$vnc" = "yes" ; then
@@ -3886,9 +3881,6 @@ if test "$audio_win_int" = "yes" ; then
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
-if test "$mixemu" = "yes" ; then
-  echo "CONFIG_MIXEMU=y" >> $config_host_mak
-fi
 if test "$vnc" = "yes" ; then
   echo "CONFIG_VNC=y" >> $config_host_mak
 fi
