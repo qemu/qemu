@@ -24,7 +24,7 @@
  * HDA codec descriptions
  */
 
-#ifdef CONFIG_MIXEMU
+#ifdef HDA_MIXER
 #define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x12)
 #define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x22)
 #define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x32)
@@ -42,7 +42,7 @@
 
 
 /* common: audio output widget */
-static const desc_param common_params_audio_dac[] = {
+static const desc_param glue(common_params_audio_dac_, PARAM)[] = {
     {
         .id  = AC_PAR_AUDIO_WIDGET_CAP,
         .val = ((AC_WID_AUD_OUT << AC_WCAP_TYPE_SHIFT) |
@@ -66,7 +66,7 @@ static const desc_param common_params_audio_dac[] = {
 };
 
 /* common: audio input widget */
-static const desc_param common_params_audio_adc[] = {
+static const desc_param glue(common_params_audio_adc_, PARAM)[] = {
     {
         .id  = AC_PAR_AUDIO_WIDGET_CAP,
         .val = ((AC_WID_AUD_IN << AC_WCAP_TYPE_SHIFT) |
@@ -94,7 +94,7 @@ static const desc_param common_params_audio_adc[] = {
 };
 
 /* common: pin widget (line-out) */
-static const desc_param common_params_audio_lineout[] = {
+static const desc_param glue(common_params_audio_lineout_, PARAM)[] = {
     {
         .id  = AC_PAR_AUDIO_WIDGET_CAP,
         .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
@@ -116,7 +116,7 @@ static const desc_param common_params_audio_lineout[] = {
 };
 
 /* common: pin widget (line-in) */
-static const desc_param common_params_audio_linein[] = {
+static const desc_param glue(common_params_audio_linein_, PARAM)[] = {
     {
         .id  = AC_PAR_AUDIO_WIDGET_CAP,
         .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
@@ -134,7 +134,7 @@ static const desc_param common_params_audio_linein[] = {
 };
 
 /* output: root node */
-static const desc_param output_params_root[] = {
+static const desc_param glue(output_params_root_, PARAM)[] = {
     {
         .id  = AC_PAR_VENDOR_ID,
         .val = QEMU_HDA_ID_OUTPUT,
@@ -151,7 +151,7 @@ static const desc_param output_params_root[] = {
 };
 
 /* output: audio function */
-static const desc_param output_params_audio_func[] = {
+static const desc_param glue(output_params_audio_func_, PARAM)[] = {
     {
         .id  = AC_PAR_FUNCTION_TYPE,
         .val = AC_GRP_AUDIO_FUNCTION,
@@ -186,28 +186,28 @@ static const desc_param output_params_audio_func[] = {
 };
 
 /* output: nodes */
-static const desc_node output_nodes[] = {
+static const desc_node glue(output_nodes_, PARAM)[] = {
     {
         .nid     = AC_NODE_ROOT,
         .name    = "root",
-        .params  = output_params_root,
-        .nparams = ARRAY_SIZE(output_params_root),
+        .params  = glue(output_params_root_, PARAM),
+        .nparams = ARRAY_SIZE(glue(output_params_root_, PARAM)),
     },{
         .nid     = 1,
         .name    = "func",
-        .params  = output_params_audio_func,
-        .nparams = ARRAY_SIZE(output_params_audio_func),
+        .params  = glue(output_params_audio_func_, PARAM),
+        .nparams = ARRAY_SIZE(glue(output_params_audio_func_, PARAM)),
     },{
         .nid     = 2,
         .name    = "dac",
-        .params  = common_params_audio_dac,
-        .nparams = ARRAY_SIZE(common_params_audio_dac),
+        .params  = glue(common_params_audio_dac_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_dac_, PARAM)),
         .stindex = 0,
     },{
         .nid     = 3,
         .name    = "out",
-        .params  = common_params_audio_lineout,
-        .nparams = ARRAY_SIZE(common_params_audio_lineout),
+        .params  = glue(common_params_audio_lineout_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_lineout_, PARAM)),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_LINE_OUT     << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -219,15 +219,15 @@ static const desc_node output_nodes[] = {
 };
 
 /* output: codec */
-static const desc_codec output = {
+static const desc_codec glue(output_, PARAM) = {
     .name   = "output",
     .iid    = QEMU_HDA_ID_OUTPUT,
-    .nodes  = output_nodes,
-    .nnodes = ARRAY_SIZE(output_nodes),
+    .nodes  = glue(output_nodes_, PARAM),
+    .nnodes = ARRAY_SIZE(glue(output_nodes_, PARAM)),
 };
 
 /* duplex: root node */
-static const desc_param duplex_params_root[] = {
+static const desc_param glue(duplex_params_root_, PARAM)[] = {
     {
         .id  = AC_PAR_VENDOR_ID,
         .val = QEMU_HDA_ID_DUPLEX,
@@ -244,7 +244,7 @@ static const desc_param duplex_params_root[] = {
 };
 
 /* duplex: audio function */
-static const desc_param duplex_params_audio_func[] = {
+static const desc_param glue(duplex_params_audio_func_, PARAM)[] = {
     {
         .id  = AC_PAR_FUNCTION_TYPE,
         .val = AC_GRP_AUDIO_FUNCTION,
@@ -279,28 +279,28 @@ static const desc_param duplex_params_audio_func[] = {
 };
 
 /* duplex: nodes */
-static const desc_node duplex_nodes[] = {
+static const desc_node glue(duplex_nodes_, PARAM)[] = {
     {
         .nid     = AC_NODE_ROOT,
         .name    = "root",
-        .params  = duplex_params_root,
-        .nparams = ARRAY_SIZE(duplex_params_root),
+        .params  = glue(duplex_params_root_, PARAM),
+        .nparams = ARRAY_SIZE(glue(duplex_params_root_, PARAM)),
     },{
         .nid     = 1,
         .name    = "func",
-        .params  = duplex_params_audio_func,
-        .nparams = ARRAY_SIZE(duplex_params_audio_func),
+        .params  = glue(duplex_params_audio_func_, PARAM),
+        .nparams = ARRAY_SIZE(glue(duplex_params_audio_func_, PARAM)),
     },{
         .nid     = 2,
         .name    = "dac",
-        .params  = common_params_audio_dac,
-        .nparams = ARRAY_SIZE(common_params_audio_dac),
+        .params  = glue(common_params_audio_dac_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_dac_, PARAM)),
         .stindex = 0,
     },{
         .nid     = 3,
         .name    = "out",
-        .params  = common_params_audio_lineout,
-        .nparams = ARRAY_SIZE(common_params_audio_lineout),
+        .params  = glue(common_params_audio_lineout_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_lineout_, PARAM)),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_LINE_OUT     << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -311,15 +311,15 @@ static const desc_node duplex_nodes[] = {
     },{
         .nid     = 4,
         .name    = "adc",
-        .params  = common_params_audio_adc,
-        .nparams = ARRAY_SIZE(common_params_audio_adc),
+        .params  = glue(common_params_audio_adc_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_adc_, PARAM)),
         .stindex = 1,
         .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",
-        .params  = common_params_audio_linein,
-        .nparams = ARRAY_SIZE(common_params_audio_linein),
+        .params  = glue(common_params_audio_linein_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_linein_, PARAM)),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_LINE_IN      << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -330,15 +330,15 @@ static const desc_node duplex_nodes[] = {
 };
 
 /* duplex: codec */
-static const desc_codec duplex = {
+static const desc_codec glue(duplex_, PARAM) = {
     .name   = "duplex",
     .iid    = QEMU_HDA_ID_DUPLEX,
-    .nodes  = duplex_nodes,
-    .nnodes = ARRAY_SIZE(duplex_nodes),
+    .nodes  = glue(duplex_nodes_, PARAM),
+    .nnodes = ARRAY_SIZE(glue(duplex_nodes_, PARAM)),
 };
 
 /* micro: root node */
-static const desc_param micro_params_root[] = {
+static const desc_param glue(micro_params_root_, PARAM)[] = {
     {
         .id  = AC_PAR_VENDOR_ID,
         .val = QEMU_HDA_ID_MICRO,
@@ -355,7 +355,7 @@ static const desc_param micro_params_root[] = {
 };
 
 /* micro: audio function */
-static const desc_param micro_params_audio_func[] = {
+static const desc_param glue(micro_params_audio_func_, PARAM)[] = {
     {
         .id  = AC_PAR_FUNCTION_TYPE,
         .val = AC_GRP_AUDIO_FUNCTION,
@@ -390,28 +390,28 @@ static const desc_param micro_params_audio_func[] = {
 };
 
 /* micro: nodes */
-static const desc_node micro_nodes[] = {
+static const desc_node glue(micro_nodes_, PARAM)[] = {
     {
         .nid     = AC_NODE_ROOT,
         .name    = "root",
-        .params  = micro_params_root,
-        .nparams = ARRAY_SIZE(micro_params_root),
+        .params  = glue(micro_params_root_, PARAM),
+        .nparams = ARRAY_SIZE(glue(micro_params_root_, PARAM)),
     },{
         .nid     = 1,
         .name    = "func",
-        .params  = micro_params_audio_func,
-        .nparams = ARRAY_SIZE(micro_params_audio_func),
+        .params  = glue(micro_params_audio_func_, PARAM),
+        .nparams = ARRAY_SIZE(glue(micro_params_audio_func_, PARAM)),
     },{
         .nid     = 2,
         .name    = "dac",
-        .params  = common_params_audio_dac,
-        .nparams = ARRAY_SIZE(common_params_audio_dac),
+        .params  = glue(common_params_audio_dac_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_dac_, PARAM)),
         .stindex = 0,
     },{
         .nid     = 3,
         .name    = "out",
-        .params  = common_params_audio_lineout,
-        .nparams = ARRAY_SIZE(common_params_audio_lineout),
+        .params  = glue(common_params_audio_lineout_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_lineout_, PARAM)),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_SPEAKER      << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -422,15 +422,15 @@ static const desc_node micro_nodes[] = {
     },{
         .nid     = 4,
         .name    = "adc",
-        .params  = common_params_audio_adc,
-        .nparams = ARRAY_SIZE(common_params_audio_adc),
+        .params  = glue(common_params_audio_adc_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_adc_, PARAM)),
         .stindex = 1,
         .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",
-        .params  = common_params_audio_linein,
-        .nparams = ARRAY_SIZE(common_params_audio_linein),
+        .params  = glue(common_params_audio_linein_, PARAM),
+        .nparams = ARRAY_SIZE(glue(common_params_audio_linein_, PARAM)),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_MIC_IN       << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -441,9 +441,16 @@ static const desc_node micro_nodes[] = {
 };
 
 /* micro: codec */
-static const desc_codec micro = {
+static const desc_codec glue(micro_, PARAM) = {
     .name   = "micro",
     .iid    = QEMU_HDA_ID_MICRO,
-    .nodes  = micro_nodes,
-    .nnodes = ARRAY_SIZE(micro_nodes),
+    .nodes  = glue(micro_nodes_, PARAM),
+    .nnodes = ARRAY_SIZE(glue(micro_nodes_, PARAM)),
 };
+
+#undef PARAM
+#undef HDA_MIXER
+#undef QEMU_HDA_ID_OUTPUT
+#undef QEMU_HDA_ID_DUPLEX
+#undef QEMU_HDA_ID_MICRO
+#undef QEMU_HDA_AMP_CAPS
