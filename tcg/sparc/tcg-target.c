@@ -480,19 +480,6 @@ static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
     }
 }
 
-static inline void tcg_out_andi(TCGContext *s, int rd, int rs,
-                                tcg_target_long val)
-{
-    if (val != 0) {
-        if (check_fit_tl(val, 13))
-            tcg_out_arithi(s, rd, rs, val, ARITH_AND);
-        else {
-            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_T1, val);
-            tcg_out_arith(s, rd, rs, TCG_REG_T1, ARITH_AND);
-        }
-    }
-}
-
 static void tcg_out_div32(TCGContext *s, int rd, int rs1,
                           int val2, int val2const, int uns)
 {
@@ -880,17 +867,24 @@ static int tcg_out_tlb_load(TCGContext *s, int addrlo_idx, int mem_index,
         tcg_out_arithi(s, r0, addrlo, 0, SHIFT_SRL);
         tcg_out_arithi(s, r1, args[addrlo_idx + 1], 32, SHIFT_SLLX);
         tcg_out_arith(s, r0, r0, r1, ARITH_OR);
+        addr = r0;
     }
 
-    /* Shift the page number down to tlb-entry.  */
-    tcg_out_arithi(s, r1, addrlo,
-                   TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS, SHIFT_SRL);
+    /* Shift the page number down.  */
+    tcg_out_arithi(s, r1, addrlo, TARGET_PAGE_BITS, SHIFT_SRL);
 
     /* Mask out the page offset, except for the required alignment.  */
-    tcg_out_andi(s, r0, addr, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+    tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_T1,
+                 TARGET_PAGE_MASK | ((1 << s_bits) - 1));
 
-    /* Compute tlb index, modulo tlb size.  */
-    tcg_out_andi(s, r1, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    /* Mask the tlb index.  */
+    tcg_out_arithi(s, r1, r1, CPU_TLB_SIZE - 1, ARITH_AND);
+    
+    /* Mask page, part 2.  */
+    tcg_out_arith(s, r0, addr, TCG_REG_T1, ARITH_AND);
+
+    /* Shift the tlb index into place.  */
+    tcg_out_arithi(s, r1, r1, CPU_TLB_ENTRY_BITS, SHIFT_SLL);
 
     /* Relative to the current ENV.  */
     tcg_out_arith(s, r1, TCG_AREG0, r1, ARITH_ADD);
@@ -898,8 +892,8 @@ static int tcg_out_tlb_load(TCGContext *s, int addrlo_idx, int mem_index,
     /* Find a base address that can load both tlb comparator and addend.  */
     tlb_ofs = offsetof(CPUArchState, tlb_table[mem_index][0]);
     if (!check_fit_tl(tlb_ofs + sizeof(CPUTLBEntry), 13)) {
-        tcg_out_addi(s, r1, tlb_ofs);
-        tlb_ofs = 0;
+        tcg_out_addi(s, r1, tlb_ofs & ~0x3ff);
+        tlb_ofs &= 0x3ff;
     }
 
     /* Load the tlb comparator and the addend.  */
