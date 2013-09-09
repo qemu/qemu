@@ -85,6 +85,7 @@ static size_t handle_aiocb_rw(RawWin32AIOData *aiocb)
             ret_count = 0;
         }
         if (ret_count != len) {
+            offset += ret_count;
             break;
         }
         offset += len;
