@@ -611,9 +611,14 @@ static void tcg_out_tlb_check (TCGContext *s, int r0, int r1, int r2,
     tcg_out32 (s, CMP | BF (6) | RA (addr_reg2) | RB (r1));
     tcg_out32 (s, CRAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
 #endif
+
+    /* Use a conditional branch-and-link so that we load a pointer to
+       somewhere within the current opcode, for passing on to the helper.
+       This address cannot be used for a tail call, but it's shorter
+       than forming an address from scratch.  */
     *label_ptr = s->code_ptr;
     retranst = ((uint16_t *) s->code_ptr)[1] & ~3;
-    tcg_out32 (s, BC | BI (7, CR_EQ) | retranst | BO_COND_FALSE);
+    tcg_out32(s, BC | BI(7, CR_EQ) | retranst | BO_COND_FALSE | LK);
 
     /* r0 now contains &env->tlb_table[mem_index][index].addr_x */
     tcg_out32 (s, (LWZ
@@ -853,7 +858,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         tcg_out_mov(s, TCG_TYPE_I32, ir++, l->addrlo_reg);
     }
     tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, ir, (uintptr_t)l->raddr);
+    tcg_out32(s, MFSPR | RT(ir++) | LR);
     tcg_out_b(s, LK, (uintptr_t)ld_trampolines[l->opc & 3]);
 
     datalo = l->datalo_reg;
@@ -928,9 +933,9 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     ir++;
 
     tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, ir, (uintptr_t)l->raddr);
-    tcg_out32(s, MTSPR | RS(ir) | LR);
-    tcg_out_b(s, 0, (uintptr_t)st_trampolines[l->opc]);
+    tcg_out32(s, MFSPR | RT(ir++) | LR);
+    tcg_out_b(s, LK, (uintptr_t)st_trampolines[l->opc]);
+    tcg_out_b(s, 0, (uintptr_t)l->raddr);
 }
 
 void tcg_out_tb_finalize(TCGContext *s)
