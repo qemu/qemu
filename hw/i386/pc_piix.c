@@ -93,7 +93,7 @@ static void pc_init1(MemoryRegion *system_memory,
     FWCfgState *fw_cfg = NULL;
     PcGuestInfo *guest_info;
 
-    if (xen_enabled() && xen_hvm_init() != 0) {
+    if (xen_enabled() && xen_hvm_init(&ram_memory) != 0) {
         fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
         exit(1);
     }
