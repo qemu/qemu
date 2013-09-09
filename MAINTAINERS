@@ -766,6 +766,12 @@ M: Blue Swirl <blauwirbel@gmail.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
 
+Seccomp
+M: Eduardo Otubo <otubo@linux.vnet.ibm.com>
+S: Supported
+F: qemu-seccomp.c
+F: include/sysemu/seccomp.h
+
 Usermode Emulation
 ------------------
 BSD user
