@@ -154,7 +154,7 @@ qemu_irq *xen_interrupt_controller_init(void)
 
 /* Memory Ops */
 
-static void xen_ram_init(ram_addr_t ram_size)
+static void xen_ram_init(ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
@@ -168,6 +168,7 @@ static void xen_ram_init(ram_addr_t ram_size)
         block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
     memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    *ram_memory_p = &ram_memory;
     vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
@@ -1059,7 +1060,7 @@ static void xen_read_physmap(XenIOState *state)
     free(entries);
 }
 
-int xen_hvm_init(void)
+int xen_hvm_init(MemoryRegion **ram_memory)
 {
     int i, rc;
     unsigned long ioreq_pfn;
@@ -1134,7 +1135,7 @@ int xen_hvm_init(void)
 
     /* Init RAM management */
     xen_map_cache_init(xen_phys_offset_to_gaddr, state);
-    xen_ram_init(ram_size);
+    xen_ram_init(ram_size, ram_memory);
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
