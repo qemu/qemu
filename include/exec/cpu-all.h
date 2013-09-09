@@ -24,6 +24,7 @@
 #include "exec/memory.h"
 #include "qemu/thread.h"
 #include "qom/cpu.h"
+#include "qemu/rcu.h"
 
 /* some important defines:
  *
@@ -268,6 +269,7 @@ CPUArchState *cpu_copy(CPUArchState *env);
 typedef struct RAMBlock RAMBlock;
 
 struct RAMBlock {
+    struct rcu_head rcu;
     struct MemoryRegion *mr;
     uint8_t *host;
     ram_addr_t offset;

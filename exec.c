@@ -811,7 +811,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
     RAMBlock *block;
 
     /* The list is protected by the iothread lock here.  */
-    block = ram_list.mru_block;
+    block = atomic_rcu_read(&ram_list.mru_block);
     if (block && addr - block->offset < block->max_length) {
         goto found;
     }
@@ -825,6 +825,22 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
     abort();
 
 found:
+    /* It is safe to write mru_block outside the iothread lock.  This
+     * is what happens:
+     *
+     *     mru_block = xxx
+     *     rcu_read_unlock()
+     *                                        xxx removed from list
+     *                  rcu_read_lock()
+     *                  read mru_block
+     *                                        mru_block = NULL;
+     *                                        call_rcu(reclaim_ramblock, xxx);
+     *                  rcu_read_unlock()
+     *
+     * atomic_rcu_set is not needed here.  The block was already published
+     * when it was placed into the list.  Here we're just making an extra
+     * copy of the pointer.
+     */
     ram_list.mru_block = block;
     return block;
 }
@@ -1526,13 +1542,31 @@ void qemu_ram_free_from_ptr(ram_addr_t addr)
             QTAILQ_REMOVE(&ram_list.blocks, block, next);
             ram_list.mru_block = NULL;
             ram_list.version++;
-            g_free(block);
+            g_free_rcu(block, rcu);
             break;
         }
     }
     qemu_mutex_unlock_ramlist();
 }
 
+static void reclaim_ramblock(RAMBlock *block)
+{
+    if (block->flags & RAM_PREALLOC) {
+        ;
+    } else if (xen_enabled()) {
+        xen_invalidate_map_cache_entry(block->host);
+#ifndef _WIN32
+    } else if (block->fd >= 0) {
+        munmap(block->host, block->max_length);
+        close(block->fd);
+#endif
+    } else {
+        qemu_anon_ram_free(block->host, block->max_length);
+    }
+    g_free(block);
+}
+
+/* Called with the iothread lock held */
 void qemu_ram_free(ram_addr_t addr)
 {
     RAMBlock *block;
@@ -1544,19 +1578,7 @@ void qemu_ram_free(ram_addr_t addr)
             QTAILQ_REMOVE(&ram_list.blocks, block, next);
             ram_list.mru_block = NULL;
             ram_list.version++;
-            if (block->flags & RAM_PREALLOC) {
-                ;
-            } else if (xen_enabled()) {
-                xen_invalidate_map_cache_entry(block->host);
-#ifndef _WIN32
-            } else if (block->fd >= 0) {
-                munmap(block->host, block->max_length);
-                close(block->fd);
-#endif
-            } else {
-                qemu_anon_ram_free(block->host, block->max_length);
-            }
-            g_free(block);
+            call_rcu(block, reclaim_ramblock, rcu);
             break;
         }
     }
