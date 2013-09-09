@@ -2861,7 +2861,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_muls2_tl tcg_gen_muls2_i32
 #endif
 
-#if TCG_TARGET_REG_BITS == 32
+#if UINTPTR_MAX == UINT32_MAX
 # define tcg_gen_ld_ptr(R, A, O) \
     tcg_gen_ld_i32(TCGV_PTR_TO_NAT(R), (A), (O))
 # define tcg_gen_discard_ptr(A) \
@@ -2883,4 +2883,4 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
     tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
-#endif /* TCG_TARGET_REG_BITS == 32 */
+#endif /* UINTPTR_MAX == UINT32_MAX */
