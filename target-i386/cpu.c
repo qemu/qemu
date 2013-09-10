@@ -545,7 +545,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 4,
         .vendor = CPUID_VENDOR_AMD,
         .family = 6,
-        .model = 2,
+        .model = 6,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             PPRO_FEATURES |
@@ -648,7 +648,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 4,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 3,
+        .model = 6,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             PPRO_FEATURES,
