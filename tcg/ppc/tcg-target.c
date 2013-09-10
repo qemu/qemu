@@ -653,27 +653,26 @@ static void tcg_out_tlb_check(TCGContext *s, TCGReg r0, TCGReg r1, TCGReg r2,
 }
 #endif
 
-static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 {
-    TCGReg addrlo, datalo, datahi, rbase;
-    TCGMemOp bswap = opc & MO_BSWAP;
-    TCGMemOp s_bits = opc & MO_SIZE;
+    TCGReg addrlo, datalo, datahi, rbase, addrhi __attribute__((unused));
+    TCGMemOp opc, bswap;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
-    TCGReg addrhi;
     uint8_t *label_ptr;
 #endif
 
     datalo = *args++;
-    datahi = (s_bits == MO_64 ? *args++ : 0);
+    datahi = (is64 ? *args++ : 0);
     addrlo = *args++;
+    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    opc = *args++;
+    bswap = opc & MO_BSWAP;
 
 #ifdef CONFIG_SOFTMMU
-    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
     mem_index = *args;
-
     tcg_out_tlb_check(s, TCG_REG_R3, TCG_REG_R4, TCG_REG_R0, addrlo,
-                      addrhi, s_bits, mem_index, 0, &label_ptr);
+                      addrhi, opc & MO_SIZE, mem_index, 0, &label_ptr);
     rbase = TCG_REG_R3;
 #else  /* !CONFIG_SOFTMMU */
     rbase = GUEST_BASE ? TCG_GUEST_BASE_REG : 0;
@@ -726,25 +725,25 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp opc)
 #endif
 }
 
-static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp opc)
+static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 {
-    TCGReg addrlo, datalo, datahi, rbase;
-    TCGMemOp bswap = opc & MO_BSWAP;
-    TCGMemOp s_bits = opc & MO_SIZE;
+    TCGReg addrlo, datalo, datahi, rbase, addrhi __attribute__((unused));
+    TCGMemOp opc, bswap, s_bits;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
-    TCGReg addrhi;
     uint8_t *label_ptr;
 #endif
 
     datalo = *args++;
-    datahi = (s_bits == MO_64 ? *args++ : 0);
+    datahi = (is64 ? *args++ : 0);
     addrlo = *args++;
+    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    opc = *args++;
+    bswap = opc & MO_BSWAP;
+    s_bits = opc & MO_SIZE;
 
 #ifdef CONFIG_SOFTMMU
-    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
     mem_index = *args;
-
     tcg_out_tlb_check(s, TCG_REG_R3, TCG_REG_R4, TCG_REG_R0, addrlo,
                       addrhi, s_bits, mem_index, 0, &label_ptr);
     rbase = TCG_REG_R3;
@@ -1707,35 +1706,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out32 (s, NOR | SAB (args[1], args[0], args[1]));
         break;
 
-    case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, args, MO_UB);
+    case INDEX_op_qemu_ld_i32:
+        tcg_out_qemu_ld(s, args, 0);
         break;
-    case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, args, MO_SB);
+    case INDEX_op_qemu_ld_i64:
+        tcg_out_qemu_ld(s, args, 1);
         break;
-    case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, args, MO_TEUW);
+    case INDEX_op_qemu_st_i32:
+        tcg_out_qemu_st(s, args, 0);
         break;
-    case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, args, MO_TESW);
-        break;
-    case INDEX_op_qemu_ld32:
-        tcg_out_qemu_ld(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, args, MO_TEQ);
-        break;
-    case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, args, MO_UB);
-        break;
-    case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, args, MO_TEUW);
-        break;
-    case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, args, MO_TEUL);
-        break;
-    case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, args, MO_TEQ);
+    case INDEX_op_qemu_st_i64:
+        tcg_out_qemu_st(s, args, 1);
         break;
 
     case INDEX_op_ext8s_i32:
@@ -1920,29 +1901,15 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_bswap32_i32, { "r", "r" } },
 
 #if TARGET_LONG_BITS == 32
-    { INDEX_op_qemu_ld8u, { "r", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "L" } },
-
-    { INDEX_op_qemu_st8, { "K", "K" } },
-    { INDEX_op_qemu_st16, { "K", "K" } },
-    { INDEX_op_qemu_st32, { "K", "K" } },
-    { INDEX_op_qemu_st64, { "M", "M", "M" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L" } },
+    { INDEX_op_qemu_ld_i64, { "L", "L", "L" } },
+    { INDEX_op_qemu_st_i32, { "K", "K" } },
+    { INDEX_op_qemu_st_i64, { "M", "M", "M" } },
 #else
-    { INDEX_op_qemu_ld8u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld64, { "L", "L", "L", "L" } },
-
-    { INDEX_op_qemu_st8, { "K", "K", "K" } },
-    { INDEX_op_qemu_st16, { "K", "K", "K" } },
-    { INDEX_op_qemu_st32, { "K", "K", "K" } },
-    { INDEX_op_qemu_st64, { "M", "M", "M", "M" } },
+    { INDEX_op_qemu_ld_i32, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld_i64, { "L", "L", "L", "L" } },
+    { INDEX_op_qemu_st_i32, { "K", "K", "K" } },
+    { INDEX_op_qemu_st_i64, { "M", "M", "M", "M" } },
 #endif
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
