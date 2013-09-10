@@ -822,6 +822,7 @@ static void pxa270c5_initfn(Object *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+#ifdef CONFIG_USER_ONLY
 static void arm_any_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -834,6 +835,7 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     cpu->midr = 0xffffffff;
 }
+#endif
 
 typedef struct ARMCPUInfo {
     const char *name;
@@ -874,7 +876,9 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "pxa270-b1",   .initfn = pxa270b1_initfn },
     { .name = "pxa270-c0",   .initfn = pxa270c0_initfn },
     { .name = "pxa270-c5",   .initfn = pxa270c5_initfn },
+#ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = arm_any_initfn },
+#endif
 };
 
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
