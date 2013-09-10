@@ -550,25 +550,31 @@ static void add_qemu_ldst_label (TCGContext *s,
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldub_mmu,
-    helper_ret_lduw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+static const void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
  *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_ret_stw_mmu,
-    helper_ret_stl_mmu,
-    helper_ret_stq_mmu,
+static const void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
-static void *ld_trampolines[4];
-static void *st_trampolines[4];
+static void *ld_trampolines[16];
+static void *st_trampolines[16];
 
 /* Perform the TLB load and compare.  Branches to the slow path, placing the
    address of the branch in *LABEL_PTR.  Loads the addend of the TLB into R0.
@@ -783,7 +789,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp opc)
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGReg ir, datalo, datahi;
-    TCGMemOp opc = l->opc & MO_SSIZE;
+    TCGMemOp opc = l->opc;
 
     reloc_pc14 (l->label_ptr[0], (uintptr_t)s->code_ptr);
 
@@ -799,10 +805,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     }
     tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
     tcg_out32(s, MFSPR | RT(ir++) | LR);
-    tcg_out_b(s, LK, (uintptr_t)ld_trampolines[opc & MO_SIZE]);
+    tcg_out_b(s, LK, (uintptr_t)ld_trampolines[opc & ~MO_SIGN]);
 
     datalo = l->datalo_reg;
-    switch (opc) {
+    switch (opc & MO_SSIZE) {
     case MO_SB:
         tcg_out32(s, EXTSB | RA(datalo) | RS(TCG_REG_R3));
         break;
@@ -833,7 +839,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGReg ir, datalo;
-    TCGMemOp s_bits = l->opc & MO_SIZE;
+    TCGMemOp opc = l->opc;
 
     reloc_pc14 (l->label_ptr[0], (tcg_target_long) s->code_ptr);
 
@@ -849,7 +855,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     }
 
     datalo = l->datalo_reg;
-    switch (s_bits) {
+    switch (opc & MO_SIZE) {
     case MO_8:
         tcg_out32(s, (RLWINM | RA (ir) | RS (datalo)
                       | SH (0) | MB (24) | ME (31)));
@@ -873,7 +879,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     tcg_out_movi(s, TCG_TYPE_I32, ir++, l->mem_index);
     tcg_out32(s, MFSPR | RT(ir++) | LR);
-    tcg_out_b(s, LK, (uintptr_t)st_trampolines[l->opc]);
+    tcg_out_b(s, LK, (uintptr_t)st_trampolines[opc]);
     tcg_out_b(s, 0, (uintptr_t)l->raddr);
 }
 #endif
@@ -948,12 +954,15 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, BCLR | BO_ALWAYS);
 
 #ifdef CONFIG_SOFTMMU
-    for (i = 0; i < 4; ++i) {
-        ld_trampolines[i] = s->code_ptr;
-        emit_ldst_trampoline (s, qemu_ld_helpers[i]);
-
-        st_trampolines[i] = s->code_ptr;
-        emit_ldst_trampoline (s, qemu_st_helpers[i]);
+    for (i = 0; i < 16; ++i) {
+        if (qemu_ld_helpers[i]) {
+            ld_trampolines[i] = s->code_ptr;
+            emit_ldst_trampoline(s, qemu_ld_helpers[i]);
+        }
+        if (qemu_st_helpers[i]) {
+            st_trampolines[i] = s->code_ptr;
+            emit_ldst_trampoline(s, qemu_st_helpers[i]);
+        }
     }
 #endif
 }
