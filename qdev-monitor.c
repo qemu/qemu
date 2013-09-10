@@ -527,6 +527,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
     if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
         qdev_free(qdev);
+        object_unref(OBJECT(qdev));
         return NULL;
     }
     if (qdev->id) {
@@ -540,6 +541,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         g_free(name);
     }        
     if (qdev_init(qdev) < 0) {
+        object_unref(OBJECT(qdev));
         qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
     }
