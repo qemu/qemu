@@ -28,6 +28,9 @@
 #define PCIE_HOST_BRIDGE(obj) \
     OBJECT_CHECK(PCIExpressHost, (obj), TYPE_PCIE_HOST_BRIDGE)
 
+/* pcie_host::base_addr == PCIE_BASE_ADDR_UNMAPPED when it isn't mapped. */
+#define PCIE_BASE_ADDR_UNMAPPED  ((hwaddr)-1ULL)
+
 struct PCIExpressHost {
     PCIHostState pci;
 

@@ -104,9 +104,6 @@ static const MemoryRegionOps pcie_mmcfg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-/* pcie_host::base_addr == PCIE_BASE_ADDR_UNMAPPED when it isn't mapped. */
-#define PCIE_BASE_ADDR_UNMAPPED  ((hwaddr)-1ULL)
-
 int pcie_host_init(PCIExpressHost *e)
 {
     e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
