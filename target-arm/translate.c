@@ -28,6 +28,7 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "qemu/bitops.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -7957,8 +7958,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     tcg_gen_movi_i32(tmp, val);
                     store_reg(s, 14, tmp);
                 }
-                offset = (((int32_t)insn << 8) >> 8);
-                val += (offset << 2) + 4;
+                offset = sextract32(insn << 2, 0, 26);
+                val += offset + 4;
                 gen_jmp(s, val);
             }
             break;
