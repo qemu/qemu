@@ -148,7 +148,7 @@ typedef enum {
 #define TCG_TARGET_HAS_mulsh_i64        0
 #endif
 
-#define TCG_TARGET_HAS_new_ldst         0
+#define TCG_TARGET_HAS_new_ldst         1
 
 #define TCG_AREG0 TCG_REG_I0
 
