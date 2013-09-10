@@ -841,21 +841,27 @@ static const uint32_t qemu_exts_opc[4] = {
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
  *                                 int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldub_mmu,
-    helper_ret_lduw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+static const void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
 /* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
  *                                 uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_ret_stw_mmu,
-    helper_ret_stl_mmu,
-    helper_ret_stq_mmu,
+static const void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
 /* Perform the TLB load and compare.  Places the result of the comparison
@@ -952,8 +958,7 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
 
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOp opc = lb->opc & MO_SSIZE;
-    TCGMemOp s_bits = lb->opc & MO_SIZE;
+    TCGMemOp opc = lb->opc;
 
     reloc_pc14(lb->label_ptr[0], (uintptr_t)s->code_ptr);
 
@@ -966,10 +971,10 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R5, lb->mem_index);
     tcg_out32(s, MFSPR | RT(TCG_REG_R6) | LR);
 
-    tcg_out_call(s, (tcg_target_long)qemu_ld_helpers[s_bits], 1);
+    tcg_out_call(s, (tcg_target_long)qemu_ld_helpers[opc & ~MO_SIGN], 1);
 
     if (opc & MO_SIGN) {
-        uint32_t insn = qemu_exts_opc[s_bits];
+        uint32_t insn = qemu_exts_opc[opc & MO_SIZE];
         tcg_out32(s, insn | RA(lb->datalo_reg) | RS(TCG_REG_R3));
     } else {
         tcg_out_mov(s, TCG_TYPE_I64, lb->datalo_reg, TCG_REG_R3);
@@ -980,7 +985,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOp s_bits = lb->opc & MO_SIZE;
+    TCGMemOp opc = lb->opc;
+    TCGMemOp s_bits = opc & MO_SIZE;
 
     reloc_pc14(lb->label_ptr[0], (uintptr_t)s->code_ptr);
 
@@ -995,7 +1001,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R6, lb->mem_index);
     tcg_out32(s, MFSPR | RT(TCG_REG_R7) | LR);
 
-    tcg_out_call(s, (tcg_target_long)qemu_st_helpers[s_bits], 1);
+    tcg_out_call(s, (tcg_target_long)qemu_st_helpers[opc], 1);
 
     tcg_out_b(s, 0, (uintptr_t)lb->raddr);
 }
