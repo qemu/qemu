@@ -1,13 +1,13 @@
-                          QEMU Monitor Protocol
+                          QEMU Machine Protocol
                           =====================
 
 Introduction
--------------
+------------
 
-The QEMU Monitor Protocol (QMP) allows applications to communicate with
-QEMU's Monitor.
+The QEMU Machine Protocol (QMP) allows applications to operate a
+QEMU instance.
 
-QMP is JSON[1] based and currently has the following features:
+QMP is JSON[1] based and features the following:
 
 - Lightweight, text-based, easy to parse data format
 - Asynchronous messages support (ie. events)
@@ -15,37 +15,28 @@ QMP is JSON[1] based and currently has the following features:
 
 For detailed information on QMP's usage, please, refer to the following files:
 
-o qmp-spec.txt      QEMU Monitor Protocol current specification
+o qmp-spec.txt      QEMU Machine Protocol current specification
 o qmp-commands.txt  QMP supported commands (auto-generated at build-time)
 o qmp-events.txt    List of available asynchronous events
-
-There is also a simple Python script called 'qmp-shell' available.
-
-IMPORTANT: It's strongly recommended to read the 'Stability Considerations'
-section in the qmp-commands.txt file before making any serious use of QMP.
-
 
 [1] http://www.json.org
 
 Usage
 -----
 
-To enable QMP, you need a QEMU monitor instance in "control mode". There are
-two ways of doing this.
+You can use the -qmp option to enable QMP. For example, the following
+makes QMP available on localhost port 4444:
 
-The simplest one is using the '-qmp' command-line option. The following
-example makes QMP available on localhost port 4444:
+$ qemu [...] -qmp tcp:localhost:4444,server,nowait
 
-  $ qemu [...] -qmp tcp:localhost:4444,server
+However, for more flexibility and to make use of more options, the -mon
+command-line option should be used. For instance, the following example
+creates one HMP instance (human monitor) on stdio and one QMP instance
+on localhost port 4444:
 
-However, in order to have more complex combinations, like multiple monitors,
-the '-mon' command-line option should be used along with the '-chardev' one.
-For instance, the following example creates one user monitor on stdio and one
-QMP monitor on localhost port 4444.
-
-   $ qemu [...] -chardev stdio,id=mon0 -mon chardev=mon0,mode=readline \
-                -chardev socket,id=mon1,host=localhost,port=4444,server \
-                -mon chardev=mon1,mode=control
+$ qemu [...] -chardev stdio,id=mon0 -mon chardev=mon0,mode=readline \
+             -chardev socket,id=mon1,host=localhost,port=4444,server,nowait \
+             -mon chardev=mon1,mode=control,pretty=on
 
 Please, refer to QEMU's manpage for more information.
 
@@ -58,31 +49,39 @@ $ telnet localhost 4444
 Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
-{"QMP": {"version": {"qemu": {"micro": 50, "minor": 13, "major": 0}, "package": ""}, "capabilities": []}}
+{
+    "QMP": {
+        "version": {
+            "qemu": {
+                "micro": 50, 
+                "minor": 6, 
+                "major": 1
+            }, 
+            "package": ""
+        }, 
+        "capabilities": [
+        ]
+    }
+}
+
 { "execute": "qmp_capabilities" }
-{"return": {}}
-{ "execute": "query-version" }
-{"return": {"qemu": {"micro": 50, "minor": 13, "major": 0}, "package": ""}}
+{
+    "return": {
+    }
+}
 
-Development Process
--------------------
+{ "execute": "query-status" }
+{
+    "return": {
+        "status": "prelaunch", 
+        "singlestep": false, 
+        "running": false
+    }
+}
 
-When changing QMP's interface (by adding new commands, events or modifying
-existing ones) it's mandatory to update the relevant documentation, which is
-one (or more) of the files listed in the 'Introduction' section*.
+Please, refer to the qapi-schema.json file for a complete command reference.
 
-Also, it's strongly recommended to send the documentation patch first, before
-doing any code change. This is so because:
-
-  1. Avoids the code dictating the interface
-
-  2. Review can improve your interface.  Letting that happen before
-     you implement it can save you work.
-
-* The qmp-commands.txt file is generated from the qmp-commands.hx one, which
-  is the file that should be edited.
-
-Homepage
---------
+QMP wiki page
+-------------
 
 http://wiki.qemu.org/QMP
