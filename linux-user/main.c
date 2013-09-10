@@ -2400,12 +2400,31 @@ done_syscall:
                 if (env->hflags & MIPS_HFLAG_M16) {
                     if (env->insn_flags & ASE_MICROMIPS) {
                         /* microMIPS mode */
-                        abi_ulong instr[2];
+                        ret = get_user_u16(trap_instr, env->active_tc.PC);
+                        if (ret != 0) {
+                            goto error;
+                        }
 
-                        ret = get_user_u16(instr[0], env->active_tc.PC) ||
-                              get_user_u16(instr[1], env->active_tc.PC + 2);
+                        if ((trap_instr >> 10) == 0x11) {
+                            /* 16-bit instruction */
+                            code = trap_instr & 0xf;
+                        } else {
+                            /* 32-bit instruction */
+                            abi_ulong instr_lo;
 
-                        trap_instr = (instr[0] << 16) | instr[1];
+                            ret = get_user_u16(instr_lo,
+                                               env->active_tc.PC + 2);
+                            if (ret != 0) {
+                                goto error;
+                            }
+                            trap_instr = (trap_instr << 16) | instr_lo;
+                            code = ((trap_instr >> 6) & ((1 << 20) - 1));
+                            /* Unfortunately, microMIPS also suffers from
+                               the old assembler bug...  */
+                            if (code >= (1 << 10)) {
+                                code >>= 10;
+                            }
+                        }
                     } else {
                         /* MIPS16e mode */
                         ret = get_user_u16(trap_instr, env->active_tc.PC);
@@ -2413,26 +2432,21 @@ done_syscall:
                             goto error;
                         }
                         code = (trap_instr >> 6) & 0x3f;
-                        if (do_break(env, &info, code) != 0) {
-                            goto error;
-                        }
-                        break;
                     }
                 } else {
                     ret = get_user_ual(trap_instr, env->active_tc.PC);
-                }
+                    if (ret != 0) {
+                        goto error;
+                    }
 
-                if (ret != 0) {
-                    goto error;
-                }
-
-                /* As described in the original Linux kernel code, the
-                 * below checks on 'code' are to work around an old
-                 * assembly bug.
-                 */
-                code = ((trap_instr >> 6) & ((1 << 20) - 1));
-                if (code >= (1 << 10)) {
-                    code >>= 10;
+                    /* As described in the original Linux kernel code, the
+                     * below checks on 'code' are to work around an old
+                     * assembly bug.
+                     */
+                    code = ((trap_instr >> 6) & ((1 << 20) - 1));
+                    if (code >= (1 << 10)) {
+                        code >>= 10;
+                    }
                 }
 
                 if (do_break(env, &info, code) != 0) {
