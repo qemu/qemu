@@ -66,6 +66,7 @@ typedef uint64_t TCGRegSet;
 
 #if TCG_TARGET_REG_BITS == 32
 /* Turn some undef macros into false macros.  */
+#define TCG_TARGET_HAS_trunc_shr_i32    0
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_div2_i64         0

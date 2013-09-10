@@ -314,6 +314,11 @@ This operation would be equivalent to
 
   dest = (t1 & ~0x0f00) | ((t2 << 8) & 0x0f00)
 
+* trunc_shr_i32 t0, t1, pos
+
+For 64-bit hosts only, right shift the 64-bit input T1 by POS and
+truncate to 32-bit output T0.  Depending on the host, this may be
+a simple mov/shift, or may require additional canonicalization.
 
 ********* Conditional moves
 
