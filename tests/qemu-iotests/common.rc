@@ -123,7 +123,7 @@ _make_test_img()
     fi
 
     # XXX(hch): have global image options?
-    $QEMU_IMG create -f $IMGFMT $extra_img_options $img_name $image_size | \
+    $QEMU_IMG create -f $IMGFMT $extra_img_options $img_name $image_size 2>&1 | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
