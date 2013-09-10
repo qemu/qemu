@@ -29,6 +29,7 @@
     OBJECT_CHECK(PCIExpressHost, (obj), TYPE_PCIE_HOST_BRIDGE)
 
 #define PCIE_HOST_MCFG_BASE "MCFG"
+#define PCIE_HOST_MCFG_SIZE "mcfg_size"
 
 /* pcie_host::base_addr == PCIE_BASE_ADDR_UNMAPPED when it isn't mapped. */
 #define PCIE_BASE_ADDR_UNMAPPED  ((hwaddr)-1ULL)
