@@ -108,7 +108,7 @@ static void arm_cpu_reset(CPUState *s)
                modified flash and reset itself.  However images
                loaded via -kernel have not been copied yet, so load the
                values directly from there.  */
-            env->regs[13] = ldl_p(rom);
+            env->regs[13] = ldl_p(rom) & 0xFFFFFFFC;
             pc = ldl_p(rom + 4);
             env->thumb = pc & 1;
             env->regs[15] = pc & ~1;
