@@ -91,7 +91,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         """
         Build a QMP input object from a user provided command-line in the
         following format:
-    
+
             < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
         """
         cmdargs = cmdline.split()
