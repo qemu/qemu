@@ -562,7 +562,6 @@ Haiku)
   audio_possible_drivers="oss alsa sdl esd pa"
   linux="yes"
   linux_user="yes"
-  usb="linux"
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
@@ -575,9 +574,6 @@ esac
 
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
-    if [ "$targetos" != "FreeBSD" ]; then
-      usb="bsd"
-    fi
     bsd_user="yes"
   fi
 fi
@@ -3126,7 +3122,6 @@ fi
 if test "$libusb" != "no" ; then
     if $pkg_config --atleast-version=1.0.13 libusb-1.0; then
         libusb="yes"
-	usb="libusb"
         libusb_cflags=$($pkg_config --cflags libusb-1.0)
         libusb_libs=$($pkg_config --libs libusb-1.0)
         QEMU_CFLAGS="$QEMU_CFLAGS $libusb_cflags"
@@ -4166,24 +4161,11 @@ if test "$virtio_blk_data_plane" = "yes" ; then
 fi
 
 # USB host support
-case "$usb" in
-linux)
-  echo "HOST_USB=linux legacy" >> $config_host_mak
-;;
-bsd)
-  echo "HOST_USB=bsd" >> $config_host_mak
-;;
-libusb)
-  if test "$linux" = "yes"; then
-    echo "HOST_USB=libusb linux legacy" >> $config_host_mak
-  else
-    echo "HOST_USB=libusb legacy" >> $config_host_mak
-  fi
-;;
-*)
+if test "$libusb" = "yes"; then
+  echo "HOST_USB=libusb legacy" >> $config_host_mak
+else
   echo "HOST_USB=stub" >> $config_host_mak
-;;
-esac
+fi
 
 # TPM passthrough support?
 if test "$tpm" = "yes"; then
