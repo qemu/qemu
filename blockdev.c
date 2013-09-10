@@ -217,7 +217,10 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 static void drive_uninit(DriveInfo *dinfo)
 {
-    qemu_opts_del(dinfo->opts);
+    if (dinfo->opts) {
+        qemu_opts_del(dinfo->opts);
+    }
+
     bdrv_unref(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
@@ -302,7 +305,8 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
     return true;
 }
 
-static DriveInfo *blockdev_init(QemuOpts *all_opts,
+/* Takes the ownership of bs_opts */
+static DriveInfo *blockdev_init(QDict *bs_opts,
                                 BlockInterfaceType block_default_type)
 {
     const char *buf;
@@ -326,7 +330,6 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     int ret;
     Error *error = NULL;
     QemuOpts *opts;
-    QDict *bs_opts;
     const char *id;
     bool has_driver_specific_opts;
     BlockDriver *drv = NULL;
@@ -334,9 +337,9 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
 
-    /* Check common options by copying from all_opts to opts, all other options
-     * are stored in bs_opts. */
-    id = qemu_opts_id(all_opts);
+    /* Check common options by copying from bs_opts to opts, all other options
+     * stay in bs_opts for processing by bdrv_open(). */
+    id = qdict_get_try_str(bs_opts, "id");
     opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
     if (error_is_set(&error)) {
         qerror_report_err(error);
@@ -344,8 +347,6 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
         return NULL;
     }
 
-    bs_opts = qdict_new();
-    qemu_opts_to_qdict(all_opts, bs_opts);
     qemu_opts_absorb_qdict(opts, bs_opts, &error);
     if (error_is_set(&error)) {
         qerror_report_err(error);
@@ -630,7 +631,6 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     dinfo->heads = heads;
     dinfo->secs = secs;
     dinfo->trans = translation;
-    dinfo->opts = all_opts;
     dinfo->refcount = 1;
     if (serial != NULL) {
         dinfo->serial = g_strdup(serial);
@@ -755,6 +755,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
     DriveInfo *dinfo;
+    QDict *bs_opts;
 
     /* Change legacy command line options into QMP ones */
     qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
@@ -803,14 +804,19 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qemu_opt_unset(all_opts, "cache");
     }
 
+    /* Get a QDict for processing the options */
+    bs_opts = qdict_new();
+    qemu_opts_to_qdict(all_opts, bs_opts);
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(all_opts, block_default_type);
+    dinfo = blockdev_init(bs_opts, block_default_type);
     if (dinfo == NULL) {
         goto fail;
     }
 
     /* Set legacy DriveInfo fields */
     dinfo->enable_auto_del = true;
+    dinfo->opts = all_opts;
 
 fail:
     return dinfo;
@@ -2109,13 +2115,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    QemuOpts *opts = qemu_opts_from_qdict(&qemu_drive_opts, qdict, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    dinfo = blockdev_init(opts, IF_NONE);
+    dinfo = blockdev_init(qdict, IF_NONE);
     if (!dinfo) {
         error_setg(errp, "Could not open image");
         goto fail;
