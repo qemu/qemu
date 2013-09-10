@@ -972,7 +972,7 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     return arm_feature(env, ARM_FEATURE_LPAE)
-        && (env->cp15.c2_control & (1 << 31));
+        && (env->cp15.c2_control & (1U << 31));
 }
 
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -1385,7 +1385,7 @@ static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
      * so these bits always RAZ.
      */
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
-        mpidr |= (1 << 31);
+        mpidr |= (1U << 31);
         /* Cores which are uniprocessor (non-coherent)
          * but still implement the MP extensions set
          * bit 30. (For instance, A9UP.) However we do
