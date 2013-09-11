@@ -238,6 +238,7 @@ win_sdk="no"
 want_tools="yes"
 libiscsi=""
 coroutine=""
+coroutine_pool=""
 seccomp=""
 glusterfs=""
 glusterfs_discard="no"
@@ -888,6 +889,10 @@ for opt do
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
+  --disable-coroutine-pool) coroutine_pool="no"
+  ;;
+  --enable-coroutine-pool) coroutine_pool="yes"
+  ;;
   --disable-docs) docs="no"
   ;;
   --enable-docs) docs="yes"
@@ -1189,6 +1194,8 @@ echo "  --disable-seccomp        disable seccomp support"
 echo "  --enable-seccomp         enables seccomp support"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
 echo "                           gthread, ucontext, sigaltstack, windows"
+echo "  --disable-coroutine-pool disable coroutine freelist (worse performance)"
+echo "  --enable-coroutine-pool  enable coroutine freelist (better performance)"
 echo "  --enable-glusterfs       enable GlusterFS backend"
 echo "  --disable-glusterfs      disable GlusterFS backend"
 echo "  --enable-gcov            enable test coverage analysis with gcov"
@@ -3362,6 +3369,17 @@ else
   esac
 fi
 
+if test "$coroutine_pool" = ""; then
+  if test "$coroutine" = "gthread"; then
+    coroutine_pool=no
+  else
+    coroutine_pool=yes
+  fi
+fi
+if test "$coroutine" = "gthread" -a "$coroutine_pool" = "yes"; then
+  error_exit "'gthread' coroutine backend does not support pool (use --disable-coroutine-pool)"
+fi
+
 ##########################################
 # check if we have open_by_handle_at
 
@@ -3733,6 +3751,7 @@ echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
+echo "coroutine pool    $coroutine_pool"
 echo "GlusterFS support $glusterfs"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
@@ -4092,6 +4111,11 @@ if test "$rbd" = "yes" ; then
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
+if test "$coroutine_pool" = "yes" ; then
+  echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
+else
+  echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
+fi
 
 if test "$open_by_handle_at" = "yes" ; then
   echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
