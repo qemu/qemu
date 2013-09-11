@@ -34,6 +34,7 @@
 #include "qemu/bswap.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
+#include "qga/vss-win32.h"
 #include <windows.h>
 #endif
 #ifdef __linux__
@@ -1031,8 +1032,15 @@ int main(int argc, char **argv)
                 fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
                                   NULL :
                                   state_dir;
-                return ga_install_service(path, log_filepath, fixed_state_dir);
+                if (ga_install_vss_provider()) {
+                    return EXIT_FAILURE;
+                }
+                if (ga_install_service(path, log_filepath, fixed_state_dir)) {
+                    return EXIT_FAILURE;
+                }
+                return 0;
             } else if (strcmp(service, "uninstall") == 0) {
+                ga_uninstall_vss_provider();
                 return ga_uninstall_service();
             } else {
                 printf("Unknown service command.\n");

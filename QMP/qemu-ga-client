@@ -267,7 +267,9 @@ def main(address, cmd, args):
             print('Hint: qemu is not running?')
         sys.exit(1)
 
-    if cmd != 'ping':
+    if cmd == 'fsfreeze' and args[0] == 'freeze':
+        client.sync(60)
+    elif cmd != 'ping':
         client.sync()
 
     globals()['_cmd_' + cmd](client, args)

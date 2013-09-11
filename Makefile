@@ -235,7 +235,7 @@ clean:
 	rm -f qemu-options.def
 	find . -name '*.[oda]' -type f -exec rm -f {} +
 	find . -name '*.l[oa]' -type f -exec rm -f {} +
-	rm -f $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
+	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -Rf .libs
 	rm -f qemu-img-cmds.h
 	@# May not be present in GENERATED_HEADERS
@@ -272,6 +272,7 @@ distclean: clean
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
+	rm -Rf .sdk
 	if test -f pixman/config.log; then make -C pixman distclean; fi
 	if test -f dtc/version_gen.h; then make $(DTC_MAKE_ARGS) clean; fi
 

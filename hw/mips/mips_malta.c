@@ -827,7 +827,8 @@ static int64_t load_kernel (void)
     }
 
     prom_set(prom_buf, prom_index++, "memsize");
-    prom_set(prom_buf, prom_index++, "%i", loaderparams.ram_size);
+    prom_set(prom_buf, prom_index++, "%i",
+             MIN(loaderparams.ram_size, 256 << 20));
     prom_set(prom_buf, prom_index++, "modetty0");
     prom_set(prom_buf, prom_index++, "38400n8r");
     prom_set(prom_buf, prom_index++, NULL);
@@ -884,7 +885,9 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     char *filename;
     pflash_t *fl;
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_high = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_low_preio = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_low_postio;
     MemoryRegion *bios, *bios_copy = g_new(MemoryRegion, 1);
     target_long bios_size = FLASH_SIZE;
     const size_t smbus_eeprom_size = 8 * 256;
@@ -951,15 +954,32 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
 
     /* allocate RAM */
-    if (ram_size > (256 << 20)) {
+    if (ram_size > (2048u << 20)) {
         fprintf(stderr,
-                "qemu: Too much memory for this machine: %d MB, maximum 256 MB\n",
+                "qemu: Too much memory for this machine: %d MB, maximum 2048 MB\n",
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "mips_malta.ram", ram_size);
-    vmstate_register_ram_global(ram);
-    memory_region_add_subregion(system_memory, 0, ram);
+
+    /* register RAM at high address where it is undisturbed by IO */
+    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size);
+    vmstate_register_ram_global(ram_high);
+    memory_region_add_subregion(system_memory, 0x80000000, ram_high);
+
+    /* alias for pre IO hole access */
+    memory_region_init_alias(ram_low_preio, NULL, "mips_malta_low_preio.ram",
+                             ram_high, 0, MIN(ram_size, (256 << 20)));
+    memory_region_add_subregion(system_memory, 0, ram_low_preio);
+
+    /* alias for post IO hole access, if there is enough RAM */
+    if (ram_size > (512 << 20)) {
+        ram_low_postio = g_new(MemoryRegion, 1);
+        memory_region_init_alias(ram_low_postio, NULL,
+                                 "mips_malta_low_postio.ram",
+                                 ram_high, 512 << 20,
+                                 ram_size - (512 << 20));
+        memory_region_add_subregion(system_memory, 512 << 20, ram_low_postio);
+    }
 
     /* generate SPD EEPROM data */
     generate_eeprom_spd(&smbus_eeprom_buf[0 * 256], ram_size);
@@ -992,7 +1012,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     fl_idx++;
     if (kernel_filename) {
         /* Write a small bootloader to the flash location. */
-        loaderparams.ram_size = ram_size;
+        loaderparams.ram_size = MIN(ram_size, 256 << 20);
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;

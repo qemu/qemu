@@ -15,6 +15,7 @@
 #include <wtypes.h>
 #include <powrprof.h>
 #include "qga/guest-agent-core.h"
+#include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 
@@ -156,27 +157,89 @@ void qmp_guest_file_flush(int64_t handle, Error **err)
  */
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 {
-    error_set(err, QERR_UNSUPPORTED);
-    return 0;
+    if (!vss_initialized()) {
+        error_set(err, QERR_UNSUPPORTED);
+        return 0;
+    }
+
+    if (ga_is_frozen(ga_state)) {
+        return GUEST_FSFREEZE_STATUS_FROZEN;
+    }
+
+    return GUEST_FSFREEZE_STATUS_THAWED;
 }
 
 /*
- * Walk list of mounted file systems in the guest, and freeze the ones which
- * are real local file systems.
+ * Freeze local file systems using Volume Shadow-copy Service.
+ * The frozen state is limited for up to 10 seconds by VSS.
  */
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    int i;
+    Error *local_err = NULL;
+
+    if (!vss_initialized()) {
+        error_set(err, QERR_UNSUPPORTED);
+        return 0;
+    }
+
+    slog("guest-fsfreeze called");
+
+    /* cannot risk guest agent blocking itself on a write in this state */
+    ga_set_frozen(ga_state);
+
+    qga_vss_fsfreeze(&i, err, true);
+    if (error_is_set(err)) {
+        goto error;
+    }
+
+    return i;
+
+error:
+    qmp_guest_fsfreeze_thaw(&local_err);
+    if (error_is_set(&local_err)) {
+        g_debug("cleanup thaw: %s", error_get_pretty(local_err));
+        error_free(local_err);
+    }
     return 0;
 }
 
 /*
- * Walk list of frozen file systems in the guest, and thaw them.
+ * Thaw local file systems using Volume Shadow-copy Service.
  */
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
-    error_set(err, QERR_UNSUPPORTED);
-    return 0;
+    int i;
+
+    if (!vss_initialized()) {
+        error_set(err, QERR_UNSUPPORTED);
+        return 0;
+    }
+
+    qga_vss_fsfreeze(&i, err, false);
+
+    ga_unset_frozen(ga_state);
+    return i;
+}
+
+static void guest_fsfreeze_cleanup(void)
+{
+    Error *err = NULL;
+
+    if (!vss_initialized()) {
+        return;
+    }
+
+    if (ga_is_frozen(ga_state) == GUEST_FSFREEZE_STATUS_FROZEN) {
+        qmp_guest_fsfreeze_thaw(&err);
+        if (err) {
+            slog("failed to clean up frozen filesystems: %s",
+                 error_get_pretty(err));
+            error_free(err);
+        }
+    }
+
+    vss_deinit(true);
 }
 
 /*
@@ -354,4 +417,7 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
+    if (vss_init(true)) {
+        ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
+    }
 }

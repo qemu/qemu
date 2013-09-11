@@ -232,6 +232,9 @@ usb_redir=""
 glx=""
 zlib="yes"
 guest_agent=""
+guest_agent_with_vss="no"
+vss_win32_sdk=""
+win_sdk="no"
 want_tools="yes"
 libiscsi=""
 coroutine=""
@@ -251,6 +254,8 @@ for opt do
   --cross-prefix=*) cross_prefix="$optarg"
   ;;
   --cc=*) CC="$optarg"
+  ;;
+  --cxx=*) CXX="$optarg"
   ;;
   --source-path=*) source_path="$optarg"
   ;;
@@ -280,6 +285,12 @@ if test -z "${CC}${cross_prefix}"; then
   cc="$host_cc"
 else
   cc="${CC-${cross_prefix}gcc}"
+fi
+
+if test -z "${CXX}${cross_prefix}"; then
+  cxx="c++"
+else
+  cxx="${CXX-${cross_prefix}g++}"
 fi
 
 ar="${AR-${cross_prefix}ar}"
@@ -626,6 +637,8 @@ for opt do
   ;;
   --host-cc=*) host_cc="$optarg"
   ;;
+  --cxx=*)
+  ;;
   --objcc=*) objcc="$optarg"
   ;;
   --make=*) make="$optarg"
@@ -917,6 +930,18 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
+  --with-vss-sdk) vss_win32_sdk=""
+  ;;
+  --with-vss-sdk=*) vss_win32_sdk="$optarg"
+  ;;
+  --without-vss-sdk) vss_win32_sdk="no"
+  ;;
+  --with-win-sdk) win_sdk=""
+  ;;
+  --with-win-sdk=*) win_sdk="$optarg"
+  ;;
+  --without-win-sdk) win_sdk="no"
+  ;;
   --enable-tools) want_tools="yes"
   ;;
   --disable-tools) want_tools="no"
@@ -1032,6 +1057,7 @@ echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
 echo "                           build time"
+echo "  --cxx=CXX                use C++ compiler CXX [$cxx]"
 echo "  --objcc=OBJCC            use Objective-C compiler OBJCC [$objcc]"
 echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
@@ -1157,6 +1183,8 @@ echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
 echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
+echo "  --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent"
+echo "  --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)"
 echo "  --disable-seccomp        disable seccomp support"
 echo "  --enable-seccomp         enables seccomp support"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
@@ -3121,6 +3149,61 @@ if test "$usb_redir" != "no" ; then
 fi
 
 ##########################################
+# check if we have VSS SDK headers for win
+
+if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$vss_win32_sdk" != "no" ; then
+  case "$vss_win32_sdk" in
+    "")   vss_win32_include="-I$source_path" ;;
+    *\ *) # The SDK is installed in "Program Files" by default, but we cannot
+          # handle path with spaces. So we symlink the headers into ".sdk/vss".
+          vss_win32_include="-I$source_path/.sdk/vss"
+	  symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
+	  ;;
+    *)    vss_win32_include="-I$vss_win32_sdk"
+  esac
+  cat > $TMPC << EOF
+#define __MIDL_user_allocate_free_DEFINED__
+#include <inc/win2003/vss.h>
+int main(void) { return VSS_CTX_BACKUP; }
+EOF
+  if compile_prog "$vss_win32_include" "" ; then
+    guest_agent_with_vss="yes"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
+    libs_qga="-lole32 -loleaut32 -lshlwapi -luuid -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
+  else
+    if test "$vss_win32_sdk" != "" ; then
+      echo "ERROR: Please download and install Microsoft VSS SDK:"
+      echo "ERROR:   http://www.microsoft.com/en-us/download/details.aspx?id=23490"
+      echo "ERROR: On POSIX-systems, you can extract the SDK headers by:"
+      echo "ERROR:   scripts/extract-vsssdk-headers setup.exe"
+      echo "ERROR: The headers are extracted in the directory \`inc'."
+      feature_not_found "VSS support"
+    fi
+    guest_agent_with_vss="no"
+  fi
+fi
+
+##########################################
+# lookup Windows platform SDK (if not specified)
+# The SDK is needed only to build .tlb (type library) file of guest agent
+# VSS provider from the source. It is usually unnecessary because the
+# pre-compiled .tlb file is included.
+
+if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$guest_agent_with_vss" = "yes" ; then
+  if test -z "$win_sdk"; then
+    programfiles="$PROGRAMFILES"
+    test -n "$PROGRAMW6432" && programfiles="$PROGRAMW6432"
+    if test -n "$programfiles"; then
+      win_sdk=$(ls -d "$programfiles/Microsoft SDKs/Windows/v"* | tail -1) 2>/dev/null
+    else
+      feature_not_found "Windows SDK"
+    fi
+  elif test "$win_sdk" = "no"; then
+    win_sdk=""
+  fi
+fi
+
+##########################################
 
 ##########################################
 # check if we have fdatasync
@@ -3485,8 +3568,11 @@ if test "$softmmu" = yes ; then
   fi
 fi
 if [ "$guest_agent" != "no" ]; then
-  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
       tools="qemu-ga\$(EXESUF) $tools"
+      if [ "$mingw32" = "yes" -a "$guest_agent_with_vss" = "yes" ]; then
+        tools="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb $tools"
+      fi
       guest_agent=yes
   elif [ "$guest_agent" != yes ]; then
       guest_agent=no
@@ -3557,10 +3643,12 @@ echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
 else
 echo "local state directory   queried at runtime"
+echo "Windows SDK       $win_sdk"
 fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
+echo "C++ compiler      $cxx"
 echo "Objective-C compiler $objcc"
 echo "CFLAGS            $CFLAGS"
 echo "QEMU_CFLAGS       $QEMU_CFLAGS"
@@ -3642,6 +3730,7 @@ echo "usb net redir     $usb_redir"
 echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
+echo "QGA VSS support   $guest_agent_with_vss"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "GlusterFS support $glusterfs"
@@ -3716,6 +3805,10 @@ if test "$mingw32" = "yes" ; then
   version_micro=0
   echo "CONFIG_FILEVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
   echo "CONFIG_PRODUCTVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
+  if test "$guest_agent_with_vss" = "yes" ; then
+    echo "CONFIG_QGA_VSS=y" >> $config_host_mak
+    echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
+  fi
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -4148,6 +4241,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
+echo "CXX=$cxx" >> $config_host_mak
 echo "OBJCC=$objcc" >> $config_host_mak
 echo "AR=$ar" >> $config_host_mak
 echo "AS=$as" >> $config_host_mak

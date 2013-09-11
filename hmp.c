@@ -544,7 +544,7 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
     if (dev->class_info.has_desc) {
         monitor_printf(mon, "%s", dev->class_info.desc);
     } else {
-        monitor_printf(mon, "Class %04" PRId64, dev->class_info.class);
+        monitor_printf(mon, "Class %04" PRId64, dev->class_info.q_class);
     }
 
     monitor_printf(mon, ": PCI device %04" PRIx64 ":%04" PRIx64 "\n",
