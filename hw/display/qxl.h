@@ -27,6 +27,9 @@ enum qxl_mode {
 
 #define QXL_NUM_DIRTY_RECTS 64
 
+#define QXL_PAGE_BITS 12
+#define QXL_PAGE_SIZE (1 << QXL_PAGE_BITS);
+
 typedef struct PCIQXLDevice {
     PCIDevice          pci;
     SimpleSpiceDisplay ssd;

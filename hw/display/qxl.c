@@ -364,7 +364,7 @@ static void init_qxl_rom(PCIQXLDevice *d)
     num_pages          = d->vga.vram_size;
     num_pages         -= ram_header_size;
     num_pages         -= surface0_area_size;
-    num_pages          = num_pages / TARGET_PAGE_SIZE;
+    num_pages          = num_pages / QXL_PAGE_SIZE;
 
     rom->draw_area_offset   = cpu_to_le32(0);
     rom->surface0_area_size = cpu_to_le32(surface0_area_size);
@@ -528,7 +528,8 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->num_memslots = NUM_MEMSLOTS;
     info->num_memslots_groups = NUM_MEMSLOTS_GROUPS;
     info->internal_groupslot_id = 0;
-    info->qxl_ram_size = le32_to_cpu(qxl->shadow_rom.num_pages) << TARGET_PAGE_BITS;
+    info->qxl_ram_size =
+        le32_to_cpu(qxl->shadow_rom.num_pages) << QXL_PAGE_BITS;
     info->n_surfaces = qxl->ssd.num_surfaces;
 }
 
