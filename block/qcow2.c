@@ -688,24 +688,34 @@ static int qcow2_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static int coroutine_fn qcow2_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t cluster_offset;
-    int ret;
+    int index_in_cluster, ret;
+    int64_t status = 0;
 
     *pnum = nb_sectors;
-    /* FIXME We can get errors here, but the bdrv_co_is_allocated interface
-     * can't pass them on today */
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_get_cluster_offset(bs, sector_num << 9, pnum, &cluster_offset);
     qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
-        *pnum = 0;
+        return ret;
     }
 
-    return (cluster_offset != 0) || (ret == QCOW2_CLUSTER_ZERO);
+    if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
+        !s->crypt_method) {
+        index_in_cluster = sector_num & (s->cluster_sectors - 1);
+        cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+        status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
+    }
+    if (ret == QCOW2_CLUSTER_ZERO) {
+        status |= BDRV_BLOCK_ZERO;
+    } else if (ret != QCOW2_CLUSTER_UNALLOCATED) {
+        status |= BDRV_BLOCK_DATA;
+    }
+    return status;
 }
 
 /* handle reading after the end of the backing file */
@@ -1452,7 +1462,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     ret = 0;
 out:
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     return ret;
 }
 
@@ -1868,7 +1878,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated = qcow2_co_is_allocated,
+    .bdrv_co_get_block_status = qcow2_co_get_block_status,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 

@@ -108,9 +108,9 @@ wait:
             break;
         }
         /* Copy if allocated above the base */
-        ret = bdrv_co_is_allocated_above(top, base, sector_num,
-                                         COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
-                                         &n);
+        ret = bdrv_is_allocated_above(top, base, sector_num,
+                                      COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
+                                      &n);
         copy = (ret == 1);
         trace_commit_one_iteration(s, sector_num, n, ret);
         if (copy) {

@@ -73,7 +73,7 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
         unused = intermediate;
         intermediate = intermediate->backing_hd;
         unused->backing_hd = NULL;
-        bdrv_delete(unused);
+        bdrv_unref(unused);
     }
 }
 
@@ -119,16 +119,16 @@ wait:
             break;
         }
 
-        ret = bdrv_co_is_allocated(bs, sector_num,
-                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        ret = bdrv_is_allocated(bs, sector_num,
+                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
             copy = false;
-        } else {
+        } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
-            ret = bdrv_co_is_allocated_above(bs->backing_hd, base,
-                                             sector_num, n, &n);
+            ret = bdrv_is_allocated_above(bs->backing_hd, base,
+                                          sector_num, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {

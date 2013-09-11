@@ -45,6 +45,7 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
         error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
+    bdrv_ref(bs);
     bdrv_set_in_use(bs, 1);
 
     job = g_malloc0(job_type->instance_size);

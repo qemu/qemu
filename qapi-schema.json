@@ -785,6 +785,20 @@
 #
 # @image: the info of image used (since: 1.6)
 #
+# @bps_max: #optional total max in bytes (Since 1.7)
+#
+# @bps_rd_max: #optional read max in bytes (Since 1.7)
+#
+# @bps_wr_max: #optional write max in bytes (Since 1.7)
+#
+# @iops_max: #optional total I/O operations max (Since 1.7)
+#
+# @iops_rd_max: #optional read I/O operations max (Since 1.7)
+#
+# @iops_wr_max: #optional write I/O operations max (Since 1.7)
+#
+# @iops_size: #optional an I/O size in bytes (Since 1.7)
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
@@ -795,7 +809,11 @@
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
-            'image': 'ImageInfo' } }
+            'image': 'ImageInfo',
+            '*bps_max': 'int', '*bps_rd_max': 'int',
+            '*bps_wr_max': 'int', '*iops_max': 'int',
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+            '*iops_size': 'int' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -811,6 +829,35 @@
 # Since: 1.0
 ##
 { 'enum': 'BlockDeviceIoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
+
+##
+# @BlockDeviceMapEntry:
+#
+# Entry in the metadata map of the device (returned by "qemu-img map")
+#
+# @start: Offset in the image of the first byte described by this entry
+#         (in bytes)
+#
+# @length: Length of the range described by this entry (in bytes)
+#
+# @depth: Number of layers (0 = top image, 1 = top image's backing file, etc.)
+#         before reaching one for which the range is allocated.  The value is
+#         in the range 0 to the depth of the image chain - 1.
+#
+# @zero: the sectors in this range read as zeros
+#
+# @data: reading the image will actually read data from a file (in particular,
+#        if @offset is present this means that the sectors are not simply
+#        preallocated, but contain actual data in raw format)
+#
+# @offset: if present, the image file stores the data for this range in
+#          raw format at the given offset.
+#
+# Since 1.7
+##
+{ 'type': 'BlockDeviceMapEntry',
+  'data': { 'start': 'int', 'length': 'int', 'depth': 'int', 'zero': 'bool',
+            'data': 'bool', '*offset': 'int' } }
 
 ##
 # @BlockDirtyInfo:
@@ -2174,6 +2221,20 @@
 #
 # @iops_wr: write I/O operations per second
 #
+# @bps_max: #optional total max in bytes (Since 1.7)
+#
+# @bps_rd_max: #optional read max in bytes (Since 1.7)
+#
+# @bps_wr_max: #optional write max in bytes (Since 1.7)
+#
+# @iops_max: #optional total I/O operations max (Since 1.7)
+#
+# @iops_rd_max: #optional read I/O operations max (Since 1.7)
+#
+# @iops_wr_max: #optional write I/O operations max (Since 1.7)
+#
+# @iops_size: #optional an I/O size in bytes (Since 1.7)
+#
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
@@ -2181,7 +2242,11 @@
 ##
 { 'command': 'block_set_io_throttle',
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+            '*bps_max': 'int', '*bps_rd_max': 'int',
+            '*bps_wr_max': 'int', '*iops_max': 'int',
+            '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+            '*iops_size': 'int' } }
 
 ##
 # @block-stream:

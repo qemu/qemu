@@ -20,17 +20,17 @@
 dd()
 {
    if [ "$HOSTOS" == "Linux" ]
-   then	
-	command dd --help | grep noxfer > /dev/null 2>&1
-	
-	if [ "$?" -eq 0 ]
-	    then
-		command dd status=noxfer $@
-	    else
-		command dd $@
-    	fi
+   then
+        command dd --help | grep noxfer > /dev/null 2>&1
+
+        if [ "$?" -eq 0 ]
+            then
+                command dd status=noxfer $@
+            else
+                command dd $@
+            fi
    else
-	command dd $@
+        command dd $@
    fi
 }
 
@@ -193,8 +193,8 @@ _get_pids_by_name()
 {
     if [ $# -ne 1 ]
     then
-	echo "Usage: _get_pids_by_name process-name" 1>&2
-	exit 1
+        echo "Usage: _get_pids_by_name process-name" 1>&2
+        exit 1
     fi
 
     # Algorithm ... all ps(1) variants have a time of the form MM:SS or
@@ -206,12 +206,12 @@ _get_pids_by_name()
 
     ps $PS_ALL_FLAGS \
     | sed -n \
-	-e 's/$/ /' \
-	-e 's/[ 	][ 	]*/ /g' \
-	-e 's/^ //' \
-	-e 's/^[^ ]* //' \
-	-e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
-	-e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
+        -e 's/$/ /' \
+        -e 's/[         ][         ]*/ /g' \
+        -e 's/^ //' \
+        -e 's/^[^ ]* //' \
+        -e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
+        -e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
 }
 
 # fqdn for localhost
@@ -229,8 +229,8 @@ _need_to_be_root()
     id=`id | $SED_PROG -e 's/(.*//' -e 's/.*=//'`
     if [ "$id" -ne 0 ]
     then
-	echo "Arrgh ... you need to be root (not uid=$id) to run this test"
-	exit 1
+        echo "Arrgh ... you need to be root (not uid=$id) to run this test"
+        exit 1
     fi
 }
 
@@ -248,33 +248,33 @@ _need_to_be_root()
 _do()
 {
     if [ $# -eq 1 ]; then
-	_cmd=$1
+        _cmd=$1
     elif [ $# -eq 2 ]; then
-	_note=$1
-	_cmd=$2
-	echo -n "$_note... "
+        _note=$1
+        _cmd=$2
+        echo -n "$_note... "
     else
-	echo "Usage: _do [note] cmd" 1>&2
-	status=1; exit
+        echo "Usage: _do [note] cmd" 1>&2
+        status=1; exit
     fi
 
     (eval "echo '---' \"$_cmd\"") >>$here/$seq.full
     (eval "$_cmd") >$tmp._out 2>&1; ret=$?
     cat $tmp._out >>$here/$seq.full
     if [ $# -eq 2 ]; then
-	if [ $ret -eq 0 ]; then
-	    echo "done"
-	else
-	    echo "fail"
-	fi
+        if [ $ret -eq 0 ]; then
+            echo "done"
+        else
+            echo "fail"
+        fi
     fi
     if [ $ret -ne 0  ] \
-	&& [ "$_do_die_on_error" = "always" \
-	    -o \( $# -eq 2 -a "$_do_die_on_error" = "message_only" \) ]
+        && [ "$_do_die_on_error" = "always" \
+            -o \( $# -eq 2 -a "$_do_die_on_error" = "message_only" \) ]
     then
-	[ $# -ne 2 ] && echo
-	eval "echo \"$_cmd\" failed \(returned $ret\): see $seq.full"
-	status=1; exit
+        [ $# -ne 2 ] && echo
+        eval "echo \"$_cmd\" failed \(returned $ret\): see $seq.full"
+        status=1; exit
     fi
 
     return $ret
@@ -305,9 +305,9 @@ _fail()
 _supported_fmt()
 {
     for f; do
-	if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
-	    return
-	fi
+        if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
+            return
+        fi
     done
 
     _notrun "not suitable for this image format: $IMGFMT"
@@ -318,9 +318,9 @@ _supported_fmt()
 _supported_proto()
 {
     for f; do
-	if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
-	    return
-	fi
+        if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
+            return
+        fi
     done
 
     _notrun "not suitable for this image protocol: $IMGPROTO"
@@ -332,10 +332,10 @@ _supported_os()
 {
     for h
     do
-	if [ "$h" = "$HOSTOS" ]
-	then
-	    return
-	fi
+        if [ "$h" = "$HOSTOS" ]
+        then
+            return
+        fi
     done
 
     _notrun "not suitable for this OS: $HOSTOS"

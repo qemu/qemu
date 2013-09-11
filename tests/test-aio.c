@@ -13,6 +13,7 @@
 #include <glib.h>
 #include "block/aio.h"
 #include "qemu/timer.h"
+#include "qemu/sockets.h"
 
 AioContext *ctx;
 
@@ -375,7 +376,10 @@ static void test_timer_schedule(void)
     /* aio_poll will not block to wait for timers to complete unless it has
      * an fd to wait on. Fixing this breaks other tests. So create a dummy one.
      */
-    g_assert(!pipe2(pipefd, O_NONBLOCK));
+    g_assert(!qemu_pipe(pipefd));
+    qemu_set_nonblock(pipefd[0]);
+    qemu_set_nonblock(pipefd[1]);
+
     aio_set_fd_handler(ctx, pipefd[0],
                        dummy_io_handler_read, NULL, NULL);
     aio_poll(ctx, false);
@@ -716,7 +720,10 @@ static void test_source_timer_schedule(void)
     /* aio_poll will not block to wait for timers to complete unless it has
      * an fd to wait on. Fixing this breaks other tests. So create a dummy one.
      */
-    g_assert(!pipe2(pipefd, O_NONBLOCK));
+    g_assert(!qemu_pipe(pipefd));
+    qemu_set_nonblock(pipefd[0]);
+    qemu_set_nonblock(pipefd[1]);
+
     aio_set_fd_handler(ctx, pipefd[0],
                        dummy_io_handler_read, NULL, NULL);
     do {} while (g_main_context_iteration(NULL, false));
