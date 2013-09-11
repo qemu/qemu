@@ -164,7 +164,7 @@ int qdev_init(DeviceState *dev)
     if (local_err != NULL) {
         qerror_report_err(local_err);
         error_free(local_err);
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
         return -1;
     }
     return 0;
@@ -258,7 +258,7 @@ void qbus_reset_all_fn(void *opaque)
 int qdev_simple_unplug_cb(DeviceState *dev)
 {
     /* just zap it */
-    qdev_free(dev);
+    object_unparent(OBJECT(dev));
     return 0;
 }
 
@@ -278,12 +278,6 @@ void qdev_init_nofail(DeviceState *dev)
         error_report("Initialization of device %s failed", typename);
         exit(1);
     }
-}
-
-/* Unlink device from bus and free the structure.  */
-void qdev_free(DeviceState *dev)
-{
-    object_unparent(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -458,7 +452,7 @@ static void bus_unparent(Object *obj)
 
     while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
         DeviceState *dev = kid->child;
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
     }
     if (bus->parent) {
         QLIST_REMOVE(bus, sibling);

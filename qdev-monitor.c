@@ -526,7 +526,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev->id = id;
     }
     if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
-        qdev_free(qdev);
+        object_unparent(OBJECT(qdev));
         object_unref(OBJECT(qdev));
         return NULL;
     }
