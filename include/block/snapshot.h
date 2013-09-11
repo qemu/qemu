@@ -26,6 +26,7 @@
 #define SNAPSHOT_H
 
 #include "qemu-common.h"
+#include "qapi/error.h"
 
 typedef struct QEMUSnapshotInfo {
     char id_str[128]; /* unique snapshot id */
@@ -40,6 +41,11 @@ typedef struct QEMUSnapshotInfo {
 
 int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
                        const char *name);
+bool bdrv_snapshot_find_by_id_and_name(BlockDriverState *bs,
+                                       const char *id,
+                                       const char *name,
+                                       QEMUSnapshotInfo *sn_info,
+                                       Error **errp);
 int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_snapshot_create(BlockDriverState *bs,
                          QEMUSnapshotInfo *sn_info);

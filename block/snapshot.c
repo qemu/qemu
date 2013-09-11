@@ -48,6 +48,79 @@ int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
     return ret;
 }
 
+/**
+ * Look up an internal snapshot by @id and @name.
+ * @bs: block device to search
+ * @id: unique snapshot ID, or NULL
+ * @name: snapshot name, or NULL
+ * @sn_info: location to store information on the snapshot found
+ * @errp: location to store error, will be set only for exception
+ *
+ * This function will traverse snapshot list in @bs to search the matching
+ * one, @id and @name are the matching condition:
+ * If both @id and @name are specified, find the first one with id @id and
+ * name @name.
+ * If only @id is specified, find the first one with id @id.
+ * If only @name is specified, find the first one with name @name.
+ * if none is specified, abort().
+ *
+ * Returns: true when a snapshot is found and @sn_info will be filled, false
+ * when error or not found. If all operation succeed but no matching one is
+ * found, @errp will NOT be set.
+ */
+bool bdrv_snapshot_find_by_id_and_name(BlockDriverState *bs,
+                                       const char *id,
+                                       const char *name,
+                                       QEMUSnapshotInfo *sn_info,
+                                       Error **errp)
+{
+    QEMUSnapshotInfo *sn_tab, *sn;
+    int nb_sns, i;
+    bool ret = false;
+
+    assert(id || name);
+
+    nb_sns = bdrv_snapshot_list(bs, &sn_tab);
+    if (nb_sns < 0) {
+        error_setg_errno(errp, -nb_sns, "Failed to get a snapshot list");
+        return false;
+    } else if (nb_sns == 0) {
+        return false;
+    }
+
+    if (id && name) {
+        for (i = 0; i < nb_sns; i++) {
+            sn = &sn_tab[i];
+            if (!strcmp(sn->id_str, id) && !strcmp(sn->name, name)) {
+                *sn_info = *sn;
+                ret = true;
+                break;
+            }
+        }
+    } else if (id) {
+        for (i = 0; i < nb_sns; i++) {
+            sn = &sn_tab[i];
+            if (!strcmp(sn->id_str, id)) {
+                *sn_info = *sn;
+                ret = true;
+                break;
+            }
+        }
+    } else if (name) {
+        for (i = 0; i < nb_sns; i++) {
+            sn = &sn_tab[i];
+            if (!strcmp(sn->name, name)) {
+                *sn_info = *sn;
+                ret = true;
+                break;
+            }
+        }
+    }
+
+    g_free(sn_tab);
+    return ret;
+}
+
 int bdrv_can_snapshot(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
