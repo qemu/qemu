@@ -414,9 +414,8 @@ static void qxl_ram_set_dirty(PCIQXLDevice *qxl, void *ptr)
     intptr_t offset;
 
     offset = ptr - base;
-    offset &= ~(TARGET_PAGE_SIZE-1);
     assert(offset < qxl->vga.vram_size);
-    qxl_set_dirty(&qxl->vga.vram, offset, offset + TARGET_PAGE_SIZE);
+    qxl_set_dirty(&qxl->vga.vram, offset, offset + 3);
 }
 
 /* can be called from spice server thread context */
