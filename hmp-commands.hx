@@ -1053,6 +1053,24 @@ Take an internal snapshot on device if it support
 ETEXI
 
     {
+        .name       = "snapshot_delete_blkdev_internal",
+        .args_type  = "device:B,name:s,id:s?",
+        .params     = "device name [id]",
+        .help       = "delete an internal snapshot of device.\n\t\t\t"
+                      "If id is specified, qemu will try delete\n\t\t\t"
+                      "the snapshot matching both id and name.\n\t\t\t"
+                      "The format of the image used by device must\n\t\t\t"
+                      "support it, such as qcow2.\n\t\t\t",
+        .mhandler.cmd = hmp_snapshot_delete_blkdev_internal,
+    },
+
+STEXI
+@item snapshot_delete_blkdev_internal
+@findex snapshot_delete_blkdev_internal
+Delete an internal snapshot on device if it support
+ETEXI
+
+    {
         .name       = "drive_mirror",
         .args_type  = "reuse:-n,full:-f,device:B,target:s,format:s?",
         .params     = "[-n] [-f] device target [format]",
