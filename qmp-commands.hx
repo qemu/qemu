@@ -1127,6 +1127,47 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-snapshot-delete-internal-sync",
+        .args_type  = "device:B,id:s?,name:s?",
+        .mhandler.cmd_new =
+                      qmp_marshal_input_blockdev_snapshot_delete_internal_sync,
+    },
+
+SQMP
+blockdev-snapshot-delete-internal-sync
+--------------------------------------
+
+Synchronously delete an internal snapshot of a block device when the format of
+image used supports it.  The snapshot is identified by name or id or both.  One
+of name or id is required.  If the snapshot is not found, the operation will
+fail.
+
+Arguments:
+
+- "device": device name (json-string)
+- "id": ID of the snapshot (json-string, optional)
+- "name": name of the snapshot (json-string, optional)
+
+Example:
+
+-> { "execute": "blockdev-snapshot-delete-internal-sync",
+                "arguments": { "device": "ide-hd0",
+                               "name": "snapshot0" }
+   }
+<- { "return": {
+                   "id": "1",
+                   "name": "snapshot0",
+                   "vm-state-size": 0,
+                   "date-sec": 1000012,
+                   "date-nsec": 10,
+                   "vm-clock-sec": 100,
+                   "vm-clock-nsec": 20
+     }
+   }
+
+EQMP
+
+    {
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "on-source-error:s?,on-target-error:s?,"

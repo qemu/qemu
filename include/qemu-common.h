@@ -191,6 +191,9 @@ int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix);
 int64_t strtosz_suffix_unit(const char *nptr, char **end,
                             const char default_suffix, int64_t unit);
 
+/* used to print char* safely */
+#define STR_OR_NULL(str) ((str) ? (str) : "null")
+
 /* path.c */
 void init_paths(const char *prefix);
 const char *path(const char *pathname);

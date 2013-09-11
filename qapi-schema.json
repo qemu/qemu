@@ -1825,6 +1825,33 @@
   'data': 'BlockdevSnapshotInternal' }
 
 ##
+# @blockdev-snapshot-delete-internal-sync
+#
+# Synchronously delete an internal snapshot of a block device, when the format
+# of the image used support it. The snapshot is identified by name or id or
+# both. One of the name or id is required. Return SnapshotInfo for the
+# successfully deleted snapshot.
+#
+# @device: the name of the device to delete the snapshot from
+#
+# @id: optional the snapshot's ID to be deleted
+#
+# @name: optional the snapshot's name to be deleted
+#
+# Returns: SnapshotInfo on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If snapshot not found, GenericError
+#          If the format of the image used does not support it,
+#          BlockFormatFeatureNotSupported
+#          If @id and @name are both not specified, GenericError
+#
+# Since 1.7
+##
+{ 'command': 'blockdev-snapshot-delete-internal-sync',
+  'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
+  'returns': 'SnapshotInfo' }
+
+##
 # @human-monitor-command:
 #
 # Execute a command on the human monitor and return the output.
