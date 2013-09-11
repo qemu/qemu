@@ -664,7 +664,7 @@ QString* vsh_translate(uint16_t version,
 
 
         /* the shaders leave the result in screen space, while
-         * opengl expects it in normalised device coords.
+         * opengl expects it in clip coordinates.
          * Use the magic viewport constants for now,
          * but they're not necessarily present.
          * Same idea as above I think, but dono what the mvp stuff is about...
@@ -673,7 +673,13 @@ QString* vsh_translate(uint16_t version,
         "ADD R12, R12, -c[59];\n"
         "RCP R1.x, c[58].x;\n"
         "RCP R1.y, c[58].y;\n"
-        "RCP R1.z, c[58].z;\n"
+
+        /* scale_z = view_z == 0 ? 1 : 1 / view_z */
+        "ABS R1.z, c[58].z;\n"
+        "SGE R1.z, -R1.z, 0;\n"
+        "ADD R1.z, R1.z, c[58].z;\n"
+        "RCP R1.z, R1.z;\n"
+
         "MUL R12.xyz, R12, R1;\n"
         
         /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection

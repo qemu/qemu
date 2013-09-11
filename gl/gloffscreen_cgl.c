@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "qemu-common.h"
+
 #include <OpenGL/gl.h>
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/CGLTypes.h>
@@ -41,21 +43,24 @@ struct _GloContext {
  * the GLO_ constants */
 GloContext *glo_context_create(int formatFlags)
 {
-    GloContext *context;
+    CGLError err;
 
-    context = (GloContext *)malloc(sizeof(GloContext));
-    memset(context, 0, sizeof(GloContext));
+    GloContext *context = (GloContext *)g_malloc0(sizeof(GloContext));
 
     /* pixel format attributes */
-     CGLPixelFormatAttribute attributes[] = {
+    CGLPixelFormatAttribute attributes[] = {
         kCGLPFAAccelerated,
         (CGLPixelFormatAttribute)0
     };
 
     CGLPixelFormatObj pix;
     GLint num;
-    CGLChoosePixelFormat(attributes, &pix, &num);
-    CGLCreateContext(pix, NULL, &context->cglContext);
+    err = CGLChoosePixelFormat(attributes, &pix, &num);
+    if (err) return NULL;
+
+    err = CGLCreateContext(pix, NULL, &context->cglContext);
+    if (err) return NULL;
+
     CGLDestroyPixelFormat(pix);
 
     glo_set_current(context);

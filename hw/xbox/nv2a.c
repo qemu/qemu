@@ -1572,12 +1572,10 @@ static void pgraph_context_init(GraphicsContext *context)
 {
 
     context->gl_context = glo_context_create(GLO_FF_DEFAULT);
-
-    /* TODO: create glo functions for Mac */
+    assert(context->gl_context);
 
     /* Check context capabilities */
-    const GLubyte *extensions;
-    extensions = glGetString (GL_EXTENSIONS);
+    const GLubyte *extensions = glGetString(GL_EXTENSIONS);
 
     assert(glo_check_extension((const GLubyte *)
                              "GL_EXT_texture_compression_s3tc",
@@ -2156,13 +2154,11 @@ static void pgraph_method(NV2AState *d,
         unsigned int start = GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX);
         unsigned int count = GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1;
 
-        kelvin_update_surface(d, kelvin, true);
 
         kelvin_bind_converted_vertex_attributes(d, kelvin,
             false, start + count);
         glDrawArrays(kelvin->gl_primitive_mode, start, count);
 
-        kelvin->surface_color.draw_dirty = true;
         break;
     }
     case NV097_INLINE_ARRAY:
