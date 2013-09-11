@@ -380,6 +380,7 @@ static void piix4_reset(void *opaque)
         /* Mark SMM as already inited (until KVM supports SMM). */
         pci_conf[0x5B] = 0x02;
     }
+    pm_io_space_update(s);
     piix4_update_hotplug(s);
 }
 
