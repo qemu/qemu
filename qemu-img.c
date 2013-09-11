@@ -1839,7 +1839,7 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
                (e->flags & BDRV_BLOCK_ZERO) ? "true" : "false",
                (e->flags & BDRV_BLOCK_DATA) ? "true" : "false");
         if (e->flags & BDRV_BLOCK_OFFSET_VALID) {
-            printf(", 'offset': %"PRId64"", e->offset);
+            printf(", \"offset\": %"PRId64"", e->offset);
         }
         putchar('}');
 
