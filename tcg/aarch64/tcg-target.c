@@ -541,11 +541,10 @@ static inline void tcg_out_rotl(TCGContext *s, TCGType ext,
     tcg_out_extr(s, ext, rd, rn, rn, bits - (m & max));
 }
 
-static inline void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg rn,
-                               TCGReg rm, int shift_imm)
+static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg rn, TCGReg rm)
 {
     /* Using CMP alias SUBS wzr, Wn, Wm */
-    tcg_out_arith(s, ARITH_SUBS, ext, TCG_REG_XZR, rn, rm, shift_imm);
+    tcg_out_arith(s, ARITH_SUBS, ext, TCG_REG_XZR, rn, rm, 0);
 }
 
 static inline void tcg_out_cset(TCGContext *s, TCGType ext,
@@ -903,7 +902,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg,
                  (is_read ? offsetof(CPUTLBEntry, addr_read)
                   : offsetof(CPUTLBEntry, addr_write)));
     /* Perform the address comparison. */
-    tcg_out_cmp(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, TCG_REG_X3, 0);
+    tcg_out_cmp(s, (TARGET_LONG_BITS == 64), TCG_REG_X0, TCG_REG_X3);
     *label_ptr = s->code_ptr;
     /* If not equal, we jump to the slow path. */
     tcg_out_goto_cond_noaddr(s, TCG_COND_NE);
@@ -1242,13 +1241,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_brcond_i64:
     case INDEX_op_brcond_i32:
-        tcg_out_cmp(s, ext, a0, a1, 0);
+        tcg_out_cmp(s, ext, a0, a1);
         tcg_out_goto_label_cond(s, a2, args[3]);
         break;
 
     case INDEX_op_setcond_i64:
     case INDEX_op_setcond_i32:
-        tcg_out_cmp(s, ext, a1, a2, 0);
+        tcg_out_cmp(s, ext, a1, a2);
         tcg_out_cset(s, 0, a0, args[3]);
         break;
 
