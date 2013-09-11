@@ -313,9 +313,7 @@ static ram_addr_t qxl_rom_size(void)
                                  sizeof(qxl_modes);
     uint32_t rom_size = 8192; /* two pages */
 
-    required_rom_size = MAX(required_rom_size, TARGET_PAGE_SIZE);
-    required_rom_size = msb_mask(required_rom_size * 2 - 1);
-    assert(required_rom_size <= rom_size);
+    QEMU_BUILD_BUG_ON(required_rom_size > rom_size);
     return rom_size;
 }
 
