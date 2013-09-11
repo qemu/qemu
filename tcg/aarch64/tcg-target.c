@@ -527,6 +527,37 @@ static void tcg_out_movr_sp(TCGContext *s, TCGType ext, TCGReg rd, TCGReg rn)
     tcg_out_insn(s, 3401, ADDI, ext, rd, rn, 0);
 }
 
+/* This function is used for the Logical (immediate) instruction group.
+   The value of LIMM must satisfy IS_LIMM.  See the comment above about
+   only supporting simplified logical immediates.  */
+static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
+                             TCGReg rd, TCGReg rn, uint64_t limm)
+{
+    unsigned h, l, r, c;
+
+    assert(is_limm(limm));
+
+    h = clz64(limm);
+    l = ctz64(limm);
+    if (l == 0) {
+        r = 0;                  /* form 0....01....1 */
+        c = ctz64(~limm) - 1;
+        if (h == 0) {
+            r = clz64(~limm);   /* form 1..10..01..1 */
+            c += r;
+        }
+    } else {
+        r = 64 - l;             /* form 1....10....0 or 0..01..10..0 */
+        c = r - h - 1;
+    }
+    if (ext == TCG_TYPE_I32) {
+        r &= 31;
+        c &= 31;
+    }
+
+    tcg_out_insn_3404(s, insn, ext, rd, rn, ext, r, c);
+}
+
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long value)
 {
@@ -545,6 +576,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         value = (uint32_t)value;
         ivalue = (uint32_t)ivalue;
         type = TCG_TYPE_I32;
+    }
+
+    /* Check for bitfield immediates.  For the benefit of 32-bit quantities,
+       use the sign-extended value.  That lets us match rotated values such
+       as 0xff0000ff with the same 64-bit logic matching 0xffffffffff0000ff. */
+    if (is_limm(svalue)) {
+        tcg_out_logicali(s, I3404_ORRI, type, rd, TCG_REG_XZR, svalue);
+        return;
     }
 
     /* Would it take fewer insns to begin with MOVN?  For the value and its
@@ -889,37 +928,6 @@ static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
     } else {
         tcg_out_insn(s, 3401, SUBI, ext, rd, rn, -aimm);
     }
-}
-
-/* This function is used for the Logical (immediate) instruction group.
-   The value of LIMM must satisfy IS_LIMM.  See the comment above about
-   only supporting simplified logical immediates.  */
-static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
-                             TCGReg rd, TCGReg rn, uint64_t limm)
-{
-    unsigned h, l, r, c;
-
-    assert(is_limm(limm));
-
-    h = clz64(limm);
-    l = ctz64(limm);
-    if (l == 0) {
-        r = 0;                  /* form 0....01....1 */
-        c = ctz64(~limm) - 1;
-        if (h == 0) {
-            r = clz64(~limm);   /* form 1..10..01..1 */
-            c += r;
-        }
-    } else {
-        r = 64 - l;             /* form 1....10....0 or 0..01..10..0 */
-        c = r - h - 1;
-    }
-    if (ext == TCG_TYPE_I32) {
-        r &= 31;
-        c &= 31;
-    }
-
-    tcg_out_insn_3404(s, insn, ext, rd, rn, ext, r, c);
 }
 
 static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
