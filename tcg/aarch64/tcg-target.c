@@ -578,6 +578,16 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         type = TCG_TYPE_I32;
     }
 
+    /* Speed things up by handling the common case of small positive
+       and negative values specially.  */
+    if ((value & ~0xffffull) == 0) {
+        tcg_out_insn(s, 3405, MOVZ, type, rd, value, 0);
+        return;
+    } else if ((ivalue & ~0xffffull) == 0) {
+        tcg_out_insn(s, 3405, MOVN, type, rd, ivalue, 0);
+        return;
+    }
+
     /* Check for bitfield immediates.  For the benefit of 32-bit quantities,
        use the sign-extended value.  That lets us match rotated values such
        as 0xff0000ff with the same 64-bit logic matching 0xffffffffff0000ff. */
