@@ -225,7 +225,15 @@ void pvpanic_init(ISABus *bus);
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
 
+#define PC_COMPAT_1_6 \
+        {\
+            .driver   = "e1000",\
+            .property = "mitigation",\
+            .value    = "off",\
+        }
+
 #define PC_COMPAT_1_5 \
+        PC_COMPAT_1_6, \
         {\
             .driver   = "Conroe-" TYPE_X86_CPU,\
             .property = "model",\
