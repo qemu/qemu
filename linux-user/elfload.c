@@ -269,16 +269,26 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ( (x) == EM_ARM )
+#define elf_check_arch(x) ((x) == ELF_MACHINE)
 
+#define ELF_ARCH        ELF_MACHINE
+
+#ifdef TARGET_AARCH64
+#define ELF_CLASS       ELFCLASS64
+#else
 #define ELF_CLASS       ELFCLASS32
-#define ELF_ARCH        EM_ARM
+#endif
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
     abi_long stack = infop->start_stack;
     memset(regs, 0, sizeof(*regs));
+
+#ifdef TARGET_AARCH64
+    regs->pc = infop->entry & ~0x3ULL;
+    regs->sp = stack;
+#else
     regs->ARM_cpsr = 0x10;
     if (infop->entry & 1)
         regs->ARM_cpsr |= CPSR_T;
@@ -292,6 +302,7 @@ static inline void init_thread(struct target_pt_regs *regs,
     /* For uClinux PIC binaries.  */
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
     regs->ARM_r10 = infop->start_data;
+#endif
 }
 
 #define ELF_NREG    18

@@ -19,13 +19,19 @@
 #ifndef CPU_ARM_H
 #define CPU_ARM_H
 
-#define TARGET_LONG_BITS 32
+#include "config.h"
 
-#define ELF_MACHINE	EM_ARM
+#if defined(TARGET_AARCH64)
+  /* AArch64 definitions */
+#  define TARGET_LONG_BITS 64
+#  define ELF_MACHINE EM_AARCH64
+#else
+#  define TARGET_LONG_BITS 32
+#  define ELF_MACHINE EM_ARM
+#endif
 
 #define CPUArchState struct CPUARMState
 
-#include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
@@ -97,6 +103,20 @@ typedef struct ARMGenericTimer {
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
+
+    /* 32/64 switch only happens when taking and returning from
+     * exceptions so the overlap semantics are taken care of then
+     * instead of having a complicated union.
+     */
+    /* Regs for A64 mode.  */
+    uint64_t xregs[32];
+    uint64_t pc;
+    /* TODO: pstate doesn't correspond to an architectural register;
+     * it would be better modelled as the underlying fields.
+     */
+    uint32_t pstate;
+    uint32_t aarch64; /* 1 if CPU is in aarch64 state; inverse of PSTATE.nRW */
+
     /* Frequently accessed CPSR bits are stored separately for efficiency.
        This contains all the other bits.  Use cpsr_{read,write} to access
        the whole CPSR.  */
@@ -175,6 +195,11 @@ typedef struct CPUARMState {
         uint32_t c15_power_control; /* power control */
     } cp15;
 
+    /* System registers (AArch64) */
+    struct {
+        uint64_t tpidr_el0;
+    } sr;
+
     struct {
         uint32_t other_sp;
         uint32_t vecbase;
@@ -191,7 +216,22 @@ typedef struct CPUARMState {
 
     /* VFP coprocessor state.  */
     struct {
-        float64 regs[32];
+        /* VFP/Neon register state. Note that the mapping between S, D and Q
+         * views of the register bank differs between AArch64 and AArch32:
+         * In AArch32:
+         *  Qn = regs[2n+1]:regs[2n]
+         *  Dn = regs[n]
+         *  Sn = regs[n/2] bits 31..0 for even n, and bits 63..32 for odd n
+         * (and regs[32] to regs[63] are inaccessible)
+         * In AArch64:
+         *  Qn = regs[2n+1]:regs[2n]
+         *  Dn = regs[2n]
+         *  Sn = regs[2n] bits 31..0
+         * This corresponds to the architecturally defined mapping between
+         * the two execution states, and means we do not need to explicitly
+         * map these registers when changing states.
+         */
+        float64 regs[64];
 
         uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
@@ -261,6 +301,20 @@ int bank_number(int mode);
 void switch_mode(CPUARMState *, int);
 uint32_t do_arm_semihosting(CPUARMState *env);
 
+static inline bool is_a64(CPUARMState *env)
+{
+    return env->aarch64;
+}
+
+#define PSTATE_N_SHIFT 3
+#define PSTATE_N  (1 << PSTATE_N_SHIFT)
+#define PSTATE_Z_SHIFT 2
+#define PSTATE_Z  (1 << PSTATE_Z_SHIFT)
+#define PSTATE_C_SHIFT 1
+#define PSTATE_C  (1 << PSTATE_C_SHIFT)
+#define PSTATE_V_SHIFT 0
+#define PSTATE_V  (1 << PSTATE_V_SHIFT)
+
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -270,22 +324,22 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_arm_handle_mmu_fault
 
-#define CPSR_M (0x1f)
-#define CPSR_T (1 << 5)
-#define CPSR_F (1 << 6)
-#define CPSR_I (1 << 7)
-#define CPSR_A (1 << 8)
-#define CPSR_E (1 << 9)
-#define CPSR_IT_2_7 (0xfc00)
-#define CPSR_GE (0xf << 16)
-#define CPSR_RESERVED (0xf << 20)
-#define CPSR_J (1 << 24)
-#define CPSR_IT_0_1 (3 << 25)
-#define CPSR_Q (1 << 27)
-#define CPSR_V (1 << 28)
-#define CPSR_C (1 << 29)
-#define CPSR_Z (1 << 30)
-#define CPSR_N (1 << 31)
+#define CPSR_M (0x1fU)
+#define CPSR_T (1U << 5)
+#define CPSR_F (1U << 6)
+#define CPSR_I (1U << 7)
+#define CPSR_A (1U << 8)
+#define CPSR_E (1U << 9)
+#define CPSR_IT_2_7 (0xfc00U)
+#define CPSR_GE (0xfU << 16)
+#define CPSR_RESERVED (0xfU << 20)
+#define CPSR_J (1U << 24)
+#define CPSR_IT_0_1 (3U << 25)
+#define CPSR_Q (1U << 27)
+#define CPSR_V (1U << 28)
+#define CPSR_C (1U << 29)
+#define CPSR_Z (1U << 30)
+#define CPSR_N (1U << 31)
 #define CPSR_NZCV (CPSR_N | CPSR_Z | CPSR_C | CPSR_V)
 
 #define CPSR_IT (CPSR_IT_0_1 | CPSR_IT_2_7)
@@ -409,6 +463,7 @@ enum arm_features {
     ARM_FEATURE_PXN, /* has Privileged Execute Never bit */
     ARM_FEATURE_LPAE, /* has Large Physical Address Extension */
     ARM_FEATURE_V8,
+    ARM_FEATURE_AARCH64, /* supports 64 bit mode */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -729,8 +784,13 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 40
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
+#if defined(TARGET_AARCH64)
+#  define TARGET_PHYS_ADDR_SPACE_BITS 48
+#  define TARGET_VIRT_ADDR_SPACE_BITS 64
+#else
+#  define TARGET_PHYS_ADDR_SPACE_BITS 40
+#  define TARGET_VIRT_ADDR_SPACE_BITS 32
+#endif
 
 static inline CPUARMState *cpu_init(const char *cpu_model)
 {
@@ -757,7 +817,13 @@ static inline int cpu_mmu_index (CPUARMState *env)
 
 #include "exec/cpu-all.h"
 
-/* Bit usage in the TB flags field: */
+/* Bit usage in the TB flags field: bit 31 indicates whether we are
+ * in 32 or 64 bit mode. The meaning of the other bits depends on that.
+ */
+#define ARM_TBFLAG_AARCH64_STATE_SHIFT 31
+#define ARM_TBFLAG_AARCH64_STATE_MASK  (1U << ARM_TBFLAG_AARCH64_STATE_SHIFT)
+
+/* Bit usage when in AArch32 state: */
 #define ARM_TBFLAG_THUMB_SHIFT      0
 #define ARM_TBFLAG_THUMB_MASK       (1 << ARM_TBFLAG_THUMB_SHIFT)
 #define ARM_TBFLAG_VECLEN_SHIFT     1
@@ -772,9 +838,12 @@ static inline int cpu_mmu_index (CPUARMState *env)
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
-/* Bits 31..17 are currently unused. */
+
+/* Bit usage when in AArch64 state: currently no bits defined */
 
 /* some convenience accessor macros */
+#define ARM_TBFLAG_AARCH64_STATE(F) \
+    (((F) & ARM_TBFLAG_AARCH64_STATE_MASK) >> ARM_TBFLAG_AARCH64_STATE_SHIFT)
 #define ARM_TBFLAG_THUMB(F) \
     (((F) & ARM_TBFLAG_THUMB_MASK) >> ARM_TBFLAG_THUMB_SHIFT)
 #define ARM_TBFLAG_VECLEN(F) \
@@ -793,25 +862,31 @@ static inline int cpu_mmu_index (CPUARMState *env)
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
-    int privmode;
-    *pc = env->regs[15];
-    *cs_base = 0;
-    *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
-        | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
-        | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
-        | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
-        | (env->bswap_code << ARM_TBFLAG_BSWAP_CODE_SHIFT);
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        privmode = !((env->v7m.exception == 0) && (env->v7m.control & 1));
+    if (is_a64(env)) {
+        *pc = env->pc;
+        *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
     } else {
-        privmode = (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR;
+        int privmode;
+        *pc = env->regs[15];
+        *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+            | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
+            | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
+            | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
+            | (env->bswap_code << ARM_TBFLAG_BSWAP_CODE_SHIFT);
+        if (arm_feature(env, ARM_FEATURE_M)) {
+            privmode = !((env->v7m.exception == 0) && (env->v7m.control & 1));
+        } else {
+            privmode = (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR;
+        }
+        if (privmode) {
+            *flags |= ARM_TBFLAG_PRIV_MASK;
+        }
+        if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
+            *flags |= ARM_TBFLAG_VFPEN_MASK;
+        }
     }
-    if (privmode) {
-        *flags |= ARM_TBFLAG_PRIV_MASK;
-    }
-    if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
-        *flags |= ARM_TBFLAG_VFPEN_MASK;
-    }
+
+    *cs_base = 0;
 }
 
 static inline bool cpu_has_work(CPUState *cpu)
@@ -822,8 +897,17 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
+static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
+{
+    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
+        env->pc = tb->pc;
+    } else {
+        env->regs[15] = tb->pc;
+    }
+}
+
 /* Load an instruction and return it in the standard little-endian order */
-static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
+static inline uint32_t arm_ldl_code(CPUARMState *env, target_ulong addr,
                                     bool do_swap)
 {
     uint32_t insn = cpu_ldl_code(env, addr);
@@ -834,7 +918,7 @@ static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
 }
 
 /* Ditto, for a halfword (Thumb) instruction */
-static inline uint16_t arm_lduw_code(CPUARMState *env, uint32_t addr,
+static inline uint16_t arm_lduw_code(CPUARMState *env, target_ulong addr,
                                      bool do_swap)
 {
     uint16_t insn = cpu_lduw_code(env, addr);

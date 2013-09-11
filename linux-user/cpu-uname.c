@@ -30,7 +30,8 @@
  * return here */
 const char *cpu_to_uname_machine(void *cpu_env)
 {
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+
     /* utsname machine name on linux arm is CPU arch name + endianness, e.g.
      * armv7l; to get a list of CPU arch names from the linux source, use:
      *     grep arch_name: -A1 linux/arch/arm/mm/proc-*.S

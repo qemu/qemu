@@ -449,6 +449,9 @@ void cpu_loop(CPUX86State *env)
         __r;                                            \
     })
 
+#ifdef TARGET_ABI32
+/* Commpage handling -- there is no commpage for AArch64 */
+
 /*
  * See the Linux kernel's Documentation/arm/kernel_user_helpers.txt
  * Input:
@@ -582,6 +585,7 @@ do_kernel_trap(CPUARMState *env)
 
     return 0;
 }
+#endif
 
 static int do_strex(CPUARMState *env)
 {
@@ -661,6 +665,7 @@ done:
     return segv;
 }
 
+#ifdef TARGET_ABI32
 void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -872,6 +877,83 @@ void cpu_loop(CPUARMState *env)
         process_pending_signals(env);
     }
 }
+
+#else
+
+/* AArch64 main loop */
+void cpu_loop(CPUARMState *env)
+{
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+    int trapnr, sig;
+    target_siginfo_t info;
+    uint32_t addr;
+
+    for (;;) {
+        cpu_exec_start(cs);
+        trapnr = cpu_arm_exec(env);
+        cpu_exec_end(cs);
+
+        switch (trapnr) {
+        case EXCP_SWI:
+            env->xregs[0] = do_syscall(env,
+                                       env->xregs[8],
+                                       env->xregs[0],
+                                       env->xregs[1],
+                                       env->xregs[2],
+                                       env->xregs[3],
+                                       env->xregs[4],
+                                       env->xregs[5],
+                                       0, 0);
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+        case EXCP_UDEF:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP_PREFETCH_ABORT:
+            addr = env->cp15.c6_insn;
+            goto do_segv;
+        case EXCP_DATA_ABORT:
+            addr = env->cp15.c6_data;
+        do_segv:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            /* XXX: check env->error_code */
+            info.si_code = TARGET_SEGV_MAPERR;
+            info._sifields._sigfault._addr = addr;
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP_DEBUG:
+        case EXCP_BKPT:
+            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
+            if (sig) {
+                info.si_signo = sig;
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP_STREX:
+            if (do_strex(env)) {
+                addr = env->cp15.c6_data;
+                goto do_segv;
+            }
+            break;
+        default:
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
+                    trapnr);
+            cpu_dump_state(cs, stderr, fprintf, 0);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+#endif /* ndef TARGET_ABI32 */
 
 #endif
 
@@ -3594,6 +3676,8 @@ int main(int argc, char **argv, char **envp)
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
 
+    init_qemu_uname_release();
+
     if (cpu_model == NULL) {
 #if defined(TARGET_I386)
 #ifdef TARGET_X86_64
@@ -3884,6 +3968,22 @@ int main(int argc, char **argv, char **envp)
     cpu_x86_load_seg(env, R_FS, 0);
     cpu_x86_load_seg(env, R_GS, 0);
 #endif
+#elif defined(TARGET_AARCH64)
+    {
+        int i;
+
+        if (!(arm_feature(env, ARM_FEATURE_AARCH64))) {
+            fprintf(stderr,
+                    "The selected ARM CPU does not support 64 bit mode\n");
+            exit(1);
+        }
+
+        for (i = 0; i < 31; i++) {
+            env->xregs[i] = regs->regs[i];
+        }
+        env->pc = regs->pc;
+        env->xregs[31] = regs->sp;
+    }
 #elif defined(TARGET_ARM)
     {
         int i;

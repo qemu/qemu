@@ -84,6 +84,11 @@ static void arm_cpu_reset(CPUState *s)
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
     }
 
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        /* 64 bit CPUs always start in 64 bit mode */
+        env->aarch64 = 1;
+    }
+
 #if defined(CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
     /* For user mode we must enable access to coprocessors */
@@ -108,7 +113,7 @@ static void arm_cpu_reset(CPUState *s)
                modified flash and reset itself.  However images
                loaded via -kernel have not been copied yet, so load the
                values directly from there.  */
-            env->regs[13] = ldl_p(rom);
+            env->regs[13] = ldl_p(rom) & 0xFFFFFFFC;
             pc = ldl_p(rom + 4);
             env->thumb = pc & 1;
             env->regs[15] = pc & ~1;
@@ -288,8 +293,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     acc->parent_realize(dev, errp);
 }
 
-/* CPU models */
-
 static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -308,6 +311,9 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     }
     return oc;
 }
+
+/* CPU models. These are not needed for the AArch64 linux-user build. */
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
 static void arm926_initfn(Object *obj)
 {
@@ -822,6 +828,7 @@ static void pxa270c5_initfn(Object *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+#ifdef CONFIG_USER_ONLY
 static void arm_any_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -832,8 +839,14 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+#ifdef TARGET_AARCH64
+    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+#endif
     cpu->midr = 0xffffffff;
 }
+#endif
+
+#endif /* !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64) */
 
 typedef struct ARMCPUInfo {
     const char *name;
@@ -842,6 +855,7 @@ typedef struct ARMCPUInfo {
 } ARMCPUInfo;
 
 static const ARMCPUInfo arm_cpus[] = {
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
     { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
@@ -874,7 +888,10 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "pxa270-b1",   .initfn = pxa270b1_initfn },
     { .name = "pxa270-c0",   .initfn = pxa270c0_initfn },
     { .name = "pxa270-c5",   .initfn = pxa270c5_initfn },
+#ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = arm_any_initfn },
+#endif
+#endif
 };
 
 static void arm_cpu_class_init(ObjectClass *oc, void *data)

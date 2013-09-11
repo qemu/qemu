@@ -2,6 +2,7 @@
 #include "exec/gdbstub.h"
 #include "helper.h"
 #include "qemu/host-utils.h"
+#include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 
@@ -972,7 +973,7 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     return arm_feature(env, ARM_FEATURE_LPAE)
-        && (env->cp15.c2_control & (1 << 31));
+        && (env->cp15.c2_control & (1U << 31));
 }
 
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -1385,7 +1386,7 @@ static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
      * so these bits always RAZ.
      */
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
-        mpidr |= (1 << 31);
+        mpidr |= (1U << 31);
         /* Cores which are uniprocessor (non-coherent)
          * but still implement the MP extensions set
          * bit 30. (For instance, A9UP.) However we do
@@ -1827,6 +1828,37 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, arm_cpu_list_entry, &s);
     g_slist_free(list);
+}
+
+static void arm_cpu_add_definition(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    CpuDefinitionInfoList **cpu_list = user_data;
+    CpuDefinitionInfoList *entry;
+    CpuDefinitionInfo *info;
+    const char *typename;
+
+    typename = object_class_get_name(oc);
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strndup(typename,
+                           strlen(typename) - strlen("-" TYPE_ARM_CPU));
+
+    entry = g_malloc0(sizeof(*entry));
+    entry->value = info;
+    entry->next = *cpu_list;
+    *cpu_list = entry;
+}
+
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+{
+    CpuDefinitionInfoList *cpu_list = NULL;
+    GSList *list;
+
+    list = object_class_get_list(TYPE_ARM_CPU, false);
+    g_slist_foreach(list, arm_cpu_add_definition, &cpu_list);
+    g_slist_free(list);
+
+    return cpu_list;
 }
 
 void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,

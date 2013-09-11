@@ -74,7 +74,7 @@ struct vm86_saved_state {
 };
 #endif
 
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) && defined(TARGET_ABI32)
 /* FPU emulator */
 #include "nwfpe/fpa11.h"
 #endif
@@ -98,8 +98,10 @@ struct emulated_sigtable {
 typedef struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 #ifdef TARGET_ARM
+# ifdef TARGET_ABI32
     /* FPA state */
     FPA11 fpa;
+# endif
     int swi_errno;
 #endif
 #ifdef TARGET_UNICORE32
@@ -195,6 +197,7 @@ extern THREAD CPUState *thread_cpu;
 void cpu_loop(CPUArchState *env);
 char *target_strerror(int err);
 int get_osversion(void);
+void init_qemu_uname_release(void);
 void fork_start(void);
 void fork_end(int child);
 
