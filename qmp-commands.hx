@@ -1098,6 +1098,35 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-snapshot-internal-sync",
+        .args_type  = "device:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_internal_sync,
+    },
+
+SQMP
+blockdev-snapshot-internal-sync
+-------------------------------
+
+Synchronously take an internal snapshot of a block device when the format of
+image used supports it.  If the name is an empty string, or a snapshot with
+name already exists, the operation will fail.
+
+Arguments:
+
+- "device": device name to snapshot (json-string)
+- "name": name of the new snapshot (json-string)
+
+Example:
+
+-> { "execute": "blockdev-snapshot-internal-sync",
+                "arguments": { "device": "ide-hd0",
+                               "name": "snapshot0" }
+   }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "on-source-error:s?,on-target-error:s?,"

@@ -1805,6 +1805,26 @@
   'data': 'BlockdevSnapshot' }
 
 ##
+# @blockdev-snapshot-internal-sync
+#
+# Synchronously take an internal snapshot of a block device, when the format
+# of the image used supports it.
+#
+# For the arguments, see the documentation of BlockdevSnapshotInternal.
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If any snapshot matching @name exists, or @name is empty,
+#          GenericError
+#          If the format of the image used does not support it,
+#          BlockFormatFeatureNotSupported
+#
+# Since 1.7
+##
+{ 'command': 'blockdev-snapshot-internal-sync',
+  'data': 'BlockdevSnapshotInternal' }
+
+##
 # @human-monitor-command:
 #
 # Execute a command on the human monitor and return the output.

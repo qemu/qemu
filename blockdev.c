@@ -858,6 +858,19 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
                        &snapshot, errp);
 }
 
+void qmp_blockdev_snapshot_internal_sync(const char *device,
+                                         const char *name,
+                                         Error **errp)
+{
+    BlockdevSnapshotInternal snapshot = {
+        .device = (char *) device,
+        .name = (char *) name
+    };
+
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
+                       &snapshot, errp);
+}
+
 
 /* New and old BlockDriverState structs for group snapshots */
 
