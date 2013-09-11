@@ -467,7 +467,10 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs);
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);
 int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id);
-int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
+int qcow2_snapshot_delete(BlockDriverState *bs,
+                          const char *snapshot_id,
+                          const char *name,
+                          Error **errp);
 int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
 int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name);
 

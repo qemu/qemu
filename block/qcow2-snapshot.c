@@ -297,31 +297,47 @@ static void find_new_snapshot_id(BlockDriverState *bs,
     snprintf(id_str, id_str_size, "%d", id_max + 1);
 }
 
-static int find_snapshot_by_id(BlockDriverState *bs, const char *id_str)
+static int find_snapshot_by_id_and_name(BlockDriverState *bs,
+                                        const char *id,
+                                        const char *name)
 {
     BDRVQcowState *s = bs->opaque;
     int i;
 
-    for(i = 0; i < s->nb_snapshots; i++) {
-        if (!strcmp(s->snapshots[i].id_str, id_str))
-            return i;
+    if (id && name) {
+        for (i = 0; i < s->nb_snapshots; i++) {
+            if (!strcmp(s->snapshots[i].id_str, id) &&
+                !strcmp(s->snapshots[i].name, name)) {
+                return i;
+            }
+        }
+    } else if (id) {
+        for (i = 0; i < s->nb_snapshots; i++) {
+            if (!strcmp(s->snapshots[i].id_str, id)) {
+                return i;
+            }
+        }
+    } else if (name) {
+        for (i = 0; i < s->nb_snapshots; i++) {
+            if (!strcmp(s->snapshots[i].name, name)) {
+                return i;
+            }
+        }
     }
+
     return -1;
 }
 
-static int find_snapshot_by_id_or_name(BlockDriverState *bs, const char *name)
+static int find_snapshot_by_id_or_name(BlockDriverState *bs,
+                                       const char *id_or_name)
 {
-    BDRVQcowState *s = bs->opaque;
-    int i, ret;
+    int ret;
 
-    ret = find_snapshot_by_id(bs, name);
-    if (ret >= 0)
+    ret = find_snapshot_by_id_and_name(bs, id_or_name, NULL);
+    if (ret >= 0) {
         return ret;
-    for(i = 0; i < s->nb_snapshots; i++) {
-        if (!strcmp(s->snapshots[i].name, name))
-            return i;
     }
-    return -1;
+    return find_snapshot_by_id_and_name(bs, NULL, id_or_name);
 }
 
 /* if no id is provided, a new one is constructed */
@@ -343,7 +359,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 
     /* Check that the ID is unique */
-    if (find_snapshot_by_id(bs, sn_info->id_str) >= 0) {
+    if (find_snapshot_by_id_and_name(bs, sn_info->id_str, NULL) >= 0) {
         return -EEXIST;
     }
 
@@ -560,15 +576,19 @@ fail:
     return ret;
 }
 
-int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
+int qcow2_snapshot_delete(BlockDriverState *bs,
+                          const char *snapshot_id,
+                          const char *name,
+                          Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot sn;
     int snapshot_index, ret;
 
     /* Search the snapshot */
-    snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
+    snapshot_index = find_snapshot_by_id_and_name(bs, snapshot_id, name);
     if (snapshot_index < 0) {
+        error_setg(errp, "Can't find the snapshot");
         return -ENOENT;
     }
     sn = s->snapshots[snapshot_index];
@@ -580,6 +600,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     s->nb_snapshots--;
     ret = qcow2_write_snapshots(bs);
     if (ret < 0) {
+        error_setg(errp, "Failed to remove snapshot from snapshot list");
         return ret;
     }
 
@@ -597,6 +618,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     ret = qcow2_update_snapshot_refcount(bs, sn.l1_table_offset,
                                          sn.l1_size, -1);
     if (ret < 0) {
+        error_setg(errp, "Failed to free the cluster and L1 table");
         return ret;
     }
     qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * sizeof(uint64_t),
@@ -605,6 +627,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     /* must update the copied flag on the current cluster offsets */
     ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
     if (ret < 0) {
+        error_setg(errp, "Failed to update snapshot status in disk");
         return ret;
     }
 

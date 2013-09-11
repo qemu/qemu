@@ -891,12 +891,31 @@ static int qemu_rbd_snap_create(BlockDriverState *bs,
 }
 
 static int qemu_rbd_snap_remove(BlockDriverState *bs,
-                                const char *snapshot_name)
+                                const char *snapshot_id,
+                                const char *snapshot_name,
+                                Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
     int r;
 
+    if (!snapshot_name) {
+        error_setg(errp, "rbd need a valid snapshot name");
+        return -EINVAL;
+    }
+
+    /* If snapshot_id is specified, it must be equal to name, see
+       qemu_rbd_snap_list() */
+    if (snapshot_id && strcmp(snapshot_id, snapshot_name)) {
+        error_setg(errp,
+                   "rbd do not support snapshot id, it should be NULL or "
+                   "equal to snapshot name");
+        return -EINVAL;
+    }
+
     r = rbd_snap_remove(s->image, snapshot_name);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "Failed to remove the snapshot");
+    }
     return r;
 }
 

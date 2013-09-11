@@ -2006,6 +2006,7 @@ static int img_snapshot(int argc, char **argv)
     int action = 0;
     qemu_timeval tv;
     bool quiet = false;
+    Error *err = NULL;
 
     bdrv_oflags = BDRV_O_FLAGS | BDRV_O_RDWR;
     /* Parse commandline parameters */
@@ -2098,10 +2099,12 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
-        ret = bdrv_snapshot_delete(bs, snapshot_name);
-        if (ret) {
-            error_report("Could not delete snapshot '%s': %d (%s)",
-                snapshot_name, ret, strerror(-ret));
+        bdrv_snapshot_delete_by_id_or_name(bs, snapshot_name, &err);
+        if (error_is_set(&err)) {
+            error_report("Could not delete snapshot '%s': (%s)",
+                         snapshot_name, error_get_pretty(err));
+            error_free(err);
+            ret = 1;
         }
         break;
     }

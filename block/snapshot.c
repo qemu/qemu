@@ -182,19 +182,71 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
-int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
+/**
+ * Delete an internal snapshot by @snapshot_id and @name.
+ * @bs: block device used in the operation
+ * @snapshot_id: unique snapshot ID, or NULL
+ * @name: snapshot name, or NULL
+ * @errp: location to store error
+ *
+ * If both @snapshot_id and @name are specified, delete the first one with
+ * id @snapshot_id and name @name.
+ * If only @snapshot_id is specified, delete the first one with id
+ * @snapshot_id.
+ * If only @name is specified, delete the first one with name @name.
+ * if none is specified, return -ENINVAL.
+ *
+ * Returns: 0 on success, -errno on failure. If @bs is not inserted, return
+ * -ENOMEDIUM. If @snapshot_id and @name are both NULL, return -EINVAL. If @bs
+ * does not support internal snapshot deletion, return -ENOTSUP. If @bs does
+ * not support parameter @snapshot_id or @name, or one of them is not correctly
+ * specified, return -EINVAL. If @bs can't find one matching @id and @name,
+ * return -ENOENT. If @errp != NULL, it will always be filled with error
+ * message on failure.
+ */
+int bdrv_snapshot_delete(BlockDriverState *bs,
+                         const char *snapshot_id,
+                         const char *name,
+                         Error **errp)
 {
     BlockDriver *drv = bs->drv;
     if (!drv) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
         return -ENOMEDIUM;
     }
+    if (!snapshot_id && !name) {
+        error_setg(errp, "snapshot_id and name are both NULL");
+        return -EINVAL;
+    }
     if (drv->bdrv_snapshot_delete) {
-        return drv->bdrv_snapshot_delete(bs, snapshot_id);
+        return drv->bdrv_snapshot_delete(bs, snapshot_id, name, errp);
     }
     if (bs->file) {
-        return bdrv_snapshot_delete(bs->file, snapshot_id);
+        return bdrv_snapshot_delete(bs->file, snapshot_id, name, errp);
     }
+    error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+              drv->format_name, bdrv_get_device_name(bs),
+              "internal snapshot deletion");
     return -ENOTSUP;
+}
+
+void bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
+                                        const char *id_or_name,
+                                        Error **errp)
+{
+    int ret;
+    Error *local_err = NULL;
+
+    ret = bdrv_snapshot_delete(bs, id_or_name, NULL, &local_err);
+    if (ret == -ENOENT || ret == -EINVAL) {
+        error_free(local_err);
+        local_err = NULL;
+        ret = bdrv_snapshot_delete(bs, NULL, id_or_name, &local_err);
+    }
+
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+    }
 }
 
 int bdrv_snapshot_list(BlockDriverState *bs,

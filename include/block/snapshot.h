@@ -51,7 +51,13 @@ int bdrv_snapshot_create(BlockDriverState *bs,
                          QEMUSnapshotInfo *sn_info);
 int bdrv_snapshot_goto(BlockDriverState *bs,
                        const char *snapshot_id);
-int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
+int bdrv_snapshot_delete(BlockDriverState *bs,
+                         const char *snapshot_id,
+                         const char *name,
+                         Error **errp);
+void bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
+                                        const char *id_or_name,
+                                        Error **errp);
 int bdrv_snapshot_list(BlockDriverState *bs,
                        QEMUSnapshotInfo **psn_info);
 int bdrv_snapshot_load_tmp(BlockDriverState *bs,

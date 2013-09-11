@@ -2072,7 +2072,10 @@ out:
     return ret;
 }
 
-static int sd_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
+static int sd_snapshot_delete(BlockDriverState *bs,
+                              const char *snapshot_id,
+                              const char *name,
+                              Error **errp)
 {
     /* FIXME: Delete specified snapshot id.  */
     return 0;
