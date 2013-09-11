@@ -1001,14 +1001,15 @@ SQMP
 transaction
 -----------
 
-Atomically operate on one or more block devices.  The only supported
-operation for now is snapshotting.  If there is any failure performing
-any of the operations, all snapshots for the group are abandoned, and
-the original disks pre-snapshot attempt are used.
+Atomically operate on one or more block devices.  The only supported operations
+for now are drive-backup, internal and external snapshotting.  A list of
+dictionaries is accepted, that contains the actions to be performed.
+If there is any failure performing any of the operations, all operations
+for the group are abandoned.
 
-A list of dictionaries is accepted, that contains the actions to be performed.
-For snapshots this is the device, the file to use for the new snapshot,
-and the format.  The default format, if not specified, is qcow2.
+For external snapshots, the dictionary contains the device, the file to use for
+the new snapshot, and the format.  The default format, if not specified, is
+qcow2.
 
 Each new snapshot defaults to being created by QEMU (wiping any
 contents if the file already exists), but it is also possible to reuse
@@ -1016,6 +1017,17 @@ an externally-created file.  In the latter case, you should ensure that
 the new image file has the same contents as the current one; QEMU cannot
 perform any meaningful check.  Typically this is achieved by using the
 current image file as the backing file for the new image.
+
+On failure, the original disks pre-snapshot attempt will be used.
+
+For internal snapshots, the dictionary contains the device and the snapshot's
+name.  If an internal snapshot matching name already exists, the request will
+be rejected.  Only some image formats support it, for example, qcow2, rbd,
+and sheepdog.
+
+On failure, qemu will try delete the newly created internal snapshot in the
+transaction.  When an I/O error occurs during deletion, the user needs to fix
+it later with qemu-img or other command.
 
 Arguments:
 
@@ -1029,6 +1041,9 @@ actions array:
       - "format": format of new image (json-string, optional)
       - "mode": whether and how QEMU should create the snapshot file
         (NewImageMode, optional, default "absolute-paths")
+      When "type" is "blockdev-snapshot-internal-sync":
+      - "device": device name to snapshot (json-string)
+      - "name": name of the new snapshot (json-string)
 
 Example:
 
@@ -1040,7 +1055,10 @@ Example:
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
                                          "mode": "existing",
-                                         "format": "qcow2" } } ] } }
+                                         "format": "qcow2" } },
+         { 'type': 'blockdev-snapshot-internal-sync', 'data' : {
+                                         "device": "ide-hd2",
+                                         "name": "snapshot0" } } ] } }
 <- { "return": {} }
 
 EQMP

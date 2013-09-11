@@ -1686,6 +1686,22 @@
             '*mode': 'NewImageMode' } }
 
 ##
+# @BlockdevSnapshotInternal
+#
+# @device: the name of the device to generate the snapshot from
+#
+# @name: the name of the internal snapshot to be created
+#
+# Notes: In transaction, if @name is empty, or any snapshot matching @name
+#        exists, the operation will fail. Only some image formats support it,
+#        for example, qcow2, rbd, and sheepdog.
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevSnapshotInternal',
+  'data': { 'device': 'str', 'name': 'str' } }
+
+##
 # @DriveBackup
 #
 # @device: the name of the device which should be copied.
@@ -1747,7 +1763,8 @@
   'data': {
        'blockdev-snapshot-sync': 'BlockdevSnapshot',
        'drive-backup': 'DriveBackup',
-       'abort': 'Abort'
+       'abort': 'Abort',
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal'
    } }
 
 ##

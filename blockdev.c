@@ -889,6 +889,117 @@ struct BlkTransactionState {
     QSIMPLEQ_ENTRY(BlkTransactionState) entry;
 };
 
+/* internal snapshot private data */
+typedef struct InternalSnapshotState {
+    BlkTransactionState common;
+    BlockDriverState *bs;
+    QEMUSnapshotInfo sn;
+} InternalSnapshotState;
+
+static void internal_snapshot_prepare(BlkTransactionState *common,
+                                      Error **errp)
+{
+    const char *device;
+    const char *name;
+    BlockDriverState *bs;
+    QEMUSnapshotInfo old_sn, *sn;
+    bool ret;
+    qemu_timeval tv;
+    BlockdevSnapshotInternal *internal;
+    InternalSnapshotState *state;
+    int ret1;
+
+    g_assert(common->action->kind ==
+             TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC);
+    internal = common->action->blockdev_snapshot_internal_sync;
+    state = DO_UPCAST(InternalSnapshotState, common, common);
+
+    /* 1. parse input */
+    device = internal->device;
+    name = internal->name;
+
+    /* 2. check for validation */
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
+
+    if (bdrv_is_read_only(bs)) {
+        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        return;
+    }
+
+    if (!bdrv_can_snapshot(bs)) {
+        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+                  bs->drv->format_name, device, "internal snapshot");
+        return;
+    }
+
+    if (!strlen(name)) {
+        error_setg(errp, "Name is empty");
+        return;
+    }
+
+    /* check whether a snapshot with name exist */
+    ret = bdrv_snapshot_find_by_id_and_name(bs, NULL, name, &old_sn, errp);
+    if (error_is_set(errp)) {
+        return;
+    } else if (ret) {
+        error_setg(errp,
+                   "Snapshot with name '%s' already exists on device '%s'",
+                   name, device);
+        return;
+    }
+
+    /* 3. take the snapshot */
+    sn = &state->sn;
+    pstrcpy(sn->name, sizeof(sn->name), name);
+    qemu_gettimeofday(&tv);
+    sn->date_sec = tv.tv_sec;
+    sn->date_nsec = tv.tv_usec * 1000;
+    sn->vm_clock_nsec = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    ret1 = bdrv_snapshot_create(bs, sn);
+    if (ret1 < 0) {
+        error_setg_errno(errp, -ret1,
+                         "Failed to create snapshot '%s' on device '%s'",
+                         name, device);
+        return;
+    }
+
+    /* 4. succeed, mark a snapshot is created */
+    state->bs = bs;
+}
+
+static void internal_snapshot_abort(BlkTransactionState *common)
+{
+    InternalSnapshotState *state =
+                             DO_UPCAST(InternalSnapshotState, common, common);
+    BlockDriverState *bs = state->bs;
+    QEMUSnapshotInfo *sn = &state->sn;
+    Error *local_error = NULL;
+
+    if (!bs) {
+        return;
+    }
+
+    if (bdrv_snapshot_delete(bs, sn->id_str, sn->name, &local_error) < 0) {
+        error_report("Failed to delete snapshot with id '%s' and name '%s' on "
+                     "device '%s' in abort: %s",
+                     sn->id_str,
+                     sn->name,
+                     bdrv_get_device_name(bs),
+                     error_get_pretty(local_error));
+        error_free(local_error);
+    }
+}
+
 /* external snapshot private data */
 typedef struct ExternalSnapshotState {
     BlkTransactionState common;
@@ -1071,6 +1182,11 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(BlkTransactionState),
         .prepare = abort_prepare,
         .commit = abort_commit,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC] = {
+        .instance_size = sizeof(InternalSnapshotState),
+        .prepare  = internal_snapshot_prepare,
+        .abort = internal_snapshot_abort,
     },
 };
 
