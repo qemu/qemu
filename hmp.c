@@ -978,6 +978,16 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &errp);
 }
 
+void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    const char *name = qdict_get_str(qdict, "name");
+    Error *errp = NULL;
+
+    qmp_blockdev_snapshot_internal_sync(device, name, &errp);
+    hmp_handle_error(mon, &errp);
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);
