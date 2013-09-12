@@ -115,6 +115,10 @@ static inline int64_t qemu_clock_get_us(QEMUClockType type)
  * Determines whether a clock's default timer list
  * has timers attached
  *
+ * Note that this function should not be used when other threads also access
+ * the timer list.  The return value may be outdated by the time it is acted
+ * upon.
+ *
  * Returns: true if the clock's default timer list
  * has timers attached
  */
@@ -270,6 +274,10 @@ void timerlist_free(QEMUTimerList *timer_list);
  * @timer_list: the timer list to operate on
  *
  * Determine whether a timer list has active timers
+ *
+ * Note that this function should not be used when other threads also access
+ * the timer list.  The return value may be outdated by the time it is acted
+ * upon.
  *
  * Returns: true if the timer list has timers.
  */
@@ -512,6 +520,9 @@ void timer_free(QEMUTimer *ts);
  * @ts: the timer
  *
  * Delete a timer from the active list.
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
  */
 void timer_del(QEMUTimer *ts);
 
@@ -521,6 +532,9 @@ void timer_del(QEMUTimer *ts);
  * @expire_time: the expiry time in nanoseconds
  *
  * Modify a timer to expire at @expire_time
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
  */
 void timer_mod_ns(QEMUTimer *ts, int64_t expire_time);
 
@@ -531,6 +545,9 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time);
  *
  * Modify a timer to expiry at @expire_time, taking into
  * account the scale associated with the timer.
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
  */
 void timer_mod(QEMUTimer *ts, int64_t expire_timer);
 
