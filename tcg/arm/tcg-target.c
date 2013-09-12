@@ -1367,33 +1367,11 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 }
 #endif /* SOFTMMU */
 
-static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
+static inline void tcg_out_qemu_ld_index(TCGContext *s, TCGMemOp opc,
+                                         TCGReg datalo, TCGReg datahi,
+                                         TCGReg addrlo, TCGReg addend)
 {
-    TCGReg addrlo, datalo, datahi, addrhi __attribute__((unused));
-    TCGMemOp opc, bswap;
-#ifdef CONFIG_SOFTMMU
-    TCGMemOp s_bits;
-    int mem_index;
-    TCGReg addend;
-    uint8_t *label_ptr;
-#endif
-
-    datalo = *args++;
-    datahi = (is64 ? *args++ : 0);
-    addrlo = *args++;
-    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
-    opc = *args++;
-    bswap = opc & MO_BSWAP;
-
-#ifdef CONFIG_SOFTMMU
-    s_bits = opc & MO_SIZE;
-    mem_index = *args;
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, s_bits, mem_index, 1);
-
-    /* This a conditional BL only to load a pointer within this opcode into LR
-       for the slow path.  We will not be using the value for a tail call.  */
-    label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+    TCGMemOp bswap = opc & MO_BSWAP;
 
     switch (opc & MO_SSIZE) {
     case MO_UB:
@@ -1425,8 +1403,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
         break;
     case MO_Q:
         {
-            /* Be careful not to modify datalo and datahi
-               for the slow path below.  */
             TCGReg dl = (bswap ? datahi : datalo);
             TCGReg dh = (bswap ? datalo : datahi);
 
@@ -1442,30 +1418,20 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
                 tcg_out_ld32_12(s, COND_AL, dh, TCG_REG_TMP, 4);
             }
             if (bswap) {
-                tcg_out_bswap32(s, COND_AL, dh, dh);
                 tcg_out_bswap32(s, COND_AL, dl, dl);
+                tcg_out_bswap32(s, COND_AL, dh, dh);
             }
         }
         break;
     }
+}
 
-    add_qemu_ldst_label(s, 1, opc, datalo, datahi, addrlo, addrhi,
-                        mem_index, s->code_ptr, label_ptr);
-#else /* !CONFIG_SOFTMMU */
-    if (GUEST_BASE) {
-        uint32_t offset = GUEST_BASE;
-        int i, rot;
+static inline void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc,
+                                          TCGReg datalo, TCGReg datahi,
+                                          TCGReg addrlo)
+{
+    TCGMemOp bswap = opc & MO_BSWAP;
 
-        while (offset) {
-            i = ctz32(offset) & ~1;
-            rot = ((32 - i) << 7) & 0xf00;
-
-            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_TMP, addrlo,
-                            ((offset >> i) & 0xff) | rot);
-            addrlo = TCG_REG_TMP;
-            offset &= ~(0xff << i);
-        }
-    }
     switch (opc & MO_SSIZE) {
     case MO_UB:
         tcg_out_ld8_12(s, COND_AL, datalo, addrlo, 0);
@@ -1495,32 +1461,32 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
         }
         break;
     case MO_Q:
-        if (use_armv6_instructions && !bswap
-            && (datalo & 1) == 0 && datahi == datalo + 1) {
-            tcg_out_ldrd_8(s, COND_AL, datalo, addrlo, 0);
-        } else if (use_armv6_instructions && bswap
-                   && (datahi & 1) == 0 && datalo == datahi + 1) {
-            tcg_out_ldrd_8(s, COND_AL, datahi, addrlo, 0);
-        } else if (datalo == addrlo) {
-            tcg_out_ld32_12(s, COND_AL, datahi, addrlo, bswap ? 0 : 4);
-            tcg_out_ld32_12(s, COND_AL, datalo, addrlo, bswap ? 4 : 0);
-        } else {
-            tcg_out_ld32_12(s, COND_AL, datalo, addrlo, bswap ? 4 : 0);
-            tcg_out_ld32_12(s, COND_AL, datahi, addrlo, bswap ? 0 : 4);
-        }
-        if (bswap) {
-            tcg_out_bswap32(s, COND_AL, datalo, datalo);
-            tcg_out_bswap32(s, COND_AL, datahi, datahi);
+        {
+            TCGReg dl = (bswap ? datahi : datalo);
+            TCGReg dh = (bswap ? datalo : datahi);
+
+            if (use_armv6_instructions && (dl & 1) == 0 && dh == dl + 1) {
+                tcg_out_ldrd_8(s, COND_AL, dl, addrlo, 0);
+            } else if (dl == addrlo) {
+                tcg_out_ld32_12(s, COND_AL, dh, addrlo, bswap ? 0 : 4);
+                tcg_out_ld32_12(s, COND_AL, dl, addrlo, bswap ? 4 : 0);
+            } else {
+                tcg_out_ld32_12(s, COND_AL, dl, addrlo, bswap ? 4 : 0);
+                tcg_out_ld32_12(s, COND_AL, dh, addrlo, bswap ? 0 : 4);
+            }
+            if (bswap) {
+                tcg_out_bswap32(s, COND_AL, dl, dl);
+                tcg_out_bswap32(s, COND_AL, dh, dh);
+            }
         }
         break;
     }
-#endif
 }
 
-static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
+static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 {
     TCGReg addrlo, datalo, datahi, addrhi __attribute__((unused));
-    TCGMemOp opc, bswap, s_bits;
+    TCGMemOp opc;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
     TCGReg addend;
@@ -1532,73 +1498,81 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     addrlo = *args++;
     addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
     opc = *args++;
-    bswap = opc & MO_BSWAP;
-    s_bits = opc & MO_SIZE;
 
 #ifdef CONFIG_SOFTMMU
     mem_index = *args;
-    addend = tcg_out_tlb_read(s, addrlo, addrhi, s_bits, mem_index, 0);
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 1);
 
-    switch (s_bits) {
+    /* This a conditional BL only to load a pointer within this opcode into LR
+       for the slow path.  We will not be using the value for a tail call.  */
+    label_ptr = s->code_ptr;
+    tcg_out_bl_noaddr(s, COND_NE);
+
+    tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
+
+    add_qemu_ldst_label(s, 1, opc, datalo, datahi, addrlo, addrhi,
+                        mem_index, s->code_ptr, label_ptr);
+#else /* !CONFIG_SOFTMMU */
+    if (GUEST_BASE) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP, GUEST_BASE);
+        tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, TCG_REG_TMP);
+    } else {
+        tcg_out_qemu_ld_direct(s, opc, datalo, datahi, addrlo);
+    }
+#endif
+}
+
+static inline void tcg_out_qemu_st_index(TCGContext *s, int cond, TCGMemOp opc,
+                                         TCGReg datalo, TCGReg datahi,
+                                         TCGReg addrlo, TCGReg addend)
+{
+    TCGMemOp bswap = opc & MO_BSWAP;
+
+    switch (opc & MO_SIZE) {
     case MO_8:
-        tcg_out_st8_r(s, COND_EQ, datalo, addrlo, addend);
+        tcg_out_st8_r(s, cond, datalo, addrlo, addend);
         break;
     case MO_16:
         if (bswap) {
-            tcg_out_bswap16st(s, COND_EQ, TCG_REG_R0, datalo);
-            tcg_out_st16_r(s, COND_EQ, TCG_REG_R0, addrlo, addend);
+            tcg_out_bswap16st(s, cond, TCG_REG_R0, datalo);
+            tcg_out_st16_r(s, cond, TCG_REG_R0, addrlo, addend);
         } else {
-            tcg_out_st16_r(s, COND_EQ, datalo, addrlo, addend);
+            tcg_out_st16_r(s, cond, datalo, addrlo, addend);
         }
         break;
     case MO_32:
     default:
         if (bswap) {
-            tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, datalo);
-            tcg_out_st32_r(s, COND_EQ, TCG_REG_R0, addrlo, addend);
+            tcg_out_bswap32(s, cond, TCG_REG_R0, datalo);
+            tcg_out_st32_r(s, cond, TCG_REG_R0, addrlo, addend);
         } else {
-            tcg_out_st32_r(s, COND_EQ, datalo, addrlo, addend);
+            tcg_out_st32_r(s, cond, datalo, addrlo, addend);
         }
         break;
     case MO_64:
         if (bswap) {
-            tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, datahi);
-            tcg_out_st32_rwb(s, COND_EQ, TCG_REG_R0, addend, addrlo);
-            tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, datalo);
-            tcg_out_st32_12(s, COND_EQ, TCG_REG_R0, addend, 4);
+            tcg_out_bswap32(s, cond, TCG_REG_R0, datahi);
+            tcg_out_st32_rwb(s, cond, TCG_REG_R0, addend, addrlo);
+            tcg_out_bswap32(s, cond, TCG_REG_R0, datalo);
+            tcg_out_st32_12(s, cond, TCG_REG_R0, addend, 4);
         } else if (use_armv6_instructions
                    && (datalo & 1) == 0 && datahi == datalo + 1) {
-            tcg_out_strd_r(s, COND_EQ, datalo, addrlo, addend);
+            tcg_out_strd_r(s, cond, datalo, addrlo, addend);
         } else {
-            tcg_out_st32_rwb(s, COND_EQ, datalo, addend, addrlo);
-            tcg_out_st32_12(s, COND_EQ, datahi, addend, 4);
+            tcg_out_st32_rwb(s, cond, datalo, addend, addrlo);
+            tcg_out_st32_12(s, cond, datahi, addend, 4);
         }
         break;
     }
+}
 
-    /* The conditional call must come last, as we're going to return here.  */
-    label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+static inline void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc,
+                                          TCGReg datalo, TCGReg datahi,
+                                          TCGReg addrlo)
+{
+    TCGMemOp bswap = opc & MO_BSWAP;
 
-    add_qemu_ldst_label(s, 0, opc, datalo, datahi, addrlo, addrhi,
-                        mem_index, s->code_ptr, label_ptr);
-#else /* !CONFIG_SOFTMMU */
-    if (GUEST_BASE) {
-        uint32_t offset = GUEST_BASE;
-        int i;
-        int rot;
-
-        while (offset) {
-            i = ctz32(offset) & ~1;
-            rot = ((32 - i) << 7) & 0xf00;
-
-            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R1, addrlo,
-                            ((offset >> i) & 0xff) | rot);
-            addrlo = TCG_REG_R1;
-            offset &= ~(0xff << i);
-        }
-    }
-    switch (s_bits) {
+    switch (opc & MO_SIZE) {
     case MO_8:
         tcg_out_st8_12(s, COND_AL, datalo, addrlo, 0);
         break;
@@ -1633,6 +1607,44 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
             tcg_out_st32_12(s, COND_AL, datahi, addrlo, 4);
         }
         break;
+    }
+}
+
+static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
+{
+    TCGReg addrlo, datalo, datahi, addrhi __attribute__((unused));
+    TCGMemOp opc;
+#ifdef CONFIG_SOFTMMU
+    int mem_index;
+    TCGReg addend;
+    uint8_t *label_ptr;
+#endif
+
+    datalo = *args++;
+    datahi = (is64 ? *args++ : 0);
+    addrlo = *args++;
+    addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    opc = *args++;
+
+#ifdef CONFIG_SOFTMMU
+    mem_index = *args;
+    addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 0);
+
+    tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);
+
+    /* The conditional call must come last, as we're going to return here.  */
+    label_ptr = s->code_ptr;
+    tcg_out_bl_noaddr(s, COND_NE);
+
+    add_qemu_ldst_label(s, 0, opc, datalo, datahi, addrlo, addrhi,
+                        mem_index, s->code_ptr, label_ptr);
+#else /* !CONFIG_SOFTMMU */
+    if (GUEST_BASE) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP, GUEST_BASE);
+        tcg_out_qemu_st_index(s, COND_AL, opc, datalo,
+                              datahi, addrlo, TCG_REG_TMP);
+    } else {
+        tcg_out_qemu_st_direct(s, opc, datalo, datahi, addrlo);
     }
 #endif
 }
