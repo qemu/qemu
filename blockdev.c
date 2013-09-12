@@ -1286,6 +1286,8 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         assert(dev_info->kind < ARRAY_SIZE(actions));
 
         ops = &actions[dev_info->kind];
+        assert(ops->instance_size > 0);
+
         state = g_malloc0(ops->instance_size);
         state->ops = ops;
         state->action = dev_info;
