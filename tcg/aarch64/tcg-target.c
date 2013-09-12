@@ -654,14 +654,6 @@ static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg a,
     }
 }
 
-static inline void tcg_out_cset(TCGContext *s, TCGType ext,
-                                TCGReg rd, TCGCond c)
-{
-    /* Using CSET alias of CSINC 0x1a800400 Xd, XZR, XZR, invert(cond) */
-    unsigned int base = ext ? 0x9a9f07e0 : 0x1a9f07e0;
-    tcg_out32(s, base | tcg_cond_to_aarch64[tcg_invert_cond(c)] << 12 | rd);
-}
-
 static inline void tcg_out_goto(TCGContext *s, intptr_t target)
 {
     intptr_t offset = (target - (intptr_t)s->code_ptr) / 4;
@@ -1391,7 +1383,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* FALLTHRU */
     case INDEX_op_setcond_i64:
         tcg_out_cmp(s, ext, a1, a2, c2);
-        tcg_out_cset(s, 0, a0, args[3]);
+        /* Use CSET alias of CSINC Wd, WZR, WZR, invert(cond).  */
+        tcg_out_insn(s, 3506, CSINC, TCG_TYPE_I32, a0, TCG_REG_XZR,
+                     TCG_REG_XZR, tcg_invert_cond(args[3]));
         break;
 
     case INDEX_op_movcond_i32:
