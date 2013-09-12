@@ -301,8 +301,6 @@ void timer_del(QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;
 
-    /* NOTE: this code must be signal safe because
-       timer_expired() can be called from a signal. */
     pt = &ts->timer_list->active_timers;
     for(;;) {
         t = *pt;
@@ -325,8 +323,6 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
     timer_del(ts);
 
     /* add the timer in the sorted list */
-    /* NOTE: this code must be signal safe because
-       timer_expired() can be called from a signal. */
     pt = &ts->timer_list->active_timers;
     for(;;) {
         t = *pt;
