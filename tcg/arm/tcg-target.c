@@ -1079,26 +1079,34 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_ld_helpers[8] = {
-    helper_ret_ldub_mmu,
-    helper_ret_lduw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+static const void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_SB]   = helper_ret_ldsb_mmu,
 
-    helper_ret_ldsb_mmu,
-    helper_ret_ldsw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_LESW] = helper_le_ldsw_mmu,
+    [MO_LESL] = helper_le_ldul_mmu,
+
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
+    [MO_BESW] = helper_be_ldsw_mmu,
+    [MO_BESL] = helper_be_ldul_mmu,
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
  *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_ret_stw_mmu,
-    helper_ret_stl_mmu,
-    helper_ret_stq_mmu,
+static const void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
 /* Helper routines for marshalling helper function arguments into
@@ -1261,7 +1269,7 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGReg argreg, data_reg, data_reg2;
-    TCGMemOp opc = lb->opc & MO_SSIZE;
+    TCGMemOp opc = lb->opc;
     uintptr_t func;
 
     reloc_pc24(lb->label_ptr[0], (tcg_target_long)s->code_ptr);
@@ -1279,7 +1287,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
        icache usage.  For pre-armv6, use the signed helpers since we do
        not have a single insn sign-extend.  */
     if (use_armv6_instructions) {
-        func = (uintptr_t)qemu_ld_helpers[opc & MO_SIZE];
+        func = (uintptr_t)qemu_ld_helpers[opc & ~MO_SIGN];
     } else {
         func = (uintptr_t)qemu_ld_helpers[opc];
         if (opc & MO_SIGN) {
@@ -1290,7 +1298,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
     data_reg = lb->datalo_reg;
     data_reg2 = lb->datahi_reg;
-    switch (opc) {
+    switch (opc & MO_SSIZE) {
     case MO_SB:
         tcg_out_ext8s(s, COND_AL, data_reg, TCG_REG_R0);
         break;
@@ -1321,7 +1329,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGReg argreg, data_reg, data_reg2;
-    TCGMemOp s_bits = lb->opc & MO_SIZE;
+    TCGMemOp opc = lb->opc;
 
     reloc_pc24(lb->label_ptr[0], (tcg_target_long)s->code_ptr);
 
@@ -1335,7 +1343,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
     data_reg = lb->datalo_reg;
     data_reg2 = lb->datahi_reg;
-    switch (s_bits) {
+    switch (opc & MO_SIZE) {
     case MO_8:
         argreg = tcg_out_arg_reg8(s, argreg, data_reg);
         break;
@@ -1355,7 +1363,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     argreg = tcg_out_arg_reg32(s, argreg, TCG_REG_R14);
 
     /* Tail-call to the helper, which will return to the fast path.  */
-    tcg_out_goto(s, COND_AL, (tcg_target_long) qemu_st_helpers[s_bits]);
+    tcg_out_goto(s, COND_AL, (uintptr_t)qemu_st_helpers[opc]);
 }
 #endif /* SOFTMMU */
 
