@@ -312,6 +312,7 @@ void timer_init(QEMUTimer *ts,
     ts->cb = cb;
     ts->opaque = opaque;
     ts->scale = scale;
+    ts->expire_time = -1;
 }
 
 void timer_free(QEMUTimer *ts)
@@ -323,6 +324,7 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
 {
     QEMUTimer **pt, *t;
 
+    ts->expire_time = -1;
     pt = &timer_list->active_timers;
     for(;;) {
         t = *pt;
@@ -365,7 +367,7 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
         }
         pt = &t->next;
     }
-    ts->expire_time = expire_time;
+    ts->expire_time = MAX(expire_time, 0);
     ts->next = *pt;
     *pt = ts;
     qemu_mutex_unlock(&timer_list->active_timers_lock);
@@ -385,19 +387,7 @@ void timer_mod(QEMUTimer *ts, int64_t expire_time)
 
 bool timer_pending(QEMUTimer *ts)
 {
-    QEMUTimerList *timer_list = ts->timer_list;
-    QEMUTimer *t;
-    bool found = false;
-
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    for (t = timer_list->active_timers; t != NULL; t = t->next) {
-        if (t == ts) {
-            found = true;
-            break;
-        }
-    }
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
-    return found;
+    return ts->expire_time >= 0;
 }
 
 bool timer_expired(QEMUTimer *timer_head, int64_t current_time)
@@ -429,6 +419,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         /* remove timer from the list before calling the callback */
         timer_list->active_timers = ts->next;
         ts->next = NULL;
+        ts->expire_time = -1;
         cb = ts->cb;
         opaque = ts->opaque;
         qemu_mutex_unlock(&timer_list->active_timers_lock);
