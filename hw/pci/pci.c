@@ -1028,8 +1028,10 @@ static pcibus_t pci_bar_address(PCIDevice *d,
         }
         new_addr = pci_get_long(d->config + bar) & ~(size - 1);
         last_addr = new_addr + size - 1;
-        /* NOTE: we have only 64K ioports on PC */
-        if (last_addr <= new_addr || new_addr == 0 || last_addr > UINT16_MAX) {
+        /* Check if 32 bit BAR wraps around explicitly.
+         * TODO: make priorities correct and remove this work around.
+         */
+        if (last_addr <= new_addr || new_addr == 0 || last_addr >= UINT32_MAX) {
             return PCI_BAR_UNMAPPED;
         }
         return new_addr;
