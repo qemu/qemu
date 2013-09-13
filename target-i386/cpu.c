@@ -2405,6 +2405,7 @@ static void x86_cpu_reset(CPUState *s)
     env->fpuc = 0x37f;
 
     env->mxcsr = 0x1f80;
+    env->xstate_bv = XSTATE_FP | XSTATE_SSE;
 
     env->pat = 0x0007040600070406ULL;
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
