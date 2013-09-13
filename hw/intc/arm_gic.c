@@ -669,14 +669,15 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
     case 0x04: /* Priority mask */
         return s->priority_mask[cpu];
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
-        return 0;
+        return s->bpr[cpu];
     case 0x0c: /* Acknowledge */
         return gic_acknowledge_irq(s, cpu);
     case 0x14: /* Running Priority */
         return s->running_priority[cpu];
     case 0x18: /* Highest Pending Interrupt */
         return s->current_pending[cpu];
+    case 0x1c: /* Aliased Binary Point */
+        return s->abpr[cpu];
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_read: Bad offset %x\n", (int)offset);
@@ -695,10 +696,15 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         s->priority_mask[cpu] = (value & 0xff);
         break;
     case 0x08: /* Binary Point */
-        /* ??? Not implemented.  */
+        s->bpr[cpu] = (value & 0x7);
         break;
     case 0x10: /* End Of Interrupt */
         return gic_complete_irq(s, cpu, value & 0x3ff);
+    case 0x1c: /* Aliased Binary Point */
+        if (s->revision >= 2) {
+            s->abpr[cpu] = (value & 0x7);
+        }
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);

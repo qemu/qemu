@@ -68,6 +68,13 @@ typedef struct GICState {
     uint16_t running_priority[GIC_NCPU];
     uint16_t current_pending[GIC_NCPU];
 
+    /* We present the GICv2 without security extensions to a guest and
+     * therefore the guest can configure the GICC_CTLR to configure group 1
+     * binary point in the abpr.
+     */
+    uint8_t  bpr[GIC_NCPU];
+    uint8_t  abpr[GIC_NCPU];
+
     uint32_t num_cpu;
 
     MemoryRegion iomem; /* Distributor */
