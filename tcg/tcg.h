@@ -681,7 +681,6 @@ TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
 
 /* only used for debugging purposes */
 void tcg_register_helper(void *func, const char *name);
-const char *tcg_helper_get_name(TCGContext *s, void *func);
 void tcg_dump_ops(TCGContext *s);
 
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
