@@ -7,6 +7,12 @@
  * This code is licensed under the LGPL.
  */
 
+/* Note:
+ * LSI53C810 emulation is incorrect, in the sense that it supports
+ * features added in later evolutions. This should not be a problem,
+ * as well-behaved operating systems will not try to use them.
+ */
+
 #include <assert.h>
 
 #include "hw/hw.h"
@@ -275,6 +281,7 @@ typedef struct {
     uint32_t script_ram[2048];
 } LSIState;
 
+#define TYPE_LSI53C810  "lsi53c810"
 #define TYPE_LSI53C895A "lsi53c895a"
 
 #define LSI53C895A(obj) \
@@ -2145,9 +2152,23 @@ static const TypeInfo lsi_info = {
     .class_init    = lsi_class_init,
 };
 
+static void lsi53c810_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->device_id = PCI_DEVICE_ID_LSI_53C810;
+}
+
+static TypeInfo lsi53c810_info = {
+    .name          = TYPE_LSI53C810,
+    .parent        = TYPE_LSI53C895A,
+    .class_init    = lsi53c810_class_init,
+};
+
 static void lsi53c895a_register_types(void)
 {
     type_register_static(&lsi_info);
+    type_register_static(&lsi53c810_info);
 }
 
 type_init(lsi53c895a_register_types)
