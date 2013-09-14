@@ -1743,6 +1743,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x17: /* MBOX1 */
         s->mbox1 = val;
         break;
+    case 0x18: /* CTEST0 */
+        /* nothing to do */
+        break;
     case 0x1a: /* CTEST2 */
 	s->ctest2 = val & LSI_CTEST2_PCICIE;
 	break;
