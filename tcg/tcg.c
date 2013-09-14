@@ -256,9 +256,19 @@ void tcg_pool_reset(TCGContext *s)
 
 #include "helper.h"
 
+typedef struct TCGHelperInfo {
+    void *func;
+    const char *name;
+} TCGHelperInfo;
+
+static const TCGHelperInfo all_helpers[] = {
+#define GEN_HELPER 2
+#include "helper.h"
+};
+
 void tcg_context_init(TCGContext *s)
 {
-    int op, total_args, n;
+    int op, total_args, n, i;
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
@@ -288,8 +298,9 @@ void tcg_context_init(TCGContext *s)
     }
 
     /* Register helpers.  */
-#define GEN_HELPER 2
-#include "helper.h"
+    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
+        tcg_register_helper(all_helpers[i].func, all_helpers[i].name);
+    }
 
     tcg_target_init(s);
 }
