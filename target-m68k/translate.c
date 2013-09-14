@@ -23,9 +23,9 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 
-#include "helpers.h"
+#include "helper.h"
 #define GEN_HELPER 1
-#include "helpers.h"
+#include "helper.h"
 
 //#define DEBUG_DISPATCH 1
 
@@ -110,7 +110,7 @@ void m68k_tcg_init(void)
     store_dummy = tcg_global_mem_new(TCG_AREG0, -8, "NULL");
 
 #define GEN_HELPER 2
-#include "helpers.h"
+#include "helper.h"
 }
 
 static inline void qemu_assert(int cond, const char *msg)
