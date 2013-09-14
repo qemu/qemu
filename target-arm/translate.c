@@ -115,9 +115,6 @@ void arm_translate_init(void)
 #endif
 
     a64_translate_init();
-
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static inline TCGv_i32 load_cpu_offset(int offset)

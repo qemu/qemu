@@ -108,9 +108,6 @@ void m68k_tcg_init(void)
 
     NULL_QREG = tcg_global_mem_new(TCG_AREG0, -4, "NULL");
     store_dummy = tcg_global_mem_new(TCG_AREG0, -8, "NULL");
-
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static inline void qemu_assert(int cond, const char *msg)

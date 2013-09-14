@@ -15886,10 +15886,6 @@ void mips_tcg_init(void)
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     inited = 1;
 }
 

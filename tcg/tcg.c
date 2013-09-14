@@ -254,6 +254,8 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
+#include "helper.h"
+
 void tcg_context_init(TCGContext *s)
 {
     int op, total_args, n;
@@ -284,7 +286,11 @@ void tcg_context_init(TCGContext *s)
         sorted_args += n;
         args_ct += n;
     }
-    
+
+    /* Register helpers.  */
+#define GEN_HELPER 2
+#include "helper.h"
+
     tcg_target_init(s);
 }
 

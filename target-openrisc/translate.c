@@ -110,8 +110,6 @@ void openrisc_translate_init(void)
                                       offsetof(CPUOpenRISCState, gpr[i]),
                                       regnames[i]);
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 /* Writeback SR_F transaltion-space to execution-space.  */

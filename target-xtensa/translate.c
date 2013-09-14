@@ -238,8 +238,6 @@ void xtensa_translate_init(void)
                     uregnames[i].name);
         }
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static inline bool option_bits_enabled(DisasContext *dc, uint64_t opt)
