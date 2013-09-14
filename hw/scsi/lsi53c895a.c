@@ -1699,8 +1699,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         s->sxfer = val;
         break;
     case 0x06: /* SDID */
-        if ((val & 0xf) != (s->ssid & 0xf))
+        if ((s->ssid & 0x80) && (val & 0xf) != (s->ssid & 0xf)) {
             BADF("Destination ID does not match SSID\n");
+        }
         s->sdid = val & 0xf;
         break;
     case 0x07: /* GPREG0 */
