@@ -405,11 +405,6 @@ typedef struct TCGTemp {
     const char *name;
 } TCGTemp;
 
-typedef struct TCGHelperInfo {
-    uintptr_t func;
-    const char *name;
-} TCGHelperInfo;
-
 typedef struct TCGContext TCGContext;
 
 struct TCGContext {
@@ -447,10 +442,7 @@ struct TCGContext {
     uint8_t *code_ptr;
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
-    TCGHelperInfo *helpers;
-    int nb_helpers;
-    int allocated_helpers;
-    int helpers_sorted;
+    GHashTable *helpers;
 
 #ifdef CONFIG_PROFILER
     /* profiling info */
