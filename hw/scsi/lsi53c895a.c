@@ -7,9 +7,6 @@
  * This code is licensed under the LGPL.
  */
 
-/* ??? Need to check if the {read,write}[wl] routines work properly on
-   big-endian targets.  */
-
 #include <assert.h>
 
 #include "hw/hw.h"
