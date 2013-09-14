@@ -1515,7 +1515,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
            used for diagnostics, so should be ok.  */
         return 0;
     case 0xc: /* DSTAT */
-        tmp = s->dstat | 0x80;
+        tmp = s->dstat | LSI_DSTAT_DFE;
         if ((s->istat0 & LSI_ISTAT0_INTF) == 0)
             s->dstat = 0;
         lsi_update_irq(s);
@@ -2106,7 +2106,7 @@ static int lsi_scsi_init(PCIDevice *dev)
                           "lsi-io", 256);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
-    pci_register_bar(dev, 1, 0, &s->mmio_io);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_io);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
