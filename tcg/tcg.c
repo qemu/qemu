@@ -288,6 +288,7 @@ void tcg_context_init(TCGContext *s)
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
+    GHashTable *helper_table;
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
@@ -314,8 +315,12 @@ void tcg_context_init(TCGContext *s)
     }
 
     /* Register helpers.  */
+    /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
+    s->helpers = helper_table = g_hash_table_new(NULL, NULL);
+
     for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
-        tcg_register_helper(all_helpers[i].func, all_helpers[i].name);
+        g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
+                            (gpointer)all_helpers[i].name);
     }
 
     tcg_target_init(s);
@@ -652,20 +657,6 @@ int tcg_check_temp_count(void)
     return 0;
 }
 #endif
-
-void tcg_register_helper(void *func, const char *name)
-{
-    TCGContext *s = &tcg_ctx;
-    GHashTable *table = s->helpers;
-
-    if (table == NULL) {
-        /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
-        table = g_hash_table_new(NULL, NULL);
-        s->helpers = table;
-    }
-
-    g_hash_table_insert(table, (gpointer)func, (gpointer)name);
-}
 
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment

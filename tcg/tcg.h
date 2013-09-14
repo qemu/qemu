@@ -672,7 +672,6 @@ TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
                      TCGOpDef *tcg_op_def);
 
 /* only used for debugging purposes */
-void tcg_register_helper(void *func, const char *name);
 void tcg_dump_ops(TCGContext *s);
 
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
