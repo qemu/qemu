@@ -80,7 +80,6 @@ typedef struct DisasContext {
     unsigned int tb_flags, synced_flags; /* tb dependent flags.  */
     int is_jmp;
 
-    int nr_nops;
     struct TranslationBlock *tb;
     int singlestep_enabled;
 } DisasContext;
@@ -422,7 +421,8 @@ static void dec_divu(DisasContext *dc)
     LOG_DIS("divu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
 
     if (!(dc->env->features & LM32_FEATURE_DIVIDE)) {
-        cpu_abort(dc->env, "hardware divider is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "hardware divider is not available\n");
+        return;
     }
 
     l1 = gen_new_label();
@@ -500,7 +500,8 @@ static void dec_modu(DisasContext *dc)
     LOG_DIS("modu r%d, r%d, %d\n", dc->r2, dc->r0, dc->r1);
 
     if (!(dc->env->features & LM32_FEATURE_DIVIDE)) {
-        cpu_abort(dc->env, "hardware divider is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "hardware divider is not available\n");
+        return;
     }
 
     l1 = gen_new_label();
@@ -521,7 +522,9 @@ static void dec_mul(DisasContext *dc)
     }
 
     if (!(dc->env->features & LM32_FEATURE_MULTIPLY)) {
-        cpu_abort(dc->env, "hardware multiplier is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "hardware multiplier is not available\n");
+        return;
     }
 
     if (dc->format == OP_FMT_RI) {
@@ -590,7 +593,8 @@ static void dec_scall(DisasContext *dc)
     } else if (dc->imm5 == 2) {
         LOG_DIS("break\n");
     } else {
-        cpu_abort(dc->env, "invalid opcode\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid opcode @0x%x", dc->pc);
+        return;
     }
 
     if (dc->imm5 == 7) {
@@ -647,10 +651,10 @@ static void dec_rcsr(DisasContext *dc)
     case CSR_WP1:
     case CSR_WP2:
     case CSR_WP3:
-        cpu_abort(dc->env, "invalid read access csr=%x\n", dc->csr);
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid read access csr=%x\n", dc->csr);
         break;
     default:
-        cpu_abort(dc->env, "read_csr: unknown csr=%x\n", dc->csr);
+        qemu_log_mask(LOG_GUEST_ERROR, "read_csr: unknown csr=%x\n", dc->csr);
         break;
     }
 }
@@ -672,7 +676,9 @@ static void dec_sextb(DisasContext *dc)
     LOG_DIS("sextb r%d, r%d\n", dc->r2, dc->r0);
 
     if (!(dc->env->features & LM32_FEATURE_SIGN_EXTEND)) {
-        cpu_abort(dc->env, "hardware sign extender is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "hardware sign extender is not available\n");
+        return;
     }
 
     tcg_gen_ext8s_tl(cpu_R[dc->r2], cpu_R[dc->r0]);
@@ -683,7 +689,9 @@ static void dec_sexth(DisasContext *dc)
     LOG_DIS("sexth r%d, r%d\n", dc->r2, dc->r0);
 
     if (!(dc->env->features & LM32_FEATURE_SIGN_EXTEND)) {
-        cpu_abort(dc->env, "hardware sign extender is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "hardware sign extender is not available\n");
+        return;
     }
 
     tcg_gen_ext16s_tl(cpu_R[dc->r2], cpu_R[dc->r0]);
@@ -710,7 +718,8 @@ static void dec_sl(DisasContext *dc)
     }
 
     if (!(dc->env->features & LM32_FEATURE_SHIFT)) {
-        cpu_abort(dc->env, "hardware shifter is not available\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "hardware shifter is not available\n");
+        return;
     }
 
     if (dc->format == OP_FMT_RI) {
@@ -736,7 +745,9 @@ static void dec_sr(DisasContext *dc)
             /* TODO: check r1 == 1 during runtime */
         } else {
             if (dc->imm5 != 1) {
-                cpu_abort(dc->env, "hardware shifter is not available\n");
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "hardware shifter is not available\n");
+                return;
             }
         }
     }
@@ -764,7 +775,9 @@ static void dec_sru(DisasContext *dc)
             /* TODO: check r1 == 1 during runtime */
         } else {
             if (dc->imm5 != 1) {
-                cpu_abort(dc->env, "hardware shifter is not available\n");
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "hardware shifter is not available\n");
+                return;
             }
         }
     }
@@ -802,7 +815,7 @@ static void dec_user(DisasContext *dc)
 {
     LOG_DIS("user");
 
-    cpu_abort(dc->env, "user insn undefined\n");
+    qemu_log_mask(LOG_GUEST_ERROR, "user instruction undefined\n");
 }
 
 static void dec_wcsr(DisasContext *dc)
@@ -868,7 +881,9 @@ static void dec_wcsr(DisasContext *dc)
     case CSR_BP3:
         no = dc->csr - CSR_BP0;
         if (dc->env->num_bps <= no) {
-            cpu_abort(dc->env, "breakpoint #%i is not available\n", no);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "breakpoint #%i is not available\n", no);
+            break;
         }
         tcg_gen_mov_tl(cpu_bp[no], cpu_R[dc->r1]);
         break;
@@ -878,16 +893,20 @@ static void dec_wcsr(DisasContext *dc)
     case CSR_WP3:
         no = dc->csr - CSR_WP0;
         if (dc->env->num_wps <= no) {
-            cpu_abort(dc->env, "watchpoint #%i is not available\n", no);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "watchpoint #%i is not available\n", no);
+            break;
         }
         tcg_gen_mov_tl(cpu_wp[no], cpu_R[dc->r1]);
         break;
     case CSR_CC:
     case CSR_CFG:
-        cpu_abort(dc->env, "invalid write access csr=%x\n", dc->csr);
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid write access csr=%x\n",
+                      dc->csr);
         break;
     default:
-        cpu_abort(dc->env, "write_csr unknown csr=%x\n", dc->csr);
+        qemu_log_mask(LOG_GUEST_ERROR, "write_csr: unknown csr=%x\n",
+                      dc->csr);
         break;
     }
 }
@@ -933,7 +952,7 @@ static void dec_xor(DisasContext *dc)
 
 static void dec_ill(DisasContext *dc)
 {
-    cpu_abort(dc->env, "unknown opcode 0x%02x\n", dc->opcode);
+    qemu_log_mask(LOG_GUEST_ERROR, "invalid opcode 0x%02x\n", dc->opcode);
 }
 
 typedef void (*DecoderInfo)(DisasContext *dc);
@@ -958,18 +977,6 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 
     dc->ir = ir;
     LOG_DIS("%8.8x\t", dc->ir);
-
-    /* try guessing 'empty' instruction memory, although it may be a valid
-     * instruction sequence (eg. srui r0, r0, 0) */
-    if (dc->ir) {
-        dc->nr_nops = 0;
-    } else {
-        LOG_DIS("nr_nops=%d\t", dc->nr_nops);
-        dc->nr_nops++;
-        if (dc->nr_nops > 4) {
-            cpu_abort(dc->env, "fetching nop sequence\n");
-        }
-    }
 
     dc->opcode = EXTRACT_FIELD(ir, 26, 31);
 
@@ -1034,10 +1041,11 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
     dc->singlestep_enabled = cs->singlestep_enabled;
-    dc->nr_nops = 0;
 
     if (pc_start & 3) {
-        cpu_abort(env, "LM32: unaligned PC=%x\n", pc_start);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "unaligned PC=%x. Ignoring lowest bits.\n", pc_start);
+        pc_start &= ~3;
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
