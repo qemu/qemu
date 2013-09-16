@@ -177,7 +177,7 @@ static void uart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         break;
     case R_IER:
