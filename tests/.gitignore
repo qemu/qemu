@@ -5,6 +5,7 @@ check-qjson
 check-qlist
 check-qstring
 test-aio
+test-throttle
 test-cutils
 test-hbitmap
 test-iov
