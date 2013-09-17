@@ -51,14 +51,6 @@ static void scsi_device_realize(SCSIDevice *s, Error **errp)
     }
 }
 
-static void scsi_device_unrealize(SCSIDevice *s, Error **errp)
-{
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
-    if (sc->unrealize) {
-        sc->unrealize(s, errp);
-    }
-}
-
 int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                        void *hba_private)
 {
@@ -218,7 +210,9 @@ static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
     if (dev->vmsentry) {
         qemu_del_vm_change_state_handler(dev->vmsentry);
     }
-    scsi_device_unrealize(dev, errp);
+
+    scsi_device_purge_requests(dev, SENSE_CODE(NO_SENSE));
+    blockdev_mark_auto_del(dev->conf.blk);
 }
 
 /* handle legacy '-drive if=scsi,...' cmd line args */

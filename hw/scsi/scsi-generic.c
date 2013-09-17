@@ -368,12 +368,6 @@ static void scsi_generic_reset(DeviceState *dev)
     scsi_device_purge_requests(s, SENSE_CODE(RESET));
 }
 
-static void scsi_unrealize(SCSIDevice *s, Error **errp)
-{
-    scsi_device_purge_requests(s, SENSE_CODE(NO_SENSE));
-    blockdev_mark_auto_del(s->conf.blk);
-}
-
 static void scsi_generic_realize(SCSIDevice *s, Error **errp)
 {
     int rc;
@@ -478,7 +472,6 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
     sc->realize      = scsi_generic_realize;
-    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->parse_cdb    = scsi_generic_parse_cdb;
     dc->fw_name = "disk";
