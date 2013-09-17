@@ -80,15 +80,18 @@ struct BlockDriver {
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
-    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp);
+    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     void (*bdrv_rebind)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options);
+    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options,
+                       Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
@@ -150,7 +153,10 @@ struct BlockDriver {
                                 QEMUSnapshotInfo *sn_info);
     int (*bdrv_snapshot_goto)(BlockDriverState *bs,
                               const char *snapshot_id);
-    int (*bdrv_snapshot_delete)(BlockDriverState *bs, const char *snapshot_id);
+    int (*bdrv_snapshot_delete)(BlockDriverState *bs,
+                                const char *snapshot_id,
+                                const char *name,
+                                Error **errp);
     int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
@@ -187,6 +193,9 @@ struct BlockDriver {
      */
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
+
+    int (*bdrv_amend_options)(BlockDriverState *bs,
+        QEMUOptionParameter *options);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

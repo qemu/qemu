@@ -11,8 +11,7 @@ incompatible_features     0x0
 qcow2: Preventing invalid write on metadata (overlaps with active L1 table); image marked as corrupt.
 write failed: Input/output error
 incompatible_features     0x2
-qcow2: Image is corrupt; cannot be opened read/write.
-qemu-io: can't open device
+qemu-io: can't open device TEST_DIR/t.IMGFMT: IMGFMT: Image is corrupt; cannot be opened read/write
 no file open, try 'help open'
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

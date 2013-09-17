@@ -38,6 +38,8 @@ imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR', '/var/tmp')
 
+socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
+
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
     devnull = open('/dev/null', 'r+')
@@ -80,6 +82,12 @@ class VM(object):
                      '-display', 'none', '-vga', 'none']
         self._num_drives = 0
 
+    # This can be used to add an unused monitor instance.
+    def add_monitor_telnet(self, ip, port):
+        args = 'tcp:%s:%d,server,nowait,telnet' % (ip, port)
+        self._args.append('-monitor')
+        self._args.append(args)
+
     def add_drive(self, path, opts=''):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=virtio',
@@ -111,6 +119,21 @@ class VM(object):
         self._args.append('-add-fd')
         self._args.append(','.join(options))
         return self
+
+    def send_fd_scm(self, fd_file_path):
+        # In iotest.py, the qmp should always use unix socket.
+        assert self._qmp.is_scm_available()
+        bin = socket_scm_helper
+        if os.path.exists(bin) == False:
+            print "Scm help program does not present, path '%s'." % bin
+            return -1
+        fd_param = ["%s" % bin,
+                    "%d" % self._qmp.get_sock_fd(),
+                    "%s" % fd_file_path]
+        devnull = open('/dev/null', 'rb')
+        p = subprocess.Popen(fd_param, stdin=devnull, stdout=sys.stdout,
+                             stderr=sys.stderr)
+        return p.wait()
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''

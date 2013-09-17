@@ -335,7 +335,8 @@ fail:
     return ret;
 }
 
-static int raw_open(BlockDriverState *bs, QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1040,7 +1041,8 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     return (int64_t)st.st_blocks * 512;
 }
 
-static int raw_create(const char *filename, QEMUOptionParameter *options)
+static int raw_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int fd;
     int result = 0;
@@ -1331,7 +1333,8 @@ static int check_hdev_writable(BDRVRawState *s)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
+static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1504,7 +1507,8 @@ static coroutine_fn BlockDriverAIOCB *hdev_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
-static int hdev_create(const char *filename, QEMUOptionParameter *options)
+static int hdev_create(const char *filename, QEMUOptionParameter *options,
+                       Error **errp)
 {
     int fd;
     int ret = 0;
@@ -1565,7 +1569,8 @@ static BlockDriver bdrv_host_device = {
 };
 
 #ifdef __linux__
-static int floppy_open(BlockDriverState *bs, QDict *options, int flags)
+static int floppy_open(BlockDriverState *bs, QDict *options, int flags,
+                       Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1686,7 +1691,8 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_eject         = floppy_eject,
 };
 
-static int cdrom_open(BlockDriverState *bs, QDict *options, int flags)
+static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 

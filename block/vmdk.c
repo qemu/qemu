@@ -697,6 +697,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     int64_t flat_offset;
     char extent_path[PATH_MAX];
     BlockDriverState *extent_file;
+    Error *local_err = NULL;
 
     while (*p) {
         /* parse extent line:
@@ -726,8 +727,11 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
         path_combine(extent_path, sizeof(extent_path),
                 desc_file_path, fname);
-        ret = bdrv_file_open(&extent_file, extent_path, NULL, bs->open_flags);
+        ret = bdrv_file_open(&extent_file, extent_path, NULL, bs->open_flags,
+                             &local_err);
         if (ret) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             return ret;
         }
 
@@ -806,7 +810,8 @@ exit:
     return ret;
 }
 
-static int vmdk_open(BlockDriverState *bs, QDict *options, int flags)
+static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;
@@ -1551,7 +1556,8 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
     return VMDK_OK;
 }
 
-static int vmdk_create(const char *filename, QEMUOptionParameter *options)
+static int vmdk_create(const char *filename, QEMUOptionParameter *options,
+                       Error **errp)
 {
     int fd, idx = 0;
     char desc[BUF_SIZE];
@@ -1589,6 +1595,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         "ddb.geometry.heads = \"%d\"\n"
         "ddb.geometry.sectors = \"63\"\n"
         "ddb.adapterType = \"%s\"\n";
+    Error *local_err = NULL;
 
     if (filename_decompose(filename, path, prefix, postfix, PATH_MAX)) {
         return -EINVAL;
@@ -1651,8 +1658,10 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     }
     if (backing_file) {
         BlockDriverState *bs = bdrv_new("");
-        ret = bdrv_open(bs, backing_file, NULL, 0, NULL);
+        ret = bdrv_open(bs, backing_file, NULL, 0, NULL, &local_err);
         if (ret != 0) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             bdrv_unref(bs);
             return ret;
         }

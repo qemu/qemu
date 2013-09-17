@@ -92,7 +92,8 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int qcow_open(BlockDriverState *bs, QDict *options, int flags)
+static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, shift, ret;
@@ -658,7 +659,8 @@ static void qcow_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static int qcow_create(const char *filename, QEMUOptionParameter *options)
+static int qcow_create(const char *filename, QEMUOptionParameter *options,
+                       Error **errp)
 {
     int header_size, backing_filename_len, l1_size, shift, i;
     QCowHeader header;
@@ -666,6 +668,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     int64_t total_size = 0;
     const char *backing_file = NULL;
     int flags = 0;
+    Error *local_err = NULL;
     int ret;
     BlockDriverState *qcow_bs;
 
@@ -681,13 +684,17 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    ret = bdrv_create_file(filename, options);
+    ret = bdrv_create_file(filename, options, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
-    ret = bdrv_file_open(&qcow_bs, filename, NULL, BDRV_O_RDWR);
+    ret = bdrv_file_open(&qcow_bs, filename, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

@@ -67,5 +67,11 @@ DEF("resize", img_resize,
     "resize [-q] filename [+ | -]size")
 STEXI
 @item resize [-q] @var{filename} [+ | -]@var{size}
+ETEXI
+
+DEF("amend", img_amend,
+    "amend [-q] [-f fmt] -o options filename")
+STEXI
+@item amend [-q] [-f @var{fmt}] -o @var{options} @var{filename}
 @end table
 ETEXI

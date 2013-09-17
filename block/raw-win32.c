@@ -85,6 +85,7 @@ static size_t handle_aiocb_rw(RawWin32AIOData *aiocb)
             ret_count = 0;
         }
         if (ret_count != len) {
+            offset += ret_count;
             break;
         }
         offset += len;
@@ -234,7 +235,8 @@ static QemuOptsList raw_runtime_opts = {
     },
 };
 
-static int raw_open(BlockDriverState *bs, QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags;
@@ -420,7 +422,8 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     return st.st_size;
 }
 
-static int raw_create(const char *filename, QEMUOptionParameter *options)
+static int raw_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int fd;
     int64_t total_size = 0;
@@ -531,7 +534,8 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
+static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;

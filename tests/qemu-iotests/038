@@ -95,7 +95,8 @@ function overlay_io()
 }
 
 overlay_io | $QEMU_IO $TEST_IMG | _filter_qemu_io |\
-	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
+    sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g' \
+    -e 's/qemu-io> //g' | paste - - | sort | tr '\t' '\n'
 
 echo
 echo "== Verify image content =="

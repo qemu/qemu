@@ -1023,8 +1023,7 @@ ETEXI
                       "of device. If a new image file is specified, the\n\t\t\t"
                       "new image file will become the new root image.\n\t\t\t"
                       "If format is specified, the snapshot file will\n\t\t\t"
-                      "be created in that format. Otherwise the\n\t\t\t"
-                      "snapshot will be internal! (currently unsupported).\n\t\t\t"
+                      "be created in that format.\n\t\t\t"
                       "The default format is qcow2.  The -n flag requests QEMU\n\t\t\t"
                       "to reuse the image found in new-image-file, instead of\n\t\t\t"
                       "recreating it from scratch.",
@@ -1035,6 +1034,40 @@ STEXI
 @item snapshot_blkdev
 @findex snapshot_blkdev
 Snapshot device, using snapshot file as target if provided
+ETEXI
+
+    {
+        .name       = "snapshot_blkdev_internal",
+        .args_type  = "device:B,name:s",
+        .params     = "device name",
+        .help       = "take an internal snapshot of device.\n\t\t\t"
+                      "The format of the image used by device must\n\t\t\t"
+                      "support it, such as qcow2.\n\t\t\t",
+        .mhandler.cmd = hmp_snapshot_blkdev_internal,
+    },
+
+STEXI
+@item snapshot_blkdev_internal
+@findex snapshot_blkdev_internal
+Take an internal snapshot on device if it support
+ETEXI
+
+    {
+        .name       = "snapshot_delete_blkdev_internal",
+        .args_type  = "device:B,name:s,id:s?",
+        .params     = "device name [id]",
+        .help       = "delete an internal snapshot of device.\n\t\t\t"
+                      "If id is specified, qemu will try delete\n\t\t\t"
+                      "the snapshot matching both id and name.\n\t\t\t"
+                      "The format of the image used by device must\n\t\t\t"
+                      "support it, such as qcow2.\n\t\t\t",
+        .mhandler.cmd = hmp_snapshot_delete_blkdev_internal,
+    },
+
+STEXI
+@item snapshot_delete_blkdev_internal
+@findex snapshot_delete_blkdev_internal
+Delete an internal snapshot on device if it support
 ETEXI
 
     {

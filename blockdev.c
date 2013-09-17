@@ -710,17 +710,11 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     }
 
     QINCREF(bs_opts);
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
 
     if (ret < 0) {
-        if (ret == -EMEDIUMTYPE) {
-            error_report("could not open disk image %s: not in %s format",
-                         file ?: dinfo->id, drv ? drv->format_name :
-                         qdict_get_str(bs_opts, "driver"));
-        } else {
-            error_report("could not open disk image %s: %s",
-                         file ?: dinfo->id, strerror(-ret));
-        }
+        error_report("could not open disk image %s: %s",
+                     file ?: dinfo->id, error_get_pretty(error));
         goto err;
     }
 
@@ -858,6 +852,80 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
                        &snapshot, errp);
 }
 
+void qmp_blockdev_snapshot_internal_sync(const char *device,
+                                         const char *name,
+                                         Error **errp)
+{
+    BlockdevSnapshotInternal snapshot = {
+        .device = (char *) device,
+        .name = (char *) name
+    };
+
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
+                       &snapshot, errp);
+}
+
+SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
+                                                         bool has_id,
+                                                         const char *id,
+                                                         bool has_name,
+                                                         const char *name,
+                                                         Error **errp)
+{
+    BlockDriverState *bs = bdrv_find(device);
+    QEMUSnapshotInfo sn;
+    Error *local_err = NULL;
+    SnapshotInfo *info = NULL;
+    int ret;
+
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return NULL;
+    }
+
+    if (!has_id) {
+        id = NULL;
+    }
+
+    if (!has_name) {
+        name = NULL;
+    }
+
+    if (!id && !name) {
+        error_setg(errp, "Name or id must be provided");
+        return NULL;
+    }
+
+    ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+    if (!ret) {
+        error_setg(errp,
+                   "Snapshot with id '%s' and name '%s' does not exist on "
+                   "device '%s'",
+                   STR_OR_NULL(id), STR_OR_NULL(name), device);
+        return NULL;
+    }
+
+    bdrv_snapshot_delete(bs, id, name, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    info = g_malloc0(sizeof(SnapshotInfo));
+    info->id = g_strdup(sn.id_str);
+    info->name = g_strdup(sn.name);
+    info->date_nsec = sn.date_nsec;
+    info->date_sec = sn.date_sec;
+    info->vm_state_size = sn.vm_state_size;
+    info->vm_clock_nsec = sn.vm_clock_nsec % 1000000000;
+    info->vm_clock_sec = sn.vm_clock_nsec / 1000000000;
+
+    return info;
+}
 
 /* New and old BlockDriverState structs for group snapshots */
 
@@ -888,6 +956,117 @@ struct BlkTransactionState {
     const BdrvActionOps *ops;
     QSIMPLEQ_ENTRY(BlkTransactionState) entry;
 };
+
+/* internal snapshot private data */
+typedef struct InternalSnapshotState {
+    BlkTransactionState common;
+    BlockDriverState *bs;
+    QEMUSnapshotInfo sn;
+} InternalSnapshotState;
+
+static void internal_snapshot_prepare(BlkTransactionState *common,
+                                      Error **errp)
+{
+    const char *device;
+    const char *name;
+    BlockDriverState *bs;
+    QEMUSnapshotInfo old_sn, *sn;
+    bool ret;
+    qemu_timeval tv;
+    BlockdevSnapshotInternal *internal;
+    InternalSnapshotState *state;
+    int ret1;
+
+    g_assert(common->action->kind ==
+             TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC);
+    internal = common->action->blockdev_snapshot_internal_sync;
+    state = DO_UPCAST(InternalSnapshotState, common, common);
+
+    /* 1. parse input */
+    device = internal->device;
+    name = internal->name;
+
+    /* 2. check for validation */
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
+
+    if (bdrv_is_read_only(bs)) {
+        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        return;
+    }
+
+    if (!bdrv_can_snapshot(bs)) {
+        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+                  bs->drv->format_name, device, "internal snapshot");
+        return;
+    }
+
+    if (!strlen(name)) {
+        error_setg(errp, "Name is empty");
+        return;
+    }
+
+    /* check whether a snapshot with name exist */
+    ret = bdrv_snapshot_find_by_id_and_name(bs, NULL, name, &old_sn, errp);
+    if (error_is_set(errp)) {
+        return;
+    } else if (ret) {
+        error_setg(errp,
+                   "Snapshot with name '%s' already exists on device '%s'",
+                   name, device);
+        return;
+    }
+
+    /* 3. take the snapshot */
+    sn = &state->sn;
+    pstrcpy(sn->name, sizeof(sn->name), name);
+    qemu_gettimeofday(&tv);
+    sn->date_sec = tv.tv_sec;
+    sn->date_nsec = tv.tv_usec * 1000;
+    sn->vm_clock_nsec = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    ret1 = bdrv_snapshot_create(bs, sn);
+    if (ret1 < 0) {
+        error_setg_errno(errp, -ret1,
+                         "Failed to create snapshot '%s' on device '%s'",
+                         name, device);
+        return;
+    }
+
+    /* 4. succeed, mark a snapshot is created */
+    state->bs = bs;
+}
+
+static void internal_snapshot_abort(BlkTransactionState *common)
+{
+    InternalSnapshotState *state =
+                             DO_UPCAST(InternalSnapshotState, common, common);
+    BlockDriverState *bs = state->bs;
+    QEMUSnapshotInfo *sn = &state->sn;
+    Error *local_error = NULL;
+
+    if (!bs) {
+        return;
+    }
+
+    if (bdrv_snapshot_delete(bs, sn->id_str, sn->name, &local_error) < 0) {
+        error_report("Failed to delete snapshot with id '%s' and name '%s' on "
+                     "device '%s' in abort: %s",
+                     sn->id_str,
+                     sn->name,
+                     bdrv_get_device_name(bs),
+                     error_get_pretty(local_error));
+        error_free(local_error);
+    }
+}
 
 /* external snapshot private data */
 typedef struct ExternalSnapshotState {
@@ -971,9 +1150,9 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
     ret = bdrv_open(state->new_bs, new_image_file, NULL,
-                    flags | BDRV_O_NO_BACKING, drv);
+                    flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret != 0) {
-        error_setg_file_open(errp, -ret, new_image_file);
+        error_propagate(errp, local_err);
     }
 }
 
@@ -1072,6 +1251,11 @@ static const BdrvActionOps actions[] = {
         .prepare = abort_prepare,
         .commit = abort_commit,
     },
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC] = {
+        .instance_size = sizeof(InternalSnapshotState),
+        .prepare  = internal_snapshot_prepare,
+        .abort = internal_snapshot_abort,
+    },
 };
 
 /*
@@ -1102,6 +1286,8 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         assert(dev_info->kind < ARRAY_SIZE(actions));
 
         ops = &actions[dev_info->kind];
+        assert(ops->instance_size > 0);
+
         state = g_malloc0(ops->instance_size);
         state->ops = ops;
         state->action = dev_info;
@@ -1203,11 +1389,12 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
 {
+    Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv);
+    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv, &local_err);
     if (ret < 0) {
-        error_setg_file_open(errp, -ret, filename);
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1627,10 +1814,10 @@ void qmp_drive_backup(const char *device, const char *target,
     }
 
     target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags, drv);
+    ret = bdrv_open(target_bs, target, NULL, flags, drv, &local_err);
     if (ret < 0) {
         bdrv_unref(target_bs);
-        error_setg_file_open(errp, -ret, target);
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1762,10 +1949,11 @@ void qmp_drive_mirror(const char *device, const char *target,
      * file.
      */
     target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
+    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv,
+                    &local_err);
     if (ret < 0) {
         bdrv_unref(target_bs);
-        error_setg_file_open(errp, -ret, target);
+        error_propagate(errp, local_err);
         return;
     }
 
