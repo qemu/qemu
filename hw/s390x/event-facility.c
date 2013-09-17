@@ -120,7 +120,7 @@ static uint16_t handle_write_event_buf(SCLPEventFacility *ef,
         ec = SCLP_EVENT_GET_CLASS(event);
 
         if (ec->write_event_data &&
-            ec->event_type() == event_buf->type) {
+            ec->can_handle_event(event_buf->type)) {
             rc = ec->write_event_data(event, event_buf);
             break;
         }

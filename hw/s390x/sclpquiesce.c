@@ -22,9 +22,9 @@ typedef struct SignalQuiesce {
     uint8_t unit;
 } QEMU_PACKED SignalQuiesce;
 
-static int event_type(void)
+static bool can_handle_event(uint8_t type)
 {
-    return SCLP_EVENT_SIGNAL_QUIESCE;
+    return type == SCLP_EVENT_SIGNAL_QUIESCE;
 }
 
 static unsigned int send_mask(void)
@@ -121,7 +121,7 @@ static void quiesce_class_init(ObjectClass *klass, void *data)
 
     k->get_send_mask = send_mask;
     k->get_receive_mask = receive_mask;
-    k->event_type = event_type;
+    k->can_handle_event = can_handle_event;
     k->read_event_data = read_event_data;
     k->write_event_data = NULL;
 }

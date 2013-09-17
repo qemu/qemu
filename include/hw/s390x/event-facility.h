@@ -87,9 +87,8 @@ typedef struct SCLPEventClass {
 
     int (*write_event_data)(SCLPEvent *event, EventBufferHeader *evt_buf_hdr);
 
-    /* returns the supported event type */
-    int (*event_type)(void);
-
+    /* can we handle this event type? */
+    bool (*can_handle_event)(uint8_t type);
 } SCLPEventClass;
 
 #endif

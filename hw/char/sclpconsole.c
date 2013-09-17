@@ -79,9 +79,9 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
 /* functions to be called by event facility */
 
-static int event_type(void)
+static bool can_handle_event(uint8_t type)
 {
-    return SCLP_EVENT_ASCII_CONSOLE_DATA;
+    return type == SCLP_EVENT_ASCII_CONSOLE_DATA;
 }
 
 static unsigned int send_mask(void)
@@ -272,7 +272,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     ec->exit = console_exit;
     ec->get_send_mask = send_mask;
     ec->get_receive_mask = receive_mask;
-    ec->event_type = event_type;
+    ec->can_handle_event = can_handle_event;
     ec->read_event_data = read_event_data;
     ec->write_event_data = write_event_data;
 }
