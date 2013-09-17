@@ -107,7 +107,7 @@ s3c24xx_timer4_tick(void *opaque)
     qemu_set_irq(s->irqs[4], 1);
 
     /* if auto reload is set rescedule the next tick */
-    if (s->timers_reg[S3C_TIMERS_TCON] && (1<<22)) {
+    if (s->timers_reg[S3C_TIMERS_TCON] & (1<<22)) {
         s3c24xx_schedule_timer(s, 4);
     }
 }
