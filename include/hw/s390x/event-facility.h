@@ -43,8 +43,8 @@ typedef struct WriteEventMask {
     uint16_t mask_length;
     uint32_t cp_receive_mask;
     uint32_t cp_send_mask;
-    uint32_t send_mask;
     uint32_t receive_mask;
+    uint32_t send_mask;
 } QEMU_PACKED WriteEventMask;
 
 typedef struct EventBufferHeader {
