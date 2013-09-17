@@ -64,7 +64,6 @@ enum {
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
-    CPULM32State *env;
     target_ulong pc;
 
     /* Decoder.  */
@@ -82,6 +81,10 @@ typedef struct DisasContext {
 
     struct TranslationBlock *tb;
     int singlestep_enabled;
+
+    uint32_t features;
+    uint8_t num_breakpoints;
+    uint8_t num_watchpoints;
 } DisasContext;
 
 static const char *regnames[] = {
@@ -420,7 +423,7 @@ static void dec_divu(DisasContext *dc)
 
     LOG_DIS("divu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
 
-    if (!(dc->env->features & LM32_FEATURE_DIVIDE)) {
+    if (!(dc->features & LM32_FEATURE_DIVIDE)) {
         qemu_log_mask(LOG_GUEST_ERROR, "hardware divider is not available\n");
         return;
     }
@@ -499,7 +502,7 @@ static void dec_modu(DisasContext *dc)
 
     LOG_DIS("modu r%d, r%d, %d\n", dc->r2, dc->r0, dc->r1);
 
-    if (!(dc->env->features & LM32_FEATURE_DIVIDE)) {
+    if (!(dc->features & LM32_FEATURE_DIVIDE)) {
         qemu_log_mask(LOG_GUEST_ERROR, "hardware divider is not available\n");
         return;
     }
@@ -521,7 +524,7 @@ static void dec_mul(DisasContext *dc)
         LOG_DIS("mul r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
 
-    if (!(dc->env->features & LM32_FEATURE_MULTIPLY)) {
+    if (!(dc->features & LM32_FEATURE_MULTIPLY)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "hardware multiplier is not available\n");
         return;
@@ -675,7 +678,7 @@ static void dec_sextb(DisasContext *dc)
 {
     LOG_DIS("sextb r%d, r%d\n", dc->r2, dc->r0);
 
-    if (!(dc->env->features & LM32_FEATURE_SIGN_EXTEND)) {
+    if (!(dc->features & LM32_FEATURE_SIGN_EXTEND)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "hardware sign extender is not available\n");
         return;
@@ -688,7 +691,7 @@ static void dec_sexth(DisasContext *dc)
 {
     LOG_DIS("sexth r%d, r%d\n", dc->r2, dc->r0);
 
-    if (!(dc->env->features & LM32_FEATURE_SIGN_EXTEND)) {
+    if (!(dc->features & LM32_FEATURE_SIGN_EXTEND)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "hardware sign extender is not available\n");
         return;
@@ -717,7 +720,7 @@ static void dec_sl(DisasContext *dc)
         LOG_DIS("sl r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
 
-    if (!(dc->env->features & LM32_FEATURE_SHIFT)) {
+    if (!(dc->features & LM32_FEATURE_SHIFT)) {
         qemu_log_mask(LOG_GUEST_ERROR, "hardware shifter is not available\n");
         return;
     }
@@ -740,7 +743,7 @@ static void dec_sr(DisasContext *dc)
         LOG_DIS("sr r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
 
-    if (!(dc->env->features & LM32_FEATURE_SHIFT)) {
+    if (!(dc->features & LM32_FEATURE_SHIFT)) {
         if (dc->format == OP_FMT_RI) {
             /* TODO: check r1 == 1 during runtime */
         } else {
@@ -770,7 +773,7 @@ static void dec_sru(DisasContext *dc)
         LOG_DIS("sru r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
 
-    if (!(dc->env->features & LM32_FEATURE_SHIFT)) {
+    if (!(dc->features & LM32_FEATURE_SHIFT)) {
         if (dc->format == OP_FMT_RI) {
             /* TODO: check r1 == 1 during runtime */
         } else {
@@ -880,7 +883,7 @@ static void dec_wcsr(DisasContext *dc)
     case CSR_BP2:
     case CSR_BP3:
         no = dc->csr - CSR_BP0;
-        if (dc->env->num_bps <= no) {
+        if (dc->num_breakpoints <= no) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "breakpoint #%i is not available\n", no);
             break;
@@ -892,7 +895,7 @@ static void dec_wcsr(DisasContext *dc)
     case CSR_WP2:
     case CSR_WP3:
         no = dc->csr - CSR_WP0;
-        if (dc->env->num_wps <= no) {
+        if (dc->num_watchpoints <= no) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "watchpoint #%i is not available\n", no);
             break;
@@ -1033,7 +1036,9 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     int max_insns;
 
     pc_start = tb->pc;
-    dc->env = env;
+    dc->features = cpu->features;
+    dc->num_breakpoints = cpu->num_breakpoints;
+    dc->num_watchpoints = cpu->num_watchpoints;
     dc->tb = tb;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;

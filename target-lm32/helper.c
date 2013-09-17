@@ -90,136 +90,16 @@ void lm32_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-typedef struct {
-    const char *name;
-    uint32_t revision;
-    uint8_t num_interrupts;
-    uint8_t num_breakpoints;
-    uint8_t num_watchpoints;
-    uint32_t features;
-} LM32Def;
-
-static const LM32Def lm32_defs[] = {
-    {
-        .name = "lm32-basic",
-        .revision = 3,
-        .num_interrupts = 32,
-        .num_breakpoints = 4,
-        .num_watchpoints = 4,
-        .features = (LM32_FEATURE_SHIFT
-                     | LM32_FEATURE_SIGN_EXTEND
-                     | LM32_FEATURE_CYCLE_COUNT),
-    },
-    {
-        .name = "lm32-standard",
-        .revision = 3,
-        .num_interrupts = 32,
-        .num_breakpoints = 4,
-        .num_watchpoints = 4,
-        .features = (LM32_FEATURE_MULTIPLY
-                     | LM32_FEATURE_DIVIDE
-                     | LM32_FEATURE_SHIFT
-                     | LM32_FEATURE_SIGN_EXTEND
-                     | LM32_FEATURE_I_CACHE
-                     | LM32_FEATURE_CYCLE_COUNT),
-    },
-    {
-        .name = "lm32-full",
-        .revision = 3,
-        .num_interrupts = 32,
-        .num_breakpoints = 4,
-        .num_watchpoints = 4,
-        .features = (LM32_FEATURE_MULTIPLY
-                     | LM32_FEATURE_DIVIDE
-                     | LM32_FEATURE_SHIFT
-                     | LM32_FEATURE_SIGN_EXTEND
-                     | LM32_FEATURE_I_CACHE
-                     | LM32_FEATURE_D_CACHE
-                     | LM32_FEATURE_CYCLE_COUNT),
-    }
-};
-
-void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf)
-{
-    int i;
-
-    cpu_fprintf(f, "Available CPUs:\n");
-    for (i = 0; i < ARRAY_SIZE(lm32_defs); i++) {
-        cpu_fprintf(f, "  %s\n", lm32_defs[i].name);
-    }
-}
-
-static const LM32Def *cpu_lm32_find_by_name(const char *name)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(lm32_defs); i++) {
-        if (strcasecmp(name, lm32_defs[i].name) == 0) {
-            return &lm32_defs[i];
-        }
-    }
-
-    return NULL;
-}
-
-static uint32_t cfg_by_def(const LM32Def *def)
-{
-    uint32_t cfg = 0;
-
-    if (def->features & LM32_FEATURE_MULTIPLY) {
-        cfg |= CFG_M;
-    }
-
-    if (def->features & LM32_FEATURE_DIVIDE) {
-        cfg |= CFG_D;
-    }
-
-    if (def->features & LM32_FEATURE_SHIFT) {
-        cfg |= CFG_S;
-    }
-
-    if (def->features & LM32_FEATURE_SIGN_EXTEND) {
-        cfg |= CFG_X;
-    }
-
-    if (def->features & LM32_FEATURE_I_CACHE) {
-        cfg |= CFG_IC;
-    }
-
-    if (def->features & LM32_FEATURE_D_CACHE) {
-        cfg |= CFG_DC;
-    }
-
-    if (def->features & LM32_FEATURE_CYCLE_COUNT) {
-        cfg |= CFG_CC;
-    }
-
-    cfg |= (def->num_interrupts << CFG_INT_SHIFT);
-    cfg |= (def->num_breakpoints << CFG_BP_SHIFT);
-    cfg |= (def->num_watchpoints << CFG_WP_SHIFT);
-    cfg |= (def->revision << CFG_REV_SHIFT);
-
-    return cfg;
-}
-
 LM32CPU *cpu_lm32_init(const char *cpu_model)
 {
     LM32CPU *cpu;
-    CPULM32State *env;
-    const LM32Def *def;
+    ObjectClass *oc;
 
-    def = cpu_lm32_find_by_name(cpu_model);
-    if (!def) {
+    oc = cpu_class_by_name(TYPE_LM32_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
-
-    cpu = LM32_CPU(object_new(TYPE_LM32_CPU));
-    env = &cpu->env;
-
-    env->features = def->features;
-    env->num_bps = def->num_breakpoints;
-    env->num_wps = def->num_watchpoints;
-    env->cfg = cfg_by_def(def);
+    cpu = LM32_CPU(object_new(object_class_get_name(oc)));
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
