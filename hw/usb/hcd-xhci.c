@@ -1245,6 +1245,9 @@ static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
     epctx->epid = epid;
 
     for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
+        epctx->transfers[i].xhci = xhci;
+        epctx->transfers[i].slotid = slotid;
+        epctx->transfers[i].epid = epid;
         usb_packet_init(&epctx->transfers[i].packet);
     }
     epctx->kick_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_ep_kick_timer, epctx);
@@ -2060,9 +2063,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         for (i = 0; i < length; i++) {
             assert(xhci_ring_fetch(xhci, ring, &xfer->trbs[i], NULL));
         }
-        xfer->xhci = xhci;
-        xfer->epid = epid;
-        xfer->slotid = slotid;
         xfer->streamid = streamid;
 
         if (epid == 1) {
