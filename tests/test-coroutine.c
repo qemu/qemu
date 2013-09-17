@@ -182,17 +182,17 @@ static void perf_nesting(void)
     unsigned int i, maxcycles, maxnesting;
     double duration;
 
-    maxcycles = 100000000;
+    maxcycles = 10000;
     maxnesting = 1000;
     Coroutine *root;
-    NestData nd = {
-        .n_enter  = 0,
-        .n_return = 0,
-        .max      = maxnesting,
-    };
 
     g_test_timer_start();
     for (i = 0; i < maxcycles; i++) {
+        NestData nd = {
+            .n_enter  = 0,
+            .n_return = 0,
+            .max      = maxnesting,
+        };
         root = qemu_coroutine_create(nest);
         qemu_coroutine_enter(root, &nd);
     }
