@@ -1380,6 +1380,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 {
     XHCISlot *slot;
     XHCIEPContext *epctx;
+    int i;
 
     trace_usb_xhci_ep_disable(slotid, epid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
@@ -1398,6 +1399,10 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 
     if (epctx->nr_pstreams) {
         xhci_free_streams(epctx);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
+        usb_packet_cleanup(&epctx->transfers[i].packet);
     }
 
     xhci_set_ep_state(xhci, epctx, NULL, EP_DISABLED);
