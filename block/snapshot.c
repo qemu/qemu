@@ -99,7 +99,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         ret = bdrv_snapshot_goto(bs->file, snapshot_id);
         open_ret = drv->bdrv_open(bs, NULL, bs->open_flags);
         if (open_ret < 0) {
-            bdrv_delete(bs->file);
+            bdrv_unref(bs->file);
             bs->drv = NULL;
             return open_ret;
         }

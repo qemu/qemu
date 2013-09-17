@@ -12,8 +12,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x1
-ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
 ERROR cluster 5 refcount=0 reference=1
+ERROR OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=0
 
 2 errors were found on the image.
 Data may be corrupted, or further writes to the image may corrupt it.
@@ -24,7 +24,6 @@ read 512/512 bytes at offset 0
 incompatible_features     0x1
 
 == Repairing the image file must succeed ==
-ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
 Repairing cluster 5 refcount=0 reference=1
 The following inconsistencies were found and repaired:
 
@@ -44,7 +43,6 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x1
-ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
 Repairing cluster 5 refcount=0 reference=1
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

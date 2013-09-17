@@ -69,7 +69,7 @@ struct NetClientState {
     int link_down;
     QTAILQ_ENTRY(NetClientState) next;
     NetClientState *peer;
-    NetQueue *send_queue;
+    NetQueue *incoming_queue;
     char *model;
     char *name;
     char info_str[256];

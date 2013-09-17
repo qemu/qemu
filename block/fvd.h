@@ -397,8 +397,9 @@ static void flush_metadata_to_disk(BlockDriverState * bs);
 static void free_journal_sectors(BDRVFvdState * s);
 static int fvd_create(const char *filename, QEMUOptionParameter * options);
 static int fvd_probe(const uint8_t * buf, int buf_size, const char *filename);
-static int fvd_is_allocated(BlockDriverState * bs, int64_t sector_num,
-                            int nb_sectors, int *pnum);
+static int64_t coroutine_fn fvd_get_block_status(BlockDriverState *bs,
+                                                 int64_t sector_num,
+                                                 int nb_sectors, int *pnum);
 static int fvd_flush(BlockDriverState * bs);
 static BlockDriverAIOCB *fvd_aio_readv(BlockDriverState * bs,
             int64_t sector_num, QEMUIOVector * qiov, int nb_sectors,

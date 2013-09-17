@@ -135,9 +135,16 @@ typedef struct E1000State_st {
 
     QEMUTimer *autoneg_timer;
 
+    QEMUTimer *mit_timer;      /* Mitigation timer. */
+    bool mit_timer_on;         /* Mitigation timer is running. */
+    bool mit_irq_level;        /* Tracks interrupt pin level. */
+    uint32_t mit_ide;          /* Tracks E1000_TXD_CMD_IDE bit. */
+
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
 #define E1000_FLAG_AUTONEG_BIT 0
+#define E1000_FLAG_MIT_BIT 1
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
+#define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
     uint32_t compat_flags;
 } E1000State;
 
@@ -158,7 +165,8 @@ enum {
     defreg(TORH),	defreg(TORL),	defreg(TOTH),	defreg(TOTL),
     defreg(TPR),	defreg(TPT),	defreg(TXDCTL),	defreg(WUFC),
     defreg(RA),		defreg(MTA),	defreg(CRCERRS),defreg(VFTA),
-    defreg(VET),
+    defreg(VET),        defreg(RDTR),   defreg(RADV),   defreg(TADV),
+    defreg(ITR),
 };
 
 static void
@@ -245,10 +253,21 @@ static const uint32_t mac_reg_init[] = {
                 E1000_MANC_RMCP_EN,
 };
 
+/* Helper function, *curr == 0 means the value is not set */
+static inline void
+mit_update_delay(uint32_t *curr, uint32_t value)
+{
+    if (value && (*curr == 0 || value < *curr)) {
+        *curr = value;
+    }
+}
+
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
     PCIDevice *d = PCI_DEVICE(s);
+    uint32_t pending_ints;
+    uint32_t mit_delay;
 
     if (val && (E1000_DEVID >= E1000_DEV_ID_82547EI_MOBILE)) {
         /* Only for 8257x */
@@ -266,7 +285,57 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
      */
     s->mac_reg[ICS] = val;
 
-    qemu_set_irq(d->irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
+    pending_ints = (s->mac_reg[IMS] & s->mac_reg[ICR]);
+    if (!s->mit_irq_level && pending_ints) {
+        /*
+         * Here we detect a potential raising edge. We postpone raising the
+         * interrupt line if we are inside the mitigation delay window
+         * (s->mit_timer_on == 1).
+         * We provide a partial implementation of interrupt mitigation,
+         * emulating only RADV, TADV and ITR (lower 16 bits, 1024ns units for
+         * RADV and TADV, 256ns units for ITR). RDTR is only used to enable
+         * RADV; relative timers based on TIDV and RDTR are not implemented.
+         */
+        if (s->mit_timer_on) {
+            return;
+        }
+        if (s->compat_flags & E1000_FLAG_MIT) {
+            /* Compute the next mitigation delay according to pending
+             * interrupts and the current values of RADV (provided
+             * RDTR!=0), TADV and ITR.
+             * Then rearm the timer.
+             */
+            mit_delay = 0;
+            if (s->mit_ide &&
+                    (pending_ints & (E1000_ICR_TXQE | E1000_ICR_TXDW))) {
+                mit_update_delay(&mit_delay, s->mac_reg[TADV] * 4);
+            }
+            if (s->mac_reg[RDTR] && (pending_ints & E1000_ICS_RXT0)) {
+                mit_update_delay(&mit_delay, s->mac_reg[RADV] * 4);
+            }
+            mit_update_delay(&mit_delay, s->mac_reg[ITR]);
+
+            if (mit_delay) {
+                s->mit_timer_on = 1;
+                timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                          mit_delay * 256);
+            }
+            s->mit_ide = 0;
+        }
+    }
+
+    s->mit_irq_level = (pending_ints != 0);
+    qemu_set_irq(d->irq[0], s->mit_irq_level);
+}
+
+static void
+e1000_mit_timer(void *opaque)
+{
+    E1000State *s = opaque;
+
+    s->mit_timer_on = 0;
+    /* Call set_interrupt_cause to update the irq level (if necessary). */
+    set_interrupt_cause(s, 0, s->mac_reg[ICR]);
 }
 
 static void
@@ -307,6 +376,10 @@ static void e1000_reset(void *opaque)
     int i;
 
     timer_del(d->autoneg_timer);
+    timer_del(d->mit_timer);
+    d->mit_timer_on = 0;
+    d->mit_irq_level = 0;
+    d->mit_ide = 0;
     memset(d->phy_reg, 0, sizeof d->phy_reg);
     memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
     memset(d->mac_reg, 0, sizeof d->mac_reg);
@@ -572,6 +645,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     struct e1000_context_desc *xp = (struct e1000_context_desc *)dp;
     struct e1000_tx *tp = &s->tx;
 
+    s->mit_ide |= (txd_lower & E1000_TXD_CMD_IDE);
     if (dtype == E1000_TXD_CMD_DEXT) {	// context descriptor
         op = le32_to_cpu(xp->cmd_and_length);
         tp->ipcss = xp->lower_setup.ip_fields.ipcss;
@@ -1047,7 +1121,8 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
     getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
     getreg(TDBAL),	getreg(TDBAH),	getreg(RDBAH),	getreg(RDBAL),
-    getreg(TDLEN),	getreg(RDLEN),
+    getreg(TDLEN),      getreg(RDLEN),  getreg(RDTR),   getreg(RADV),
+    getreg(TADV),       getreg(ITR),
 
     [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
     [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,
@@ -1069,6 +1144,8 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     [TDH] = set_16bit,	[RDH] = set_16bit,	[RDT] = set_rdt,
     [IMC] = set_imc,	[IMS] = set_ims,	[ICR] = set_icr,
     [EECD] = set_eecd,	[RCTL] = set_rx_control, [CTRL] = set_ctrl,
+    [RDTR] = set_16bit, [RADV] = set_16bit,     [TADV] = set_16bit,
+    [ITR] = set_16bit,
     [RA ... RA+31] = &mac_writereg,
     [MTA ... MTA+127] = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
@@ -1150,6 +1227,11 @@ static void e1000_pre_save(void *opaque)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
+    /* If the mitigation timer is active, emulate a timeout now. */
+    if (s->mit_timer_on) {
+        e1000_mit_timer(s);
+    }
+
     if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
         return;
     }
@@ -1171,6 +1253,14 @@ static int e1000_post_load(void *opaque, int version_id)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
+    if (!(s->compat_flags & E1000_FLAG_MIT)) {
+        s->mac_reg[ITR] = s->mac_reg[RDTR] = s->mac_reg[RADV] =
+            s->mac_reg[TADV] = 0;
+        s->mit_irq_level = false;
+    }
+    s->mit_ide = 0;
+    s->mit_timer_on = false;
+
     /* nc.link_down can't be migrated, so infer link_down according
      * to link status bit in mac_reg[STATUS].
      * Alternatively, restart link negotiation if it was in progress. */
@@ -1189,6 +1279,28 @@ static int e1000_post_load(void *opaque, int version_id)
 
     return 0;
 }
+
+static bool e1000_mit_state_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return s->compat_flags & E1000_FLAG_MIT;
+}
+
+static const VMStateDescription vmstate_e1000_mit_state = {
+    .name = "e1000/mit_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields    = (VMStateField[]) {
+        VMSTATE_UINT32(mac_reg[RDTR], E1000State),
+        VMSTATE_UINT32(mac_reg[RADV], E1000State),
+        VMSTATE_UINT32(mac_reg[TADV], E1000State),
+        VMSTATE_UINT32(mac_reg[ITR], E1000State),
+        VMSTATE_BOOL(mit_irq_level, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
@@ -1267,6 +1379,14 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_e1000_mit_state,
+            .needed = e1000_mit_state_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -1316,6 +1436,8 @@ pci_e1000_uninit(PCIDevice *dev)
 
     timer_del(d->autoneg_timer);
     timer_free(d->autoneg_timer);
+    timer_del(d->mit_timer);
+    timer_free(d->mit_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
     qemu_del_nic(d->nic);
@@ -1371,6 +1493,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
 
     d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
+    d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
 
     return 0;
 }
@@ -1385,6 +1508,8 @@ static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
     DEFINE_PROP_BIT("autonegotiation", E1000State,
                     compat_flags, E1000_FLAG_AUTONEG_BIT, true),
+    DEFINE_PROP_BIT("mitigation", E1000State,
+                    compat_flags, E1000_FLAG_MIT_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

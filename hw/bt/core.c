@@ -119,3 +119,26 @@ void bt_device_done(struct bt_device_s *dev)
 
     *p = dev->next;
 }
+
+static struct bt_vlan_s {
+    struct bt_scatternet_s net;
+    int id;
+    struct bt_vlan_s *next;
+} *first_bt_vlan;
+
+/* find or alloc a new bluetooth "VLAN" */
+struct bt_scatternet_s *qemu_find_bt_vlan(int id)
+{
+    struct bt_vlan_s **pvlan, *vlan;
+    for (vlan = first_bt_vlan; vlan != NULL; vlan = vlan->next) {
+        if (vlan->id == id)
+            return &vlan->net;
+    }
+    vlan = g_malloc0(sizeof(struct bt_vlan_s));
+    vlan->id = id;
+    pvlan = &first_bt_vlan;
+    while (*pvlan != NULL)
+        pvlan = &(*pvlan)->next;
+    *pvlan = vlan;
+    return &vlan->net;
+}

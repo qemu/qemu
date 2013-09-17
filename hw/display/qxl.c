@@ -1541,8 +1541,9 @@ async_common:
     default:
         break;
     }
-    trace_qxl_io_write(d->id, qxl_mode_to_string(d->mode), addr, val, size,
-                       async);
+    trace_qxl_io_write(d->id, qxl_mode_to_string(d->mode),
+                       addr, io_port_to_string(addr),
+                       val, size, async);
 
     switch (io_port) {
     case QXL_IO_UPDATE_AREA:

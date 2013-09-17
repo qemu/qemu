@@ -37,11 +37,11 @@ static const VMStateInfo vmstate_fpscr = {
 
 static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .minimum_version_id_old = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
     .fields = (VMStateField[]) {
-        VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 32),
+        VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
          * requires a specific accessor, so we have to split it up in
          * the vmstate:

@@ -599,7 +599,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     ret = 0; /* success */
 out:
     g_free(l1_table);
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     return ret;
 }
 
@@ -652,45 +652,66 @@ static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options)
 }
 
 typedef struct {
+    BlockDriverState *bs;
     Coroutine *co;
-    int is_allocated;
+    uint64_t pos;
+    int64_t status;
     int *pnum;
 } QEDIsAllocatedCB;
 
 static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t len)
 {
     QEDIsAllocatedCB *cb = opaque;
+    BDRVQEDState *s = cb->bs->opaque;
     *cb->pnum = len / BDRV_SECTOR_SIZE;
-    cb->is_allocated = (ret == QED_CLUSTER_FOUND || ret == QED_CLUSTER_ZERO);
+    switch (ret) {
+    case QED_CLUSTER_FOUND:
+        offset |= qed_offset_into_cluster(s, cb->pos);
+        cb->status = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
+        break;
+    case QED_CLUSTER_ZERO:
+        cb->status = BDRV_BLOCK_ZERO;
+        break;
+    case QED_CLUSTER_L2:
+    case QED_CLUSTER_L1:
+        cb->status = 0;
+        break;
+    default:
+        assert(ret < 0);
+        cb->status = ret;
+        break;
+    }
+
     if (cb->co) {
         qemu_coroutine_enter(cb->co, NULL);
     }
 }
 
-static int coroutine_fn bdrv_qed_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
                                                  int64_t sector_num,
                                                  int nb_sectors, int *pnum)
 {
     BDRVQEDState *s = bs->opaque;
-    uint64_t pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE;
     size_t len = (size_t)nb_sectors * BDRV_SECTOR_SIZE;
     QEDIsAllocatedCB cb = {
-        .is_allocated = -1,
+        .bs = bs,
+        .pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE,
+        .status = BDRV_BLOCK_OFFSET_MASK,
         .pnum = pnum,
     };
     QEDRequest request = { .l2_table = NULL };
 
-    qed_find_cluster(s, &request, pos, len, qed_is_allocated_cb, &cb);
+    qed_find_cluster(s, &request, cb.pos, len, qed_is_allocated_cb, &cb);
 
     /* Now sleep if the callback wasn't invoked immediately */
-    while (cb.is_allocated == -1) {
+    while (cb.status == BDRV_BLOCK_OFFSET_MASK) {
         cb.co = qemu_coroutine_self();
         qemu_coroutine_yield();
     }
 
     qed_unref_l2_cache_entry(request.l2_table);
 
-    return cb.is_allocated;
+    return cb.status;
 }
 
 static int bdrv_qed_make_empty(BlockDriverState *bs)
@@ -1575,7 +1596,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
     .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated     = bdrv_qed_co_is_allocated,
+    .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
     .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,

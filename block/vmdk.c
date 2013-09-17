@@ -216,7 +216,7 @@ static void vmdk_free_extents(BlockDriverState *bs)
         g_free(e->l2_cache);
         g_free(e->l1_backup_table);
         if (e->file != bs->file) {
-            bdrv_delete(e->file);
+            bdrv_unref(e->file);
         }
     }
     g_free(s->extents);
@@ -746,7 +746,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             /* SPARSE extent and VMFSSPARSE extent are both "COWD" sparse file*/
             ret = vmdk_open_sparse(bs, extent_file, bs->open_flags);
             if (ret) {
-                bdrv_delete(extent_file);
+                bdrv_unref(extent_file);
                 return ret;
             }
         } else {
@@ -1042,7 +1042,7 @@ static VmdkExtent *find_extent(BDRVVmdkState *s,
     return NULL;
 }
 
-static int coroutine_fn vmdk_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     BDRVVmdkState *s = bs->opaque;
@@ -1059,7 +1059,24 @@ static int coroutine_fn vmdk_co_is_allocated(BlockDriverState *bs,
                             sector_num * 512, 0, &offset);
     qemu_co_mutex_unlock(&s->lock);
 
-    ret = (ret == VMDK_OK || ret == VMDK_ZEROED);
+    switch (ret) {
+    case VMDK_ERROR:
+        ret = -EIO;
+        break;
+    case VMDK_UNALLOC:
+        ret = 0;
+        break;
+    case VMDK_ZEROED:
+        ret = BDRV_BLOCK_ZERO;
+        break;
+    case VMDK_OK:
+        ret = BDRV_BLOCK_DATA;
+        if (extent->file == bs->file) {
+            ret |= BDRV_BLOCK_OFFSET_VALID | offset;
+        }
+
+        break;
+    }
 
     index_in_cluster = sector_num % extent->cluster_sectors;
     n = extent->cluster_sectors - index_in_cluster;
@@ -1636,15 +1653,15 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         BlockDriverState *bs = bdrv_new("");
         ret = bdrv_open(bs, backing_file, NULL, 0, NULL);
         if (ret != 0) {
-            bdrv_delete(bs);
+            bdrv_unref(bs);
             return ret;
         }
         if (strcmp(bs->drv->format_name, "vmdk")) {
-            bdrv_delete(bs);
+            bdrv_unref(bs);
             return -EINVAL;
         }
         parent_cid = vmdk_read_cid(bs, 0);
-        bdrv_delete(bs);
+        bdrv_unref(bs);
         snprintf(parent_desc_line, sizeof(parent_desc_line),
                 "parentFileNameHint=\"%s\"", backing_file);
     }
@@ -1837,7 +1854,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_close                   = vmdk_close,
     .bdrv_create                  = vmdk_create,
     .bdrv_co_flush_to_disk        = vmdk_co_flush,
-    .bdrv_co_is_allocated         = vmdk_co_is_allocated,
+    .bdrv_co_get_block_status     = vmdk_co_get_block_status,
     .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,
     .bdrv_has_zero_init           = vmdk_has_zero_init,
 

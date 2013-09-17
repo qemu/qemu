@@ -212,7 +212,7 @@ static void bdrv_format_print(void *opaque, const char *name)
 static void drive_uninit(DriveInfo *dinfo)
 {
     qemu_opts_del(dinfo->opts);
-    bdrv_delete(dinfo->bdrv);
+    bdrv_unref(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
@@ -234,32 +234,32 @@ void drive_get_ref(DriveInfo *dinfo)
 
 typedef struct {
     QEMUBH *bh;
-    DriveInfo *dinfo;
-} DrivePutRefBH;
+    BlockDriverState *bs;
+} BDRVPutRefBH;
 
-static void drive_put_ref_bh(void *opaque)
+static void bdrv_put_ref_bh(void *opaque)
 {
-    DrivePutRefBH *s = opaque;
+    BDRVPutRefBH *s = opaque;
 
-    drive_put_ref(s->dinfo);
+    bdrv_unref(s->bs);
     qemu_bh_delete(s->bh);
     g_free(s);
 }
 
 /*
- * Release a drive reference in a BH
+ * Release a BDS reference in a BH
  *
- * It is not possible to use drive_put_ref() from a callback function when the
- * callers still need the drive.  In such cases we schedule a BH to release the
- * reference.
+ * It is not safe to use bdrv_unref() from a callback function when the callers
+ * still need the BlockDriverState.  In such cases we schedule a BH to release
+ * the reference.
  */
-static void drive_put_ref_bh_schedule(DriveInfo *dinfo)
+static void bdrv_put_ref_bh_schedule(BlockDriverState *bs)
 {
-    DrivePutRefBH *s;
+    BDRVPutRefBH *s;
 
-    s = g_new(DrivePutRefBH, 1);
-    s->bh = qemu_bh_new(drive_put_ref_bh, s);
-    s->dinfo = dinfo;
+    s = g_new(BDRVPutRefBH, 1);
+    s->bh = qemu_bh_new(bdrv_put_ref_bh, s);
+    s->bs = bs;
     qemu_bh_schedule(s->bh);
 }
 
@@ -280,32 +280,16 @@ static int parse_block_error_action(const char *buf, bool is_read)
     }
 }
 
-static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
+static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
-    bool bps_flag;
-    bool iops_flag;
-
-    assert(io_limits);
-
-    bps_flag  = (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] != 0)
-                 && ((io_limits->bps[BLOCK_IO_LIMIT_READ] != 0)
-                 || (io_limits->bps[BLOCK_IO_LIMIT_WRITE] != 0));
-    iops_flag = (io_limits->iops[BLOCK_IO_LIMIT_TOTAL] != 0)
-                 && ((io_limits->iops[BLOCK_IO_LIMIT_READ] != 0)
-                 || (io_limits->iops[BLOCK_IO_LIMIT_WRITE] != 0));
-    if (bps_flag || iops_flag) {
-        error_setg(errp, "bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
-                         "cannot be used at the same time");
+    if (throttle_conflicting(cfg)) {
+        error_setg(errp, "bps/iops/max total values and read/write values"
+                         " cannot be used at the same time");
         return false;
     }
 
-    if (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] < 0 ||
-        io_limits->bps[BLOCK_IO_LIMIT_WRITE] < 0 ||
-        io_limits->bps[BLOCK_IO_LIMIT_READ] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_TOTAL] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_WRITE] < 0 ||
-        io_limits->iops[BLOCK_IO_LIMIT_READ] < 0) {
-        error_setg(errp, "bps and iops values must be 0 or greater");
+    if (!throttle_is_valid(cfg)) {
+        error_setg(errp, "bps/iops/maxs values must be 0 or greater");
         return false;
     }
 
@@ -330,7 +314,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     int on_read_error, on_write_error;
     const char *devaddr;
     DriveInfo *dinfo;
-    BlockIOLimit io_limits;
+    ThrottleConfig cfg;
     int snapshot = 0;
     bool copy_on_read;
     int ret;
@@ -496,20 +480,36 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     }
 
     /* disk I/O throttling */
-    io_limits.bps[BLOCK_IO_LIMIT_TOTAL]  =
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.buckets[THROTTLE_BPS_TOTAL].avg =
         qemu_opt_get_number(opts, "throttling.bps-total", 0);
-    io_limits.bps[BLOCK_IO_LIMIT_READ]   =
+    cfg.buckets[THROTTLE_BPS_READ].avg  =
         qemu_opt_get_number(opts, "throttling.bps-read", 0);
-    io_limits.bps[BLOCK_IO_LIMIT_WRITE]  =
+    cfg.buckets[THROTTLE_BPS_WRITE].avg =
         qemu_opt_get_number(opts, "throttling.bps-write", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_TOTAL] =
+    cfg.buckets[THROTTLE_OPS_TOTAL].avg =
         qemu_opt_get_number(opts, "throttling.iops-total", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_READ]  =
+    cfg.buckets[THROTTLE_OPS_READ].avg =
         qemu_opt_get_number(opts, "throttling.iops-read", 0);
-    io_limits.iops[BLOCK_IO_LIMIT_WRITE] =
+    cfg.buckets[THROTTLE_OPS_WRITE].avg =
         qemu_opt_get_number(opts, "throttling.iops-write", 0);
 
-    if (!do_check_io_limits(&io_limits, &error)) {
+    cfg.buckets[THROTTLE_BPS_TOTAL].max =
+        qemu_opt_get_number(opts, "throttling.bps-total-max", 0);
+    cfg.buckets[THROTTLE_BPS_READ].max  =
+        qemu_opt_get_number(opts, "throttling.bps-read-max", 0);
+    cfg.buckets[THROTTLE_BPS_WRITE].max =
+        qemu_opt_get_number(opts, "throttling.bps-write-max", 0);
+    cfg.buckets[THROTTLE_OPS_TOTAL].max =
+        qemu_opt_get_number(opts, "throttling.iops-total-max", 0);
+    cfg.buckets[THROTTLE_OPS_READ].max =
+        qemu_opt_get_number(opts, "throttling.iops-read-max", 0);
+    cfg.buckets[THROTTLE_OPS_WRITE].max =
+        qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
+
+    cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
+
+    if (!check_throttle_config(&cfg, &error)) {
         error_report("%s", error_get_pretty(error));
         error_free(error);
         return NULL;
@@ -636,7 +636,10 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
 
     /* disk I/O throttling */
-    bdrv_set_io_limits(dinfo->bdrv, &io_limits);
+    if (throttle_enabled(&cfg)) {
+        bdrv_io_limits_enable(dinfo->bdrv);
+        bdrv_set_io_limits(dinfo->bdrv, &cfg);
+    }
 
     switch(type) {
     case IF_IDE:
@@ -732,7 +735,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
 err:
     qemu_opts_del(opts);
     QDECREF(bs_opts);
-    bdrv_delete(dinfo->bdrv);
+    bdrv_unref(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo);
@@ -762,6 +765,17 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
     qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
     qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+
+    qemu_opt_rename(all_opts, "iops_max", "throttling.iops-total-max");
+    qemu_opt_rename(all_opts, "iops_rd_max", "throttling.iops-read-max");
+    qemu_opt_rename(all_opts, "iops_wr_max", "throttling.iops-write-max");
+
+    qemu_opt_rename(all_opts, "bps_max", "throttling.bps-total-max");
+    qemu_opt_rename(all_opts, "bps_rd_max", "throttling.bps-read-max");
+    qemu_opt_rename(all_opts, "bps_wr_max", "throttling.bps-write-max");
+
+    qemu_opt_rename(all_opts,
+                    "iops_size", "throttling.iops-size");
 
     qemu_opt_rename(all_opts, "readonly", "read-only");
 
@@ -982,7 +996,7 @@ static void external_snapshot_abort(BlkTransactionState *common)
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->new_bs) {
-        bdrv_delete(state->new_bs);
+        bdrv_unref(state->new_bs);
     }
 }
 
@@ -1247,10 +1261,26 @@ void qmp_change_blockdev(const char *device, const char *filename,
 
 /* throttling disk I/O limits */
 void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
-                               int64_t bps_wr, int64_t iops, int64_t iops_rd,
-                               int64_t iops_wr, Error **errp)
+                               int64_t bps_wr,
+                               int64_t iops,
+                               int64_t iops_rd,
+                               int64_t iops_wr,
+                               bool has_bps_max,
+                               int64_t bps_max,
+                               bool has_bps_rd_max,
+                               int64_t bps_rd_max,
+                               bool has_bps_wr_max,
+                               int64_t bps_wr_max,
+                               bool has_iops_max,
+                               int64_t iops_max,
+                               bool has_iops_rd_max,
+                               int64_t iops_rd_max,
+                               bool has_iops_wr_max,
+                               int64_t iops_wr_max,
+                               bool has_iops_size,
+                               int64_t iops_size, Error **errp)
 {
-    BlockIOLimit io_limits;
+    ThrottleConfig cfg;
     BlockDriverState *bs;
 
     bs = bdrv_find(device);
@@ -1259,27 +1289,50 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
         return;
     }
 
-    io_limits.bps[BLOCK_IO_LIMIT_TOTAL] = bps;
-    io_limits.bps[BLOCK_IO_LIMIT_READ]  = bps_rd;
-    io_limits.bps[BLOCK_IO_LIMIT_WRITE] = bps_wr;
-    io_limits.iops[BLOCK_IO_LIMIT_TOTAL]= iops;
-    io_limits.iops[BLOCK_IO_LIMIT_READ] = iops_rd;
-    io_limits.iops[BLOCK_IO_LIMIT_WRITE]= iops_wr;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
+    cfg.buckets[THROTTLE_BPS_READ].avg  = bps_rd;
+    cfg.buckets[THROTTLE_BPS_WRITE].avg = bps_wr;
 
-    if (!do_check_io_limits(&io_limits, errp)) {
+    cfg.buckets[THROTTLE_OPS_TOTAL].avg = iops;
+    cfg.buckets[THROTTLE_OPS_READ].avg  = iops_rd;
+    cfg.buckets[THROTTLE_OPS_WRITE].avg = iops_wr;
+
+    if (has_bps_max) {
+        cfg.buckets[THROTTLE_BPS_TOTAL].max = bps_max;
+    }
+    if (has_bps_rd_max) {
+        cfg.buckets[THROTTLE_BPS_READ].max = bps_rd_max;
+    }
+    if (has_bps_wr_max) {
+        cfg.buckets[THROTTLE_BPS_WRITE].max = bps_wr_max;
+    }
+    if (has_iops_max) {
+        cfg.buckets[THROTTLE_OPS_TOTAL].max = iops_max;
+    }
+    if (has_iops_rd_max) {
+        cfg.buckets[THROTTLE_OPS_READ].max = iops_rd_max;
+    }
+    if (has_iops_wr_max) {
+        cfg.buckets[THROTTLE_OPS_WRITE].max = iops_wr_max;
+    }
+
+    if (has_iops_size) {
+        cfg.op_size = iops_size;
+    }
+
+    if (!check_throttle_config(&cfg, errp)) {
         return;
     }
 
-    bs->io_limits = io_limits;
-
-    if (!bs->io_limits_enabled && bdrv_io_limits_enabled(bs)) {
+    if (!bs->io_limits_enabled && throttle_enabled(&cfg)) {
         bdrv_io_limits_enable(bs);
-    } else if (bs->io_limits_enabled && !bdrv_io_limits_enabled(bs)) {
+    } else if (bs->io_limits_enabled && !throttle_enabled(&cfg)) {
         bdrv_io_limits_disable(bs);
-    } else {
-        if (bs->block_timer) {
-            timer_mod(bs->block_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-        }
+    }
+
+    if (bs->io_limits_enabled) {
+        bdrv_set_io_limits(bs, &cfg);
     }
 }
 
@@ -1383,7 +1436,7 @@ static void block_job_cb(void *opaque, int ret)
     }
     qobject_decref(obj);
 
-    drive_put_ref_bh_schedule(drive_get_by_blockdev(bs));
+    bdrv_put_ref_bh_schedule(bs);
 }
 
 void qmp_block_stream(const char *device, bool has_base,
@@ -1419,11 +1472,6 @@ void qmp_block_stream(const char *device, bool has_base,
         error_propagate(errp, local_err);
         return;
     }
-
-    /* Grab a reference so hotplug does not delete the BlockDriverState from
-     * underneath us.
-     */
-    drive_get_ref(drive_get_by_blockdev(bs));
 
     trace_qmp_block_stream(bs, bs->job);
 }
@@ -1481,10 +1529,6 @@ void qmp_block_commit(const char *device,
         error_propagate(errp, local_err);
         return;
     }
-    /* Grab a reference so hotplug does not delete the BlockDriverState from
-     * underneath us.
-     */
-    drive_get_ref(drive_get_by_blockdev(bs));
 }
 
 void qmp_drive_backup(const char *device, const char *target,
@@ -1585,7 +1629,7 @@ void qmp_drive_backup(const char *device, const char *target,
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, NULL, flags, drv);
     if (ret < 0) {
-        bdrv_delete(target_bs);
+        bdrv_unref(target_bs);
         error_setg_file_open(errp, -ret, target);
         return;
     }
@@ -1593,15 +1637,10 @@ void qmp_drive_backup(const char *device, const char *target,
     backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
-        bdrv_delete(target_bs);
+        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         return;
     }
-
-    /* Grab a reference so hotplug does not delete the BlockDriverState from
-     * underneath us.
-     */
-    drive_get_ref(drive_get_by_blockdev(bs));
 }
 
 #define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
@@ -1725,7 +1764,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
     if (ret < 0) {
-        bdrv_delete(target_bs);
+        bdrv_unref(target_bs);
         error_setg_file_open(errp, -ret, target);
         return;
     }
@@ -1734,15 +1773,10 @@ void qmp_drive_mirror(const char *device, const char *target,
                  on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
-        bdrv_delete(target_bs);
+        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         return;
     }
-
-    /* Grab a reference so hotplug does not delete the BlockDriverState from
-     * underneath us.
-     */
-    drive_get_ref(drive_get_by_blockdev(bs));
 }
 
 static BlockJob *find_block_job(const char *device)
@@ -1967,6 +2001,34 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.bps-write",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write bytes per second",
+        },{
+            .name = "throttling.iops-total-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations burst",
+        },{
+            .name = "throttling.iops-read-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations read burst",
+        },{
+            .name = "throttling.iops-write-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "I/O operations write burst",
+        },{
+            .name = "throttling.bps-total-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes burst",
+        },{
+            .name = "throttling.bps-read-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes read burst",
+        },{
+            .name = "throttling.bps-write-max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes write burst",
+        },{
+            .name = "throttling.iops-size",
+            .type = QEMU_OPT_NUMBER,
+            .help = "when limiting by iops max size of an I/O in bytes",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

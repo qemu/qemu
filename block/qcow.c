@@ -395,7 +395,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     return cluster_offset;
 }
 
-static int coroutine_fn qcow_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn qcow_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     BDRVQcowState *s = bs->opaque;
@@ -410,7 +410,14 @@ static int coroutine_fn qcow_co_is_allocated(BlockDriverState *bs,
     if (n > nb_sectors)
         n = nb_sectors;
     *pnum = n;
-    return (cluster_offset != 0);
+    if (!cluster_offset) {
+        return 0;
+    }
+    if ((cluster_offset & QCOW_OFLAG_COMPRESSED) || s->crypt_method) {
+        return BDRV_BLOCK_DATA;
+    }
+    cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | cluster_offset;
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
@@ -751,7 +758,7 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     g_free(tmp);
     ret = 0;
 exit:
-    bdrv_delete(qcow_bs);
+    bdrv_unref(qcow_bs);
     return ret;
 }
 
@@ -896,7 +903,7 @@ static BlockDriver bdrv_qcow = {
 
     .bdrv_co_readv          = qcow_co_readv,
     .bdrv_co_writev         = qcow_co_writev,
-    .bdrv_co_is_allocated   = qcow_co_is_allocated,
+    .bdrv_co_get_block_status   = qcow_co_get_block_status,
 
     .bdrv_set_key           = qcow_set_key,
     .bdrv_make_empty        = qcow_make_empty,

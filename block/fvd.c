@@ -60,7 +60,7 @@ static BlockDriver bdrv_fvd = {
     .bdrv_probe = fvd_probe,
     .bdrv_file_open = fvd_open,
     .bdrv_close = fvd_close,
-    .bdrv_co_is_allocated = fvd_is_allocated,
+    .bdrv_co_get_block_status = fvd_get_block_status,
     .bdrv_co_flush_to_disk = fvd_flush,
     .bdrv_aio_readv = fvd_aio_readv,
     .bdrv_aio_writev = fvd_aio_writev,
@@ -87,8 +87,8 @@ block_init (bdrv_fvd_init);
 extern QTAILQ_HEAD (, BlockDriverState) bdrv_states;
 static void __attribute__ ((destructor)) flush_fvd_bitmap_to_disk (void)
 {
-    BlockDriverState *bs;
-    QTAILQ_FOREACH (bs, &bdrv_states, list) {
+    BlockDriverState *bs = NULL;
+    while ((bs = bdrv_next(bs))) {
         if (bs->drv == &bdrv_fvd) {
             flush_metadata_to_disk_on_exit (bs);
 

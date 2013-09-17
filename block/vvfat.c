@@ -2874,16 +2874,17 @@ static coroutine_fn int vvfat_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-static int coroutine_fn vvfat_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn vvfat_co_get_block_status(BlockDriverState *bs,
 	int64_t sector_num, int nb_sectors, int* n)
 {
     BDRVVVFATState* s = bs->opaque;
     *n = s->sector_count - sector_num;
-    if (*n > nb_sectors)
-	*n = nb_sectors;
-    else if (*n < 0)
-	return 0;
-    return 1;
+    if (*n > nb_sectors) {
+        *n = nb_sectors;
+    } else if (*n < 0) {
+        return 0;
+    }
+    return BDRV_BLOCK_DATA;
 }
 
 static int write_target_commit(BlockDriverState *bs, int64_t sector_num,
@@ -2894,7 +2895,7 @@ static int write_target_commit(BlockDriverState *bs, int64_t sector_num,
 
 static void write_target_close(BlockDriverState *bs) {
     BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
-    bdrv_delete(s->qcow);
+    bdrv_unref(s->qcow);
     g_free(s->qcow_filename);
 }
 
@@ -2935,7 +2936,7 @@ static int enable_write_target(BDRVVVFATState *s)
     ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
     if (ret < 0) {
-        bdrv_delete(s->qcow);
+        bdrv_unref(s->qcow);
         goto err;
     }
 
@@ -2943,7 +2944,7 @@ static int enable_write_target(BDRVVVFATState *s)
     unlink(s->qcow_filename);
 #endif
 
-    s->bs->backing_hd = calloc(sizeof(BlockDriverState), 1);
+    s->bs->backing_hd = bdrv_new("");
     s->bs->backing_hd->drv = &vvfat_write_target;
     s->bs->backing_hd->opaque = g_malloc(sizeof(void*));
     *(void**)s->bs->backing_hd->opaque = s;
@@ -2984,7 +2985,7 @@ static BlockDriver bdrv_vvfat = {
 
     .bdrv_read              = vvfat_co_read,
     .bdrv_write             = vvfat_co_write,
-    .bdrv_co_is_allocated   = vvfat_co_is_allocated,
+    .bdrv_co_get_block_status = vvfat_co_get_block_status,
 };
 
 static void bdrv_vvfat_init(void)

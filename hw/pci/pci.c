@@ -1461,7 +1461,7 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     info->function = PCI_FUNC(dev->devfn);
 
     class = pci_get_word(dev->config + PCI_CLASS_DEVICE);
-    info->class_info.class = class;
+    info->class_info.q_class = class;
     desc = get_class_desc(class);
     if (desc->desc) {
         info->class_info.has_desc = true;

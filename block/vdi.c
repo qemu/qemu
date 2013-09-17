@@ -470,7 +470,7 @@ static int vdi_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
+static int64_t coroutine_fn vdi_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
     /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
@@ -479,12 +479,23 @@ static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
     size_t sector_in_block = sector_num % s->block_sectors;
     int n_sectors = s->block_sectors - sector_in_block;
     uint32_t bmap_entry = le32_to_cpu(s->bmap[bmap_index]);
+    uint64_t offset;
+    int result;
+
     logout("%p, %" PRId64 ", %d, %p\n", bs, sector_num, nb_sectors, pnum);
     if (n_sectors > nb_sectors) {
         n_sectors = nb_sectors;
     }
     *pnum = n_sectors;
-    return VDI_IS_ALLOCATED(bmap_entry);
+    result = VDI_IS_ALLOCATED(bmap_entry);
+    if (!result) {
+        return 0;
+    }
+
+    offset = s->header.offset_data +
+                              (uint64_t)bmap_entry * s->block_size +
+                              sector_in_block * SECTOR_SIZE;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
 }
 
 static int vdi_co_read(BlockDriverState *bs,
@@ -780,7 +791,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_create = vdi_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_is_allocated = vdi_co_is_allocated,
+    .bdrv_co_get_block_status = vdi_co_get_block_status,
     .bdrv_make_empty = vdi_make_empty,
 
     .bdrv_read = vdi_co_read,

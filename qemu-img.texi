@@ -96,6 +96,14 @@ Second image format
 Strict mode - fail on on different image size or sector allocation
 @end table
 
+Parameters to convert subcommand:
+
+@table @option
+
+@item -n
+Skip the creation of the target volume
+@end table
+
 Command description:
 
 @table @option
@@ -171,7 +179,7 @@ Error on reading data
 
 @end table
 
-@item convert [-c] [-p] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_name} to disk image @var{output_filename}
 using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -189,6 +197,11 @@ You can use the @var{backing_file} option to force the output image to be
 created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,
 however the path, image format, etc may differ.
+
+If the @code{-n} option is specified, the target volume creation will be
+skipped. This is useful for formats such as @code{rbd} if the target
+volume has already been created with site specific options that cannot
+be supplied through qemu-img.
 
 @item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 
@@ -212,6 +225,61 @@ To enumerate information about each disk image in the above chain, starting from
 @example
 qemu-img info --backing-chain snap2.qcow2
 @end example
+
+@item map [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
+
+Dump the metadata of image @var{filename} and its backing file chain.
+In particular, this commands dumps the allocation state of every sector
+of @var{filename}, together with the topmost file that allocates it in
+the backing file chain.
+
+Two option formats are possible.  The default format (@code{human})
+only dumps known-nonzero areas of the file.  Known-zero parts of the
+file are omitted altogether, and likewise for parts that are not allocated
+throughout the chain.  @command{qemu-img} output will identify a file
+from where the data can be read, and the offset in the file.  Each line
+will include four fields, the first three of which are hexadecimal
+numbers.  For example the first line of:
+@example
+Offset          Length          Mapped to       File
+0               0x20000         0x50000         /tmp/overlay.qcow2
+0x100000        0x10000         0x95380000      /tmp/backing.qcow2
+@end example
+@noindent
+means that 0x20000 (131072) bytes starting at offset 0 in the image are
+available in /tmp/overlay.qcow2 (opened in @code{raw} format) starting
+at offset 0x50000 (327680).  Data that is compressed, encrypted, or
+otherwise not available in raw format will cause an error if @code{human}
+format is in use.  Note that file names can include newlines, thus it is
+not safe to parse this output format in scripts.
+
+The alternative format @code{json} will return an array of dictionaries
+in JSON format.  It will include similar information in
+the @code{start}, @code{length}, @code{offset} fields;
+it will also include other more specific information:
+@itemize @minus
+@item
+whether the sectors contain actual data or not (boolean field @code{data};
+if false, the sectors are either unallocated or stored as optimized
+all-zero clusters);
+
+@item
+whether the data is known to read as zero (boolean field @code{zero});
+
+@item
+in order to make the output shorter, the target file is expressed as
+a @code{depth}; for example, a depth of 2 refers to the backing file
+of the backing file of @var{filename}.
+@end itemize
+
+In JSON format, the @code{offset} field is optional; it is absent in
+cases where @code{human} format would omit the entry or exit with an error.
+If @code{data} is false and the @code{offset} field is present, the
+corresponding sectors in the file are not yet in use, but they are
+preallocated.
+
+For more information, consult @file{include/block/block.h} in QEMU's
+source code.
 
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 

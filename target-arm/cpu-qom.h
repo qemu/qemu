@@ -130,6 +130,18 @@ typedef struct ARMCPU {
     uint32_t reset_auxcr;
 } ARMCPU;
 
+#define TYPE_AARCH64_CPU "aarch64-cpu"
+#define AARCH64_CPU_CLASS(klass) \
+    OBJECT_CLASS_CHECK(AArch64CPUClass, (klass), TYPE_AARCH64_CPU)
+#define AARCH64_CPU_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(AArch64CPUClass, (obj), TYPE_AArch64_CPU)
+
+typedef struct AArch64CPUClass {
+    /*< private >*/
+    ARMCPUClass parent_class;
+    /*< public >*/
+} AArch64CPUClass;
+
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
 {
     return container_of(env, ARMCPU, env);
@@ -160,5 +172,12 @@ int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 /* Callback functions for the generic timer's timers. */
 void arm_gt_ptimer_cb(void *opaque);
 void arm_gt_vtimer_cb(void *opaque);
+
+#ifdef TARGET_AARCH64
+void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
+int aarch64_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+#endif
 
 #endif

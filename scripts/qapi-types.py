@@ -51,7 +51,10 @@ def generate_fwd_enum_struct(name, members):
     return mcgen('''
 typedef struct %(name)sList
 {
-    %(name)s value;
+    union {
+        %(name)s value;
+        uint64_t padding;
+    };
     struct %(name)sList *next;
 } %(name)sList;
 ''',

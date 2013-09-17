@@ -208,12 +208,12 @@ static void fvd_close (BlockDriverState * bs)
 
     if (s->fvd_metadata) {
         if (s->fvd_metadata != s->fvd_data) {
-            bdrv_delete (s->fvd_metadata);
+            bdrv_unref(s->fvd_metadata);
         }
         s->fvd_metadata = NULL;
     }
     if (s->fvd_data) {
-        bdrv_delete (s->fvd_data);
+        bdrv_unref(s->fvd_data);
         s->fvd_data = NULL;
     }
 
@@ -239,8 +239,8 @@ static int fvd_probe (const uint8_t * buf, int buf_size, const char *filename)
     }
 }
 
-static int fvd_is_allocated (BlockDriverState * bs, int64_t sector_num,
-                             int nb_sectors, int *pnum)
+static int64_t fvd_get_block_status(BlockDriverState * bs, int64_t sector_num,
+                                    int nb_sectors, int *pnum)
 {
     BDRVFvdState *s = bs->opaque;
 

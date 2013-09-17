@@ -34,9 +34,9 @@ STEXI
 ETEXI
 
 DEF("convert", img_convert,
-    "convert [-c] [-p] [-q] [-f fmt] [-t cache] [-O output_fmt] [-o options] [-s snapshot_name] [-S sparse_size] filename [filename2 [...]] output_filename")
+    "convert [-c] [-p] [-q] [-n] [-f fmt] [-t cache] [-O output_fmt] [-o options] [-s snapshot_name] [-S sparse_size] filename [filename2 [...]] output_filename")
 STEXI
-@item convert [-c] [-p] [-q] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-q] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 ETEXI
 
 DEF("info", img_info,
@@ -45,10 +45,10 @@ STEXI
 @item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 ETEXI
 
-DEF("update", img_update,
-    "update [-f fmt] filename [attr1=val1 attr2=val2 ...]")
+DEF("map", img_map,
+    "map [-f fmt] [--output=ofmt] filename")
 STEXI
-@item update [-f @var{fmt}] @var{filename} [@var{attr1=val1 attr2=val2 ...}]")
+@item map [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
 ETEXI
 
 DEF("snapshot", img_snapshot,
@@ -67,5 +67,11 @@ DEF("resize", img_resize,
     "resize [-q] filename [+ | -]size")
 STEXI
 @item resize [-q] @var{filename} [+ | -]@var{size}
+ETEXI
+
+DEF("update", img_update,
+    "update [-f fmt] filename [attr1=val1 attr2=val2 ...]")
+STEXI
+@item update [-f @var{fmt}] @var{filename} [@var{attr1=val1 attr2=val2 ...}]")
 @end table
 ETEXI
