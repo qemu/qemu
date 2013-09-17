@@ -95,8 +95,6 @@ static void quiesce_powerdown_req(Notifier *n, void *opaque)
 
 static int quiesce_init(SCLPEvent *event)
 {
-    event->event_type = SCLP_EVENT_SIGNAL_QUIESCE;
-
     qn.notifier.notify = quiesce_powerdown_req;
     qn.event = event;
 

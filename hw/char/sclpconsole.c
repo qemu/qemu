@@ -228,7 +228,6 @@ static int console_init(SCLPEvent *event)
         return -1;
     }
     console_available = true;
-    event->event_type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     if (scon->chr) {
         qemu_chr_add_handlers(scon->chr, chr_can_read,
                               chr_read, NULL, scon);

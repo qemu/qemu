@@ -68,7 +68,6 @@ typedef struct ReadEventData {
 typedef struct SCLPEvent {
     DeviceState qdev;
     bool event_pending;
-    uint32_t event_type;
     char *name;
 } SCLPEvent;
 
