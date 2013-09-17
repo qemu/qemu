@@ -481,6 +481,12 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
 
+    if (object_class_is_abstract(oc)) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
+                      "non-abstract device type");
+        return NULL;
+    }
+
     dc = DEVICE_CLASS(oc);
 
     /* find bus */
