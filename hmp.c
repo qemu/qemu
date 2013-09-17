@@ -1163,7 +1163,7 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
 
     qmp_block_stream(device, base != NULL, base,
                      qdict_haskey(qdict, "speed"), speed,
-                     BLOCKDEV_ON_ERROR_REPORT, true, &error);
+                     true, BLOCKDEV_ON_ERROR_REPORT, &error);
 
     hmp_handle_error(mon, &error);
 }
