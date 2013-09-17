@@ -17,7 +17,9 @@ extern const char *bios_name;
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
+
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
+#define UUID_NONE "00000000-0000-0000-0000-000000000000"
 
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
