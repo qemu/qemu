@@ -449,7 +449,6 @@ typedef enum TCGTempVal {
 
 typedef struct TCGTemp {
     unsigned int reg:8;
-    unsigned int mem_reg:8;
     TCGTempVal val_type:8;
     TCGType base_type:8;
     TCGType type:8;
@@ -462,6 +461,7 @@ typedef struct TCGTemp {
     unsigned int temp_allocated:1; /* never used for code gen */
 
     tcg_target_long val;
+    struct TCGTemp *mem_base;
     intptr_t mem_offset;
     const char *name;
 } TCGTemp;
@@ -515,7 +515,7 @@ struct TCGContext {
     intptr_t current_frame_offset;
     intptr_t frame_start;
     intptr_t frame_end;
-    int frame_reg;
+    TCGTemp *frame_temp;
 
     tcg_insn_unit *code_ptr;
 
