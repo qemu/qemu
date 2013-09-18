@@ -1749,10 +1749,9 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs)
 
 /* save a temporary to memory. 'allocated_regs' is used in case a
    temporary registers needs to be allocated to store a constant. */
-static inline void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
+static inline void temp_save(TCGContext *s, TCGTemp *ts,
+                             TCGRegSet allocated_regs)
 {
-    TCGTemp *ts = &s->temps[temp];
-
 #ifdef USE_LIVENESS_ANALYSIS
     /* The liveness analysis already ensures that globals are back
        in memory. Keep an assert for safety. */
@@ -1770,8 +1769,8 @@ static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
 {
     int i;
 
-    for(i = 0; i < s->nb_globals; i++) {
-        temp_save(s, i, allocated_regs);
+    for (i = 0; i < s->nb_globals; i++) {
+        temp_save(s, &s->temps[i], allocated_regs);
     }
 }
 
@@ -1798,13 +1797,12 @@ static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
    all globals are stored at their canonical location. */
 static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 {
-    TCGTemp *ts;
     int i;
 
-    for(i = s->nb_globals; i < s->nb_temps; i++) {
-        ts = &s->temps[i];
+    for (i = s->nb_globals; i < s->nb_temps; i++) {
+        TCGTemp *ts = &s->temps[i];
         if (ts->temp_local) {
-            temp_save(s, i, allocated_regs);
+            temp_save(s, ts, allocated_regs);
         } else {
 #ifdef USE_LIVENESS_ANALYSIS
             /* The liveness analysis already ensures that temps are dead.
