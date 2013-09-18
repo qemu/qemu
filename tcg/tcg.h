@@ -448,7 +448,7 @@ typedef enum TCGTempVal {
 } TCGTempVal;
 
 typedef struct TCGTemp {
-    unsigned int reg:8;
+    TCGReg reg:8;
     TCGTempVal val_type:8;
     TCGType base_type:8;
     TCGType type:8;
@@ -628,12 +628,12 @@ void tcg_func_start(TCGContext *s);
 
 int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
 
-void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
+void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
 
 int tcg_global_mem_new_internal(TCGType, TCGv_ptr, intptr_t, const char *);
 
-TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
-TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
+TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name);
+TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name);
 
 TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
 TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
