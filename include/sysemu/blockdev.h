@@ -37,6 +37,7 @@ struct DriveInfo {
     int bus;
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
+    bool enable_auto_del; /* Only for legacy drive_init() */
     int media_cd;
     int cyls, heads, secs, trans;
     QemuOpts *opts;

@@ -89,6 +89,10 @@ void blockdev_mark_auto_del(BlockDriverState *bs)
 {
     DriveInfo *dinfo = drive_get_by_blockdev(bs);
 
+    if (dinfo && !dinfo->enable_auto_del) {
+        return;
+    }
+
     if (bs->job) {
         block_job_cancel(bs->job);
     }
@@ -746,6 +750,7 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
 DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
+    DriveInfo *dinfo;
 
     /* Change legacy command line options into QMP ones */
     qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
@@ -794,7 +799,17 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qemu_opt_unset(all_opts, "cache");
     }
 
-    return blockdev_init(all_opts, block_default_type);
+    /* Actual block device init: Functionality shared with blockdev-add */
+    dinfo = blockdev_init(all_opts, block_default_type);
+    if (dinfo == NULL) {
+        goto fail;
+    }
+
+    /* Set legacy DriveInfo fields */
+    dinfo->enable_auto_del = true;
+
+fail:
+    return dinfo;
 }
 
 void do_commit(Monitor *mon, const QDict *qdict)
