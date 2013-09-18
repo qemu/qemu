@@ -86,16 +86,16 @@ void a64_translate_init(void)
 {
     int i;
 
-    cpu_pc = tcg_global_mem_new_i64(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new_i64(cpu_env,
                                     offsetof(CPUARMState, pc),
                                     "pc");
     for (i = 0; i < 32; i++) {
-        cpu_X[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_X[i] = tcg_global_mem_new_i64(cpu_env,
                                           offsetof(CPUARMState, xregs[i]),
                                           regnames[i]);
     }
 
-    cpu_exclusive_high = tcg_global_mem_new_i64(TCG_AREG0,
+    cpu_exclusive_high = tcg_global_mem_new_i64(cpu_env,
         offsetof(CPUARMState, exclusive_high), "exclusive_high");
 }
 

@@ -71,7 +71,7 @@ void uc32_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     for (i = 0; i < 32; i++) {
-        cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_R[i] = tcg_global_mem_new_i32(cpu_env,
                                 offsetof(CPUUniCore32State, regs[i]), regnames[i]);
     }
 }

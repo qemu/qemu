@@ -1193,48 +1193,48 @@ void lm32_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
-        cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_R[i] = tcg_global_mem_new(cpu_env,
                           offsetof(CPULM32State, regs[i]),
                           regnames[i]);
     }
 
     for (i = 0; i < ARRAY_SIZE(cpu_bp); i++) {
-        cpu_bp[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_bp[i] = tcg_global_mem_new(cpu_env,
                           offsetof(CPULM32State, bp[i]),
                           regnames[32+i]);
     }
 
     for (i = 0; i < ARRAY_SIZE(cpu_wp); i++) {
-        cpu_wp[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_wp[i] = tcg_global_mem_new(cpu_env,
                           offsetof(CPULM32State, wp[i]),
                           regnames[36+i]);
     }
 
-    cpu_pc = tcg_global_mem_new(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, pc),
                     "pc");
-    cpu_ie = tcg_global_mem_new(TCG_AREG0,
+    cpu_ie = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, ie),
                     "ie");
-    cpu_icc = tcg_global_mem_new(TCG_AREG0,
+    cpu_icc = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, icc),
                     "icc");
-    cpu_dcc = tcg_global_mem_new(TCG_AREG0,
+    cpu_dcc = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, dcc),
                     "dcc");
-    cpu_cc = tcg_global_mem_new(TCG_AREG0,
+    cpu_cc = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, cc),
                     "cc");
-    cpu_cfg = tcg_global_mem_new(TCG_AREG0,
+    cpu_cfg = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, cfg),
                     "cfg");
-    cpu_eba = tcg_global_mem_new(TCG_AREG0,
+    cpu_eba = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, eba),
                     "eba");
-    cpu_dc = tcg_global_mem_new(TCG_AREG0,
+    cpu_dc = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, dc),
                     "dc");
-    cpu_deba = tcg_global_mem_new(TCG_AREG0,
+    cpu_deba = tcg_global_mem_new(cpu_env,
                     offsetof(CPULM32State, deba),
                     "deba");
 }

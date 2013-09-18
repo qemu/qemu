@@ -102,53 +102,53 @@ void sh4_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     for (i = 0; i < 24; i++)
-        cpu_gregs[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_gregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUSH4State, gregs[i]),
                                               gregnames[i]);
 
-    cpu_pc = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUSH4State, pc), "PC");
-    cpu_sr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_sr = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUSH4State, sr), "SR");
-    cpu_sr_m = tcg_global_mem_new_i32(TCG_AREG0,
-                                    offsetof(CPUSH4State, sr_m), "SR_M");
-    cpu_sr_q = tcg_global_mem_new_i32(TCG_AREG0,
-                                    offsetof(CPUSH4State, sr_q), "SR_Q");
-    cpu_sr_t = tcg_global_mem_new_i32(TCG_AREG0,
-                                    offsetof(CPUSH4State, sr_t), "SR_T");
-    cpu_ssr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_sr_m = tcg_global_mem_new_i32(cpu_env,
+                                      offsetof(CPUSH4State, sr_m), "SR_M");
+    cpu_sr_q = tcg_global_mem_new_i32(cpu_env,
+                                      offsetof(CPUSH4State, sr_q), "SR_Q");
+    cpu_sr_t = tcg_global_mem_new_i32(cpu_env,
+                                      offsetof(CPUSH4State, sr_t), "SR_T");
+    cpu_ssr = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, ssr), "SSR");
-    cpu_spc = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_spc = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, spc), "SPC");
-    cpu_gbr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_gbr = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, gbr), "GBR");
-    cpu_vbr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_vbr = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, vbr), "VBR");
-    cpu_sgr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_sgr = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, sgr), "SGR");
-    cpu_dbr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_dbr = tcg_global_mem_new_i32(cpu_env,
                                      offsetof(CPUSH4State, dbr), "DBR");
-    cpu_mach = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_mach = tcg_global_mem_new_i32(cpu_env,
                                       offsetof(CPUSH4State, mach), "MACH");
-    cpu_macl = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_macl = tcg_global_mem_new_i32(cpu_env,
                                       offsetof(CPUSH4State, macl), "MACL");
-    cpu_pr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_pr = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUSH4State, pr), "PR");
-    cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_fpscr = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUSH4State, fpscr), "FPSCR");
-    cpu_fpul = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_fpul = tcg_global_mem_new_i32(cpu_env,
                                       offsetof(CPUSH4State, fpul), "FPUL");
 
-    cpu_flags = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_flags = tcg_global_mem_new_i32(cpu_env,
 				       offsetof(CPUSH4State, flags), "_flags_");
-    cpu_delayed_pc = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_delayed_pc = tcg_global_mem_new_i32(cpu_env,
 					    offsetof(CPUSH4State, delayed_pc),
 					    "_delayed_pc_");
-    cpu_ldst = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_ldst = tcg_global_mem_new_i32(cpu_env,
 				      offsetof(CPUSH4State, ldst), "_ldst_");
 
     for (i = 0; i < 32; i++)
-        cpu_fregs[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_fregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUSH4State, fregs[i]),
                                               fregnames[i]);
 

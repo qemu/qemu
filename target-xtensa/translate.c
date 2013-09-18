@@ -218,24 +218,24 @@ void xtensa_translate_init(void)
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    cpu_pc = tcg_global_mem_new_i32(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new_i32(cpu_env,
             offsetof(CPUXtensaState, pc), "pc");
 
     for (i = 0; i < 16; i++) {
-        cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_R[i] = tcg_global_mem_new_i32(cpu_env,
                 offsetof(CPUXtensaState, regs[i]),
                 regnames[i]);
     }
 
     for (i = 0; i < 16; i++) {
-        cpu_FR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        cpu_FR[i] = tcg_global_mem_new_i32(cpu_env,
                 offsetof(CPUXtensaState, fregs[i].f32[FP_F32_LOW]),
                 fregnames[i]);
     }
 
     for (i = 0; i < 256; ++i) {
         if (sregnames[i].name) {
-            cpu_SR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+            cpu_SR[i] = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUXtensaState, sregs[i]),
                     sregnames[i].name);
         }
@@ -243,7 +243,7 @@ void xtensa_translate_init(void)
 
     for (i = 0; i < 256; ++i) {
         if (uregnames[i].name) {
-            cpu_UR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+            cpu_UR[i] = tcg_global_mem_new_i32(cpu_env,
                     offsetof(CPUXtensaState, uregs[i]),
                     uregnames[i].name);
         }

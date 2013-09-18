@@ -78,39 +78,39 @@ void openrisc_translate_init(void)
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    cpu_sr = tcg_global_mem_new(TCG_AREG0,
+    cpu_sr = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, sr), "sr");
-    env_flags = tcg_global_mem_new_i32(TCG_AREG0,
+    env_flags = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUOpenRISCState, flags),
                                        "flags");
-    cpu_pc = tcg_global_mem_new(TCG_AREG0,
+    cpu_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, pc), "pc");
-    cpu_npc = tcg_global_mem_new(TCG_AREG0,
+    cpu_npc = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUOpenRISCState, npc), "npc");
-    cpu_ppc = tcg_global_mem_new(TCG_AREG0,
+    cpu_ppc = tcg_global_mem_new(cpu_env,
                                  offsetof(CPUOpenRISCState, ppc), "ppc");
-    jmp_pc = tcg_global_mem_new(TCG_AREG0,
+    jmp_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, jmp_pc), "jmp_pc");
-    env_btaken = tcg_global_mem_new_i32(TCG_AREG0,
+    env_btaken = tcg_global_mem_new_i32(cpu_env,
                                         offsetof(CPUOpenRISCState, btaken),
                                         "btaken");
-    fpcsr = tcg_global_mem_new_i32(TCG_AREG0,
+    fpcsr = tcg_global_mem_new_i32(cpu_env,
                                    offsetof(CPUOpenRISCState, fpcsr),
                                    "fpcsr");
-    machi = tcg_global_mem_new(TCG_AREG0,
+    machi = tcg_global_mem_new(cpu_env,
                                offsetof(CPUOpenRISCState, machi),
                                "machi");
-    maclo = tcg_global_mem_new(TCG_AREG0,
+    maclo = tcg_global_mem_new(cpu_env,
                                offsetof(CPUOpenRISCState, maclo),
                                "maclo");
-    fpmaddhi = tcg_global_mem_new(TCG_AREG0,
+    fpmaddhi = tcg_global_mem_new(cpu_env,
                                   offsetof(CPUOpenRISCState, fpmaddhi),
                                   "fpmaddhi");
-    fpmaddlo = tcg_global_mem_new(TCG_AREG0,
+    fpmaddlo = tcg_global_mem_new(cpu_env,
                                   offsetof(CPUOpenRISCState, fpmaddlo),
                                   "fpmaddlo");
     for (i = 0; i < 32; i++) {
-        cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
+        cpu_R[i] = tcg_global_mem_new(cpu_env,
                                       offsetof(CPUOpenRISCState, gpr[i]),
                                       regnames[i]);
     }

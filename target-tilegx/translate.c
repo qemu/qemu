@@ -2442,9 +2442,9 @@ void tilegx_tcg_init(void)
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    cpu_pc = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUTLGState, pc), "pc");
+    cpu_pc = tcg_global_mem_new_i64(cpu_env, offsetof(CPUTLGState, pc), "pc");
     for (i = 0; i < TILEGX_R_COUNT; i++) {
-        cpu_regs[i] = tcg_global_mem_new_i64(TCG_AREG0,
+        cpu_regs[i] = tcg_global_mem_new_i64(cpu_env,
                                              offsetof(CPUTLGState, regs[i]),
                                              reg_names[i]);
     }

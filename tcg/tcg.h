@@ -630,33 +630,55 @@ int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
 
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
+int tcg_global_mem_new_internal(TCGType, TCGv_ptr, intptr_t, const char *);
+
 TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
-TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name);
+TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
+
 TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
+TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
+
+void tcg_temp_free_i32(TCGv_i32 arg);
+void tcg_temp_free_i64(TCGv_i64 arg);
+
+char *tcg_get_arg_str_i32(TCGContext *s, char *buf,
+                          int buf_size, TCGv_i32 arg);
+char *tcg_get_arg_str_i64(TCGContext *s, char *buf,
+                          int buf_size, TCGv_i64 arg);
+
+static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
+                                              const char *name)
+{
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
+    return MAKE_TCGV_I32(idx);
+}
+
 static inline TCGv_i32 tcg_temp_new_i32(void)
 {
     return tcg_temp_new_internal_i32(0);
 }
+
 static inline TCGv_i32 tcg_temp_local_new_i32(void)
 {
     return tcg_temp_new_internal_i32(1);
 }
-void tcg_temp_free_i32(TCGv_i32 arg);
-char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg);
 
-TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
-TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name);
-TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
+static inline TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t offset,
+                                              const char *name)
+{
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
+    return MAKE_TCGV_I64(idx);
+}
+
 static inline TCGv_i64 tcg_temp_new_i64(void)
 {
     return tcg_temp_new_internal_i64(0);
 }
+
 static inline TCGv_i64 tcg_temp_local_new_i64(void)
 {
     return tcg_temp_new_internal_i64(1);
 }
-void tcg_temp_free_i64(TCGv_i64 arg);
-char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg);
 
 #if defined(CONFIG_DEBUG_TCG)
 /* If you call tcg_clear_temp_count() at the start of a section of

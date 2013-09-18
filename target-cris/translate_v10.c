@@ -1247,45 +1247,45 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
 
 void cris_initialize_crisv10_tcg(void)
 {
-	int i;
+    int i;
 
-	cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-	cc_x = tcg_global_mem_new(TCG_AREG0,
-				  offsetof(CPUCRISState, cc_x), "cc_x");
-	cc_src = tcg_global_mem_new(TCG_AREG0,
-				    offsetof(CPUCRISState, cc_src), "cc_src");
-	cc_dest = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUCRISState, cc_dest),
-				     "cc_dest");
-	cc_result = tcg_global_mem_new(TCG_AREG0,
-				       offsetof(CPUCRISState, cc_result),
-				       "cc_result");
-	cc_op = tcg_global_mem_new(TCG_AREG0,
-				   offsetof(CPUCRISState, cc_op), "cc_op");
-	cc_size = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUCRISState, cc_size),
-				     "cc_size");
-	cc_mask = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUCRISState, cc_mask),
-				     "cc_mask");
+    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
+    cc_x = tcg_global_mem_new(cpu_env,
+                              offsetof(CPUCRISState, cc_x), "cc_x");
+    cc_src = tcg_global_mem_new(cpu_env,
+                                offsetof(CPUCRISState, cc_src), "cc_src");
+    cc_dest = tcg_global_mem_new(cpu_env,
+                                 offsetof(CPUCRISState, cc_dest),
+                                 "cc_dest");
+    cc_result = tcg_global_mem_new(cpu_env,
+                                   offsetof(CPUCRISState, cc_result),
+                                   "cc_result");
+    cc_op = tcg_global_mem_new(cpu_env,
+                               offsetof(CPUCRISState, cc_op), "cc_op");
+    cc_size = tcg_global_mem_new(cpu_env,
+                                 offsetof(CPUCRISState, cc_size),
+                                 "cc_size");
+    cc_mask = tcg_global_mem_new(cpu_env,
+                                 offsetof(CPUCRISState, cc_mask),
+                                 "cc_mask");
 
-	env_pc = tcg_global_mem_new(TCG_AREG0, 
-				    offsetof(CPUCRISState, pc),
-				    "pc");
-	env_btarget = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUCRISState, btarget),
-					 "btarget");
-	env_btaken = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUCRISState, btaken),
-					 "btaken");
-	for (i = 0; i < 16; i++) {
-		cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
-					      offsetof(CPUCRISState, regs[i]),
-					      regnames_v10[i]);
-	}
-	for (i = 0; i < 16; i++) {
-		cpu_PR[i] = tcg_global_mem_new(TCG_AREG0,
-					       offsetof(CPUCRISState, pregs[i]),
-					       pregnames_v10[i]);
-	}
+    env_pc = tcg_global_mem_new(cpu_env,
+                                offsetof(CPUCRISState, pc),
+                                "pc");
+    env_btarget = tcg_global_mem_new(cpu_env,
+                                     offsetof(CPUCRISState, btarget),
+                                     "btarget");
+    env_btaken = tcg_global_mem_new(cpu_env,
+                                    offsetof(CPUCRISState, btaken),
+                                    "btaken");
+    for (i = 0; i < 16; i++) {
+        cpu_R[i] = tcg_global_mem_new(cpu_env,
+                                      offsetof(CPUCRISState, regs[i]),
+                                      regnames_v10[i]);
+    }
+    for (i = 0; i < 16; i++) {
+        cpu_PR[i] = tcg_global_mem_new(cpu_env,
+                                       offsetof(CPUCRISState, pregs[i]),
+                                       pregnames_v10[i]);
+    }
 }

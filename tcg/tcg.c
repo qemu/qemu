@@ -481,13 +481,12 @@ TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name)
     return MAKE_TCGV_I64(idx);
 }
 
-static inline int tcg_global_mem_new_internal(TCGType type, int reg,
-                                              intptr_t offset,
-                                              const char *name)
+int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
+                                intptr_t offset, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    TCGTemp *ts;
-    int idx;
+    TCGTemp *ts, *base_ts = &s->temps[GET_TCGV_PTR(base)];
+    int idx, reg = base_ts->reg;
 
     idx = s->nb_globals;
 #if TCG_TARGET_REG_BITS == 32
@@ -540,18 +539,6 @@ static inline int tcg_global_mem_new_internal(TCGType type, int reg,
         s->nb_globals++;
     }
     return idx;
-}
-
-TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name)
-{
-    int idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
-    return MAKE_TCGV_I32(idx);
-}
-
-TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name)
-{
-    int idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
-    return MAKE_TCGV_I64(idx);
 }
 
 static inline int tcg_temp_new_internal(TCGType type, int temp_local)
