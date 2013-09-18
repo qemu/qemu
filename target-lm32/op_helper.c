@@ -19,10 +19,15 @@
 #define SHIFT 3
 #include "exec/softmmu_template.h"
 
-void HELPER(raise_exception)(CPULM32State *env, uint32_t index)
+void raise_exception(CPULM32State *env, int index)
 {
     env->exception_index = index;
     cpu_loop_exit(env);
+}
+
+void HELPER(raise_exception)(CPULM32State *env, uint32_t index)
+{
+    raise_exception(env, index);
 }
 
 void HELPER(hlt)(CPULM32State *env)
@@ -32,6 +37,57 @@ void HELPER(hlt)(CPULM32State *env)
     cs->halted = 1;
     env->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
+}
+
+void HELPER(wcsr_bp)(CPULM32State *env, uint32_t bp, uint32_t idx)
+{
+    uint32_t addr = bp & ~1;
+
+    assert(idx < 4);
+
+    env->bp[idx] = bp;
+    lm32_breakpoint_remove(env, idx);
+    if (bp & 1) {
+        lm32_breakpoint_insert(env, idx, addr);
+    }
+}
+
+void HELPER(wcsr_wp)(CPULM32State *env, uint32_t wp, uint32_t idx)
+{
+    lm32_wp_t wp_type;
+
+    assert(idx < 4);
+
+    env->wp[idx] = wp;
+
+    wp_type = lm32_wp_type(env->dc, idx);
+    lm32_watchpoint_remove(env, idx);
+    if (wp_type != LM32_WP_DISABLED) {
+        lm32_watchpoint_insert(env, idx, wp, wp_type);
+    }
+}
+
+void HELPER(wcsr_dc)(CPULM32State *env, uint32_t dc)
+{
+    uint32_t old_dc;
+    int i;
+    lm32_wp_t old_type;
+    lm32_wp_t new_type;
+
+    old_dc = env->dc;
+    env->dc = dc;
+
+    for (i = 0; i < 4; i++) {
+        old_type = lm32_wp_type(old_dc, i);
+        new_type = lm32_wp_type(dc, i);
+
+        if (old_type != new_type) {
+            lm32_watchpoint_remove(env, i);
+            if (new_type != LM32_WP_DISABLED) {
+                lm32_watchpoint_insert(env, i, env->wp[i], new_type);
+            }
+        }
+    }
 }
 
 void HELPER(wcsr_im)(CPULM32State *env, uint32_t im)

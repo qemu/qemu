@@ -876,7 +876,7 @@ static void dec_wcsr(DisasContext *dc)
         gen_helper_wcsr_jrx(cpu_env, cpu_R[dc->r1]);
         break;
     case CSR_DC:
-        tcg_gen_mov_tl(cpu_dc, cpu_R[dc->r1]);
+        gen_helper_wcsr_dc(cpu_env, cpu_R[dc->r1]);
         break;
     case CSR_BP0:
     case CSR_BP1:
@@ -888,7 +888,7 @@ static void dec_wcsr(DisasContext *dc)
                           "breakpoint #%i is not available\n", no);
             break;
         }
-        tcg_gen_mov_tl(cpu_bp[no], cpu_R[dc->r1]);
+        gen_helper_wcsr_bp(cpu_env, cpu_R[dc->r1], tcg_const_i32(no));
         break;
     case CSR_WP0:
     case CSR_WP1:
@@ -900,7 +900,7 @@ static void dec_wcsr(DisasContext *dc)
                           "watchpoint #%i is not available\n", no);
             break;
         }
-        tcg_gen_mov_tl(cpu_wp[no], cpu_R[dc->r1]);
+        gen_helper_wcsr_wp(cpu_env, cpu_R[dc->r1], tcg_const_i32(no));
         break;
     case CSR_CC:
     case CSR_CFG:

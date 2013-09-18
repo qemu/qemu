@@ -153,6 +153,7 @@ static void lm32_cpu_initfn(Object *obj)
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
         lm32_translate_init();
+        cpu_set_debug_excp_handler(lm32_debug_excp_handler);
     }
 }
 

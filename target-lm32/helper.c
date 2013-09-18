@@ -49,6 +49,96 @@ hwaddr lm32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     }
 }
 
+void lm32_breakpoint_insert(CPULM32State *env, int idx, target_ulong address)
+{
+    cpu_breakpoint_insert(env, address, BP_CPU, &env->cpu_breakpoint[idx]);
+}
+
+void lm32_breakpoint_remove(CPULM32State *env, int idx)
+{
+    if (!env->cpu_breakpoint[idx]) {
+        return;
+    }
+
+    cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[idx]);
+    env->cpu_breakpoint[idx] = NULL;
+}
+
+void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
+                            lm32_wp_t wp_type)
+{
+    int flags = 0;
+
+    switch (wp_type) {
+    case LM32_WP_DISABLED:
+        /* nothing to to */
+        break;
+    case LM32_WP_READ:
+        flags = BP_CPU | BP_STOP_BEFORE_ACCESS | BP_MEM_READ;
+        break;
+    case LM32_WP_WRITE:
+        flags = BP_CPU | BP_STOP_BEFORE_ACCESS | BP_MEM_WRITE;
+        break;
+    case LM32_WP_READ_WRITE:
+        flags = BP_CPU | BP_STOP_BEFORE_ACCESS | BP_MEM_ACCESS;
+        break;
+    }
+
+    if (flags != 0) {
+        cpu_watchpoint_insert(env, address, 1, flags,
+                &env->cpu_watchpoint[idx]);
+    }
+}
+
+void lm32_watchpoint_remove(CPULM32State *env, int idx)
+{
+    if (!env->cpu_watchpoint[idx]) {
+        return;
+    }
+
+    cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[idx]);
+    env->cpu_watchpoint[idx] = NULL;
+}
+
+static bool check_watchpoints(CPULM32State *env)
+{
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+    int i;
+
+    for (i = 0; i < cpu->num_watchpoints; i++) {
+        if (env->cpu_watchpoint[i] &&
+                env->cpu_watchpoint[i]->flags & BP_WATCHPOINT_HIT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void lm32_debug_excp_handler(CPULM32State *env)
+{
+    CPUBreakpoint *bp;
+
+    if (env->watchpoint_hit) {
+        if (env->watchpoint_hit->flags & BP_CPU) {
+            env->watchpoint_hit = NULL;
+            if (check_watchpoints(env)) {
+                raise_exception(env, EXCP_WATCHPOINT);
+            } else {
+                cpu_resume_from_signal(env, NULL);
+            }
+        }
+    } else {
+        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+            if (bp->pc == env->pc) {
+                if (bp->flags & BP_CPU) {
+                    raise_exception(env, EXCP_BREAKPOINT);
+                }
+                break;
+            }
+        }
+    }
+}
+
 void lm32_cpu_do_interrupt(CPUState *cs)
 {
     LM32CPU *cpu = LM32_CPU(cs);

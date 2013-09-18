@@ -2,6 +2,9 @@
 
 DEF_HELPER_2(raise_exception, void, env, i32)
 DEF_HELPER_1(hlt, void, env)
+DEF_HELPER_3(wcsr_bp, void, env, i32, i32)
+DEF_HELPER_3(wcsr_wp, void, env, i32, i32)
+DEF_HELPER_2(wcsr_dc, void, env, i32)
 DEF_HELPER_2(wcsr_im, void, env, i32)
 DEF_HELPER_2(wcsr_ip, void, env, i32)
 DEF_HELPER_2(wcsr_jtx, void, env, i32)
