@@ -71,7 +71,7 @@ def generate_struct_fields(members):
                          c_name=c_var(argname))
         if structured:
             push_indent()
-            ret += generate_struct("", argname, argentry)
+            ret += generate_struct({ "field": argname, "data": argentry})
             pop_indent()
         else:
             ret += mcgen('''
@@ -81,7 +81,12 @@ def generate_struct_fields(members):
 
     return ret
 
-def generate_struct(structname, fieldname, members):
+def generate_struct(expr):
+
+    structname = expr.get('type', "")
+    fieldname = expr.get('field', "")
+    members = expr['data']
+
     ret = mcgen('''
 struct %(name)s
 {
@@ -417,7 +422,7 @@ if do_builtins:
 for expr in exprs:
     ret = "\n"
     if expr.has_key('type'):
-        ret += generate_struct(expr['type'], "", expr['data']) + "\n"
+        ret += generate_struct(expr) + "\n"
         ret += generate_type_cleanup_decl(expr['type'] + "List")
         fdef.write(generate_type_cleanup(expr['type'] + "List") + "\n")
         ret += generate_type_cleanup_decl(expr['type'])
