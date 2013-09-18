@@ -1708,20 +1708,16 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
 }
 
 /* mark a temporary as dead. */
-static inline void temp_dead(TCGContext *s, int temp)
+static inline void temp_dead(TCGContext *s, TCGTemp *ts)
 {
-    TCGTemp *ts = &s->temps[temp];
-
-    if (!ts->fixed_reg) {
-        if (ts->val_type == TEMP_VAL_REG) {
-            s->reg_to_temp[ts->reg] = NULL;
-        }
-        if (temp < s->nb_globals || ts->temp_local) {
-            ts->val_type = TEMP_VAL_MEM;
-        } else {
-            ts->val_type = TEMP_VAL_DEAD;
-        }
+    if (ts->fixed_reg) {
+        return;
     }
+    if (ts->val_type == TEMP_VAL_REG) {
+        s->reg_to_temp[ts->reg] = NULL;
+    }
+    ts->val_type = (temp_idx(s, ts) < s->nb_globals || ts->temp_local
+                    ? TEMP_VAL_MEM : TEMP_VAL_DEAD);
 }
 
 /* sync a temporary to memory. 'allocated_regs' is used in case a
@@ -1756,13 +1752,15 @@ static inline void temp_sync(TCGContext *s, int temp, TCGRegSet allocated_regs)
    temporary registers needs to be allocated to store a constant. */
 static inline void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
 {
+    TCGTemp *ts = &s->temps[temp];
+
 #ifdef USE_LIVENESS_ANALYSIS
     /* The liveness analysis already ensures that globals are back
        in memory. Keep an assert for safety. */
-    assert(s->temps[temp].val_type == TEMP_VAL_MEM || s->temps[temp].fixed_reg);
+    tcg_debug_assert(ts->val_type == TEMP_VAL_MEM || ts->fixed_reg);
 #else
     temp_sync(s, temp, allocated_regs);
-    temp_dead(s, temp);
+    temp_dead(s, ts);
 #endif
 }
 
@@ -1812,7 +1810,7 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
                Keep an assert for safety. */
             assert(ts->val_type == TEMP_VAL_DEAD);
 #else
-            temp_dead(s, i);
+            temp_dead(s, ts);
 #endif
         }
     }
@@ -1848,7 +1846,7 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
         temp_sync(s, args[0], s->reserved_regs);
     }
     if (IS_DEAD_ARG(0)) {
-        temp_dead(s, args[0]);
+        temp_dead(s, ots);
     }
 }
 
@@ -1898,9 +1896,9 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         }
         tcg_out_st(s, otype, ts->reg, ots->mem_base->reg, ots->mem_offset);
         if (IS_DEAD_ARG(1)) {
-            temp_dead(s, args[1]);
+            temp_dead(s, ts);
         }
-        temp_dead(s, args[0]);
+        temp_dead(s, ots);
     } else if (ts->val_type == TEMP_VAL_CONST) {
         /* propagate constant */
         if (ots->val_type == TEMP_VAL_REG) {
@@ -1909,7 +1907,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         ots->val_type = TEMP_VAL_CONST;
         ots->val = ts->val;
         if (IS_DEAD_ARG(1)) {
-            temp_dead(s, args[1]);
+            temp_dead(s, ts);
         }
     } else {
         /* The code in the first if block should have moved the
@@ -1921,7 +1919,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                 s->reg_to_temp[ots->reg] = NULL;
             }
             ots->reg = ts->reg;
-            temp_dead(s, args[1]);
+            temp_dead(s, ts);
         } else {
             if (ots->val_type != TEMP_VAL_REG) {
                 /* When allocating a new register, make sure to not spill the
@@ -2038,7 +2036,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
     /* mark dead temporaries and free the associated registers */
     for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
         if (IS_DEAD_ARG(i)) {
-            temp_dead(s, args[i]);
+            temp_dead(s, &s->temps[args[i]]);
         }
     }
 
@@ -2109,7 +2107,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
             tcg_reg_sync(s, reg);
         }
         if (IS_DEAD_ARG(i)) {
-            temp_dead(s, args[i]);
+            temp_dead(s, ts);
         }
     }
 }
@@ -2211,7 +2209,7 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
     /* mark dead temporaries and free the associated registers */
     for(i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
         if (IS_DEAD_ARG(i)) {
-            temp_dead(s, args[i]);
+            temp_dead(s, &s->temps[args[i]]);
         }
     }
     
@@ -2257,7 +2255,7 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
                 tcg_reg_sync(s, reg);
             }
             if (IS_DEAD_ARG(i)) {
-                temp_dead(s, args[i]);
+                temp_dead(s, ts);
             }
         }
     }
@@ -2387,7 +2385,7 @@ int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf)
             }
             break;
         case INDEX_op_discard:
-            temp_dead(s, args[0]);
+            temp_dead(s, &s->temps[args[0]]);
             break;
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
