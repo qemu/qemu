@@ -923,16 +923,6 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
     return buf;
 }
 
-char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg)
-{
-    return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV_I32(arg));
-}
-
-char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg)
-{
-    return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV_I64(arg));
-}
-
 /* Find helper name.  */
 static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
