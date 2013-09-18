@@ -572,9 +572,9 @@ struct TCGContext {
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
-    /* tells in which temporary a given register is. It does not take
-       into account fixed registers */
-    int reg_to_temp[TCG_TARGET_NB_REGS];
+    /* Tells which temporary holds a given register.
+       It does not take into account fixed registers */
+    TCGTemp *reg_to_temp[TCG_TARGET_NB_REGS];
 
     TCGOp gen_op_buf[OPC_BUF_SIZE];
     TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];

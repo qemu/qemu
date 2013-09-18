@@ -900,27 +900,30 @@ static void tcg_reg_alloc_start(TCGContext *s)
         ts->mem_allocated = 0;
         ts->fixed_reg = 0;
     }
-    for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
-        s->reg_to_temp[i] = -1;
-    }
+
+    memset(s->reg_to_temp, 0, sizeof(s->reg_to_temp));
 }
 
-static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
-                                 int idx)
+static char *tcg_get_arg_str_ptr(TCGContext *s, char *buf, int buf_size,
+                                 TCGTemp *ts)
 {
-    TCGTemp *ts;
+    int idx = temp_idx(s, ts);
 
-    assert(idx >= 0 && idx < s->nb_temps);
-    ts = &s->temps[idx];
     if (idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
+    } else if (ts->temp_local) {
+        snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
     } else {
-        if (ts->temp_local) 
-            snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
-        else
-            snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
+        snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
     }
     return buf;
+}
+
+static char *tcg_get_arg_str_idx(TCGContext *s, char *buf,
+                                 int buf_size, int idx)
+{
+    assert(idx >= 0 && idx < s->nb_temps);
+    return tcg_get_arg_str_ptr(s, buf, buf_size, &s->temps[idx]);
 }
 
 /* Find helper name.  */
@@ -1589,10 +1592,10 @@ static void dump_regs(TCGContext *s)
     }
 
     for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
-        if (s->reg_to_temp[i] >= 0) {
+        if (s->reg_to_temp[i] != NULL) {
             printf("%s: %s\n", 
                    tcg_target_reg_names[i], 
-                   tcg_get_arg_str_idx(s, buf, sizeof(buf), s->reg_to_temp[i]));
+                   tcg_get_arg_str_ptr(s, buf, sizeof(buf), s->reg_to_temp[i]));
         }
     }
 }
@@ -1604,29 +1607,26 @@ static void check_regs(TCGContext *s)
     TCGTemp *ts;
     char buf[64];
 
-    for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
-        k = s->reg_to_temp[reg];
-        if (k >= 0) {
-            ts = &s->temps[k];
-            if (ts->val_type != TEMP_VAL_REG ||
-                ts->reg != reg) {
+    for (reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
+        ts = s->reg_to_temp[reg];
+        if (ts != NULL) {
+            if (ts->val_type != TEMP_VAL_REG || ts->reg != reg) {
                 printf("Inconsistency for register %s:\n", 
                        tcg_target_reg_names[reg]);
                 goto fail;
             }
         }
     }
-    for(k = 0; k < s->nb_temps; k++) {
+    for (k = 0; k < s->nb_temps; k++) {
         ts = &s->temps[k];
-        if (ts->val_type == TEMP_VAL_REG &&
-            !ts->fixed_reg &&
-            s->reg_to_temp[ts->reg] != k) {
-                printf("Inconsistency for temp %s:\n", 
-                       tcg_get_arg_str_idx(s, buf, sizeof(buf), k));
+        if (ts->val_type == TEMP_VAL_REG && !ts->fixed_reg
+            && s->reg_to_temp[ts->reg] != ts) {
+            printf("Inconsistency for temp %s:\n",
+                   tcg_get_arg_str_ptr(s, buf, sizeof(buf), ts));
         fail:
-                printf("reg state:\n");
-                dump_regs(s);
-                tcg_abort();
+            printf("reg state:\n");
+            dump_regs(s);
+            tcg_abort();
         }
     }
 }
@@ -1655,15 +1655,12 @@ static void temp_allocate_frame(TCGContext *s, int temp)
 /* sync register 'reg' by saving it to the corresponding temporary */
 static inline void tcg_reg_sync(TCGContext *s, TCGReg reg)
 {
-    TCGTemp *ts;
-    int temp;
+    TCGTemp *ts = s->reg_to_temp[reg];
 
-    temp = s->reg_to_temp[reg];
-    ts = &s->temps[temp];
     assert(ts->val_type == TEMP_VAL_REG);
     if (!ts->mem_coherent && !ts->fixed_reg) {
         if (!ts->mem_allocated) {
-            temp_allocate_frame(s, temp);
+            temp_allocate_frame(s, temp_idx(s, ts));
         }
         tcg_out_st(s, ts->type, reg, ts->mem_base->reg, ts->mem_offset);
     }
@@ -1673,13 +1670,12 @@ static inline void tcg_reg_sync(TCGContext *s, TCGReg reg)
 /* free register 'reg' by spilling the corresponding temporary if necessary */
 static void tcg_reg_free(TCGContext *s, TCGReg reg)
 {
-    int temp;
+    TCGTemp *ts = s->reg_to_temp[reg];
 
-    temp = s->reg_to_temp[reg];
-    if (temp != -1) {
+    if (ts != NULL) {
         tcg_reg_sync(s, reg);
-        s->temps[temp].val_type = TEMP_VAL_MEM;
-        s->reg_to_temp[reg] = -1;
+        ts->val_type = TEMP_VAL_MEM;
+        s->reg_to_temp[reg] = NULL;
     }
 }
 
@@ -1695,7 +1691,7 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
     /* first try free registers */
     for(i = 0; i < ARRAY_SIZE(tcg_target_reg_alloc_order); i++) {
         reg = tcg_target_reg_alloc_order[i];
-        if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == -1)
+        if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == NULL)
             return reg;
     }
 
@@ -1714,12 +1710,11 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
 /* mark a temporary as dead. */
 static inline void temp_dead(TCGContext *s, int temp)
 {
-    TCGTemp *ts;
+    TCGTemp *ts = &s->temps[temp];
 
-    ts = &s->temps[temp];
     if (!ts->fixed_reg) {
         if (ts->val_type == TEMP_VAL_REG) {
-            s->reg_to_temp[ts->reg] = -1;
+            s->reg_to_temp[ts->reg] = NULL;
         }
         if (temp < s->nb_globals || ts->temp_local) {
             ts->val_type = TEMP_VAL_MEM;
@@ -1733,16 +1728,15 @@ static inline void temp_dead(TCGContext *s, int temp)
    temporary registers needs to be allocated to store a constant. */
 static inline void temp_sync(TCGContext *s, int temp, TCGRegSet allocated_regs)
 {
-    TCGTemp *ts;
+    TCGTemp *ts = &s->temps[temp];
 
-    ts = &s->temps[temp];
     if (!ts->fixed_reg) {
         switch(ts->val_type) {
         case TEMP_VAL_CONST:
             ts->reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type],
                                     allocated_regs);
             ts->val_type = TEMP_VAL_REG;
-            s->reg_to_temp[ts->reg] = temp;
+            s->reg_to_temp[ts->reg] = ts;
             ts->mem_coherent = 0;
             tcg_out_movi(s, ts->type, ts->reg, ts->val);
             /* fallthrough*/
@@ -1844,8 +1838,9 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
         tcg_out_movi(s, ots->type, ots->reg, val);
     } else {
         /* The movi is not explicitly generated here */
-        if (ots->val_type == TEMP_VAL_REG)
-            s->reg_to_temp[ots->reg] = -1;
+        if (ots->val_type == TEMP_VAL_REG) {
+            s->reg_to_temp[ots->reg] = NULL;
+        }
         ots->val_type = TEMP_VAL_CONST;
         ots->val = val;
     }
@@ -1888,7 +1883,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
             tcg_out_movi(s, itype, ts->reg, ts->val);
             ts->mem_coherent = 0;
         }
-        s->reg_to_temp[ts->reg] = args[1];
+        s->reg_to_temp[ts->reg] = ts;
         ts->val_type = TEMP_VAL_REG;
     }
 
@@ -1909,7 +1904,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
     } else if (ts->val_type == TEMP_VAL_CONST) {
         /* propagate constant */
         if (ots->val_type == TEMP_VAL_REG) {
-            s->reg_to_temp[ots->reg] = -1;
+            s->reg_to_temp[ots->reg] = NULL;
         }
         ots->val_type = TEMP_VAL_CONST;
         ots->val = ts->val;
@@ -1923,7 +1918,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         if (IS_DEAD_ARG(1) && !ts->fixed_reg && !ots->fixed_reg) {
             /* the mov can be suppressed */
             if (ots->val_type == TEMP_VAL_REG) {
-                s->reg_to_temp[ots->reg] = -1;
+                s->reg_to_temp[ots->reg] = NULL;
             }
             ots->reg = ts->reg;
             temp_dead(s, args[1]);
@@ -1939,7 +1934,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         }
         ots->val_type = TEMP_VAL_REG;
         ots->mem_coherent = 0;
-        s->reg_to_temp[ots->reg] = args[0];
+        s->reg_to_temp[ots->reg] = ots;
         if (NEED_SYNC_ARG(0)) {
             tcg_reg_sync(s, ots->reg);
         }
@@ -1981,7 +1976,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
             ts->val_type = TEMP_VAL_REG;
             ts->reg = reg;
             ts->mem_coherent = 1;
-            s->reg_to_temp[reg] = arg;
+            s->reg_to_temp[reg] = ts;
         } else if (ts->val_type == TEMP_VAL_CONST) {
             if (tcg_target_const_match(ts->val, ts->type, arg_ct)) {
                 /* constant is OK for instruction */
@@ -1995,7 +1990,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
                 ts->val_type = TEMP_VAL_REG;
                 ts->reg = reg;
                 ts->mem_coherent = 0;
-                s->reg_to_temp[reg] = arg;
+                s->reg_to_temp[reg] = ts;
             }
         }
         assert(ts->val_type == TEMP_VAL_REG);
@@ -2086,14 +2081,14 @@ static void tcg_reg_alloc_op(TCGContext *s,
             /* if a fixed register is used, then a move will be done afterwards */
             if (!ts->fixed_reg) {
                 if (ts->val_type == TEMP_VAL_REG) {
-                    s->reg_to_temp[ts->reg] = -1;
+                    s->reg_to_temp[ts->reg] = NULL;
                 }
                 ts->val_type = TEMP_VAL_REG;
                 ts->reg = reg;
                 /* temp value is modified, so the value kept in memory is
                    potentially not the same */
                 ts->mem_coherent = 0;
-                s->reg_to_temp[reg] = arg;
+                s->reg_to_temp[reg] = ts;
             }
         oarg_end:
             new_args[i] = reg;
@@ -2244,7 +2239,7 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
         arg = args[i];
         ts = &s->temps[arg];
         reg = tcg_target_call_oarg_regs[i];
-        assert(s->reg_to_temp[reg] == -1);
+        assert(s->reg_to_temp[reg] == NULL);
 
         if (ts->fixed_reg) {
             if (ts->reg != reg) {
@@ -2252,12 +2247,12 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
             }
         } else {
             if (ts->val_type == TEMP_VAL_REG) {
-                s->reg_to_temp[ts->reg] = -1;
+                s->reg_to_temp[ts->reg] = NULL;
             }
             ts->val_type = TEMP_VAL_REG;
             ts->reg = reg;
             ts->mem_coherent = 0;
-            s->reg_to_temp[reg] = arg;
+            s->reg_to_temp[reg] = ts;
             if (NEED_SYNC_ARG(i)) {
                 tcg_reg_sync(s, reg);
             }
