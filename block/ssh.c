@@ -608,7 +608,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     return ret;
 }
 
-static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags)
+static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
+                         Error **errp)
 {
     BDRVSSHState *s = bs->opaque;
     int ret;
@@ -650,7 +651,8 @@ static QEMUOptionParameter ssh_create_options[] = {
     { NULL }
 };
 
-static int ssh_create(const char *filename, QEMUOptionParameter *options)
+static int ssh_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int r, ret;
     Error *local_err = NULL;

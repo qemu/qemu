@@ -203,6 +203,9 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
 
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
+    u_int time_fasttimo;
+    u_int last_slowtimo;
+    bool do_slowtimo;
 
     /* virtual network configuration */
     struct in_addr vnetwork_addr;

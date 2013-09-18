@@ -453,9 +453,7 @@ typedef struct RAMBlock {
      * Writes must take both locks.
      */
     QTAILQ_ENTRY(RAMBlock) next;
-#if defined(__linux__) && !defined(TARGET_S390X)
     int fd;
-#endif
 } RAMBlock;
 
 typedef struct RAMList {

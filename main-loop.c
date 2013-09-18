@@ -466,8 +466,7 @@ int main_loop_wait(int nonblocking)
     g_array_set_size(gpollfds, 0); /* reset for new iteration */
     /* XXX: separate device handlers from system ones */
 #ifdef CONFIG_SLIRP
-    slirp_update_timeout(&timeout);
-    slirp_pollfds_fill(gpollfds);
+    slirp_pollfds_fill(gpollfds, &timeout);
 #endif
     qemu_iohandler_fill(gpollfds);
 

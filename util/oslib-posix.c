@@ -112,9 +112,7 @@ void *qemu_anon_ram_alloc(size_t size)
     size_t offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
 
     if (ptr == MAP_FAILED) {
-        fprintf(stderr, "Failed to allocate %zu B: %s\n",
-                size, strerror(errno));
-        abort();
+        return NULL;
     }
 
     ptr += offset;

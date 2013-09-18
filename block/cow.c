@@ -58,7 +58,8 @@ static int cow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int cow_open(BlockDriverState *bs, QDict *options, int flags)
+static int cow_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVCowState *s = bs->opaque;
     struct cow_header_v2 cow_header;
@@ -294,12 +295,14 @@ static void cow_close(BlockDriverState *bs)
 {
 }
 
-static int cow_create(const char *filename, QEMUOptionParameter *options)
+static int cow_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     struct cow_header_v2 cow_header;
     struct stat st;
     int64_t image_sectors = 0;
     const char *image_filename = NULL;
+    Error *local_err = NULL;
     int ret;
     BlockDriverState *cow_bs;
 
@@ -313,13 +316,17 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    ret = bdrv_create_file(filename, options);
+    ret = bdrv_create_file(filename, options, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
-    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR);
+    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 

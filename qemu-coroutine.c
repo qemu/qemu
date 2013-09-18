@@ -30,15 +30,17 @@ static unsigned int pool_size;
 
 Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
 {
-    Coroutine *co;
+    Coroutine *co = NULL;
 
-    qemu_mutex_lock(&pool_lock);
-    co = QSLIST_FIRST(&pool);
-    if (co) {
-        QSLIST_REMOVE_HEAD(&pool, pool_next);
-        pool_size--;
+    if (CONFIG_COROUTINE_POOL) {
+        qemu_mutex_lock(&pool_lock);
+        co = QSLIST_FIRST(&pool);
+        if (co) {
+            QSLIST_REMOVE_HEAD(&pool, pool_next);
+            pool_size--;
+        }
+        qemu_mutex_unlock(&pool_lock);
     }
-    qemu_mutex_unlock(&pool_lock);
 
     if (!co) {
         co = qemu_coroutine_new();
@@ -51,15 +53,17 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
 
 static void coroutine_delete(Coroutine *co)
 {
-    qemu_mutex_lock(&pool_lock);
-    if (pool_size < POOL_MAX_SIZE) {
-        QSLIST_INSERT_HEAD(&pool, co, pool_next);
-        co->caller = NULL;
-        pool_size++;
+    if (CONFIG_COROUTINE_POOL) {
+        qemu_mutex_lock(&pool_lock);
+        if (pool_size < POOL_MAX_SIZE) {
+            QSLIST_INSERT_HEAD(&pool, co, pool_next);
+            co->caller = NULL;
+            pool_size++;
+            qemu_mutex_unlock(&pool_lock);
+            return;
+        }
         qemu_mutex_unlock(&pool_lock);
-        return;
     }
-    qemu_mutex_unlock(&pool_lock);
 
     qemu_coroutine_delete(co);
 }

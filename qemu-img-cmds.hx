@@ -73,5 +73,11 @@ DEF("update", img_update,
     "update [-f fmt] filename [attr1=val1 attr2=val2 ...]")
 STEXI
 @item update [-f @var{fmt}] @var{filename} [@var{attr1=val1 attr2=val2 ...}]")
+ETEXI
+
+DEF("amend", img_amend,
+    "amend [-q] [-f fmt] -o options filename")
+STEXI
+@item amend [-q] [-f @var{fmt}] -o @var{options} @var{filename}
 @end table
 ETEXI

@@ -130,12 +130,22 @@ static int raw_has_zero_init(BlockDriverState *bs)
     return bdrv_has_zero_init(bs->file);
 }
 
-static int raw_create(const char *filename, QEMUOptionParameter *options)
+static int raw_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
-    return bdrv_create_file(filename, options);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = bdrv_create_file(filename, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return ret;
 }
 
-static int raw_open(BlockDriverState *bs, QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     bs->sg = bs->file->sg;
     return 0;

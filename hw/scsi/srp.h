@@ -90,6 +90,13 @@ enum {
     SRP_REV16A_IB_IO_CLASS = 0x0100
 };
 
+enum {
+    SRP_TSK_MGMT_COMPLETE       = 0x00,
+    SRP_TSK_MGMT_FIELDS_INVALID = 0x02,
+    SRP_TSK_MGMT_NOT_SUPPORTED  = 0x04,
+    SRP_TSK_MGMT_FAILED         = 0x05
+};
+
 struct srp_direct_buf {
     uint64_t    va;
     uint32_t    key;

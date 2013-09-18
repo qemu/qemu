@@ -809,10 +809,15 @@ static int blk_connect(struct XenDevice *xendev)
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
         blkdev->bs = bdrv_new(blkdev->dev);
         if (blkdev->bs) {
+            Error *local_err = NULL;
             BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
                                                            readonly);
             if (bdrv_open(blkdev->bs,
-                          blkdev->filename, NULL, qflags, drv) != 0) {
+                          blkdev->filename, NULL, qflags, drv, &local_err) != 0)
+            {
+                xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
+                              error_get_pretty(local_err));
+                error_free(local_err);
                 bdrv_unref(blkdev->bs);
                 blkdev->bs = NULL;
             }

@@ -188,3 +188,9 @@ class QEMUMonitorProtocol:
 
     def settimeout(self, timeout):
         self.__sock.settimeout(timeout)
+
+    def get_sock_fd(self):
+        return self.__sock.fileno()
+
+    def is_scm_available(self):
+        return self.__sock.family == socket.AF_UNIX

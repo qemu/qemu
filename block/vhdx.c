@@ -715,7 +715,8 @@ exit:
 }
 
 
-static int vhdx_open(BlockDriverState *bs, QDict *options, int flags)
+static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVVHDXState *s = bs->opaque;
     int ret = 0;

@@ -288,7 +288,7 @@ static QemuOptsList runtime_opts = {
 };
 
 static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
-                             int bdrv_flags)
+                             int bdrv_flags, Error **errp)
 {
     BDRVGlusterState *s = bs->opaque;
     int open_flags = O_BINARY;
@@ -357,7 +357,7 @@ out:
 }
 
 static int qemu_gluster_create(const char *filename,
-        QEMUOptionParameter *options)
+        QEMUOptionParameter *options, Error **errp)
 {
     struct glfs *glfs;
     struct glfs_fd *fd;

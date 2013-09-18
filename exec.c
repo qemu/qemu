@@ -755,6 +755,18 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 
+static void *(*phys_mem_alloc)(ram_addr_t size) = qemu_anon_ram_alloc;
+
+/*
+ * Set a custom physical guest memory alloator.
+ * Accelerators with unusual needs may need this.  Hopefully, we can
+ * get rid of it eventually.
+ */
+void phys_mem_set_alloc(void *(*alloc)(ram_addr_t))
+{
+    phys_mem_alloc = alloc;
+}
+
 static uint16_t phys_section_add(MemoryRegionSection *section)
 {
     /* The physical section number is ORed with a page-aligned
@@ -886,7 +898,7 @@ void qemu_mutex_unlock_ramlist(void)
     qemu_mutex_unlock(&ram_list.mutex);
 }
 
-#if defined(__linux__) && !defined(TARGET_S390X)
+#ifdef __linux__
 
 #include <sys/vfs.h>
 
@@ -988,6 +1000,14 @@ static void *file_ram_alloc(RAMBlock *block,
     }
     block->fd = fd;
     return area;
+}
+#else
+static void *file_ram_alloc(RAMBlock *block,
+                            ram_addr_t memory,
+                            const char *path)
+{
+    fprintf(stderr, "-mem-path not supported on this host\n");
+    exit(1);
 }
 #endif
 
@@ -1105,6 +1125,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
+    new_block->fd = -1;
 
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
@@ -1113,26 +1134,32 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     if (host) {
         new_block->host = host;
         new_block->flags |= RAM_PREALLOC_MASK;
+    } else if (xen_enabled()) {
+        if (mem_path) {
+            fprintf(stderr, "-mem-path not supported with Xen\n");
+            exit(1);
+        }
+        xen_ram_alloc(new_block->offset, size, mr);
     } else {
         if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-            new_block->host = file_ram_alloc(new_block, size, mem_path);
-            if (!new_block->host) {
-                new_block->host = qemu_anon_ram_alloc(size);
-                memory_try_enable_merging(new_block->host, size);
+            if (phys_mem_alloc != qemu_anon_ram_alloc) {
+                /*
+                 * file_ram_alloc() needs to allocate just like
+                 * phys_mem_alloc, but we haven't bothered to provide
+                 * a hook there.
+                 */
+                fprintf(stderr,
+                        "-mem-path not supported with this accelerator\n");
+                exit(1);
             }
-#else
-            fprintf(stderr, "-mem-path option unsupported\n");
-            exit(1);
-#endif
-        } else {
-            if (xen_enabled()) {
-                xen_ram_alloc(new_block->offset, size, mr);
-            } else if (kvm_enabled()) {
-                /* some s390/kvm configurations have special constraints */
-                new_block->host = kvm_ram_alloc(size);
-            } else {
-                new_block->host = qemu_anon_ram_alloc(size);
+            new_block->host = file_ram_alloc(new_block, size, mem_path);
+        }
+        if (!new_block->host) {
+            new_block->host = phys_mem_alloc(size);
+            if (!new_block->host) {
+                fprintf(stderr, "Cannot set up guest memory '%s': %s\n",
+                        new_block->mr->name, strerror(errno));
+                exit(1);
             }
             memory_try_enable_merging(new_block->host, size);
         }
@@ -1206,23 +1233,13 @@ void qemu_ram_free(ram_addr_t addr)
             ram_list.version++;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
-            } else if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-                if (block->fd) {
-                    munmap(block->host, block->length);
-                    close(block->fd);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
-#else
-                abort();
-#endif
+            } else if (xen_enabled()) {
+                xen_invalidate_map_cache_entry(block->host);
+            } else if (block->fd >= 0) {
+                munmap(block->host, block->length);
+                close(block->fd);
             } else {
-                if (xen_enabled()) {
-                    xen_invalidate_map_cache_entry(block->host);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
+                qemu_anon_ram_free(block->host, block->length);
             }
             g_free(block);
             break;
@@ -1246,38 +1263,31 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
             vaddr = block->host + offset;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
+            } else if (xen_enabled()) {
+                abort();
             } else {
                 flags = MAP_FIXED;
                 munmap(vaddr, length);
-                if (mem_path) {
-#if defined(__linux__) && !defined(TARGET_S390X)
-                    if (block->fd) {
+                if (block->fd >= 0) {
 #ifdef MAP_POPULATE
-                        flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
-                            MAP_PRIVATE;
+                    flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
+                        MAP_PRIVATE;
 #else
-                        flags |= MAP_PRIVATE;
+                    flags |= MAP_PRIVATE;
 #endif
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, block->fd, offset);
-                    } else {
-                        flags |= MAP_PRIVATE | MAP_ANONYMOUS;
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, -1, 0);
-                    }
-#else
-                    abort();
-#endif
+                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
+                                flags, block->fd, offset);
                 } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-                    flags |= MAP_SHARED | MAP_ANONYMOUS;
-                    area = mmap(vaddr, length, PROT_EXEC|PROT_READ|PROT_WRITE,
-                                flags, -1, 0);
-#else
+                    /*
+                     * Remap needs to match alloc.  Accelerators that
+                     * set phys_mem_alloc never remap.  If they did,
+                     * we'd need a remap hook here.
+                     */
+                    assert(phys_mem_alloc == qemu_anon_ram_alloc);
+
                     flags |= MAP_PRIVATE | MAP_ANONYMOUS;
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, -1, 0);
-#endif
                 }
                 if (area != vaddr) {
                     fprintf(stderr, "Could not remap addr: "

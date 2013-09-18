@@ -350,7 +350,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags)
+static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
@@ -386,8 +387,10 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags)
         goto fail;
     }
 
-    ret = bdrv_file_open(&bs->file, filename, NULL, flags);
+    ret = bdrv_file_open(&bs->file, filename, NULL, flags, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         goto fail;
     }
 

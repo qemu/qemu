@@ -142,8 +142,9 @@ BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
                                           bool readonly);
 int bdrv_create(BlockDriver *drv, const char* filename,
-    QEMUOptionParameter *options);
-int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
+    QEMUOptionParameter *options, Error **errp);
+int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
+                     Error **errp);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
@@ -151,10 +152,10 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename,
-                   QDict *options, int flags);
-int bdrv_open_backing_file(BlockDriverState *bs, QDict *options);
+                   QDict *options, int flags, Error **errp);
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
 int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
-              int flags, BlockDriver *drv);
+              int flags, BlockDriver *drv, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs, int flags);
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);
@@ -240,6 +241,8 @@ typedef enum {
 } BdrvCheckMode;
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
+
+int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options);
 
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,

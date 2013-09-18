@@ -373,7 +373,8 @@ static void bdrv_qed_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
-static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags)
+static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader le_header;
@@ -550,16 +551,22 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     QEDHeader le_header;
     uint8_t *l1_table = NULL;
     size_t l1_size = header.cluster_size * header.table_size;
+    Error *local_err = NULL;
     int ret = 0;
     BlockDriverState *bs = NULL;
 
-    ret = bdrv_create_file(filename, NULL);
+    ret = bdrv_create_file(filename, NULL, &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB,
+                         &local_err);
     if (ret < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
@@ -603,7 +610,8 @@ out:
     return ret;
 }
 
-static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options)
+static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options,
+                           Error **errp)
 {
     uint64_t image_size = 0;
     uint32_t cluster_size = QED_DEFAULT_CLUSTER_SIZE;
@@ -1547,7 +1555,7 @@ static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
 
     bdrv_qed_close(bs);
     memset(s, 0, sizeof(BDRVQEDState));
-    bdrv_qed_open(bs, NULL, bs->open_flags);
+    bdrv_qed_open(bs, NULL, bs->open_flags, NULL);
 }
 
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,

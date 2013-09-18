@@ -505,14 +505,15 @@ static void mirror_iostatus_reset(BlockJob *job)
 static void mirror_complete(BlockJob *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open_backing_file(s->target, NULL);
+    ret = bdrv_open_backing_file(s->target, NULL, &local_err);
     if (ret < 0) {
         char backing_filename[PATH_MAX];
         bdrv_get_full_backing_filename(s->target, backing_filename,
                                        sizeof(backing_filename));
-        error_setg_file_open(errp, -ret, backing_filename);
+        error_propagate(errp, local_err);
         return;
     }
     if (!s->synced) {
