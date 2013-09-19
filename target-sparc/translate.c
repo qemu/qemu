@@ -43,7 +43,8 @@ static TCGv_ptr cpu_env, cpu_regwptr;
 static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv_i32 cpu_cc_op;
 static TCGv_i32 cpu_psr;
-static TCGv cpu_fsr, cpu_pc, cpu_npc, cpu_gregs[8];
+static TCGv cpu_fsr, cpu_pc, cpu_npc;
+static TCGv cpu_regs[32];
 static TCGv cpu_y;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_tbr;
@@ -273,36 +274,31 @@ static inline void gen_address_mask(DisasContext *dc, TCGv addr)
 
 static inline TCGv gen_load_gpr(DisasContext *dc, int reg)
 {
-    if (reg == 0 || reg >= 8) {
-        TCGv t = get_temp_tl(dc);
-        if (reg == 0) {
-            tcg_gen_movi_tl(t, 0);
-        } else {
-            tcg_gen_ld_tl(t, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
-        }
-        return t;
+    if (reg > 0) {
+        assert(reg < 32);
+        return cpu_regs[reg];
     } else {
-        return cpu_gregs[reg];
+        TCGv t = get_temp_tl(dc);
+        tcg_gen_movi_tl(t, 0);
+        return t;
     }
 }
 
 static inline void gen_store_gpr(DisasContext *dc, int reg, TCGv v)
 {
     if (reg > 0) {
-        if (reg < 8) {
-            tcg_gen_mov_tl(cpu_gregs[reg], v);
-        } else {
-            tcg_gen_st_tl(v, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
-        }
+        assert(reg < 32);
+        tcg_gen_mov_tl(cpu_regs[reg], v);
     }
 }
 
 static inline TCGv gen_dest_gpr(DisasContext *dc, int reg)
 {
-    if (reg == 0 || reg >= 8) {
-        return get_temp_tl(dc);
+    if (reg > 0) {
+        assert(reg < 32);
+        return cpu_regs[reg];
     } else {
-        return cpu_gregs[reg];
+        return get_temp_tl(dc);
     }
 }
 
@@ -2158,9 +2154,13 @@ static inline void gen_ldda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     tcg_temp_free_i32(r_size);
     tcg_temp_free_i32(r_asi);
 
-    t = gen_dest_gpr(dc, rd + 1);
+    /* ??? Work around an apparent bug in Ubuntu gcc 4.8.2-10ubuntu2+12,
+       whereby "rd + 1" elicits "error: array subscript is above array".
+       Since we have already asserted that rd is even, the semantics
+       are unchanged.  */
+    t = gen_dest_gpr(dc, rd | 1);
     tcg_gen_trunc_i64_tl(t, t64);
-    gen_store_gpr(dc, rd + 1, t);
+    gen_store_gpr(dc, rd | 1, t);
 
     tcg_gen_shri_i64(t64, t64, 32);
     tcg_gen_trunc_i64_tl(hi, t64);
@@ -5330,8 +5330,11 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 void gen_intermediate_code_init(CPUSPARCState *env)
 {
     static int inited;
-    static const char gregnames[8][4] = {
+    static const char gregnames[32][4] = {
         "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
+        "o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7",
+        "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7",
+        "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7",
     };
     static const char fregnames[32][4] = {
         "f0", "f2", "f4", "f6", "f8", "f10", "f12", "f14",
@@ -5401,11 +5404,17 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         *rtl[i].ptr = tcg_global_mem_new(cpu_env, rtl[i].off, rtl[i].name);
     }
 
-    TCGV_UNUSED(cpu_gregs[0]);
+    TCGV_UNUSED(cpu_regs[0]);
     for (i = 1; i < 8; ++i) {
-        cpu_gregs[i] = tcg_global_mem_new(cpu_env,
-                                          offsetof(CPUSPARCState, gregs[i]),
-                                          gregnames[i]);
+        cpu_regs[i] = tcg_global_mem_new(cpu_env,
+                                         offsetof(CPUSPARCState, gregs[i]),
+                                         gregnames[i]);
+    }
+
+    for (i = 8; i < 32; ++i) {
+        cpu_regs[i] = tcg_global_mem_new(cpu_regwptr,
+                                         (i - 8) * sizeof(target_ulong),
+                                         gregnames[i]);
     }
 
     for (i = 0; i < TARGET_DPREGS; i++) {
