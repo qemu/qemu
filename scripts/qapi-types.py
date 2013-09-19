@@ -86,12 +86,16 @@ def generate_struct(expr):
     structname = expr.get('type', "")
     fieldname = expr.get('field', "")
     members = expr['data']
+    base = expr.get('base')
 
     ret = mcgen('''
 struct %(name)s
 {
 ''',
           name=structname)
+
+    if base:
+        ret += generate_struct_fields({'base': base})
 
     ret += generate_struct_fields(members)
 
