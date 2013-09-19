@@ -426,32 +426,45 @@ void tcg_func_start(TCGContext *s)
     s->be = tcg_malloc(sizeof(TCGBackendData));
 }
 
-static inline void tcg_temp_alloc(TCGContext *s, int n)
+static inline int temp_idx(TCGContext *s, TCGTemp *ts)
 {
-    if (n > TCG_MAX_TEMPS)
-        tcg_abort();
+    ptrdiff_t n = ts - s->temps;
+    tcg_debug_assert(n >= 0 && n < s->nb_temps);
+    return n;
+}
+
+static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
+{
+    int n = s->nb_temps++;
+    tcg_debug_assert(n < TCG_MAX_TEMPS);
+    return memset(&s->temps[n], 0, sizeof(TCGTemp));
+}
+
+static inline TCGTemp *tcg_global_alloc(TCGContext *s)
+{
+    tcg_debug_assert(s->nb_globals == s->nb_temps);
+    s->nb_globals++;
+    return tcg_temp_alloc(s);
 }
 
 static int tcg_global_reg_new_internal(TCGContext *s, TCGType type,
                                        int reg, const char *name)
 {
     TCGTemp *ts;
-    int idx;
 
     if (TCG_TARGET_REG_BITS == 32 && type != TCG_TYPE_I32) {
         tcg_abort();
     }
-    idx = s->nb_globals;
-    tcg_temp_alloc(s, s->nb_globals + 1);
-    ts = &s->temps[s->nb_globals];
+
+    ts = tcg_global_alloc(s);
     ts->base_type = type;
     ts->type = type;
     ts->fixed_reg = 1;
     ts->reg = reg;
     ts->name = name;
-    s->nb_globals++;
     tcg_regset_set_reg(s->reserved_regs, reg);
-    return idx;
+
+    return temp_idx(s, ts);
 }
 
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size)
@@ -491,63 +504,47 @@ int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
                                 intptr_t offset, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    TCGTemp *ts, *base_ts = &s->temps[GET_TCGV_PTR(base)];
-    int idx;
+    TCGTemp *base_ts = &s->temps[GET_TCGV_PTR(base)];
+    TCGTemp *ts = tcg_global_alloc(s);
+    int bigendian = 0;
+#ifdef HOST_WORDS_BIGENDIAN
+    bigendian = 1;
+#endif
 
-    idx = s->nb_globals;
-#if TCG_TARGET_REG_BITS == 32
-    if (type == TCG_TYPE_I64) {
+    if (TCG_TARGET_REG_BITS == 32 && type == TCG_TYPE_I64) {
+        TCGTemp *ts2 = tcg_global_alloc(s);
         char buf[64];
-        tcg_temp_alloc(s, s->nb_globals + 2);
-        ts = &s->temps[s->nb_globals];
-        ts->base_type = type;
+
+        ts->base_type = TCG_TYPE_I64;
         ts->type = TCG_TYPE_I32;
-        ts->fixed_reg = 0;
         ts->mem_allocated = 1;
         ts->mem_base = base_ts;
-#ifdef HOST_WORDS_BIGENDIAN
-        ts->mem_offset = offset + 4;
-#else
-        ts->mem_offset = offset;
-#endif
+        ts->mem_offset = offset + bigendian * 4;
         pstrcpy(buf, sizeof(buf), name);
         pstrcat(buf, sizeof(buf), "_0");
         ts->name = strdup(buf);
-        ts++;
 
-        ts->base_type = type;
-        ts->type = TCG_TYPE_I32;
-        ts->fixed_reg = 0;
-        ts->mem_allocated = 1;
-        ts->mem_base = base_ts;
-#ifdef HOST_WORDS_BIGENDIAN
-        ts->mem_offset = offset;
-#else
-        ts->mem_offset = offset + 4;
-#endif
+        tcg_debug_assert(ts2 == ts + 1);
+        ts2->base_type = TCG_TYPE_I64;
+        ts2->type = TCG_TYPE_I32;
+        ts2->mem_allocated = 1;
+        ts2->mem_base = base_ts;
+        ts2->mem_offset = offset + (1 - bigendian) * 4;
         pstrcpy(buf, sizeof(buf), name);
         pstrcat(buf, sizeof(buf), "_1");
         ts->name = strdup(buf);
-
-        s->nb_globals += 2;
-    } else
-#endif
-    {
-        tcg_temp_alloc(s, s->nb_globals + 1);
-        ts = &s->temps[s->nb_globals];
+    } else {
         ts->base_type = type;
         ts->type = type;
-        ts->fixed_reg = 0;
         ts->mem_allocated = 1;
         ts->mem_base = base_ts;
         ts->mem_offset = offset;
         ts->name = name;
-        s->nb_globals++;
     }
-    return idx;
+    return temp_idx(s, ts);
 }
 
-static inline int tcg_temp_new_internal(TCGType type, int temp_local)
+static int tcg_temp_new_internal(TCGType type, int temp_local)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -561,38 +558,30 @@ static inline int tcg_temp_new_internal(TCGType type, int temp_local)
 
         ts = &s->temps[idx];
         ts->temp_allocated = 1;
-        assert(ts->base_type == type);
-        assert(ts->temp_local == temp_local);
+        tcg_debug_assert(ts->base_type == type);
+        tcg_debug_assert(ts->temp_local == temp_local);
     } else {
-        idx = s->nb_temps;
-#if TCG_TARGET_REG_BITS == 32
-        if (type == TCG_TYPE_I64) {
-            tcg_temp_alloc(s, s->nb_temps + 2);
-            ts = &s->temps[s->nb_temps];
+        ts = tcg_temp_alloc(s);
+        if (TCG_TARGET_REG_BITS == 32 && type == TCG_TYPE_I64) {
+            TCGTemp *ts2 = tcg_temp_alloc(s);
+
             ts->base_type = type;
             ts->type = TCG_TYPE_I32;
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
-            ts->name = NULL;
-            ts++;
-            ts->base_type = type;
-            ts->type = TCG_TYPE_I32;
-            ts->temp_allocated = 1;
-            ts->temp_local = temp_local;
-            ts->name = NULL;
-            s->nb_temps += 2;
-        } else
-#endif
-        {
-            tcg_temp_alloc(s, s->nb_temps + 1);
-            ts = &s->temps[s->nb_temps];
+
+            tcg_debug_assert(ts2 == ts + 1);
+            ts2->base_type = TCG_TYPE_I64;
+            ts2->type = TCG_TYPE_I32;
+            ts2->temp_allocated = 1;
+            ts2->temp_local = temp_local;
+        } else {
             ts->base_type = type;
             ts->type = type;
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
-            ts->name = NULL;
-            s->nb_temps++;
         }
+        idx = temp_idx(s, ts);
     }
 
 #if defined(CONFIG_DEBUG_TCG)
