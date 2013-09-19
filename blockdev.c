@@ -309,8 +309,7 @@ typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(QDict *bs_opts,
-                                BlockInterfaceType type,
-                                DriveMediaType media)
+                                BlockInterfaceType type)
 {
     const char *buf;
     const char *file = NULL;
@@ -488,22 +487,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
         bdrv_set_io_limits(dinfo->bdrv, &cfg);
     }
 
-    switch(type) {
-    case IF_IDE:
-    case IF_SCSI:
-    case IF_XEN:
-    case IF_NONE:
-        dinfo->media_cd = media == MEDIA_CDROM;
-        break;
-    case IF_SD:
-    case IF_FLOPPY:
-    case IF_PFLASH:
-    case IF_MTD:
-    case IF_VIRTIO:
-        break;
-    default:
-        abort();
-    }
     if (!file || !*file) {
         if (has_driver_specific_opts) {
             file = NULL;
@@ -523,11 +506,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INCOMING;
-    }
-
-    if (media == MEDIA_CDROM) {
-        /* CDROM is fine for any interface, don't check.  */
-        ro = 1;
     }
 
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
@@ -713,6 +691,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             media = MEDIA_DISK;
         } else if (!strcmp(value, "cdrom")) {
             media = MEDIA_CDROM;
+            qdict_put(bs_opts, "read-only", qstring_from_str("on"));
         } else {
             error_report("'%s' invalid media", value);
             goto fail;
@@ -860,7 +839,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(bs_opts, type, media);
+    dinfo = blockdev_init(bs_opts, type);
     if (dinfo == NULL) {
         goto fail;
     }
@@ -877,6 +856,17 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
+
+    switch(type) {
+    case IF_IDE:
+    case IF_SCSI:
+    case IF_XEN:
+    case IF_NONE:
+        dinfo->media_cd = media == MEDIA_CDROM;
+        break;
+    default:
+        break;
+    }
 
 fail:
     qemu_opts_del(legacy_opts);
@@ -2176,7 +2166,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    dinfo = blockdev_init(qdict, IF_NONE, MEDIA_DISK);
+    dinfo = blockdev_init(qdict, IF_NONE);
     if (!dinfo) {
         error_setg(errp, "Could not open image");
         goto fail;
