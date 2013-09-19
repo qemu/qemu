@@ -5329,106 +5329,89 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 
 void gen_intermediate_code_init(CPUSPARCState *env)
 {
-    unsigned int i;
     static int inited;
-    static const char * const gregnames[8] = {
-        NULL, // g0 not used
-        "g1",
-        "g2",
-        "g3",
-        "g4",
-        "g5",
-        "g6",
-        "g7",
+    static const char gregnames[8][4] = {
+        "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
     };
-    static const char * const fregnames[32] = {
+    static const char fregnames[32][4] = {
         "f0", "f2", "f4", "f6", "f8", "f10", "f12", "f14",
         "f16", "f18", "f20", "f22", "f24", "f26", "f28", "f30",
         "f32", "f34", "f36", "f38", "f40", "f42", "f44", "f46",
         "f48", "f50", "f52", "f54", "f56", "f58", "f60", "f62",
     };
 
-    /* init various static tables */
-    if (!inited) {
-        inited = 1;
-
-        cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-        cpu_regwptr = tcg_global_mem_new_ptr(cpu_env,
-                                             offsetof(CPUSPARCState, regwptr),
-                                             "regwptr");
+    static const struct { TCGv_i32 *ptr; int off; const char *name; } r32[] = {
 #ifdef TARGET_SPARC64
-        cpu_xcc = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, xcc),
-                                         "xcc");
-        cpu_asi = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, asi),
-                                         "asi");
-        cpu_fprs = tcg_global_mem_new_i32(cpu_env,
-                                          offsetof(CPUSPARCState, fprs),
-                                          "fprs");
-        cpu_gsr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, gsr),
-                                     "gsr");
-        cpu_tick_cmpr = tcg_global_mem_new(cpu_env,
-                                           offsetof(CPUSPARCState, tick_cmpr),
-                                           "tick_cmpr");
-        cpu_stick_cmpr = tcg_global_mem_new(cpu_env,
-                                            offsetof(CPUSPARCState, stick_cmpr),
-                                            "stick_cmpr");
-        cpu_hstick_cmpr = tcg_global_mem_new(cpu_env,
-                                             offsetof(CPUSPARCState, hstick_cmpr),
-                                             "hstick_cmpr");
-        cpu_hintp = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, hintp),
-                                       "hintp");
-        cpu_htba = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, htba),
-                                      "htba");
-        cpu_hver = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, hver),
-                                      "hver");
-        cpu_ssr = tcg_global_mem_new(cpu_env,
-                                     offsetof(CPUSPARCState, ssr), "ssr");
-        cpu_ver = tcg_global_mem_new(cpu_env,
-                                     offsetof(CPUSPARCState, version), "ver");
-        cpu_softint = tcg_global_mem_new_i32(cpu_env,
-                                             offsetof(CPUSPARCState, softint),
-                                             "softint");
+        { &cpu_xcc, offsetof(CPUSPARCState, xcc), "xcc" },
+        { &cpu_asi, offsetof(CPUSPARCState, asi), "asi" },
+        { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
+        { &cpu_softint, offsetof(CPUSPARCState, softint), "softint" },
 #else
-        cpu_wim = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, wim),
-                                     "wim");
+        { &cpu_wim, offsetof(CPUSPARCState, wim), "wim" },
 #endif
-        cpu_cond = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, cond),
-                                      "cond");
-        cpu_cc_src = tcg_global_mem_new(cpu_env,
-                                        offsetof(CPUSPARCState, cc_src),
-                                        "cc_src");
-        cpu_cc_src2 = tcg_global_mem_new(cpu_env,
-                                         offsetof(CPUSPARCState, cc_src2),
-                                         "cc_src2");
-        cpu_cc_dst = tcg_global_mem_new(cpu_env,
-                                        offsetof(CPUSPARCState, cc_dst),
-                                        "cc_dst");
-        cpu_cc_op = tcg_global_mem_new_i32(cpu_env,
-                                           offsetof(CPUSPARCState, cc_op),
-                                           "cc_op");
-        cpu_psr = tcg_global_mem_new_i32(cpu_env, offsetof(CPUSPARCState, psr),
-                                         "psr");
-        cpu_fsr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, fsr),
-                                     "fsr");
-        cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, pc),
-                                    "pc");
-        cpu_npc = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, npc),
-                                     "npc");
-        cpu_y = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, y), "y");
+        { &cpu_cc_op, offsetof(CPUSPARCState, cc_op), "cc_op" },
+        { &cpu_psr, offsetof(CPUSPARCState, psr), "psr" },
+    };
+
+    static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
+#ifdef TARGET_SPARC64
+        { &cpu_gsr, offsetof(CPUSPARCState, gsr), "gsr" },
+        { &cpu_tick_cmpr, offsetof(CPUSPARCState, tick_cmpr), "tick_cmpr" },
+        { &cpu_stick_cmpr, offsetof(CPUSPARCState, stick_cmpr), "stick_cmpr" },
+        { &cpu_hstick_cmpr, offsetof(CPUSPARCState, hstick_cmpr),
+          "hstick_cmpr" },
+        { &cpu_hintp, offsetof(CPUSPARCState, hintp), "hintp" },
+        { &cpu_htba, offsetof(CPUSPARCState, htba), "htba" },
+        { &cpu_hver, offsetof(CPUSPARCState, hver), "hver" },
+        { &cpu_ssr, offsetof(CPUSPARCState, ssr), "ssr" },
+        { &cpu_ver, offsetof(CPUSPARCState, version), "ver" },
+#endif
+        { &cpu_cond, offsetof(CPUSPARCState, cond), "cond" },
+        { &cpu_cc_src, offsetof(CPUSPARCState, cc_src), "cc_src" },
+        { &cpu_cc_src2, offsetof(CPUSPARCState, cc_src2), "cc_src2" },
+        { &cpu_cc_dst, offsetof(CPUSPARCState, cc_dst), "cc_dst" },
+        { &cpu_fsr, offsetof(CPUSPARCState, fsr), "fsr" },
+        { &cpu_pc, offsetof(CPUSPARCState, pc), "pc" },
+        { &cpu_npc, offsetof(CPUSPARCState, npc), "npc" },
+        { &cpu_y, offsetof(CPUSPARCState, y), "y" },
 #ifndef CONFIG_USER_ONLY
-        cpu_tbr = tcg_global_mem_new(cpu_env, offsetof(CPUSPARCState, tbr),
-                                     "tbr");
+        { &cpu_tbr, offsetof(CPUSPARCState, tbr), "tbr" },
 #endif
-        for (i = 1; i < 8; i++) {
-            cpu_gregs[i] = tcg_global_mem_new(cpu_env,
-                                              offsetof(CPUSPARCState, gregs[i]),
-                                              gregnames[i]);
-        }
-        for (i = 0; i < TARGET_DPREGS; i++) {
-            cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env,
-                                                offsetof(CPUSPARCState, fpr[i]),
-                                                fregnames[i]);
-        }
+    };
+
+    unsigned int i;
+
+    /* init various static tables */
+    if (inited) {
+        return;
+    }
+    inited = 1;
+
+    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
+
+    cpu_regwptr = tcg_global_mem_new_ptr(cpu_env,
+                                         offsetof(CPUSPARCState, regwptr),
+                                         "regwptr");
+
+    for (i = 0; i < ARRAY_SIZE(r32); ++i) {
+        *r32[i].ptr = tcg_global_mem_new_i32(cpu_env, r32[i].off, r32[i].name);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(rtl); ++i) {
+        *rtl[i].ptr = tcg_global_mem_new(cpu_env, rtl[i].off, rtl[i].name);
+    }
+
+    TCGV_UNUSED(cpu_gregs[0]);
+    for (i = 1; i < 8; ++i) {
+        cpu_gregs[i] = tcg_global_mem_new(cpu_env,
+                                          offsetof(CPUSPARCState, gregs[i]),
+                                          gregnames[i]);
+    }
+
+    for (i = 0; i < TARGET_DPREGS; i++) {
+        cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env,
+                                            offsetof(CPUSPARCState, fpr[i]),
+                                            fregnames[i]);
     }
 }
 
