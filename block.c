@@ -778,8 +778,13 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
-    if (!bs->read_only && (flags & BDRV_O_COPY_ON_READ)) {
-        bdrv_enable_copy_on_read(bs);
+    if (flags & BDRV_O_COPY_ON_READ) {
+        if (!bs->read_only) {
+            bdrv_enable_copy_on_read(bs);
+        } else {
+            error_setg(errp, "Can't use copy-on-read on read-only device");
+            return -EINVAL;
+        }
     }
 
     if (filename != NULL) {

@@ -510,10 +510,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
-    if (ro && copy_on_read) {
-        error_report("warning: disabling copy_on_read on read-only drive");
-    }
-
     QINCREF(bs_opts);
     ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
 
@@ -601,6 +597,18 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
         },
+
+        /* Options that are passed on, but have special semantics with -drive */
+        {
+            .name = "read-only",
+            .type = QEMU_OPT_BOOL,
+            .help = "open drive file as read-only",
+        },{
+            .name = "copy-on-read",
+            .type = QEMU_OPT_BOOL,
+            .help = "copy read data from backing file into image file",
+        },
+
         { /* end of list */ }
     },
 };
@@ -616,6 +624,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     int cyls, heads, secs, translation;
     int max_devs, bus_id, unit_id, index;
     const char *devaddr;
+    bool read_only, copy_on_read;
     Error *local_err = NULL;
 
     /* Change legacy command line options into QMP ones */
@@ -697,6 +706,20 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             goto fail;
         }
     }
+
+    /* copy-on-read is disabled with a warning for read-only devices */
+    read_only = qemu_opt_get_bool(legacy_opts, "read-only", false);
+    copy_on_read = qemu_opt_get_bool(legacy_opts, "copy-on-read", false);
+
+    if (read_only && copy_on_read) {
+        error_report("warning: disabling copy-on-read on read-only drive");
+        copy_on_read = false;
+    }
+
+    qdict_put(bs_opts, "read-only",
+              qstring_from_str(read_only ? "on" : "off"));
+    qdict_put(bs_opts, "copy-on-read",
+              qstring_from_str(copy_on_read ? "on" :"off"));
 
     /* Controller type */
     value = qemu_opt_get(legacy_opts, "if");
