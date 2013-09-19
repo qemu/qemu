@@ -192,6 +192,29 @@ static void cpu_reset_all(void)
     }
 }
 
+static void cpu_full_reset_all(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        cpu_reset(cpu);
+    }
+}
+
+static int modified_clear_reset(S390CPU *cpu)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+
+    pause_all_vcpus();
+    cpu_synchronize_all_states();
+    cpu_full_reset_all();
+    io_subsystem_reset();
+    scc->load_normal(CPU(cpu));
+    cpu_synchronize_all_post_reset();
+    resume_all_vcpus();
+    return 0;
+}
+
 static int load_normal_reset(S390CPU *cpu)
 {
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
@@ -225,6 +248,9 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
     }
 
     switch (subcode) {
+    case 0:
+        modified_clear_reset(s390_env_get_cpu(env));
+        break;
     case 1:
         load_normal_reset(s390_env_get_cpu(env));
         break;
