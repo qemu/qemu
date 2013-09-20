@@ -18,6 +18,21 @@ pxe-rom-virtio   efi-rom-virtio   : VID := 1af4
 pxe-rom-virtio   efi-rom-virtio   : DID := 1000
 
 #
+# cross compiler auto detection
+#
+path := $(subst :, ,$(PATH))
+system := $(shell uname -s | tr "A-Z" "a-z")
+
+# first find cross binutils in path
+find-cross-ld = $(firstword $(wildcard $(patsubst %,%/$(1)-*$(system)*-ld,$(path))))
+# then check we have cross gcc too
+find-cross-gcc = $(firstword $(wildcard $(patsubst %ld,%gcc,$(call find-cross-ld,$(1)))))
+# finally strip off path + toolname so we get the prefix
+find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
+
+powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
+
+#
 # EfiRom utility is shipped with edk2 / tianocore, in BaseTools/
 #
 # We need that to combine multiple images (legacy bios,
@@ -37,6 +52,7 @@ default:
 	@echo "  pxerom         -- update nic roms (bios only)"
 	@echo "  efirom         -- update nic roms (bios+efi, this needs"
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
+	@echo "  slof           -- update slof.bin"
 
 bios: config.seabios
 	sh configure-seabios.sh $<
@@ -90,8 +106,14 @@ ipxe/src/config/local/%: config.ipxe.%
 	cp $< $@
 
 
+slof:
+	$(MAKE) $(MAKEFLAGS) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
+	cp SLOF/boot_rom.bin ../pc-bios/slof.bin
+
+
 clean:
 	rm -rf seabios/.config seabios/out
 	$(MAKE) $(MAKEFLAGS) -C vgabios clean
 	rm -f vgabios/VGABIOS-lgpl-latest*
 	$(MAKE) $(MAKEFLAGS) -C ipxe/src veryclean
+	$(MAKE) $(MAKEFLAGS) -C SLOF clean
