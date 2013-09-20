@@ -2045,6 +2045,13 @@ static ExitStatus op_ear(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ecag(DisasContext *s, DisasOps *o)
+{
+    /* No cache information provided.  */
+    tcg_gen_movi_i64(o->out, -1);
+    return NO_EXIT;
+}
+
 static ExitStatus op_efpc(DisasContext *s, DisasOps *o)
 {
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, fpc));

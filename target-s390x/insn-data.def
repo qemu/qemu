@@ -285,6 +285,8 @@
 
 /* EXTRACT ACCESS */
     C(0xb24f, EAR,     RRE,   Z,   0, 0, new, r1_32, ear, 0)
+/* EXTRACT CPU ATTRIBUTE */
+    C(0xeb4c, ECAG,    RSY_a, GIE, 0, a2, r1, 0, ecag, 0)
 /* EXTRACT FPC */
     C(0xb38c, EFPC,    RRE,   Z,   0, 0, new, r1_32, efpc, 0)
 /* EXTRACT PSW */
