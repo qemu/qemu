@@ -150,10 +150,9 @@ int qemu_read_default_config_files(bool userconfig)
     return 0;
 }
 
-static inline bool is_zero_page(uint8_t *p)
+static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
-    return buffer_find_nonzero_offset(p, TARGET_PAGE_SIZE) ==
-        TARGET_PAGE_SIZE;
+    return buffer_find_nonzero_offset(p, size) == size;
 }
 
 /* struct contains XBZRLE cache and a static page
@@ -497,7 +496,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
                         acct_info.dup_pages++;
                     }
                 }
-            } else if (is_zero_page(p)) {
+            } else if (is_zero_range(p, TARGET_PAGE_SIZE)) {
                 acct_info.dup_pages++;
                 bytes_sent = save_block_hdr(f, block, offset, cont,
                                             RAM_SAVE_FLAG_COMPRESS);
@@ -849,7 +848,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
  */
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
 {
-    if (ch != 0 || !is_zero_page(host)) {
+    if (ch != 0 || !is_zero_range(host, TARGET_PAGE_SIZE)) {
         memset(host, ch, size);
 #ifndef _WIN32
         if (ch == 0 &&
