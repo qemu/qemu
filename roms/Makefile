@@ -2,6 +2,7 @@
 vgabios_variants := stdvga cirrus vmware qxl isavga
 vgabios_targets  := $(subst -isavga,,$(patsubst %,vgabios-%.bin,$(vgabios_variants)))
 pxerom_variants  := e1000 eepro100 ne2k_pci pcnet rtl8139 virtio
+pxerom_targets   := 8086100e 80861209 10500940 10222000 10ec8139 1af41000
 
 pxe-rom-e1000    efi-rom-e1000    : VID := 8086
 pxe-rom-e1000    efi-rom-e1000    : DID := 100e
@@ -64,21 +65,26 @@ build-lgplvgabios:
 
 pxerom: $(patsubst %,pxe-rom-%,$(pxerom_variants))
 
-pxe-rom-%: ipxe/src/config/local/general.h
-	make -C ipxe/src bin/$(VID)$(DID).rom
+pxe-rom-%: build-pxe-roms
 	cp ipxe/src/bin/$(VID)$(DID).rom ../pc-bios/pxe-$*.rom
 
 efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 
-efi-rom-%: ipxe/src/config/local/general.h
-	make -C ipxe/src bin/$(VID)$(DID).rom
-	make -C ipxe/src bin-i386-efi/$(VID)$(DID).efidrv
-	make -C ipxe/src bin-x86_64-efi/$(VID)$(DID).efidrv
+efi-rom-%: build-pxe-roms build-efi-roms
 	$(EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
 		-b ipxe/src/bin/$(VID)$(DID).rom \
 		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
 		-ec ipxe/src/bin-x86_64-efi/$(VID)$(DID).efidrv \
 		-o ../pc-bios/efi-$*.rom
+
+build-pxe-roms: ipxe/src/config/local/general.h
+	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+		$(patsubst %,bin/%.rom,$(pxerom_targets))
+
+build-efi-roms: build-pxe-roms ipxe/src/config/local/general.h
+	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
+		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
 ipxe/src/config/local/%: config.ipxe.%
 	cp $< $@
