@@ -1002,6 +1002,15 @@ static void virtio_pci_device_plugged(DeviceState *d)
                                                       proxy->host_features);
 }
 
+static void virtio_pci_device_unplugged(DeviceState *d)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(d);
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+
+    virtio_pci_stop_ioeventfd(proxy);
+    msix_uninit_exclusive_bar(pci_dev);
+}
+
 static int virtio_pci_init(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
@@ -1016,9 +1025,7 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 static void virtio_pci_exit(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
-    virtio_pci_stop_ioeventfd(proxy);
     memory_region_destroy(&proxy->bar);
-    msix_uninit_exclusive_bar(pci_dev);
 }
 
 static void virtio_pci_reset(DeviceState *qdev)
@@ -1553,6 +1560,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
     k->vmstate_change = virtio_pci_vmstate_change;
     k->device_plugged = virtio_pci_device_plugged;
+    k->device_unplugged = virtio_pci_device_unplugged;
 }
 
 static const TypeInfo virtio_pci_bus_info = {
