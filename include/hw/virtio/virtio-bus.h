@@ -61,7 +61,7 @@ typedef struct VirtioBusClass {
      * transport independent exit function.
      * This is called by virtio-bus just before the device is unplugged.
      */
-    void (*device_unplug)(DeviceState *d);
+    void (*device_unplugged)(DeviceState *d);
     /*
      * Does the transport have variable vring alignment?
      * (ie can it ever call virtio_queue_set_align()?)
@@ -74,9 +74,9 @@ struct VirtioBusState {
     BusState parent_obj;
 };
 
-int virtio_bus_plug_device(VirtIODevice *vdev);
+int virtio_bus_device_plugged(VirtIODevice *vdev);
 void virtio_bus_reset(VirtioBusState *bus);
-void virtio_bus_destroy_device(VirtioBusState *bus);
+void virtio_bus_device_unplugged(VirtIODevice *bus);
 /* Get the device id of the plugged device. */
 uint16_t virtio_bus_get_vdev_id(VirtioBusState *bus);
 /* Get the config_len field of the plugged device. */

@@ -37,8 +37,8 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-/* Plug the VirtIODevice */
-int virtio_bus_plug_device(VirtIODevice *vdev)
+/* A VirtIODevice is being plugged */
+int virtio_bus_device_plugged(VirtIODevice *vdev)
 {
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
@@ -64,20 +64,19 @@ void virtio_bus_reset(VirtioBusState *bus)
     }
 }
 
-/* Destroy the VirtIODevice */
-void virtio_bus_destroy_device(VirtioBusState *bus)
+/* A VirtIODevice is being unplugged */
+void virtio_bus_device_unplugged(VirtIODevice *vdev)
 {
-    BusState *qbus = BUS(bus);
-    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
-    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    DeviceState *qdev = DEVICE(vdev);
+    BusState *qbus = BUS(qdev_get_parent_bus(qdev));
+    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(qbus);
 
     DPRINTF("%s: remove device.\n", qbus->name);
 
     if (vdev != NULL) {
-        if (klass->device_unplug != NULL) {
-            klass->device_unplug(qbus->parent);
+        if (klass->device_unplugged != NULL) {
+            klass->device_unplugged(qbus->parent);
         }
-        object_unparent(OBJECT(vdev));
     }
 }
 
