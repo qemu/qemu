@@ -1039,7 +1039,7 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    stw_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+    stl_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
 }
 
 /* load real address */
