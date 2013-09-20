@@ -187,6 +187,6 @@ typedef struct {
                                             VIRTIO_SCSI_F_CHANGE, true)
 
 int virtio_scsi_common_init(VirtIOSCSICommon *vs);
-int virtio_scsi_common_exit(VirtIOSCSICommon *vs);
+void virtio_scsi_common_exit(VirtIOSCSICommon *vs);
 
 #endif /* _QEMU_VIRTIO_SCSI_H */
