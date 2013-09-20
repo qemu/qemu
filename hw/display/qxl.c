@@ -313,9 +313,7 @@ static ram_addr_t qxl_rom_size(void)
                                  sizeof(qxl_modes);
     uint32_t rom_size = 8192; /* two pages */
 
-    required_rom_size = MAX(required_rom_size, TARGET_PAGE_SIZE);
-    required_rom_size = msb_mask(required_rom_size * 2 - 1);
-    assert(required_rom_size <= rom_size);
+    QEMU_BUILD_BUG_ON(required_rom_size > rom_size);
     return rom_size;
 }
 
@@ -364,7 +362,7 @@ static void init_qxl_rom(PCIQXLDevice *d)
     num_pages          = d->vga.vram_size;
     num_pages         -= ram_header_size;
     num_pages         -= surface0_area_size;
-    num_pages          = num_pages / TARGET_PAGE_SIZE;
+    num_pages          = num_pages / QXL_PAGE_SIZE;
 
     rom->draw_area_offset   = cpu_to_le32(0);
     rom->surface0_area_size = cpu_to_le32(surface0_area_size);
@@ -416,9 +414,8 @@ static void qxl_ram_set_dirty(PCIQXLDevice *qxl, void *ptr)
     intptr_t offset;
 
     offset = ptr - base;
-    offset &= ~(TARGET_PAGE_SIZE-1);
     assert(offset < qxl->vga.vram_size);
-    qxl_set_dirty(&qxl->vga.vram, offset, offset + TARGET_PAGE_SIZE);
+    qxl_set_dirty(&qxl->vga.vram, offset, offset + 3);
 }
 
 /* can be called from spice server thread context */
@@ -528,7 +525,8 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->num_memslots = NUM_MEMSLOTS;
     info->num_memslots_groups = NUM_MEMSLOTS_GROUPS;
     info->internal_groupslot_id = 0;
-    info->qxl_ram_size = le32_to_cpu(qxl->shadow_rom.num_pages) << TARGET_PAGE_BITS;
+    info->qxl_ram_size =
+        le32_to_cpu(qxl->shadow_rom.num_pages) << QXL_PAGE_BITS;
     info->n_surfaces = qxl->ssd.num_surfaces;
 }
 
