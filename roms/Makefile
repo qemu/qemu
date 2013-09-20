@@ -1,5 +1,6 @@
 
 vgabios_variants := stdvga cirrus vmware qxl
+vgabios_targets  := $(patsubst %,vgabios-%.bin,$(vgabios_variants))
 pxerom_variants  := e1000 eepro100 ne2k_pci pcnet rtl8139 virtio
 
 pxe-rom-e1000    efi-rom-e1000    : VID := 8086
@@ -49,11 +50,15 @@ seavgabios-%: config.vga.%
 	make -C seabios out/vgabios.bin
 	cp seabios/out/vgabios.bin ../pc-bios/vgabios-$*.bin
 
+
 lgplvgabios: $(patsubst %,lgplvgabios-%,$(vgabios_variants))
 
-lgplvgabios-%:
-	make -C vgabios vgabios-$*.bin
+lgplvgabios-%: build-lgplvgabios
 	cp vgabios/VGABIOS-lgpl-latest.$*.bin ../pc-bios/vgabios-$*.bin
+
+build-lgplvgabios:
+	$(MAKE) $(MAKEFLAGS) -C vgabios $(vgabios_targets)
+
 
 pxerom: $(patsubst %,pxe-rom-%,$(pxerom_variants))
 
