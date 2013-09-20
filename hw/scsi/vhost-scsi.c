@@ -240,11 +240,10 @@ static int vhost_scsi_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int vhost_scsi_exit(DeviceState *qdev)
+static void vhost_scsi_exit(VirtIODevice *vdev)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
-    VHostSCSI *s = VHOST_SCSI(qdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(qdev);
+    VHostSCSI *s = VHOST_SCSI(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);
@@ -253,7 +252,7 @@ static int vhost_scsi_exit(DeviceState *qdev)
     vhost_scsi_set_status(vdev, 0);
 
     g_free(s->dev.vqs);
-    return virtio_scsi_common_exit(vs);
+    virtio_scsi_common_exit(vs);
 }
 
 static Property vhost_scsi_properties[] = {
@@ -265,10 +264,10 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = vhost_scsi_exit;
     dc->props = vhost_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = vhost_scsi_init;
+    vdc->exit = vhost_scsi_exit;
     vdc->get_features = vhost_scsi_get_features;
     vdc->set_config = vhost_scsi_set_config;
     vdc->set_status = vhost_scsi_set_status;

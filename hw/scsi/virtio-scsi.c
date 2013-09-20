@@ -644,22 +644,21 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-int virtio_scsi_common_exit(VirtIOSCSICommon *vs)
+void virtio_scsi_common_exit(VirtIOSCSICommon *vs)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vs);
 
     g_free(vs->cmd_vqs);
     virtio_cleanup(vdev);
-    return 0;
 }
 
-static int virtio_scsi_device_exit(DeviceState *qdev)
+static void virtio_scsi_device_exit(VirtIODevice *vdev)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(qdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(qdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    unregister_savevm(qdev, "virtio-scsi", s);
-    return virtio_scsi_common_exit(vs);
+    unregister_savevm(DEVICE(vdev), "virtio-scsi", s);
+    virtio_scsi_common_exit(vs);
 }
 
 static Property virtio_scsi_properties[] = {
@@ -680,10 +679,10 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_scsi_device_exit;
     dc->props = virtio_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_scsi_device_init;
+    vdc->exit = virtio_scsi_device_exit;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
     vdc->reset = virtio_scsi_reset;
