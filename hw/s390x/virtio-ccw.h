@@ -77,7 +77,6 @@ typedef struct VirtIOCCWDeviceClass {
 struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
-    VirtIODevice *vdev;
     char *bus_id;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     VirtioBusState bus;
