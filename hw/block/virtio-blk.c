@@ -728,20 +728,18 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int virtio_blk_device_exit(DeviceState *dev)
+static void virtio_blk_device_exit(VirtIODevice *vdev)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOBlock *s = VIRTIO_BLK(dev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     remove_migration_state_change_notifier(&s->migration_state_notifier);
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
 #endif
     qemu_del_vm_change_state_handler(s->change);
-    unregister_savevm(dev, "virtio-blk", s);
+    unregister_savevm(DEVICE(vdev), "virtio-blk", s);
     blockdev_mark_auto_del(s->bs);
     virtio_cleanup(vdev);
-    return 0;
 }
 
 static Property virtio_blk_properties[] = {
@@ -753,10 +751,10 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_blk_device_exit;
     dc->props = virtio_blk_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_blk_device_init;
+    vdc->exit = virtio_blk_device_exit;
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;
     vdc->get_features = virtio_blk_get_features;
