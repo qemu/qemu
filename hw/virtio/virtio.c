@@ -1158,14 +1158,19 @@ static int virtio_device_init(DeviceState *qdev)
     if (k->init(vdev) < 0) {
         return -1;
     }
-    virtio_bus_plug_device(vdev);
+    virtio_bus_device_plugged(vdev);
     return 0;
 }
 
 static int virtio_device_exit(DeviceState *qdev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(qdev);
 
+    virtio_bus_device_unplugged(vdev);
+    if (k->exit) {
+        k->exit(vdev);
+    }
     if (vdev->bus_name) {
         g_free(vdev->bus_name);
         vdev->bus_name = NULL;
