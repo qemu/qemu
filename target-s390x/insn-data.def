@@ -739,6 +739,9 @@
     C(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0)
     C(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0)
     C(0xe303, LRAG,    RXY_a, Z,   0, a2, r1, 0, lra, 0)
+/* LOAD USING REAL ADDRESS */
+    C(0xb24b, LURA,    RRE,   Z,   0, r2, new, r1_32, lura, 0)
+    C(0xb905, LURAG,   RRE,   Z,   0, r2, r1, 0, lurag, 0)
 /* MOVE TO PRIMARY */
     C(0xda00, MVCP,    SS_d,  Z,   la1, a2, 0, 0, mvcp, 0)
 /* MOVE TO SECONDARY */
@@ -796,6 +799,7 @@
     C(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* STORE USING REAL ADDRESS */
     C(0xb246, STURA,   RRE,   Z,   r1_o, r2_o, 0, 0, stura, 0)
+    C(0xb925, STURG,   RRE,   Z,   r1_o, r2_o, 0, 0, sturg, 0)
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 

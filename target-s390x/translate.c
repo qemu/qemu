@@ -2478,6 +2478,24 @@ static ExitStatus op_lm64(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_lura(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_lura(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lurag(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_lurag(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+#endif
+
 static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
 {
     o->out = o->in2;
@@ -3362,6 +3380,14 @@ static ExitStatus op_stura(DisasContext *s, DisasOps *o)
     check_privileged(s);
     potential_page_fault(s);
     gen_helper_stura(cpu_env, o->in2, o->in1);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sturg(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_sturg(cpu_env, o->in2, o->in1);
     return NO_EXIT;
 }
 #endif
