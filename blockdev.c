@@ -272,7 +272,7 @@ static void bdrv_put_ref_bh_schedule(BlockDriverState *bs)
     qemu_bh_schedule(s->bh);
 }
 
-static int parse_block_error_action(const char *buf, bool is_read)
+static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
 {
     if (!strcmp(buf, "ignore")) {
         return BLOCKDEV_ON_ERROR_IGNORE;
@@ -283,8 +283,8 @@ static int parse_block_error_action(const char *buf, bool is_read)
     } else if (!strcmp(buf, "report")) {
         return BLOCKDEV_ON_ERROR_REPORT;
     } else {
-        error_report("'%s' invalid %s error action",
-                     buf, is_read ? "read" : "write");
+        error_setg(errp, "'%s' invalid %s error action",
+                   buf, is_read ? "read" : "write");
         return -1;
     }
 }
@@ -309,7 +309,8 @@ typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(QDict *bs_opts,
-                                BlockInterfaceType type)
+                                BlockInterfaceType type,
+                                Error **errp)
 {
     const char *buf;
     const char *file = NULL;
@@ -333,15 +334,13 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
     id = qdict_get_try_str(bs_opts, "id");
     opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
     if (error_is_set(&error)) {
-        qerror_report_err(error);
-        error_free(error);
+        error_propagate(errp, error);
         return NULL;
     }
 
     qemu_opts_absorb_qdict(opts, bs_opts, &error);
     if (error_is_set(&error)) {
-        qerror_report_err(error);
-        error_free(error);
+        error_propagate(errp, error);
         return NULL;
     }
 
@@ -361,7 +360,7 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 
     if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
         if (bdrv_parse_discard_flags(buf, &bdrv_flags) != 0) {
-            error_report("invalid discard option");
+            error_setg(errp, "invalid discard option");
             return NULL;
         }
     }
@@ -383,7 +382,7 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
         } else if (!strcmp(buf, "threads")) {
             /* this is the default */
         } else {
-           error_report("invalid aio option");
+           error_setg(errp, "invalid aio option");
            return NULL;
         }
     }
@@ -399,7 +398,7 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
 
         drv = bdrv_find_format(buf);
         if (!drv) {
-            error_report("'%s' invalid format", buf);
+            error_setg(errp, "'%s' invalid format", buf);
             return NULL;
         }
     }
@@ -435,20 +434,20 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
     cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
     if (!check_throttle_config(&cfg, &error)) {
-        error_report("%s", error_get_pretty(error));
-        error_free(error);
+        error_propagate(errp, error);
         return NULL;
     }
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
-            error_report("werror is not supported by this bus type");
+            error_setg(errp, "werror is not supported by this bus type");
             return NULL;
         }
 
-        on_write_error = parse_block_error_action(buf, 0);
-        if (on_write_error < 0) {
+        on_write_error = parse_block_error_action(buf, 0, &error);
+        if (error_is_set(&error)) {
+            error_propagate(errp, error);
             return NULL;
         }
     }
@@ -460,8 +459,9 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
             return NULL;
         }
 
-        on_read_error = parse_block_error_action(buf, 1);
-        if (on_read_error < 0) {
+        on_read_error = parse_block_error_action(buf, 1, &error);
+        if (error_is_set(&error)) {
+            error_propagate(errp, error);
             return NULL;
         }
     }
@@ -514,8 +514,9 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
     ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
 
     if (ret < 0) {
-        error_report("could not open disk image %s: %s",
-                     file ?: dinfo->id, error_get_pretty(error));
+        error_setg(errp, "could not open disk image %s: %s",
+                   file ?: dinfo->id, error_get_pretty(error));
+        error_free(error);
         goto err;
     }
 
@@ -862,9 +863,15 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(bs_opts, type);
+    dinfo = blockdev_init(bs_opts, type, &local_err);
     if (dinfo == NULL) {
+        if (error_is_set(&local_err)) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+        }
         goto fail;
+    } else {
+        assert(!error_is_set(&local_err));
     }
 
     /* Set legacy DriveInfo fields */
@@ -2155,7 +2162,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     QmpOutputVisitor *ov = qmp_output_visitor_new();
     QObject *obj;
     QDict *qdict;
-    DriveInfo *dinfo;
     Error *local_err = NULL;
 
     /* Require an ID in the top level */
@@ -2189,9 +2195,9 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    dinfo = blockdev_init(qdict, IF_NONE);
-    if (!dinfo) {
-        error_setg(errp, "Could not open image");
+    blockdev_init(qdict, IF_NONE, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
         goto fail;
     }
 
