@@ -1570,16 +1570,15 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int virtio_net_device_exit(DeviceState *qdev)
+static void virtio_net_device_exit(VirtIODevice *vdev)
 {
-    VirtIONet *n = VIRTIO_NET(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
 
-    unregister_savevm(qdev, "virtio-net", n);
+    unregister_savevm(DEVICE(vdev), "virtio-net", n);
 
     if (n->netclient_name) {
         g_free(n->netclient_name);
@@ -1610,8 +1609,6 @@ static int virtio_net_device_exit(DeviceState *qdev)
     g_free(n->vqs);
     qemu_del_nic(n->nic);
     virtio_cleanup(vdev);
-
-    return 0;
 }
 
 static void virtio_net_instance_init(Object *obj)
@@ -1638,10 +1635,10 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_net_device_exit;
     dc->props = virtio_net_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->init = virtio_net_device_init;
+    vdc->exit = virtio_net_device_exit;
     vdc->get_config = virtio_net_get_config;
     vdc->set_config = virtio_net_set_config;
     vdc->get_features = virtio_net_get_features;
