@@ -943,7 +943,7 @@ static void virtio_pci_device_plugged(DeviceState *d)
     uint8_t *config;
     uint32_t size;
 
-    proxy->vdev = bus->vdev;
+    proxy->vdev = virtio_bus_get_device(bus);
 
     config = proxy->pci_dev.config;
     if (proxy->class_code) {

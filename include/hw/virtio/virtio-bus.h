@@ -72,10 +72,6 @@ typedef struct VirtioBusClass {
 
 struct VirtioBusState {
     BusState parent_obj;
-    /*
-     * Only one VirtIODevice can be plugged on the bus.
-     */
-    VirtIODevice *vdev;
 };
 
 int virtio_bus_plug_device(VirtIODevice *vdev);
@@ -97,5 +93,17 @@ uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus);
 void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config);
 /* Set config of the plugged device. */
 void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config);
+
+static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
+{
+    BusState *qbus = &bus->parent_obj;
+    BusChild *kid = QTAILQ_FIRST(&qbus->children);
+    DeviceState *qdev = kid ? kid->child : NULL;
+
+    /* This is used on the data path, the cast is guaranteed
+     * to succeed by the qdev machinery.
+     */
+    return (VirtIODevice *)qdev;
+}
 
 #endif /* VIRTIO_BUS_H */
