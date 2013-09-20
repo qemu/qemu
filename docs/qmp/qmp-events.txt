@@ -1,4 +1,4 @@
-                   QEMU Monitor Protocol Events
+                   QEMU Machine Protocol Events
                    ============================
 
 BALLOON_CHANGE
@@ -159,7 +159,7 @@ Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
 event.
 
 DEVICE_DELETED
------------------
+--------------
 
 Emitted whenever the device removal completion is acknowledged
 by the guest.
@@ -194,8 +194,22 @@ Data:
   },
   "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
+GUEST_PANICKED
+--------------
+
+Emitted when guest OS panic is detected.
+
+Data:
+
+- "action": Action that has been taken (json-string, currently always "pause").
+
+Example:
+
+{ "event": "GUEST_PANICKED",
+     "data": { "action": "pause" } }
+
 NIC_RX_FILTER_CHANGED
------------------
+---------------------
 
 The event is emitted once until the query command is executed,
 the first event will always be emitted.
@@ -486,17 +500,3 @@ Example:
 
 Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 followed respectively by the RESET, SHUTDOWN, or STOP events.
-
-GUEST_PANICKED
---------------
-
-Emitted when guest OS panic is detected.
-
-Data:
-
-- "action": Action that has been taken (json-string, currently always "pause").
-
-Example:
-
-{ "event": "GUEST_PANICKED",
-     "data": { "action": "pause" } }
