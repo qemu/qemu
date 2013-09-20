@@ -3262,8 +3262,14 @@ static ExitStatus op_stctl(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_stidp(DisasContext *s, DisasOps *o)
 {
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
     check_privileged(s);
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
+    tcg_gen_ld32u_i64(t1, cpu_env, offsetof(CPUS390XState, machine_type));
+    tcg_gen_deposit_i64(o->out, o->out, t1, 32, 32);
+    tcg_temp_free_i64(t1);
+
     return NO_EXIT;
 }
 

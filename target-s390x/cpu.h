@@ -133,7 +133,9 @@ typedef struct CPUS390XState {
 
     /* reset does memset(0) up to here */
 
-    int cpu_num;
+    uint32_t cpu_num;
+    uint32_t machine_type;
+
     uint8_t *storage_keys;
 
     uint64_t tod_offset;
