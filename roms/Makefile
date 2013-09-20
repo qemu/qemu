@@ -75,3 +75,10 @@ efi-rom-%: ipxe/src/config/local/general.h
 
 ipxe/src/config/local/%: config.ipxe.%
 	cp $< $@
+
+
+clean:
+	rm -rf seabios/.config seabios/out
+	$(MAKE) $(MAKEFLAGS) -C vgabios clean
+	rm -f vgabios/VGABIOS-lgpl-latest*
+	$(MAKE) $(MAKEFLAGS) -C ipxe/src veryclean
