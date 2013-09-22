@@ -978,11 +978,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
         return 0;
+    } else {
+        bdrv_get_full_backing_filename(bs, backing_filename,
+                                       sizeof(backing_filename));
     }
 
     bs->backing_hd = bdrv_new("");
-    bdrv_get_full_backing_filename(bs, backing_filename,
-                                   sizeof(backing_filename));
 
     if (bs->backing_format[0] != '\0') {
         back_drv = bdrv_find_format(bs->backing_format);
@@ -994,6 +995,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     ret = bdrv_open(bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv, &local_err);
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+            bs->backing_hd->file->filename);
     if (ret < 0) {
         bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
