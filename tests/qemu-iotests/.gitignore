@@ -2,6 +2,7 @@ check.log
 check.time
 *.out.bad
 *.notrun
+socket_scm_helper
 
 # ignore everything in the scratch directory
 scratch/
