@@ -1,5 +1,6 @@
 QA output created by 051
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.base' 
 
 === Unknown option ===
 
@@ -14,6 +15,16 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: could not
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+
+
+=== Overriding backing file ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
+ide0-hd0: TEST_DIR/t.qcow2 (qcow2)
+    Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
+ [not inserted](qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
