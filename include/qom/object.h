@@ -795,6 +795,27 @@ void object_property_add(Object *obj, const char *name, const char *type,
 void object_property_del(Object *obj, const char *name, Error **errp);
 
 /**
+ * object_property_add_uint8_ptr:
+ * object_property_add_uint16_ptr:
+ * object_property_add_uint32_ptr:
+ * object_property_add_uint64_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ *
+ * Add an integer property in memory.  This function will add a
+ * property of the appropriate type.
+ */
+void object_property_add_uint8_ptr(Object *obj, const char *name,
+                                   const uint8_t *v, Error **errp);
+void object_property_add_uint16_ptr(Object *obj, const char *name,
+                                    const uint16_t *v, Error **errp);
+void object_property_add_uint32_ptr(Object *obj, const char *name,
+                                    const uint32_t *v, Error **errp);
+void object_property_add_uint64_ptr(Object *obj, const char *name,
+                                    const uint64_t *v, Error **Errp);
+
+/**
  * object_property_find:
  * @obj: the object
  * @name: the name of the property
