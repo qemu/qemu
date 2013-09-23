@@ -7,8 +7,11 @@
  * This code is licensed under the LGPL.
  */
 
-/* ??? Need to check if the {read,write}[wl] routines work properly on
-   big-endian targets.  */
+/* Note:
+ * LSI53C810 emulation is incorrect, in the sense that it supports
+ * features added in later evolutions. This should not be a problem,
+ * as well-behaved operating systems will not try to use them.
+ */
 
 #include <assert.h>
 
@@ -278,6 +281,7 @@ typedef struct {
     uint32_t script_ram[2048];
 } LSIState;
 
+#define TYPE_LSI53C810  "lsi53c810"
 #define TYPE_LSI53C895A "lsi53c895a"
 
 #define LSI53C895A(obj) \
@@ -1515,7 +1519,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
            used for diagnostics, so should be ok.  */
         return 0;
     case 0xc: /* DSTAT */
-        tmp = s->dstat | 0x80;
+        tmp = s->dstat | LSI_DSTAT_DFE;
         if ((s->istat0 & LSI_ISTAT0_INTF) == 0)
             s->dstat = 0;
         lsi_update_irq(s);
@@ -1699,8 +1703,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         s->sxfer = val;
         break;
     case 0x06: /* SDID */
-        if ((val & 0xf) != (s->ssid & 0xf))
+        if ((s->ssid & 0x80) && (val & 0xf) != (s->ssid & 0xf)) {
             BADF("Destination ID does not match SSID\n");
+        }
         s->sdid = val & 0xf;
         break;
     case 0x07: /* GPREG0 */
@@ -1741,6 +1746,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x17: /* MBOX1 */
         s->mbox1 = val;
+        break;
+    case 0x18: /* CTEST0 */
+        /* nothing to do */
         break;
     case 0x1a: /* CTEST2 */
 	s->ctest2 = val & LSI_CTEST2_PCICIE;
@@ -2106,7 +2114,7 @@ static int lsi_scsi_init(PCIDevice *dev)
                           "lsi-io", 256);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
-    pci_register_bar(dev, 1, 0, &s->mmio_io);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_io);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
@@ -2144,9 +2152,23 @@ static const TypeInfo lsi_info = {
     .class_init    = lsi_class_init,
 };
 
+static void lsi53c810_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->device_id = PCI_DEVICE_ID_LSI_53C810;
+}
+
+static TypeInfo lsi53c810_info = {
+    .name          = TYPE_LSI53C810,
+    .parent        = TYPE_LSI53C895A,
+    .class_init    = lsi53c810_class_init,
+};
+
 static void lsi53c895a_register_types(void)
 {
     type_register_static(&lsi_info);
+    type_register_static(&lsi53c810_info);
 }
 
 type_init(lsi53c895a_register_types)
