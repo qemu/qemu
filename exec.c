@@ -1230,9 +1230,11 @@ void qemu_ram_free(ram_addr_t addr)
                 ;
             } else if (xen_enabled()) {
                 xen_invalidate_map_cache_entry(block->host);
+#ifndef _WIN32
             } else if (block->fd >= 0) {
                 munmap(block->host, block->length);
                 close(block->fd);
+#endif
             } else {
                 qemu_anon_ram_free(block->host, block->length);
             }
