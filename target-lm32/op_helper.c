@@ -8,6 +8,10 @@
 
 #include "exec/softmmu_exec.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "sysemu/sysemu.h"
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 #define MMUSUFFIX _mmu
 #define SHIFT 0
@@ -37,6 +41,19 @@ void HELPER(hlt)(CPULM32State *env)
     cs->halted = 1;
     env->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
+}
+
+void HELPER(ill)(CPULM32State *env)
+{
+#ifndef CONFIG_USER_ONLY
+    CPUState *cs = CPU(lm32_env_get_cpu(env));
+    fprintf(stderr, "VM paused due to illegal instruction. "
+            "Connect a debugger or switch to the monitor console "
+            "to find out more.\n");
+    qemu_system_vmstop_request(RUN_STATE_PAUSED);
+    cs->halted = 1;
+    raise_exception(env, EXCP_HALTED);
+#endif
 }
 
 void HELPER(wcsr_bp)(CPULM32State *env, uint32_t bp, uint32_t idx)

@@ -13,5 +13,6 @@ DEF_HELPER_1(rcsr_im, i32, env)
 DEF_HELPER_1(rcsr_ip, i32, env)
 DEF_HELPER_1(rcsr_jtx, i32, env)
 DEF_HELPER_1(rcsr_jrx, i32, env)
+DEF_HELPER_1(ill, void, env)
 
 #include "exec/def-helper.h"
