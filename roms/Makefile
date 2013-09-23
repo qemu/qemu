@@ -31,6 +31,7 @@ find-cross-gcc = $(firstword $(wildcard $(patsubst %ld,%gcc,$(call find-cross-ld
 find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
 
 powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
+x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
 
 #
 # EfiRom utility is shipped with edk2 / tianocore, in BaseTools/
@@ -95,10 +96,12 @@ efi-rom-%: build-pxe-roms build-efi-roms
 
 build-pxe-roms: ipxe/src/config/local/general.h
 	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin/%.rom,$(pxerom_targets))
 
 build-efi-roms: build-pxe-roms ipxe/src/config/local/general.h
 	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
