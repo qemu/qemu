@@ -38,6 +38,8 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
+#include "qapi-visit.h"
+#include "qapi/qmp-output-visitor.h"
 #include "sysemu/sysemu.h"
 #include "block/block_int.h"
 #include "qmp-commands.h"
@@ -2064,6 +2066,61 @@ void qmp_block_job_complete(const char *device, Error **errp)
 
     trace_qmp_block_job_complete(job);
     block_job_complete(job, errp);
+}
+
+void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
+{
+    QmpOutputVisitor *ov = qmp_output_visitor_new();
+    QObject *obj;
+    QDict *qdict;
+    DriveInfo *dinfo;
+    Error *local_err = NULL;
+
+    /* Require an ID in the top level */
+    if (!options->has_id) {
+        error_setg(errp, "Block device needs an ID");
+        goto fail;
+    }
+
+    /* TODO Sort it out in raw-posix and drive_init: Reject aio=native with
+     * cache.direct=false instead of silently switching to aio=threads, except
+     * if called from drive_init.
+     *
+     * For now, simply forbidding the combination for all drivers will do. */
+    if (options->has_aio && options->aio == BLOCKDEV_AIO_OPTIONS_NATIVE) {
+        bool direct = options->cache->has_direct && options->cache->direct;
+        if (!options->has_cache && !direct) {
+            error_setg(errp, "aio=native requires cache.direct=true");
+            goto fail;
+        }
+    }
+
+    visit_type_BlockdevOptions(qmp_output_get_visitor(ov),
+                               &options, NULL, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    obj = qmp_output_get_qobject(ov);
+    qdict = qobject_to_qdict(obj);
+
+    qdict_flatten(qdict);
+
+    QemuOpts *opts = qemu_opts_from_qdict(&qemu_drive_opts, qdict, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    dinfo = blockdev_init(opts, IF_NONE);
+    if (!dinfo) {
+        error_setg(errp, "Could not open image");
+        goto fail;
+    }
+
+fail:
+    qmp_output_visitor_cleanup(ov);
 }
 
 static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
