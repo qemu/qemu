@@ -645,7 +645,6 @@ main(
     GIOChannel *channel_stdin;
     char *qemu_host;
     char *qemu_port;
-    VSCMsgHeader mhHeader;
 
     VCardEmulOptions *command_line_options = NULL;
 
@@ -754,7 +753,7 @@ main(
         .magic = VSCARD_MAGIC,
         .capabilities = {0}
     };
-    send_msg(VSC_Init, mhHeader.reader_id, &init, sizeof(init));
+    send_msg(VSC_Init, 0, &init, sizeof(init));
 
     g_main_loop_run(loop);
     g_main_loop_unref(loop);

@@ -182,17 +182,17 @@ static void perf_nesting(void)
     unsigned int i, maxcycles, maxnesting;
     double duration;
 
-    maxcycles = 100000000;
+    maxcycles = 10000;
     maxnesting = 1000;
     Coroutine *root;
-    NestData nd = {
-        .n_enter  = 0,
-        .n_return = 0,
-        .max      = maxnesting,
-    };
 
     g_test_timer_start();
     for (i = 0; i < maxcycles; i++) {
+        NestData nd = {
+            .n_enter  = 0,
+            .n_return = 0,
+            .max      = maxnesting,
+        };
         root = qemu_coroutine_create(nest);
         qemu_coroutine_enter(root, &nd);
     }
@@ -202,6 +202,38 @@ static void perf_nesting(void)
         maxcycles, maxnesting, duration);
 }
 
+/*
+ * Yield benchmark
+ */
+
+static void coroutine_fn yield_loop(void *opaque)
+{
+    unsigned int *counter = opaque;
+
+    while ((*counter) > 0) {
+        (*counter)--;
+        qemu_coroutine_yield();
+    }
+}
+
+static void perf_yield(void)
+{
+    unsigned int i, maxcycles;
+    double duration;
+
+    maxcycles = 100000000;
+    i = maxcycles;
+    Coroutine *coroutine = qemu_coroutine_create(yield_loop);
+
+    g_test_timer_start();
+    while (i > 0) {
+        qemu_coroutine_enter(coroutine, &i);
+    }
+    duration = g_test_timer_elapsed();
+
+    g_test_message("Yield %u iterations: %f s\n",
+        maxcycles, duration);
+}
 
 int main(int argc, char **argv)
 {
@@ -214,6 +246,7 @@ int main(int argc, char **argv)
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
+        g_test_add_func("/perf/yield", perf_yield);
     }
     return g_test_run();
 }

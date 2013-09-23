@@ -593,7 +593,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int sim_open(BlockDriverState *bs, QDict *options, int bdrv_flags)
+static int sim_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
+                    Error **errp)
 {
     BDRVSimState *s = bs->opaque;
     int open_flags = O_BINARY | O_LARGEFILE;

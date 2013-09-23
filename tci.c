@@ -1093,7 +1093,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp8 = *(uint8_t *)(host_addr + GUEST_BASE);
 #endif
             tci_write_reg8(t0, tmp8);
@@ -1105,7 +1104,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp8 = *(uint8_t *)(host_addr + GUEST_BASE);
 #endif
             tci_write_reg8s(t0, tmp8);
@@ -1117,7 +1115,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp16 = tswap16(*(uint16_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg16(t0, tmp16);
@@ -1129,7 +1126,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp16 = tswap16(*(uint16_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg16s(t0, tmp16);
@@ -1142,7 +1138,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg32(t0, tmp32);
@@ -1154,7 +1149,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg32s(t0, tmp32);
@@ -1167,7 +1161,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp32 = tswap32(*(uint32_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg32(t0, tmp32);
@@ -1182,7 +1175,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp64 = helper_ldq_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             tmp64 = tswap64(*(uint64_t *)(host_addr + GUEST_BASE));
 #endif
             tci_write_reg(t0, tmp64);
@@ -1198,7 +1190,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             helper_stb_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             *(uint8_t *)(host_addr + GUEST_BASE) = t0;
 #endif
             break;
@@ -1210,7 +1201,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             helper_stw_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             *(uint16_t *)(host_addr + GUEST_BASE) = tswap16(t0);
 #endif
             break;
@@ -1222,7 +1212,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             helper_stl_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             *(uint32_t *)(host_addr + GUEST_BASE) = tswap32(t0);
 #endif
             break;
@@ -1234,7 +1223,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             helper_stq_mmu(env, taddr, tmp64, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
-            assert(taddr == host_addr);
             *(uint64_t *)(host_addr + GUEST_BASE) = tswap64(tmp64);
 #endif
             break;

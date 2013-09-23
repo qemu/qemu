@@ -192,7 +192,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     /* The snapshot list position has not yet been updated, so these clusters
      * must indeed be completely free */
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT, offset,
-                                        s->snapshots_size);
+                                        snapshots_size);
     if (ret < 0) {
         return ret;
     }

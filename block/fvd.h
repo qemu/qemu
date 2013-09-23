@@ -395,7 +395,8 @@ static void free_write_resource(struct FvdAIOCB *acb);
 static void write_metadata_to_journal(struct FvdAIOCB *acb);
 static void flush_metadata_to_disk(BlockDriverState * bs);
 static void free_journal_sectors(BDRVFvdState * s);
-static int fvd_create(const char *filename, QEMUOptionParameter * options);
+static int fvd_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp);
 static int fvd_probe(const uint8_t * buf, int buf_size, const char *filename);
 static int64_t coroutine_fn fvd_get_block_status(BlockDriverState *bs,
                                                  int64_t sector_num,

@@ -443,7 +443,7 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
     if (qemu_opt_get_bool(opts, "cache.direct", false)) {
         bdrv_flags |= BDRV_O_NOCACHE;
     }
-    if (qemu_opt_get_bool(opts, "cache.no-flush", true)) {
+    if (qemu_opt_get_bool(opts, "cache.no-flush", false)) {
         bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 

@@ -17,7 +17,8 @@ static inline int search_holes(const char *filename, size_t bitmap_size,
                     int32_t bitmap_start_offset, BlockDriverState * bs,
                     int64_t nb_sectors, int32_t hole_size, int32_t block_size);
 
-static int fvd_create (const char *filename, QEMUOptionParameter * options)
+static int fvd_create(const char *filename, QEMUOptionParameter *options,
+                      Error **errp)
 {
     int fd, ret;
     FvdHeader *header;
@@ -117,6 +118,7 @@ static int fvd_create (const char *filename, QEMUOptionParameter * options)
     if (!base_img) {
         header->all_data_in_fvd_img = TRUE;
     } else {
+        Error *local_err = NULL;
         int ret;
 
         bs = bdrv_new ("");
@@ -134,13 +136,14 @@ static int fvd_create (const char *filename, QEMUOptionParameter * options)
                          base_img_fmt);
                 return -1;
             }
-            ret = bdrv_open(bs, header->data_file, NULL, 0, drv);
+            ret = bdrv_open(bs, header->data_file, NULL, 0, drv, &local_err);
         } else {
-            ret = bdrv_open(bs, base_img, NULL, 0, NULL);
+            ret = bdrv_open(bs, base_img, NULL, 0, NULL, &local_err);
         }
 
         if (ret < 0) {
-            fprintf (stderr, "Failed to open the base image %s\n", base_img);
+            qerror_report_err(local_err);
+            error_free(local_err);
             return -1;
         }
 

@@ -2669,7 +2669,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
             goto out;
         }
 
-        total_sectors = len >> BDRV_SECTOR_BITS;
+        total_sectors = (len + BDRV_SECTOR_SIZE - 1) >> BDRV_SECTOR_BITS;
         max_nb_sectors = MAX(0, total_sectors - sector_num);
         if (max_nb_sectors > 0) {
             ret = drv->bdrv_co_readv(bs, sector_num,

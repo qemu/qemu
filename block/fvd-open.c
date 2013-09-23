@@ -36,7 +36,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int fvd_open(BlockDriverState * bs, QDict *options, int flags)
+static int fvd_open(BlockDriverState * bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVFvdState *s = bs->opaque;
     int ret;
@@ -71,9 +72,10 @@ static int fvd_open(BlockDriverState * bs, QDict *options, int flags)
     }
 
     s->fvd_metadata = bdrv_new ("");
-    ret = bdrv_open(s->fvd_metadata, filename, NULL, flags, drv);
+    ret = bdrv_open(s->fvd_metadata, filename, NULL, flags, drv, &local_err);
     if (ret < 0) {
-        fprintf (stderr, "Failed to open %s\n", filename);
+        qerror_report_err(local_err);
+        error_free(local_err);
         return ret;
     }
 
@@ -344,6 +346,7 @@ static int init_compact_image (BDRVFvdState * s, FvdHeader * header,
 
 static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
 {
+    Error *local_err = NULL;
     int ret;
 
     if (header->data_file[0]) {
@@ -356,7 +359,8 @@ static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
         }
 
         if (header->data_file_fmt[0] == 0) {
-            ret = bdrv_open(s->fvd_data, header->data_file, NULL, flags, NULL);
+            ret = bdrv_open(s->fvd_data, header->data_file, NULL, flags, NULL,
+                            &local_err);
         } else {
             BlockDriver *data_drv = bdrv_find_format (header->data_file_fmt);
             if (!data_drv) {
@@ -366,11 +370,11 @@ static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
                 return -1;
             }
             ret = bdrv_open(s->fvd_data, header->data_file,
-                            NULL, flags, data_drv);
+                            NULL, flags, data_drv, &local_err);
         }
         if (ret != 0) {
-            fprintf (stderr, "Failed to open data file %s\n",
-                     header->data_file);
+            qerror_report_err(local_err);
+            error_free(local_err);
             return -1;
         }
     } else {
