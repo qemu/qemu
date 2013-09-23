@@ -82,6 +82,9 @@ static void sys_write(void *opaque, hwaddr addr,
         testname = (char *)s->testname;
         fprintf(stderr, "TC  %-*s %s\n", MAX_TESTNAME_LEN,
                 testname, (value) ? "FAILED" : "OK");
+        if (value) {
+            cpu_dump_state(qemu_get_cpu(0), stderr, fprintf, 0);
+        }
         break;
     case R_TESTNAME:
         s->regs[addr] = value;
