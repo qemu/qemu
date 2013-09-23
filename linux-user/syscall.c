@@ -1773,7 +1773,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     free(vec);
 }
 
-static inline void target_to_host_sock_type(int *type)
+static inline int target_to_host_sock_type(int *type)
 {
     int host_type = 0;
     int target_type = *type;
@@ -1790,22 +1790,56 @@ static inline void target_to_host_sock_type(int *type)
         break;
     }
     if (target_type & TARGET_SOCK_CLOEXEC) {
+#if defined(SOCK_CLOEXEC)
         host_type |= SOCK_CLOEXEC;
+#else
+        return -TARGET_EINVAL;
+#endif
     }
     if (target_type & TARGET_SOCK_NONBLOCK) {
+#if defined(SOCK_NONBLOCK)
         host_type |= SOCK_NONBLOCK;
+#elif !defined(O_NONBLOCK)
+        return -TARGET_EINVAL;
+#endif
     }
     *type = host_type;
+    return 0;
+}
+
+/* Try to emulate socket type flags after socket creation.  */
+static int sock_flags_fixup(int fd, int target_type)
+{
+#if !defined(SOCK_NONBLOCK) && defined(O_NONBLOCK)
+    if (target_type & TARGET_SOCK_NONBLOCK) {
+        int flags = fcntl(fd, F_GETFL);
+        if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) == -1) {
+            close(fd);
+            return -TARGET_EINVAL;
+        }
+    }
+#endif
+    return fd;
 }
 
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
-    target_to_host_sock_type(&type);
+    int target_type = type;
+    int ret;
+
+    ret = target_to_host_sock_type(&type);
+    if (ret) {
+        return ret;
+    }
 
     if (domain == PF_NETLINK)
         return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
-    return get_errno(socket(domain, type, protocol));
+    ret = get_errno(socket(domain, type, protocol));
+    if (ret >= 0) {
+        ret = sock_flags_fixup(ret, target_type);
+    }
+    return ret;
 }
 
 /* do_bind() Must return target values and target errnos. */
