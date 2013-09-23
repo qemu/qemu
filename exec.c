@@ -1184,6 +1184,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     qemu_ram_setup_dump(new_block->host, size);
     qemu_madvise(new_block->host, size, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(new_block->host, size, QEMU_MADV_DONTFORK);
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);

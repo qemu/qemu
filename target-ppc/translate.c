@@ -9536,8 +9536,6 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     CPUPPCState *env = &cpu->env;
     int i;
 
-    cpu_synchronize_state(cs);
-
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",
                 env->nip, env->lr, env->ctr, cpu_read_xer(env));

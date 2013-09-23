@@ -70,6 +70,9 @@ typedef struct X86CPU {
     bool hyperv_relaxed_timing;
     int hyperv_spinlock_attempts;
 
+    /* if true the CPUID code directly forward host cache leaves to the guest */
+    bool cache_info_passthrough;
+
     /* Features that were filtered out because of missing host capabilities */
     uint32_t filtered_features[FEATURE_WORDS];
 

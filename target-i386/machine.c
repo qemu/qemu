@@ -330,9 +330,9 @@ static bool pv_eoi_msr_needed(void *opaque)
 
 static bool steal_time_msr_needed(void *opaque)
 {
-    CPUX86State *cpu = opaque;
+    X86CPU *cpu = opaque;
 
-    return cpu->steal_time_msr != 0;
+    return cpu->env.steal_time_msr != 0;
 }
 
 static const VMStateDescription vmstate_steal_time_msr = {
@@ -341,7 +341,7 @@ static const VMStateDescription vmstate_steal_time_msr = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(steal_time_msr, CPUX86State),
+        VMSTATE_UINT64(env.steal_time_msr, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
