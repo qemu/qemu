@@ -134,7 +134,7 @@ static void pcnet_ioport_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pcnet_io_ops = {
     .read = pcnet_ioport_read,
     .write = pcnet_ioport_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pcnet_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
@@ -256,7 +256,7 @@ static const MemoryRegionOps pcnet_mmio_ops = {
         .read = { pcnet_mmio_readb, pcnet_mmio_readw, pcnet_mmio_readl },
         .write = { pcnet_mmio_writeb, pcnet_mmio_writew, pcnet_mmio_writel },
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,

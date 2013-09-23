@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
+#include "qemu/iov.h"
 
 #include "e1000_regs.h"
 
@@ -63,6 +64,8 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 /* this is the size past which hardware will drop packets when setting LPE=1 */
 #define MAXIMUM_ETHERNET_LPE_SIZE 16384
+
+#define MAXIMUM_ETHERNET_HDR_LEN (14+4)
 
 /*
  * HW models:
@@ -899,7 +902,7 @@ static uint64_t rx_desc_base(E1000State *s)
 }
 
 static ssize_t
-e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
     E1000State *s = qemu_get_nic_opaque(nc);
     PCIDevice *d = PCI_DEVICE(s);
@@ -908,8 +911,12 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     unsigned int n, rdt;
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
-    uint8_t vlan_status = 0, vlan_offset = 0;
+    uint8_t vlan_status = 0;
     uint8_t min_buf[MIN_BUF_SIZE];
+    struct iovec min_iov;
+    uint8_t *filter_buf = iov->iov_base;
+    size_t size = iov_size(iov, iovcnt);
+    size_t iov_ofs = 0;
     size_t desc_offset;
     size_t desc_size;
     size_t total_size;
@@ -924,10 +931,16 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     /* Pad to minimum Ethernet frame length */
     if (size < sizeof(min_buf)) {
-        memcpy(min_buf, buf, size);
+        iov_to_buf(iov, iovcnt, 0, min_buf, size);
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
-        buf = min_buf;
-        size = sizeof(min_buf);
+        min_iov.iov_base = filter_buf = min_buf;
+        min_iov.iov_len = size = sizeof(min_buf);
+        iovcnt = 1;
+        iov = &min_iov;
+    } else if (iov->iov_len < MAXIMUM_ETHERNET_HDR_LEN) {
+        /* This is very unlikely, but may happen. */
+        iov_to_buf(iov, iovcnt, 0, min_buf, MAXIMUM_ETHERNET_HDR_LEN);
+        filter_buf = min_buf;
     }
 
     /* Discard oversized packets if !LPE and !SBP. */
@@ -938,14 +951,24 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         return size;
     }
 
-    if (!receive_filter(s, buf, size))
+    if (!receive_filter(s, filter_buf, size)) {
         return size;
+    }
 
-    if (vlan_enabled(s) && is_vlan_packet(s, buf)) {
-        vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(buf + 14)));
-        memmove((uint8_t *)buf + 4, buf, 12);
+    if (vlan_enabled(s) && is_vlan_packet(s, filter_buf)) {
+        vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(filter_buf
+                                                                + 14)));
+        iov_ofs = 4;
+        if (filter_buf == iov->iov_base) {
+            memmove(filter_buf + 4, filter_buf, 12);
+        } else {
+            iov_from_buf(iov, iovcnt, 4, filter_buf, 12);
+            while (iov->iov_len <= iov_ofs) {
+                iov_ofs -= iov->iov_len;
+                iov++;
+            }
+        }
         vlan_status = E1000_RXD_STAT_VP;
-        vlan_offset = 4;
         size -= 4;
     }
 
@@ -967,12 +990,23 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
         if (desc.buffer_addr) {
             if (desc_offset < size) {
+                size_t iov_copy;
+                hwaddr ba = le64_to_cpu(desc.buffer_addr);
                 size_t copy_size = size - desc_offset;
                 if (copy_size > s->rxbuf_size) {
                     copy_size = s->rxbuf_size;
                 }
-                pci_dma_write(d, le64_to_cpu(desc.buffer_addr),
-                              buf + desc_offset + vlan_offset, copy_size);
+                do {
+                    iov_copy = MIN(copy_size, iov->iov_len - iov_ofs);
+                    pci_dma_write(d, ba, iov->iov_base + iov_ofs, iov_copy);
+                    copy_size -= iov_copy;
+                    ba += iov_copy;
+                    iov_ofs += iov_copy;
+                    if (iov_ofs == iov->iov_len) {
+                        iov++;
+                        iov_ofs = 0;
+                    }
+                } while (copy_size);
             }
             desc_offset += desc_size;
             desc.length = cpu_to_le16(desc_size);
@@ -1020,6 +1054,17 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     set_ics(s, 0, n);
 
     return size;
+}
+
+static ssize_t
+e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+{
+    const struct iovec iov = {
+        .iov_base = (uint8_t *)buf,
+        .iov_len = size
+    };
+
+    return e1000_receive_iov(nc, &iov, 1);
 }
 
 static uint32_t
@@ -1448,6 +1493,7 @@ static NetClientInfo net_e1000_info = {
     .size = sizeof(NICState),
     .can_receive = e1000_can_receive,
     .receive = e1000_receive,
+    .receive_iov = e1000_receive_iov,
     .cleanup = e1000_cleanup,
     .link_status_changed = e1000_set_link_status,
 };
