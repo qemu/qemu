@@ -1520,6 +1520,7 @@ static BlockDriver bdrv_iscsi = {
     .protocol_name   = "iscsi",
 
     .instance_size   = sizeof(IscsiLun),
+    .bdrv_needs_filename = true,
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
     .bdrv_create     = iscsi_create,

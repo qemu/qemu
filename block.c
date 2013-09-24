@@ -792,7 +792,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
         assert(file == NULL);
-        assert(drv->bdrv_parse_filename || filename != NULL);
+        assert(!drv->bdrv_needs_filename || filename != NULL);
         ret = drv->bdrv_file_open(bs, options, open_flags, &local_err);
     } else {
         if (file == NULL) {
@@ -911,7 +911,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             goto fail;
         }
         qdict_del(options, "filename");
-    } else if (!drv->bdrv_parse_filename && !filename) {
+    } else if (drv->bdrv_needs_filename && !filename) {
         error_setg(errp, "The '%s' block driver requires a file name",
                    drv->format_name);
         ret = -EINVAL;
