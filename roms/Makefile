@@ -55,18 +55,27 @@ default:
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
 	@echo "  slof           -- update slof.bin"
 
-bios: config.seabios
-	sh configure-seabios.sh $<
-	make -C seabios out/bios.bin
-	cp seabios/out/bios.bin ../pc-bios/bios.bin
-	cp seabios/out/*dsdt.aml ../pc-bios/
+bios: build-seabios-config-seabios
+	cp seabios/builds/seabios/bios.bin ../pc-bios/bios.bin
+	cp seabios/builds/seabios/*dsdt.aml ../pc-bios/
 
 seavgabios: $(patsubst %,seavgabios-%,$(vgabios_variants))
 
-seavgabios-%: config.vga.%
-	sh configure-seabios.sh $<
-	make -C seabios out/vgabios.bin
-	cp seabios/out/vgabios.bin ../pc-bios/vgabios-$*.bin
+seavgabios-isavga: build-seabios-config-vga-isavga
+	cp seabios/builds/vga-isavga/vgabios.bin ../pc-bios/vgabios.bin
+
+seavgabios-%: build-seabios-config-vga-%
+	cp seabios/builds/vga-$*/vgabios.bin ../pc-bios/vgabios-$*.bin
+
+build-seabios-config-%: config.%
+	mkdir -p seabios/builds/$*
+	cp $< seabios/builds/$*/.config
+	$(MAKE) $(MAKEFLAGS) -C seabios \
+		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
+		OUT=$(CURDIR)/seabios/builds/$*/ oldnoconfig
+	$(MAKE) $(MAKEFLAGS) -C seabios \
+		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
+		OUT=$(CURDIR)/seabios/builds/$*/ all
 
 
 lgplvgabios: $(patsubst %,lgplvgabios-%,$(vgabios_variants))
@@ -115,7 +124,7 @@ slof:
 
 
 clean:
-	rm -rf seabios/.config seabios/out
+	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) $(MAKEFLAGS) -C vgabios clean
 	rm -f vgabios/VGABIOS-lgpl-latest*
 	$(MAKE) $(MAKEFLAGS) -C ipxe/src veryclean
