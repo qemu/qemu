@@ -50,6 +50,7 @@ default:
 	@echo "  bios           -- update bios.bin (seabios)"
 	@echo "  seavgabios     -- update vgabios binaries (seabios)"
 	@echo "  lgplvgabios    -- update vgabios binaries (lgpl)"
+	@echo "  sgabios        -- update sgabios binaries"
 	@echo "  pxerom         -- update nic roms (bios only)"
 	@echo "  efirom         -- update nic roms (bios+efi, this needs"
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
@@ -87,6 +88,12 @@ lgplvgabios-%: build-lgplvgabios
 
 build-lgplvgabios:
 	$(MAKE) $(MAKEFLAGS) -C vgabios $(vgabios_targets)
+
+
+.PHONY: sgabios
+sgabios:
+	$(MAKE) $(MAKEFLAGS) -C sgabios
+	cp sgabios/sgabios.bin ../pc-bios
 
 
 pxerom: $(patsubst %,pxe-rom-%,$(pxerom_variants))
@@ -127,5 +134,7 @@ clean:
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) $(MAKEFLAGS) -C vgabios clean
 	rm -f vgabios/VGABIOS-lgpl-latest*
+	$(MAKE) $(MAKEFLAGS) -C sgabios clean
+	rm -f sgabios/.depend
 	$(MAKE) $(MAKEFLAGS) -C ipxe/src veryclean
 	$(MAKE) $(MAKEFLAGS) -C SLOF clean
