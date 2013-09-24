@@ -3162,6 +3162,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
     if (ret < 0) {
+        *pnum = 0;
         return ret;
     }
 
