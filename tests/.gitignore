@@ -5,8 +5,10 @@ check-qjson
 check-qlist
 check-qstring
 test-aio
+test-bitops
 test-cutils
 test-hbitmap
+test-int128
 test-iov
 test-mul64
 test-qapi-types.[ch]
