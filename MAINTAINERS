@@ -638,6 +638,7 @@ Subsystems
 ----------
 Audio
 M: Vassili Karpov (malc) <av1474@comtv.ru>
+M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: audio/
 F: hw/audio/
