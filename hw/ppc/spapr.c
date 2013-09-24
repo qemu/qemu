@@ -62,7 +62,7 @@
  *
  * We load our kernel at 4M, leaving space for SLOF initial image
  */
-#define FDT_MAX_SIZE            0x10000
+#define FDT_MAX_SIZE            0x40000
 #define RTAS_MAX_SIZE           0x10000
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
