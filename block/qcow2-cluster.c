@@ -273,6 +273,10 @@ fail:
         qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
     }
     s->l1_table[l1_index] = old_l2_offset;
+    if (l2_offset > 0) {
+        qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t),
+                            QCOW2_DISCARD_ALWAYS);
+    }
     return ret;
 }
 
