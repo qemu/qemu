@@ -98,6 +98,7 @@ typedef struct XenIOState {
 
     Notifier exit;
     Notifier suspend;
+    Notifier wakeup;
 } XenIOState;
 
 /* Xen specific function for piix pci */
@@ -1060,6 +1061,11 @@ static void xen_read_physmap(XenIOState *state)
     free(entries);
 }
 
+static void xen_wakeup_notifier(Notifier *notifier, void *data)
+{
+    xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
+}
+
 int xen_hvm_init(MemoryRegion **ram_memory)
 {
     int i, rc;
@@ -1088,6 +1094,9 @@ int xen_hvm_init(MemoryRegion **ram_memory)
 
     state->suspend.notify = xen_suspend_notifier;
     qemu_register_suspend_notifier(&state->suspend);
+
+    state->wakeup.notify = xen_wakeup_notifier;
+    qemu_register_wakeup_notifier(&state->wakeup);
 
     xc_get_hvm_param(xen_xc, xen_domid, HVM_PARAM_IOREQ_PFN, &ioreq_pfn);
     DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
