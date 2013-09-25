@@ -91,6 +91,18 @@ _set_default_imgopts()
     fi
 }
 
+_use_sample_img()
+{
+    SAMPLE_IMG_FILE="${1%\.bz2}"
+    TEST_IMG="$TEST_DIR/$SAMPLE_IMG_FILE"
+    bzcat "$SAMPLE_IMG_DIR/$1" > "$TEST_IMG"
+    if [ $? -ne 0 ]
+    then
+        echo "_use_sample_img error, cannot extract '$SAMPLE_IMG_DIR/$1'"
+        exit 1
+    fi
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -158,6 +170,10 @@ _cleanup_test_img()
             rm -f $TEST_DIR/t.$IMGFMT
             rm -f $TEST_DIR/t.$IMGFMT.orig
             rm -f $TEST_DIR/t.$IMGFMT.base
+            if [ -n "$SAMPLE_IMG_FILE" ]
+            then
+                rm -f "$TEST_DIR/$SAMPLE_IMG_FILE"
+            fi
             ;;
 
         rbd)
