@@ -189,6 +189,12 @@ void qemu_clock_notify(QEMUClockType type);
  * @enabled: true to enable, false to disable
  *
  * Enable or disable a clock
+ * Disabling the clock will wait for related timerlists to stop
+ * executing qemu_run_timers.  Thus, this functions should not
+ * be used from the callback of a timer that is based on @clock.
+ * Doing so would cause a deadlock.
+ *
+ * Caller should hold BQL.
  */
 void qemu_clock_enable(QEMUClockType type, bool enabled);
 

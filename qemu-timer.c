@@ -45,6 +45,7 @@
 /* timers */
 
 typedef struct QEMUClock {
+    /* We rely on BQL to protect the timerlists */
     QLIST_HEAD(, QEMUTimerList) timerlists;
 
     NotifierList reset_notifiers;
@@ -71,6 +72,9 @@ struct QEMUTimerList {
     QLIST_ENTRY(QEMUTimerList) list;
     QEMUTimerListNotifyCB *notify_cb;
     void *notify_opaque;
+
+    /* lightweight method to mark the end of timerlist's running */
+    QemuEvent timers_done_ev;
 };
 
 /**
@@ -99,6 +103,7 @@ QEMUTimerList *timerlist_new(QEMUClockType type,
     QEMUClock *clock = qemu_clock_ptr(type);
 
     timer_list = g_malloc0(sizeof(QEMUTimerList));
+    qemu_event_init(&timer_list->timers_done_ev, false);
     timer_list->clock = clock;
     timer_list->notify_cb = cb;
     timer_list->notify_opaque = opaque;
@@ -143,13 +148,25 @@ void qemu_clock_notify(QEMUClockType type)
     }
 }
 
+/* Disabling the clock will wait for related timerlists to stop
+ * executing qemu_run_timers.  Thus, this functions should not
+ * be used from the callback of a timer that is based on @clock.
+ * Doing so would cause a deadlock.
+ *
+ * Caller should hold BQL.
+ */
 void qemu_clock_enable(QEMUClockType type, bool enabled)
 {
     QEMUClock *clock = qemu_clock_ptr(type);
+    QEMUTimerList *tl;
     bool old = clock->enabled;
     clock->enabled = enabled;
     if (enabled && !old) {
         qemu_clock_notify(type);
+    } else if (!enabled && old) {
+        QLIST_FOREACH(tl, &clock->timerlists, list) {
+            qemu_event_wait(&tl->timers_done_ev);
+        }
     }
 }
 
@@ -403,8 +420,9 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     QEMUTimerCB *cb;
     void *opaque;
 
+    qemu_event_reset(&timer_list->timers_done_ev);
     if (!timer_list->clock->enabled) {
-        return progress;
+        goto out;
     }
 
     current_time = qemu_clock_get_ns(timer_list->clock->type);
@@ -428,6 +446,9 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         cb(opaque);
         progress = true;
     }
+
+out:
+    qemu_event_set(&timer_list->timers_done_ev);
     return progress;
 }
 
