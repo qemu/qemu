@@ -3186,6 +3186,9 @@ static const MonitorDef monitor_defs[] = {
 
     { "srr0", offsetof(CPUPPCState, spr[SPR_SRR0]) },
     { "srr1", offsetof(CPUPPCState, spr[SPR_SRR1]) },
+    { "dar", offsetof(CPUPPCState, spr[SPR_DAR]) },
+    { "dsisr", offsetof(CPUPPCState, spr[SPR_DSISR]) },
+    { "cfar", offsetof(CPUPPCState, spr[SPR_CFAR]) },
     { "sprg0", offsetof(CPUPPCState, spr[SPR_SPRG0]) },
     { "sprg1", offsetof(CPUPPCState, spr[SPR_SPRG1]) },
     { "sprg2", offsetof(CPUPPCState, spr[SPR_SPRG2]) },
