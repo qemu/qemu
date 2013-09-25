@@ -716,6 +716,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
 
+    assert(l2_index + m->nb_clusters <= s->l2_size);
     for (i = 0; i < m->nb_clusters; i++) {
         /* if two concurrent writes happen to the same unallocated cluster
 	 * each write allocates separate cluster and writes data concurrently.
