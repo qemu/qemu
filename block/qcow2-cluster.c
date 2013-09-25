@@ -1510,8 +1510,8 @@ fail:
  * i.e., the number of bits in expanded_clusters.
  */
 static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
-                                      int l1_size, uint8_t *expanded_clusters,
-                                      uint64_t nb_clusters)
+                                      int l1_size, uint8_t **expanded_clusters,
+                                      uint64_t *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     bool is_active_l1 = (l1_table == s->l1_table);
@@ -1554,8 +1554,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
             if (cluster_type == QCOW2_CLUSTER_NORMAL) {
                 cluster_index = offset >> s->cluster_bits;
-                assert((cluster_index >= 0) && (cluster_index < nb_clusters));
-                if (expanded_clusters[cluster_index / 8] &
+                assert((cluster_index >= 0) && (cluster_index < *nb_clusters));
+                if ((*expanded_clusters)[cluster_index / 8] &
                     (1 << (cluster_index % 8))) {
                     /* Probably a shared L2 table; this cluster was a zero
                      * cluster which has been expanded, its refcount
@@ -1613,8 +1613,25 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             l2_dirty = true;
 
             cluster_index = offset >> s->cluster_bits;
-            assert((cluster_index >= 0) && (cluster_index < nb_clusters));
-            expanded_clusters[cluster_index / 8] |= 1 << (cluster_index % 8);
+
+            if (cluster_index >= *nb_clusters) {
+                uint64_t old_bitmap_size = (*nb_clusters + 7) / 8;
+                uint64_t new_bitmap_size;
+                /* The offset may lie beyond the old end of the underlying image
+                 * file for growable files only */
+                assert(bs->file->growable);
+                *nb_clusters = size_to_clusters(s, bs->file->total_sectors *
+                                                BDRV_SECTOR_SIZE);
+                new_bitmap_size = (*nb_clusters + 7) / 8;
+                *expanded_clusters = g_realloc(*expanded_clusters,
+                                               new_bitmap_size);
+                /* clear the newly allocated space */
+                memset(&(*expanded_clusters)[old_bitmap_size], 0,
+                       new_bitmap_size - old_bitmap_size);
+            }
+
+            assert((cluster_index >= 0) && (cluster_index < *nb_clusters));
+            (*expanded_clusters)[cluster_index / 8] |= 1 << (cluster_index % 8);
         }
 
         if (is_active_l1) {
@@ -1673,18 +1690,17 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table = NULL;
-    int cluster_to_sector_bits = s->cluster_bits - BDRV_SECTOR_BITS;
     uint64_t nb_clusters;
     uint8_t *expanded_clusters;
     int ret;
     int i, j;
 
-    nb_clusters = (bs->total_sectors + (1 << cluster_to_sector_bits) - 1)
-            >> cluster_to_sector_bits;
+    nb_clusters = size_to_clusters(s, bs->file->total_sectors *
+                                   BDRV_SECTOR_SIZE);
     expanded_clusters = g_malloc0((nb_clusters + 7) / 8);
 
     ret = expand_zero_clusters_in_l1(bs, s->l1_table, s->l1_size,
-                                     expanded_clusters, nb_clusters);
+                                     &expanded_clusters, &nb_clusters);
     if (ret < 0) {
         goto fail;
     }
@@ -1718,7 +1734,7 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs)
         }
 
         ret = expand_zero_clusters_in_l1(bs, l1_table, s->snapshots[i].l1_size,
-                                         expanded_clusters, nb_clusters);
+                                         &expanded_clusters, &nb_clusters);
         if (ret < 0) {
             goto fail;
         }
