@@ -188,7 +188,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t old_l2_offset;
-    uint64_t *l2_table;
+    uint64_t *l2_table = NULL;
     int64_t l2_offset;
     int ret;
 
@@ -265,7 +265,9 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
 fail:
     trace_qcow2_l2_allocate_done(bs, l1_index, ret);
-    qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
+    if (l2_table != NULL) {
+        qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
+    }
     s->l1_table[l1_index] = old_l2_offset;
     return ret;
 }
