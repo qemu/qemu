@@ -33,8 +33,8 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
-    rm -f $TEST_IMG.base
-    rm -f $TEST_IMG.orig
+    rm -f "$TEST_IMG.base"
+    rm -f "$TEST_IMG.orig"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -68,8 +68,8 @@ _check_test_img
 echo "Creating test image with backing file"
 echo
 
-mv $TEST_IMG $TEST_IMG.base
-_make_test_img -b $TEST_IMG.base 6G
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" 6G
 
 echo "Filling test image"
 echo
@@ -83,7 +83,7 @@ for offset in $TEST_OFFSETS; do
 done
 _check_test_img
 
-mv $TEST_IMG $TEST_IMG.orig
+mv "$TEST_IMG" "$TEST_IMG.orig"
 
 
 
@@ -95,7 +95,7 @@ for backing_option in "-B $TEST_IMG.base" "-o backing_file=$TEST_IMG.base"; do
     echo
     echo Testing conversion with $backing_option | _filter_testdir | _filter_imgfmt
     echo
-    $QEMU_IMG convert -O $IMGFMT $backing_option $TEST_IMG.orig $TEST_IMG
+    $QEMU_IMG convert -O $IMGFMT $backing_option "$TEST_IMG.orig" "$TEST_IMG"
 
     echo "Checking if backing clusters are allocated when they shouldn't"
     echo

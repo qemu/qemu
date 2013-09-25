@@ -61,7 +61,7 @@ done
 
 # With snapshots
 for i in `seq 1 3`; do
-    $QEMU_IMG snapshot -c test$i $TEST_IMG
+    $QEMU_IMG snapshot -c test$i "$TEST_IMG"
     for offset in $TEST_OFFSETS; do
         echo With snapshot test$i, offset $offset
         for op in $TEST_OPS; do
