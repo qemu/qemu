@@ -200,7 +200,8 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     l2_offset = qcow2_alloc_clusters(bs, s->l2_size * sizeof(uint64_t));
     if (l2_offset < 0) {
-        return l2_offset;
+        ret = l2_offset;
+        goto fail;
     }
 
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
@@ -213,7 +214,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     trace_qcow2_l2_allocate_get_empty(bs, l1_index);
     ret = qcow2_cache_get_empty(bs, s->l2_table_cache, l2_offset, (void**) table);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
     l2_table = *table;
