@@ -200,6 +200,15 @@ $QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
 $QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing preallocated zero expansion on full image ==="
+echo
+IMGOPTS="compat=1.1" TEST_IMG="$TEST_IMG" _make_test_img 64M
+$QEMU_IO -c "write -P 0x2a 0 64M" "$TEST_IMG" -c "write -z 0 64M" | _filter_qemu_io
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_check_test_img
+$QEMU_IO -c "read -P 0 0 64M" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
