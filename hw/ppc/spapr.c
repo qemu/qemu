@@ -273,6 +273,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                    hwaddr initrd_base,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
+                                   bool little_endian,
                                    const char *boot_device,
                                    const char *kernel_cmdline,
                                    uint32_t epow_irq)
@@ -326,6 +327,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                               cpu_to_be64(kernel_size) };
 
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
+        if (little_endian) {
+            _FDT((fdt_property(fdt, "qemu,boot-kernel-le", NULL, 0)));
+        }
     }
     if (boot_device) {
         _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
@@ -1102,6 +1106,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;
+    bool kernel_le = false;
     char *filename;
 
     msi_supported = true;
@@ -1282,6 +1287,12 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                NULL, &lowaddr, NULL, 1, ELF_MACHINE, 0);
         if (kernel_size < 0) {
+            kernel_size = load_elf(kernel_filename,
+                                   translate_kernel_address, NULL,
+                                   NULL, &lowaddr, NULL, 0, ELF_MACHINE, 0);
+            kernel_le = kernel_size > 0;
+        }
+        if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename,
                                               KERNEL_LOAD_ADDR,
                                               load_limit - KERNEL_LOAD_ADDR);
@@ -1331,7 +1342,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
                                             initrd_base, initrd_size,
-                                            kernel_size,
+                                            kernel_size, kernel_le,
                                             boot_device, kernel_cmdline,
                                             spapr->epow_irq);
     assert(spapr->fdt_skel != NULL);
