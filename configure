@@ -429,9 +429,6 @@ case "$cpu" in
   aarch64)
     cpu="aarch64"
   ;;
-  hppa|parisc|parisc64)
-    cpu="hppa"
-  ;;
   mips*)
     cpu="mips"
   ;;
