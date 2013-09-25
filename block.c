@@ -1007,25 +1007,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     return 0;
 }
 
-static void extract_subqdict(QDict *src, QDict **dst, const char *start)
-{
-    const QDictEntry *entry, *next;
-    const char *p;
-
-    *dst = qdict_new();
-    entry = qdict_first(src);
-
-    while (entry != NULL) {
-        next = qdict_next(src, entry);
-        if (strstart(entry->key, start, &p)) {
-            qobject_incref(entry->value);
-            qdict_put_obj(*dst, p, entry->value);
-            qdict_del(src, entry->key);
-        }
-        entry = next;
-    }
-}
-
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1131,7 +1112,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    extract_subqdict(options, &file_options, "file.");
+    qdict_extract_subqdict(options, &file_options, "file.");
 
     ret = bdrv_file_open(&file, filename, file_options,
                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP), &local_err);
@@ -1169,7 +1150,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     if ((flags & BDRV_O_NO_BACKING) == 0) {
         QDict *backing_options;
 
-        extract_subqdict(options, &backing_options, "backing.");
+        qdict_extract_subqdict(options, &backing_options, "backing.");
         ret = bdrv_open_backing_file(bs, backing_options, &local_err);
         if (ret < 0) {
             goto close_and_fail;
