@@ -248,7 +248,7 @@ static void icp_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_icp_server;
 }
 
-static TypeInfo icp_info = {
+static const TypeInfo icp_info = {
     .name = TYPE_ICP,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICPState),
@@ -503,7 +503,7 @@ static void ics_class_init(ObjectClass *klass, void *data)
     isc->post_load = ics_post_load;
 }
 
-static TypeInfo ics_info = {
+static const TypeInfo ics_info = {
     .name = TYPE_ICS,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICSState),
