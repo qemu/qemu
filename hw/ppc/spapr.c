@@ -168,7 +168,26 @@ static XICSState *xics_system_init(int nr_servers, int nr_irqs)
 {
     XICSState *icp = NULL;
 
-    icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    if (kvm_enabled()) {
+        QemuOpts *machine_opts = qemu_get_machine_opts();
+        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
+                                                "kernel_irqchip", true);
+        bool irqchip_required = qemu_opt_get_bool(machine_opts,
+                                                  "kernel_irqchip", false);
+        if (irqchip_allowed) {
+            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs);
+        }
+
+        if (irqchip_required && !icp) {
+            perror("Failed to create in-kernel XICS\n");
+            abort();
+        }
+    }
+
+    if (!icp) {
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    }
+
     if (!icp) {
         perror("Failed to create XICS\n");
         abort();

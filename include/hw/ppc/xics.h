@@ -35,6 +35,9 @@
 #define TYPE_XICS "xics"
 #define XICS(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS)
 
+#define TYPE_KVM_XICS "xics-kvm"
+#define KVM_XICS(obj) OBJECT_CHECK(KVMXICSState, (obj), TYPE_KVM_XICS)
+
 #define XICS_COMMON_CLASS(klass) \
      OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_COMMON)
 #define XICS_CLASS(klass) \
@@ -82,6 +85,9 @@ struct XICSState {
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
+#define TYPE_KVM_ICP "icp-kvm"
+#define KVM_ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_KVM_ICP)
+
 #define ICP_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
 #define ICP_GET_CLASS(obj) \
@@ -98,6 +104,7 @@ struct ICPState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
+    CPUState *cs;
     uint32_t xirr;
     uint8_t pending_priority;
     uint8_t mfrr;
@@ -106,6 +113,9 @@ struct ICPState {
 
 #define TYPE_ICS "ics"
 #define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
+
+#define TYPE_KVM_ICS "icskvm"
+#define KVM_ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_KVM_ICS)
 
 #define ICS_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS)
