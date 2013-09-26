@@ -283,6 +283,7 @@ typedef struct sPAPREnvironment {
 #define H_GET_EM_PARMS          0x2B8
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
+#define H_XIRR_X                0x2FC
 #define H_SET_MODE              0x31C
 #define MAX_HCALL_OPCODE        H_SET_MODE
 

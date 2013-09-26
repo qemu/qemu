@@ -27,6 +27,7 @@
 
 #include "hw/hw.h"
 #include "trace.h"
+#include "qemu/timer.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
@@ -679,6 +680,18 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                             target_ulong opcode, target_ulong *args)
+{
+    CPUState *cs = CPU(cpu);
+    ICPState *ss = &spapr->icp->ss[cs->cpu_index];
+    uint32_t xirr = icp_accept(ss);
+
+    args[0] = xirr;
+    args[1] = cpu_get_real_ticks();
+    return H_SUCCESS;
+}
+
 static target_ulong h_eoi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
@@ -853,6 +866,7 @@ static void xics_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_CPPR, h_cppr);
     spapr_register_hypercall(H_IPI, h_ipi);
     spapr_register_hypercall(H_XIRR, h_xirr);
+    spapr_register_hypercall(H_XIRR_X, h_xirr_x);
     spapr_register_hypercall(H_EOI, h_eoi);
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 
