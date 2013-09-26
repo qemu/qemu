@@ -30,6 +30,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
+#include "qapi/visitor.h"
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 {
@@ -55,9 +56,12 @@ void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
     }
 }
 
-static void xics_reset(DeviceState *d)
+/*
+ * XICS Common class - parent for emulated XICS and KVM-XICS
+ */
+static void xics_common_reset(DeviceState *d)
 {
-    XICSState *icp = XICS(d);
+    XICSState *icp = XICS_COMMON(d);
     int i;
 
     for (i = 0; i < icp->nr_servers; i++) {
@@ -66,6 +70,99 @@ static void xics_reset(DeviceState *d)
 
     device_reset(DEVICE(icp->ics));
 }
+
+static void xics_prop_get_nr_irqs(Object *obj, Visitor *v,
+                                  void *opaque, const char *name, Error **errp)
+{
+    XICSState *icp = XICS_COMMON(obj);
+    int64_t value = icp->nr_irqs;
+
+    visit_type_int(v, &value, name, errp);
+}
+
+static void xics_prop_set_nr_irqs(Object *obj, Visitor *v,
+                                  void *opaque, const char *name, Error **errp)
+{
+    XICSState *icp = XICS_COMMON(obj);
+    XICSStateClass *info = XICS_COMMON_GET_CLASS(icp);
+    Error *error = NULL;
+    int64_t value;
+
+    visit_type_int(v, &value, name, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    if (icp->nr_irqs) {
+        error_setg(errp, "Number of interrupts is already set to %u",
+                   icp->nr_irqs);
+        return;
+    }
+
+    assert(info->set_nr_irqs);
+    assert(icp->ics);
+    info->set_nr_irqs(icp, value, errp);
+}
+
+static void xics_prop_get_nr_servers(Object *obj, Visitor *v,
+                                     void *opaque, const char *name,
+                                     Error **errp)
+{
+    XICSState *icp = XICS_COMMON(obj);
+    int64_t value = icp->nr_servers;
+
+    visit_type_int(v, &value, name, errp);
+}
+
+static void xics_prop_set_nr_servers(Object *obj, Visitor *v,
+                                     void *opaque, const char *name,
+                                     Error **errp)
+{
+    XICSState *icp = XICS_COMMON(obj);
+    XICSStateClass *info = XICS_COMMON_GET_CLASS(icp);
+    Error *error = NULL;
+    int64_t value;
+
+    visit_type_int(v, &value, name, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    if (icp->nr_servers) {
+        error_setg(errp, "Number of servers is already set to %u",
+                   icp->nr_servers);
+        return;
+    }
+
+    assert(info->set_nr_servers);
+    info->set_nr_servers(icp, value, errp);
+}
+
+static void xics_common_initfn(Object *obj)
+{
+    object_property_add(obj, "nr_irqs", "int",
+                        xics_prop_get_nr_irqs, xics_prop_set_nr_irqs,
+                        NULL, NULL, NULL);
+    object_property_add(obj, "nr_servers", "int",
+                        xics_prop_get_nr_servers, xics_prop_set_nr_servers,
+                        NULL, NULL, NULL);
+}
+
+static void xics_common_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->reset = xics_common_reset;
+}
+
+static const TypeInfo xics_common_info = {
+    .name          = TYPE_XICS_COMMON,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(XICSState),
+    .class_size    = sizeof(XICSStateClass),
+    .instance_init = xics_common_initfn,
+    .class_init    = xics_common_class_init,
+};
 
 /*
  * ICP: Presentation layer
@@ -479,6 +576,13 @@ static const VMStateDescription vmstate_ics = {
     },
 };
 
+static void ics_initfn(Object *obj)
+{
+    ICSState *ics = ICS(obj);
+
+    ics->offset = XICS_IRQ_BASE;
+}
+
 static void ics_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS(dev);
@@ -509,6 +613,7 @@ static const TypeInfo ics_info = {
     .instance_size = sizeof(ICSState),
     .class_init = ics_class_init,
     .class_size = sizeof(ICSStateClass),
+    .instance_init = ics_initfn,
 };
 
 /*
@@ -689,10 +794,31 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
  * XICS
  */
 
+static void xics_set_nr_irqs(XICSState *icp, uint32_t nr_irqs, Error **errp)
+{
+    icp->nr_irqs = icp->ics->nr_irqs = nr_irqs;
+}
+
+static void xics_set_nr_servers(XICSState *icp, uint32_t nr_servers,
+                                Error **errp)
+{
+    int i;
+
+    icp->nr_servers = nr_servers;
+
+    icp->ss = g_malloc0(icp->nr_servers*sizeof(ICPState));
+    for (i = 0; i < icp->nr_servers; i++) {
+        char buffer[32];
+        object_initialize(&icp->ss[i], sizeof(icp->ss[i]), TYPE_ICP);
+        snprintf(buffer, sizeof(buffer), "icp[%d]", i);
+        object_property_add_child(OBJECT(icp), buffer, OBJECT(&icp->ss[i]),
+                                  errp);
+    }
+}
+
 static void xics_realize(DeviceState *dev, Error **errp)
 {
     XICSState *icp = XICS(dev);
-    ICSState *ics = icp->ics;
     Error *error = NULL;
     int i;
 
@@ -712,21 +838,13 @@ static void xics_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_XIRR, h_xirr);
     spapr_register_hypercall(H_EOI, h_eoi);
 
-    ics->nr_irqs = icp->nr_irqs;
-    ics->offset = XICS_IRQ_BASE;
-    ics->icp = icp;
     object_property_set_bool(OBJECT(icp->ics), true, "realized", &error);
     if (error) {
         error_propagate(errp, error);
         return;
     }
 
-    icp->ss = g_malloc0(icp->nr_servers*sizeof(ICPState));
     for (i = 0; i < icp->nr_servers; i++) {
-        char buffer[32];
-        object_initialize(&icp->ss[i], sizeof(icp->ss[i]), TYPE_ICP);
-        snprintf(buffer, sizeof(buffer), "icp[%d]", i);
-        object_property_add_child(OBJECT(icp), buffer, OBJECT(&icp->ss[i]), NULL);
         object_property_set_bool(OBJECT(&icp->ss[i]), true, "realized", &error);
         if (error) {
             error_propagate(errp, error);
@@ -741,33 +859,31 @@ static void xics_initfn(Object *obj)
 
     xics->ics = ICS(object_new(TYPE_ICS));
     object_property_add_child(obj, "ics", OBJECT(xics->ics), NULL);
+    xics->ics->icp = xics;
 }
-
-static Property xics_properties[] = {
-    DEFINE_PROP_UINT32("nr_servers", XICSState, nr_servers, -1),
-    DEFINE_PROP_UINT32("nr_irqs", XICSState, nr_irqs, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void xics_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    XICSStateClass *xsc = XICS_CLASS(oc);
 
     dc->realize = xics_realize;
-    dc->props = xics_properties;
-    dc->reset = xics_reset;
+    xsc->set_nr_irqs = xics_set_nr_irqs;
+    xsc->set_nr_servers = xics_set_nr_servers;
 }
 
 static const TypeInfo xics_info = {
     .name          = TYPE_XICS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_XICS_COMMON,
     .instance_size = sizeof(XICSState),
+    .class_size = sizeof(XICSStateClass),
     .class_init    = xics_class_init,
     .instance_init = xics_initfn,
 };
 
 static void xics_register_types(void)
 {
+    type_register_static(&xics_common_info);
     type_register_static(&xics_info);
     type_register_static(&ics_info);
     type_register_static(&icp_info);

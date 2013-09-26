@@ -29,8 +29,20 @@
 
 #include "hw/sysbus.h"
 
+#define TYPE_XICS_COMMON "xics-common"
+#define XICS_COMMON(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS_COMMON)
+
 #define TYPE_XICS "xics"
 #define XICS(obj) OBJECT_CHECK(XICSState, (obj), TYPE_XICS)
+
+#define XICS_COMMON_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_COMMON)
+#define XICS_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS)
+#define XICS_COMMON_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS_COMMON)
+#define XICS_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XICSStateClass, (obj), TYPE_XICS)
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -41,12 +53,20 @@
  * (the kernel implementation supports more but we don't exploit
  *  that yet)
  */
+typedef struct XICSStateClass XICSStateClass;
 typedef struct XICSState XICSState;
 typedef struct ICPStateClass ICPStateClass;
 typedef struct ICPState ICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
+
+struct XICSStateClass {
+    DeviceClass parent_class;
+
+    void (*set_nr_irqs)(XICSState *icp, uint32_t nr_irqs, Error **errp);
+    void (*set_nr_servers)(XICSState *icp, uint32_t nr_servers, Error **errp);
+};
 
 struct XICSState {
     /*< private >*/

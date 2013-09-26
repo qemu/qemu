@@ -161,7 +161,7 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
         return NULL;
     }
 
-    return XICS(dev);
+    return XICS_COMMON(dev);
 }
 
 static XICSState *xics_system_init(int nr_servers, int nr_irqs)
