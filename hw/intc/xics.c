@@ -689,6 +689,18 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                            target_ulong opcode, target_ulong *args)
+{
+    CPUState *cs = CPU(cpu);
+    ICPState *ss = &spapr->icp->ss[cs->cpu_index];
+
+    args[0] = ss->xirr;
+    args[1] = ss->mfrr;
+
+    return H_SUCCESS;
+}
+
 static void rtas_set_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           uint32_t token,
                           uint32_t nargs, target_ulong args,
@@ -842,6 +854,7 @@ static void xics_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_IPI, h_ipi);
     spapr_register_hypercall(H_XIRR, h_xirr);
     spapr_register_hypercall(H_EOI, h_eoi);
+    spapr_register_hypercall(H_IPOLL, h_ipoll);
 
     object_property_set_bool(OBJECT(icp->ics), true, "realized", &error);
     if (error) {
