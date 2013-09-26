@@ -1184,8 +1184,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         }
         env = &cpu->env;
 
-        xics_cpu_setup(spapr->icp, cpu);
-
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
 
@@ -1198,6 +1196,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         if (kvm_enabled()) {
             kvmppc_set_papr(cpu);
         }
+
+        xics_cpu_setup(spapr->icp, cpu);
 
         qemu_register_reset(spapr_cpu_reset, cpu);
     }
