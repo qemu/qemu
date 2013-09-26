@@ -196,6 +196,7 @@ check-help:
 	@echo " make check-qapi-schema    Run QAPI schema tests"
 	@echo " make check-block          Run block tests"
 	@echo " make check-report.html    Generates an HTML test report"
+	@echo " make check-clean          Clean the tests"
 	@echo
 	@echo "Please note that HTML reports do not regenerate if the unit tests"
 	@echo "has not changed."
@@ -270,12 +271,17 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 
 # Consolidated targets
 
-.PHONY: check-qapi-schema check-qtest check-unit check
+.PHONY: check-qapi-schema check-qtest check-unit check check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
+check-clean:
+	$(MAKE) -C tests/tcg clean
+	rm -rf $(check-unit-y) $(check-qtest-i386-y) $(check-qtest-x86_64-y) $(check-qtest-sparc64-y) $(check-qtest-sparc-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
+
+clean: check-clean
 
 # Build the help program automatically
 
