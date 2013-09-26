@@ -42,7 +42,9 @@
  *  that yet)
  */
 typedef struct XICSState XICSState;
+typedef struct ICPStateClass ICPStateClass;
 typedef struct ICPState ICPState;
+typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 
@@ -59,6 +61,18 @@ struct XICSState {
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
+#define ICP_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
+#define ICP_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ICPStateClass, (obj), TYPE_ICP)
+
+struct ICPStateClass {
+    DeviceClass parent_class;
+
+    void (*pre_save)(ICPState *s);
+    int (*post_load)(ICPState *s, int version_id);
+};
+
 struct ICPState {
     /*< private >*/
     DeviceState parent_obj;
@@ -71,6 +85,18 @@ struct ICPState {
 
 #define TYPE_ICS "ics"
 #define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
+
+#define ICS_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS)
+#define ICS_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS)
+
+struct ICSStateClass {
+    DeviceClass parent_class;
+
+    void (*pre_save)(ICSState *s);
+    int (*post_load)(ICSState *s, int version_id);
+};
 
 struct ICSState {
     /*< private >*/

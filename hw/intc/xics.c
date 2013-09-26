@@ -190,11 +190,35 @@ static void icp_irq(XICSState *icp, int server, int nr, uint8_t priority)
     }
 }
 
+static void icp_dispatch_pre_save(void *opaque)
+{
+    ICPState *ss = opaque;
+    ICPStateClass *info = ICP_GET_CLASS(ss);
+
+    if (info->pre_save) {
+        info->pre_save(ss);
+    }
+}
+
+static int icp_dispatch_post_load(void *opaque, int version_id)
+{
+    ICPState *ss = opaque;
+    ICPStateClass *info = ICP_GET_CLASS(ss);
+
+    if (info->post_load) {
+        return info->post_load(ss, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_icp_server = {
     .name = "icp/server",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .pre_save = icp_dispatch_pre_save,
+    .post_load = icp_dispatch_post_load,
     .fields      = (VMStateField []) {
         /* Sanity check */
         VMSTATE_UINT32(xirr, ICPState),
@@ -229,6 +253,7 @@ static TypeInfo icp_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICPState),
     .class_init = icp_class_init,
+    .class_size = sizeof(ICPStateClass),
 };
 
 /*
@@ -390,13 +415,34 @@ static void ics_reset(DeviceState *dev)
     }
 }
 
-static int ics_post_load(void *opaque, int version_id)
+static int ics_post_load(ICSState *ics, int version_id)
 {
     int i;
-    ICSState *ics = opaque;
 
     for (i = 0; i < ics->icp->nr_servers; i++) {
         icp_resend(ics->icp, i);
+    }
+
+    return 0;
+}
+
+static void ics_dispatch_pre_save(void *opaque)
+{
+    ICSState *ics = opaque;
+    ICSStateClass *info = ICS_GET_CLASS(ics);
+
+    if (info->pre_save) {
+        info->pre_save(ics);
+    }
+}
+
+static int ics_dispatch_post_load(void *opaque, int version_id)
+{
+    ICSState *ics = opaque;
+    ICSStateClass *info = ICS_GET_CLASS(ics);
+
+    if (info->post_load) {
+        return info->post_load(ics, version_id);
     }
 
     return 0;
@@ -421,7 +467,8 @@ static const VMStateDescription vmstate_ics = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .post_load = ics_post_load,
+    .pre_save = ics_dispatch_pre_save,
+    .post_load = ics_dispatch_post_load,
     .fields      = (VMStateField []) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(nr_irqs, ICSState),
@@ -446,10 +493,12 @@ static int ics_realize(DeviceState *dev)
 static void ics_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ICSStateClass *isc = ICS_CLASS(klass);
 
     dc->init = ics_realize;
     dc->vmsd = &vmstate_ics;
     dc->reset = ics_reset;
+    isc->post_load = ics_post_load;
 }
 
 static TypeInfo ics_info = {
@@ -457,6 +506,7 @@ static TypeInfo ics_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICSState),
     .class_init = ics_class_init,
+    .class_size = sizeof(ICSStateClass),
 };
 
 /*
