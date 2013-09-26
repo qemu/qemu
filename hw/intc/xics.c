@@ -479,15 +479,17 @@ static const VMStateDescription vmstate_ics = {
     },
 };
 
-static int ics_realize(DeviceState *dev)
+static void ics_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS(dev);
 
+    if (!ics->nr_irqs) {
+        error_setg(errp, "Number of interrupts needs to be greater 0");
+        return;
+    }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->islsi = g_malloc0(ics->nr_irqs * sizeof(bool));
     ics->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
-
-    return 0;
 }
 
 static void ics_class_init(ObjectClass *klass, void *data)
@@ -495,7 +497,7 @@ static void ics_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_CLASS(klass);
 
-    dc->init = ics_realize;
+    dc->realize = ics_realize;
     dc->vmsd = &vmstate_ics;
     dc->reset = ics_reset;
     isc->post_load = ics_post_load;
@@ -691,7 +693,13 @@ static void xics_realize(DeviceState *dev, Error **errp)
 {
     XICSState *icp = XICS(dev);
     ICSState *ics = icp->ics;
+    Error *error = NULL;
     int i;
+
+    if (!icp->nr_servers) {
+        error_setg(errp, "Number of servers needs to be greater 0");
+        return;
+    }
 
     /* Registration of global state belongs into realize */
     spapr_rtas_register("ibm,set-xive", rtas_set_xive);
@@ -707,7 +715,11 @@ static void xics_realize(DeviceState *dev, Error **errp)
     ics->nr_irqs = icp->nr_irqs;
     ics->offset = XICS_IRQ_BASE;
     ics->icp = icp;
-    qdev_init_nofail(DEVICE(ics));
+    object_property_set_bool(OBJECT(icp->ics), true, "realized", &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
 
     icp->ss = g_malloc0(icp->nr_servers*sizeof(ICPState));
     for (i = 0; i < icp->nr_servers; i++) {
@@ -715,7 +727,11 @@ static void xics_realize(DeviceState *dev, Error **errp)
         object_initialize(&icp->ss[i], sizeof(icp->ss[i]), TYPE_ICP);
         snprintf(buffer, sizeof(buffer), "icp[%d]", i);
         object_property_add_child(OBJECT(icp), buffer, OBJECT(&icp->ss[i]), NULL);
-        qdev_init_nofail(DEVICE(&icp->ss[i]));
+        object_property_set_bool(OBJECT(&icp->ss[i]), true, "realized", &error);
+        if (error) {
+            error_propagate(errp, error);
+            return;
+        }
     }
 }
 
