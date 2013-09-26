@@ -252,8 +252,10 @@ check-report.html: check-report.xml
 
 # Other tests
 
+QEMU_IOTESTS_HELPERS-$(CONFIG_LINUX) = tests/qemu-iotests/socket_scm_helper$(EXESUF)
+
 .PHONY: check-tests/qemu-iotests-quick.sh
-check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF) tests/qemu-iotests/socket_scm_helper$(EXESUF)
+check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF) $(QEMU_IOTESTS_HELPERS-y)
 	$<
 
 .PHONY: check-tests/test-qapi.py
@@ -274,6 +276,10 @@ check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
+
+# Build the help program automatically
+
+all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)
