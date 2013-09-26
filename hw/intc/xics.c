@@ -29,6 +29,7 @@
 #include "trace.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
+#include "qemu/error-report.h"
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 {
@@ -48,8 +49,8 @@ void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
         break;
 
     default:
-        fprintf(stderr, "XICS interrupt controller does not support this CPU "
-                "bus model\n");
+        error_report("XICS interrupt controller does not support this CPU "
+                     "bus model");
         abort();
     }
 }
