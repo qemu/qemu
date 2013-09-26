@@ -1789,6 +1789,20 @@ static int kvm_ppc_register_host_cpu_type(void)
     return 0;
 }
 
+int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
+{
+    struct kvm_rtas_token_args args = {
+        .token = token,
+    };
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_RTAS)) {
+        return -ENOENT;
+    }
+
+    strncpy(args.name, function, sizeof(args.name));
+
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
+}
 
 int kvmppc_get_htab_fd(bool write)
 {
