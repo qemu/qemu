@@ -30,6 +30,42 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
 
+void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    ICPState *ss = &icp->ss[cs->cpu_index];
+
+    assert(cs->cpu_index < icp->nr_servers);
+
+    switch (PPC_INPUT(env)) {
+    case PPC_FLAGS_INPUT_POWER7:
+        ss->output = env->irq_inputs[POWER7_INPUT_INT];
+        break;
+
+    case PPC_FLAGS_INPUT_970:
+        ss->output = env->irq_inputs[PPC970_INPUT_INT];
+        break;
+
+    default:
+        fprintf(stderr, "XICS interrupt controller does not support this CPU "
+                "bus model\n");
+        abort();
+    }
+}
+
+static void xics_reset(DeviceState *d)
+{
+    XICSState *icp = XICS(d);
+    int i;
+
+    for (i = 0; i < icp->nr_servers; i++) {
+        device_reset(DEVICE(&icp->ss[i]));
+    }
+
+    device_reset(DEVICE(icp->ics));
+}
+
 /*
  * ICP: Presentation layer
  */
@@ -599,42 +635,6 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 /*
  * XICS
  */
-
-static void xics_reset(DeviceState *d)
-{
-    XICSState *icp = XICS(d);
-    int i;
-
-    for (i = 0; i < icp->nr_servers; i++) {
-        device_reset(DEVICE(&icp->ss[i]));
-    }
-
-    device_reset(DEVICE(icp->ics));
-}
-
-void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    ICPState *ss = &icp->ss[cs->cpu_index];
-
-    assert(cs->cpu_index < icp->nr_servers);
-
-    switch (PPC_INPUT(env)) {
-    case PPC_FLAGS_INPUT_POWER7:
-        ss->output = env->irq_inputs[POWER7_INPUT_INT];
-        break;
-
-    case PPC_FLAGS_INPUT_970:
-        ss->output = env->irq_inputs[PPC970_INPUT_INT];
-        break;
-
-    default:
-        fprintf(stderr, "XICS interrupt controller does not support this CPU "
-                "bus model\n");
-        abort();
-    }
-}
 
 static void xics_realize(DeviceState *dev, Error **errp)
 {
