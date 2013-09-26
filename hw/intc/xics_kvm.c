@@ -441,6 +441,12 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
             goto fail;
         }
     }
+
+    kvm_kernel_irqchip = true;
+    kvm_irqfds_allowed = true;
+    kvm_msi_via_irqfd_allowed = true;
+    kvm_gsi_direct_mapping = true;
+
     return;
 
 fail:
