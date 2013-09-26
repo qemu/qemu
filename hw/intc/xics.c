@@ -37,8 +37,13 @@ void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     ICPState *ss = &icp->ss[cs->cpu_index];
+    XICSStateClass *info = XICS_COMMON_GET_CLASS(icp);
 
     assert(cs->cpu_index < icp->nr_servers);
+
+    if (info->cpu_setup) {
+        info->cpu_setup(icp, cpu);
+    }
 
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:
