@@ -45,6 +45,7 @@ valgrind=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
+export IMGFMT_GENERIC=true
 export IMGPROTO=file
 export IMGOPTS=""
 export QEMU_IO_OPTIONS=""
@@ -133,6 +134,7 @@ check options
     -qed                test qed
     -vdi                test vdi
     -vpc                test vpc
+    -vhdx               test vhdx
     -vmdk               test vmdk
     -rbd                test rbd
     -sheepdog           test sheepdog
@@ -193,6 +195,12 @@ testlist options
         -vpc)
             IMGFMT=vpc
             xpand=false
+            ;;
+
+        -vhdx)
+            IMGFMT=vhdx
+            xpand=false
+            IMGFMT_GENERIC=false
             ;;
 
         -rbd)

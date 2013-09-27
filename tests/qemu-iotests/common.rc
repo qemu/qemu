@@ -339,7 +339,7 @@ _fail()
 _supported_fmt()
 {
     for f; do
-        if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
+        if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
             return
         fi
     done
