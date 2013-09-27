@@ -44,6 +44,7 @@
         PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);                       \
                                                                             \
         pcc->pvr          = _pvr;                                           \
+        pcc->pvr_mask     = CPU_POWERPC_DEFAULT_MASK;                       \
         pcc->svr          = _svr;                                           \
         dc->desc          = _desc;                                          \
     }                                                                       \

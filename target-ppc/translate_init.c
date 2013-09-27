@@ -7221,6 +7221,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
+    pcc->pvr = CPU_POWERPC_POWER7_BASE;
+    pcc->pvr_mask = CPU_POWERPC_POWER7_MASK;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
@@ -7256,6 +7258,8 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 
     dc->fw_name = "PowerPC,POWER8";
     dc->desc = "POWER8";
+    pcc->pvr = CPU_POWERPC_POWER8_BASE;
+    pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
@@ -8188,6 +8192,44 @@ PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr)
     return pcc;
 }
 
+static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *oc = (ObjectClass *)a;
+    uint32_t pvr = *(uint32_t *)b;
+    PowerPCCPUClass *pcc = (PowerPCCPUClass *)a;
+    gint ret;
+
+    /* -cpu host does a PVR lookup during construction */
+    if (unlikely(strcmp(object_class_get_name(oc),
+                        TYPE_HOST_POWERPC_CPU) == 0)) {
+        return -1;
+    }
+
+#if defined(TARGET_PPCEMB)
+    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+        return -1;
+    }
+#endif
+    ret = (((pcc->pvr & pcc->pvr_mask) == (pvr & pcc->pvr_mask)) ? 0 : -1);
+
+    return ret;
+}
+
+PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr)
+{
+    GSList *list, *item;
+    PowerPCCPUClass *pcc = NULL;
+
+    list = object_class_get_list(TYPE_POWERPC_CPU, true);
+    item = g_slist_find_custom(list, &pvr, ppc_cpu_compare_class_pvr_mask);
+    if (item != NULL) {
+        pcc = POWERPC_CPU_CLASS(item->data);
+    }
+    g_slist_free(list);
+
+    return pcc;
+}
+
 static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
 {
     ObjectClass *oc = (ObjectClass *)a;
@@ -8559,6 +8601,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     pcc->parent_realize = dc->realize;
+    pcc->pvr = CPU_POWERPC_DEFAULT_MASK;
+    pcc->pvr_mask = CPU_POWERPC_DEFAULT_MASK;
     dc->realize = ppc_cpu_realizefn;
     dc->unrealize = ppc_cpu_unrealizefn;
 

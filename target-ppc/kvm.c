@@ -1745,6 +1745,7 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     uint32_t icache_size = kvmppc_read_int_cpu_dt("i-cache-size");
 
     /* Now fix up the class with information we can query from the host */
+    pcc->pvr = mfpvr();
 
     if (vmx != -1) {
         /* Only override when we know what the host supports */
@@ -1794,6 +1795,9 @@ static int kvm_ppc_register_host_cpu_type(void)
     PowerPCCPUClass *pvr_pcc;
 
     pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc == NULL) {
+        pvr_pcc = ppc_cpu_class_by_pvr_mask(host_pvr);
+    }
     if (pvr_pcc == NULL) {
         return -1;
     }
