@@ -493,8 +493,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
             return -EIO;
         }
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0,
-                QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], 0, QCOW_OFLAG_ZERO);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
@@ -505,8 +504,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     case QCOW2_CLUSTER_NORMAL:
         /* how many allocated clusters ? */
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0,
-                QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], 0, QCOW_OFLAG_ZERO);
         *cluster_offset &= L2E_OFFSET_MASK;
         break;
     default:
