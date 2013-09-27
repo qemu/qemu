@@ -281,7 +281,7 @@ fail:
  * cluster which may require a different handling)
  */
 static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
-        uint64_t *l2_table, uint64_t start, uint64_t stop_flags)
+        uint64_t *l2_table, uint64_t stop_flags)
 {
     int i;
     uint64_t mask = stop_flags | L2E_OFFSET_MASK | QCOW2_CLUSTER_COMPRESSED;
@@ -293,14 +293,14 @@ static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
 
     assert(qcow2_get_cluster_type(first_entry) != QCOW2_CLUSTER_COMPRESSED);
 
-    for (i = start; i < start + nb_clusters; i++) {
+    for (i = 0; i < nb_clusters; i++) {
         uint64_t l2_entry = be64_to_cpu(l2_table[i]) & mask;
         if (offset + (uint64_t) i * cluster_size != l2_entry) {
             break;
         }
     }
 
-	return (i - start);
+	return i;
 }
 
 static int count_contiguous_free_clusters(uint64_t nb_clusters, uint64_t *l2_table)
@@ -493,7 +493,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
             return -EIO;
         }
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0, QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], QCOW_OFLAG_ZERO);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
@@ -504,7 +504,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     case QCOW2_CLUSTER_NORMAL:
         /* how many allocated clusters ? */
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0, QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], QCOW_OFLAG_ZERO);
         *cluster_offset &= L2E_OFFSET_MASK;
         break;
     default:
@@ -934,7 +934,7 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
         /* We keep all QCOW_OFLAG_COPIED clusters */
         keep_clusters =
             count_contiguous_clusters(nb_clusters, s->cluster_size,
-                                      &l2_table[l2_index], 0,
+                                      &l2_table[l2_index],
                                       QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
         assert(keep_clusters <= nb_clusters);
 
