@@ -422,6 +422,10 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
                            gservers_prop, sizeof(gservers_prop))));
 
+        if (env->spr_cb[SPR_PURR].oea_read) {
+            _FDT((fdt_property(fdt, "ibm,purr", NULL, 0)));
+        }
+
         if (env->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
                                segs, sizeof(segs))));
