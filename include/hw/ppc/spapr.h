@@ -332,14 +332,19 @@ static inline int spapr_allocate_lsi(int hint)
     return spapr_allocate_irq(hint, true);
 }
 
+static inline uint64_t ppc64_phys_to_real(uint64_t addr)
+{
+    return addr & ~0xF000000000000000ULL;
+}
+
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
-    return ldl_be_phys(phys + 4*n);
+    return ldl_be_phys(ppc64_phys_to_real(phys + 4*n));
 }
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
-    stl_be_phys(phys + 4*n, val);
+    stl_be_phys(ppc64_phys_to_real(phys + 4*n), val);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
