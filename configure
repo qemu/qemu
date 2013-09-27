@@ -3423,7 +3423,7 @@ else
 fi
 
 if test "$coroutine_pool" = ""; then
-  if test "$coroutine" = "gthread"; then
+  if test "$coroutine" = "gthread" -o "$coroutine" = "win32"; then
     coroutine_pool=no
   else
     coroutine_pool=yes
