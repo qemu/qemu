@@ -2948,7 +2948,6 @@ int main(int argc, char **argv)
         machine = find_machine(optarg + 1);
     }
     if (!machine) {
-        machine = first_machine;
         machine = find_default_machine();
     }
     cpu_model = NULL;

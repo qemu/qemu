@@ -119,6 +119,18 @@ struct target_sockaddr {
     uint8_t sa_data[14];
 };
 
+struct target_sock_filter {
+    abi_ushort code;
+    uint8_t jt;
+    uint8_t jf;
+    abi_uint k;
+};
+
+struct target_sock_fprog {
+    abi_ushort len;
+    abi_ulong filter;
+};
+
 struct target_in_addr {
     uint32_t s_addr; /* big endian */
 };
