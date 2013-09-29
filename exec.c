@@ -717,14 +717,14 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 
-static void *(*phys_mem_alloc)(ram_addr_t size) = qemu_anon_ram_alloc;
+static void *(*phys_mem_alloc)(size_t size) = qemu_anon_ram_alloc;
 
 /*
  * Set a custom physical guest memory alloator.
  * Accelerators with unusual needs may need this.  Hopefully, we can
  * get rid of it eventually.
  */
-void phys_mem_set_alloc(void *(*alloc)(ram_addr_t))
+void phys_mem_set_alloc(void *(*alloc)(size_t))
 {
     phys_mem_alloc = alloc;
 }
