@@ -418,18 +418,6 @@ static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
     kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 }
 
-static inline void setcc(S390CPU *cpu, uint64_t cc)
-{
-    CPUS390XState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
-
-    cs->kvm_run->psw_mask &= ~(3ull << 44);
-    cs->kvm_run->psw_mask |= (cc & 3) << 44;
-
-    env->psw.mask &= ~(3ul << 44);
-    env->psw.mask |= (cc & 3) << 44;
-}
-
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
                                  uint16_t ipbh0)
 {
@@ -439,6 +427,10 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     int r = 0;
 
     cpu_synchronize_state(CPU(cpu));
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        enter_pgmcheck(cpu, PGM_PRIVILEGED);
+        return 0;
+    }
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
@@ -454,8 +446,6 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
 static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
                                uint8_t ipa0, uint8_t ipa1, uint8_t ipb)
 {
-    int r = 0;
-    int no_cc = 0;
     CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
@@ -469,67 +459,59 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
 
     switch (ipa1) {
     case PRIV_XSCH:
-        r = ioinst_handle_xsch(env, env->regs[1]);
+        ioinst_handle_xsch(cpu, env->regs[1]);
         break;
     case PRIV_CSCH:
-        r = ioinst_handle_csch(env, env->regs[1]);
+        ioinst_handle_csch(cpu, env->regs[1]);
         break;
     case PRIV_HSCH:
-        r = ioinst_handle_hsch(env, env->regs[1]);
+        ioinst_handle_hsch(cpu, env->regs[1]);
         break;
     case PRIV_MSCH:
-        r = ioinst_handle_msch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_msch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_SSCH:
-        r = ioinst_handle_ssch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_ssch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_STCRW:
-        r = ioinst_handle_stcrw(env, run->s390_sieic.ipb);
+        ioinst_handle_stcrw(cpu, run->s390_sieic.ipb);
         break;
     case PRIV_STSCH:
-        r = ioinst_handle_stsch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_stsch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_TSCH:
         /* We should only get tsch via KVM_EXIT_S390_TSCH. */
         fprintf(stderr, "Spurious tsch intercept\n");
         break;
     case PRIV_CHSC:
-        r = ioinst_handle_chsc(env, run->s390_sieic.ipb);
+        ioinst_handle_chsc(cpu, run->s390_sieic.ipb);
         break;
     case PRIV_TPI:
         /* This should have been handled by kvm already. */
         fprintf(stderr, "Spurious tpi intercept\n");
         break;
     case PRIV_SCHM:
-        no_cc = 1;
-        r = ioinst_handle_schm(env, env->regs[1], env->regs[2],
-                               run->s390_sieic.ipb);
+        ioinst_handle_schm(cpu, env->regs[1], env->regs[2],
+                           run->s390_sieic.ipb);
         break;
     case PRIV_RSCH:
-        r = ioinst_handle_rsch(env, env->regs[1]);
+        ioinst_handle_rsch(cpu, env->regs[1]);
         break;
     case PRIV_RCHP:
-        r = ioinst_handle_rchp(env, env->regs[1]);
+        ioinst_handle_rchp(cpu, env->regs[1]);
         break;
     case PRIV_STCPS:
         /* We do not provide this instruction, it is suppressed. */
-        no_cc = 1;
-        r = 0;
         break;
     case PRIV_SAL:
-        no_cc = 1;
-        r = ioinst_handle_sal(env, env->regs[1]);
+        ioinst_handle_sal(cpu, env->regs[1]);
         break;
     case PRIV_SIGA:
         /* Not provided, set CC = 3 for subchannel not operational */
-        r = 3;
+        setcc(cpu, 3);
         break;
     default:
         return -1;
-    }
-
-    if (r >= 0 && !no_cc) {
-        setcc(cpu, r);
     }
 
     return 0;
