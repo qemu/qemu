@@ -1034,7 +1034,6 @@ static void inc_refcounts(BlockDriverState *bs,
 
 /* Flags for check_refcounts_l1() and check_refcounts_l2() */
 enum {
-    CHECK_OFLAG_COPIED = 0x1,   /* check QCOW_OFLAG_COPIED matches refcount */
     CHECK_FRAG_INFO = 0x2,      /* update BlockFragInfo counters */
 };
 
@@ -1481,8 +1480,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                             s->l1_table_offset, s->l1_size,
-                             CHECK_OFLAG_COPIED | CHECK_FRAG_INFO);
+                             s->l1_table_offset, s->l1_size, CHECK_FRAG_INFO);
     if (ret < 0) {
         goto fail;
     }
