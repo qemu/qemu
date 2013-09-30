@@ -41,9 +41,11 @@ int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 
 typedef enum WakeupReason {
-    QEMU_WAKEUP_REASON_OTHER = 0,
+    /* Always keep QEMU_WAKEUP_REASON_NONE = 0 */
+    QEMU_WAKEUP_REASON_NONE = 0,
     QEMU_WAKEUP_REASON_RTC,
     QEMU_WAKEUP_REASON_PMTIMER,
+    QEMU_WAKEUP_REASON_OTHER,
 } WakeupReason;
 
 void qemu_system_reset_request(void);
