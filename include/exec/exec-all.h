@@ -324,9 +324,7 @@ extern uintptr_t tci_tb_ptr;
    In some implementations, we pass the "logical" return address manually;
    in others, we must infer the logical return from the true return.  */
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-# if defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
-#  define GETRA_LDST(RA)   (*(int32_t *)((RA) - 4))
-# elif defined(__arm__)
+# if defined(__arm__)
 /* We define two insns between the return address and the branch back to
    straight-line.  Find and decode that branch insn.  */
 #  define GETRA_LDST(RA)   tcg_getra_ldst(RA)
