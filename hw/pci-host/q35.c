@@ -89,18 +89,24 @@ static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
                                           void *opaque, const char *name,
                                           Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Range w64;
 
-    visit_type_uint64(v, &s->mch.pci_info.w64.begin, name, errp);
+    pci_bus_get_w64_range(h->bus, &w64);
+
+    visit_type_uint64(v, &w64.begin, name, errp);
 }
 
 static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
                                         void *opaque, const char *name,
                                         Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Range w64;
 
-    visit_type_uint64(v, &s->mch.pci_info.w64.end, name, errp);
+    pci_bus_get_w64_range(h->bus, &w64);
+
+    visit_type_uint64(v, &w64.end, name, errp);
 }
 
 static Property mch_props[] = {
@@ -214,6 +220,16 @@ static void mch_update_pciexbar(MCHPCIState *mch)
     }
     addr = pciexbar & addr_mask;
     pcie_host_mmcfg_update(pehb, enable, addr, length);
+    /* Leave enough space for the MCFG BAR */
+    /*
+     * TODO: this matches current bios behaviour, but it's not a power of two,
+     * which means an MTRR can't cover it exactly.
+     */
+    if (enable) {
+        mch->pci_info.w32.begin = addr + length;
+    } else {
+        mch->pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+    }
 }
 
 /* PAM */

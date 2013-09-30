@@ -254,6 +254,7 @@ uint64_t node_mem[MAX_NODES];
 unsigned long *node_cpumask[MAX_NODES];
 
 uint8_t qemu_uuid[16];
+bool qemu_uuid_set;
 
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
@@ -3490,7 +3491,8 @@ int main(int argc, char **argv, char **envp)
                 do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
-                do_smbios_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("smbios"), optarg, 0);
+                do_smbios_option(opts);
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -3586,6 +3588,7 @@ int main(int argc, char **argv, char **envp)
                             " Wrong format.\n");
                     exit(1);
                 }
+                qemu_uuid_set = true;
                 break;
 	    case QEMU_OPTION_option_rom:
 		if (nb_option_roms >= MAX_OPTION_ROMS) {

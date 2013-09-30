@@ -2,6 +2,7 @@
 #define QEMU_RANGE_H
 
 #include <inttypes.h>
+#include <qemu/typedefs.h>
 
 /*
  * Operations on 64 bit address ranges.
@@ -15,7 +16,24 @@ struct Range {
     uint64_t begin; /* First byte of the range, or 0 if empty. */
     uint64_t end;   /* 1 + the last byte. 0 if range empty or ends at ~0x0LL. */
 };
-typedef struct Range Range;
+
+static inline void range_extend(Range *range, Range *extend_by)
+{
+    if (!extend_by->begin && !extend_by->end) {
+        return;
+    }
+    if (!range->begin && !range->end) {
+        *range = *extend_by;
+        return;
+    }
+    if (range->begin > extend_by->begin) {
+        range->begin = extend_by->begin;
+    }
+    /* Compare last byte in case region ends at ~0x0LL */
+    if (range->end - 1 < extend_by->end - 1) {
+        range->end = extend_by->end;
+    }
+}
 
 /* Get last byte of a range from offset + length.
  * Undefined for ranges that wrap around 0. */

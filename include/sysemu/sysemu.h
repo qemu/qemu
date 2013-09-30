@@ -16,6 +16,7 @@ extern const char *bios_name;
 
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
+extern bool qemu_uuid_set;
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
 
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"

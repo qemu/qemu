@@ -1118,9 +1118,6 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
     if (ret != 16) {
         return -1;
     }
-#ifdef TARGET_I386
-    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), uuid, 16);
-#endif
     return 0;
 }
 
@@ -1139,12 +1136,10 @@ void do_acpitable_option(const QemuOpts *opts)
 #endif
 }
 
-void do_smbios_option(const char *optarg)
+void do_smbios_option(QemuOpts *opts)
 {
 #ifdef TARGET_I386
-    if (smbios_entry_add(optarg) < 0) {
-        exit(1);
-    }
+    smbios_entry_add(opts);
 #endif
 }
 
