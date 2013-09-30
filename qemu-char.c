@@ -2989,11 +2989,11 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     if (strstart(filename, "vc", &p)) {
         qemu_opt_set(opts, "backend", "vc");
         if (*p == ':') {
-            if (sscanf(p+1, "%8[0-9]x%8[0-9]", width, height) == 2) {
+            if (sscanf(p+1, "%7[0-9]x%7[0-9]", width, height) == 2) {
                 /* pixels */
                 qemu_opt_set(opts, "width", width);
                 qemu_opt_set(opts, "height", height);
-            } else if (sscanf(p+1, "%8[0-9]Cx%8[0-9]C", width, height) == 2) {
+            } else if (sscanf(p+1, "%7[0-9]Cx%7[0-9]C", width, height) == 2) {
                 /* chars */
                 qemu_opt_set(opts, "cols", width);
                 qemu_opt_set(opts, "rows", height);
