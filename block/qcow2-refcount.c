@@ -1733,8 +1733,8 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
             }
 
             for (j = 0; j < l1_sz; j++) {
-                if ((l1[j] & L1E_OFFSET_MASK) &&
-                    overlaps_with(l1[j] & L1E_OFFSET_MASK, s->cluster_size)) {
+                uint64_t l2_ofs = be64_to_cpu(l1[j]) & L1E_OFFSET_MASK;
+                if (l2_ofs && overlaps_with(l2_ofs, s->cluster_size)) {
                     g_free(l1);
                     return QCOW2_OL_INACTIVE_L2;
                 }
