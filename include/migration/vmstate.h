@@ -310,8 +310,18 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
-#define VMSTATE_STRUCT_POINTER_TEST(_field, _state, _test, _vmsd, _type) { \
+#define VMSTATE_STRUCT_POINTER_V(_field, _state, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                        \
+    .vmsd         = &(_vmsd),                                        \
+    .size         = sizeof(_type),                                   \
+    .flags        = VMS_STRUCT|VMS_POINTER,                          \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
+}
+
+#define VMSTATE_STRUCT_POINTER_TEST_V(_field, _state, _test, _version, _vmsd, _type) { \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                        \
     .field_exists = (_test),                                         \
     .vmsd         = &(_vmsd),                                        \
     .size         = sizeof(_type),                                   \
@@ -497,7 +507,10 @@ extern const VMStateInfo vmstate_info_bitmap;
     VMSTATE_STRUCT_TEST(_field, _state, NULL, _version, _vmsd, _type)
 
 #define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type)          \
-    VMSTATE_STRUCT_POINTER_TEST(_field, _state, NULL, _vmsd, _type)
+    VMSTATE_STRUCT_POINTER_V(_field, _state, 0, _vmsd, _type)
+
+#define VMSTATE_STRUCT_POINTER_TEST(_field, _state, _test, _vmsd, _type)     \
+    VMSTATE_STRUCT_POINTER_TEST_V(_field, _state, _test, 0, _vmsd, _type)
 
 #define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) \
     VMSTATE_STRUCT_ARRAY_TEST(_field, _state, _num, NULL, _version,   \
