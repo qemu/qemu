@@ -52,7 +52,7 @@
 typedef struct {
     uint32_t magic;
     uint32_t len;
-} QCowExtension;
+} QEMU_PACKED QCowExtension;
 
 #define  QCOW2_EXT_MAGIC_END 0
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA

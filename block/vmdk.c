@@ -105,7 +105,7 @@ typedef struct VmdkExtent {
     uint32_t l2_cache_offsets[L2_CACHE_SIZE];
     uint32_t l2_cache_counts[L2_CACHE_SIZE];
 
-    unsigned int cluster_sectors;
+    int64_t cluster_sectors;
 } VmdkExtent;
 
 typedef struct BDRVVmdkState {
@@ -424,7 +424,7 @@ static int vmdk_add_extent(BlockDriverState *bs,
     extent->l1_size = l1_size;
     extent->l1_entry_sectors = l2_size * cluster_sectors;
     extent->l2_size = l2_size;
-    extent->cluster_sectors = cluster_sectors;
+    extent->cluster_sectors = flat ? sectors : cluster_sectors;
 
     if (s->num_extents > 1) {
         extent->end_sector = (*(extent - 1)).end_sector + extent->sectors;
@@ -741,7 +741,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             VmdkExtent *extent;
 
             ret = vmdk_add_extent(bs, extent_file, true, sectors,
-                            0, 0, 0, 0, sectors, &extent);
+                            0, 0, 0, 0, 0, &extent);
             if (ret < 0) {
                 return ret;
             }

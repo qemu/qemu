@@ -31,7 +31,7 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
-    rm $TEST_DIR/blkdebug.conf
+    rm "$TEST_DIR/blkdebug.conf"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -75,7 +75,7 @@ for imm in off; do
 for once in on off; do
 for vmstate in "" "-b"; do
 
-cat > $TEST_DIR/blkdebug.conf <<EOF
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
 [inject-error]
 event = "$event"
 errno = "$errno"
@@ -90,16 +90,16 @@ echo "Event: $event; errno: $errno; imm: $imm; once: $once; write $vmstate"
 
 # We want to catch a simple L2 update, not the allocation of the first L2 table
 if [ "$event" == "l2_update" ]; then
-    $QEMU_IO -c "write $vmstate 0 512" $TEST_IMG > /dev/null 2>&1
+    $QEMU_IO -c "write $vmstate 0 512" "$TEST_IMG" > /dev/null 2>&1
 fi
 
-$QEMU_IO -c "write $vmstate 0 128k " $BLKDBG_TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write $vmstate 0 128k " "$BLKDBG_TEST_IMG" | _filter_qemu_io
 
 # l2_load is not called on allocation, so issue a second write
 # Reads are another path to trigger l2_load, so do a read, too
 if [ "$event" == "l2_load" ]; then
-    $QEMU_IO -c "write $vmstate 0 128k " $BLKDBG_TEST_IMG | _filter_qemu_io
-    $QEMU_IO -c "read $vmstate 0 128k " $BLKDBG_TEST_IMG | _filter_qemu_io
+    $QEMU_IO -c "write $vmstate 0 128k " "$BLKDBG_TEST_IMG" | _filter_qemu_io
+    $QEMU_IO -c "read $vmstate 0 128k " "$BLKDBG_TEST_IMG" | _filter_qemu_io
 fi
 
 _check_test_img 2>&1 | grep -v "refcount=1 reference=0"
@@ -133,7 +133,7 @@ for imm in off; do
 for once in on off; do
 for vmstate in "" "-b"; do
 
-cat > $TEST_DIR/blkdebug.conf <<EOF
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
 [inject-error]
 event = "$event"
 errno = "$errno"
@@ -145,7 +145,7 @@ _make_test_img 1G
 
 echo
 echo "Event: $event; errno: $errno; imm: $imm; once: $once; write $vmstate"
-$QEMU_IO -c "write $vmstate 0 64M" $BLKDBG_TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write $vmstate 0 64M" "$BLKDBG_TEST_IMG" | _filter_qemu_io
 
 _check_test_img 2>&1 | grep -v "refcount=1 reference=0"
 
@@ -172,7 +172,7 @@ for errno in 5 28; do
 for imm in off; do
 for once in on off; do
 
-cat > $TEST_DIR/blkdebug.conf <<EOF
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
 [inject-error]
 event = "$event"
 errno = "$errno"
@@ -184,7 +184,7 @@ _make_test_img 1G
 
 echo
 echo "Event: $event; errno: $errno; imm: $imm; once: $once"
-$QEMU_IO -c "write -b 0 64k" $BLKDBG_TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -b 0 64k" "$BLKDBG_TEST_IMG" | _filter_qemu_io
 
 _check_test_img 2>&1 | grep -v "refcount=1 reference=0"
 

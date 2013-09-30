@@ -119,11 +119,12 @@ wait:
             break;
         }
 
+        copy = false;
+
         ret = bdrv_is_allocated(bs, sector_num,
                                 STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
-            copy = false;
         } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
@@ -138,7 +139,7 @@ wait:
             copy = (ret == 1);
         }
         trace_stream_one_iteration(s, sector_num, n, ret);
-        if (ret >= 0 && copy) {
+        if (copy) {
             if (s->common.speed) {
                 delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {

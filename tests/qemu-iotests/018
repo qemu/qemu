@@ -66,7 +66,7 @@ echo "Creating test image with backing file"
 echo
 
 TEST_IMG=$TEST_IMG_SAVE
-_make_test_img -b $TEST_IMG.base 6G
+_make_test_img -b "$TEST_IMG.base" 6G
 
 echo "Filling test image"
 echo
@@ -80,8 +80,8 @@ for offset in $TEST_OFFSETS; do
 done
 _check_test_img
 
-mv $TEST_IMG $TEST_IMG.orig
-$QEMU_IMG convert -O $IMGFMT $TEST_IMG.orig $TEST_IMG
+mv "$TEST_IMG" "$TEST_IMG.orig"
+$QEMU_IMG convert -O $IMGFMT "$TEST_IMG.orig" "$TEST_IMG"
 
 echo "Reading"
 echo

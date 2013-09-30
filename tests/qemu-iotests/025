@@ -56,7 +56,7 @@ _check_test_img
 
 echo
 echo "=== Resizing image"
-$QEMU_IO $TEST_IMG <<EOF
+$QEMU_IO "$TEST_IMG" <<EOF
 length
 truncate $big_size
 length
@@ -65,7 +65,7 @@ _check_test_img
 
 echo
 echo "=== Verifying image size after reopen"
-$QEMU_IO -c "length" $TEST_IMG
+$QEMU_IO -c "length" "$TEST_IMG"
 
 echo
 echo "=== Verifying resized image"

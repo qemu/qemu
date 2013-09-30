@@ -30,7 +30,7 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	rm -f $TEST_IMG.orig
+	rm -f "$TEST_IMG.orig"
 	_cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -47,13 +47,13 @@ echo
 echo "== Creating single sector image =="
 
 _make_test_img 512
-$QEMU_IO -c "write -P0xa 0 512" $TEST_IMG | _filter_qemu_io
-mv $TEST_IMG $TEST_IMG.orig
+$QEMU_IO -c "write -P0xa 0 512" "$TEST_IMG" | _filter_qemu_io
+mv "$TEST_IMG" "$TEST_IMG.orig"
 
 echo
 echo "== Converting the image, compressed =="
 
-$QEMU_IMG convert -c -O $IMGFMT $TEST_IMG.orig $TEST_IMG
+$QEMU_IMG convert -c -O $IMGFMT "$TEST_IMG.orig" "$TEST_IMG"
 _check_test_img
 
 echo
@@ -64,7 +64,7 @@ _img_info | grep '^virtual size:'
 echo
 echo "== Verifying the compressed image =="
 
-$QEMU_IO -c "read -P0xa 0 512" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P0xa 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

@@ -86,7 +86,7 @@ typedef struct QCowHeader {
 
     uint32_t refcount_order;
     uint32_t header_length;
-} QCowHeader;
+} QEMU_PACKED QCowHeader;
 
 typedef struct QCowSnapshot {
     uint64_t l1_table_offset;
