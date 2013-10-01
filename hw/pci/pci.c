@@ -2306,7 +2306,7 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
     Range *range = opaque;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     uint16_t cmd = pci_get_word(dev->config + PCI_COMMAND);
-    int r;
+    int i;
 
     if (!(cmd & PCI_COMMAND_MEMORY)) {
         return;
@@ -2325,17 +2325,21 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
             range_extend(range, &pref_range);
         }
     }
-    for (r = 0; r < PCI_NUM_REGIONS; ++r) {
-        PCIIORegion *region = &dev->io_regions[r];
+    for (i = 0; i < PCI_NUM_REGIONS; ++i) {
+        PCIIORegion *r = &dev->io_regions[i];
         Range region_range;
 
-        if (!region->size ||
-            (region->type & PCI_BASE_ADDRESS_SPACE_IO) ||
-            !(region->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
+        if (!r->size ||
+            (r->type & PCI_BASE_ADDRESS_SPACE_IO) ||
+            !(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
             continue;
         }
-        region_range.begin = pci_get_quad(dev->config + pci_bar(dev, r));
-        region_range.end = region_range.begin + region->size;
+        region_range.begin = pci_bar_address(dev, i, r->type, r->size);
+        region_range.end = region_range.begin + r->size;
+
+        if (region_range.begin == PCI_BAR_UNMAPPED) {
+            continue;
+        }
 
         region_range.begin = MAX(region_range.begin, 0x1ULL << 32);
 
