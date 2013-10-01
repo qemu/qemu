@@ -818,7 +818,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
-        for (i = 0; i < 64; i++) {
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
             sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
         }
@@ -1040,7 +1040,7 @@ int kvm_arch_get_registers(CPUState *cs)
          * back in.
          */
         memset(env->slb, 0, sizeof(env->slb));
-        for (i = 0; i < 64; i++) {
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             target_ulong rb = sregs.u.s.ppc64.slb[i].slbe;
             target_ulong rs = sregs.u.s.ppc64.slb[i].slbv;
             /*
