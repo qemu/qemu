@@ -108,7 +108,10 @@ void ppc_cpu_dump_statistics(CPUState *cpu, FILE *f,
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int ppc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int ppc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-
+int ppc64_cpu_write_elf64_qemunote(WriteCoreDumpFunction f,
+                                   CPUState *cpu, void *opaque);
+int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                               int cpuid, void *opaque);
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_ppc_cpu;
 #endif
