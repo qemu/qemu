@@ -1033,9 +1033,22 @@ int kvm_arch_get_registers(CPUState *cs)
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
+        /*
+         * The packed SLB array we get from KVM_GET_SREGS only contains
+         * information about valid entries. So we flush our internal
+         * copy to get rid of stale ones, then put all valid SLB entries
+         * back in.
+         */
+        memset(env->slb, 0, sizeof(env->slb));
         for (i = 0; i < 64; i++) {
-            ppc_store_slb(env, sregs.u.s.ppc64.slb[i].slbe,
-                               sregs.u.s.ppc64.slb[i].slbv);
+            target_ulong rb = sregs.u.s.ppc64.slb[i].slbe;
+            target_ulong rs = sregs.u.s.ppc64.slb[i].slbv;
+            /*
+             * Only restore valid entries
+             */
+            if (rb & SLB_ESID_V) {
+                ppc_store_slb(env, rb, rs);
+            }
         }
 #endif
 
