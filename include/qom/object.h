@@ -18,9 +18,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu/queue.h"
+#include "qapi/error.h"
 
 struct Visitor;
-struct Error;
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
