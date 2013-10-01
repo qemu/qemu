@@ -566,7 +566,7 @@ typedef struct FsMount {
     QTAILQ_ENTRY(FsMount) next;
 } FsMount;
 
-typedef QTAILQ_HEAD(, FsMount) FsMountList;
+typedef QTAILQ_HEAD(FsMountList, FsMount) FsMountList;
 
 static void free_fs_mount_list(FsMountList *mounts)
 {
@@ -728,7 +728,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    QTAILQ_FOREACH(mount, &mounts, next) {
+    QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
             error_setg_errno(err, errno, "failed to open %s", mount->dirname);
