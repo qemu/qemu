@@ -943,7 +943,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     do {
         snaps = g_malloc(sizeof(*snaps) * max_snaps);
         snap_count = rbd_snap_list(s->image, snaps, &max_snaps);
-        if (snap_count < 0) {
+        if (snap_count <= 0) {
             g_free(snaps);
         }
     } while (snap_count == -ERANGE);
@@ -967,6 +967,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
         sn_info->vm_clock_nsec = 0;
     }
     rbd_snap_list_end(snaps);
+    g_free(snaps);
 
  done:
     *psn_tab = sn_tab;
@@ -1002,6 +1003,7 @@ static QEMUOptionParameter qemu_rbd_create_options[] = {
 static BlockDriver bdrv_rbd = {
     .format_name        = "rbd",
     .instance_size      = sizeof(BDRVRBDState),
+    .bdrv_needs_filename = true,
     .bdrv_file_open     = qemu_rbd_open,
     .bdrv_close         = qemu_rbd_close,
     .bdrv_create        = qemu_rbd_create,

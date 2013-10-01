@@ -54,23 +54,23 @@ _make_test_img $size
 # Otherwise an L2 table could get in the way after the data cluster.
 echo
 echo "== writing first cluster to populate metadata =="
-$QEMU_IO -c "write -pP 0xde $cluster_size $cluster_size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -pP 0xde $cluster_size $cluster_size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== writing at sub-cluster granularity =="
-$QEMU_IO -c "write -pP 0xa $subcluster_offset $subcluster_size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -pP 0xa $subcluster_offset $subcluster_size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify pattern =="
-$QEMU_IO -c "read -pP 0xa $subcluster_offset $subcluster_size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -pP 0xa $subcluster_offset $subcluster_size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify zeroes before sub-cluster pattern =="
-$QEMU_IO -c "read -pP 0 -l $subcluster_offset 0 $subcluster_size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -pP 0 -l $subcluster_offset 0 $subcluster_size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify zeroes after sub-cluster pattern =="
-$QEMU_IO -c "read -pP 0 -l 512 -s $subcluster_size $subcluster_offset $(( subcluster_size + 512 ))" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -pP 0 -l 512 -s $subcluster_size $subcluster_offset $(( subcluster_size + 512 ))" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

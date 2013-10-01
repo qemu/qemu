@@ -741,6 +741,7 @@ static QEMUMachine xenfv_machine = {
     .init = pc_xen_hvm_init,
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
+    .hot_add_cpu = pc_hot_add_cpu,
 };
 #endif
 

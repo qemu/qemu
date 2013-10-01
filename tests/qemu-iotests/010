@@ -59,7 +59,7 @@ $QEMU_IO \
 	-c "write -P 165 2044k 4k" \
 	-c "write -P 99 8M 4k" \
 	-c "read -P 165 2044k 8k" \
-$TEST_IMG | _filter_qemu_io
+"$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "checking image for errors"

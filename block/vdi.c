@@ -165,7 +165,7 @@ typedef struct {
     uuid_t uuid_link;
     uuid_t uuid_parent;
     uint64_t unused2[7];
-} VdiHeader;
+} QEMU_PACKED VdiHeader;
 
 typedef struct {
     /* The block map entries are little endian (even in memory). */

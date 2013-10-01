@@ -356,6 +356,7 @@ typedef struct RDMAContext {
      */
     struct rdma_cm_id *cm_id;               /* connection manager ID */
     struct rdma_cm_id *listen_id;
+    bool connected;
 
     struct ibv_context          *verbs;
     struct rdma_event_channel   *channel;
@@ -510,19 +511,21 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    int *resp_idx,
                                    int (*callback)(RDMAContext *rdma));
 
-static inline uint64_t ram_chunk_index(uint8_t *start, uint8_t *host)
+static inline uint64_t ram_chunk_index(const uint8_t *start,
+                                       const uint8_t *host)
 {
     return ((uintptr_t) host - (uintptr_t) start) >> RDMA_REG_CHUNK_SHIFT;
 }
 
-static inline uint8_t *ram_chunk_start(RDMALocalBlock *rdma_ram_block,
+static inline uint8_t *ram_chunk_start(const RDMALocalBlock *rdma_ram_block,
                                        uint64_t i)
 {
     return (uint8_t *) (((uintptr_t) rdma_ram_block->local_host_addr)
                                     + (i << RDMA_REG_CHUNK_SHIFT));
 }
 
-static inline uint8_t *ram_chunk_end(RDMALocalBlock *rdma_ram_block, uint64_t i)
+static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
+                                     uint64_t i)
 {
     uint8_t *result = ram_chunk_start(rdma_ram_block, i) +
                                          (1UL << RDMA_REG_CHUNK_SHIFT);
@@ -2194,7 +2197,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     struct rdma_cm_event *cm_event;
     int ret, idx;
 
-    if (rdma->cm_id) {
+    if (rdma->cm_id && rdma->connected) {
         if (rdma->error_state) {
             RDMAControlHeader head = { .len = 0,
                                        .type = RDMA_CONTROL_ERROR,
@@ -2213,7 +2216,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
             }
         }
         DDPRINTF("Disconnected.\n");
-        rdma->cm_id = NULL;
+        rdma->connected = false;
     }
 
     g_free(rdma->block);
@@ -2235,7 +2238,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     }
 
     if (rdma->qp) {
-        ibv_destroy_qp(rdma->qp);
+        rdma_destroy_qp(rdma->cm_id);
         rdma->qp = NULL;
     }
     if (rdma->cq) {
@@ -2372,6 +2375,7 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
         rdma->cm_id = NULL;
         goto err_rdma_source_connect;
     }
+    rdma->connected = true;
 
     memcpy(&cap, cm_event->param.conn.private_data, sizeof(cap));
     network_to_caps(&cap);
@@ -2906,6 +2910,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     }
 
     rdma_ack_cm_event(cm_event);
+    rdma->connected = true;
 
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
     if (ret) {

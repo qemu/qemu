@@ -73,6 +73,12 @@ struct BlockDriver {
     /* Any driver implementing this callback is expected to be able to handle
      * NULL file names in its .bdrv_open() implementation */
     void (*bdrv_parse_filename)(const char *filename, QDict *options, Error **errp);
+    /* Drivers not implementing bdrv_parse_filename nor bdrv_open should have
+     * this field set to true, except ones that are defined only by their
+     * child's bs.
+     * An example of the last type will be the quorum block driver.
+     */
+    bool bdrv_needs_filename;
 
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,

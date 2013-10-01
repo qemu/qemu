@@ -48,21 +48,21 @@ _make_test_img $size
 
 echo
 echo "== reading at EOF =="
-$QEMU_IO -g -c "read -P 0 $size 512" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -g -c "read -P 0 $size 512" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== reading far past EOF =="
-$QEMU_IO -g -c "read -P 0 256M 512" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -g -c "read -P 0 256M 512" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== writing at EOF =="
-$QEMU_IO -g -c "write -P 66 $size 512" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 66 $size 512" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -g -c "write -P 66 $size 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 66 $size 512" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== writing far past EOF =="
-$QEMU_IO -g -c "write -P 66 256M 512" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 66 256M 512" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -g -c "write -P 66 256M 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 66 256M 512" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

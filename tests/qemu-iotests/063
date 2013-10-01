@@ -32,7 +32,7 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
-	rm -f $TEST_IMG.orig $TEST_IMG.raw $TEST_IMG.raw2
+	rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -49,47 +49,47 @@ _make_test_img 4M
 
 echo "== Testing conversion with -n fails with no target file =="
 # check .orig file does not exist
-rm -f $TEST_IMG.orig
-if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n $TEST_IMG $TEST_IMG.orig >/dev/null 2>&1; then
+rm -f "$TEST_IMG.orig"
+if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" >/dev/null 2>&1; then
     exit 1
 fi
 
 echo "== Testing conversion with -n succeeds with a target file =="
-rm -f $TEST_IMG.orig
-cp $TEST_IMG $TEST_IMG.orig
-if ! $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n $TEST_IMG $TEST_IMG.orig ; then
+rm -f "$TEST_IMG.orig"
+cp "$TEST_IMG" "$TEST_IMG.orig"
+if ! $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" ; then
     exit 1
 fi
 
 echo "== Testing conversion to raw is the same after conversion with -n =="
 # compare the raw files
-if ! $QEMU_IMG convert -f $IMGFMT -O raw $TEST_IMG $TEST_IMG.raw1 ; then
+if ! $QEMU_IMG convert -f $IMGFMT -O raw "$TEST_IMG" "$TEST_IMG.raw1" ; then
     exit 1
 fi
 
-if ! $QEMU_IMG convert -f $IMGFMT -O raw $TEST_IMG.orig $TEST_IMG.raw2 ; then
+if ! $QEMU_IMG convert -f $IMGFMT -O raw "$TEST_IMG.orig" "$TEST_IMG.raw2" ; then
     exit 1
 fi
 
-if ! cmp $TEST_IMG.raw1 $TEST_IMG.raw2 ; then
+if ! cmp "$TEST_IMG.raw1" "$TEST_IMG.raw2" ; then
     exit 1
 fi
 
 echo "== Testing conversion back to original format =="
-if ! $QEMU_IMG convert -f raw -O $IMGFMT -n $TEST_IMG.raw2 $TEST_IMG ; then
+if ! $QEMU_IMG convert -f raw -O $IMGFMT -n "$TEST_IMG.raw2" "$TEST_IMG" ; then
     exit 1
 fi
 _check_test_img
 
 echo "== Testing conversion to a smaller file fails =="
-rm -f $TEST_IMG.orig
-mv $TEST_IMG $TEST_IMG.orig
+rm -f "$TEST_IMG.orig"
+mv "$TEST_IMG" "$TEST_IMG.orig"
 _make_test_img 2M
-if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n $TEST_IMG.orig $TEST_IMG >/dev/null 2>&1; then
+if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG.orig" "$TEST_IMG" >/dev/null 2>&1; then
     exit 1
 fi
 
-rm -f $TEST_IMG.orig $TEST_IMG.raw $TEST_IMG.raw2
+rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
 
 echo "*** done"
 rm -f $seq.full

@@ -98,6 +98,7 @@ typedef struct XenIOState {
 
     Notifier exit;
     Notifier suspend;
+    Notifier wakeup;
 } XenIOState;
 
 /* Xen specific function for piix pci */
@@ -613,13 +614,13 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
     }
 
     if (port != -1) {
-        for (i = 0; i < smp_cpus; i++) {
+        for (i = 0; i < max_cpus; i++) {
             if (state->ioreq_local_port[i] == port) {
                 break;
             }
         }
 
-        if (i == smp_cpus) {
+        if (i == max_cpus) {
             hw_error("Fatal error while trying to get io event!\n");
         }
 
@@ -1060,6 +1061,11 @@ static void xen_read_physmap(XenIOState *state)
     free(entries);
 }
 
+static void xen_wakeup_notifier(Notifier *notifier, void *data)
+{
+    xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
+}
+
 int xen_hvm_init(MemoryRegion **ram_memory)
 {
     int i, rc;
@@ -1089,6 +1095,9 @@ int xen_hvm_init(MemoryRegion **ram_memory)
     state->suspend.notify = xen_suspend_notifier;
     qemu_register_suspend_notifier(&state->suspend);
 
+    state->wakeup.notify = xen_wakeup_notifier;
+    qemu_register_wakeup_notifier(&state->wakeup);
+
     xc_get_hvm_param(xen_xc, xen_domid, HVM_PARAM_IOREQ_PFN, &ioreq_pfn);
     DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
     state->shared_page = xc_map_foreign_range(xen_xc, xen_domid, XC_PAGE_SIZE,
@@ -1106,10 +1115,10 @@ int xen_hvm_init(MemoryRegion **ram_memory)
         hw_error("map buffered IO page returned error %d", errno);
     }
 
-    state->ioreq_local_port = g_malloc0(smp_cpus * sizeof (evtchn_port_t));
+    state->ioreq_local_port = g_malloc0(max_cpus * sizeof (evtchn_port_t));
 
     /* FIXME: how about if we overflow the page here? */
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < max_cpus; i++) {
         rc = xc_evtchn_bind_interdomain(state->xce_handle, xen_domid,
                                         xen_vcpu_eport(state->shared_page, i));
         if (rc == -1) {

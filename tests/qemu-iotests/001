@@ -48,15 +48,15 @@ _make_test_img $size
 
 echo
 echo "== reading whole image =="
-$QEMU_IO -c "read 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== rewriting whole image =="
-$QEMU_IO -c "write -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== verify pattern =="
-$QEMU_IO -c "read -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 
 # success, all done

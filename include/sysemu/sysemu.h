@@ -16,6 +16,7 @@ extern const char *bios_name;
 
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
+extern bool qemu_uuid_set;
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
 
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
@@ -41,9 +42,11 @@ int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 
 typedef enum WakeupReason {
-    QEMU_WAKEUP_REASON_OTHER = 0,
+    /* Always keep QEMU_WAKEUP_REASON_NONE = 0 */
+    QEMU_WAKEUP_REASON_NONE = 0,
     QEMU_WAKEUP_REASON_RTC,
     QEMU_WAKEUP_REASON_PMTIMER,
+    QEMU_WAKEUP_REASON_OTHER,
 } WakeupReason;
 
 void qemu_system_reset_request(void);

@@ -874,7 +874,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         nb_csectors = ((offset >> s->csize_shift) &
                                        s->csize_mask) + 1;
                         if (addend != 0) {
-                            int ret;
                             ret = update_refcount(bs,
                                 (offset & s->cluster_offset_mask) & ~511,
                                 nb_csectors * 512, addend,

@@ -792,7 +792,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
         assert(file == NULL);
-        assert(drv->bdrv_parse_filename || filename != NULL);
+        assert(!drv->bdrv_needs_filename || filename != NULL);
         ret = drv->bdrv_file_open(bs, options, open_flags, &local_err);
     } else {
         if (file == NULL) {
@@ -911,7 +911,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             goto fail;
         }
         qdict_del(options, "filename");
-    } else if (!drv->bdrv_parse_filename && !filename) {
+    } else if (drv->bdrv_needs_filename && !filename) {
         error_setg(errp, "The '%s' block driver requires a file name",
                    drv->format_name);
         ret = -EINVAL;
@@ -978,11 +978,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
         return 0;
+    } else {
+        bdrv_get_full_backing_filename(bs, backing_filename,
+                                       sizeof(backing_filename));
     }
 
     bs->backing_hd = bdrv_new("");
-    bdrv_get_full_backing_filename(bs, backing_filename,
-                                   sizeof(backing_filename));
 
     if (bs->backing_format[0] != '\0') {
         back_drv = bdrv_find_format(bs->backing_format);
@@ -994,6 +995,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     ret = bdrv_open(bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv, &local_err);
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+            bs->backing_hd->file->filename);
     if (ret < 0) {
         bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
@@ -1002,25 +1005,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         return ret;
     }
     return 0;
-}
-
-static void extract_subqdict(QDict *src, QDict **dst, const char *start)
-{
-    const QDictEntry *entry, *next;
-    const char *p;
-
-    *dst = qdict_new();
-    entry = qdict_first(src);
-
-    while (entry != NULL) {
-        next = qdict_next(src, entry);
-        if (strstart(entry->key, start, &p)) {
-            qobject_incref(entry->value);
-            qdict_put_obj(*dst, p, entry->value);
-            qdict_del(src, entry->key);
-        }
-        entry = next;
-    }
 }
 
 /*
@@ -1128,7 +1112,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    extract_subqdict(options, &file_options, "file.");
+    qdict_extract_subqdict(options, &file_options, "file.");
 
     ret = bdrv_file_open(&file, filename, file_options,
                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP), &local_err);
@@ -1166,7 +1150,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     if ((flags & BDRV_O_NO_BACKING) == 0) {
         QDict *backing_options;
 
-        extract_subqdict(options, &backing_options, "backing.");
+        qdict_extract_subqdict(options, &backing_options, "backing.");
         ret = bdrv_open_backing_file(bs, backing_options, &local_err);
         if (ret < 0) {
             goto close_and_fail;
@@ -2669,7 +2653,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
             goto out;
         }
 
-        total_sectors = (len + BDRV_SECTOR_SIZE - 1) >> BDRV_SECTOR_BITS;
+        total_sectors = DIV_ROUND_UP(len, BDRV_SECTOR_SIZE);
         max_nb_sectors = MAX(0, total_sectors - sector_num);
         if (max_nb_sectors > 0) {
             ret = drv->bdrv_co_readv(bs, sector_num,
@@ -3159,13 +3143,14 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     ret = bs->drv->bdrv_co_get_block_status(bs, sector_num, nb_sectors, pnum);
     if (ret < 0) {
+        *pnum = 0;
         return ret;
     }
 
     if (!(ret & BDRV_BLOCK_DATA)) {
         if (bdrv_has_zero_init(bs)) {
             ret |= BDRV_BLOCK_ZERO;
-        } else {
+        } else if (bs->backing_hd) {
             BlockDriverState *bs2 = bs->backing_hd;
             int64_t length2 = bdrv_getlength(bs2);
             if (length2 >= 0 && sector_num >= (length2 >> BDRV_SECTOR_BITS)) {

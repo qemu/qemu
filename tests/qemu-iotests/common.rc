@@ -91,6 +91,18 @@ _set_default_imgopts()
     fi
 }
 
+_use_sample_img()
+{
+    SAMPLE_IMG_FILE="${1%\.bz2}"
+    TEST_IMG="$TEST_DIR/$SAMPLE_IMG_FILE"
+    bzcat "$SAMPLE_IMG_DIR/$1" > "$TEST_IMG"
+    if [ $? -ne 0 ]
+    then
+        echo "_use_sample_img error, cannot extract '$SAMPLE_IMG_DIR/$1'"
+        exit 1
+    fi
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -152,20 +164,24 @@ _cleanup_test_img()
 
         nbd)
             kill $QEMU_NBD_PID
-            rm -f $TEST_IMG_FILE
+            rm -f "$TEST_IMG_FILE"
             ;;
         file)
-            rm -f $TEST_DIR/t.$IMGFMT
-            rm -f $TEST_DIR/t.$IMGFMT.orig
-            rm -f $TEST_DIR/t.$IMGFMT.base
+            rm -f "$TEST_DIR/t.$IMGFMT"
+            rm -f "$TEST_DIR/t.$IMGFMT.orig"
+            rm -f "$TEST_DIR/t.$IMGFMT.base"
+            if [ -n "$SAMPLE_IMG_FILE" ]
+            then
+                rm -f "$TEST_DIR/$SAMPLE_IMG_FILE"
+            fi
             ;;
 
         rbd)
-            rbd rm $TEST_DIR/t.$IMGFMT > /dev/null
+            rbd rm "$TEST_DIR/t.$IMGFMT" > /dev/null
             ;;
 
         sheepdog)
-            collie vdi delete $TEST_DIR/t.$IMGFMT
+            collie vdi delete "$TEST_DIR/t.$IMGFMT"
             ;;
 
     esac
@@ -173,7 +189,7 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check "$@" -f $IMGFMT $TEST_IMG 2>&1 | _filter_testdir | \
+    $QEMU_IMG check "$@" -f $IMGFMT "$TEST_IMG" 2>&1 | _filter_testdir | \
         sed -e '/allocated.*fragmented.*compressed clusters/d' \
             -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
             -e '/Image end offset: [0-9]\+/d'
@@ -181,7 +197,7 @@ _check_test_img()
 
 _img_info()
 {
-    $QEMU_IMG info "$@" $TEST_IMG 2>&1 | \
+    $QEMU_IMG info "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \

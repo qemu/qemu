@@ -61,19 +61,19 @@ _make_test_img $size
 
 # Create two snapshots which fill the image with two different patterns
 echo "creating first snapshot"
-$QEMU_IO -c "aio_write -P 123 0 $size" $TEST_IMG | _filter_qemu_io
-$QEMU_IMG snapshot -c snap1 $TEST_IMG
+$QEMU_IO -c "aio_write -P 123 0 $size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c snap1 "$TEST_IMG"
 echo "creating second snapshot"
-$QEMU_IO -c "aio_write -P 165 0 $size" $TEST_IMG | _filter_qemu_io
-$QEMU_IMG snapshot -c snap2 $TEST_IMG
+$QEMU_IO -c "aio_write -P 165 0 $size" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c snap2 "$TEST_IMG"
 
 # Now check the pattern
 echo "checking first snapshot"
-$QEMU_IMG snapshot -a snap1 $TEST_IMG
-$QEMU_IO -c "aio_read -P 123 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IMG snapshot -a snap1 "$TEST_IMG"
+$QEMU_IO -c "aio_read -P 123 0 $size" "$TEST_IMG" | _filter_qemu_io
 echo "checking second snapshot"
-$QEMU_IMG snapshot -a snap2 $TEST_IMG
-$QEMU_IO -c "aio_read -P 165 0 $size" $TEST_IMG | _filter_qemu_io
+$QEMU_IMG snapshot -a snap2 "$TEST_IMG"
+$QEMU_IO -c "aio_read -P 165 0 $size" "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "checking image for errors"

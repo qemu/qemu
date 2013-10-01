@@ -47,16 +47,16 @@ _supported_os Linux
 
 CLUSTER_SIZE=65536
 _make_test_img 64M
-$QEMU_IMG snapshot -c foo $TEST_IMG
-$QEMU_IO -c 'write -b 0 4k' $TEST_IMG | _filter_qemu_io
-$QEMU_IMG snapshot -a foo $TEST_IMG
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IO -c 'write -b 0 4k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
 
 CLUSTER_SIZE=1024
 _make_test_img 16M
-$QEMU_IMG snapshot -c foo $TEST_IMG
-$QEMU_IO -c 'write -b 0 4M' $TEST_IMG | _filter_qemu_io
-$QEMU_IMG snapshot -a foo $TEST_IMG
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IO -c 'write -b 0 4M' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
 
 # success, all done

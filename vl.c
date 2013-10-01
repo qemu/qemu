@@ -258,6 +258,7 @@ uint64_t node_mem[MAX_NODES];
 unsigned long *node_cpumask[MAX_NODES];
 
 uint8_t qemu_uuid[16];
+bool qemu_uuid_set;
 
 /* Trace unassigned memory or i/o accesses. */
 bool trace_unassigned;
@@ -1725,14 +1726,14 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
-static int wakeup_requested;
+static WakeupReason wakeup_reason;
 static NotifierList powerdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(powerdown_notifiers);
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
     NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
-static uint32_t wakeup_reason_mask = ~0;
+static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 static RunState vmstop_requested = RUN_STATE_MAX;
 
 int qemu_shutdown_requested_get(void)
@@ -1782,11 +1783,9 @@ static int qemu_suspend_requested(void)
     return r;
 }
 
-static int qemu_wakeup_requested(void)
+static WakeupReason qemu_wakeup_requested(void)
 {
-    int r = wakeup_requested;
-    wakeup_requested = 0;
-    return r;
+    return wakeup_reason;
 }
 
 static int qemu_powerdown_requested(void)
@@ -1903,8 +1902,7 @@ void qemu_system_wakeup_request(WakeupReason reason)
         return;
     }
     runstate_set(RUN_STATE_RUNNING);
-    notifier_list_notify(&wakeup_notifiers, &reason);
-    wakeup_requested = 1;
+    wakeup_reason = reason;
     qemu_notify_event();
 }
 
@@ -1996,6 +1994,8 @@ static bool main_loop_should_exit(void)
         pause_all_vcpus();
         cpu_synchronize_all_states();
         qemu_system_reset(VMRESET_SILENT);
+        notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
+        wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
@@ -3541,7 +3541,8 @@ int main(int argc, char **argv)
                 do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
-                do_smbios_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("smbios"), optarg, 0);
+                do_smbios_option(opts);
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -3637,6 +3638,7 @@ int main(int argc, char **argv)
                             " Wrong format.\n");
                     exit(1);
                 }
+                qemu_uuid_set = true;
                 break;
 	    case QEMU_OPTION_option_rom:
 		if (nb_option_roms >= MAX_OPTION_ROMS) {
