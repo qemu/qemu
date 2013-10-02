@@ -185,6 +185,8 @@ typedef struct VFIODevice {
     bool reset_works;
     bool has_vga;
     bool pci_aer;
+    bool has_flr;
+    bool has_pm_reset;
 } VFIODevice;
 
 typedef struct VFIOGroup {
@@ -2513,6 +2515,42 @@ static int vfio_setup_pcie_cap(VFIODevice *vdev, int pos, uint8_t size)
     return pos;
 }
 
+static void vfio_check_pcie_flr(VFIODevice *vdev, uint8_t pos)
+{
+    uint32_t cap = pci_get_long(vdev->pdev.config + pos + PCI_EXP_DEVCAP);
+
+    if (cap & PCI_EXP_DEVCAP_FLR) {
+        DPRINTF("%04x:%02x:%02x.%x Supports FLR via PCIe cap\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_flr = true;
+    }
+}
+
+static void vfio_check_pm_reset(VFIODevice *vdev, uint8_t pos)
+{
+    uint16_t csr = pci_get_word(vdev->pdev.config + pos + PCI_PM_CTRL);
+
+    if (!(csr & PCI_PM_CTRL_NO_SOFT_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x Supports PM reset\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_pm_reset = true;
+    }
+}
+
+static void vfio_check_af_flr(VFIODevice *vdev, uint8_t pos)
+{
+    uint8_t cap = pci_get_byte(vdev->pdev.config + pos + PCI_AF_CAP);
+
+    if ((cap & PCI_AF_CAP_TP) && (cap & PCI_AF_CAP_FLR)) {
+        DPRINTF("%04x:%02x:%02x.%x Supports FLR via AF cap\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_flr = true;
+    }
+}
+
 static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -2557,13 +2595,21 @@ static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
         ret = vfio_setup_msi(vdev, pos);
         break;
     case PCI_CAP_ID_EXP:
+        vfio_check_pcie_flr(vdev, pos);
         ret = vfio_setup_pcie_cap(vdev, pos, size);
         break;
     case PCI_CAP_ID_MSIX:
         ret = vfio_setup_msix(vdev, pos);
         break;
     case PCI_CAP_ID_PM:
+        vfio_check_pm_reset(vdev, pos);
         vdev->pm_cap = pos;
+        ret = pci_add_capability(pdev, cap_id, pos, size);
+        break;
+    case PCI_CAP_ID_AF:
+        vfio_check_af_flr(vdev, pos);
+        ret = pci_add_capability(pdev, cap_id, pos, size);
+        break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size);
         break;
