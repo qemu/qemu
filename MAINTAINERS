@@ -51,7 +51,6 @@ Descriptions of section entries:
 General Project Administration
 ------------------------------
 M: Anthony Liguori <anthony@codemonkey.ws>
-M: Paul Brook <paul@codesourcery.com>
 
 Guest CPU cores (TCG):
 ----------------------
@@ -62,7 +61,6 @@ F: target-alpha/
 F: hw/alpha/
 
 ARM
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: target-arm/
@@ -83,8 +81,7 @@ F: hw/lm32/
 F: hw/char/lm32_*
 
 M68K
-M: Paul Brook <paul@codesourcery.com>
-S: Odd Fixes
+S: Orphan
 F: target-m68k/
 F: hw/m68k/
 
@@ -248,7 +245,6 @@ F: hw/*/imx*
 F: hw/arm/kzm.c
 
 Integrator CP
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/integratorcp.c
@@ -274,7 +270,6 @@ S: Maintained
 F: hw/arm/palm.c
 
 Real View
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/realview*
@@ -285,13 +280,11 @@ S: Maintained
 F: hw/arm/spitz.c
 
 Stellaris
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/stellaris*
 
 Versatile PB
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/versatile*
@@ -327,18 +320,15 @@ F: hw/lm32/milkymist.c
 M68K Machines
 -------------
 an5206
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/an5206.c
 
 dummy_m68k
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/dummy_m68k.c
 
 mcf5208
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/mcf5208.c
 
 MicroBlaze Machines
@@ -567,8 +557,7 @@ F: hw/scsi/*
 T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
-M: Paul Brook <paul@codesourcery.com>
-S: Odd Fixes
+S: Orphan
 F: hw/scsi/lsi53c895a.c
 
 SSI
