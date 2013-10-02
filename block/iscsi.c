@@ -811,7 +811,7 @@ iscsi_getlength(BlockDriverState *bs)
     return len;
 }
 
-#if defined(SCSI_PROVISIONING_TYPE_DEALLOCATED)
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
 
 static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
                                                   int64_t sector_num,
@@ -903,7 +903,7 @@ out:
     return ret;
 }
 
-#endif /* SCSI_PROVISIONING_TYPE_DEALLOCATED */
+#endif /* LIBISCSI_FEATURE_IOVECTOR */
 
 static int
 coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
@@ -1529,7 +1529,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_truncate   = iscsi_truncate,
 
-#if defined(SCSI_PROVISIONING_TYPE_DEALLOCATED)
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
 #endif
     .bdrv_co_discard      = iscsi_co_discard,
