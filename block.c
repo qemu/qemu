@@ -824,8 +824,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
 #ifndef _WIN32
     if (bs->is_temporary) {
-        assert(filename != NULL);
-        unlink(filename);
+        assert(bs->filename[0] != '\0');
+        unlink(bs->filename);
     }
 #endif
     return 0;
