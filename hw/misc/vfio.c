@@ -188,6 +188,7 @@ typedef struct VFIODevice {
     bool pci_aer;
     bool has_flr;
     bool has_pm_reset;
+    bool needs_reset;
 } VFIODevice;
 
 typedef struct VFIOGroup {
@@ -2758,6 +2759,279 @@ static int vfio_add_capabilities(VFIODevice *vdev)
     return vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
 }
 
+static void vfio_pci_pre_reset(VFIODevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t cmd;
+
+    vfio_disable_interrupts(vdev);
+
+    /* Make sure the device is in D0 */
+    if (vdev->pm_cap) {
+        uint16_t pmcsr;
+        uint8_t state;
+
+        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+        if (state) {
+            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
+            /* vfio handles the necessary delay here */
+            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+            if (state) {
+                error_report("vfio: Unable to power on device, stuck in D%d\n",
+                             state);
+            }
+        }
+    }
+
+    /*
+     * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
+     * Also put INTx Disable in known state.
+     */
+    cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
+    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+             PCI_COMMAND_INTX_DISABLE);
+    vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
+}
+
+static void vfio_pci_post_reset(VFIODevice *vdev)
+{
+    vfio_enable_intx(vdev);
+}
+
+static bool vfio_pci_host_match(PCIHostDeviceAddress *host1,
+                                PCIHostDeviceAddress *host2)
+{
+    return (host1->domain == host2->domain && host1->bus == host2->bus &&
+            host1->slot == host2->slot && host1->function == host2->function);
+}
+
+static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
+{
+    VFIOGroup *group;
+    struct vfio_pci_hot_reset_info *info;
+    struct vfio_pci_dependent_device *devices;
+    struct vfio_pci_hot_reset *reset;
+    int32_t *fds;
+    int ret, i, count;
+    bool multi = false;
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) %s\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function,
+            single ? "one" : "multi");
+
+    vfio_pci_pre_reset(vdev);
+    vdev->needs_reset = false;
+
+    info = g_malloc0(sizeof(*info));
+    info->argsz = sizeof(*info);
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret && errno != ENOSPC) {
+        ret = -errno;
+        if (!vdev->has_pm_reset) {
+            error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
+                         "no available reset mechanism.", vdev->host.domain,
+                         vdev->host.bus, vdev->host.slot, vdev->host.function);
+        }
+        goto out_single;
+    }
+
+    count = info->count;
+    info = g_realloc(info, sizeof(*info) + (count * sizeof(*devices)));
+    info->argsz = sizeof(*info) + (count * sizeof(*devices));
+    devices = &info->devices[0];
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret) {
+        ret = -errno;
+        error_report("vfio: hot reset info failed: %m");
+        goto out_single;
+    }
+
+    DPRINTF("%04x:%02x:%02x.%x: hot reset dependent devices:\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+
+    /* Verify that we have all the groups required */
+    for (i = 0; i < info->count; i++) {
+        PCIHostDeviceAddress host;
+        VFIODevice *tmp;
+
+        host.domain = devices[i].segment;
+        host.bus = devices[i].bus;
+        host.slot = PCI_SLOT(devices[i].devfn);
+        host.function = PCI_FUNC(devices[i].devfn);
+
+        DPRINTF("\t%04x:%02x:%02x.%x group %d\n", host.domain,
+                host.bus, host.slot, host.function, devices[i].group_id);
+
+        if (vfio_pci_host_match(&host, &vdev->host)) {
+            continue;
+        }
+
+        QLIST_FOREACH(group, &group_list, next) {
+            if (group->groupid == devices[i].group_id) {
+                break;
+            }
+        }
+
+        if (!group) {
+            if (!vdev->has_pm_reset) {
+                error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
+                             "depends on group %d which is not owned.",
+                             vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                             vdev->host.function, devices[i].group_id);
+            }
+            ret = -EPERM;
+            goto out;
+        }
+
+        /* Prep dependent devices for reset and clear our marker. */
+        QLIST_FOREACH(tmp, &group->device_list, next) {
+            if (vfio_pci_host_match(&host, &tmp->host)) {
+                if (single) {
+                    DPRINTF("vfio: found another in-use device "
+                            "%04x:%02x:%02x.%x\n", host.domain, host.bus,
+                            host.slot, host.function);
+                    ret = -EINVAL;
+                    goto out_single;
+                }
+                vfio_pci_pre_reset(tmp);
+                tmp->needs_reset = false;
+                multi = true;
+                break;
+            }
+        }
+    }
+
+    if (!single && !multi) {
+        DPRINTF("vfio: No other in-use devices for multi hot reset\n");
+        ret = -EINVAL;
+        goto out_single;
+    }
+
+    /* Determine how many group fds need to be passed */
+    count = 0;
+    QLIST_FOREACH(group, &group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                count++;
+                break;
+            }
+        }
+    }
+
+    reset = g_malloc0(sizeof(*reset) + (count * sizeof(*fds)));
+    reset->argsz = sizeof(*reset) + (count * sizeof(*fds));
+    fds = &reset->group_fds[0];
+
+    /* Fill in group fds */
+    QLIST_FOREACH(group, &group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                fds[reset->count++] = group->fd;
+                break;
+            }
+        }
+    }
+
+    /* Bus reset! */
+    ret = ioctl(vdev->fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
+    g_free(reset);
+
+    DPRINTF("%04x:%02x:%02x.%x hot reset: %s\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function,
+            ret ? "%m" : "Success");
+
+out:
+    /* Re-enable INTx on affected devices */
+    for (i = 0; i < info->count; i++) {
+        PCIHostDeviceAddress host;
+        VFIODevice *tmp;
+
+        host.domain = devices[i].segment;
+        host.bus = devices[i].bus;
+        host.slot = PCI_SLOT(devices[i].devfn);
+        host.function = PCI_FUNC(devices[i].devfn);
+
+        if (vfio_pci_host_match(&host, &vdev->host)) {
+            continue;
+        }
+
+        QLIST_FOREACH(group, &group_list, next) {
+            if (group->groupid == devices[i].group_id) {
+                break;
+            }
+        }
+
+        if (!group) {
+            break;
+        }
+
+        QLIST_FOREACH(tmp, &group->device_list, next) {
+            if (vfio_pci_host_match(&host, &tmp->host)) {
+                vfio_pci_post_reset(tmp);
+                break;
+            }
+        }
+    }
+out_single:
+    vfio_pci_post_reset(vdev);
+    g_free(info);
+
+    return ret;
+}
+
+/*
+ * We want to differentiate hot reset of mulitple in-use devices vs hot reset
+ * of a single in-use device.  VFIO_DEVICE_RESET will already handle the case
+ * of doing hot resets when there is only a single device per bus.  The in-use
+ * here refers to how many VFIODevices are affected.  A hot reset that affects
+ * multiple devices, but only a single in-use device, means that we can call
+ * it from our bus ->reset() callback since the extent is effectively a single
+ * device.  This allows us to make use of it in the hotplug path.  When there
+ * are multiple in-use devices, we can only trigger the hot reset during a
+ * system reset and thus from our reset handler.  We separate _one vs _multi
+ * here so that we don't overlap and do a double reset on the system reset
+ * path where both our reset handler and ->reset() callback are used.  Calling
+ * _one() will only do a hot reset for the one in-use devices case, calling
+ * _multi() will do nothing if a _one() would have been sufficient.
+ */
+static int vfio_pci_hot_reset_one(VFIODevice *vdev)
+{
+    return vfio_pci_hot_reset(vdev, true);
+}
+
+static int vfio_pci_hot_reset_multi(VFIODevice *vdev)
+{
+    return vfio_pci_hot_reset(vdev, false);
+}
+
+static void vfio_pci_reset_handler(void *opaque)
+{
+    VFIOGroup *group;
+    VFIODevice *vdev;
+
+    QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(vdev, &group->device_list, next) {
+            if (!vdev->reset_works || (!vdev->has_flr && vdev->has_pm_reset)) {
+                vdev->needs_reset = true;
+            }
+        }
+    }
+
+    QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(vdev, &group->device_list, next) {
+            if (vdev->needs_reset) {
+                vfio_pci_hot_reset_multi(vdev);
+            }
+        }
+    }
+}
+
 static int vfio_connect_container(VFIOGroup *group)
 {
     VFIOContainer *container;
@@ -2900,6 +3174,10 @@ static VFIOGroup *vfio_get_group(int groupid)
         return NULL;
     }
 
+    if (QLIST_EMPTY(&group_list)) {
+        qemu_register_reset(vfio_pci_reset_handler, NULL);
+    }
+
     QLIST_INSERT_HEAD(&group_list, group, next);
 
     return group;
@@ -2916,6 +3194,10 @@ static void vfio_put_group(VFIOGroup *group)
     DPRINTF("vfio_put_group: close group->fd\n");
     close(group->fd);
     g_free(group);
+
+    if (QLIST_EMPTY(&group_list)) {
+        qemu_unregister_reset(vfio_pci_reset_handler, NULL);
+    }
 }
 
 static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
@@ -2954,9 +3236,6 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     }
 
     vdev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
-    if (!vdev->reset_works) {
-        error_report("Warning, device %s does not support reset", name);
-    }
 
     if (dev_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_report("vfio: unexpected number of io regions %u",
@@ -3362,51 +3641,34 @@ static void vfio_pci_reset(DeviceState *dev)
 {
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
-    uint16_t cmd;
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function);
 
-    vfio_disable_interrupts(vdev);
+    vfio_pci_pre_reset(vdev);
 
-    /* Make sure the device is in D0 */
-    if (vdev->pm_cap) {
-        uint16_t pmcsr;
-        uint8_t state;
-
-        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-        if (state) {
-            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
-            /* vfio handles the necessary delay here */
-            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-            if (state) {
-                error_report("vfio: Unable to power on device, stuck in D%d\n",
-                             state);
-            }
-        }
+    if (vdev->reset_works && (vdev->has_flr || !vdev->has_pm_reset) &&
+        !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x FLR/VFIO_DEVICE_RESET\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        goto post_reset;
     }
 
-    /*
-     * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
-     * Also put INTx Disable in known state.
-     */
-    cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
-    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-             PCI_COMMAND_INTX_DISABLE);
-    vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
-
-    if (vdev->reset_works) {
-        if (ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
-            error_report("vfio: Error unable to reset physical device "
-                         "(%04x:%02x:%02x.%x): %m", vdev->host.domain,
-                         vdev->host.bus, vdev->host.slot, vdev->host.function);
-        }
+    /* See if we can do our own bus reset */
+    if (!vfio_pci_hot_reset_one(vdev)) {
+        goto post_reset;
     }
 
-    vfio_enable_intx(vdev);
+    /* If nothing else works and the device supports PM reset, use it */
+    if (vdev->reset_works && vdev->has_pm_reset &&
+        !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x PCI PM Reset\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        goto post_reset;
+    }
+
+post_reset:
+    vfio_pci_post_reset(vdev);
 }
 
 static Property vfio_pci_dev_properties[] = {
