@@ -157,6 +157,18 @@ void qemu_set_nonblock(int fd)
     fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
 
+int socket_set_fast_reuse(int fd)
+{
+    int val = 1, ret;
+
+    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                     (const char *)&val, sizeof(val));
+
+    assert(ret == 0);
+
+    return ret;
+}
+
 void qemu_set_cloexec(int fd)
 {
     int f;
