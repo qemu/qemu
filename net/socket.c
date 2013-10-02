@@ -262,6 +262,11 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
         return -1;
     }
 
+    /* Allow multiple sockets to bind the same multicast ip and port by setting
+     * SO_REUSEADDR. This is the only situation where SO_REUSEADDR should be set
+     * on windows. Use socket_set_fast_reuse otherwise as it sets SO_REUSEADDR
+     * only on posix systems.
+     */
     val = 1;
     ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
     if (ret < 0) {
@@ -510,7 +515,7 @@ static int net_socket_listen_init(NetClientState *peer,
     NetClientState *nc;
     NetSocketState *s;
     struct sockaddr_in saddr;
-    int fd, val, ret;
+    int fd, ret;
 
     if (parse_host_port(&saddr, host_str) < 0)
         return -1;
@@ -522,9 +527,7 @@ static int net_socket_listen_init(NetClientState *peer,
     }
     qemu_set_nonblock(fd);
 
-    /* allow fast reuse */
-    val = 1;
-    qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    socket_set_fast_reuse(fd);
 
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
@@ -645,7 +648,7 @@ static int net_socket_udp_init(NetClientState *peer,
                                  const char *lhost)
 {
     NetSocketState *s;
-    int fd, val, ret;
+    int fd, ret;
     struct sockaddr_in laddr, raddr;
 
     if (parse_host_port(&laddr, lhost) < 0) {
@@ -661,11 +664,9 @@ static int net_socket_udp_init(NetClientState *peer,
         perror("socket(PF_INET, SOCK_DGRAM)");
         return -1;
     }
-    val = 1;
-    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-                          &val, sizeof(val));
+
+    ret = socket_set_fast_reuse(fd);
     if (ret < 0) {
-        perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
         closesocket(fd);
         return -1;
     }
