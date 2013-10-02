@@ -166,6 +166,7 @@ typedef struct VFIODevice {
     off_t config_offset; /* Offset of config space region within device fd */
     unsigned int rom_size;
     off_t rom_offset; /* Offset of ROM region within device fd */
+    void *rom;
     int msi_cap_size;
     VFIOMSIVector *msi_vectors;
     VFIOMSIXInfo *msix;
@@ -1057,6 +1058,125 @@ static const MemoryRegionOps vfio_bar_ops = {
     .write = vfio_bar_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void vfio_pci_load_rom(VFIODevice *vdev)
+{
+    struct vfio_region_info reg_info = {
+        .argsz = sizeof(reg_info),
+        .index = VFIO_PCI_ROM_REGION_INDEX
+    };
+    uint64_t size;
+    off_t off = 0;
+    size_t bytes;
+
+    if (ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info)) {
+        error_report("vfio: Error getting ROM info: %m");
+        return;
+    }
+
+    DPRINTF("Device %04x:%02x:%02x.%x ROM:\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
+            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
+            (unsigned long)reg_info.flags);
+
+    vdev->rom_size = size = reg_info.size;
+    vdev->rom_offset = reg_info.offset;
+
+    if (!vdev->rom_size) {
+        return;
+    }
+
+    vdev->rom = g_malloc(size);
+    memset(vdev->rom, 0xff, size);
+
+    while (size) {
+        bytes = pread(vdev->fd, vdev->rom + off, size, vdev->rom_offset + off);
+        if (bytes == 0) {
+            break;
+        } else if (bytes > 0) {
+            off += bytes;
+            size -= bytes;
+        } else {
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            }
+            error_report("vfio: Error reading device ROM: %m");
+            break;
+        }
+    }
+}
+
+static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
+{
+    VFIODevice *vdev = opaque;
+    uint64_t val = ((uint64_t)1 << (size * 8)) - 1;
+
+    /* Load the ROM lazily when the guest tries to read it */
+    if (unlikely(!vdev->rom)) {
+        vfio_pci_load_rom(vdev);
+    }
+
+    memcpy(&val, vdev->rom + addr,
+           (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+
+    DPRINTF("%s(%04x:%02x:%02x.%x, 0x%"HWADDR_PRIx", 0x%x) = 0x%"PRIx64"\n",
+            __func__, vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function, addr, size, val);
+
+    return val;
+}
+
+static const MemoryRegionOps vfio_rom_ops = {
+    .read = vfio_rom_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_pci_size_rom(VFIODevice *vdev)
+{
+    uint32_t orig, size = (uint32_t)PCI_ROM_ADDRESS_MASK;
+    off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
+    char name[32];
+
+    if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
+        return;
+    }
+
+    /*
+     * Use the same size ROM BAR as the physical device.  The contents
+     * will get filled in later when the guest tries to read it.
+     */
+    if (pread(vdev->fd, &orig, 4, offset) != 4 ||
+        pwrite(vdev->fd, &size, 4, offset) != 4 ||
+        pread(vdev->fd, &size, 4, offset) != 4 ||
+        pwrite(vdev->fd, &orig, 4, offset) != 4) {
+        error_report("%s(%04x:%02x:%02x.%x) failed: %m",
+                     __func__, vdev->host.domain, vdev->host.bus,
+                     vdev->host.slot, vdev->host.function);
+        return;
+    }
+
+    size = ~(size & PCI_ROM_ADDRESS_MASK) + 1;
+
+    if (!size) {
+        return;
+    }
+
+    DPRINTF("%04x:%02x:%02x.%x ROM size 0x%x\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function, size);
+
+    snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
+             vdev->host.domain, vdev->host.bus, vdev->host.slot,
+             vdev->host.function);
+
+    memory_region_init_io(&vdev->pdev.rom, OBJECT(vdev),
+                          &vfio_rom_ops, vdev, name, size);
+
+    pci_register_bar(&vdev->pdev, PCI_ROM_SLOT,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &vdev->pdev.rom);
+
+    vdev->pdev.has_rom = true;
+}
 
 static void vfio_vga_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
@@ -2638,51 +2758,6 @@ static int vfio_add_capabilities(VFIODevice *vdev)
     return vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
 }
 
-static int vfio_load_rom(VFIODevice *vdev)
-{
-    uint64_t size = vdev->rom_size;
-    char name[32];
-    off_t off = 0, voff = vdev->rom_offset;
-    ssize_t bytes;
-    void *ptr;
-
-    /* If loading ROM from file, pci handles it */
-    if (vdev->pdev.romfile || !vdev->pdev.rom_bar || !size) {
-        return 0;
-    }
-
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
-
-    snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
-             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-             vdev->host.function);
-    memory_region_init_ram(&vdev->pdev.rom, OBJECT(vdev), name, size);
-    ptr = memory_region_get_ram_ptr(&vdev->pdev.rom);
-    memset(ptr, 0xff, size);
-
-    while (size) {
-        bytes = pread(vdev->fd, ptr + off, size, voff + off);
-        if (bytes == 0) {
-            break; /* expect that we could get back less than the ROM BAR */
-        } else if (bytes > 0) {
-            off += bytes;
-            size -= bytes;
-        } else {
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
-            }
-            error_report("vfio: Error reading device ROM: %m");
-            memory_region_destroy(&vdev->pdev.rom);
-            return -errno;
-        }
-    }
-
-    pci_register_bar(&vdev->pdev, PCI_ROM_SLOT, 0, &vdev->pdev.rom);
-    vdev->pdev.has_rom = true;
-    return 0;
-}
-
 static int vfio_connect_container(VFIOGroup *group)
 {
     VFIOContainer *container;
@@ -2915,22 +2990,6 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         vdev->bars[i].nr = i;
         QLIST_INIT(&vdev->bars[i].quirks);
     }
-
-    reg_info.index = VFIO_PCI_ROM_REGION_INDEX;
-
-    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
-    if (ret) {
-        error_report("vfio: Error getting ROM info: %m");
-        goto error;
-    }
-
-    DPRINTF("Device %s ROM:\n", name);
-    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
-            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
-            (unsigned long)reg_info.flags);
-
-    vdev->rom_size = reg_info.size;
-    vdev->rom_offset = reg_info.offset;
 
     reg_info.index = VFIO_PCI_CONFIG_REGION_INDEX;
 
@@ -3229,7 +3288,7 @@ static int vfio_initfn(PCIDevice *pdev)
     memset(&vdev->pdev.config[PCI_BASE_ADDRESS_0], 0, 24);
     memset(&vdev->pdev.config[PCI_ROM_ADDRESS], 0, 4);
 
-    vfio_load_rom(vdev);
+    vfio_pci_size_rom(vdev);
 
     ret = vfio_early_setup_msix(vdev);
     if (ret) {
@@ -3294,6 +3353,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
     g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
     vfio_put_device(vdev);
     vfio_put_group(group);
 }
