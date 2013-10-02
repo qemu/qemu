@@ -3055,13 +3055,15 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        DPRINTF("VFIO_DEVICE_GET_IRQ_INFO failure ret=%d\n", ret);
+        DPRINTF("VFIO_DEVICE_GET_IRQ_INFO failure: %m\n");
         ret = 0;
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report("vfio: Warning: "
-                     "Could not enable error recovery for the device\n");
+        error_report("vfio: %04x:%02x:%02x.%x "
+                     "Could not enable error recovery for the device",
+                     vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                     vdev->host.function);
     }
 
 error:
@@ -3102,11 +3104,10 @@ static void vfio_err_notifier_handler(void *opaque)
      * guest to contain the error.
      */
 
-    error_report("%s (%04x:%02x:%02x.%x)"
-        "Unrecoverable error detected...\n"
-        "Please collect any data possible and then kill the guest",
-        __func__, vdev->host.domain, vdev->host.bus,
-        vdev->host.slot, vdev->host.function);
+    error_report("%s(%04x:%02x:%02x.%x) Unrecoverable error detected.  "
+                 "Please collect any data possible and then kill the guest",
+                 __func__, vdev->host.domain, vdev->host.bus,
+                 vdev->host.slot, vdev->host.function);
 
     vm_stop(RUN_STATE_IO_ERROR);
 }
@@ -3129,8 +3130,7 @@ static void vfio_register_err_notifier(VFIODevice *vdev)
     }
 
     if (event_notifier_init(&vdev->err_notifier, 0)) {
-        error_report("vfio: Warning: "
-                     "Unable to init event notifier for error detection\n");
+        error_report("vfio: Unable to init event notifier for error detection");
         vdev->pci_aer = false;
         return;
     }
@@ -3151,7 +3151,7 @@ static void vfio_register_err_notifier(VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     if (ret) {
-        error_report("vfio: Failed to set up error notification\n");
+        error_report("vfio: Failed to set up error notification");
         qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->err_notifier);
         vdev->pci_aer = false;
@@ -3184,7 +3184,7 @@ static void vfio_unregister_err_notifier(VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     if (ret) {
-        error_report("vfio: Failed to de-assign error fd: %d\n", ret);
+        error_report("vfio: Failed to de-assign error fd: %m");
     }
     g_free(irq_set);
     qemu_set_fd_handler(event_notifier_get_fd(&vdev->err_notifier),
