@@ -70,10 +70,10 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
     return ret;
 }
 
-static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
+static inline void cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
                                                       int dirty_flags)
 {
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
+    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
 }
 
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
