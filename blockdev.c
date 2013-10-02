@@ -1131,6 +1131,11 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         }
     }
 
+    if (bdrv_check_ext_snapshot(state->old_bs) != EXT_SNAPSHOT_ALLOWED) {
+        error_set(errp, QERR_FEATURE_DISABLED, "snapshot");
+        return;
+    }
+
     flags = state->old_bs->open_flags;
 
     /* create new image w/backing file */

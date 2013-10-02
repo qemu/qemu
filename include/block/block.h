@@ -248,6 +248,20 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
 int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options);
 
+/* external snapshots */
+
+typedef enum {
+    EXT_SNAPSHOT_ALLOWED,
+    EXT_SNAPSHOT_FORBIDDEN,
+} ExtSnapshotPerm;
+
+/* return EXT_SNAPSHOT_ALLOWED if external snapshot is allowed
+ * return EXT_SNAPSHOT_FORBIDDEN if external snapshot is forbidden
+ */
+ExtSnapshotPerm bdrv_check_ext_snapshot(BlockDriverState *bs);
+/* helper used to forbid external snapshots like in blkverify */
+ExtSnapshotPerm bdrv_check_ext_snapshot_forbidden(BlockDriverState *bs);
+
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
                                      int sector_num);

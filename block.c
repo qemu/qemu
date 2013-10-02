@@ -4647,3 +4647,22 @@ int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
     }
     return bs->drv->bdrv_amend_options(bs, options);
 }
+
+ExtSnapshotPerm bdrv_check_ext_snapshot(BlockDriverState *bs)
+{
+    if (bs->drv->bdrv_check_ext_snapshot) {
+        return bs->drv->bdrv_check_ext_snapshot(bs);
+    }
+
+    if (bs->file && bs->file->drv && bs->file->drv->bdrv_check_ext_snapshot) {
+        return bs->file->drv->bdrv_check_ext_snapshot(bs);
+    }
+
+    /* external snapshots are allowed by default */
+    return EXT_SNAPSHOT_ALLOWED;
+}
+
+ExtSnapshotPerm bdrv_check_ext_snapshot_forbidden(BlockDriverState *bs)
+{
+    return EXT_SNAPSHOT_FORBIDDEN;
+}
