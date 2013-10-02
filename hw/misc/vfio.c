@@ -119,6 +119,7 @@ typedef struct VFIOINTx {
 typedef struct VFIOMSIVector {
     EventNotifier interrupt; /* eventfd triggered on interrupt */
     struct VFIODevice *vdev; /* back pointer to device */
+    MSIMessage msg; /* cache the MSI message so we know when it changes */
     int virq; /* KVM irqchip route for QEMU bypass */
     bool use;
 } VFIOMSIVector;
@@ -795,7 +796,6 @@ retry:
     vdev->msi_vectors = g_malloc0(vdev->nr_vectors * sizeof(VFIOMSIVector));
 
     for (i = 0; i < vdev->nr_vectors; i++) {
-        MSIMessage msg;
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
 
         vector->vdev = vdev;
@@ -805,13 +805,13 @@ retry:
             error_report("vfio: Error: event_notifier_init failed");
         }
 
-        msg = msi_get_message(&vdev->pdev, i);
+        vector->msg = msi_get_message(&vdev->pdev, i);
 
         /*
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vector->virq = kvm_irqchip_add_msi_route(kvm_state, msg);
+        vector->virq = kvm_irqchip_add_msi_route(kvm_state, vector->msg);
         if (vector->virq < 0 ||
             kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
                                            NULL, vector->virq) < 0) {
@@ -915,6 +915,33 @@ static void vfio_disable_msi(VFIODevice *vdev)
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function);
+}
+
+static void vfio_update_msi(VFIODevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        MSIMessage msg;
+
+        if (!vector->use || vector->virq < 0) {
+            continue;
+        }
+
+        msg = msi_get_message(&vdev->pdev, i);
+
+        if (msg.address != vector->msg.address ||
+            msg.data != vector->msg.data) {
+
+            DPRINTF("%s(%04x:%02x:%02x.%x) MSI vector %d changed\n",
+                    __func__, vdev->host.domain, vdev->host.bus,
+                    vdev->host.slot, vdev->host.function, i);
+
+            kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
+            vector->msg = msg;
+        }
+    }
 }
 
 /*
@@ -1834,10 +1861,16 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 
         is_enabled = msi_enabled(pdev);
 
-        if (!was_enabled && is_enabled) {
-            vfio_enable_msi(vdev);
-        } else if (was_enabled && !is_enabled) {
-            vfio_disable_msi(vdev);
+        if (!was_enabled) {
+            if (is_enabled) {
+                vfio_enable_msi(vdev);
+            }
+        } else {
+            if (!is_enabled) {
+                vfio_disable_msi(vdev);
+            } else {
+                vfio_update_msi(vdev);
+            }
         }
     } else if (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
         ranges_overlap(addr, len, pdev->msix_cap, MSIX_CAP_LENGTH)) {
