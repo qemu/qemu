@@ -2084,7 +2084,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (vfio_listener_skipped_section(section)) {
         DPRINTF("SKIPPING region_add %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
-                section->offset_within_address_space + section->size - 1);
+                section->offset_within_address_space +
+                int128_get64(int128_sub(section->size, int128_one())));
         return;
     }
 
@@ -2129,7 +2130,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
     if (vfio_listener_skipped_section(section)) {
         DPRINTF("SKIPPING region_del %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
-                section->offset_within_address_space + section->size - 1);
+                section->offset_within_address_space +
+                int128_get64(int128_sub(section->size, int128_one())));
         return;
     }
 
