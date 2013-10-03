@@ -103,6 +103,9 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2);
 static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct);
+static void tcg_out_tb_init(TCGContext *s);
+static void tcg_out_tb_finalize(TCGContext *s);
+
 
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },
@@ -370,13 +373,7 @@ void tcg_func_start(TCGContext *s)
     s->gen_opc_ptr = s->gen_opc_buf;
     s->gen_opparam_ptr = s->gen_opparam_buf;
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-    /* Initialize qemu_ld/st labels to assist code generation at the end of TB
-       for TLB miss cases at the end of TB */
-    s->qemu_ldst_labels = tcg_malloc(sizeof(TCGLabelQemuLdst) *
-                                     TCG_MAX_QEMU_LDST);
-    s->nb_qemu_ldst_labels = 0;
-#endif
+    s->be = tcg_malloc(sizeof(TCGBackendData));
 }
 
 static inline void tcg_temp_alloc(TCGContext *s, int n)
@@ -2297,6 +2294,8 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     s->code_buf = gen_code_buf;
     s->code_ptr = gen_code_buf;
 
+    tcg_out_tb_init(s);
+
     args = s->gen_opparam_buf;
     op_index = 0;
 
@@ -2370,10 +2369,8 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
     }
  the_end:
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* Generate TB finalization at the end of block */
     tcg_out_tb_finalize(s);
-#endif
     return -1;
 }
 

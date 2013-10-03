@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-ldst.h"
+
 static uint8_t *tb_ret_addr;
 
 #if defined _CALL_DARWIN || defined __APPLE__
@@ -532,15 +534,8 @@ static void add_qemu_ldst_label (TCGContext *s,
                                  uint8_t *raddr,
                                  uint8_t *label_ptr)
 {
-    int idx;
-    TCGLabelQemuLdst *label;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
 
-    if (s->nb_qemu_ldst_labels >= TCG_MAX_QEMU_LDST) {
-        tcg_abort();
-    }
-
-    idx = s->nb_qemu_ldst_labels++;
-    label = (TCGLabelQemuLdst *)&s->qemu_ldst_labels[idx];
     label->is_ld = is_ld;
     label->opc = opc;
     label->datalo_reg = data_reg;
@@ -888,23 +883,6 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     tcg_out32(s, MFSPR | RT(ir++) | LR);
     tcg_out_b(s, LK, (uintptr_t)st_trampolines[l->opc]);
     tcg_out_b(s, 0, (uintptr_t)l->raddr);
-}
-
-void tcg_out_tb_finalize(TCGContext *s)
-{
-    int i;
-    TCGLabelQemuLdst *label;
-
-    /* qemu_ld/st slow paths */
-    for (i = 0; i < s->nb_qemu_ldst_labels; i++) {
-        label = (TCGLabelQemuLdst *) &s->qemu_ldst_labels[i];
-        if (label->is_ld) {
-            tcg_out_qemu_ld_slow_path (s, label);
-        }
-        else {
-            tcg_out_qemu_st_slow_path (s, label);
-        }
-    }
 }
 #endif
 

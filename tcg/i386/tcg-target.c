@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-ldst.h"
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #if TCG_TARGET_REG_BITS == 64
@@ -1455,15 +1457,8 @@ static void add_qemu_ldst_label(TCGContext *s,
                                 uint8_t *raddr,
                                 uint8_t **label_ptr)
 {
-    int idx;
-    TCGLabelQemuLdst *label;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
 
-    if (s->nb_qemu_ldst_labels >= TCG_MAX_QEMU_LDST) {
-        tcg_abort();
-    }
-
-    idx = s->nb_qemu_ldst_labels++;
-    label = (TCGLabelQemuLdst *)&s->qemu_ldst_labels[idx];
     label->is_ld = is_ld;
     label->opc = opc;
     label->datalo_reg = data_reg;
@@ -1627,25 +1622,6 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     /* "Tail call" to the helper, with the return address back inline.  */
     tcg_out_push(s, retaddr);
     tcg_out_jmp(s, (uintptr_t)qemu_st_helpers[s_bits]);
-}
-
-/*
- * Generate TB finalization at the end of block
- */
-void tcg_out_tb_finalize(TCGContext *s)
-{
-    int i;
-    TCGLabelQemuLdst *label;
-
-    /* qemu_ld/st slow paths */
-    for (i = 0; i < s->nb_qemu_ldst_labels; i++) {
-        label = (TCGLabelQemuLdst *)&s->qemu_ldst_labels[i];
-        if (label->is_ld) {
-            tcg_out_qemu_ld_slow_path(s, label);
-        } else {
-            tcg_out_qemu_st_slow_path(s, label);
-        }
-    }
 }
 #endif  /* CONFIG_SOFTMMU */
 
