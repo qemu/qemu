@@ -410,9 +410,38 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
     }
 }
 
+/* modify the current timer so that it will be fired when current_time
+   >= expire_time or the current deadline, whichever comes earlier.
+   The corresponding callback will be called. */
+void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time)
+{
+    QEMUTimerList *timer_list = ts->timer_list;
+    bool rearm;
+
+    qemu_mutex_lock(&timer_list->active_timers_lock);
+    if (ts->expire_time == -1 || ts->expire_time > expire_time) {
+        if (ts->expire_time != -1) {
+            timer_del_locked(timer_list, ts);
+        }
+        rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
+    } else {
+        rearm = false;
+    }
+    qemu_mutex_unlock(&timer_list->active_timers_lock);
+
+    if (rearm) {
+        timerlist_rearm(timer_list);
+    }
+}
+
 void timer_mod(QEMUTimer *ts, int64_t expire_time)
 {
     timer_mod_ns(ts, expire_time * ts->scale);
+}
+
+void timer_mod_anticipate(QEMUTimer *ts, int64_t expire_time)
+{
+    timer_mod_anticipate_ns(ts, expire_time * ts->scale);
 }
 
 bool timer_pending(QEMUTimer *ts)

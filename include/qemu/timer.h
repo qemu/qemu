@@ -545,6 +545,19 @@ void timer_del(QEMUTimer *ts);
 void timer_mod_ns(QEMUTimer *ts, int64_t expire_time);
 
 /**
+ * timer_mod_anticipate_ns:
+ * @ts: the timer
+ * @expire_time: the expiry time in nanoseconds
+ *
+ * Modify a timer to expire at @expire_time or the current time,
+ * whichever comes earlier.
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
+ */
+void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time);
+
+/**
  * timer_mod:
  * @ts: the timer
  * @expire_time: the expire time in the units associated with the timer
@@ -556,6 +569,19 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time);
  * freed while this function is running.
  */
 void timer_mod(QEMUTimer *ts, int64_t expire_timer);
+
+/**
+ * timer_mod_anticipate:
+ * @ts: the timer
+ * @expire_time: the expiry time in nanoseconds
+ *
+ * Modify a timer to expire at @expire_time or the current time, whichever
+ * comes earlier, taking into account the scale associated with the timer.
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
+ */
+void timer_mod_anticipate(QEMUTimer *ts, int64_t expire_time);
 
 /**
  * timer_pending:
