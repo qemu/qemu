@@ -355,6 +355,34 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
     }
 }
 
+static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
+                                QEMUTimer *ts, int64_t expire_time)
+{
+    QEMUTimer **pt, *t;
+
+    /* add the timer in the sorted list */
+    pt = &timer_list->active_timers;
+    for (;;) {
+        t = *pt;
+        if (!timer_expired_ns(t, expire_time)) {
+            break;
+        }
+        pt = &t->next;
+    }
+    ts->expire_time = MAX(expire_time, 0);
+    ts->next = *pt;
+    *pt = ts;
+
+    return pt == &timer_list->active_timers;
+}
+
+static void timerlist_rearm(QEMUTimerList *timer_list)
+{
+    /* Interrupt execution to force deadline recalculation.  */
+    qemu_clock_warp(timer_list->clock->type);
+    timerlist_notify(timer_list);
+}
+
 /* stop a timer, but do not dealloc it */
 void timer_del(QEMUTimer *ts)
 {
@@ -370,30 +398,15 @@ void timer_del(QEMUTimer *ts)
 void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimerList *timer_list = ts->timer_list;
-    QEMUTimer **pt, *t;
+    bool rearm;
 
     qemu_mutex_lock(&timer_list->active_timers_lock);
     timer_del_locked(timer_list, ts);
-
-    /* add the timer in the sorted list */
-    pt = &timer_list->active_timers;
-    for(;;) {
-        t = *pt;
-        if (!timer_expired_ns(t, expire_time)) {
-            break;
-        }
-        pt = &t->next;
-    }
-    ts->expire_time = MAX(expire_time, 0);
-    ts->next = *pt;
-    *pt = ts;
+    rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
     qemu_mutex_unlock(&timer_list->active_timers_lock);
 
-    /* Rearm if necessary  */
-    if (pt == &timer_list->active_timers) {
-        /* Interrupt execution to force deadline recalculation.  */
-        qemu_clock_warp(timer_list->clock->type);
-        timerlist_notify(timer_list);
+    if (rearm) {
+        timerlist_rearm(timer_list);
     }
 }
 
