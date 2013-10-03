@@ -122,13 +122,6 @@ static int cpu_openrisc_get_phys_addr(OpenRISCCPU *cpu,
 {
     int ret = TLBRET_MATCH;
 
-    /* [0x0000--0x2000]: unmapped */
-    if (address < 0x2000 && (cpu->env.sr & SR_SM)) {
-        *physical = address;
-        *prot = PAGE_READ | PAGE_WRITE;
-        return ret;
-    }
-
     if (rw == 2) {    /* ITLB */
        *physical = 0;
         ret = cpu->env.tlb->cpu_openrisc_map_address_code(cpu, physical,
