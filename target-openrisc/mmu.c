@@ -102,7 +102,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
         }
     }
 
-    if ((rw & 0) && ((right & PAGE_READ) == 0)) {
+    if (!(rw & 1) && ((right & PAGE_READ) == 0)) {
         return TLBRET_BADADDR;
     }
     if ((rw & 1) && ((right & PAGE_WRITE) == 0)) {
