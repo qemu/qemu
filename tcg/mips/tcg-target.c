@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 #if defined(TCG_TARGET_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
 # define TCG_NEED_BSWAP 0
 #else

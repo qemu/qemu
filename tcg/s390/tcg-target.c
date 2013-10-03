@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 /* We only support generating code for 64-bit mode.  */
 #if TCG_TARGET_REG_BITS != 64
 #error "unsupported code generation mode"
