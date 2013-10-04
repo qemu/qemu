@@ -83,14 +83,14 @@ void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_MEMSLOT_ADD_ASYNC));
     } else {
-        ssd->worker->add_memslot(ssd->worker, memslot);
+        spice_qxl_add_memslot(&ssd->qxl, memslot);
     }
 }
 
 void qemu_spice_del_memslot(SimpleSpiceDisplay *ssd, uint32_t gid, uint32_t sid)
 {
     trace_qemu_spice_del_memslot(ssd->qxl.id, gid, sid);
-    ssd->worker->del_memslot(ssd->worker, gid, sid);
+    spice_qxl_del_memslot(&ssd->qxl, gid, sid);
 }
 
 void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
@@ -103,7 +103,7 @@ void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_CREATE_PRIMARY_ASYNC));
     } else {
-        ssd->worker->create_primary_surface(ssd->worker, id, surface);
+        spice_qxl_create_primary_surface(&ssd->qxl, id, surface);
     }
 }
 
@@ -116,14 +116,14 @@ void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_DESTROY_PRIMARY_ASYNC));
     } else {
-        ssd->worker->destroy_primary_surface(ssd->worker, id);
+        spice_qxl_destroy_primary_surface(&ssd->qxl, id);
     }
 }
 
 void qemu_spice_wakeup(SimpleSpiceDisplay *ssd)
 {
     trace_qemu_spice_wakeup(ssd->qxl.id);
-    ssd->worker->wakeup(ssd->worker);
+    spice_qxl_wakeup(&ssd->qxl);
 }
 
 static int spice_display_is_running;

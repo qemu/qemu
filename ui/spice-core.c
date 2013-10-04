@@ -383,17 +383,16 @@ static SpiceChannelList *qmp_query_spice_channels(void)
         struct sockaddr *paddr;
         socklen_t plen;
 
+        if (!(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT)) {
+            error_report("invalid channel event");
+            return NULL;
+        }
+
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
 
-        if (item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
-            paddr = (struct sockaddr *)&item->info->paddr_ext;
-            plen = item->info->plen_ext;
-        } else {
-            paddr = &item->info->paddr;
-            plen = item->info->plen;
-        }
-
+        paddr = (struct sockaddr *)&item->info->paddr_ext;
+        plen = item->info->plen_ext;
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);

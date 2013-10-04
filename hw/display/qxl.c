@@ -162,7 +162,7 @@ void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
     trace_qxl_spice_update_area_rest(qxl->id, num_dirty_rects,
                                      clear_dirty_region);
     if (async == QXL_SYNC) {
-        qxl->ssd.worker->update_area(qxl->ssd.worker, surface_id, area,
+        spice_qxl_update_area(&qxl->ssd.qxl, surface_id, area,
                         dirty_rects, num_dirty_rects, clear_dirty_region);
     } else {
         assert(cookie != NULL);
@@ -193,7 +193,7 @@ static void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id,
         cookie->u.surface_id = id;
         spice_qxl_destroy_surface_async(&qxl->ssd.qxl, id, (uintptr_t)cookie);
     } else {
-        qxl->ssd.worker->destroy_surface_wait(qxl->ssd.worker, id);
+        spice_qxl_destroy_surface_wait(&qxl->ssd.qxl, id);
         qxl_spice_destroy_surface_wait_complete(qxl, id);
     }
 }
@@ -211,19 +211,19 @@ void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
                                uint32_t count)
 {
     trace_qxl_spice_loadvm_commands(qxl->id, ext, count);
-    qxl->ssd.worker->loadvm_commands(qxl->ssd.worker, ext, count);
+    spice_qxl_loadvm_commands(&qxl->ssd.qxl, ext, count);
 }
 
 void qxl_spice_oom(PCIQXLDevice *qxl)
 {
     trace_qxl_spice_oom(qxl->id);
-    qxl->ssd.worker->oom(qxl->ssd.worker);
+    spice_qxl_oom(&qxl->ssd.qxl);
 }
 
 void qxl_spice_reset_memslots(PCIQXLDevice *qxl)
 {
     trace_qxl_spice_reset_memslots(qxl->id);
-    qxl->ssd.worker->reset_memslots(qxl->ssd.worker);
+    spice_qxl_reset_memslots(&qxl->ssd.qxl);
 }
 
 static void qxl_spice_destroy_surfaces_complete(PCIQXLDevice *qxl)
@@ -244,7 +244,7 @@ static void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl, qxl_async_io async)
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_DESTROY_ALL_SURFACES_ASYNC));
     } else {
-        qxl->ssd.worker->destroy_surfaces(qxl->ssd.worker);
+        spice_qxl_destroy_surfaces(&qxl->ssd.qxl);
         qxl_spice_destroy_surfaces_complete(qxl);
     }
 }
@@ -278,13 +278,13 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
 void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
 {
     trace_qxl_spice_reset_image_cache(qxl->id);
-    qxl->ssd.worker->reset_image_cache(qxl->ssd.worker);
+    spice_qxl_reset_image_cache(&qxl->ssd.qxl);
 }
 
 void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
 {
     trace_qxl_spice_reset_cursor(qxl->id);
-    qxl->ssd.worker->reset_cursor(qxl->ssd.worker);
+    spice_qxl_reset_cursor(&qxl->ssd.qxl);
     qemu_mutex_lock(&qxl->track_lock);
     qxl->guest_cursor = 0;
     qemu_mutex_unlock(&qxl->track_lock);
