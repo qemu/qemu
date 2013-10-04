@@ -1128,8 +1128,14 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
+static void vfio_rom_write(void *opaque, hwaddr addr,
+                           uint64_t data, unsigned size)
+{
+}
+
 static const MemoryRegionOps vfio_rom_ops = {
     .read = vfio_rom_read,
+    .write = vfio_rom_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
