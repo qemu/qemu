@@ -1141,7 +1141,7 @@ static const MemoryRegionOps vfio_rom_ops = {
 
 static void vfio_pci_size_rom(VFIODevice *vdev)
 {
-    uint32_t orig, size = (uint32_t)PCI_ROM_ADDRESS_MASK;
+    uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
     char name[32];
 
@@ -1163,7 +1163,7 @@ static void vfio_pci_size_rom(VFIODevice *vdev)
         return;
     }
 
-    size = ~(size & PCI_ROM_ADDRESS_MASK) + 1;
+    size = ~(le32_to_cpu(size) & PCI_ROM_ADDRESS_MASK) + 1;
 
     if (!size) {
         return;
