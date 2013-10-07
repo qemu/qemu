@@ -1114,7 +1114,7 @@ void pc_acpi_init(const char *default_dsdt)
         opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
         g_assert(opts != NULL);
 
-        acpi_table_add(opts, &err);
+        acpi_table_add_builtin(opts, &err);
         if (err) {
             error_report("WARNING: failed to load %s: %s", filename,
                          error_get_pretty(err));
