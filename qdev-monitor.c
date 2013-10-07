@@ -458,6 +458,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     const char *driver, *path, *id;
     DeviceState *dev;
     BusState *bus = NULL;
+    Error *err = NULL;
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
@@ -540,7 +541,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                                   OBJECT(dev), NULL);
         g_free(name);
     }
-    if (qdev_init(dev) < 0) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
+        object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
         qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
