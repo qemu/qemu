@@ -83,7 +83,7 @@ static const TypeInfo pcie_bus_info = {
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
-static void pci_set_irq(void *opaque, int irq_num, int level);
+static void pci_irq_handler(void *opaque, int irq_num, int level);
 static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
 static void pci_del_option_rom(PCIDevice *pdev);
 
@@ -161,7 +161,7 @@ void pci_device_deassert_intx(PCIDevice *dev)
 {
     int i;
     for (i = 0; i < PCI_NUM_PINS; ++i) {
-        qemu_set_irq(dev->irq[i], 0);
+        pci_irq_handler(dev, i, 0);
     }
 }
 
@@ -889,7 +889,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->config_read = config_read;
     pci_dev->config_write = config_write;
     bus->devices[devfn] = pci_dev;
-    pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, PCI_NUM_PINS);
+    pci_dev->irq = qemu_allocate_irqs(pci_irq_handler, pci_dev, PCI_NUM_PINS);
     pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }
@@ -1201,7 +1201,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 /* generic PCI irq support */
 
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
-static void pci_set_irq(void *opaque, int irq_num, int level)
+static void pci_irq_handler(void *opaque, int irq_num, int level)
 {
     PCIDevice *pci_dev = opaque;
     int change;
@@ -1215,6 +1215,24 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     if (pci_irq_disabled(pci_dev))
         return;
     pci_change_irq_level(pci_dev, irq_num, change);
+}
+
+static inline int pci_intx(PCIDevice *pci_dev)
+{
+    return pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
+}
+
+qemu_irq pci_allocate_irq(PCIDevice *pci_dev)
+{
+    int intx = pci_intx(pci_dev);
+
+    return qemu_allocate_irq(pci_irq_handler, pci_dev, intx);
+}
+
+void pci_set_irq(PCIDevice *pci_dev, int level)
+{
+    int intx = pci_intx(pci_dev);
+    pci_irq_handler(pci_dev, intx, level);
 }
 
 /* Special hooks used by device assignment */

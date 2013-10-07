@@ -632,6 +632,29 @@ PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
+qemu_irq pci_allocate_irq(PCIDevice *pci_dev);
+void pci_set_irq(PCIDevice *pci_dev, int level);
+
+static inline void pci_irq_assert(PCIDevice *pci_dev)
+{
+    pci_set_irq(pci_dev, 1);
+}
+
+static inline void pci_irq_deassert(PCIDevice *pci_dev)
+{
+    pci_set_irq(pci_dev, 0);
+}
+
+/*
+ * FIXME: PCI does not work this way.
+ * All the callers to this method should be fixed.
+ */
+static inline void pci_irq_pulse(PCIDevice *pci_dev)
+{
+    pci_irq_assert(pci_dev);
+    pci_irq_deassert(pci_dev);
+}
+
 static inline int pci_is_express(const PCIDevice *d)
 {
     return d->cap_present & QEMU_PCI_CAP_EXPRESS;
