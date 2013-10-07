@@ -98,17 +98,22 @@ static bool all_cpu_threads_idle(void)
 /***********************************************************/
 /* guest cycle counter */
 
+/* Protected by TimersState seqlock */
+
+/* Compensate for varying guest execution speed.  */
+static int64_t qemu_icount_bias;
+static int64_t vm_clock_warp_start;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
 #define MAX_ICOUNT_SHIFT 10
-/* Compensate for varying guest execution speed.  */
-static int64_t qemu_icount_bias;
+
+/* Only written by TCG thread */
+static int64_t qemu_icount;
+
 static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
 static QEMUTimer *icount_warp_timer;
-static int64_t vm_clock_warp_start;
-static int64_t qemu_icount;
 
 typedef struct TimersState {
     /* Protected by BQL.  */
@@ -235,6 +240,8 @@ static void icount_adjust(void)
     int64_t cur_time;
     int64_t cur_icount;
     int64_t delta;
+
+    /* Protected by TimersState mutex.  */
     static int64_t last_delta;
 
     /* If the VM is not running, then do nothing.  */
