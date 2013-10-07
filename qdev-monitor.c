@@ -456,7 +456,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     ObjectClass *oc;
     DeviceClass *dc;
     const char *driver, *path, *id;
-    DeviceState *qdev;
+    DeviceState *dev;
     BusState *bus = NULL;
 
     driver = qemu_opt_get(opts, "driver");
@@ -515,38 +515,38 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* create device, set properties */
-    qdev = DEVICE(object_new(driver));
+    dev = DEVICE(object_new(driver));
 
     if (bus) {
-        qdev_set_parent_bus(qdev, bus);
+        qdev_set_parent_bus(dev, bus);
     }
 
     id = qemu_opts_id(opts);
     if (id) {
-        qdev->id = id;
+        dev->id = id;
     }
-    if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
-        object_unparent(OBJECT(qdev));
-        object_unref(OBJECT(qdev));
+    if (qemu_opt_foreach(opts, set_property, dev, 1) != 0) {
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
         return NULL;
     }
-    if (qdev->id) {
-        object_property_add_child(qdev_get_peripheral(), qdev->id,
-                                  OBJECT(qdev), NULL);
+    if (dev->id) {
+        object_property_add_child(qdev_get_peripheral(), dev->id,
+                                  OBJECT(dev), NULL);
     } else {
         static int anon_count;
         gchar *name = g_strdup_printf("device[%d]", anon_count++);
         object_property_add_child(qdev_get_peripheral_anon(), name,
-                                  OBJECT(qdev), NULL);
+                                  OBJECT(dev), NULL);
         g_free(name);
-    }        
-    if (qdev_init(qdev) < 0) {
-        object_unref(OBJECT(qdev));
+    }
+    if (qdev_init(dev) < 0) {
+        object_unref(OBJECT(dev));
         qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
     }
-    qdev->opts = opts;
-    return qdev;
+    dev->opts = opts;
+    return dev;
 }
 
 
