@@ -269,7 +269,7 @@ static void intel_hda_update_irq(IntelHDAState *d)
             msi_notify(&d->pci, 0);
         }
     } else {
-        qemu_set_irq(d->pci.irq[0], level);
+        pci_set_irq(&d->pci, level);
     }
 }
 

@@ -330,7 +330,7 @@ pvscsi_update_irq_status(PVSCSIState *s)
         return;
     }
 
-    qemu_set_irq(d->irq[0], !!should_raise);
+    pci_set_irq(d, !!should_raise);
 }
 
 static void

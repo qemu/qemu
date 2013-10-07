@@ -133,7 +133,7 @@ static void ivshmem_update_irq(IVShmemState *s, int val)
            isr ? 1 : 0, s->intrstatus, s->intrmask);
     }
 
-    qemu_set_irq(d->irq[0], (isr != 0));
+    pci_set_irq(d, (isr != 0));
 }
 
 static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)

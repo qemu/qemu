@@ -449,7 +449,6 @@ struct XHCIState {
     /*< public >*/
 
     USBBus bus;
-    qemu_irq irq;
     MemoryRegion mem;
     MemoryRegion mem_cap;
     MemoryRegion mem_oper;
@@ -737,7 +736,7 @@ static void xhci_intx_update(XHCIState *xhci)
     }
 
     trace_usb_xhci_irq_intx(level);
-    qemu_set_irq(xhci->irq, level);
+    pci_set_irq(pci_dev, level);
 }
 
 static void xhci_msix_update(XHCIState *xhci, int v)
@@ -795,7 +794,7 @@ static void xhci_intr_raise(XHCIState *xhci, int v)
 
     if (v == 0) {
         trace_usb_xhci_irq_intx(1);
-        qemu_set_irq(xhci->irq, 1);
+        pci_irq_assert(pci_dev);
     }
 }
 
@@ -3415,8 +3414,6 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     }
 
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
-
-    xhci->irq = dev->irq[0];
 
     memory_region_init(&xhci->mem, OBJECT(xhci), "xhci", LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(xhci), &xhci_cap_ops, xhci,

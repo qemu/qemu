@@ -361,7 +361,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
                           "esp-io", 0x80);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
-    s->irq = dev->irq[0];
+    s->irq = pci_allocate_irq(dev);
 
     scsi_bus_new(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info, NULL);
     if (!d->hotplugged) {
@@ -378,6 +378,7 @@ static void esp_pci_scsi_uninit(PCIDevice *d)
 {
     PCIESPState *pci = PCI_ESP(d);
 
+    qemu_free_irq(pci->esp.irq);
     memory_region_destroy(&pci->io);
 }
 

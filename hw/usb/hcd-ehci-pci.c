@@ -60,7 +60,7 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
     pci_conf[0x6e] = 0x00;
     pci_conf[0x6f] = 0xc0;  /* USBLEFCTLSTS */
 
-    s->irq = dev->irq[3];
+    s->irq = pci_allocate_irq(dev);
     s->as = pci_get_address_space(dev);
 
     usb_ehci_realize(s, DEVICE(dev), NULL);
