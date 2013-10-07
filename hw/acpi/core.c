@@ -309,6 +309,46 @@ out:
     error_propagate(errp, err);
 }
 
+static bool acpi_table_builtin = false;
+
+void acpi_table_add_builtin(const QemuOpts *opts, Error **errp)
+{
+    acpi_table_builtin = true;
+    acpi_table_add(opts, errp);
+}
+
+unsigned acpi_table_len(void *current)
+{
+    struct acpi_table_header *hdr = current - sizeof(hdr->_length);
+    return hdr->_length;
+}
+
+static
+void *acpi_table_hdr(void *h)
+{
+    struct acpi_table_header *hdr = h;
+    return &hdr->sig;
+}
+
+uint8_t *acpi_table_first(void)
+{
+    if (acpi_table_builtin || !acpi_tables) {
+        return NULL;
+    }
+    return acpi_table_hdr(acpi_tables + ACPI_TABLE_PFX_SIZE);
+}
+
+uint8_t *acpi_table_next(uint8_t *current)
+{
+    uint8_t *next = current + acpi_table_len(current);
+
+    if (next - acpi_tables >= acpi_tables_len) {
+        return NULL;
+    } else {
+        return acpi_table_hdr(next);
+    }
+}
+
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
