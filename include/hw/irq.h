@@ -30,6 +30,12 @@ static inline void qemu_irq_pulse(qemu_irq irq)
  */
 qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n);
 
+/*
+ * Allocates a single IRQ. The irq is assigned with a handler, an opaque
+ * data and the interrupt number.
+ */
+qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n);
+
 /* Extends an Array of IRQs. Old IRQs have their handlers and opaque data
  * preserved. New IRQs are assigned the argument handler and opaque data.
  */
@@ -37,6 +43,7 @@ qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
                                 void *opaque, int n);
 
 void qemu_free_irqs(qemu_irq *s);
+void qemu_free_irq(qemu_irq irq);
 
 /* Returns a new IRQ with opposite polarity.  */
 qemu_irq qemu_irq_invert(qemu_irq irq);
