@@ -236,12 +236,15 @@ static void icount_adjust(void)
     int64_t cur_icount;
     int64_t delta;
     static int64_t last_delta;
+
     /* If the VM is not running, then do nothing.  */
     if (!runstate_is_running()) {
         return;
     }
+
     cur_time = cpu_get_clock();
-    cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    cur_icount = cpu_get_icount();
+
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
@@ -297,7 +300,7 @@ static void icount_warp_rt(void *opaque)
              * far ahead of real time.
              */
             int64_t cur_time = cpu_get_clock();
-            int64_t cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            int64_t cur_icount = cpu_get_icount();
             int64_t delta = cur_time - cur_icount;
             qemu_icount_bias += MIN(warp_delta, delta);
         }
