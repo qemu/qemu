@@ -247,9 +247,6 @@ struct PCIDevice {
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
 
-    /* IRQ objects for the INTA-INTD pins.  */
-    qemu_irq *irq;
-
     /* Legacy PCI VGA regions */
     MemoryRegion *vga_regions[QEMU_PCI_VGA_NUM_REGIONS];
     bool has_vga;
