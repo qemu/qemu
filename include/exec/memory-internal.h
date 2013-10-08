@@ -76,6 +76,12 @@ static inline void cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
     ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
 }
 
+static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
+                                                      int dirty_flag)
+{
+    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flag;
+}
+
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 {
     cpu_physical_memory_set_dirty_flags(addr, 0xff);

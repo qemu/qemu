@@ -122,7 +122,7 @@ void tlb_protect_code(ram_addr_t ram_addr)
 void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
                              target_ulong vaddr)
 {
-    cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(ram_addr, CODE_DIRTY_FLAG);
 }
 
 static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe)
