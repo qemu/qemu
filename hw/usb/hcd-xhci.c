@@ -374,7 +374,6 @@ struct XHCIStreamContext {
     dma_addr_t pctx;
     unsigned int sct;
     XHCIRing ring;
-    XHCIStreamContext *sstreams;
 };
 
 struct XHCIEPContext {
@@ -1133,7 +1132,6 @@ static void xhci_reset_streams(XHCIEPContext *epctx)
 
     for (i = 0; i < epctx->nr_pstreams; i++) {
         epctx->pstreams[i].sct = -1;
-        g_free(epctx->pstreams[i].sstreams);
     }
 }
 
@@ -1146,15 +1144,8 @@ static void xhci_alloc_streams(XHCIEPContext *epctx, dma_addr_t base)
 
 static void xhci_free_streams(XHCIEPContext *epctx)
 {
-    int i;
-
     assert(epctx->pstreams != NULL);
 
-    if (!epctx->lsa) {
-        for (i = 0; i < epctx->nr_pstreams; i++) {
-            g_free(epctx->pstreams[i].sstreams);
-        }
-    }
     g_free(epctx->pstreams);
     epctx->pstreams = NULL;
     epctx->nr_pstreams = 0;
