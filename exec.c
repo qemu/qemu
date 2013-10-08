@@ -1275,7 +1275,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
     memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
            0, size >> TARGET_PAGE_BITS);
-    cpu_physical_memory_set_dirty_range(new_block->offset, size, 0xff);
+    cpu_physical_memory_set_dirty_range(new_block->offset, size);
 
     qemu_ram_setup_dump(new_block->host, size);
     qemu_madvise(new_block->host, size, QEMU_MADV_HUGEPAGE);
