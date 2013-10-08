@@ -43,6 +43,7 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
+    assert(client < DIRTY_MEMORY_NUM);
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & (1 << client);
 }
 
@@ -74,6 +75,7 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
 static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
+    assert(client < DIRTY_MEMORY_NUM);
     ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= (1 << client);
 }
 
@@ -88,6 +90,8 @@ static inline int cpu_physical_memory_clear_dirty_flag(ram_addr_t addr,
                                                        unsigned client)
 {
     int mask = ~(1 << client);
+
+    assert(client < DIRTY_MEMORY_NUM);
 
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
 }
