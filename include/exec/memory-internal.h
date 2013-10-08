@@ -89,7 +89,9 @@ static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
 
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 {
-    cpu_physical_memory_set_dirty_flags(addr, 0xff);
+    cpu_physical_memory_set_dirty_flag(addr, MIGRATION_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(addr, VGA_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(addr, CODE_DIRTY_FLAG);
 }
 
 static inline int cpu_physical_memory_clear_dirty_flags(ram_addr_t addr,
