@@ -33,9 +33,6 @@
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 
-/* Must match *_DIRTY_FLAGS in cpu-all.h.  To be replaced with dynamic
- * registration.
- */
 #define DIRTY_MEMORY_VGA       0
 #define DIRTY_MEMORY_CODE      1
 #define DIRTY_MEMORY_MIGRATION 3

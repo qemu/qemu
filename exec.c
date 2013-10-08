@@ -738,7 +738,7 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
 
 /* Note: start and end must be within the same ram block.  */
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
-                                     int dirty_flags)
+                                     unsigned client)
 {
     uintptr_t length;
 
@@ -748,7 +748,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     length = end - start;
     if (length == 0)
         return;
-    cpu_physical_memory_mask_dirty_range(start, length, dirty_flags);
+    cpu_physical_memory_mask_dirty_range(start, length, client);
 
     if (tcg_enabled()) {
         tlb_reset_dirty_range_all(start, end, length);
@@ -1485,7 +1485,7 @@ found:
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
-    if (!cpu_physical_memory_get_dirty_flag(ram_addr, CODE_DIRTY_FLAG)) {
+    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
         tb_invalidate_phys_page_fast(ram_addr, size);
     }
     switch (size) {
@@ -1501,8 +1501,8 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
-    cpu_physical_memory_set_dirty_flag(ram_addr, MIGRATION_DIRTY_FLAG);
-    cpu_physical_memory_set_dirty_flag(ram_addr, VGA_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_MIGRATION);
+    cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_VGA);
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (cpu_physical_memory_is_dirty(ram_addr)) {
@@ -1912,8 +1912,8 @@ static void invalidate_and_set_dirty(hwaddr addr,
         /* invalidate code */
         tb_invalidate_phys_page_range(addr, addr + length, 0);
         /* set dirty bit */
-        cpu_physical_memory_set_dirty_flag(addr, VGA_DIRTY_FLAG);
-        cpu_physical_memory_set_dirty_flag(addr, MIGRATION_DIRTY_FLAG);
+        cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_VGA);
+        cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
     }
     xen_modified_memory(addr, length);
 }
@@ -2528,8 +2528,9 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
                 /* invalidate code */
                 tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
                 /* set dirty bit */
-                cpu_physical_memory_set_dirty_flag(addr1, MIGRATION_DIRTY_FLAG);
-                cpu_physical_memory_set_dirty_flag(addr1, VGA_DIRTY_FLAG);
+                cpu_physical_memory_set_dirty_flag(addr1,
+                                                   DIRTY_MEMORY_MIGRATION);
+                cpu_physical_memory_set_dirty_flag(addr1, DIRTY_MEMORY_VGA);
             }
         }
     }
