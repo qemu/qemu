@@ -1256,16 +1256,14 @@ static void usb_host_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
 static void usb_host_handle_reset(USBDevice *udev)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
+    int rc;
 
     trace_usb_host_reset(s->bus_num, s->addr);
 
-    if (udev->configuration == 0) {
-        return;
+    rc = libusb_reset_device(s->dh);
+    if (rc != 0) {
+        usb_host_nodev(s);
     }
-    usb_host_release_interfaces(s);
-    libusb_reset_device(s->dh);
-    usb_host_claim_interfaces(s, 0);
-    usb_host_ep_update(s);
 }
 
 /*
