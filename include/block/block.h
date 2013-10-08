@@ -84,6 +84,9 @@ typedef struct BlockDevOps {
 /* BDRV_BLOCK_DATA: data is read from bs->file or another file
  * BDRV_BLOCK_ZERO: sectors read as zero
  * BDRV_BLOCK_OFFSET_VALID: sector stored in bs->file as raw data
+ * BDRV_BLOCK_RAW: used internally to indicate that the request
+ *                 was answered by the raw driver and that one
+ *                 should look in bs->file directly.
  *
  * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 represent the offset in
  * bs->file where sector data can be read from as raw data.
@@ -105,6 +108,7 @@ typedef struct BlockDevOps {
 #define BDRV_BLOCK_DATA         1
 #define BDRV_BLOCK_ZERO         2
 #define BDRV_BLOCK_OFFSET_VALID 4
+#define BDRV_BLOCK_RAW          8
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
 typedef enum {

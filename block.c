@@ -3147,6 +3147,12 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         return ret;
     }
 
+    if (ret & BDRV_BLOCK_RAW) {
+        assert(ret & BDRV_BLOCK_OFFSET_VALID);
+        return bdrv_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
+                                     *pnum, pnum);
+    }
+
     if (!(ret & BDRV_BLOCK_DATA)) {
         if (bdrv_has_zero_init(bs)) {
             ret |= BDRV_BLOCK_ZERO;
