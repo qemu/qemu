@@ -44,11 +44,6 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 #define CODE_DIRTY_FLAG      0x02
 #define MIGRATION_DIRTY_FLAG 0x08
 
-static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
-{
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
-}
-
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
                                                       int dirty_flag)
 {
@@ -67,7 +62,7 @@ static inline bool cpu_physical_memory_is_dirty(ram_addr_t addr)
 
 static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
                                                 ram_addr_t length,
-                                                int dirty_flags)
+                                                int dirty_flag)
 {
     int ret = 0;
     ram_addr_t addr, end;
@@ -75,7 +70,7 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        ret |= cpu_physical_memory_get_dirty_flags(addr) & dirty_flags;
+        ret |= cpu_physical_memory_get_dirty_flag(addr, dirty_flag);
     }
     return ret;
 }
