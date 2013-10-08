@@ -137,6 +137,7 @@ static QTAILQ_HEAD(, USBHostDevice) hostdevs =
 static void usb_host_auto_check(void *unused);
 static void usb_host_release_interfaces(USBHostDevice *s);
 static void usb_host_nodev(USBHostDevice *s);
+static void usb_host_detach_kernel(USBHostDevice *s);
 static void usb_host_attach_kernel(USBHostDevice *s);
 
 /* ------------------------------------------------------------------------ */
@@ -787,10 +788,13 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
         goto fail;
     }
 
-    libusb_get_device_descriptor(dev, &s->ddesc);
     s->dev     = dev;
     s->bus_num = bus_num;
     s->addr    = addr;
+
+    usb_host_detach_kernel(s);
+
+    libusb_get_device_descriptor(dev, &s->ddesc);
     usb_host_get_port(s->dev, s->port, sizeof(s->port));
 
     usb_ep_init(udev);
@@ -1051,7 +1055,6 @@ static void usb_host_set_config(USBHostDevice *s, int config, USBPacket *p)
     trace_usb_host_set_config(s->bus_num, s->addr, config);
 
     usb_host_release_interfaces(s);
-    usb_host_detach_kernel(s);
     rc = libusb_set_configuration(s->dh, config);
     if (rc != 0) {
         usb_host_libusb_error("libusb_set_configuration", rc);
