@@ -346,7 +346,6 @@ typedef struct XHCITransfer {
     QEMUSGList sgl;
     bool running_async;
     bool running_retry;
-    bool cancelled;
     bool complete;
     bool int_req;
     unsigned int iso_pkts;
@@ -1310,8 +1309,6 @@ static int xhci_ep_nuke_one_xfer(XHCITransfer *t)
     if (t->running_async) {
         usb_cancel_packet(&t->packet);
         t->running_async = 0;
-        t->cancelled = 1;
-        DPRINTF("xhci: cancelling transfer, waiting for it to complete\n");
         killed = 1;
     }
     if (t->running_retry) {
@@ -1728,14 +1725,12 @@ static int xhci_complete_packet(XHCITransfer *xfer)
         xfer->running_async = 1;
         xfer->running_retry = 0;
         xfer->complete = 0;
-        xfer->cancelled = 0;
         return 0;
     } else if (xfer->packet.status == USB_RET_NAK) {
         trace_usb_xhci_xfer_nak(xfer);
         xfer->running_async = 0;
         xfer->running_retry = 1;
         xfer->complete = 0;
-        xfer->cancelled = 0;
         return 0;
     } else {
         xfer->running_async = 0;
