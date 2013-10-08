@@ -86,14 +86,14 @@ static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
     cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_CODE);
 }
 
-static inline int cpu_physical_memory_clear_dirty_flag(ram_addr_t addr,
+static inline void cpu_physical_memory_clear_dirty_flag(ram_addr_t addr,
                                                        unsigned client)
 {
     int mask = ~(1 << client);
 
     assert(client < DIRTY_MEMORY_NUM);
 
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
+    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
 }
 
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
