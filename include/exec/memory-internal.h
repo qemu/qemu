@@ -40,11 +40,10 @@ void *qemu_get_ram_ptr(ram_addr_t addr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
-static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
-                                                ram_addr_t length,
-                                                unsigned client)
+static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
+                                                 ram_addr_t length,
+                                                 unsigned client)
 {
-    int ret = 0;
     ram_addr_t addr, end;
 
     assert(client < DIRTY_MEMORY_NUM);
@@ -52,10 +51,12 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        ret |= test_bit(addr >> TARGET_PAGE_BITS,
-                        ram_list.dirty_memory[client]);
+        if (test_bit(addr >> TARGET_PAGE_BITS,
+                     ram_list.dirty_memory[client])) {
+            return true;
+        }
     }
-    return ret;
+    return false;
 }
 
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
