@@ -1277,9 +1277,12 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     new_ram_size = last_ram_offset() >> TARGET_PAGE_BITS;
 
     if (new_ram_size > old_ram_size) {
-        ram_list.phys_dirty = g_realloc(ram_list.phys_dirty, new_ram_size);
-        memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
-           0, size >> TARGET_PAGE_BITS);
+        int i;
+        for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
+            ram_list.dirty_memory[i] =
+                bitmap_zero_extend(ram_list.dirty_memory[i],
+                                   old_ram_size, new_ram_size);
+       }
     }
     cpu_physical_memory_set_dirty_range(new_block->offset, size);
 

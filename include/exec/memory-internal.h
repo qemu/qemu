@@ -44,7 +44,7 @@ static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
     assert(client < DIRTY_MEMORY_NUM);
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & (1 << client);
+    return test_bit(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
 }
 
 /* read dirty bit (return 0 or 1) */
@@ -76,7 +76,7 @@ static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
     assert(client < DIRTY_MEMORY_NUM);
-    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= (1 << client);
+    set_bit(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
 }
 
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
@@ -89,11 +89,8 @@ static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 static inline void cpu_physical_memory_clear_dirty_flag(ram_addr_t addr,
                                                        unsigned client)
 {
-    int mask = ~(1 << client);
-
     assert(client < DIRTY_MEMORY_NUM);
-
-    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
+    clear_bit(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
 }
 
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,

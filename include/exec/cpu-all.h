@@ -21,6 +21,7 @@
 
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
+#include "exec/memory.h"
 #include "qemu/thread.h"
 #include "qom/cpu.h"
 
@@ -459,7 +460,7 @@ typedef struct RAMBlock {
 typedef struct RAMList {
     QemuMutex mutex;
     /* Protected by the iothread lock.  */
-    uint8_t *phys_dirty;
+    unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
     /* Protected by the ramlist lock.  */
     QTAILQ_HEAD(, RAMBlock) blocks;
