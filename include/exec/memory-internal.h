@@ -49,6 +49,12 @@ static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
 }
 
+static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
+                                                      int dirty_flag)
+{
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & dirty_flag;
+}
+
 /* read dirty bit (return 0 or 1) */
 static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
 {
