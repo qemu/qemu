@@ -56,9 +56,13 @@ static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
 }
 
 /* read dirty bit (return 0 or 1) */
-static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
+static inline bool cpu_physical_memory_is_dirty(ram_addr_t addr)
 {
-    return cpu_physical_memory_get_dirty_flags(addr) == 0xff;
+    bool vga = cpu_physical_memory_get_dirty_flag(addr, VGA_DIRTY_FLAG);
+    bool code = cpu_physical_memory_get_dirty_flag(addr, CODE_DIRTY_FLAG);
+    bool migration =
+        cpu_physical_memory_get_dirty_flag(addr, MIGRATION_DIRTY_FLAG);
+    return vga && code && migration;
 }
 
 static inline int cpu_physical_memory_get_dirty(ram_addr_t start,

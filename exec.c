@@ -1485,11 +1485,8 @@ found:
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
-    int dirty_flags;
-    dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
     if (!cpu_physical_memory_get_dirty_flag(ram_addr, CODE_DIRTY_FLAG)) {
         tb_invalidate_phys_page_fast(ram_addr, size);
-        dirty_flags = cpu_physical_memory_get_dirty_flags(ram_addr);
     }
     switch (size) {
     case 1:
@@ -1504,8 +1501,8 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
-    dirty_flags |= (0xff & ~CODE_DIRTY_FLAG);
-    cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
+    cpu_physical_memory_set_dirty_flag(ram_addr, MIGRATION_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(ram_addr, VGA_DIRTY_FLAG);
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (cpu_physical_memory_is_dirty(ram_addr)) {
