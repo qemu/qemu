@@ -205,7 +205,7 @@ static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
-    .job_type      = "stream",
+    .job_type      = BLOCK_JOB_TYPE_STREAM,
     .set_speed     = stream_set_speed,
 };
 

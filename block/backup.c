@@ -204,7 +204,7 @@ static void backup_iostatus_reset(BlockJob *job)
 
 static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
-    .job_type       = "backup",
+    .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
     .iostatus_reset = backup_iostatus_reset,
 };

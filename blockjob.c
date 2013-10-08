@@ -209,7 +209,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
 BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(job->driver->job_type);
+    info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
     info->device    = g_strdup(bdrv_get_device_name(job->bs));
     info->len       = job->len;
     info->busy      = job->busy;
@@ -236,7 +236,7 @@ QObject *qobject_from_block_job(BlockJob *job)
                               "'len': %" PRId64 ","
                               "'offset': %" PRId64 ","
                               "'speed': %" PRId64 " }",
-                              job->driver->job_type,
+                              BlockJobType_lookup[job->driver->job_type],
                               bdrv_get_device_name(job->bs),
                               job->len,
                               job->offset,

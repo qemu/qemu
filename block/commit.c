@@ -175,7 +175,7 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 static const BlockJobDriver commit_job_driver = {
     .instance_size = sizeof(CommitBlockJob),
-    .job_type      = "commit",
+    .job_type      = BLOCK_JOB_TYPE_COMMIT,
     .set_speed     = commit_set_speed,
 };
 

@@ -37,7 +37,7 @@ typedef struct BlockJobDriver {
     size_t instance_size;
 
     /** String describing the operation, part of query-block-jobs QMP API */
-    const char *job_type;
+    BlockJobType job_type;
 
     /** Optional callback for job types that support setting a speed limit */
     void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);

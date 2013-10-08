@@ -527,7 +527,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
 static const BlockJobDriver mirror_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
-    .job_type      = "mirror",
+    .job_type      = BLOCK_JOB_TYPE_MIRROR,
     .set_speed     = mirror_set_speed,
     .iostatus_reset= mirror_iostatus_reset,
     .complete      = mirror_complete,
