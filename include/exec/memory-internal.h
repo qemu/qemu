@@ -40,11 +40,28 @@ void *qemu_get_ram_ptr(ram_addr_t addr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
+static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
+                                                ram_addr_t length,
+                                                unsigned client)
+{
+    int ret = 0;
+    ram_addr_t addr, end;
+
+    assert(client < DIRTY_MEMORY_NUM);
+
+    end = TARGET_PAGE_ALIGN(start + length);
+    start &= TARGET_PAGE_MASK;
+    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+        ret |= test_bit(addr >> TARGET_PAGE_BITS,
+                        ram_list.dirty_memory[client]);
+    }
+    return ret;
+}
+
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
-    assert(client < DIRTY_MEMORY_NUM);
-    return test_bit(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
+    return cpu_physical_memory_get_dirty(addr, 1, client);
 }
 
 /* read dirty bit (return 0 or 1) */
@@ -55,21 +72,6 @@ static inline bool cpu_physical_memory_is_dirty(ram_addr_t addr)
     bool migration =
         cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
     return vga && code && migration;
-}
-
-static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
-                                                ram_addr_t length,
-                                                unsigned client)
-{
-    int ret = 0;
-    ram_addr_t addr, end;
-
-    end = TARGET_PAGE_ALIGN(start + length);
-    start &= TARGET_PAGE_MASK;
-    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        ret |= cpu_physical_memory_get_dirty_flag(addr, client);
-    }
-    return ret;
 }
 
 static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
