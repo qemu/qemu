@@ -1366,6 +1366,24 @@
   'data': ['top', 'full', 'none'] }
 
 ##
+# @BlockJobType:
+#
+# Type of a block job.
+#
+# @commit: block commit job type, see "block-commit"
+#
+# @stream: block stream job type, see "block-stream"
+#
+# @mirror: drive mirror job type, see "drive-mirror"
+#
+# @backup: drive backup job type, see "drive-backup"
+#
+# Since: 1.7
+##
+{ 'enum': 'BlockJobType',
+  'data': ['commit', 'stream', 'mirror', 'backup'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
