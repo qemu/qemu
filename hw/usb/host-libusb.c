@@ -992,15 +992,14 @@ static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
     udev->ninterfaces   = 0;
     udev->configuration = 0;
 
-    if (configuration == 0) {
-        /* address state - ignore */
-        return USB_RET_SUCCESS;
-    }
-
     usb_host_detach_kernel(s);
 
     rc = libusb_get_active_config_descriptor(s->dev, &conf);
     if (rc != 0) {
+        if (rc == LIBUSB_ERROR_NOT_FOUND) {
+            /* address state - ignore */
+            return USB_RET_SUCCESS;
+        }
         return USB_RET_STALL;
     }
 
