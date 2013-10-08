@@ -1508,7 +1508,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
     /* we remove the notdirty callback only if the code has been
        flushed */
-    if (dirty_flags == 0xff) {
+    if (cpu_physical_memory_is_dirty(ram_addr)) {
         CPUArchState *env = current_cpu->env_ptr;
         tlb_set_dirty(env, env->mem_io_vaddr);
     }
