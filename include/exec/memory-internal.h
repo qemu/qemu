@@ -44,19 +44,15 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
                                                  ram_addr_t length,
                                                  unsigned client)
 {
-    ram_addr_t addr, end;
+    unsigned long end, page, next;
 
     assert(client < DIRTY_MEMORY_NUM);
 
-    end = TARGET_PAGE_ALIGN(start + length);
-    start &= TARGET_PAGE_MASK;
-    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        if (test_bit(addr >> TARGET_PAGE_BITS,
-                     ram_list.dirty_memory[client])) {
-            return true;
-        }
-    }
-    return false;
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+    next = find_next_bit(ram_list.dirty_memory[client], end, page);
+
+    return next < end;
 }
 
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
