@@ -292,7 +292,8 @@ static void find_new_snapshot_id(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
-    int i, id, id_max = 0;
+    int i;
+    unsigned long id, id_max = 0;
 
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
@@ -300,7 +301,7 @@ static void find_new_snapshot_id(BlockDriverState *bs,
         if (id > id_max)
             id_max = id;
     }
-    snprintf(id_str, id_str_size, "%d", id_max + 1);
+    snprintf(id_str, id_str_size, "%lu", id_max + 1);
 }
 
 static int find_snapshot_by_id_and_name(BlockDriverState *bs,
