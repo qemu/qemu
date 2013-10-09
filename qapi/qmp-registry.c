@@ -76,6 +76,11 @@ const char *qmp_command_name(const QmpCommand *cmd)
     return cmd->name;
 }
 
+bool qmp_has_success_response(const QmpCommand *cmd)
+{
+    return !(cmd->options & QCO_NO_SUCCESS_RESP);
+}
+
 void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque)
 {
     QmpCommand *cmd;
