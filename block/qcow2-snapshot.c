@@ -221,6 +221,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
         id_str_size = strlen(sn->id_str);
         name_size = strlen(sn->name);
+        assert(id_str_size <= UINT16_MAX && name_size <= UINT16_MAX);
         h.id_str_size = cpu_to_be16(id_str_size);
         h.name_size = cpu_to_be16(name_size);
         offset = align_offset(offset, 8);
