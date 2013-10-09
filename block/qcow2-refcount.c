@@ -1719,12 +1719,11 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
         for (i = 0; i < s->nb_snapshots; i++) {
             uint64_t l1_ofs = s->snapshots[i].l1_table_offset;
             uint32_t l1_sz  = s->snapshots[i].l1_size;
-            uint64_t *l1 = g_malloc(l1_sz * sizeof(uint64_t));
+            uint64_t l1_sz2 = l1_sz * sizeof(uint64_t);
+            uint64_t *l1 = g_malloc(l1_sz2);
             int ret;
 
-            ret = bdrv_read(bs->file, l1_ofs / BDRV_SECTOR_SIZE, (uint8_t *)l1,
-                            l1_sz * sizeof(uint64_t) / BDRV_SECTOR_SIZE);
-
+            ret = bdrv_pread(bs->file, l1_ofs, l1, l1_sz2);
             if (ret < 0) {
                 g_free(l1);
                 return ret;
