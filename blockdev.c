@@ -1926,7 +1926,6 @@ void qmp_drive_mirror(const char *device, const char *target,
     } else {
         switch (mode) {
         case NEW_IMAGE_MODE_EXISTING:
-            ret = 0;
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
             /* create new image with backing file */

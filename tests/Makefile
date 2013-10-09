@@ -261,10 +261,10 @@ check-tests/test-qapi.py: tests/test-qapi.py
 
 .PHONY: $(patsubst %, check-%, $(check-qapi-schema-y))
 $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
-	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py <$^ >$*.out 2>$*.err; echo $$? >$*.exit, "  TEST  $*.out")
-	@diff -q $(SRC_PATH)/$*.out $*.out
-	@diff -q $(SRC_PATH)/$*.err $*.err
-	@diff -q $(SRC_PATH)/$*.exit $*.exit
+	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py <$^ >$*.test.out 2>$*.test.err; echo $$? >$*.test.exit, "  TEST  $*.out")
+	@diff -q $(SRC_PATH)/$*.out $*.test.out
+	@diff -q $(SRC_PATH)/$*.err $*.test.err
+	@diff -q $(SRC_PATH)/$*.exit $*.test.exit
 
 # Consolidated targets
 

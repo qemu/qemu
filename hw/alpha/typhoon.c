@@ -700,7 +700,7 @@ static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr)
             }
         }
 
-        if (addr >= 0x80000000000 && addr <= 0xfffffffffff) {
+        if (addr >= 0x80000000000ull && addr <= 0xfffffffffffull) {
             /* Check the fourth window for DAC enable and window enable.  */
             if ((pchip->win[3].wba & 0x80000000001ull) == 0x80000000001ull) {
                 uint64_t pte_addr;
