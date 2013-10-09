@@ -1738,14 +1738,6 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
-                sector_num * BDRV_SECTOR_SIZE,
-                s->cluster_sectors * BDRV_SECTOR_SIZE);
-        if (ret < 0) {
-            goto fail;
-        }
-
         ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
