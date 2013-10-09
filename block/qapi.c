@@ -134,6 +134,9 @@ void bdrv_query_image_info(BlockDriverState *bs,
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
+    info->format_specific     = bdrv_get_specific_info(bs);
+    info->has_format_specific = info->format_specific != NULL;
+
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
         info->backing_filename = g_strdup(backing_filename);

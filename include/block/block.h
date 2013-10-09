@@ -335,6 +335,7 @@ int bdrv_get_flags(BlockDriverState *bs);
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs);
 void bdrv_round_to_clusters(BlockDriverState *bs,
                             int64_t sector_num, int nb_sectors,
                             int64_t *cluster_sector_num,

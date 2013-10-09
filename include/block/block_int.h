@@ -168,6 +168,7 @@ struct BlockDriver {
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
                                   const char *snapshot_name);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+    ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
     int (*bdrv_save_vmstate)(BlockDriverState *bs, QEMUIOVector *qiov,
                              int64_t pos);
