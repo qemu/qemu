@@ -3271,7 +3271,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             backend->kind = CHARDEV_BACKEND_KIND_MUX;
             backend->mux->chardev = g_strdup(bid);
             ret = qmp_chardev_add(id, backend, errp);
-            assert(!error_is_set(errp));
+            if (error_is_set(errp)) {
+                chr = qemu_chr_find(bid);
+                qemu_chr_delete(chr);
+                chr = NULL;
+                goto qapi_out;
+            }
         }
 
         chr = qemu_chr_find(id);
