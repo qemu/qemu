@@ -796,11 +796,13 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
         }
         break;
     case QCOW2_CLUSTER_NORMAL:
-        qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
-                            nb_clusters << s->cluster_bits, type);
+    case QCOW2_CLUSTER_ZERO:
+        if (l2_entry & L2E_OFFSET_MASK) {
+            qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
+                                nb_clusters << s->cluster_bits, type);
+        }
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
-    case QCOW2_CLUSTER_ZERO:
         break;
     default:
         abort();
