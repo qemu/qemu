@@ -182,11 +182,12 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
     offset = snapshots_offset;
     if (offset < 0) {
-        return offset;
+        ret = offset;
+        goto fail;
     }
     ret = bdrv_flush(bs);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
     /* The snapshot list position has not yet been updated, so these clusters
@@ -194,7 +195,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT, offset,
                                         snapshots_size);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
 
