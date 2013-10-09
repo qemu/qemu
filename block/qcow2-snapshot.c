@@ -279,6 +279,10 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     return 0;
 
 fail:
+    if (snapshots_offset > 0) {
+        qcow2_free_clusters(bs, snapshots_offset, snapshots_size,
+                            QCOW2_DISCARD_ALWAYS);
+    }
     return ret;
 }
 
