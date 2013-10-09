@@ -1915,7 +1915,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version)
          * support anything different than 4 anyway, there is no point in doing
          * so right now; however, we should error out (if qemu supports this in
          * the future and this code has not been adapted) */
-        error_report("qcow2_downgrade: Image refcount orders other than 4 are"
+        error_report("qcow2_downgrade: Image refcount orders other than 4 are "
                      "currently not supported.");
         return -ENOTSUP;
     }
