@@ -748,7 +748,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     length = end - start;
     if (length == 0)
         return;
-    cpu_physical_memory_mask_dirty_range(start, length, client);
+    cpu_physical_memory_clear_dirty_range(start, length, client);
 
     if (tcg_enabled()) {
         tlb_reset_dirty_range_all(start, end, length);

@@ -100,9 +100,9 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
     xen_modified_memory(addr, length);
 }
 
-static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
-                                                        ram_addr_t length,
-                                                        unsigned client)
+static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
+                                                         ram_addr_t length,
+                                                         unsigned client)
 {
     ram_addr_t addr, end;
 
