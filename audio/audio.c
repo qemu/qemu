@@ -95,7 +95,7 @@ static struct {
         }
     },
 
-    .period = { .hertz = 250 },
+    .period = { .hertz = 100 },
     .plive = 0,
     .log_to_monitor = 0,
     .try_poll_in = 1,
