@@ -210,6 +210,21 @@
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
 ##
+# @ImageInfoSpecificQCow2:
+#
+# @compat: compatibility level
+#
+# @lazy-refcounts: #optional on or off; only valid for compat >= 1.1
+#
+# Since: 1.7
+##
+{ 'type': 'ImageInfoSpecificQCow2',
+  'data': {
+      'compat': 'str',
+      '*lazy-refcounts': 'bool'
+  } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -219,6 +234,7 @@
 
 { 'union': 'ImageInfoSpecific',
   'data': {
+      'qcow2': 'ImageInfoSpecificQCow2'
   } }
 
 ##
