@@ -45,35 +45,27 @@ void qmp_guest_ping(Error **err)
     slog("guest-ping called");
 }
 
+static void qmp_command_info(QmpCommand *cmd, void *opaque)
+{
+    GuestAgentInfo *info = opaque;
+    GuestAgentCommandInfo *cmd_info;
+    GuestAgentCommandInfoList *cmd_info_list;
+
+    cmd_info = g_malloc0(sizeof(GuestAgentCommandInfo));
+    cmd_info->name = g_strdup(qmp_command_name(cmd));
+    cmd_info->enabled = qmp_command_is_enabled(cmd);
+
+    cmd_info_list = g_malloc0(sizeof(GuestAgentCommandInfoList));
+    cmd_info_list->value = cmd_info;
+    cmd_info_list->next = info->supported_commands;
+    info->supported_commands = cmd_info_list;
+}
+
 struct GuestAgentInfo *qmp_guest_info(Error **err)
 {
     GuestAgentInfo *info = g_malloc0(sizeof(GuestAgentInfo));
-    GuestAgentCommandInfo *cmd_info;
-    GuestAgentCommandInfoList *cmd_info_list;
-    char **cmd_list_head, **cmd_list;
 
     info->version = g_strdup(QEMU_VERSION);
-
-    cmd_list_head = cmd_list = qmp_get_command_list();
-    if (*cmd_list_head == NULL) {
-        goto out;
-    }
-
-    while (*cmd_list) {
-        cmd_info = g_malloc0(sizeof(GuestAgentCommandInfo));
-        cmd_info->name = g_strdup(*cmd_list);
-        cmd_info->enabled = qmp_command_is_enabled(cmd_info->name);
-
-        cmd_info_list = g_malloc0(sizeof(GuestAgentCommandInfoList));
-        cmd_info_list->value = cmd_info;
-        cmd_info_list->next = info->supported_commands;
-        info->supported_commands = cmd_info_list;
-
-        g_free(*cmd_list);
-        cmd_list++;
-    }
-
-out:
-    g_free(cmd_list_head);
+    qmp_for_each_command(qmp_command_info, info);
     return info;
 }
