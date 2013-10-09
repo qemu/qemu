@@ -433,6 +433,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     if (ret < 0) {
         g_free(s->snapshots);
         s->snapshots = old_snapshot_list;
+        s->nb_snapshots--;
         goto fail;
     }
 
