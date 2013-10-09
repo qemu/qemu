@@ -5,16 +5,12 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 
 Event: l1_update; errno: 5; imm: off; once: on; write 
 write failed: Input/output error
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l1_update; errno: 5; imm: off; once: on; write -b
 write failed: Input/output error
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l1_update; errno: 5; imm: off; once: off; write 
@@ -33,16 +29,12 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 
 Event: l1_update; errno: 28; imm: off; once: on; write 
 write failed: No space left on device
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l1_update; errno: 28; imm: off; once: on; write -b
 write failed: No space left on device
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l1_update; errno: 28; imm: off; once: off; write 
@@ -181,16 +173,12 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 
 Event: l2_alloc.write; errno: 5; imm: off; once: on; write 
 write failed: Input/output error
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l2_alloc.write; errno: 5; imm: off; once: on; write -b
 write failed: Input/output error
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l2_alloc.write; errno: 5; imm: off; once: off; write 
@@ -207,16 +195,12 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 
 Event: l2_alloc.write; errno: 28; imm: off; once: on; write 
 write failed: No space left on device
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l2_alloc.write; errno: 28; imm: off; once: on; write -b
 write failed: No space left on device
-
-1 leaked clusters were found on the image.
-This means waste of disk space, but no harm to data.
+No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
 
 Event: l2_alloc.write; errno: 28; imm: off; once: off; write 

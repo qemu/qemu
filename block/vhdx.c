@@ -20,6 +20,7 @@
 #include "qemu/module.h"
 #include "qemu/crc32c.h"
 #include "block/vhdx.h"
+#include "migration/migration.h"
 
 
 /* Several metadata and region table data entries are identified by
@@ -159,6 +160,7 @@ typedef struct BDRVVHDXState {
     VHDXParentLocatorHeader parent_header;
     VHDXParentLocatorEntry *parent_entries;
 
+    Error *migration_blocker;
 } BDRVVHDXState;
 
 uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
@@ -806,6 +808,12 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* TODO: differencing files, write */
 
+    /* Disable migration when VHDX images are used */
+    error_set(&s->migration_blocker,
+            QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+            "vhdx", bs->device_name, "live migration");
+    migrate_add_blocker(s->migration_blocker);
+
     return 0;
 fail:
     qemu_vfree(s->headers[0]);
@@ -952,6 +960,8 @@ static void vhdx_close(BlockDriverState *bs)
     qemu_vfree(s->headers[1]);
     qemu_vfree(s->bat);
     qemu_vfree(s->parent_entries);
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 }
 
 static BlockDriver bdrv_vhdx = {

@@ -1034,7 +1034,6 @@ static void inc_refcounts(BlockDriverState *bs,
 
 /* Flags for check_refcounts_l1() and check_refcounts_l2() */
 enum {
-    CHECK_OFLAG_COPIED = 0x1,   /* check QCOW_OFLAG_COPIED matches refcount */
     CHECK_FRAG_INFO = 0x2,      /* update BlockFragInfo counters */
 };
 
@@ -1481,8 +1480,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                             s->l1_table_offset, s->l1_size,
-                             CHECK_OFLAG_COPIED | CHECK_FRAG_INFO);
+                             s->l1_table_offset, s->l1_size, CHECK_FRAG_INFO);
     if (ret < 0) {
         goto fail;
     }
@@ -1733,8 +1731,8 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
             }
 
             for (j = 0; j < l1_sz; j++) {
-                if ((l1[j] & L1E_OFFSET_MASK) &&
-                    overlaps_with(l1[j] & L1E_OFFSET_MASK, s->cluster_size)) {
+                uint64_t l2_ofs = be64_to_cpu(l1[j]) & L1E_OFFSET_MASK;
+                if (l2_ofs && overlaps_with(l2_ofs, s->cluster_size)) {
                     g_free(l1);
                     return QCOW2_OL_INACTIVE_L2;
                 }

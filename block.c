@@ -808,8 +808,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     if (ret < 0) {
         if (error_is_set(&local_err)) {
             error_propagate(errp, local_err);
-        } else if (filename) {
-            error_setg_errno(errp, -ret, "Could not open '%s'", filename);
+        } else if (bs->filename[0]) {
+            error_setg_errno(errp, -ret, "Could not open '%s'", bs->filename);
         } else {
             error_setg_errno(errp, -ret, "Could not open image");
         }
@@ -824,8 +824,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
 #ifndef _WIN32
     if (bs->is_temporary) {
-        assert(filename != NULL);
-        unlink(filename);
+        assert(bs->filename[0] != '\0');
+        unlink(bs->filename);
     }
 #endif
     return 0;
