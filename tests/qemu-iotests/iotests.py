@@ -49,6 +49,10 @@ def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
     return subprocess.call(qemu_img_args + list(args))
 
+def qemu_img_pipe(*args):
+    '''Run qemu-img and return its output'''
+    return subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE).communicate()[0]
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
