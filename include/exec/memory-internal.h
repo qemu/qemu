@@ -81,19 +81,14 @@ static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
                                                        ram_addr_t length)
 {
-    ram_addr_t addr, end;
+    unsigned long end, page;
 
-    end = TARGET_PAGE_ALIGN(start + length);
-    start &= TARGET_PAGE_MASK;
-    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        set_bit(addr >> TARGET_PAGE_BITS,
-                ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
-        set_bit(addr >> TARGET_PAGE_BITS,
-                ram_list.dirty_memory[DIRTY_MEMORY_VGA]);
-        set_bit(addr >> TARGET_PAGE_BITS,
-                ram_list.dirty_memory[DIRTY_MEMORY_CODE]);
-    }
-    xen_modified_memory(addr, length);
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION], page, end - page);
+    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_VGA], page, end - page);
+    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_CODE], page, end - page);
+    xen_modified_memory(start, length);
 }
 
 static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
