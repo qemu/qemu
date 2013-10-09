@@ -670,7 +670,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
-        /* TODO: Implementation of rotl_i64, rotr_i64 missing in tci.c. */
     case INDEX_op_rotl_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
     case INDEX_op_rotr_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
         tcg_out_r(s, args[0]);

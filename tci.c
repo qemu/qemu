@@ -688,13 +688,13 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             t1 = tci_read_ri32(&tb_ptr);
             t2 = tci_read_ri32(&tb_ptr);
-            tci_write_reg32(t0, (t1 << t2) | (t1 >> (32 - t2)));
+            tci_write_reg32(t0, rol32(t1, t2));
             break;
         case INDEX_op_rotr_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_ri32(&tb_ptr);
             t2 = tci_read_ri32(&tb_ptr);
-            tci_write_reg32(t0, (t1 >> t2) | (t1 << (32 - t2)));
+            tci_write_reg32(t0, ror32(t1, t2));
             break;
 #endif
 #if TCG_TARGET_HAS_deposit_i32
@@ -952,8 +952,16 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             break;
 #if TCG_TARGET_HAS_rot_i64
         case INDEX_op_rotl_i64:
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri64(&tb_ptr);
+            t2 = tci_read_ri64(&tb_ptr);
+            tci_write_reg64(t0, rol64(t1, t2));
+            break;
         case INDEX_op_rotr_i64:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_ri64(&tb_ptr);
+            t2 = tci_read_ri64(&tb_ptr);
+            tci_write_reg64(t0, ror64(t1, t2));
             break;
 #endif
 #if TCG_TARGET_HAS_deposit_i64

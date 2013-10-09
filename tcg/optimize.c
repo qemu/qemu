@@ -238,20 +238,16 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
         return (int64_t)x >> (int64_t)y;
 
     case INDEX_op_rotr_i32:
-        x = ((uint32_t)x << (32 - y)) | ((uint32_t)x >> y);
-        return x;
+        return ror32(x, y);
 
     case INDEX_op_rotr_i64:
-        x = ((uint64_t)x << (64 - y)) | ((uint64_t)x >> y);
-        return x;
+        return ror64(x, y);
 
     case INDEX_op_rotl_i32:
-        x = ((uint32_t)x << y) | ((uint32_t)x >> (32 - y));
-        return x;
+        return rol32(x, y);
 
     case INDEX_op_rotl_i64:
-        x = ((uint64_t)x << y) | ((uint64_t)x >> (64 - y));
-        return x;
+        return rol64(x, y);
 
     CASE_OP_32_64(not):
         return ~x;
