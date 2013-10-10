@@ -102,7 +102,7 @@ static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
     bitmap_clear(ram_list.dirty_memory[client], page, end - page);
 }
 
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
+void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
                                      unsigned client);
 
 #endif

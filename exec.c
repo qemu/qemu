@@ -724,11 +724,14 @@ found:
     return block;
 }
 
-static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
-                                      uintptr_t length)
+static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length)
 {
-    RAMBlock *block;
     ram_addr_t start1;
+    RAMBlock *block;
+    ram_addr_t end;
+
+    end = TARGET_PAGE_ALIGN(start + length);
+    start &= TARGET_PAGE_MASK;
 
     block = qemu_get_ram_block(start);
     assert(block == qemu_get_ram_block(end - 1));
@@ -737,21 +740,15 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
 }
 
 /* Note: start and end must be within the same ram block.  */
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
+void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
                                      unsigned client)
 {
-    uintptr_t length;
-
-    start &= TARGET_PAGE_MASK;
-    end = TARGET_PAGE_ALIGN(end);
-
-    length = end - start;
     if (length == 0)
         return;
     cpu_physical_memory_clear_dirty_range(start, length, client);
 
     if (tcg_enabled()) {
-        tlb_reset_dirty_range_all(start, end, length);
+        tlb_reset_dirty_range_all(start, length);
     }
 }
 

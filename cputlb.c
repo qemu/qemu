@@ -112,8 +112,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
    can be detected */
 void tlb_protect_code(ram_addr_t ram_addr)
 {
-    cpu_physical_memory_reset_dirty(ram_addr,
-                                    ram_addr + TARGET_PAGE_SIZE,
+    cpu_physical_memory_reset_dirty(ram_addr, TARGET_PAGE_SIZE,
                                     DIRTY_MEMORY_CODE);
 }
 

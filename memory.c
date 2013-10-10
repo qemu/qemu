@@ -1191,9 +1191,7 @@ bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
     assert(mr->terminates);
     ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
     if (ret) {
-        cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                        mr->ram_addr + addr + size,
-                                        client);
+        cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
     }
     return ret;
 }
@@ -1239,9 +1237,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
     assert(mr->terminates);
-    cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                    mr->ram_addr + addr + size,
-                                    client);
+    cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
