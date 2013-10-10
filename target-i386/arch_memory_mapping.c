@@ -75,7 +75,7 @@ static void walk_pte2(MemoryMappingList *list,
 }
 
 /* PAE Paging or IA-32e Paging */
-#define PLM4_ADDR_MASK 0xffffffffff000 /* selects bits 51:12 */
+#define PLM4_ADDR_MASK 0xffffffffff000ULL /* selects bits 51:12 */
 
 static void walk_pde(MemoryMappingList *list, hwaddr pde_start_addr,
                      int32_t a20_mask, target_ulong start_line_addr)

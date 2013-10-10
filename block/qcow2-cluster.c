@@ -35,6 +35,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     BDRVQcowState *s = bs->opaque;
     int new_l1_size2, ret, i;
     uint64_t *new_l1_table;
+    int64_t old_l1_table_offset, old_l1_size;
     int64_t new_l1_table_offset, new_l1_size;
     uint8_t data[12];
 
@@ -106,11 +107,13 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
         goto fail;
     }
     g_free(s->l1_table);
-    qcow2_free_clusters(bs, s->l1_table_offset, s->l1_size * sizeof(uint64_t),
-                        QCOW2_DISCARD_OTHER);
+    old_l1_table_offset = s->l1_table_offset;
     s->l1_table_offset = new_l1_table_offset;
     s->l1_table = new_l1_table;
+    old_l1_size = s->l1_size;
     s->l1_size = new_l1_size;
+    qcow2_free_clusters(bs, old_l1_table_offset, old_l1_size * sizeof(uint64_t),
+                        QCOW2_DISCARD_OTHER);
     return 0;
  fail:
     g_free(new_l1_table);
@@ -270,6 +273,10 @@ fail:
         qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
     }
     s->l1_table[l1_index] = old_l2_offset;
+    if (l2_offset > 0) {
+        qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t),
+                            QCOW2_DISCARD_ALWAYS);
+    }
     return ret;
 }
 
