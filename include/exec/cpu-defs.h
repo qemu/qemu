@@ -178,7 +178,5 @@ typedef struct CPUWatchpoint {
     int bigendian; /* Endianness, 0 = little endian, 1 = big endian. */ \
     /* user data */                                                     \
     void *opaque;                                                       \
-                                                                        \
-    const char *cpu_model_str;
 
 #endif

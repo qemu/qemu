@@ -90,6 +90,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(getuid), 245 },
     { SCMP_SYS(geteuid), 245 },
     { SCMP_SYS(timer_create), 245 },
+    { SCMP_SYS(times), 245 },
     { SCMP_SYS(exit), 245 },
     { SCMP_SYS(clock_gettime), 245 },
     { SCMP_SYS(time), 245 },

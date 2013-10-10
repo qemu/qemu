@@ -8267,7 +8267,6 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {
     PowerPCCPU *cpu;
-    CPUPPCState *env;
     ObjectClass *oc;
     Error *err = NULL;
 
@@ -8277,8 +8276,6 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
     }
 
     cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
     if (err != NULL) {

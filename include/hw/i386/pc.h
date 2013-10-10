@@ -230,6 +230,14 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "e1000",\
             .property = "mitigation",\
             .value    = "off",\
+        },{\
+            .driver   = "qemu64-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "qemu32-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(3),\
         }
 
 #define PC_COMPAT_1_5 \

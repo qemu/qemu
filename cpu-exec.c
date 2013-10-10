@@ -682,6 +682,10 @@ int cpu_exec(CPUArchState *env)
             /* TODO: Fix comment in 2014 - then it was wrong. */
             g_assert(cpu == current_cpu);
             g_assert(env == cpu->env_ptr);
+#if !(defined(CONFIG_USER_ONLY) && \
+      (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
+            g_assert(cc == CPU_GET_CLASS(cpu));
+#endif
         }
     } /* for(;;) */
 
