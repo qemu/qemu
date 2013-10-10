@@ -769,7 +769,11 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
-        error_setg(errp, "Driver '%s' is not whitelisted", drv->format_name);
+        error_setg(errp,
+                   !bs->read_only && bdrv_is_whitelisted(drv, true)
+                        ? "Driver '%s' can only be used for read-only devices"
+                        : "Driver '%s' is not whitelisted",
+                   drv->format_name);
         return -ENOTSUP;
     }
 
@@ -881,7 +885,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     /* Find the right block driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
-        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
+        drv = bdrv_find_format(drvname);
         if (!drv) {
             error_setg(errp, "Unknown driver '%s'", drvname);
         }
@@ -1123,7 +1127,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     /* Find the right image format driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
-        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
+        drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
     }
 

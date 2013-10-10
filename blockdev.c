@@ -468,13 +468,9 @@ static DriveInfo *blockdev_init(QemuOpts *all_opts,
             return NULL;
         }
 
-        drv = bdrv_find_whitelisted_format(buf, ro);
+        drv = bdrv_find_format(buf);
         if (!drv) {
-            if (!ro && bdrv_find_whitelisted_format(buf, !ro)) {
-                error_report("'%s' can be only used as read-only device.", buf);
-            } else {
-                error_report("'%s' invalid format", buf);
-            }
+            error_report("'%s' invalid format", buf);
             return NULL;
         }
     }
