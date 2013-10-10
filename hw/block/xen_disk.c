@@ -405,6 +405,7 @@ static int ioreq_map(struct ioreq *ioreq)
                 xen_be_printf(&ioreq->blkdev->xendev, 0,
                               "can't map grant ref %d (%s, %d maps)\n",
                               refs[i], strerror(errno), ioreq->blkdev->cnt_map);
+                ioreq->mapped = 1;
                 ioreq_unmap(ioreq);
                 return -1;
             }
