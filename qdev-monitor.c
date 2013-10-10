@@ -75,18 +75,9 @@ static bool qdev_class_has_alias(DeviceClass *dc)
     return (qdev_class_get_alias(dc) != NULL);
 }
 
-static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
+static void qdev_print_devinfo(DeviceClass *dc)
 {
-    DeviceClass *dc;
-    bool *show_no_user = opaque;
-
-    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
-
-    if (!dc || (show_no_user && !*show_no_user && dc->no_user)) {
-        return;
-    }
-
-    error_printf("name \"%s\"", object_class_get_name(klass));
+    error_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
         error_printf(", bus %s", dc->bus_type);
     }
@@ -100,6 +91,55 @@ static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
         error_printf(", no-user");
     }
     error_printf("\n");
+}
+
+static gint devinfo_cmp(gconstpointer a, gconstpointer b)
+{
+    return strcasecmp(object_class_get_name((ObjectClass *)a),
+                      object_class_get_name((ObjectClass *)b));
+}
+
+static void qdev_print_devinfos(bool show_no_user)
+{
+    static const char *cat_name[DEVICE_CATEGORY_MAX + 1] = {
+        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
+        [DEVICE_CATEGORY_USB]     = "USB",
+        [DEVICE_CATEGORY_STORAGE] = "Storage",
+        [DEVICE_CATEGORY_NETWORK] = "Network",
+        [DEVICE_CATEGORY_INPUT]   = "Input",
+        [DEVICE_CATEGORY_DISPLAY] = "Display",
+        [DEVICE_CATEGORY_SOUND]   = "Sound",
+        [DEVICE_CATEGORY_MISC]    = "Misc",
+        [DEVICE_CATEGORY_MAX]     = "Uncategorized",
+    };
+    GSList *list, *elt;
+    int i;
+    bool cat_printed;
+
+    list = g_slist_sort(object_class_get_list(TYPE_DEVICE, false),
+                        devinfo_cmp);
+
+    for (i = 0; i <= DEVICE_CATEGORY_MAX; i++) {
+        cat_printed = false;
+        for (elt = list; elt; elt = elt->next) {
+            DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                                 TYPE_DEVICE);
+            if ((i < DEVICE_CATEGORY_MAX
+                 ? !test_bit(i, dc->categories)
+                 : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
+                || (!show_no_user && dc->no_user)) {
+                continue;
+            }
+            if (!cat_printed) {
+                error_printf("%s%s devices:\n", i ? "\n" : "",
+                             cat_name[i]);
+                cat_printed = true;
+            }
+            qdev_print_devinfo(dc);
+        }
+    }
+
+    g_slist_free(list);
 }
 
 static int set_property(const char *name, const char *value, void *opaque)
@@ -147,8 +187,7 @@ int qdev_device_help(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
-        bool show_no_user = false;
-        object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, &show_no_user);
+        qdev_print_devinfos(false);
         return 1;
     }
 
@@ -587,7 +626,7 @@ void do_info_qtree(Monitor *mon, const QDict *qdict)
 
 void do_info_qdm(Monitor *mon, const QDict *qdict)
 {
-    object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, NULL);
+    qdev_print_devinfos(true);
 }
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
