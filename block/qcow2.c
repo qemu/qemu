@@ -965,7 +965,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+        ret = qcow2_pre_write_overlap_check(bs, 0,
                 cluster_offset + index_in_cluster * BDRV_SECTOR_SIZE,
                 cur_nr_sectors * BDRV_SECTOR_SIZE);
         if (ret < 0) {
@@ -1751,8 +1751,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         }
         cluster_offset &= s->cluster_offset_mask;
 
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
-                cluster_offset, out_len);
+        ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
         if (ret < 0) {
             goto fail;
         }

@@ -115,15 +115,13 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
     }
 
     if (c == s->refcount_block_cache) {
-        ret = qcow2_pre_write_overlap_check(bs,
-                QCOW2_OL_DEFAULT & ~QCOW2_OL_REFCOUNT_BLOCK,
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_REFCOUNT_BLOCK,
                 c->entries[i].offset, s->cluster_size);
     } else if (c == s->l2_table_cache) {
-        ret = qcow2_pre_write_overlap_check(bs,
-                QCOW2_OL_DEFAULT & ~QCOW2_OL_ACTIVE_L2,
+        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L2,
                 c->entries[i].offset, s->cluster_size);
     } else {
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+        ret = qcow2_pre_write_overlap_check(bs, 0,
                 c->entries[i].offset, s->cluster_size);
     }
 

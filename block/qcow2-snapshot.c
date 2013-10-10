@@ -192,8 +192,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
     /* The snapshot list position has not yet been updated, so these clusters
      * must indeed be completely free */
-    ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT, offset,
-                                        snapshots_size);
+    ret = qcow2_pre_write_overlap_check(bs, 0, offset, snapshots_size);
     if (ret < 0) {
         goto fail;
     }
@@ -395,8 +394,8 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }
 
-    ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
-            sn->l1_table_offset, s->l1_size * sizeof(uint64_t));
+    ret = qcow2_pre_write_overlap_check(bs, 0, sn->l1_table_offset,
+                                        s->l1_size * sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
     }
@@ -521,9 +520,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto fail;
     }
 
-    ret = qcow2_pre_write_overlap_check(bs,
-            QCOW2_OL_DEFAULT & ~QCOW2_OL_ACTIVE_L1,
-            s->l1_table_offset, cur_l1_bytes);
+    ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
+                                        s->l1_table_offset, cur_l1_bytes);
     if (ret < 0) {
         goto fail;
     }

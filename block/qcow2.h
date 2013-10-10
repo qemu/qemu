@@ -433,9 +433,9 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
 void qcow2_process_discards(BlockDriverState *bs, int ret);
 
-int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
+int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
                                  int64_t size);
-int qcow2_pre_write_overlap_check(BlockDriverState *bs, int chk, int64_t offset,
+int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                                   int64_t size);
 
 /* qcow2-cluster.c functions */
