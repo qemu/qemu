@@ -326,11 +326,19 @@ typedef enum QCow2MetadataOverlap {
     QCOW2_OL_INACTIVE_L2    = (1 << QCOW2_OL_INACTIVE_L2_BITNR),
 } QCow2MetadataOverlap;
 
+/* Perform all overlap checks which can be done in constant time */
+#define QCOW2_OL_CONSTANT \
+    (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_REFCOUNT_TABLE | \
+     QCOW2_OL_SNAPSHOT_TABLE)
+
 /* Perform all overlap checks which don't require disk access */
 #define QCOW2_OL_CACHED \
-    (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_ACTIVE_L2 | \
-     QCOW2_OL_REFCOUNT_TABLE | QCOW2_OL_REFCOUNT_BLOCK | \
-     QCOW2_OL_SNAPSHOT_TABLE | QCOW2_OL_INACTIVE_L1)
+    (QCOW2_OL_CONSTANT | QCOW2_OL_ACTIVE_L2 | QCOW2_OL_REFCOUNT_BLOCK | \
+     QCOW2_OL_INACTIVE_L1)
+
+/* Perform all overlap checks */
+#define QCOW2_OL_ALL \
+    (QCOW2_OL_CACHED | QCOW2_OL_INACTIVE_L2)
 
 #define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
