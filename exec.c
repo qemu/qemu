@@ -1514,7 +1514,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_VGA);
     /* we remove the notdirty callback only if the code has been
        flushed */
-    if (cpu_physical_memory_is_dirty(ram_addr)) {
+    if (!cpu_physical_memory_is_clean(ram_addr)) {
         CPUArchState *env = current_cpu->env_ptr;
         tlb_set_dirty(env, env->mem_io_vaddr);
     }
@@ -1917,7 +1917,7 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 static void invalidate_and_set_dirty(hwaddr addr,
                                      hwaddr length)
 {
-    if (!cpu_physical_memory_is_dirty(addr)) {
+    if (cpu_physical_memory_is_clean(addr)) {
         /* invalidate code */
         tb_invalidate_phys_page_range(addr, addr + length, 0);
         /* set dirty bit */
@@ -2533,7 +2533,7 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
         stl_p(ptr, val);
 
         if (unlikely(in_migration)) {
-            if (!cpu_physical_memory_is_dirty(addr1)) {
+            if (cpu_physical_memory_is_clean(addr1)) {
                 /* invalidate code */
                 tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
                 /* set dirty bit */
