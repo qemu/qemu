@@ -120,7 +120,7 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi)
      * it has to be aligned to num to support multiple
      * MSI vectors. MSI-X is not affected by this.
      * The hint is used for the first IRQ, the rest should
-     * be allocated continously.
+     * be allocated continuously.
      */
     if (msi) {
         assert((num == 1) || (num == 2) || (num == 4) ||

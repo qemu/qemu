@@ -866,7 +866,7 @@ retry:
         /* in case the get_lba_status_callout fails (i.e.
          * because the device is busy or the cmd is not
          * supported) we pretend all blocks are allocated
-         * for backwards compatiblity */
+         * for backwards compatibility */
         goto out;
     }
 

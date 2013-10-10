@@ -1601,7 +1601,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
         tcg_temp_free(pc);
 
         /* Since the destination is running in PALmode, we don't really
-           need the page permissions check.  We'll see the existance of
+           need the page permissions check.  We'll see the existence of
            the page when we create the TB, and we'll flush all TBs if
            we change the PAL base register.  */
         if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
