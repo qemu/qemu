@@ -1174,13 +1174,7 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
                              0, below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
-    if (0) {
-        /*
-         * Ideally we should do that too, but that would ruin the e820
-         * reservations added by seabios before initializing fw_cfg.
-         */
-        e820_add_entry(0, below_4g_mem_size, E820_RAM);
-    }
+    e820_add_entry(0, below_4g_mem_size, E820_RAM);
     if (above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
         memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g", ram,
