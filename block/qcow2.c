@@ -631,6 +631,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
+    s->overlap_check = QCOW2_OL_CACHED;
+
     qemu_opts_del(opts);
 
     if (s->use_lazy_refcounts && s->qcow_version < 3) {

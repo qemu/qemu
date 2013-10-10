@@ -203,6 +203,8 @@ typedef struct BDRVQcowState {
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
+    int overlap_check; /* bitmask of Qcow2MetadataOverlap values */
+
     uint64_t incompatible_features;
     uint64_t compatible_features;
     uint64_t autoclear_features;
@@ -320,9 +322,6 @@ typedef enum QCow2MetadataOverlap {
     (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_ACTIVE_L2 | \
      QCOW2_OL_REFCOUNT_TABLE | QCOW2_OL_REFCOUNT_BLOCK | \
      QCOW2_OL_SNAPSHOT_TABLE | QCOW2_OL_INACTIVE_L1)
-
-/* The default checks to perform */
-#define QCOW2_OL_DEFAULT QCOW2_OL_CACHED
 
 #define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
