@@ -1749,7 +1749,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 ARMCPU *cpu_arm_init(const char *cpu_model)
 {
     ARMCPU *cpu;
-    CPUARMState *env;
     ObjectClass *oc;
 
     oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
@@ -1757,8 +1756,6 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
         return NULL;
     }
     cpu = ARM_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     /* TODO this should be set centrally, once possible */
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);

@@ -73,11 +73,8 @@ void s390x_cpu_timer(void *opaque)
 S390CPU *cpu_s390x_init(const char *cpu_model)
 {
     S390CPU *cpu;
-    CPUS390XState *env;
 
     cpu = S390_CPU(object_new(TYPE_S390_CPU));
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
