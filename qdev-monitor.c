@@ -75,26 +75,23 @@ static bool qdev_class_has_alias(DeviceClass *dc)
     return (qdev_class_get_alias(dc) != NULL);
 }
 
-static void qdev_print_class_devinfo(DeviceClass *dc)
+static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
 {
-    DeviceCategory category;
+    DeviceClass *dc;
+    bool *show_no_user = opaque;
 
-    if (!dc) {
+    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
+
+    if (!dc || (show_no_user && !*show_no_user && dc->no_user)) {
         return;
     }
 
-    error_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
+    error_printf("name \"%s\"", object_class_get_name(klass));
     if (dc->bus_type) {
         error_printf(", bus %s", dc->bus_type);
     }
     if (qdev_class_has_alias(dc)) {
         error_printf(", alias \"%s\"", qdev_class_get_alias(dc));
-    }
-    error_printf(", categories");
-    for (category = 0; category < DEVICE_CATEGORY_MAX; ++category) {
-        if (test_bit(category, dc->categories)) {
-            error_printf(" \"%s\"", qdev_category_get_name(category));
-        }
     }
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
@@ -103,15 +100,6 @@ static void qdev_print_class_devinfo(DeviceClass *dc)
         error_printf(", no-user");
     }
     error_printf("\n");
-}
-
-static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
-{
-    DeviceClass *dc;
-
-    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
-
-    qdev_print_class_devinfo(dc);
 }
 
 static int set_property(const char *name, const char *value, void *opaque)
@@ -151,21 +139,6 @@ static const char *find_typename_by_alias(const char *alias)
     return NULL;
 }
 
-static void qdev_print_category_devices(DeviceCategory category)
-{
-    DeviceClass *dc;
-    GSList *list, *curr;
-
-    list = object_class_get_list(TYPE_DEVICE, false);
-    for (curr = list; curr; curr = g_slist_next(curr)) {
-        dc = (DeviceClass *)object_class_dynamic_cast(curr->data, TYPE_DEVICE);
-        if (!dc->no_user && test_bit(category, dc->categories)) {
-            qdev_print_class_devinfo(dc);
-        }
-    }
-    g_slist_free(list);
-}
-
 int qdev_device_help(QemuOpts *opts)
 {
     const char *driver;
@@ -174,11 +147,8 @@ int qdev_device_help(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
-        DeviceCategory category;
-        for (category = 0; category < DEVICE_CATEGORY_MAX; ++category) {
-            qdev_print_category_devices(category);
-        }
-
+        bool show_no_user = false;
+        object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, &show_no_user);
         return 1;
     }
 

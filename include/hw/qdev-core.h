@@ -30,22 +30,6 @@ typedef enum DeviceCategory {
     DEVICE_CATEGORY_MAX
 } DeviceCategory;
 
-static inline const char *qdev_category_get_name(DeviceCategory category)
-{
-    static const char *category_names[DEVICE_CATEGORY_MAX] = {
-        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
-        [DEVICE_CATEGORY_USB]     = "USB",
-        [DEVICE_CATEGORY_STORAGE] = "Storage",
-        [DEVICE_CATEGORY_NETWORK] = "Network",
-        [DEVICE_CATEGORY_INPUT]   = "Input",
-        [DEVICE_CATEGORY_DISPLAY] = "Display",
-        [DEVICE_CATEGORY_SOUND]   = "Sound",
-        [DEVICE_CATEGORY_MISC]    = "Misc",
-    };
-
-    return category_names[category];
-};
-
 typedef int (*qdev_initfn)(DeviceState *dev);
 typedef int (*qdev_event)(DeviceState *dev);
 typedef void (*qdev_resetfn)(DeviceState *dev);
