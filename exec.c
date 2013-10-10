@@ -57,7 +57,7 @@
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
-static int in_migration;
+static bool in_migration;
 
 RAMList ram_list = { .blocks = QTAILQ_HEAD_INITIALIZER(ram_list.blocks) };
 
@@ -752,11 +752,9 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
     }
 }
 
-static int cpu_physical_memory_set_dirty_tracking(int enable)
+static void cpu_physical_memory_set_dirty_tracking(bool enable)
 {
-    int ret = 0;
     in_migration = enable;
-    return ret;
 }
 
 hwaddr memory_region_section_get_iotlb(CPUArchState *env,
@@ -1798,12 +1796,12 @@ static void tcg_commit(MemoryListener *listener)
 
 static void core_log_global_start(MemoryListener *listener)
 {
-    cpu_physical_memory_set_dirty_tracking(1);
+    cpu_physical_memory_set_dirty_tracking(true);
 }
 
 static void core_log_global_stop(MemoryListener *listener)
 {
-    cpu_physical_memory_set_dirty_tracking(0);
+    cpu_physical_memory_set_dirty_tracking(false);
 }
 
 static MemoryListener core_memory_listener = {
