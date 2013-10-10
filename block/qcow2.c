@@ -354,6 +354,52 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Generate discard requests when other clusters are freed",
         },
+        {
+            .name = QCOW2_OPT_OVERLAP,
+            .type = QEMU_OPT_STRING,
+            .help = "Selects which overlap checks to perform from a range of "
+                    "templates (none, constant, cached, all)",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_MAIN_HEADER,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the main qcow2 header",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_ACTIVE_L1,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the active L1 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_ACTIVE_L2,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an active L2 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_REFCOUNT_TABLE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the refcount table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_REFCOUNT_BLOCK,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into a refcount block",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the snapshot table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_INACTIVE_L1,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an inactive L1 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_INACTIVE_L2,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an inactive L2 table",
+        },
         { /* end of list */ }
     },
 };
