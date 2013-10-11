@@ -223,6 +223,6 @@ Testing: -drive file=foo:bar
 QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: Unknown protocol
 
 Testing: -drive file.filename=foo:bar
-QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open 'foo:bar': No such file or directory
+QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open file: No such file or directory
 
 *** done
