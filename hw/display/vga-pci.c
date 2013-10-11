@@ -147,7 +147,7 @@ static int pci_std_vga_initfn(PCIDevice *dev)
     VGACommonState *s = &d->vga;
 
     /* vga + console init */
-    vga_common_init(s, OBJECT(dev));
+    vga_common_init(s, OBJECT(dev), true);
     vga_init(s, OBJECT(dev), pci_address_space(dev), pci_address_space_io(dev),
              true);
 

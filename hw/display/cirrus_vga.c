@@ -2913,7 +2913,7 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
     ISACirrusVGAState *d = ISA_CIRRUS_VGA(dev);
     VGACommonState *s = &d->cirrus_vga.vga;
 
-    vga_common_init(s, OBJECT(dev));
+    vga_common_init(s, OBJECT(dev), true);
     cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));
@@ -2960,7 +2960,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      int16_t device_id = pc->device_id;
 
      /* setup VGA */
-     vga_common_init(&s->vga, OBJECT(dev));
+     vga_common_init(&s->vga, OBJECT(dev), true);
      cirrus_init_common(s, OBJECT(dev), device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
      s->vga.con = graphic_console_init(DEVICE(dev), 0, s->vga.hw_ops, &s->vga);
