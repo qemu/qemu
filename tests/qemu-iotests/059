@@ -71,6 +71,10 @@ echo "=== Testing monolithicFlat creation and opening ==="
 IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
 $QEMU_IMG info $TEST_IMG | _filter_testdir
 
+echo
+echo "=== Testing monolithicFlat with zeroed_grain ==="
+IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
