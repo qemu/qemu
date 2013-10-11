@@ -225,10 +225,16 @@ static void count_cpreg(gpointer key, gpointer opaque)
 
 static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
 {
-    uint32_t aidx = *(uint32_t *)a;
-    uint32_t bidx = *(uint32_t *)b;
+    uint64_t aidx = cpreg_to_kvm_id(*(uint32_t *)a);
+    uint64_t bidx = cpreg_to_kvm_id(*(uint32_t *)b);
 
-    return aidx - bidx;
+    if (aidx > bidx) {
+        return 1;
+    }
+    if (aidx < bidx) {
+        return -1;
+    }
+    return 0;
 }
 
 static void cpreg_make_keylist(gpointer key, gpointer value, gpointer udata)
