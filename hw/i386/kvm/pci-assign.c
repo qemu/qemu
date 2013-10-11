@@ -791,26 +791,22 @@ static void assign_failed_examine(AssignedDevice *dev)
         goto fail;
     }
 
-    error_report("*** The driver '%s' is occupying your device "
-                 "%04x:%02x:%02x.%x.",
-                 ns, dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function);
-    error_report("***");
-    error_report("*** You can try the following commands to free it:");
-    error_report("***");
-    error_report("*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/"
-                 "new_id", vendor_id, device_id);
-    error_report("*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
-                 "%s/unbind",
-                 dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function, ns);
-    error_report("*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
-                 "pci-stub/bind",
-                 dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function);
-    error_report("*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub"
-                 "/remove_id", vendor_id, device_id);
-    error_report("***");
+    error_printf("*** The driver '%s' is occupying your device "
+        "%04x:%02x:%02x.%x.\n"
+        "***\n"
+        "*** You can try the following commands to free it:\n"
+        "***\n"
+        "*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/new_id\n"
+        "*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/%s/unbind\n"
+        "*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
+        "pci-stub/bind\n"
+        "*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/remove_id\n"
+        "***",
+        ns, dev->host.domain, dev->host.bus, dev->host.slot,
+        dev->host.function, vendor_id, device_id,
+        dev->host.domain, dev->host.bus, dev->host.slot, dev->host.function,
+        ns, dev->host.domain, dev->host.bus, dev->host.slot,
+        dev->host.function, vendor_id, device_id);
 
     return;
 
