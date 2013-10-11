@@ -1,24 +1,24 @@
 QA output created by 059
-=== Testing invalid granularity ===
 
+=== Testing invalid granularity ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 invalid granularity, image may be corrupt
 qemu-io: can't open device TEST_DIR/t.vmdk: Could not open 'TEST_DIR/t.vmdk': Wrong medium type
 no file open, try 'help open'
-=== Testing too big L2 table size ===
 
+=== Testing too big L2 table size ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 L2 table size too big
 qemu-io: can't open device TEST_DIR/t.vmdk: Could not open 'TEST_DIR/t.vmdk': Wrong medium type
 no file open, try 'help open'
-=== Testing too big L1 table size ===
 
+=== Testing too big L1 table size ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 L1 size too big
 qemu-io: can't open device TEST_DIR/t.vmdk: Could not open 'TEST_DIR/t.vmdk': Wrong medium type
 no file open, try 'help open'
-=== Testing monolithicFlat creation and opening ===
 
+=== Testing monolithicFlat creation and opening ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
 image: TEST_DIR/t.vmdk
 file format: vmdk
