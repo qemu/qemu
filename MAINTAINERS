@@ -793,11 +793,6 @@ M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
 F: tcg/arm/
 
-HPPA target
-M: Richard Henderson <rth@twiddle.net>
-S: Maintained
-F: tcg/hppa/
-
 i386 target
 M: qemu-devel@nongnu.org
 S: Maintained

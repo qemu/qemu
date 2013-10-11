@@ -8261,10 +8261,6 @@ void optimize_flags_init(void)
     cpu_regs[R_EDI] = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUX86State, regs[R_EDI]), "edi");
 #endif
-
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for

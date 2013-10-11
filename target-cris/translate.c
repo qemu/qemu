@@ -3480,9 +3480,6 @@ void cris_initialize_tcg(void)
 {
     int i;
 
-#define GEN_HELPER 2
-#include "helper.h"
-
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cc_x = tcg_global_mem_new(TCG_AREG0,
                               offsetof(CPUCRISState, cc_x), "cc_x");

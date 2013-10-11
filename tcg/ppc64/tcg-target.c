@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-ldst.h"
+
 #define TCG_CT_CONST_S16  0x100
 #define TCG_CT_CONST_U16  0x200
 #define TCG_CT_CONST_S32  0x400
@@ -931,15 +933,8 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, int opc,
                                 int data_reg, int addr_reg, int mem_index,
                                 uint8_t *raddr, uint8_t *label_ptr)
 {
-    int idx;
-    TCGLabelQemuLdst *label;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
 
-    if (s->nb_qemu_ldst_labels >= TCG_MAX_QEMU_LDST) {
-        tcg_abort();
-    }
-
-    idx = s->nb_qemu_ldst_labels++;
-    label = (TCGLabelQemuLdst *)&s->qemu_ldst_labels[idx];
     label->is_ld = is_ld;
     label->opc = opc;
     label->datalo_reg = data_reg;
@@ -997,21 +992,6 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_call(s, (tcg_target_long)qemu_st_helpers[opc], 1);
 
     tcg_out_b(s, 0, (uintptr_t)lb->raddr);
-}
-
-void tcg_out_tb_finalize(TCGContext *s)
-{
-    int i, n = s->nb_qemu_ldst_labels;
-
-    /* qemu_ld/st slow paths */
-    for (i = 0; i < n; i++) {
-        TCGLabelQemuLdst *label = &s->qemu_ldst_labels[i];
-        if (label->is_ld) {
-            tcg_out_qemu_ld_slow_path(s, label);
-        } else {
-            tcg_out_qemu_st_slow_path(s, label);
-        }
-    }
 }
 #endif /* SOFTMMU */
 

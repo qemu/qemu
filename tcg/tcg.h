@@ -197,6 +197,60 @@ typedef enum TCGType {
 #endif
 } TCGType;
 
+/* Constants for qemu_ld and qemu_st for the Memory Operation field.  */
+typedef enum TCGMemOp {
+    MO_8     = 0,
+    MO_16    = 1,
+    MO_32    = 2,
+    MO_64    = 3,
+    MO_SIZE  = 3,   /* Mask for the above.  */
+
+    MO_SIGN  = 4,   /* Sign-extended, otherwise zero-extended.  */
+
+    MO_BSWAP = 8,   /* Host reverse endian.  */
+#ifdef HOST_WORDS_BIGENDIAN
+    MO_LE    = MO_BSWAP,
+    MO_BE    = 0,
+#else
+    MO_LE    = 0,
+    MO_BE    = MO_BSWAP,
+#endif
+#ifdef TARGET_WORDS_BIGENDIAN
+    MO_TE    = MO_BE,
+#else
+    MO_TE    = MO_LE,
+#endif
+
+    /* Combinations of the above, for ease of use.  */
+    MO_UB    = MO_8,
+    MO_UW    = MO_16,
+    MO_UL    = MO_32,
+    MO_SB    = MO_SIGN | MO_8,
+    MO_SW    = MO_SIGN | MO_16,
+    MO_SL    = MO_SIGN | MO_32,
+    MO_Q     = MO_64,
+
+    MO_LEUW  = MO_LE | MO_UW,
+    MO_LEUL  = MO_LE | MO_UL,
+    MO_LESW  = MO_LE | MO_SW,
+    MO_LESL  = MO_LE | MO_SL,
+    MO_LEQ   = MO_LE | MO_Q,
+
+    MO_BEUW  = MO_BE | MO_UW,
+    MO_BEUL  = MO_BE | MO_UL,
+    MO_BESW  = MO_BE | MO_SW,
+    MO_BESL  = MO_BE | MO_SL,
+    MO_BEQ   = MO_BE | MO_Q,
+
+    MO_TEUW  = MO_TE | MO_UW,
+    MO_TEUL  = MO_TE | MO_UL,
+    MO_TESW  = MO_TE | MO_SW,
+    MO_TESL  = MO_TE | MO_SL,
+    MO_TEQ   = MO_TE | MO_Q,
+
+    MO_SSIZE = MO_SIZE | MO_SIGN,
+} TCGMemOp;
+
 typedef tcg_target_ulong TCGArg;
 
 /* Define a type and accessor macros for variables.  Using a struct is
@@ -210,24 +264,6 @@ typedef tcg_target_ulong TCGArg;
    and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
    are aliases for target_ulong and host pointer sized values respectively.
  */
-
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* Macros/structures for qemu_ld/st IR code optimization:
-   TCG_MAX_HELPER_LABELS is defined as same as OPC_BUF_SIZE in exec-all.h. */
-#define TCG_MAX_QEMU_LDST       640
-
-typedef struct TCGLabelQemuLdst {
-    int is_ld:1;            /* qemu_ld: 1, qemu_st: 0 */
-    int opc:4;
-    int addrlo_reg;         /* reg index for low word of guest virtual addr */
-    int addrhi_reg;         /* reg index for high word of guest virtual addr */
-    int datalo_reg;         /* reg index for low word to be loaded or stored */
-    int datahi_reg;         /* reg index for high word to be loaded or stored */
-    int mem_index;          /* soft MMU memory index */
-    uint8_t *raddr;         /* gen code addr of the next IR of qemu_ld/st IR */
-    uint8_t *label_ptr[2];  /* label pointers to be updated */
-} TCGLabelQemuLdst;
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
 #define DEBUG_TCGV 1
@@ -405,11 +441,6 @@ typedef struct TCGTemp {
     const char *name;
 } TCGTemp;
 
-typedef struct TCGHelperInfo {
-    uintptr_t func;
-    const char *name;
-} TCGHelperInfo;
-
 typedef struct TCGContext TCGContext;
 
 struct TCGContext {
@@ -447,10 +478,7 @@ struct TCGContext {
     uint8_t *code_ptr;
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
-    TCGHelperInfo *helpers;
-    int nb_helpers;
-    int allocated_helpers;
-    int helpers_sorted;
+    GHashTable *helpers;
 
 #ifdef CONFIG_PROFILER
     /* profiling info */
@@ -496,12 +524,8 @@ struct TCGContext {
 
     TBContext tb_ctx;
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-    /* labels info for qemu_ld/st IRs
-       The labels help to generate TLB miss case codes at the end of TB */
-    TCGLabelQemuLdst *qemu_ldst_labels;
-    int nb_qemu_ldst_labels;
-#endif
+    /* The TCGBackendData structure is private to tcg-target.c.  */
+    struct TCGBackendData *be;
 };
 
 extern TCGContext tcg_ctx;
@@ -680,8 +704,6 @@ TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
                      TCGOpDef *tcg_op_def);
 
 /* only used for debugging purposes */
-void tcg_register_helper(void *func, const char *name);
-const char *tcg_helper_get_name(TCGContext *s, void *func);
 void tcg_dump_ops(TCGContext *s);
 
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
@@ -745,11 +767,6 @@ TCGv_i64 tcg_const_local_i64(int64_t val);
 
 void tcg_register_jit(void *buf, size_t buf_size);
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* Generate TB finalization at the end of block */
-void tcg_out_tb_finalize(TCGContext *s);
-#endif
-
 /*
  * Memory helpers that will be used by TCG generated code.
  */
@@ -757,29 +774,66 @@ void tcg_out_tb_finalize(TCGContext *s);
 /* Value zero-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
                                      int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-uint64_t helper_ret_ldq_mmu(CPUArchState *env, target_ulong addr,
-                            int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           int mmu_idx, uintptr_t retaddr);
 
 /* Value sign-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
                                      int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
-tcg_target_ulong helper_ret_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                     int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
+tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                                    int mmu_idx, uintptr_t retaddr);
 
 void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
                         int mmu_idx, uintptr_t retaddr);
-void helper_ret_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                        int mmu_idx, uintptr_t retaddr);
-void helper_ret_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                        int mmu_idx, uintptr_t retaddr);
-void helper_ret_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                        int mmu_idx, uintptr_t retaddr);
+void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       int mmu_idx, uintptr_t retaddr);
+void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       int mmu_idx, uintptr_t retaddr);
+
+/* Temporary aliases until backends are converted.  */
+#ifdef TARGET_WORDS_BIGENDIAN
+# define helper_ret_ldsw_mmu  helper_be_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_be_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_be_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_be_ldul_mmu
+# define helper_ret_ldq_mmu   helper_be_ldq_mmu
+# define helper_ret_stw_mmu   helper_be_stw_mmu
+# define helper_ret_stl_mmu   helper_be_stl_mmu
+# define helper_ret_stq_mmu   helper_be_stq_mmu
+#else
+# define helper_ret_ldsw_mmu  helper_le_ldsw_mmu
+# define helper_ret_lduw_mmu  helper_le_lduw_mmu
+# define helper_ret_ldsl_mmu  helper_le_ldsl_mmu
+# define helper_ret_ldul_mmu  helper_le_ldul_mmu
+# define helper_ret_ldq_mmu   helper_le_ldq_mmu
+# define helper_ret_stw_mmu   helper_le_stw_mmu
+# define helper_ret_stl_mmu   helper_le_stl_mmu
+# define helper_ret_stq_mmu   helper_le_stq_mmu
+#endif
 
 uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);

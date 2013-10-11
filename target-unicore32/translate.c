@@ -74,9 +74,6 @@ void uc32_translate_init(void)
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
                                 offsetof(CPUUniCore32State, regs[i]), regnames[i]);
     }
-
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static int num_temps;

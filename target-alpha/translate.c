@@ -140,10 +140,6 @@ void alpha_translate_init(void)
                                      offsetof(CPUAlphaState, usp), "usp");
 #endif
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     done_init = 1;
 }
 

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-ldst.h"
+
 /* The __ARM_ARCH define is provided by gcc 4.8.  Construct it otherwise.  */
 #ifndef __ARM_ARCH
 # if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) \
@@ -1243,15 +1245,8 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, int opc,
                                 int addrhi_reg, int mem_index,
                                 uint8_t *raddr, uint8_t *label_ptr)
 {
-    int idx;
-    TCGLabelQemuLdst *label;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
 
-    if (s->nb_qemu_ldst_labels >= TCG_MAX_QEMU_LDST) {
-        tcg_abort();
-    }
-
-    idx = s->nb_qemu_ldst_labels++;
-    label = (TCGLabelQemuLdst *)&s->qemu_ldst_labels[idx];
     label->is_ld = is_ld;
     label->opc = opc;
     label->datalo_reg = data_reg;
@@ -1967,22 +1962,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_abort();
     }
 }
-
-#ifdef CONFIG_SOFTMMU
-/* Generate TB finalization at the end of block.  */
-void tcg_out_tb_finalize(TCGContext *s)
-{
-    int i;
-    for (i = 0; i < s->nb_qemu_ldst_labels; i++) {
-        TCGLabelQemuLdst *label = &s->qemu_ldst_labels[i];
-        if (label->is_ld) {
-            tcg_out_qemu_ld_slow_path(s, label);
-        } else {
-            tcg_out_qemu_st_slow_path(s, label);
-        }
-    }
-}
-#endif /* SOFTMMU */
 
 static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_exit_tb, { } },

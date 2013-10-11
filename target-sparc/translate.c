@@ -5456,11 +5456,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                                 offsetof(CPUSPARCState, fpr[i]),
                                                 fregnames[i]);
         }
-
-        /* register helpers */
-
-#define GEN_HELPER 2
-#include "helper.h"
     }
 }
 

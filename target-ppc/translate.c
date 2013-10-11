@@ -175,10 +175,6 @@ void ppc_translate_init(void)
     cpu_access_type = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUPPCState, access_type), "access_type");
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     done_init = 1;
 }
 

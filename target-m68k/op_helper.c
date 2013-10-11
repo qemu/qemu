@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "helpers.h"
+#include "helper.h"
 
 #if defined(CONFIG_USER_ONLY)
 

@@ -2024,8 +2024,6 @@ void mb_tcg_init(void)
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
