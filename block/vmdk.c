@@ -772,10 +772,13 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         }
 next_line:
         /* move to next line */
-        while (*p && *p != '\n') {
+        while (*p) {
+            if (*p == '\n') {
+                p++;
+                break;
+            }
             p++;
         }
-        p++;
     }
     return 0;
 }
