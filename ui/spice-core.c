@@ -48,7 +48,6 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 int using_spice = 0;
-int spice_displays;
 
 static QemuThread me;
 
@@ -837,11 +836,28 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
 
-    if (strcmp(sin->sif->type, SPICE_INTERFACE_QXL) == 0) {
-        spice_displays++;
-    }
-
     return spice_server_add_interface(spice_server, sin);
+}
+
+static GSList *spice_consoles;
+static int display_id;
+
+bool qemu_spice_have_display_interface(QemuConsole *con)
+{
+    if (g_slist_find(spice_consoles, con)) {
+        return true;
+    }
+    return false;
+}
+
+int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con)
+{
+    if (g_slist_find(spice_consoles, con)) {
+        return -1;
+    }
+    qxlin->id = display_id++;
+    spice_consoles = g_slist_append(spice_consoles, con);
+    return qemu_spice_add_interface(&qxlin->base);
 }
 
 static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)

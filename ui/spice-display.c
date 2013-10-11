@@ -612,21 +612,38 @@ static const DisplayChangeListenerOps display_listener_ops = {
     .dpy_refresh     = display_refresh,
 };
 
-void qemu_spice_display_init(DisplayState *ds)
+static void qemu_spice_display_init_one(QemuConsole *con)
 {
     SimpleSpiceDisplay *ssd = g_new0(SimpleSpiceDisplay, 1);
 
     qemu_spice_display_init_common(ssd);
 
     ssd->qxl.base.sif = &dpy_interface.base;
-    qemu_spice_add_interface(&ssd->qxl.base);
+    qemu_spice_add_display_interface(&ssd->qxl, con);
     assert(ssd->worker);
 
     qemu_spice_create_host_memslot(ssd);
 
     ssd->dcl.ops = &display_listener_ops;
-    ssd->dcl.con = qemu_console_lookup_by_index(0);
+    ssd->dcl.con = con;
     register_displaychangelistener(&ssd->dcl);
 
     qemu_spice_create_host_primary(ssd);
+}
+
+void qemu_spice_display_init(void)
+{
+    QemuConsole *con;
+    int i;
+
+    for (i = 0;; i++) {
+        con = qemu_console_lookup_by_index(i);
+        if (!con || !qemu_console_is_graphic(con)) {
+            break;
+        }
+        if (qemu_spice_have_display_interface(con)) {
+            continue;
+        }
+        qemu_spice_display_init_one(con);
+    }
 }

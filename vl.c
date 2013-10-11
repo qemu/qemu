@@ -4315,8 +4315,8 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 #ifdef CONFIG_SPICE
-    if (using_spice && !spice_displays) {
-        qemu_spice_display_init(ds);
+    if (using_spice) {
+        qemu_spice_display_init();
     }
 #endif
 

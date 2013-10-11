@@ -2037,8 +2037,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
            qxl->vram32_size < qxl->vram_size ? "[region 4]" : "[unmapped]");
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
-    qxl->ssd.qxl.id = qxl->id;
-    if (qemu_spice_add_interface(&qxl->ssd.qxl.base) != 0) {
+    if (qemu_spice_add_display_interface(&qxl->ssd.qxl, qxl->vga.con) != 0) {
         error_report("qxl interface %d.%d not supported by spice-server",
                      SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
         return -1;
