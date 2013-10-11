@@ -66,35 +66,26 @@ void qmp_enable_command(const char *name)
     qmp_toggle_command(name, true);
 }
 
-bool qmp_command_is_enabled(const char *name)
+bool qmp_command_is_enabled(const QmpCommand *cmd)
 {
-    QmpCommand *cmd;
-
-    QTAILQ_FOREACH(cmd, &qmp_commands, node) {
-        if (strcmp(cmd->name, name) == 0) {
-            return cmd->enabled;
-        }
-    }
-
-    return false;
+    return cmd->enabled;
 }
 
-char **qmp_get_command_list(void)
+const char *qmp_command_name(const QmpCommand *cmd)
+{
+    return cmd->name;
+}
+
+bool qmp_has_success_response(const QmpCommand *cmd)
+{
+    return !(cmd->options & QCO_NO_SUCCESS_RESP);
+}
+
+void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque)
 {
     QmpCommand *cmd;
-    int count = 1;
-    char **list_head, **list;
 
     QTAILQ_FOREACH(cmd, &qmp_commands, node) {
-        count++;
+        fn(cmd, opaque);
     }
-
-    list_head = list = g_malloc0(count * sizeof(char *));
-
-    QTAILQ_FOREACH(cmd, &qmp_commands, node) {
-        *list = g_strdup(cmd->name);
-        list++;
-    }
-
-    return list_head;
 }

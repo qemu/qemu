@@ -143,10 +143,6 @@ void sh4_translate_init(void)
                                               offsetof(CPUSH4State, fregs[i]),
                                               fregnames[i]);
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     done_init = 1;
 }
 

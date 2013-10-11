@@ -1198,7 +1198,15 @@ void ahci_reset(AHCIState *s)
     int i;
 
     s->control_regs.irqstatus = 0;
-    s->control_regs.ghc = 0;
+    /* AHCI Enable (AE)
+     * The implementation of this bit is dependent upon the value of the
+     * CAP.SAM bit. If CAP.SAM is '0', then GHC.AE shall be read-write and
+     * shall have a reset value of '0'. If CAP.SAM is '1', then AE shall be
+     * read-only and shall have a reset value of '1'.
+     *
+     * We set HOST_CAP_AHCI so we must enable AHCI at reset.
+     */
+    s->control_regs.ghc = HOST_CTL_AHCI_EN;
 
     for (i = 0; i < s->ports; i++) {
         pr = &s->dev[i].port_regs;

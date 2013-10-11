@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "helpers.h"
+#include "helper.h"
 
 #if defined(CONFIG_USER_ONLY)
 

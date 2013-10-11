@@ -355,3 +355,6 @@ Snapshot table entry:
         variable:   Unique ID string for the snapshot (not null terminated)
 
         variable:   Name of the snapshot (not null terminated)
+
+        variable:   Padding to round up the snapshot table entry size to the
+                    next multiple of 8.

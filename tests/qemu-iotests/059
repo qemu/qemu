@@ -47,29 +47,33 @@ capacity_offset=16
 granularity_offset=20
 grain_table_size_offset=44
 
-echo "=== Testing invalid granularity ==="
 echo
+echo "=== Testing invalid granularity ==="
 _make_test_img 64M
 poke_file "$TEST_IMG" "$granularity_offset" "\xff\xff\xff\xff\xff\xff\xff\xff"
 { $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
-echo "=== Testing too big L2 table size ==="
 echo
+echo "=== Testing too big L2 table size ==="
 _make_test_img 64M
 poke_file "$TEST_IMG" "$grain_table_size_offset" "\xff\xff\xff\xff"
 { $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
-echo "=== Testing too big L1 table size ==="
 echo
+echo "=== Testing too big L1 table size ==="
 _make_test_img 64M
 poke_file "$TEST_IMG" "$capacity_offset" "\xff\xff\xff\xff"
 poke_file "$TEST_IMG" "$grain_table_size_offset" "\x01\x00\x00\x00"
 { $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
-echo "=== Testing monolithicFlat creation and opening ==="
 echo
+echo "=== Testing monolithicFlat creation and opening ==="
 IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
 $QEMU_IMG info $TEST_IMG | _filter_testdir
+
+echo
+echo "=== Testing monolithicFlat with zeroed_grain ==="
+IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
 
 # success, all done
 echo "*** done"

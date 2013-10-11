@@ -196,6 +196,7 @@ check-help:
 	@echo " make check-qapi-schema    Run QAPI schema tests"
 	@echo " make check-block          Run block tests"
 	@echo " make check-report.html    Generates an HTML test report"
+	@echo " make check-clean          Clean the tests"
 	@echo
 	@echo "Please note that HTML reports do not regenerate if the unit tests"
 	@echo "has not changed."
@@ -252,8 +253,10 @@ check-report.html: check-report.xml
 
 # Other tests
 
+QEMU_IOTESTS_HELPERS-$(CONFIG_LINUX) = tests/qemu-iotests/socket_scm_helper$(EXESUF)
+
 .PHONY: check-tests/qemu-iotests-quick.sh
-check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF) tests/qemu-iotests/socket_scm_helper$(EXESUF)
+check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF) $(QEMU_IOTESTS_HELPERS-y)
 	$<
 
 .PHONY: check-tests/test-qapi.py
@@ -268,12 +271,21 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 
 # Consolidated targets
 
-.PHONY: check-qapi-schema check-qtest check-unit check
+.PHONY: check-qapi-schema check-qtest check-unit check check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
+check-clean:
+	$(MAKE) -C tests/tcg clean
+	rm -rf $(check-unit-y) $(check-qtest-i386-y) $(check-qtest-x86_64-y) $(check-qtest-sparc64-y) $(check-qtest-sparc-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
+
+clean: check-clean
+
+# Build the help program automatically
+
+all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)

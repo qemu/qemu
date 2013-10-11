@@ -139,7 +139,10 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on: read-only not supported by this bus type
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: Can't use a read-only drive
+QEMU_PROG: Device initialization failed.
+QEMU_PROG: Initialization of device ide-hd failed
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -223,6 +226,6 @@ Testing: -drive file=foo:bar
 QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: Unknown protocol
 
 Testing: -drive file.filename=foo:bar
-QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open 'foo:bar': No such file or directory
+QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open file: No such file or directory
 
 *** done

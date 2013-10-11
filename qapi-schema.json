@@ -210,6 +210,34 @@
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
 ##
+# @ImageInfoSpecificQCow2:
+#
+# @compat: compatibility level
+#
+# @lazy-refcounts: #optional on or off; only valid for compat >= 1.1
+#
+# Since: 1.7
+##
+{ 'type': 'ImageInfoSpecificQCow2',
+  'data': {
+      'compat': 'str',
+      '*lazy-refcounts': 'bool'
+  } }
+
+##
+# @ImageInfoSpecific:
+#
+# A discriminated record of image format specific information structures.
+#
+# Since: 1.7
+##
+
+{ 'union': 'ImageInfoSpecific',
+  'data': {
+      'qcow2': 'ImageInfoSpecificQCow2'
+  } }
+
+##
 # @ImageInfo:
 #
 # Information about a QEMU image file
@@ -238,6 +266,9 @@
 #
 # @backing-image: #optional info of the backing image (since 1.6)
 #
+# @format-specific: #optional structure supplying additional format-specific
+# information (since 1.7)
+#
 # Since: 1.3
 #
 ##
@@ -248,7 +279,8 @@
            '*cluster-size': 'int', '*encrypted': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
-           '*backing-image': 'ImageInfo' } }
+           '*backing-image': 'ImageInfo',
+           '*format-specific': 'ImageInfoSpecific' } }
 
 ##
 # @ImageCheck:
@@ -1364,6 +1396,24 @@
 ##
 { 'enum': 'MirrorSyncMode',
   'data': ['top', 'full', 'none'] }
+
+##
+# @BlockJobType:
+#
+# Type of a block job.
+#
+# @commit: block commit job type, see "block-commit"
+#
+# @stream: block stream job type, see "block-stream"
+#
+# @mirror: drive mirror job type, see "drive-mirror"
+#
+# @backup: drive backup job type, see "drive-backup"
+#
+# Since: 1.7
+##
+{ 'enum': 'BlockJobType',
+  'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
 # @BlockJobInfo:
@@ -3902,3 +3952,239 @@
 ##
 { 'command': 'query-rx-filter', 'data': { '*name': 'str' },
   'returns': ['RxFilterInfo'] }
+
+
+##
+# @BlockdevDiscardOptions
+#
+# Determines how to handle discard requests.
+#
+# @ignore:      Ignore the request
+# @unmap:       Forward as an unmap request
+#
+# Since: 1.7
+##
+{ 'enum': 'BlockdevDiscardOptions',
+  'data': [ 'ignore', 'unmap' ] }
+
+##
+# @BlockdevAioOptions
+#
+# Selects the AIO backend to handle I/O requests
+#
+# @threads:     Use qemu's thread pool
+# @native:      Use native AIO backend (only Linux and Windows)
+#
+# Since: 1.7
+##
+{ 'enum': 'BlockdevAioOptions',
+  'data': [ 'threads', 'native' ] }
+
+##
+# @BlockdevCacheOptions
+#
+# Includes cache-related options for block devices
+#
+# @writeback:   #optional enables writeback mode for any caches (default: true)
+# @direct:      #optional enables use of O_DIRECT (bypass the host page cache;
+#               default: false)
+# @no-flush:    #optional ignore any flush requests for the device (default:
+#               false)
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevCacheOptions',
+  'data': { '*writeback': 'bool',
+            '*direct': 'bool',
+            '*no-flush': 'bool' } }
+
+##
+# @BlockdevOptionsBase
+#
+# Options that are available for all block devices, independent of the block
+# driver.
+#
+# @driver:      block driver name
+# @id:          #optional id by which the new block device can be referred to.
+#               This is a required option on the top level of blockdev-add, and
+#               currently not allowed on any other level.
+# @discard:     #optional discard-related options (default: ignore)
+# @cache:       #optional cache-related options
+# @aio:         #optional AIO backend (default: threads)
+# @rerror:      #optional how to handle read errors on the device
+#               (default: report)
+# @werror:      #optional how to handle write errors on the device
+#               (default: enospc)
+# @read-only:   #optional whether the block device should be read-only
+#               (default: false)
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsBase',
+  'data': { 'driver': 'str',
+            '*id': 'str',
+            '*discard': 'BlockdevDiscardOptions',
+            '*cache': 'BlockdevCacheOptions',
+            '*aio': 'BlockdevAioOptions',
+            '*rerror': 'BlockdevOnError',
+            '*werror': 'BlockdevOnError',
+            '*read-only': 'bool' } }
+
+##
+# @BlockdevOptionsFile
+#
+# Driver specific block device options for the file backend and similar
+# protocols.
+#
+# @filename:    path to the image file
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsFile',
+  'data': { 'filename': 'str' } }
+
+##
+# @BlockdevOptionsVVFAT
+#
+# Driver specific block device options for the vvfat protocol.
+#
+# @dir:         directory to be exported as FAT image
+# @fat-type:    #optional FAT type: 12, 16 or 32
+# @floppy:      #optional whether to export a floppy image (true) or
+#               partitioned hard disk (false; default)
+# @rw:          #optional whether to allow write operations (default: false)
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsVVFAT',
+  'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
+            '*rw': 'bool' } }
+
+##
+# @BlockdevOptionsGenericFormat
+#
+# Driver specific block device options for image format that have no option
+# besides their data source.
+#
+# @file:        reference to or definition of the data source block device
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsGenericFormat',
+  'data': { 'file': 'BlockdevRef' } }
+
+##
+# @BlockdevOptionsGenericCOWFormat
+#
+# Driver specific block device options for image format that have no option
+# besides their data source and an optional backing file.
+#
+# @backing:     #optional reference to or definition of the backing file block
+#               device (if missing, taken from the image file content). It is
+#               allowed to pass an empty string here in order to disable the
+#               default backing file.
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsGenericCOWFormat',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { '*backing': 'BlockdevRef' } }
+
+##
+# @BlockdevOptionsQcow2
+#
+# Driver specific block device options for qcow2.
+#
+# @lazy-refcounts:        #optional whether to enable the lazy refcounts
+#                         feature (default is taken from the image file)
+#
+# @pass-discard-request:  #optional whether discard requests to the qcow2
+#                         device should be forwarded to the data source
+#
+# @pass-discard-snapshot: #optional whether discard requests for the data source
+#                         should be issued when a snapshot operation (e.g.
+#                         deleting a snapshot) frees clusters in the qcow2 file
+#
+# @pass-discard-other:    #optional whether discard requests for the data source
+#                         should be issued on other occasions where a cluster
+#                         gets freed
+#
+# Since: 1.7
+##
+{ 'type': 'BlockdevOptionsQcow2',
+  'base': 'BlockdevOptionsGenericCOWFormat',
+  'data': { '*lazy-refcounts': 'bool',
+            '*pass-discard-request': 'bool',
+            '*pass-discard-snapshot': 'bool',
+            '*pass-discard-other': 'bool' } }
+
+##
+# @BlockdevOptions
+#
+# Options for creating a block device.
+#
+# Since: 1.7
+##
+{ 'union': 'BlockdevOptions',
+  'base': 'BlockdevOptionsBase',
+  'discriminator': 'driver',
+  'data': {
+      'file':       'BlockdevOptionsFile',
+      'http':       'BlockdevOptionsFile',
+      'https':      'BlockdevOptionsFile',
+      'ftp':        'BlockdevOptionsFile',
+      'ftps':       'BlockdevOptionsFile',
+      'tftp':       'BlockdevOptionsFile',
+# TODO gluster: Wait for structured options
+# TODO iscsi: Wait for structured options
+# TODO nbd: Should take InetSocketAddress for 'host'?
+# TODO rbd: Wait for structured options
+# TODO sheepdog: Wait for structured options
+# TODO ssh: Should take InetSocketAddress for 'host'?
+      'vvfat':      'BlockdevOptionsVVFAT',
+
+# TODO blkdebug: Wait for structured options
+# TODO blkverify: Wait for structured options
+
+      'bochs':      'BlockdevOptionsGenericFormat',
+      'cloop':      'BlockdevOptionsGenericFormat',
+      'cow':        'BlockdevOptionsGenericCOWFormat',
+      'dmg':        'BlockdevOptionsGenericFormat',
+      'parallels':  'BlockdevOptionsGenericFormat',
+      'qcow':       'BlockdevOptionsGenericCOWFormat',
+      'qcow2':      'BlockdevOptionsQcow2',
+      'qed':        'BlockdevOptionsGenericCOWFormat',
+      'raw':        'BlockdevOptionsGenericFormat',
+      'vdi':        'BlockdevOptionsGenericFormat',
+      'vhdx':       'BlockdevOptionsGenericFormat',
+      'vmdk':       'BlockdevOptionsGenericCOWFormat',
+      'vpc':        'BlockdevOptionsGenericFormat'
+  } }
+
+##
+# @BlockdevRef
+#
+# Reference to a block device.
+#
+# @definition:      defines a new block device inline
+# @reference:       references the ID of an existing block device. An
+#                   empty string means that no block device should be
+#                   referenced.
+#
+# Since: 1.7
+##
+{ 'union': 'BlockdevRef',
+  'discriminator': {},
+  'data': { 'definition': 'BlockdevOptions',
+            'reference': 'str' } }
+
+##
+# @blockdev-add:
+#
+# Creates a new block device.
+#
+# @options: block device options for the new device
+#
+# Since: 1.7
+##
+{ 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }

@@ -202,9 +202,9 @@ static void backup_iostatus_reset(BlockJob *job)
     bdrv_iostatus_reset(s->target);
 }
 
-static const BlockJobType backup_job_type = {
+static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
-    .job_type       = "backup",
+    .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
     .iostatus_reset = backup_iostatus_reset,
 };
@@ -370,7 +370,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    BackupBlockJob *job = block_job_create(&backup_job_type, bs, speed,
+    BackupBlockJob *job = block_job_create(&backup_job_driver, bs, speed,
                                            cb, opaque, errp);
     if (!job) {
         return;

@@ -830,6 +830,11 @@ static int blk_connect(struct XenDevice *xendev)
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
         blkdev->bs = blkdev->dinfo->bdrv;
+        if (bdrv_is_read_only(blkdev->bs) && !readonly) {
+            xen_be_printf(&blkdev->xendev, 0, "Unexpected read-only drive");
+            blkdev->bs = NULL;
+            return -1;
+        }
         /* blkdev->bs is not create by us, we get a reference
          * so we can bdrv_unref() unconditionally */
         bdrv_ref(blkdev->bs);

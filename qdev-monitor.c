@@ -75,26 +75,14 @@ static bool qdev_class_has_alias(DeviceClass *dc)
     return (qdev_class_get_alias(dc) != NULL);
 }
 
-static void qdev_print_class_devinfo(DeviceClass *dc)
+static void qdev_print_devinfo(DeviceClass *dc)
 {
-    DeviceCategory category;
-
-    if (!dc) {
-        return;
-    }
-
     error_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
         error_printf(", bus %s", dc->bus_type);
     }
     if (qdev_class_has_alias(dc)) {
         error_printf(", alias \"%s\"", qdev_class_get_alias(dc));
-    }
-    error_printf(", categories");
-    for (category = 0; category < DEVICE_CATEGORY_MAX; ++category) {
-        if (test_bit(category, dc->categories)) {
-            error_printf(" \"%s\"", qdev_category_get_name(category));
-        }
     }
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
@@ -105,13 +93,53 @@ static void qdev_print_class_devinfo(DeviceClass *dc)
     error_printf("\n");
 }
 
-static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
+static gint devinfo_cmp(gconstpointer a, gconstpointer b)
 {
-    DeviceClass *dc;
+    return strcasecmp(object_class_get_name((ObjectClass *)a),
+                      object_class_get_name((ObjectClass *)b));
+}
 
-    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
+static void qdev_print_devinfos(bool show_no_user)
+{
+    static const char *cat_name[DEVICE_CATEGORY_MAX + 1] = {
+        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
+        [DEVICE_CATEGORY_USB]     = "USB",
+        [DEVICE_CATEGORY_STORAGE] = "Storage",
+        [DEVICE_CATEGORY_NETWORK] = "Network",
+        [DEVICE_CATEGORY_INPUT]   = "Input",
+        [DEVICE_CATEGORY_DISPLAY] = "Display",
+        [DEVICE_CATEGORY_SOUND]   = "Sound",
+        [DEVICE_CATEGORY_MISC]    = "Misc",
+        [DEVICE_CATEGORY_MAX]     = "Uncategorized",
+    };
+    GSList *list, *elt;
+    int i;
+    bool cat_printed;
 
-    qdev_print_class_devinfo(dc);
+    list = g_slist_sort(object_class_get_list(TYPE_DEVICE, false),
+                        devinfo_cmp);
+
+    for (i = 0; i <= DEVICE_CATEGORY_MAX; i++) {
+        cat_printed = false;
+        for (elt = list; elt; elt = elt->next) {
+            DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                                 TYPE_DEVICE);
+            if ((i < DEVICE_CATEGORY_MAX
+                 ? !test_bit(i, dc->categories)
+                 : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
+                || (!show_no_user && dc->no_user)) {
+                continue;
+            }
+            if (!cat_printed) {
+                error_printf("%s%s devices:\n", i ? "\n" : "",
+                             cat_name[i]);
+                cat_printed = true;
+            }
+            qdev_print_devinfo(dc);
+        }
+    }
+
+    g_slist_free(list);
 }
 
 static int set_property(const char *name, const char *value, void *opaque)
@@ -151,21 +179,6 @@ static const char *find_typename_by_alias(const char *alias)
     return NULL;
 }
 
-static void qdev_print_category_devices(DeviceCategory category)
-{
-    DeviceClass *dc;
-    GSList *list, *curr;
-
-    list = object_class_get_list(TYPE_DEVICE, false);
-    for (curr = list; curr; curr = g_slist_next(curr)) {
-        dc = (DeviceClass *)object_class_dynamic_cast(curr->data, TYPE_DEVICE);
-        if (!dc->no_user && test_bit(category, dc->categories)) {
-            qdev_print_class_devinfo(dc);
-        }
-    }
-    g_slist_free(list);
-}
-
 int qdev_device_help(QemuOpts *opts)
 {
     const char *driver;
@@ -174,11 +187,7 @@ int qdev_device_help(QemuOpts *opts)
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
-        DeviceCategory category;
-        for (category = 0; category < DEVICE_CATEGORY_MAX; ++category) {
-            qdev_print_category_devices(category);
-        }
-
+        qdev_print_devinfos(false);
         return 1;
     }
 
@@ -617,7 +626,7 @@ void do_info_qtree(Monitor *mon, const QDict *qdict)
 
 void do_info_qdm(Monitor *mon, const QDict *qdict)
 {
-    object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, NULL);
+    qdev_print_devinfos(true);
 }
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)

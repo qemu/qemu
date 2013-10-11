@@ -354,8 +354,65 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Generate discard requests when other clusters are freed",
         },
+        {
+            .name = QCOW2_OPT_OVERLAP,
+            .type = QEMU_OPT_STRING,
+            .help = "Selects which overlap checks to perform from a range of "
+                    "templates (none, constant, cached, all)",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_MAIN_HEADER,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the main qcow2 header",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_ACTIVE_L1,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the active L1 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_ACTIVE_L2,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an active L2 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_REFCOUNT_TABLE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the refcount table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_REFCOUNT_BLOCK,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into a refcount block",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into the snapshot table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_INACTIVE_L1,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an inactive L1 table",
+        },
+        {
+            .name = QCOW2_OPT_OVERLAP_INACTIVE_L2,
+            .type = QEMU_OPT_BOOL,
+            .help = "Check for unintended writes into an inactive L2 table",
+        },
         { /* end of list */ }
     },
+};
+
+static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
+    [QCOW2_OL_MAIN_HEADER_BITNR]    = QCOW2_OPT_OVERLAP_MAIN_HEADER,
+    [QCOW2_OL_ACTIVE_L1_BITNR]      = QCOW2_OPT_OVERLAP_ACTIVE_L1,
+    [QCOW2_OL_ACTIVE_L2_BITNR]      = QCOW2_OPT_OVERLAP_ACTIVE_L2,
+    [QCOW2_OL_REFCOUNT_TABLE_BITNR] = QCOW2_OPT_OVERLAP_REFCOUNT_TABLE,
+    [QCOW2_OL_REFCOUNT_BLOCK_BITNR] = QCOW2_OPT_OVERLAP_REFCOUNT_BLOCK,
+    [QCOW2_OL_SNAPSHOT_TABLE_BITNR] = QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE,
+    [QCOW2_OL_INACTIVE_L1_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L1,
+    [QCOW2_OL_INACTIVE_L2_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L2,
 };
 
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
@@ -368,6 +425,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
+    const char *opt_overlap_check;
+    int overlap_check_template = 0;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -630,6 +689,33 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
     s->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
+
+    opt_overlap_check = qemu_opt_get(opts, "overlap-check") ?: "cached";
+    if (!strcmp(opt_overlap_check, "none")) {
+        overlap_check_template = 0;
+    } else if (!strcmp(opt_overlap_check, "constant")) {
+        overlap_check_template = QCOW2_OL_CONSTANT;
+    } else if (!strcmp(opt_overlap_check, "cached")) {
+        overlap_check_template = QCOW2_OL_CACHED;
+    } else if (!strcmp(opt_overlap_check, "all")) {
+        overlap_check_template = QCOW2_OL_ALL;
+    } else {
+        error_setg(errp, "Unsupported value '%s' for qcow2 option "
+                   "'overlap-check'. Allowed are either of the following: "
+                   "none, constant, cached, all", opt_overlap_check);
+        qemu_opts_del(opts);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    s->overlap_check = 0;
+    for (i = 0; i < QCOW2_OL_MAX_BITNR; i++) {
+        /* overlap-check defines a template bitmask, but every flag may be
+         * overwritten through the associated boolean option */
+        s->overlap_check |=
+            qemu_opt_get_bool(opts, overlap_bool_option_names[i],
+                              overlap_check_template & (1 << i)) << i;
+    }
 
     qemu_opts_del(opts);
 
@@ -965,7 +1051,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
+        ret = qcow2_pre_write_overlap_check(bs, 0,
                 cluster_offset + index_in_cluster * BDRV_SECTOR_SIZE,
                 cur_nr_sectors * BDRV_SECTOR_SIZE);
         if (ret < 0) {
@@ -1738,14 +1824,6 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
-                sector_num * BDRV_SECTOR_SIZE,
-                s->cluster_sectors * BDRV_SECTOR_SIZE);
-        if (ret < 0) {
-            goto fail;
-        }
-
         ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
         if (ret < 0) {
             goto fail;
@@ -1759,8 +1837,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         }
         cluster_offset &= s->cluster_offset_mask;
 
-        ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_DEFAULT,
-                cluster_offset, out_len);
+        ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
         if (ret < 0) {
             goto fail;
         }
@@ -1808,6 +1885,33 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     bdi->cluster_size = s->cluster_size;
     bdi->vm_state_offset = qcow2_vm_state_offset(s);
     return 0;
+}
+
+static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    ImageInfoSpecific *spec_info = g_new(ImageInfoSpecific, 1);
+
+    *spec_info = (ImageInfoSpecific){
+        .kind  = IMAGE_INFO_SPECIFIC_KIND_QCOW2,
+        {
+            .qcow2 = g_new(ImageInfoSpecificQCow2, 1),
+        },
+    };
+    if (s->qcow_version == 2) {
+        *spec_info->qcow2 = (ImageInfoSpecificQCow2){
+            .compat = g_strdup("0.10"),
+        };
+    } else if (s->qcow_version == 3) {
+        *spec_info->qcow2 = (ImageInfoSpecificQCow2){
+            .compat             = g_strdup("1.1"),
+            .lazy_refcounts     = s->compatible_features &
+                                  QCOW2_COMPAT_LAZY_REFCOUNTS,
+            .has_lazy_refcounts = true,
+        };
+    }
+
+    return spec_info;
 }
 
 #if 0
@@ -1888,7 +1992,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version)
          * support anything different than 4 anyway, there is no point in doing
          * so right now; however, we should error out (if qemu supports this in
          * the future and this code has not been adapted) */
-        error_report("qcow2_downgrade: Image refcount orders other than 4 are"
+        error_report("qcow2_downgrade: Image refcount orders other than 4 are "
                      "currently not supported.");
         return -ENOTSUP;
     }
@@ -2130,6 +2234,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_list     = qcow2_snapshot_list,
     .bdrv_snapshot_load_tmp     = qcow2_snapshot_load_tmp,
     .bdrv_get_info      = qcow2_get_info,
+    .bdrv_get_specific_info = qcow2_get_specific_info,
 
     .bdrv_save_vmstate    = qcow2_save_vmstate,
     .bdrv_load_vmstate    = qcow2_load_vmstate,

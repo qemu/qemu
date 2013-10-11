@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 /*
  * Register definitions
  */

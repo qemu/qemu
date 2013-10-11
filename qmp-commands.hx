@@ -3240,3 +3240,58 @@ Example:
    }
 
 EQMP
+
+    {
+        .name       = "blockdev-add",
+        .args_type  = "options:q",
+        .mhandler.cmd_new = qmp_marshal_input_blockdev_add,
+    },
+
+SQMP
+blockdev-add
+------------
+
+Add a block device.
+
+Arguments:
+
+- "options": block driver options
+
+Example (1):
+
+-> { "execute": "blockdev-add",
+    "arguments": { "options" : { "driver": "qcow2",
+                                 "file": { "driver": "file",
+                                           "filename": "test.qcow2" } } } }
+<- { "return": {} }
+
+Example (2):
+
+-> { "execute": "blockdev-add",
+     "arguments": {
+         "options": {
+           "driver": "qcow2",
+           "id": "my_disk",
+           "discard": "unmap",
+           "cache": {
+               "direct": true,
+               "writeback": true
+           },
+           "file": {
+               "driver": "file",
+               "filename": "/tmp/test.qcow2"
+           },
+           "backing": {
+               "driver": "raw",
+               "file": {
+                   "driver": "file",
+                   "filename": "/dev/fdset/4"
+               }
+           }
+         }
+       }
+     }
+
+<- { "return": {} }
+
+EQMP

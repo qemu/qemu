@@ -28,16 +28,16 @@
 #include "block/block.h"
 
 /**
- * BlockJobType:
+ * BlockJobDriver:
  *
- * A class type for block job objects.
+ * A class type for block job driver.
  */
-typedef struct BlockJobType {
+typedef struct BlockJobDriver {
     /** Derived BlockJob struct size */
     size_t instance_size;
 
     /** String describing the operation, part of query-block-jobs QMP API */
-    const char *job_type;
+    BlockJobType job_type;
 
     /** Optional callback for job types that support setting a speed limit */
     void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
@@ -50,7 +50,7 @@ typedef struct BlockJobType {
      * manually.
      */
     void (*complete)(BlockJob *job, Error **errp);
-} BlockJobType;
+} BlockJobDriver;
 
 /**
  * BlockJob:
@@ -59,7 +59,7 @@ typedef struct BlockJobType {
  */
 struct BlockJob {
     /** The job type, including the job vtable.  */
-    const BlockJobType *job_type;
+    const BlockJobDriver *driver;
 
     /** The block device on which the job is operating.  */
     BlockDriverState *bs;
@@ -128,7 +128,7 @@ struct BlockJob {
  * This function is not part of the public job interface; it should be
  * called from a wrapper that is specific to the job type.
  */
-void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
+void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,
                        void *opaque, Error **errp);
 

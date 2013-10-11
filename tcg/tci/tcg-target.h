@@ -120,6 +120,8 @@
 #define TCG_TARGET_HAS_mulsh_i64        0
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
+#define TCG_TARGET_HAS_new_ldst         0
+
 /* Number of registers available.
    For 32 bit hosts, we need more than 8 registers (call arguments). */
 /* #define TCG_TARGET_NB_REGS 8 */
