@@ -844,21 +844,21 @@ Stable branches
 ---------------
 Stable 1.0
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-1.0.git
+T: git git://git.qemu-project.org/qemu-stable-1.0.git
 S: Orphan
 
 Stable 0.15
 L: qemu-stable@nongnu.org
 M: Andreas Färber <afaerber@suse.de>
-T: git git://git.qemu.org/qemu-stable-0.15.git
+T: git git://git.qemu-project.org/qemu-stable-0.15.git
 S: Supported
 
 Stable 0.14
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-0.14.git
+T: git git://git.qemu-project.org/qemu-stable-0.14.git
 S: Orphan
 
 Stable 0.10
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-0.10.git
+T: git git://git.qemu-project.org/qemu-stable-0.10.git
 S: Orphan
