@@ -1,0 +1,14 @@
+QA output created by 064
+
+=== Verify pattern 0xa5, 0 - 33MB ===
+read 34603008/34603008 bytes at offset 0
+33 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Verify pattern 0x96, 33M - 66M ===
+read 34603008/34603008 bytes at offset 34603008
+33 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Verify pattern 0x00, 66M - 1024M ===
+read 1004535808/1004535808 bytes at offset 69206016
+958 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

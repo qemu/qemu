@@ -769,13 +769,22 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
-        error_setg(errp, "Driver '%s' is not whitelisted", drv->format_name);
+        error_setg(errp,
+                   !bs->read_only && bdrv_is_whitelisted(drv, true)
+                        ? "Driver '%s' can only be used for read-only devices"
+                        : "Driver '%s' is not whitelisted",
+                   drv->format_name);
         return -ENOTSUP;
     }
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
-    if (!bs->read_only && (flags & BDRV_O_COPY_ON_READ)) {
-        bdrv_enable_copy_on_read(bs);
+    if (flags & BDRV_O_COPY_ON_READ) {
+        if (!bs->read_only) {
+            bdrv_enable_copy_on_read(bs);
+        } else {
+            error_setg(errp, "Can't use copy-on-read on read-only device");
+            return -EINVAL;
+        }
     }
 
     if (filename != NULL) {
@@ -881,7 +890,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     /* Find the right block driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
-        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
+        drv = bdrv_find_format(drvname);
         if (!drv) {
             error_setg(errp, "Unknown driver '%s'", drvname);
         }
@@ -1123,7 +1132,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     /* Find the right image format driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
-        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
+        drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
     }
 
@@ -3147,6 +3156,12 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         return ret;
     }
 
+    if (ret & BDRV_BLOCK_RAW) {
+        assert(ret & BDRV_BLOCK_OFFSET_VALID);
+        return bdrv_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
+                                     *pnum, pnum);
+    }
+
     if (!(ret & BDRV_BLOCK_DATA)) {
         if (bdrv_has_zero_init(bs)) {
             ret |= BDRV_BLOCK_ZERO;
@@ -3320,6 +3335,15 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
         return -ENOTSUP;
     memset(bdi, 0, sizeof(*bdi));
     return drv->bdrv_get_info(bs, bdi);
+}
+
+ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (drv && drv->bdrv_get_specific_info) {
+        return drv->bdrv_get_specific_info(bs);
+    }
+    return NULL;
 }
 
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
@@ -4631,4 +4655,23 @@ int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
         return -ENOTSUP;
     }
     return bs->drv->bdrv_amend_options(bs, options);
+}
+
+ExtSnapshotPerm bdrv_check_ext_snapshot(BlockDriverState *bs)
+{
+    if (bs->drv->bdrv_check_ext_snapshot) {
+        return bs->drv->bdrv_check_ext_snapshot(bs);
+    }
+
+    if (bs->file && bs->file->drv && bs->file->drv->bdrv_check_ext_snapshot) {
+        return bs->file->drv->bdrv_check_ext_snapshot(bs);
+    }
+
+    /* external snapshots are allowed by default */
+    return EXT_SNAPSHOT_ALLOWED;
+}
+
+ExtSnapshotPerm bdrv_check_ext_snapshot_forbidden(BlockDriverState *bs)
+{
+    return EXT_SNAPSHOT_FORBIDDEN;
 }

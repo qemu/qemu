@@ -834,6 +834,12 @@ const char *qemu_opts_id(QemuOpts *opts)
     return opts->id;
 }
 
+/* The id string will be g_free()d by qemu_opts_del */
+void qemu_opts_set_id(QemuOpts *opts, char *id)
+{
+    opts->id = id;
+}
+
 void qemu_opts_del(QemuOpts *opts)
 {
     QemuOpt *opt;

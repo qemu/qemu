@@ -63,6 +63,15 @@
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
 #define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
 #define QCOW2_OPT_DISCARD_OTHER "pass-discard-other"
+#define QCOW2_OPT_OVERLAP "overlap-check"
+#define QCOW2_OPT_OVERLAP_MAIN_HEADER "overlap-check.main-header"
+#define QCOW2_OPT_OVERLAP_ACTIVE_L1 "overlap-check.active-l1"
+#define QCOW2_OPT_OVERLAP_ACTIVE_L2 "overlap-check.active-l2"
+#define QCOW2_OPT_OVERLAP_REFCOUNT_TABLE "overlap-check.refcount-table"
+#define QCOW2_OPT_OVERLAP_REFCOUNT_BLOCK "overlap-check.refcount-block"
+#define QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE "overlap-check.snapshot-table"
+#define QCOW2_OPT_OVERLAP_INACTIVE_L1 "overlap-check.inactive-l1"
+#define QCOW2_OPT_OVERLAP_INACTIVE_L2 "overlap-check.inactive-l2"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -203,6 +212,8 @@ typedef struct BDRVQcowState {
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
+    int overlap_check; /* bitmask of Qcow2MetadataOverlap values */
+
     uint64_t incompatible_features;
     uint64_t compatible_features;
     uint64_t autoclear_features;
@@ -315,14 +326,19 @@ typedef enum QCow2MetadataOverlap {
     QCOW2_OL_INACTIVE_L2    = (1 << QCOW2_OL_INACTIVE_L2_BITNR),
 } QCow2MetadataOverlap;
 
+/* Perform all overlap checks which can be done in constant time */
+#define QCOW2_OL_CONSTANT \
+    (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_REFCOUNT_TABLE | \
+     QCOW2_OL_SNAPSHOT_TABLE)
+
 /* Perform all overlap checks which don't require disk access */
 #define QCOW2_OL_CACHED \
-    (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_ACTIVE_L2 | \
-     QCOW2_OL_REFCOUNT_TABLE | QCOW2_OL_REFCOUNT_BLOCK | \
-     QCOW2_OL_SNAPSHOT_TABLE | QCOW2_OL_INACTIVE_L1)
+    (QCOW2_OL_CONSTANT | QCOW2_OL_ACTIVE_L2 | QCOW2_OL_REFCOUNT_BLOCK | \
+     QCOW2_OL_INACTIVE_L1)
 
-/* The default checks to perform */
-#define QCOW2_OL_DEFAULT QCOW2_OL_CACHED
+/* Perform all overlap checks */
+#define QCOW2_OL_ALL \
+    (QCOW2_OL_CACHED | QCOW2_OL_INACTIVE_L2)
 
 #define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
@@ -433,9 +449,9 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
 void qcow2_process_discards(BlockDriverState *bs, int ret);
 
-int qcow2_check_metadata_overlap(BlockDriverState *bs, int chk, int64_t offset,
+int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
                                  int64_t size);
-int qcow2_pre_write_overlap_check(BlockDriverState *bs, int chk, int64_t offset,
+int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                                   int64_t size);
 
 /* qcow2-cluster.c functions */

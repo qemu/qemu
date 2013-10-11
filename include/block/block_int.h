@@ -67,6 +67,12 @@ typedef struct BdrvTrackedRequest {
 struct BlockDriver {
     const char *format_name;
     int instance_size;
+
+    /* if not defined external snapshots are allowed
+     * future block filters will query their children to build the response
+     */
+    ExtSnapshotPerm (*bdrv_check_ext_snapshot)(BlockDriverState *bs);
+
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
 
@@ -168,6 +174,7 @@ struct BlockDriver {
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
                                   const char *snapshot_name);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+    ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
     int (*bdrv_save_vmstate)(BlockDriverState *bs, QEMUIOVector *qiov,
                              int64_t pos);

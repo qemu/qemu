@@ -197,12 +197,30 @@ _check_test_img()
 
 _img_info()
 {
+    discard=0
+    regex_json_spec_start='^ *"format-specific": \{'
     $QEMU_IMG info "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e "/^disk size:/ D" \
-            -e "/actual-size/ D"
+            -e "/actual-size/ D" | \
+        while IFS='' read line; do
+            if [[ $line == "Format specific information:" ]]; then
+                discard=1
+            elif [[ $line =~ $regex_json_spec_start ]]; then
+                discard=2
+                regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+            fi
+            if [[ $discard == 0 ]]; then
+                echo "$line"
+            elif [[ $discard == 1 && ! $line ]]; then
+                echo
+                discard=0
+            elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+                discard=0
+            fi
+        done
 }
 
 _get_pids_by_name()
@@ -321,7 +339,7 @@ _fail()
 _supported_fmt()
 {
     for f; do
-        if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
+        if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
             return
         fi
     done

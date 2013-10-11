@@ -1,0 +1,133 @@
+#!/bin/bash
+#
+# Test automatic deletion of BDSes created by -drive/drive_add
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp
+}
+
+size=128M
+
+_make_test_img $size
+
+echo
+echo === -drive/-device and device_del ===
+echo
+
+run_qemu -drive file=$TEST_IMG,format=$IMGFMT,if=none,id=disk -device virtio-blk-pci,drive=disk,id=virtio0 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "query-block" }
+{ "execute": "device_del", "arguments": { "id": "virtio0" } }
+{ "execute": "system_reset" }
+{ "execute": "query-block" }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === -drive/device_add and device_del ===
+echo
+
+run_qemu -drive file=$TEST_IMG,format=$IMGFMT,if=none,id=disk <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "query-block" }
+{ "execute": "device_add",
+   "arguments": { "driver": "virtio-blk-pci", "drive": "disk",
+                  "id": "virtio0" } }
+{ "execute": "device_del", "arguments": { "id": "virtio0" } }
+{ "execute": "system_reset" }
+{ "execute": "query-block" }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === drive_add/device_add and device_del ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "human-monitor-command",
+  "arguments": { "command-line": "drive_add 0 file=$TEST_IMG,format=$IMGFMT,if=none,id=disk" } }
+{ "execute": "query-block" }
+{ "execute": "device_add",
+   "arguments": { "driver": "virtio-blk-pci", "drive": "disk",
+                  "id": "virtio0" } }
+{ "execute": "device_del", "arguments": { "id": "virtio0" } }
+{ "execute": "system_reset" }
+{ "execute": "query-block" }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === blockdev_add/device_add and device_del ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "driver": "$IMGFMT",
+        "id": "disk",
+        "file": {
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+      }
+    }
+  }
+{ "execute": "query-block" }
+{ "execute": "device_add",
+   "arguments": { "driver": "virtio-blk-pci", "drive": "disk",
+                  "id": "virtio0" } }
+{ "execute": "device_del", "arguments": { "id": "virtio0" } }
+{ "execute": "system_reset" }
+{ "execute": "query-block" }
+{ "execute": "quit" }
+EOF
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

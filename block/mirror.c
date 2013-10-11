@@ -525,9 +525,9 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_resume(job);
 }
 
-static const BlockJobType mirror_job_type = {
+static const BlockJobDriver mirror_job_driver = {
     .instance_size = sizeof(MirrorBlockJob),
-    .job_type      = "mirror",
+    .job_type      = BLOCK_JOB_TYPE_MIRROR,
     .set_speed     = mirror_set_speed,
     .iostatus_reset= mirror_iostatus_reset,
     .complete      = mirror_complete,
@@ -563,7 +563,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    s = block_job_create(&mirror_job_type, bs, speed, cb, opaque, errp);
+    s = block_job_create(&mirror_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
