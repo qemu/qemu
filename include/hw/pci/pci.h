@@ -387,6 +387,20 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);
+void pci_for_each_bus_depth_first(PCIBus *bus,
+                                  void *(*begin)(PCIBus *bus, void *parent_state),
+                                  void (*end)(PCIBus *bus, void *state),
+                                  void *parent_state);
+
+/* Use this wrapper when specific scan order is not required. */
+static inline
+void pci_for_each_bus(PCIBus *bus,
+                      void (*fn)(PCIBus *bus, void *opaque),
+                      void *opaque)
+{
+    pci_for_each_bus_depth_first(bus, NULL, fn, opaque);
+}
+
 PCIBus *pci_find_primary_bus(void);
 PCIBus *pci_device_root_bus(const PCIDevice *d);
 const char *pci_root_bus_path(PCIDevice *dev);

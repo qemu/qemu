@@ -1704,6 +1704,34 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     return NULL;
 }
 
+void pci_for_each_bus_depth_first(PCIBus *bus,
+                                  void *(*begin)(PCIBus *bus, void *parent_state),
+                                  void (*end)(PCIBus *bus, void *state),
+                                  void *parent_state)
+{
+    PCIBus *sec;
+    void *state;
+
+    if (!bus) {
+        return;
+    }
+
+    if (begin) {
+        state = begin(bus, parent_state);
+    } else {
+        state = parent_state;
+    }
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        pci_for_each_bus_depth_first(sec, begin, end, state);
+    }
+
+    if (end) {
+        end(bus, state);
+    }
+}
+
+
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {
     bus = pci_find_bus_nr(bus, bus_num);
