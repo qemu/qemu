@@ -134,32 +134,28 @@ DefinitionBlock (
             B0EJ, 32,
         }
 
+        OperationRegion(BNMR, SystemIO, 0xae10, 0x04)
+        Field(BNMR, DWordAcc, NoLock, WriteAsZeros) {
+            BNUM, 32,
+        }
+
+        /* Lock to protect access to fields above. */
+        Mutex(BLCK, 0)
+
         /* Methods called by bulk generated PCI devices below */
 
         /* Methods called by hotplug devices */
-        Method(PCEJ, 1, NotSerialized) {
+        Method(PCEJ, 2, NotSerialized) {
             // _EJ0 method - eject callback
-            Store(ShiftLeft(1, Arg0), B0EJ)
+            Acquire(BLCK, 0xFFFF)
+            Store(Arg0, BNUM)
+            Store(ShiftLeft(1, Arg1), B0EJ)
+            Release(BLCK)
             Return (0x0)
         }
 
         /* Hotplug notification method supplied by SSDT */
         External(\_SB.PCI0.PCNT, MethodObj)
-
-        /* PCI hotplug notify method */
-        Method(PCNF, 0) {
-            // Local0 = iterator
-            Store(Zero, Local0)
-            While (LLess(Local0, 31)) {
-                Increment(Local0)
-                If (And(PCIU, ShiftLeft(1, Local0))) {
-                    PCNT(Local0, 1)
-                }
-                If (And(PCID, ShiftLeft(1, Local0))) {
-                    PCNT(Local0, 3)
-                }
-            }
-        }
     }
 
 
@@ -308,7 +304,9 @@ DefinitionBlock (
         }
         Method(_E01) {
             // PCI hotplug event
-            \_SB.PCI0.PCNF()
+            Acquire(\_SB.PCI0.BLCK, 0xFFFF)
+            \_SB.PCI0.PCNT()
+            Release(\_SB.PCI0.BLCK)
         }
         Method(_E02) {
             // CPU hotplug event
