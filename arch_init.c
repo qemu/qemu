@@ -48,6 +48,7 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "exec/cpu-all.h"
+#include "exec/ram_addr.h"
 #include "hw/acpi/acpi.h"
 
 #ifdef DEBUG_ARCH_INIT
@@ -400,9 +401,12 @@ static void migration_bitmap_sync(void)
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (memory_region_test_and_clear_dirty(block->mr,
-                                                   addr, TARGET_PAGE_SIZE,
-                                                   DIRTY_MEMORY_MIGRATION)) {
+            if (cpu_physical_memory_get_dirty(block->mr->ram_addr + addr,
+                                              TARGET_PAGE_SIZE,
+                                              DIRTY_MEMORY_MIGRATION)) {
+                cpu_physical_memory_reset_dirty(block->mr->ram_addr + addr,
+                                                TARGET_PAGE_SIZE,
+                                                DIRTY_MEMORY_MIGRATION);
                 migration_bitmap_set_dirty(block->mr, addr);
             }
         }
