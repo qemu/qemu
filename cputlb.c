@@ -26,6 +26,7 @@
 #include "exec/cputlb.h"
 
 #include "exec/memory-internal.h"
+#include "exec/ram_addr.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK

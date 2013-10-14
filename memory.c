@@ -22,6 +22,7 @@
 #include <assert.h>
 
 #include "exec/memory-internal.h"
+#include "exec/ram_addr.h"
 
 //#define DEBUG_UNASSIGNED
 
