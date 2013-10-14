@@ -402,7 +402,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     if (kernel_size < 0) {
         hwaddr kernel_load_addr = KERNEL_LOAD_ADDR;
+#if 0 // Next command breaks Versatile ARM board.
         no_loader = (info->loader_start == 0);
+#endif
         if (no_loader) {
             kernel_load_addr = 0;
         }
