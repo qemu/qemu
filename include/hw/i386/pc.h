@@ -265,6 +265,11 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
             .value    = "no",\
+        },\
+        {\
+            .driver   = "PIIX4_PM",\
+            .property = "acpi-pci-hotplug-with-bridge-support",\
+            .value    = "off",\
         }
 
 #define PC_COMPAT_1_6 \

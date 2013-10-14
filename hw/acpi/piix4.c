@@ -30,6 +30,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "exec/address-spaces.h"
 #include "hw/acpi/piix4.h"
+#include "hw/acpi/pcihp.h"
 
 //#define DEBUG
 
@@ -73,7 +74,6 @@ typedef struct PIIX4PMState {
     uint32_t io_base;
 
     MemoryRegion io_gpe;
-    MemoryRegion io_pci;
     MemoryRegion io_cpu;
     ACPIREGS ar;
 
@@ -88,10 +88,15 @@ typedef struct PIIX4PMState {
     Notifier machine_ready;
     Notifier powerdown_notifier;
 
-    /* for pci hotplug */
+    /* for legacy pci hotplug (compatible with qemu 1.6 and older) */
+    MemoryRegion io_pci;
     struct pci_status pci0_status;
     uint32_t pci0_hotplug_enable;
     uint32_t pci0_slot_device_present;
+
+    /* for new pci hotplug (with PCI2PCI bridge support) */
+    AcpiPciHpState acpi_pci_hotplug;
+    bool use_acpi_pci_hotplug;
 
     uint8_t disable_s3;
     uint8_t disable_s4;
@@ -263,6 +268,18 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
+static bool vmstate_test_use_acpi_pci_hotplug(void *opaque, int version_id)
+{
+    PIIX4PMState *s = opaque;
+    return s->use_acpi_pci_hotplug;
+}
+
+static bool vmstate_test_no_use_acpi_pci_hotplug(void *opaque, int version_id)
+{
+    PIIX4PMState *s = opaque;
+    return !s->use_acpi_pci_hotplug;
+}
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -285,8 +302,12 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_TIMER(ar.tmr.timer, PIIX4PMState),
         VMSTATE_INT64(ar.tmr.overflow_time, PIIX4PMState),
         VMSTATE_STRUCT(ar.gpe, PIIX4PMState, 2, vmstate_gpe, ACPIGPE),
-        VMSTATE_STRUCT(pci0_status, PIIX4PMState, 2, vmstate_pci_status,
-                       struct pci_status),
+        VMSTATE_STRUCT_TEST(pci0_status, PIIX4PMState,
+                            vmstate_test_no_use_acpi_pci_hotplug,
+                            2, vmstate_pci_status,
+                            struct pci_status),
+        VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
+                            vmstate_test_use_acpi_pci_hotplug),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -364,7 +385,11 @@ static void piix4_reset(void *opaque)
         pci_conf[0x5B] = 0x02;
     }
     pm_io_space_update(s);
-    piix4_update_hotplug(s);
+    if (s->use_acpi_pci_hotplug) {
+        acpi_pcihp_reset(&s->acpi_pci_hotplug);
+    } else {
+        piix4_update_hotplug(s);
+    }
 }
 
 static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
@@ -373,6 +398,26 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
 
     assert(s != NULL);
     acpi_pm1_evt_power_down(&s->ar);
+}
+
+static int piix4_acpi_pci_hotplug(DeviceState *qdev, PCIDevice *dev,
+                                  PCIHotplugState state)
+{
+    PIIX4PMState *s = PIIX4_PM(qdev);
+    int ret = acpi_pcihp_device_hotplug(&s->acpi_pci_hotplug, dev, state);
+    if (ret < 0) {
+        return ret;
+    }
+    s->ar.gpe.sts[0] |= PIIX4_PCI_HOTPLUG_STATUS;
+
+    acpi_update_sci(&s->ar, s->irq);
+    return 0;
+}
+
+static void piix4_update_bus_hotplug(PCIBus *bus, void *opaque)
+{
+    PIIX4PMState *s = opaque;
+    pci_bus_hotplug(bus, piix4_acpi_pci_hotplug, DEVICE(s));
 }
 
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
@@ -388,6 +433,10 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
     pci_conf[0x63] = 0x60;
     pci_conf[0x67] = (memory_region_present(io_as, 0x3f8) ? 0x08 : 0) |
         (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
+
+    if (s->use_acpi_pci_hotplug) {
+        pci_for_each_bus(d->bus, piix4_update_bus_hotplug, s);
+    }
 }
 
 static void piix4_pm_add_propeties(PIIX4PMState *s)
@@ -509,6 +558,8 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, 0),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_DISABLED, PIIX4PMState, disable_s4, 0),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
+    DEFINE_PROP_BOOL("acpi-pci-hotplug-with-bridge-support", PIIX4PMState,
+                     use_acpi_pci_hotplug, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -701,11 +752,15 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                           "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
-    memory_region_init_io(&s->io_pci, OBJECT(s), &piix4_pci_ops, s,
-                          "acpi-pci-hotplug", PCI_HOTPLUG_SIZE);
-    memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
-                                &s->io_pci);
-    pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
+    if (s->use_acpi_pci_hotplug) {
+        acpi_pcihp_init(&s->acpi_pci_hotplug, bus, parent);
+    } else {
+        memory_region_init_io(&s->io_pci, OBJECT(s), &piix4_pci_ops, s,
+                              "acpi-pci-hotplug", PCI_HOTPLUG_SIZE);
+        memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
+                                    &s->io_pci);
+        pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
+    }
 
     CPU_FOREACH(cpu) {
         CPUClass *cc = CPU_GET_CLASS(cpu);
