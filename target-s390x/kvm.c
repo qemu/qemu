@@ -93,7 +93,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static int cap_sync_regs;
 
-static void *legacy_s390_alloc(ram_addr_t size);
+static void *legacy_s390_alloc(size_t size);
 
 int kvm_arch_init(KVMState *s)
 {
@@ -325,7 +325,7 @@ int kvm_s390_get_registers_partial(CPUState *cs)
  * to grow. We also have to use MAP parameters that avoid
  * read-only mapping of guest pages.
  */
-static void *legacy_s390_alloc(ram_addr_t size)
+static void *legacy_s390_alloc(size_t size)
 {
     void *mem;
 
