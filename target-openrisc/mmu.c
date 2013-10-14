@@ -102,7 +102,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
         }
     }
 
-    if ((rw & 0) && ((right & PAGE_READ) == 0)) {
+    if (!(rw & 1) && ((right & PAGE_READ) == 0)) {
         return TLBRET_BADADDR;
     }
     if ((rw & 1) && ((right & PAGE_WRITE) == 0)) {
@@ -121,13 +121,6 @@ static int cpu_openrisc_get_phys_addr(OpenRISCCPU *cpu,
                                       int rw)
 {
     int ret = TLBRET_MATCH;
-
-    /* [0x0000--0x2000]: unmapped */
-    if (address < 0x2000 && (cpu->env.sr & SR_SM)) {
-        *physical = address;
-        *prot = PAGE_READ | PAGE_WRITE;
-        return ret;
-    }
 
     if (rw == 2) {    /* ITLB */
        *physical = 0;
