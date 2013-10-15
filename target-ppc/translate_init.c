@@ -7108,6 +7108,7 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
+    dc->fw_name = "PowerPC,POWER5";
     dc->desc = "POWER5+";
     pcc->init_proc = init_proc_power5plus;
     pcc->check_pow = check_pow_970FX;
@@ -7218,6 +7219,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
+    dc->fw_name = "PowerPC,POWER7";
     dc->desc = "POWER7";
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
@@ -7252,6 +7254,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
+    dc->fw_name = "PowerPC,POWER8";
     dc->desc = "POWER8";
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
