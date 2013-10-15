@@ -1134,7 +1134,7 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     VirtualConsole *vc = chr->opaque;
 
-    return write(vc->fd, buf, len);
+    return vc ? write(vc->fd, buf, len) : len;
 }
 
 static int nb_vcs;
@@ -1188,9 +1188,11 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     VtePty *pty;
 #endif
     GIOChannel *chan;
+#if defined(CONFIG_VTE)
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
     int master_fd, slave_fd;
+#endif
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1231,12 +1233,14 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     vc->fd = slave_fd;
     vc->chr->opaque = vc;
+#if defined(CONFIG_VTE)
     vc->scrolled_window = scrolled_window;
 
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vc->scrolled_window),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
+#endif
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
 
