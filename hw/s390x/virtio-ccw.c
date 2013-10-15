@@ -631,7 +631,6 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
 {
     SubchDev *sch = dev->sch;
 
-    virtio_ccw_stop_ioeventfd(dev);
     if (sch) {
         css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
         g_free(sch);
@@ -1227,6 +1226,8 @@ static int virtio_ccw_busdev_unplug(DeviceState *dev)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
     SubchDev *sch = _dev->sch;
+
+    virtio_ccw_stop_ioeventfd(_dev);
 
     /*
      * We should arrive here only for device_del, since we don't support
