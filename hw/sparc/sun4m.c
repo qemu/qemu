@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw/sysbus.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/sparc/sun4m.h"
 #include "hw/timer/m48t59.h"
@@ -561,6 +562,31 @@ static void tcx_init(hwaddr addr, int vram_size, int width,
     }
 }
 
+static void cg3_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
+                     int height, int depth)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "cgthree");
+    qdev_prop_set_uint32(dev, "vram-size", vram_size);
+    qdev_prop_set_uint16(dev, "width", width);
+    qdev_prop_set_uint16(dev, "height", height);
+    qdev_prop_set_uint16(dev, "depth", depth);
+    qdev_prop_set_uint64(dev, "prom-addr", addr);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+
+    /* FCode ROM */
+    sysbus_mmio_map(s, 0, addr);
+    /* DAC */
+    sysbus_mmio_map(s, 1, addr + 0x400000ULL);
+    /* 8-bit plane */
+    sysbus_mmio_map(s, 2, addr + 0x800000ULL);
+
+    sysbus_connect_irq(s, 0, irq);
+}
+
 /* NCR89C100/MACIO Internal ID register */
 
 #define TYPE_MACIO_ID_REGISTER "macio_idreg"
@@ -914,13 +940,43 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                              slavio_irq[16], iommu, &ledma_irq, 1);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
-        fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
+        error_report("Unsupported depth: %d", graphic_depth);
         exit (1);
     }
     num_vsimms = 0;
     if (num_vsimms == 0) {
-        tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
-                 graphic_depth);
+        if (vga_interface_type == VGA_CG3) {
+            if (graphic_depth != 8) {
+                error_report("Unsupported depth: %d", graphic_depth);
+                exit(1);
+            }
+
+            if (!(graphic_width == 1024 && graphic_height == 768) &&
+                !(graphic_width == 1152 && graphic_height == 900)) {
+                error_report("Unsupported resolution: %d x %d", graphic_width,
+                             graphic_height);
+                exit(1);
+            }
+
+            /* sbus irq 5 */
+            cg3_init(hwdef->tcx_base, slavio_irq[11], 0x00100000,
+                     graphic_width, graphic_height, graphic_depth);
+        } else {
+            /* If no display specified, default to TCX */
+            if (graphic_depth != 8 && graphic_depth != 24) {
+                error_report("Unsupported depth: %d", graphic_depth);
+                exit(1);
+            }
+
+            if (!(graphic_width == 1024 && graphic_height == 768)) {
+                error_report("Unsupported resolution: %d x %d",
+                             graphic_width, graphic_height);
+                exit(1);
+            }
+
+            tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
+                     graphic_depth);
+        }
     }
 
     for (i = num_vsimms; i < MAX_VSIMMS; i++) {
