@@ -625,7 +625,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     int cyls, heads, secs, translation;
     int max_devs, bus_id, unit_id, index;
     const char *devaddr;
-    bool read_only, copy_on_read;
+    bool read_only = false;
+    bool copy_on_read;
     Error *local_err = NULL;
 
     /* Change legacy command line options into QMP ones */
@@ -701,7 +702,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             media = MEDIA_DISK;
         } else if (!strcmp(value, "cdrom")) {
             media = MEDIA_CDROM;
-            qdict_put(bs_opts, "read-only", qstring_from_str("on"));
+            read_only = true;
         } else {
             error_report("'%s' invalid media", value);
             goto fail;
@@ -709,7 +710,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* copy-on-read is disabled with a warning for read-only devices */
-    read_only = qemu_opt_get_bool(legacy_opts, "read-only", false);
+    read_only |= qemu_opt_get_bool(legacy_opts, "read-only", false);
     copy_on_read = qemu_opt_get_bool(legacy_opts, "copy-on-read", false);
 
     if (read_only && copy_on_read) {
