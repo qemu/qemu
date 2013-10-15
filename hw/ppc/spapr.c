@@ -204,9 +204,8 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
     int smt = kvmppc_smt_threads();
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
-    assert(spapr->cpu_model);
-
     CPU_FOREACH(cpu) {
+        DeviceClass *dc = DEVICE_GET_CLASS(cpu);
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
@@ -218,7 +217,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
             continue;
         }
 
-        snprintf(cpu_model, 32, "/cpus/%s@%x", spapr->cpu_model,
+        snprintf(cpu_model, 32, "/cpus/%s@%x", dc->fw_name,
                  cpu->cpu_index);
 
         offset = fdt_path_offset(fdt, cpu_model);
@@ -288,8 +287,7 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
     } while (0)
 
 
-static void *spapr_create_fdt_skel(const char *cpu_model,
-                                   hwaddr initrd_base,
+static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
                                    bool little_endian,
@@ -306,7 +304,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     char qemu_hypertas_prop[] = "hcall-memop1";
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
-    char *modelname;
     int i, smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
 
@@ -365,18 +362,10 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
 
-    modelname = g_strdup(cpu_model);
-
-    for (i = 0; i < strlen(modelname); i++) {
-        modelname[i] = toupper(modelname[i]);
-    }
-
-    /* This is needed during FDT finalization */
-    spapr->cpu_model = g_strdup(modelname);
-
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         CPUPPCState *env = &cpu->env;
+        DeviceClass *dc = DEVICE_GET_CLASS(cs);
         PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
         int index = cs->cpu_index;
         uint32_t servers_prop[smp_threads];
@@ -393,7 +382,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
             continue;
         }
 
-        nodename = g_strdup_printf("%s@%x", modelname, index);
+        nodename = g_strdup_printf("%s@%x", dc->fw_name, index);
 
         _FDT((fdt_begin_node(fdt, nodename)));
 
@@ -476,8 +465,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
         _FDT((fdt_end_node(fdt)));
     }
-
-    g_free(modelname);
 
     _FDT((fdt_end_node(fdt)));
 
@@ -1363,8 +1350,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
                          &savevm_htab_handlers, spapr);
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
-                                            initrd_base, initrd_size,
+    spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
                                             kernel_size, kernel_le,
                                             boot_device, kernel_cmdline,
                                             spapr->epow_irq);

@@ -8587,6 +8587,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->gdb_core_xml_file = "power-core.xml";
 #endif
+
+    dc->fw_name = "PowerPC,UNKNOWN";
 }
 
 static const TypeInfo ppc_cpu_type_info = {

@@ -29,7 +29,6 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     uint32_t next_irq;
     uint64_t rtc_offset;
-    char *cpu_model;
     bool has_graphics;
 
     uint32_t epow_irq;
