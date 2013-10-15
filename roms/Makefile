@@ -73,9 +73,11 @@ build-seabios-config-%: config.%
 	mkdir -p seabios/builds/$*
 	cp $< seabios/builds/$*/.config
 	$(MAKE) $(MAKEFLAGS) -C seabios \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ oldnoconfig
 	$(MAKE) $(MAKEFLAGS) -C seabios \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ all
 
