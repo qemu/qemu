@@ -508,7 +508,6 @@ static const char *monitor_event_names[] = {
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
 MonitorEventState monitor_event_state[QEVENT_MAX];
-QemuMutex monitor_event_state_lock;
 
 /*
  * Emits the event to every monitor instance
@@ -540,7 +539,6 @@ monitor_protocol_event_queue(MonitorEvent event,
     int64_t now = qemu_get_clock_ns(rt_clock);
     assert(event < QEVENT_MAX);
 
-    qemu_mutex_lock(&monitor_event_state_lock);
     evstate = &(monitor_event_state[event]);
     trace_monitor_protocol_event_queue(event,
                                        data,
@@ -573,7 +571,6 @@ monitor_protocol_event_queue(MonitorEvent event,
             evstate->last = now;
         }
     }
-    qemu_mutex_unlock(&monitor_event_state_lock);
 }
 
 
@@ -586,7 +583,6 @@ static void monitor_protocol_event_handler(void *opaque)
     MonitorEventState *evstate = opaque;
     int64_t now = qemu_get_clock_ns(rt_clock);
 
-    qemu_mutex_lock(&monitor_event_state_lock);
 
     trace_monitor_protocol_event_handler(evstate->event,
                                          evstate->data,
@@ -598,7 +594,6 @@ static void monitor_protocol_event_handler(void *opaque)
         evstate->data = NULL;
     }
     evstate->last = now;
-    qemu_mutex_unlock(&monitor_event_state_lock);
 }
 
 
@@ -635,7 +630,6 @@ monitor_protocol_event_throttle(MonitorEvent event,
  * and initialize state */
 static void monitor_protocol_event_init(void)
 {
-    qemu_mutex_init(&monitor_event_state_lock);
     /* Limit RTC & BALLOON events to 1 per second */
     monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
