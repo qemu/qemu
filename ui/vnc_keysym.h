@@ -224,6 +224,14 @@ static const name2keysym_t name2keysym[]={
 { "odoubleacute",         0x1f5},
 { "udoubleacute",         0x1fb},
 
+/* Czech national characters */
+{ "ecaron",               0x1ec},
+{ "scaron",               0x1b9},
+{ "ccaron",               0x1e8},
+{ "rcaron",               0x1f8},
+{ "zcaron",               0x1be},
+{ "uring",                0x1f9},
+
     /* modifiers */
 {"ISO_Level3_Shift", 0xfe03}, /* XK_ISO_Level3_Shift */
 {"Control_L", 0xffe3}, /* XK_Control_L */
