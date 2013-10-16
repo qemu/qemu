@@ -494,7 +494,7 @@ SDState *sd_init(BlockDriverState *bs, bool is_spi)
 {
     SDState *sd;
 
-    if (bdrv_is_read_only(bs)) {
+    if (bs && bdrv_is_read_only(bs)) {
         fprintf(stderr, "sd_init: Cannot use read-only drive\n");
         return NULL;
     }
