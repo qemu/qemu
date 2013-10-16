@@ -832,6 +832,7 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
          * With a command line like '-vnc :0 -vga qxl' you'll end up here.
          */
         spice_server = spice_server_new();
+        spice_server_set_sasl_appname(spice_server, "qemu");
         spice_server_init(spice_server, &core_interface);
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
