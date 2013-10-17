@@ -1214,6 +1214,7 @@ static void rtl8139_reset(DeviceState *d)
 
     /* restore MAC address */
     memcpy(s->phys, s->conf.macaddr.a, 6);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->phys);
 
     /* reset interrupt mask */
     s->IntrStatus = 0;
