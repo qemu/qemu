@@ -1314,8 +1314,8 @@ static int kvm_get_xcrs(X86CPU *cpu)
 
     for (i = 0; i < xcrs.nr_xcrs; i++) {
         /* Only support xcr0 now */
-        if (xcrs.xcrs[0].xcr == 0) {
-            env->xcr0 = xcrs.xcrs[0].value;
+        if (xcrs.xcrs[i].xcr == 0) {
+            env->xcr0 = xcrs.xcrs[i].value;
             break;
         }
     }
