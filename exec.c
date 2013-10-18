@@ -129,7 +129,6 @@ static PhysPageMap next_map;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
-static void *qemu_safe_ram_ptr(ram_addr_t addr);
 
 static MemoryRegion io_mem_watch;
 #endif
@@ -626,22 +625,39 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
+{
+    RAMBlock *block;
+
+    /* The list is protected by the iothread lock here.  */
+    block = ram_list.mru_block;
+    if (block && addr - block->offset < block->length) {
+        goto found;
+    }
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+        if (addr - block->offset < block->length) {
+            goto found;
+        }
+    }
+
+    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+    abort();
+
+found:
+    ram_list.mru_block = block;
+    return block;
+}
+
 static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
                                       uintptr_t length)
 {
-    uintptr_t start1;
+    RAMBlock *block;
+    ram_addr_t start1;
 
-    /* we modify the TLB cache so that the dirty bit will be set again
-       when accessing the range */
-    start1 = (uintptr_t)qemu_safe_ram_ptr(start);
-    /* Check that we don't span multiple blocks - this breaks the
-       address comparisons below.  */
-    if ((uintptr_t)qemu_safe_ram_ptr(end - 1) - start1
-            != (end - 1) - start) {
-        abort();
-    }
+    block = qemu_get_ram_block(start);
+    assert(block == qemu_get_ram_block(end - 1));
+    start1 = (uintptr_t)block->host + (start - block->offset);
     cpu_tlb_reset_dirty_all(start1, length);
-
 }
 
 /* Note: start and end must be within the same ram block.  */
@@ -1269,29 +1285,6 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 }
 #endif /* !_WIN32 */
 
-static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    /* The list is protected by the iothread lock here.  */
-    block = ram_list.mru_block;
-    if (block && addr - block->offset < block->length) {
-        goto found;
-    }
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
-            goto found;
-        }
-    }
-
-    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-    abort();
-
-found:
-    ram_list.mru_block = block;
-    return block;
-}
-
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
    With the exception of the softmmu code in this file, this should
    only be used for local memory (e.g. video ram) that the device owns,
@@ -1317,40 +1310,6 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
         }
     }
     return block->host + (addr - block->offset);
-}
-
-/* Return a host pointer to ram allocated with qemu_ram_alloc.  Same as
- * qemu_get_ram_ptr but do not touch ram_list.mru_block.
- *
- * ??? Is this still necessary?
- */
-static void *qemu_safe_ram_ptr(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    /* The list is protected by the iothread lock here.  */
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
-            if (xen_enabled()) {
-                /* We need to check if the requested address is in the RAM
-                 * because we don't want to map the entire memory in QEMU.
-                 * In that case just map until the end of the page.
-                 */
-                if (block->offset == 0) {
-                    return xen_map_cache(addr, 0, 0);
-                } else if (block->host == NULL) {
-                    block->host =
-                        xen_map_cache(block->offset, block->length, 1);
-                }
-            }
-            return block->host + (addr - block->offset);
-        }
-    }
-
-    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-    abort();
-
-    return NULL;
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr

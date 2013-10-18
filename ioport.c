@@ -139,6 +139,12 @@ void portio_list_init(PortioList *piolist,
     piolist->opaque = opaque;
     piolist->owner = owner;
     piolist->name = name;
+    piolist->flush_coalesced_mmio = false;
+}
+
+void portio_list_set_flush_coalesced(PortioList *piolist)
+{
+    piolist->flush_coalesced_mmio = true;
 }
 
 void portio_list_destroy(PortioList *piolist)
@@ -231,6 +237,9 @@ static void portio_list_add_1(PortioList *piolist,
      */
     memory_region_init_io(&mrpio->mr, piolist->owner, &portio_ops, mrpio,
                           piolist->name, off_high - off_low);
+    if (piolist->flush_coalesced_mmio) {
+        memory_region_set_flush_coalesced(&mrpio->mr);
+    }
     memory_region_add_subregion(piolist->address_space,
                                 start + off_low, &mrpio->mr);
     piolist->regions[piolist->nr] = &mrpio->mr;
