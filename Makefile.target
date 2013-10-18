@@ -70,10 +70,6 @@ all: $(PROGS) stap
 # Dummy command so that make thinks it has done something
 	@true
 
-CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
-CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
-CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
-
 #########################################################
 # cpu emulator library
 obj-y = exec.o translate-all.o cpu-exec.o
@@ -83,8 +79,8 @@ obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
 obj-y += target-$(TARGET_BASE_ARCH)/
 obj-y += disas.o
-obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
-obj-$(CONFIG_NO_KVM) += kvm-stub.o
+obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
+obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
 
 #########################################################
 # Linux user emulator target
@@ -125,7 +121,7 @@ LIBS+=$(libs_softmmu)
 
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen-mapcache.o
-obj-$(CONFIG_NO_XEN) += xen-stub.o
+obj-$(call lnot,$(CONFIG_XEN)) += xen-stub.o
 
 # Hardware support
 ifeq ($(TARGET_NAME), sparc64)

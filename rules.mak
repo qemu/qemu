@@ -89,6 +89,34 @@ find-in-path = $(if $(find-string /, $1), \
         $(wildcard $1), \
         $(wildcard $(patsubst %, %/$1, $(subst :, ,$(PATH)))))
 
+# Logical functions (for operating on y/n values like CONFIG_FOO vars)
+# Inputs to these must be either "y" (true) or "n" or "" (both false)
+# Output is always either "y" or "n".
+# Usage: $(call land,$(CONFIG_FOO),$(CONFIG_BAR))
+# Logical NOT
+lnot = $(if $(subst n,,$1),n,y)
+# Logical AND
+land = $(if $(findstring yy,$1$2),y,n)
+# Logical OR
+lor = $(if $(findstring y,$1$2),y,n)
+# Logical XOR (note that this is the inverse of leqv)
+lxor = $(if $(filter $(call lnot,$1),$(call lnot,$2)),n,y)
+# Logical equivalence (note that leqv "","n" is true)
+leqv = $(if $(filter $(call lnot,$1),$(call lnot,$2)),y,n)
+# Logical if: like make's $(if) but with an leqv-like test
+lif = $(if $(subst n,,$1),$2,$3)
+
+# String testing functions: inputs to these can be any string;
+# the output is always either "y" or "n". Leading and trailing whitespace
+# is ignored when comparing strings.
+# String equality
+eq = $(if $(subst $2,,$1)$(subst $1,,$2),n,y)
+# String inequality
+ne = $(if $(subst $2,,$1)$(subst $1,,$2),y,n)
+# Emptiness/non-emptiness tests:
+isempty = $(if $1,n,y)
+notempty = $(if $1,y,n)
+
 # Generate files with tracetool
 TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 
