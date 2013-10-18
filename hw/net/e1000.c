@@ -401,6 +401,7 @@ static void e1000_reset(void *opaque)
         d->mac_reg[RA] |= macaddr[i] << (8 * i);
         d->mac_reg[RA + 1] |= (i < 2) ? macaddr[i + 4] << (8 * i) : 0;
     }
+    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 }
 
 static void
@@ -1105,7 +1106,15 @@ mac_read_clr8(E1000State *s, int index)
 static void
 mac_writereg(E1000State *s, int index, uint32_t val)
 {
+    uint32_t macaddr[2];
+
     s->mac_reg[index] = val;
+
+    if (index == RA + 1) {
+        macaddr[0] = cpu_to_le32(s->mac_reg[RA]);
+        macaddr[1] = cpu_to_le32(s->mac_reg[RA + 1]);
+        qemu_format_nic_info_str(qemu_get_queue(s->nic), (uint8_t *)macaddr);
+    }
 }
 
 static void
