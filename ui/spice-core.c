@@ -48,7 +48,6 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 int using_spice = 0;
-int spice_displays;
 
 static QemuThread me;
 
@@ -383,17 +382,16 @@ static SpiceChannelList *qmp_query_spice_channels(void)
         struct sockaddr *paddr;
         socklen_t plen;
 
+        if (!(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT)) {
+            error_report("invalid channel event");
+            return NULL;
+        }
+
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
 
-        if (item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
-            paddr = (struct sockaddr *)&item->info->paddr_ext;
-            plen = item->info->plen_ext;
-        } else {
-            paddr = &item->info->paddr;
-            plen = item->info->plen;
-        }
-
+        paddr = (struct sockaddr *)&item->info->paddr_ext;
+        plen = item->info->plen_ext;
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);
@@ -833,15 +831,33 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
          * With a command line like '-vnc :0 -vga qxl' you'll end up here.
          */
         spice_server = spice_server_new();
+        spice_server_set_sasl_appname(spice_server, "qemu");
         spice_server_init(spice_server, &core_interface);
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
 
-    if (strcmp(sin->sif->type, SPICE_INTERFACE_QXL) == 0) {
-        spice_displays++;
-    }
-
     return spice_server_add_interface(spice_server, sin);
+}
+
+static GSList *spice_consoles;
+static int display_id;
+
+bool qemu_spice_have_display_interface(QemuConsole *con)
+{
+    if (g_slist_find(spice_consoles, con)) {
+        return true;
+    }
+    return false;
+}
+
+int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con)
+{
+    if (g_slist_find(spice_consoles, con)) {
+        return -1;
+    }
+    qxlin->id = display_id++;
+    spice_consoles = g_slist_append(spice_consoles, con);
+    return qemu_spice_add_interface(&qxlin->base);
 }
 
 static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
