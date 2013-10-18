@@ -256,6 +256,8 @@
 #
 # @encrypted: #optional true if the image is encrypted
 #
+# @compressed: #optional true if the image is compressed (Since 1.7)
+#
 # @backing-filename: #optional name of the backing file
 #
 # @full-backing-filename: #optional full path of the backing file
@@ -276,7 +278,7 @@
 { 'type': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
-           '*cluster-size': 'int', '*encrypted': 'bool',
+           '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
            '*backing-image': 'ImageInfo',
