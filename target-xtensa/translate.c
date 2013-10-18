@@ -3016,6 +3016,14 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     gen_tb_end(tb, insn_count);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
+#ifdef DEBUG_DISAS
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(env, pc_start, dc.pc - pc_start, 0);
+        qemu_log("\n");
+    }
+#endif
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         memset(tcg_ctx.gen_opc_instr_start + lj + 1, 0,
