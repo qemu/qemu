@@ -366,8 +366,6 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                             info->value->inserted->iops_rd_max,
                             info->value->inserted->iops_wr_max,
                             info->value->inserted->iops_size);
-        } else {
-            monitor_printf(mon, " [not inserted]");
         }
 
         if (verbose) {

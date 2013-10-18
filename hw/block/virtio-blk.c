@@ -703,7 +703,6 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
 
     s->bs = blk->conf.bs;
     s->conf = &blk->conf;
-    memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
