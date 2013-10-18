@@ -2447,7 +2447,6 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
     VGACommonState *s = &c->vga;
     int val, index;
 
-    qemu_flush_coalesced_mmio_buffer();
     addr += 0x3b0;
 
     if (vga_ioport_invalid(s, addr)) {
@@ -2544,7 +2543,6 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     VGACommonState *s = &c->vga;
     int index;
 
-    qemu_flush_coalesced_mmio_buffer();
     addr += 0x3b0;
 
     /* check port range access depending on color/monochrome mode */
@@ -2843,6 +2841,7 @@ static void cirrus_init_common(CirrusVGAState *s, Object *owner,
     /* Register ioport 0x3b0 - 0x3df */
     memory_region_init_io(&s->cirrus_vga_io, owner, &cirrus_vga_io_ops, s,
                           "cirrus-io", 0x30);
+    memory_region_set_flush_coalesced(&s->cirrus_vga_io);
     memory_region_add_subregion(system_io, 0x3b0, &s->cirrus_vga_io);
 
     memory_region_init(&s->low_mem_container, owner,

@@ -17,8 +17,6 @@ common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
 $(obj)/sdl.o $(obj)/sdl_zoom.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
 
-$(obj)/cocoa.o: $(SRC_PATH)/$(obj)/cocoa.m
-
 $(obj)/gtk.o: QEMU_CFLAGS += $(GTK_CFLAGS) $(VTE_CFLAGS)
 ifndef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 # Suppress a -Wstrict-prototypes warning in GTK headers.

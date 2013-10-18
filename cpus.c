@@ -37,6 +37,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
+#include "qemu/seqlock.h"
 
 #ifndef _WIN32
 #include "qemu/compatfd.h"
@@ -97,21 +98,32 @@ static bool all_cpu_threads_idle(void)
 /***********************************************************/
 /* guest cycle counter */
 
+/* Protected by TimersState seqlock */
+
+/* Compensate for varying guest execution speed.  */
+static int64_t qemu_icount_bias;
+static int64_t vm_clock_warp_start;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
 #define MAX_ICOUNT_SHIFT 10
-/* Compensate for varying guest execution speed.  */
-static int64_t qemu_icount_bias;
+
+/* Only written by TCG thread */
+static int64_t qemu_icount;
+
 static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
 static QEMUTimer *icount_warp_timer;
-static int64_t vm_clock_warp_start;
-static int64_t qemu_icount;
 
 typedef struct TimersState {
+    /* Protected by BQL.  */
     int64_t cpu_ticks_prev;
     int64_t cpu_ticks_offset;
+
+    /* cpu_clock_offset can be read out of BQL, so protect it with
+     * this lock.
+     */
+    QemuSeqLock vm_clock_seqlock;
     int64_t cpu_clock_offset;
     int32_t cpu_ticks_enabled;
     int64_t dummy;
@@ -120,7 +132,7 @@ typedef struct TimersState {
 static TimersState timers_state;
 
 /* Return the virtual CPU time, based on the instruction counter.  */
-int64_t cpu_get_icount(void)
+static int64_t cpu_get_icount_locked(void)
 {
     int64_t icount;
     CPUState *cpu = current_cpu;
@@ -136,7 +148,21 @@ int64_t cpu_get_icount(void)
     return qemu_icount_bias + (icount << icount_time_shift);
 }
 
+int64_t cpu_get_icount(void)
+{
+    int64_t icount;
+    unsigned start;
+
+    do {
+        start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
+        icount = cpu_get_icount_locked();
+    } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
+
+    return icount;
+}
+
 /* return the host CPU cycle counter and handle stop/restart */
+/* Caller must hold the BQL */
 int64_t cpu_get_ticks(void)
 {
     if (use_icount) {
@@ -157,37 +183,63 @@ int64_t cpu_get_ticks(void)
     }
 }
 
+static int64_t cpu_get_clock_locked(void)
+{
+    int64_t ti;
+
+    if (!timers_state.cpu_ticks_enabled) {
+        ti = timers_state.cpu_clock_offset;
+    } else {
+        ti = get_clock();
+        ti += timers_state.cpu_clock_offset;
+    }
+
+    return ti;
+}
+
 /* return the host CPU monotonic timer and handle stop/restart */
 int64_t cpu_get_clock(void)
 {
     int64_t ti;
-    if (!timers_state.cpu_ticks_enabled) {
-        return timers_state.cpu_clock_offset;
-    } else {
-        ti = get_clock();
-        return ti + timers_state.cpu_clock_offset;
-    }
+    unsigned start;
+
+    do {
+        start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
+        ti = cpu_get_clock_locked();
+    } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
+
+    return ti;
 }
 
-/* enable cpu_get_ticks() */
+/* enable cpu_get_ticks()
+ * Caller must hold BQL which server as mutex for vm_clock_seqlock.
+ */
 void cpu_enable_ticks(void)
 {
+    /* Here, the really thing protected by seqlock is cpu_clock_offset. */
+    seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (!timers_state.cpu_ticks_enabled) {
         timers_state.cpu_ticks_offset -= cpu_get_real_ticks();
         timers_state.cpu_clock_offset -= get_clock();
         timers_state.cpu_ticks_enabled = 1;
     }
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 }
 
 /* disable cpu_get_ticks() : the clock is stopped. You must not call
-   cpu_get_ticks() after that.  */
+ * cpu_get_ticks() after that.
+ * Caller must hold BQL which server as mutex for vm_clock_seqlock.
+ */
 void cpu_disable_ticks(void)
 {
+    /* Here, the really thing protected by seqlock is cpu_clock_offset. */
+    seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (timers_state.cpu_ticks_enabled) {
         timers_state.cpu_ticks_offset = cpu_get_ticks();
-        timers_state.cpu_clock_offset = cpu_get_clock();
+        timers_state.cpu_clock_offset = cpu_get_clock_locked();
         timers_state.cpu_ticks_enabled = 0;
     }
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 }
 
 /* Correlation between real and virtual time is always going to be
@@ -201,13 +253,19 @@ static void icount_adjust(void)
     int64_t cur_time;
     int64_t cur_icount;
     int64_t delta;
+
+    /* Protected by TimersState mutex.  */
     static int64_t last_delta;
+
     /* If the VM is not running, then do nothing.  */
     if (!runstate_is_running()) {
         return;
     }
-    cur_time = cpu_get_clock();
-    cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    seqlock_write_lock(&timers_state.vm_clock_seqlock);
+    cur_time = cpu_get_clock_locked();
+    cur_icount = cpu_get_icount_locked();
+
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
@@ -224,6 +282,7 @@ static void icount_adjust(void)
     }
     last_delta = delta;
     qemu_icount_bias = cur_icount - (qemu_icount << icount_time_shift);
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 }
 
 static void icount_adjust_rt(void *opaque)
@@ -248,30 +307,37 @@ static int64_t qemu_icount_round(int64_t count)
 
 static void icount_warp_rt(void *opaque)
 {
-    if (vm_clock_warp_start == -1) {
+    /* The icount_warp_timer is rescheduled soon after vm_clock_warp_start
+     * changes from -1 to another value, so the race here is okay.
+     */
+    if (atomic_read(&vm_clock_warp_start) == -1) {
         return;
     }
 
+    seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (runstate_is_running()) {
         int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-        int64_t warp_delta = clock - vm_clock_warp_start;
-        if (use_icount == 1) {
-            qemu_icount_bias += warp_delta;
-        } else {
+        int64_t warp_delta;
+
+        warp_delta = clock - vm_clock_warp_start;
+        if (use_icount == 2) {
             /*
              * In adaptive mode, do not let QEMU_CLOCK_VIRTUAL run too
              * far ahead of real time.
              */
-            int64_t cur_time = cpu_get_clock();
-            int64_t cur_icount = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            int64_t cur_time = cpu_get_clock_locked();
+            int64_t cur_icount = cpu_get_icount_locked();
             int64_t delta = cur_time - cur_icount;
-            qemu_icount_bias += MIN(warp_delta, delta);
+            warp_delta = MIN(warp_delta, delta);
         }
-        if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
-            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
-        }
+        qemu_icount_bias += warp_delta;
     }
     vm_clock_warp_start = -1;
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+
+    if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
+        qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+    }
 }
 
 void qtest_clock_warp(int64_t dest)
@@ -281,7 +347,10 @@ void qtest_clock_warp(int64_t dest)
     while (clock < dest) {
         int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         int64_t warp = MIN(dest - clock, deadline);
+        seqlock_write_lock(&timers_state.vm_clock_seqlock);
         qemu_icount_bias += warp;
+        seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+
         qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
         clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
@@ -290,6 +359,7 @@ void qtest_clock_warp(int64_t dest)
 
 void qemu_clock_warp(QEMUClockType type)
 {
+    int64_t clock;
     int64_t deadline;
 
     /*
@@ -309,8 +379,8 @@ void qemu_clock_warp(QEMUClockType type)
      * the earliest QEMU_CLOCK_VIRTUAL timer.
      */
     icount_warp_rt(NULL);
-    if (!all_cpu_threads_idle() || !qemu_clock_has_timers(QEMU_CLOCK_VIRTUAL)) {
-        timer_del(icount_warp_timer);
+    timer_del(icount_warp_timer);
+    if (!all_cpu_threads_idle()) {
         return;
     }
 
@@ -319,17 +389,11 @@ void qemu_clock_warp(QEMUClockType type)
 	return;
     }
 
-    vm_clock_warp_start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     /* We want to use the earliest deadline from ALL vm_clocks */
+    clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-
-    /* Maintain prior (possibly buggy) behaviour where if no deadline
-     * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
-     * INT32_MAX nanoseconds ahead, we still use INT32_MAX
-     * nanoseconds.
-     */
-    if ((deadline < 0) || (deadline > INT32_MAX)) {
-        deadline = INT32_MAX;
+    if (deadline < 0) {
+        return;
     }
 
     if (deadline > 0) {
@@ -350,7 +414,12 @@ void qemu_clock_warp(QEMUClockType type)
          * you will not be sending network packets continuously instead of
          * every 100ms.
          */
-        timer_mod(icount_warp_timer, vm_clock_warp_start + deadline);
+        seqlock_write_lock(&timers_state.vm_clock_seqlock);
+        if (vm_clock_warp_start == -1 || vm_clock_warp_start > clock) {
+            vm_clock_warp_start = clock;
+        }
+        seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+        timer_mod_anticipate(icount_warp_timer, clock + deadline);
     } else if (deadline == 0) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
@@ -371,6 +440,7 @@ static const VMStateDescription vmstate_timers = {
 
 void configure_icount(const char *option)
 {
+    seqlock_init(&timers_state.vm_clock_seqlock, NULL);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     if (!option) {
         return;

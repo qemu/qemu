@@ -596,6 +596,9 @@ static int vapic_map_rom_writable(VAPICROMState *s)
     section = memory_region_find(as, 0, 1);
 
     /* read ROM size from RAM region */
+    if (rom_paddr + 2 >= memory_region_size(section.mr)) {
+        return -1;
+    }
     ram = memory_region_get_ram_ptr(section.mr);
     rom_size = ram[rom_paddr + 2] * ROM_BLOCK_SIZE;
     if (rom_size == 0) {

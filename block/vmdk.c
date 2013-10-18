@@ -112,6 +112,7 @@ typedef struct BDRVVmdkState {
     CoMutex lock;
     uint64_t desc_offset;
     bool cid_updated;
+    bool cid_checked;
     uint32_t parent_cid;
     int num_extents;
     /* Extent array with num_extents entries, ascend ordered by address */
@@ -196,8 +197,6 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
     }
 }
-
-#define CHECK_CID 1
 
 #define SECTOR_SIZE 512
 #define DESC_SIZE (20 * SECTOR_SIZE)    /* 20 sectors of 512 bytes each */
@@ -301,19 +300,18 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 
 static int vmdk_is_cid_valid(BlockDriverState *bs)
 {
-#ifdef CHECK_CID
     BDRVVmdkState *s = bs->opaque;
     BlockDriverState *p_bs = bs->backing_hd;
     uint32_t cur_pcid;
 
-    if (p_bs) {
+    if (!s->cid_checked && p_bs) {
         cur_pcid = vmdk_read_cid(p_bs, 0);
         if (s->parent_cid != cur_pcid) {
             /* CID not valid */
             return 0;
         }
     }
-#endif
+    s->cid_checked = true;
     /* CID valid */
     return 1;
 }
@@ -728,6 +726,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                 error_setg(errp, "Invalid extent lines: \n%s", p);
                 return -EINVAL;
             }
+        } else if (!strcmp(type, "VMFS")) {
+            flat_offset = 0;
         } else if (ret != 4) {
             error_setg(errp, "Invalid extent lines: \n%s", p);
             return -EINVAL;

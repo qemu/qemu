@@ -380,6 +380,10 @@
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
+#define XSTATE_FP                       1
+#define XSTATE_SSE                      2
+#define XSTATE_YMM                      4
+
 /* CPUID feature words */
 typedef enum FeatureWord {
     FEAT_1_EDX,         /* CPUID[1].EDX */

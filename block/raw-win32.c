@@ -590,12 +590,11 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
         int err = GetLastError();
 
         if (err == ERROR_ACCESS_DENIED) {
-            error_setg_errno(errp, EACCES, "Could not open device");
             ret = -EACCES;
         } else {
-            error_setg(errp, "Could not open device");
-            ret = -1;
+            ret = -EINVAL;
         }
+        error_setg_errno(errp, -ret, "Could not open device");
         goto done;
     }
 
