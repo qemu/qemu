@@ -164,7 +164,7 @@ This example allows using both of the following example objects:
  { "file": "my_existing_block_device_id" }
  { "file": { "driver": "file",
              "readonly": false,
-             'filename': "/tmp/mydisk.qcow2" } }
+             "filename": "/tmp/mydisk.qcow2" } }
 
 
 === Commands ===
