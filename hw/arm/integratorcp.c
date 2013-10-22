@@ -11,6 +11,7 @@
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "hw/misc/arm_integrator_debug.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
@@ -508,6 +509,7 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
     icp_control_init(0xcb000000);
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
     sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
+    sysbus_create_simple(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
     sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
     if (nd_table[0].used)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
