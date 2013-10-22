@@ -51,6 +51,7 @@ static char cpu_reg_names[10*3 + 22*4 /* GPR */
 #endif
     + 10*4 + 22*5 /* FPR */
     + 2*(10*6 + 22*7) /* AVRh, AVRl */
+    + 10*5 + 22*6 /* VSR */
     + 8*5 /* CRF */];
 static TCGv cpu_gpr[32];
 #if !defined(TARGET_PPC64)
@@ -58,6 +59,7 @@ static TCGv cpu_gprh[32];
 #endif
 static TCGv_i64 cpu_fpr[32];
 static TCGv_i64 cpu_avrh[32], cpu_avrl[32];
+static TCGv_i64 cpu_vsr[32];
 static TCGv_i32 cpu_crf[8];
 static TCGv cpu_nip;
 static TCGv cpu_msr;
@@ -137,6 +139,11 @@ void ppc_translate_init(void)
 #endif
         p += (i < 10) ? 6 : 7;
         cpu_reg_names_size -= (i < 10) ? 6 : 7;
+        snprintf(p, cpu_reg_names_size, "vsr%d", i);
+        cpu_vsr[i] = tcg_global_mem_new_i64(TCG_AREG0,
+                                             offsetof(CPUPPCState, vsr[i]), p);
+        p += (i < 10) ? 5 : 6;
+        cpu_reg_names_size -= (i < 10) ? 5 : 6;
     }
 
     cpu_nip = tcg_global_mem_new(TCG_AREG0,
@@ -6975,6 +6982,26 @@ GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
 GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
 GEN_VAFORM_PAIRED(vsel, vperm, 21)
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
+
+/***                           VSX extension                               ***/
+
+static inline TCGv_i64 cpu_vsrh(int n)
+{
+    if (n < 32) {
+        return cpu_fpr[n];
+    } else {
+        return cpu_avrh[n-32];
+    }
+}
+
+static inline TCGv_i64 cpu_vsrl(int n)
+{
+    if (n < 32) {
+        return cpu_vsr[n];
+    } else {
+        return cpu_avrl[n-32];
+    }
+}
 
 /***                           SPE extension                               ***/
 /* Register moves */
