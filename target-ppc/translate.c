@@ -366,6 +366,12 @@ static inline int32_t name(uint32_t opcode)                                   \
     return (int16_t)((opcode >> (shift)) & ((1 << (nb)) - 1));                \
 }
 
+#define EXTRACT_HELPER_SPLIT(name, shift1, nb1, shift2, nb2)                  \
+static inline uint32_t name(uint32_t opcode)                                  \
+{                                                                             \
+    return (((opcode >> (shift1)) & ((1 << (nb1)) - 1)) << nb2) |             \
+            ((opcode >> (shift2)) & ((1 << (nb2)) - 1));                      \
+}
 /* Opcode part 1 */
 EXTRACT_HELPER(opc1, 26, 6);
 /* Opcode part 2 */
@@ -480,6 +486,11 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     return ret;
 }
 
+EXTRACT_HELPER_SPLIT(xT, 0, 1, 21, 5);
+EXTRACT_HELPER_SPLIT(xS, 0, 1, 21, 5);
+EXTRACT_HELPER_SPLIT(xA, 2, 1, 16, 5);
+EXTRACT_HELPER_SPLIT(xB, 1, 1, 11, 5);
+EXTRACT_HELPER(DM, 8, 2);
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
 
