@@ -127,33 +127,31 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         break;
     case TO_SPR(10, 0): /* TTMR */
         {
+            if ((env->ttmr & TTMR_M) ^ (rb & TTMR_M)) {
+                switch (rb & TTMR_M) {
+                case TIMER_NONE:
+                    cpu_openrisc_count_stop(cpu);
+                    break;
+                case TIMER_INTR:
+                case TIMER_SHOT:
+                case TIMER_CONT:
+                    cpu_openrisc_count_start(cpu);
+                    break;
+                default:
+                    break;
+                }
+            }
+
             int ip = env->ttmr & TTMR_IP;
 
             if (rb & TTMR_IP) {    /* Keep IP bit.  */
-                env->ttmr = (rb & ~TTMR_IP) + ip;
+                env->ttmr = (rb & ~TTMR_IP) | ip;
             } else {    /* Clear IP bit.  */
                 env->ttmr = rb & ~TTMR_IP;
                 cs->interrupt_request &= ~CPU_INTERRUPT_TIMER;
             }
 
-            cpu_openrisc_count_update(cpu);
-
-            switch (env->ttmr & TTMR_M) {
-            case TIMER_NONE:
-                cpu_openrisc_count_stop(cpu);
-                break;
-            case TIMER_INTR:
-                cpu_openrisc_count_start(cpu);
-                break;
-            case TIMER_SHOT:
-                cpu_openrisc_count_start(cpu);
-                break;
-            case TIMER_CONT:
-                cpu_openrisc_count_start(cpu);
-                break;
-            default:
-                break;
-            }
+            cpu_openrisc_timer_update(cpu);
         }
         break;
 
@@ -162,7 +160,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         if (env->ttmr & TIMER_NONE) {
             return;
         }
-        cpu_openrisc_count_start(cpu);
+        cpu_openrisc_timer_update(cpu);
         break;
     default:
 
