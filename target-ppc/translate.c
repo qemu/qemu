@@ -7035,9 +7035,27 @@ static void gen_stxvd2x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_xxpermdi(DisasContext *ctx)
+{
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+
+    if ((DM(ctx->opcode) & 2) == 0) {
+        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)));
+    } else {
+        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)));
+    }
+    if ((DM(ctx->opcode) & 1) == 0) {
+        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xB(ctx->opcode)));
+    } else {
+        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xB(ctx->opcode)));
+    }
+}
+
 /***                           SPE extension                               ***/
 /* Register moves */
-
 
 static inline void gen_evmra(DisasContext *ctx)
 {
@@ -9487,6 +9505,27 @@ GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
 GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
 
 GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
+
+#undef GEN_XX3FORM_DM
+#define GEN_XX3FORM_DM(name, opc2, opc3) \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x04, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x08, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
+GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x0C, 0, PPC_NONE, PPC2_VSX)
+
+GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
