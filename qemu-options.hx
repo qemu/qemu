@@ -1605,7 +1605,7 @@ to disable script execution.
 
 If running QEMU as an unprivileged user, use the network helper
 @var{helper} to configure the TAP interface. The default network
-helper executable is @file{/usr/local/libexec/qemu-bridge-helper}.
+helper executable is @file{/path/to/qemu-bridge-helper}.
 
 @option{fd}=@var{h} can be used to specify the handle of an already
 opened host TAP interface.
@@ -1629,7 +1629,7 @@ qemu-system-i386 linux.img \
 #launch a QEMU instance with the default network helper to
 #connect a TAP device to bridge br0
 qemu-system-i386 linux.img \
-                 -net nic -net tap,"helper=/usr/local/libexec/qemu-bridge-helper"
+                 -net nic -net tap,"helper=/path/to/qemu-bridge-helper"
 @end example
 
 @item -netdev bridge,id=@var{id}[,br=@var{bridge}][,helper=@var{helper}]
@@ -1638,7 +1638,7 @@ Connect a host TAP network interface to a host bridge device.
 
 Use the network helper @var{helper} to configure the TAP interface and
 attach it to the bridge. The default network helper executable is
-@file{/usr/local/libexec/qemu-bridge-helper} and the default bridge
+@file{/path/to/qemu-bridge-helper} and the default bridge
 device is @file{br0}.
 
 Examples:
