@@ -32,7 +32,7 @@ int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
                                 int *prot, target_ulong address, int rw)
 {
     *physical = address;
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     return TLBRET_MATCH;
 }
 
@@ -187,7 +187,7 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
 
     if (ret == TLBRET_MATCH) {
         tlb_set_page(env, address & TARGET_PAGE_MASK,
-                     physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
+                     physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         ret = 0;
     } else if (ret < 0) {
