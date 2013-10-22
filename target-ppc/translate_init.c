@@ -3061,6 +3061,7 @@ static void init_excp_POWER7 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
+    env->excp_vectors[POWERPC_EXCP_VSXU]     = 0x00000F40;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
@@ -7236,7 +7237,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205;
-    pcc->msr_mask = 0x800000000204FF37ULL;
+    pcc->msr_mask = 0x800000000284FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
@@ -7274,7 +7275,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX;
-    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->msr_mask = 0x800000000284FF36ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
