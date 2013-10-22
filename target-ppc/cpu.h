@@ -549,6 +549,8 @@ enum {
     POWERPC_FLAG_BUS_CLK  = 0x00020000,
     /* Has CFAR                                                              */
     POWERPC_FLAG_CFAR     = 0x00040000,
+    /* Has VSX                                                               */
+    POWERPC_FLAG_VSX      = 0x00080000,
 };
 
 /*****************************************************************************/
@@ -1870,7 +1872,8 @@ enum {
     /* Book I 2.05 PowerPC specification                                     */
     PPC2_ISA205        = 0x0000000000000020ULL,
 
-#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_DBRX | PPC2_ISA205)
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
+  PPC2_ISA205)
 };
 
 /*****************************************************************************/

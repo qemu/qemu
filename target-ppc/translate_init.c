@@ -7246,7 +7246,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->bfd_mach = bfd_mach_ppc64;
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR;
+                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
+                 POWERPC_FLAG_VSX;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
 }
@@ -7283,7 +7284,8 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->bfd_mach = bfd_mach_ppc64;
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR;
+                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
+                 POWERPC_FLAG_VSX;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
 }
