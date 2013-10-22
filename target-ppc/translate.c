@@ -7003,6 +7003,22 @@ static inline TCGv_i64 cpu_vsrl(int n)
     }
 }
 
+static void gen_lxvd2x(DisasContext *ctx)
+{
+    TCGv EA;
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
+    tcg_gen_addi_tl(EA, EA, 8);
+    gen_qemu_ld64(ctx, cpu_vsrl(xT(ctx->opcode)), EA);
+    tcg_temp_free(EA);
+}
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -9451,6 +9467,8 @@ GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19),
 GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20),
 GEN_VAFORM_PAIRED(vsel, vperm, 21),
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
+
+GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
 
 #undef GEN_SPE
 #define GEN_SPE(name0, name1, opc2, opc3, inval0, inval1, type) \
