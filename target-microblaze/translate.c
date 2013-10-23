@@ -50,6 +50,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
 static TCGv env_res_addr;
+static TCGv env_res_val;
 
 #include "exec/gen-icount.h"
 
@@ -879,6 +880,7 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 
     if (exclusive) {
         tcg_gen_mov_tl(env_res_addr, addr);
+        tcg_gen_mov_tl(env_res_val, dst);
     }
 }
 
@@ -1128,6 +1130,7 @@ static void dec_store(DisasContext *dc)
 
     swx_addr = tcg_temp_local_new();
     if (ex) { /* swx */
+        TCGv tval;
 
         /* Force addr into the swx_addr. */
         tcg_gen_mov_tl(swx_addr, *addr);
@@ -1138,7 +1141,17 @@ static void dec_store(DisasContext *dc)
         write_carryi(dc, 1);
         swx_skip = gen_new_label();
         tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, swx_addr, swx_skip);
+
+        /* Compare the value loaded at lwx with current contents of
+           the reserved location.
+           FIXME: This only works for system emulation where we can expect
+           this compare and the following write to be atomic. For user
+           emulation we need to add atomicity between threads.  */
+        tval = tcg_temp_new();
+        gen_load(dc, tval, swx_addr, 4, false);
+        tcg_gen_brcond_tl(TCG_COND_NE, env_res_val, tval, swx_skip);
         write_carryi(dc, 0);
+        tcg_temp_free(tval);
     }
 
     if (rev && size != 4) {
@@ -2009,6 +2022,9 @@ void mb_tcg_init(void)
     env_res_addr = tcg_global_mem_new(TCG_AREG0,
                      offsetof(CPUMBState, res_addr),
                      "res_addr");
+    env_res_val = tcg_global_mem_new(TCG_AREG0,
+                     offsetof(CPUMBState, res_val),
+                     "res_val");
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
         cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
                           offsetof(CPUMBState, regs[i]),
