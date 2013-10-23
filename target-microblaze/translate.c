@@ -49,6 +49,7 @@ static TCGv env_imm;
 static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
+static TCGv env_res_addr;
 
 #include "exec/gen-icount.h"
 
@@ -877,7 +878,7 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
         cpu_abort(dc->env, "Incorrect load size %d\n", size);
 
     if (exclusive) {
-        tcg_gen_st_tl(addr, cpu_env, offsetof(CPUMBState, res_addr));
+        tcg_gen_mov_tl(env_res_addr, addr);
     }
 }
 
@@ -1101,7 +1102,7 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv t, *addr, swx_addr, r_check;
+    TCGv t, *addr, swx_addr;
     int swx_skip = 0;
     unsigned int size, rev = 0, ex = 0;
 
@@ -1125,7 +1126,6 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
-    r_check = tcg_temp_new();
     swx_addr = tcg_temp_local_new();
     if (ex) { /* swx */
 
@@ -1135,10 +1135,9 @@ static void dec_store(DisasContext *dc)
         /* swx does not throw unaligned access errors, so force alignment */
         tcg_gen_andi_tl(swx_addr, swx_addr, ~3);
 
-        tcg_gen_ld_tl(r_check, cpu_env, offsetof(CPUMBState, res_addr));
         write_carryi(dc, 1);
         swx_skip = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, r_check, swx_addr, swx_skip);
+        tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, swx_addr, swx_skip);
         write_carryi(dc, 0);
     }
 
@@ -1221,7 +1220,6 @@ static void dec_store(DisasContext *dc)
     if (ex) {
         gen_set_label(swx_skip);
     }
-    tcg_temp_free(r_check);
     tcg_temp_free(swx_addr);
 
     if (addr == &t)
@@ -2008,6 +2006,9 @@ void mb_tcg_init(void)
     env_btaken = tcg_global_mem_new(TCG_AREG0,
                      offsetof(CPUMBState, btaken),
                      "btaken");
+    env_res_addr = tcg_global_mem_new(TCG_AREG0,
+                     offsetof(CPUMBState, res_addr),
+                     "res_addr");
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
         cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
                           offsetof(CPUMBState, regs[i]),
