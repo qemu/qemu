@@ -125,8 +125,8 @@ typedef struct SheepdogObjReq {
     uint32_t data_length;
     uint64_t oid;
     uint64_t cow_oid;
-    uint32_t copies;
-    uint32_t rsvd;
+    uint8_t copies;
+    uint8_t reserved[7];
     uint64_t offset;
 } SheepdogObjReq;
 
@@ -138,7 +138,8 @@ typedef struct SheepdogObjRsp {
     uint32_t id;
     uint32_t data_length;
     uint32_t result;
-    uint32_t copies;
+    uint8_t copies;
+    uint8_t reserved[3];
     uint32_t pad[6];
 } SheepdogObjRsp;
 
@@ -151,7 +152,8 @@ typedef struct SheepdogVdiReq {
     uint32_t data_length;
     uint64_t vdi_size;
     uint32_t vdi_id;
-    uint32_t copies;
+    uint8_t copies;
+    uint8_t reserved[3];
     uint32_t snapid;
     uint32_t pad[3];
 } SheepdogVdiReq;
@@ -1081,7 +1083,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     return 0;
 }
 
-static int read_write_object(int fd, char *buf, uint64_t oid, int copies,
+static int read_write_object(int fd, char *buf, uint64_t oid, uint8_t copies,
                              unsigned int datalen, uint64_t offset,
                              bool write, bool create, uint32_t cache_flags)
 {
@@ -1129,7 +1131,7 @@ static int read_write_object(int fd, char *buf, uint64_t oid, int copies,
     }
 }
 
-static int read_object(int fd, char *buf, uint64_t oid, int copies,
+static int read_object(int fd, char *buf, uint64_t oid, uint8_t copies,
                        unsigned int datalen, uint64_t offset,
                        uint32_t cache_flags)
 {
@@ -1137,7 +1139,7 @@ static int read_object(int fd, char *buf, uint64_t oid, int copies,
                              false, cache_flags);
 }
 
-static int write_object(int fd, char *buf, uint64_t oid, int copies,
+static int write_object(int fd, char *buf, uint64_t oid, uint8_t copies,
                         unsigned int datalen, uint64_t offset, bool create,
                         uint32_t cache_flags)
 {
