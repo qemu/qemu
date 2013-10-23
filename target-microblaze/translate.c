@@ -863,7 +863,7 @@ static void dec_imm(DisasContext *dc)
 }
 
 static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
-                            unsigned int size)
+                            unsigned int size, bool exclusive)
 {
     int mem_index = cpu_mmu_index(dc->env);
 
@@ -875,6 +875,10 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
         tcg_gen_qemu_ld32u(dst, addr, mem_index);
     } else
         cpu_abort(dc->env, "Incorrect load size %d\n", size);
+
+    if (exclusive) {
+        tcg_gen_st_tl(addr, cpu_env, offsetof(CPUMBState, res_addr));
+    }
 }
 
 static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
@@ -1046,7 +1050,7 @@ static void dec_load(DisasContext *dc)
          * into v. If the load succeeds, we verify alignment of the
          * address and if that succeeds we write into the destination reg.
          */
-        gen_load(dc, v, *addr, size);
+        gen_load(dc, v, *addr, size, ex);
 
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(cpu_env, *addr, tcg_const_tl(dc->rd),
@@ -1061,20 +1065,19 @@ static void dec_load(DisasContext *dc)
         tcg_temp_free(v);
     } else {
         if (dc->rd) {
-            gen_load(dc, cpu_R[dc->rd], *addr, size);
+            gen_load(dc, cpu_R[dc->rd], *addr, size, ex);
             if (rev) {
                 dec_byteswap(dc, cpu_R[dc->rd], cpu_R[dc->rd], size);
             }
         } else {
             /* We are loading into r0, no need to reverse.  */
-            gen_load(dc, env_imm, *addr, size);
+            gen_load(dc, env_imm, *addr, size, ex);
         }
     }
 
     if (ex) { /* lwx */
         /* no support for for AXI exclusive so always clear C */
         write_carryi(dc, 0);
-        tcg_gen_st_tl(*addr, cpu_env, offsetof(CPUMBState, res_addr));
     }
 
     if (addr == &t)
