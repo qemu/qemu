@@ -1355,7 +1355,7 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    flags = BDRV_O_RDWR;
+    flags = min_sparse ? (BDRV_O_RDWR | BDRV_O_UNMAP) : BDRV_O_RDWR;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -1470,6 +1470,14 @@ static int img_convert(int argc, char **argv)
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
         int has_zero_init = min_sparse ? bdrv_has_zero_init(out_bs) : 0;
+
+        if (!has_zero_init && bdrv_can_write_zeroes_with_unmap(out_bs)) {
+            ret = bdrv_make_zero(out_bs, BDRV_REQ_MAY_UNMAP);
+            if (ret < 0) {
+                goto out;
+            }
+            has_zero_init = 1;
+        }
 
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
