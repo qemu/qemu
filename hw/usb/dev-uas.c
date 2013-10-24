@@ -122,8 +122,8 @@ struct UASDevice {
     UASRequest                *dataout2;
 
     /* usb 3.0 only */
-    USBPacket                 *data3[UAS_MAX_STREAMS];
-    USBPacket                 *status3[UAS_MAX_STREAMS];
+    USBPacket                 *data3[UAS_MAX_STREAMS + 1];
+    USBPacket                 *status3[UAS_MAX_STREAMS + 1];
 };
 
 struct UASRequest {
@@ -666,7 +666,7 @@ static void usb_uas_cancel_io(USBDevice *dev, USBPacket *p)
         return;
     }
     if (uas_using_streams(uas)) {
-        for (i = 0; i < UAS_MAX_STREAMS; i++) {
+        for (i = 0; i <= UAS_MAX_STREAMS; i++) {
             if (uas->status3[i] == p) {
                 uas->status3[i] = NULL;
                 return;
