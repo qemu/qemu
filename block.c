@@ -2711,32 +2711,65 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
                             BDRV_REQ_COPY_ON_READ);
 }
 
+/* if no limit is specified in the BlockLimits use a default
+ * of 32768 512-byte sectors (16 MiB) per request.
+ */
+#define MAX_WRITE_ZEROES_DEFAULT 32768
+
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
     QEMUIOVector qiov;
-    struct iovec iov;
-    int ret;
+    struct iovec iov = {0};
+    int ret = 0;
 
-    /* TODO Emulate only part of misaligned requests instead of letting block
-     * drivers return -ENOTSUP and emulate everything */
+    int max_write_zeroes = bs->bl.max_write_zeroes ?
+                           bs->bl.max_write_zeroes : MAX_WRITE_ZEROES_DEFAULT;
 
-    /* First try the efficient write zeroes operation */
-    if (drv->bdrv_co_write_zeroes) {
-        ret = drv->bdrv_co_write_zeroes(bs, sector_num, nb_sectors, flags);
-        if (ret != -ENOTSUP) {
-            return ret;
+    while (nb_sectors > 0 && !ret) {
+        int num = nb_sectors;
+
+        /* align request */
+        if (bs->bl.write_zeroes_alignment &&
+            num >= bs->bl.write_zeroes_alignment &&
+            sector_num % bs->bl.write_zeroes_alignment) {
+            if (num > bs->bl.write_zeroes_alignment) {
+                num = bs->bl.write_zeroes_alignment;
+            }
+            num -= sector_num % bs->bl.write_zeroes_alignment;
         }
+
+        /* limit request size */
+        if (num > max_write_zeroes) {
+            num = max_write_zeroes;
+        }
+
+        ret = -ENOTSUP;
+        /* First try the efficient write zeroes operation */
+        if (drv->bdrv_co_write_zeroes) {
+            ret = drv->bdrv_co_write_zeroes(bs, sector_num, num, flags);
+        }
+
+        if (ret == -ENOTSUP) {
+            /* Fall back to bounce buffer if write zeroes is unsupported */
+            iov.iov_len = num * BDRV_SECTOR_SIZE;
+            if (iov.iov_base == NULL) {
+                /* allocate bounce buffer only once and ensure that it
+                 * is big enough for this and all future requests.
+                 */
+                size_t bufsize = num <= nb_sectors ? num : max_write_zeroes;
+                iov.iov_base = qemu_blockalign(bs, bufsize * BDRV_SECTOR_SIZE);
+                memset(iov.iov_base, 0, bufsize * BDRV_SECTOR_SIZE);
+            }
+            qemu_iovec_init_external(&qiov, &iov, 1);
+
+            ret = drv->bdrv_co_writev(bs, sector_num, num, &qiov);
+        }
+
+        sector_num += num;
+        nb_sectors -= num;
     }
-
-    /* Fall back to bounce buffer if write zeroes is unsupported */
-    iov.iov_len  = nb_sectors * BDRV_SECTOR_SIZE;
-    iov.iov_base = qemu_blockalign(bs, iov.iov_len);
-    memset(iov.iov_base, 0, iov.iov_len);
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, &qiov);
 
     qemu_vfree(iov.iov_base);
     return ret;
