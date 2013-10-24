@@ -56,6 +56,7 @@ typedef struct IscsiLun {
     uint8_t lbprz;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
+    unsigned char *zeroblock;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -959,6 +960,65 @@ retry:
     return 0;
 }
 
+#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
+
+static int
+coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
+                                   int nb_sectors, BdrvRequestFlags flags)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct IscsiTask iTask;
+    uint64_t lba;
+    uint32_t nb_blocks;
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return -EINVAL;
+    }
+
+    if (!iscsilun->lbp.lbpws) {
+        /* WRITE SAME is not supported by the target */
+        return -ENOTSUP;
+    }
+
+    lba = sector_qemu2lun(sector_num, iscsilun);
+    nb_blocks = sector_qemu2lun(nb_sectors, iscsilun);
+
+    if (iscsilun->zeroblock == NULL) {
+        iscsilun->zeroblock = g_malloc0(iscsilun->block_size);
+    }
+
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
+retry:
+    if (iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
+                               iscsilun->zeroblock, iscsilun->block_size,
+                               nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
+                               0, 0, iscsi_co_generic_cb, &iTask) == NULL) {
+        return -EIO;
+    }
+
+    while (!iTask.complete) {
+        iscsi_set_events(iscsilun);
+        qemu_coroutine_yield();
+    }
+
+    if (iTask.task != NULL) {
+        scsi_free_scsi_task(iTask.task);
+        iTask.task = NULL;
+    }
+
+    if (iTask.do_retry) {
+        goto retry;
+    }
+
+    if (iTask.status != SCSI_STATUS_GOOD) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+#endif /* SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED */
+
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
 {
     QemuOptsList *list;
@@ -1421,6 +1481,7 @@ static void iscsi_close(BlockDriverState *bs)
     }
     qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
+    g_free(iscsilun->zeroblock);
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
@@ -1539,6 +1600,9 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
 #endif
     .bdrv_co_discard      = iscsi_co_discard,
+#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
+    .bdrv_co_write_zeroes = iscsi_co_write_zeroes,
+#endif
 
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
