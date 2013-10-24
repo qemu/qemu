@@ -1696,7 +1696,7 @@ static int qcow2_make_empty(BlockDriverState *bs)
 }
 
 static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors)
+    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
     int ret;
     BDRVQcowState *s = bs->opaque;

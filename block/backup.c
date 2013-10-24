@@ -138,7 +138,8 @@ static int coroutine_fn backup_do_cow(BlockDriverState *bs,
 
         if (buffer_is_zero(iov.iov_base, iov.iov_len)) {
             ret = bdrv_co_write_zeroes(job->target,
-                                       start * BACKUP_SECTORS_PER_CLUSTER, n);
+                                       start * BACKUP_SECTORS_PER_CLUSTER,
+                                       n, 0);
         } else {
             ret = bdrv_co_writev(job->target,
                                  start * BACKUP_SECTORS_PER_CLUSTER, n,

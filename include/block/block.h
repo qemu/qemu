@@ -192,7 +192,7 @@ int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-               int nb_sectors);
+               int nb_sectors, BdrvRequestFlags flags);
 int bdrv_writev(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -214,7 +214,7 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
  * because it may allocate memory for the entire region.
  */
 int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors);
+    int nb_sectors, BdrvRequestFlags flags);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);

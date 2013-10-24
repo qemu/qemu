@@ -79,7 +79,7 @@ static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                                bool is_write);
 static void coroutine_fn bdrv_co_do_rw(void *opaque);
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors);
+    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -2392,10 +2392,11 @@ int bdrv_writev(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov)
     return bdrv_rwv_co(bs, sector_num, qiov, true, 0);
 }
 
-int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
+                      int nb_sectors, BdrvRequestFlags flags)
 {
     return bdrv_rw_co(bs, sector_num, NULL, nb_sectors, true,
-                      BDRV_REQ_ZERO_WRITE);
+                      BDRV_REQ_ZERO_WRITE | flags);
 }
 
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
@@ -2577,7 +2578,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     if (drv->bdrv_co_write_zeroes &&
         buffer_is_zero(bounce_buffer, iov.iov_len)) {
         ret = bdrv_co_do_write_zeroes(bs, cluster_sector_num,
-                                      cluster_nb_sectors);
+                                      cluster_nb_sectors, 0);
     } else {
         /* This does not change the data on the disk, it is not necessary
          * to flush even in cache=writethrough mode.
@@ -2711,7 +2712,7 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
 }
 
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors)
+    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
     QEMUIOVector qiov;
@@ -2723,7 +2724,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 
     /* First try the efficient write zeroes operation */
     if (drv->bdrv_co_write_zeroes) {
-        ret = drv->bdrv_co_write_zeroes(bs, sector_num, nb_sectors);
+        ret = drv->bdrv_co_write_zeroes(bs, sector_num, nb_sectors, flags);
         if (ret != -ENOTSUP) {
             return ret;
         }
@@ -2778,7 +2779,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     if (ret < 0) {
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
-        ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors);
+        ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors, flags);
     } else {
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
@@ -2812,12 +2813,13 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
 }
 
 int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
-                                      int64_t sector_num, int nb_sectors)
+                                      int64_t sector_num, int nb_sectors,
+                                      BdrvRequestFlags flags)
 {
     trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors);
 
     return bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
-                             BDRV_REQ_ZERO_WRITE);
+                             BDRV_REQ_ZERO_WRITE | flags);
 }
 
 /**

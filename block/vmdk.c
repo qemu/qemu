@@ -1419,7 +1419,8 @@ static coroutine_fn int vmdk_co_write(BlockDriverState *bs, int64_t sector_num,
 
 static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
                                              int64_t sector_num,
-                                             int nb_sectors)
+                                             int nb_sectors,
+                                             BdrvRequestFlags flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;

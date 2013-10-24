@@ -130,7 +130,7 @@ struct BlockDriver {
      * instead.
      */
     int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors);
+        int64_t sector_num, int nb_sectors, BdrvRequestFlags flags);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,

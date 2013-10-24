@@ -442,7 +442,7 @@ static void coroutine_fn co_write_zeroes_entry(void *opaque)
     CoWriteZeroes *data = opaque;
 
     data->ret = bdrv_co_write_zeroes(data->bs, data->offset / BDRV_SECTOR_SIZE,
-                                     data->count / BDRV_SECTOR_SIZE);
+                                     data->count / BDRV_SECTOR_SIZE, 0);
     data->done = true;
     if (data->ret < 0) {
         *data->total = data->ret;
