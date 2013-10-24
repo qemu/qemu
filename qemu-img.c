@@ -100,8 +100,12 @@ static void help(void)
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
            "  '-q' use Quiet mode - do not print any output (except errors)\n"
-           "  '-S' indicates the consecutive number of bytes that must contain only zeros\n"
-           "       for qemu-img to create a sparse image during conversion\n"
+           "  '-S' indicates the consecutive number of bytes (defaults to 4k) that must\n"
+           "       contain only zeros for qemu-img to create a sparse image during\n"
+           "       conversion. If the number of bytes is 0, the source will not be scanned for\n"
+           "       unallocated or zero sectors, and the destination image will always be\n"
+           "       fully allocated\n"
+           "       images will always be fully allocated\n"
            "  '--output' takes the format in which the output must be done (human or json)\n"
            "  '-n' skips the target volume creation (useful if the volume is created\n"
            "       prior to running qemu-img)\n"
@@ -1465,7 +1469,7 @@ static int img_convert(int argc, char **argv)
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
-        int has_zero_init = bdrv_has_zero_init(out_bs);
+        int has_zero_init = min_sparse ? bdrv_has_zero_init(out_bs) : 0;
 
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
