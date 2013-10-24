@@ -746,17 +746,14 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
     if (req) {
         goto overlapped_tag;
     }
+    if (dev == NULL) {
+        goto incorrect_lun;
+    }
 
     switch (ui->task.function) {
     case UAS_TMF_ABORT_TASK:
         task_tag = be16_to_cpu(ui->task.task_tag);
         trace_usb_uas_tmf_abort_task(uas->dev.addr, tag, task_tag);
-        if (dev == NULL) {
-            goto bad_target;
-        }
-        if (dev->lun != lun) {
-            goto incorrect_lun;
-        }
         req = usb_uas_find_request(uas, task_tag);
         if (req && req->dev == dev) {
             scsi_req_cancel(req->req);
@@ -766,12 +763,6 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
 
     case UAS_TMF_LOGICAL_UNIT_RESET:
         trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag, lun);
-        if (dev == NULL) {
-            goto bad_target;
-        }
-        if (dev->lun != lun) {
-            goto incorrect_lun;
-        }
         qdev_reset_all(&dev->qdev);
         usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE, 0);
         break;
@@ -785,11 +776,6 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
 
 overlapped_tag:
     usb_uas_queue_response(uas, req->tag, UAS_RC_OVERLAPPED_TAG, 0);
-    return;
-
-bad_target:
-    /* FIXME: correct?  [see long comment in usb_uas_command()] */
-    usb_uas_queue_response(uas, tag, UAS_RC_INVALID_INFO_UNIT, 0);
     return;
 
 incorrect_lun:
