@@ -611,10 +611,10 @@ static int do_req(int sockfd, SheepdogReq *hdr, void *data,
     return srco.ret;
 }
 
-static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
+static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, bool create,
                            enum AIOCBState aiocb_type);
-static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
+static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
 static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag);
 static int get_sheep_fd(BDRVSheepdogState *s);
 static void co_write_request(void *opaque);
@@ -640,22 +640,14 @@ static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid)
 {
     AIOReq *aio_req;
     SheepdogAIOCB *acb;
-    int ret;
 
     while ((aio_req = find_pending_req(s, oid)) != NULL) {
         acb = aio_req->aiocb;
         /* move aio_req from pending list to inflight one */
         QLIST_REMOVE(aio_req, aio_siblings);
         QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
-        ret = add_aio_request(s, aio_req, acb->qiov->iov,
-                              acb->qiov->niov, false, acb->aiocb_type);
-        if (ret < 0) {
-            error_report("add_aio_request is failed");
-            free_aio_req(s, aio_req);
-            if (!acb->nr_pending) {
-                sd_finish_aiocb(acb);
-            }
-        }
+        add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov, false,
+                        acb->aiocb_type);
     }
 }
 
@@ -818,11 +810,8 @@ static void coroutine_fn aio_read_response(void *opaque)
         } else {
             aio_req->oid = vid_to_vdi_oid(s->inode.vdi_id);
         }
-        ret = resend_aioreq(s, aio_req);
-        if (ret == SD_RES_SUCCESS) {
-            goto out;
-        }
-        /* fall through */
+        resend_aioreq(s, aio_req);
+        goto out;
     default:
         acb->ret = -EIO;
         error_report("%s", sd_strerror(rsp.result));
@@ -1071,7 +1060,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
+static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, bool create,
                            enum AIOCBState aiocb_type)
 {
@@ -1149,8 +1138,6 @@ out:
     qemu_aio_set_fd_handler(s->fd, co_read_response, NULL, s);
     s->co_send = NULL;
     qemu_co_mutex_unlock(&s->lock);
-
-    return 0;
 }
 
 static int read_write_object(int fd, char *buf, uint64_t oid, uint8_t copies,
@@ -1253,7 +1240,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
+static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
 {
     SheepdogAIOCB *acb = aio_req->aiocb;
     bool create = false;
@@ -1278,7 +1265,7 @@ static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
                 DPRINTF("simultaneous CoW to %" PRIx64 "\n", aio_req->oid);
                 QLIST_REMOVE(aio_req, aio_siblings);
                 QLIST_INSERT_HEAD(&s->pending_aio_head, aio_req, aio_siblings);
-                return SD_RES_SUCCESS;
+                return;
             }
         }
 
@@ -1288,13 +1275,13 @@ static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
     }
 out:
     if (is_data_obj(aio_req->oid)) {
-        return add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
-                               create, acb->aiocb_type);
+        add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov, create,
+                        acb->aiocb_type);
     } else {
         struct iovec iov;
         iov.iov_base = &s->inode;
         iov.iov_len = sizeof(s->inode);
-        return add_aio_request(s, aio_req, &iov, 1, false, AIOCB_WRITE_UDATA);
+        add_aio_request(s, aio_req, &iov, 1, false, AIOCB_WRITE_UDATA);
     }
 }
 
@@ -1697,7 +1684,6 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset)
  */
 static void coroutine_fn sd_write_done(SheepdogAIOCB *acb)
 {
-    int ret;
     BDRVSheepdogState *s = acb->common.bs->opaque;
     struct iovec iov;
     AIOReq *aio_req;
@@ -1719,18 +1705,13 @@ static void coroutine_fn sd_write_done(SheepdogAIOCB *acb)
         aio_req = alloc_aio_req(s, acb, vid_to_vdi_oid(s->inode.vdi_id),
                                 data_len, offset, 0, 0, offset);
         QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
-        ret = add_aio_request(s, aio_req, &iov, 1, false, AIOCB_WRITE_UDATA);
-        if (ret) {
-            free_aio_req(s, aio_req);
-            acb->ret = -EIO;
-            goto out;
-        }
+        add_aio_request(s, aio_req, &iov, 1, false, AIOCB_WRITE_UDATA);
 
         acb->aio_done_func = sd_finish_aiocb;
         acb->aiocb_type = AIOCB_WRITE_UDATA;
         return;
     }
-out:
+
     sd_finish_aiocb(acb);
 }
 
@@ -1937,14 +1918,8 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         }
 
         QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
-        ret = add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
-                              create, acb->aiocb_type);
-        if (ret < 0) {
-            error_report("add_aio_request is failed");
-            free_aio_req(s, aio_req);
-            acb->ret = -EIO;
-            goto out;
-        }
+        add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov, create,
+                        acb->aiocb_type);
     done:
         offset = 0;
         idx++;
@@ -2012,7 +1987,6 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
     BDRVSheepdogState *s = bs->opaque;
     SheepdogAIOCB *acb;
     AIOReq *aio_req;
-    int ret;
 
     if (s->cache_flags != SD_FLAG_CMD_CACHE) {
         return 0;
@@ -2025,13 +1999,7 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
     aio_req = alloc_aio_req(s, acb, vid_to_vdi_oid(s->inode.vdi_id),
                             0, 0, 0, 0, 0);
     QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
-    ret = add_aio_request(s, aio_req, NULL, 0, false, acb->aiocb_type);
-    if (ret < 0) {
-        error_report("add_aio_request is failed");
-        free_aio_req(s, aio_req);
-        qemu_aio_release(acb);
-        return ret;
-    }
+    add_aio_request(s, aio_req, NULL, 0, false, acb->aiocb_type);
 
     qemu_coroutine_yield();
     return acb->ret;
