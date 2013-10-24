@@ -150,6 +150,10 @@ static void read_carry(DisasContext *dc, TCGv d)
     tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
 }
 
+/*
+ * write_carry sets the carry bits in MSR based on bit 0 of v.
+ * v[31:1] are ignored.
+ */
 static void write_carry(DisasContext *dc, TCGv v)
 {
     TCGv t0 = tcg_temp_new();
