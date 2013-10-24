@@ -1384,6 +1384,20 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                sizeof(struct scsi_inquiry_block_limits));
         scsi_free_scsi_task(task);
         task = NULL;
+
+        if (iscsilun->bl.max_unmap < 0xffffffff) {
+            bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
+                                                 iscsilun);
+        }
+        bs->bl.discard_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
+                                                   iscsilun);
+
+        if (iscsilun->bl.max_ws_len < 0xffffffff) {
+            bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
+                                                      iscsilun);
+        }
+        bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
+                                                        iscsilun);
     }
 
 #if defined(LIBISCSI_FEATURE_NOP_COUNTER)
