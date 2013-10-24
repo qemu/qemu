@@ -780,13 +780,10 @@ static void dec_bit(DisasContext *dc)
         case 0x1:
         case 0x41:
             /* srl.  */
-            t0 = tcg_temp_new();
             LOG_DIS("srl r%d r%d\n", dc->rd, dc->ra);
 
-            /* Update carry.  */
-            tcg_gen_andi_tl(t0, cpu_R[dc->ra], 1);
-            write_carry(dc, t0);
-            tcg_temp_free(t0);
+            /* Update carry. Note that write carry only looks at the LSB.  */
+            write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
                 if (op == 0x41)
                     tcg_gen_shri_tl(cpu_R[dc->rd], cpu_R[dc->ra], 1);
