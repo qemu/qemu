@@ -2399,6 +2399,43 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                       BDRV_REQ_ZERO_WRITE | flags);
 }
 
+/*
+ * Completely zero out a block device with the help of bdrv_write_zeroes.
+ * The operation is sped up by checking the block status and only writing
+ * zeroes to the device if they currently do not return zeroes. Optional
+ * flags are passed through to bdrv_write_zeroes (e.g. BDRV_REQ_MAY_UNMAP).
+ *
+ * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
+ */
+int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
+{
+    int64_t target_size = bdrv_getlength(bs) / BDRV_SECTOR_SIZE;
+    int64_t ret, nb_sectors, sector_num = 0;
+    int n;
+
+    for (;;) {
+        nb_sectors = target_size - sector_num;
+        if (nb_sectors <= 0) {
+            return 0;
+        }
+        if (nb_sectors > INT_MAX) {
+            nb_sectors = INT_MAX;
+        }
+        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
+        if (ret & BDRV_BLOCK_ZERO) {
+            sector_num += n;
+            continue;
+        }
+        ret = bdrv_write_zeroes(bs, sector_num, n, flags);
+        if (ret < 0) {
+            error_report("error writing zeroes at sector %" PRId64 ": %s",
+                         sector_num, strerror(-ret));
+            return ret;
+        }
+        sector_num += n;
+    }
+}
+
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count1)
 {
