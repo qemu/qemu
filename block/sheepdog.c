@@ -299,7 +299,8 @@ struct SheepdogAIOCB {
     Coroutine *coroutine;
     void (*aio_done_func)(SheepdogAIOCB *);
 
-    bool canceled;
+    bool cancelable;
+    bool *finished;
     int nr_pending;
 };
 
@@ -418,6 +419,7 @@ static inline void free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
 {
     SheepdogAIOCB *acb = aio_req->aiocb;
 
+    acb->cancelable = false;
     QLIST_REMOVE(aio_req, aio_siblings);
     g_free(aio_req);
 
@@ -426,23 +428,68 @@ static inline void free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
 
 static void coroutine_fn sd_finish_aiocb(SheepdogAIOCB *acb)
 {
-    if (!acb->canceled) {
-        qemu_coroutine_enter(acb->coroutine, NULL);
+    qemu_coroutine_enter(acb->coroutine, NULL);
+    if (acb->finished) {
+        *acb->finished = true;
     }
     qemu_aio_release(acb);
+}
+
+/*
+ * Check whether the specified acb can be canceled
+ *
+ * We can cancel aio when any request belonging to the acb is:
+ *  - Not processed by the sheepdog server.
+ *  - Not linked to the inflight queue.
+ */
+static bool sd_acb_cancelable(const SheepdogAIOCB *acb)
+{
+    BDRVSheepdogState *s = acb->common.bs->opaque;
+    AIOReq *aioreq;
+
+    if (!acb->cancelable) {
+        return false;
+    }
+
+    QLIST_FOREACH(aioreq, &s->inflight_aio_head, aio_siblings) {
+        if (aioreq->aiocb == acb) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static void sd_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     SheepdogAIOCB *acb = (SheepdogAIOCB *)blockacb;
+    BDRVSheepdogState *s = acb->common.bs->opaque;
+    AIOReq *aioreq, *next;
+    bool finished = false;
 
-    /*
-     * Sheepdog cannot cancel the requests which are already sent to
-     * the servers, so we just complete the request with -EIO here.
-     */
-    acb->ret = -EIO;
-    qemu_coroutine_enter(acb->coroutine, NULL);
-    acb->canceled = true;
+    acb->finished = &finished;
+    while (!finished) {
+        if (sd_acb_cancelable(acb)) {
+            /* Remove outstanding requests from pending and failed queues.  */
+            QLIST_FOREACH_SAFE(aioreq, &s->pending_aio_head, aio_siblings,
+                               next) {
+                if (aioreq->aiocb == acb) {
+                    free_aio_req(s, aioreq);
+                }
+            }
+            QLIST_FOREACH_SAFE(aioreq, &s->failed_aio_head, aio_siblings,
+                               next) {
+                if (aioreq->aiocb == acb) {
+                    free_aio_req(s, aioreq);
+                }
+            }
+
+            assert(acb->nr_pending == 0);
+            sd_finish_aiocb(acb);
+            return;
+        }
+        qemu_aio_wait();
+    }
 }
 
 static const AIOCBInfo sd_aiocb_info = {
@@ -463,7 +510,8 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
     acb->nb_sectors = nb_sectors;
 
     acb->aio_done_func = NULL;
-    acb->canceled = false;
+    acb->cancelable = true;
+    acb->finished = NULL;
     acb->coroutine = qemu_coroutine_self();
     acb->ret = 0;
     acb->nr_pending = 0;
