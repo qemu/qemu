@@ -65,6 +65,13 @@ typedef struct BlockDevOps {
 typedef enum {
     BDRV_REQ_COPY_ON_READ = 0x1,
     BDRV_REQ_ZERO_WRITE   = 0x2,
+    /* The BDRV_REQ_MAY_UNMAP flag is used to indicate that the block driver
+     * is allowed to optimize a write zeroes request by unmapping (discarding)
+     * blocks if it is guaranteed that the result will read back as
+     * zeroes. The flag is only passed to the driver if the block device is
+     * opened with BDRV_O_UNMAP.
+     */
+    BDRV_REQ_MAY_UNMAP    = 0x4,
 } BdrvRequestFlags;
 
 #define BDRV_O_RDWR        0x0002
