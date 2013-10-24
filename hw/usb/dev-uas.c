@@ -692,6 +692,9 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
     uint32_t len;
     uint16_t tag = be16_to_cpu(ui->hdr.tag);
 
+    if (uas_using_streams(uas) && tag > UAS_MAX_STREAMS) {
+        goto invalid_tag;
+    }
     req = usb_uas_find_request(uas, tag);
     if (req) {
         goto overlapped_tag;
@@ -724,6 +727,10 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
     }
     return;
 
+invalid_tag:
+    usb_uas_queue_fake_sense(uas, tag, sense_code_INVALID_TAG);
+    return;
+
 overlapped_tag:
     usb_uas_queue_fake_sense(uas, tag, sense_code_OVERLAPPED_COMMANDS);
     return;
@@ -742,6 +749,9 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
     UASRequest *req;
     uint16_t task_tag;
 
+    if (uas_using_streams(uas) && tag > UAS_MAX_STREAMS) {
+        goto invalid_tag;
+    }
     req = usb_uas_find_request(uas, be16_to_cpu(ui->hdr.tag));
     if (req) {
         goto overlapped_tag;
@@ -772,6 +782,10 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
         usb_uas_queue_response(uas, tag, UAS_RC_TMF_NOT_SUPPORTED, 0);
         break;
     }
+    return;
+
+invalid_tag:
+    usb_uas_queue_response(uas, tag, UAS_RC_INVALID_INFO_UNIT, 0);
     return;
 
 overlapped_tag:
