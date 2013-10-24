@@ -1288,6 +1288,29 @@ out:
     return ret;
 }
 
+/* Return true if the specified request is linked to the pending list. */
+static bool check_simultaneous_create(BDRVSheepdogState *s, AIOReq *aio_req)
+{
+    AIOReq *areq;
+    QLIST_FOREACH(areq, &s->inflight_aio_head, aio_siblings) {
+        if (areq != aio_req && areq->oid == aio_req->oid) {
+            /*
+             * Sheepdog cannot handle simultaneous create requests to the same
+             * object, so we cannot send the request until the previous request
+             * finishes.
+             */
+            DPRINTF("simultaneous create to %" PRIx64 "\n", aio_req->oid);
+            aio_req->flags = 0;
+            aio_req->base_oid = 0;
+            QLIST_REMOVE(aio_req, aio_siblings);
+            QLIST_INSERT_HEAD(&s->pending_aio_head, aio_req, aio_siblings);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
 {
     SheepdogAIOCB *acb = aio_req->aiocb;
@@ -1296,29 +1319,19 @@ static void coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
     /* check whether this request becomes a CoW one */
     if (acb->aiocb_type == AIOCB_WRITE_UDATA && is_data_obj(aio_req->oid)) {
         int idx = data_oid_to_idx(aio_req->oid);
-        AIOReq *areq;
 
-        if (s->inode.data_vdi_id[idx] == 0) {
-            create = true;
-            goto out;
-        }
         if (is_data_obj_writable(&s->inode, idx)) {
             goto out;
         }
 
-        /* link to the pending list if there is another CoW request to
-         * the same object */
-        QLIST_FOREACH(areq, &s->inflight_aio_head, aio_siblings) {
-            if (areq != aio_req && areq->oid == aio_req->oid) {
-                DPRINTF("simultaneous CoW to %" PRIx64 "\n", aio_req->oid);
-                QLIST_REMOVE(aio_req, aio_siblings);
-                QLIST_INSERT_HEAD(&s->pending_aio_head, aio_req, aio_siblings);
-                return;
-            }
+        if (check_simultaneous_create(s, aio_req)) {
+            return;
         }
 
-        aio_req->base_oid = vid_to_data_oid(s->inode.data_vdi_id[idx], idx);
-        aio_req->flags |= SD_FLAG_CMD_COW;
+        if (s->inode.data_vdi_id[idx]) {
+            aio_req->base_oid = vid_to_data_oid(s->inode.data_vdi_id[idx], idx);
+            aio_req->flags |= SD_FLAG_CMD_COW;
+        }
         create = true;
     }
 out:
@@ -1945,27 +1958,14 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         }
 
         aio_req = alloc_aio_req(s, acb, oid, len, offset, flags, old_oid, done);
+        QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
 
         if (create) {
-            AIOReq *areq;
-            QLIST_FOREACH(areq, &s->inflight_aio_head, aio_siblings) {
-                if (areq->oid == oid) {
-                    /*
-                     * Sheepdog cannot handle simultaneous create
-                     * requests to the same object.  So we cannot send
-                     * the request until the previous request
-                     * finishes.
-                     */
-                    aio_req->flags = 0;
-                    aio_req->base_oid = 0;
-                    QLIST_INSERT_HEAD(&s->pending_aio_head, aio_req,
-                                      aio_siblings);
-                    goto done;
-                }
+            if (check_simultaneous_create(s, aio_req)) {
+                goto done;
             }
         }
 
-        QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
         add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov, create,
                         acb->aiocb_type);
     done:
