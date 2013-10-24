@@ -227,6 +227,11 @@ static inline uint64_t data_oid_to_idx(uint64_t oid)
     return oid & (MAX_DATA_OBJS - 1);
 }
 
+static inline uint32_t oid_to_vid(uint64_t oid)
+{
+    return (oid & ~VDI_BIT) >> VDI_SPACE_SHIFT;
+}
+
 static inline uint64_t vid_to_vdi_oid(uint32_t vid)
 {
     return VDI_BIT | ((uint64_t)vid << VDI_SPACE_SHIFT);
@@ -605,7 +610,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, bool create,
                            enum AIOCBState aiocb_type);
 static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
-
+static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag);
 
 static AIOReq *find_pending_req(BDRVSheepdogState *s, uint64_t oid)
 {
@@ -753,6 +758,19 @@ static void coroutine_fn aio_read_response(void *opaque)
     case SD_RES_SUCCESS:
         break;
     case SD_RES_READONLY:
+        if (s->inode.vdi_id == oid_to_vid(aio_req->oid)) {
+            ret = reload_inode(s, 0, "");
+            if (ret < 0) {
+                goto out;
+            }
+        }
+
+        if (is_data_obj(aio_req->oid)) {
+            aio_req->oid = vid_to_data_oid(s->inode.vdi_id,
+                                           data_oid_to_idx(aio_req->oid));
+        } else {
+            aio_req->oid = vid_to_vdi_oid(s->inode.vdi_id);
+        }
         ret = resend_aioreq(s, aio_req);
         if (ret == SD_RES_SUCCESS) {
             goto out;
@@ -1190,19 +1208,6 @@ static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
 {
     SheepdogAIOCB *acb = aio_req->aiocb;
     bool create = false;
-    int ret;
-
-    ret = reload_inode(s, 0, "");
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (is_data_obj(aio_req->oid)) {
-        aio_req->oid = vid_to_data_oid(s->inode.vdi_id,
-                                       data_oid_to_idx(aio_req->oid));
-    } else {
-        aio_req->oid = vid_to_vdi_oid(s->inode.vdi_id);
-    }
 
     /* check whether this request becomes a CoW one */
     if (acb->aiocb_type == AIOCB_WRITE_UDATA && is_data_obj(aio_req->oid)) {
