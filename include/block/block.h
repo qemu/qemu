@@ -62,6 +62,11 @@ typedef struct BlockDevOps {
     void (*resize_cb)(void *opaque);
 } BlockDevOps;
 
+typedef enum {
+    BDRV_REQ_COPY_ON_READ = 0x1,
+    BDRV_REQ_ZERO_WRITE   = 0x2,
+} BdrvRequestFlags;
+
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
