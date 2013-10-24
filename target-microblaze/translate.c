@@ -390,10 +390,7 @@ static void dec_and(DisasContext *dc)
         return;
 
     if (not) {
-        TCGv t = tcg_temp_new();
-        tcg_gen_not_tl(t, *(dec_alu_op_b(dc)));
-        tcg_gen_and_tl(cpu_R[dc->rd], cpu_R[dc->ra], t);
-        tcg_temp_free(t);
+        tcg_gen_andc_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     } else
         tcg_gen_and_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
