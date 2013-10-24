@@ -420,6 +420,24 @@ static void usb_uas_queue_sense(UASRequest *req, uint8_t status)
     usb_uas_queue_status(req->uas, st, len);
 }
 
+static void usb_uas_queue_fake_sense(UASDevice *uas, uint16_t tag,
+                                     struct SCSISense sense)
+{
+    UASStatus *st = usb_uas_alloc_status(uas, UAS_UI_SENSE, tag);
+    int len, slen = 0;
+
+    st->status.sense.status = CHECK_CONDITION;
+    st->status.sense.status_qualifier = cpu_to_be16(0);
+    st->status.sense.sense_data[0] = 0x70;
+    st->status.sense.sense_data[2] = sense.key;
+    st->status.sense.sense_data[7] = 10;
+    st->status.sense.sense_data[12] = sense.asc;
+    st->status.sense.sense_data[13] = sense.ascq;
+    slen = 18;
+    len = sizeof(uas_ui_sense) - sizeof(st->status.sense.sense_data) + slen;
+    usb_uas_queue_status(uas, st, len);
+}
+
 static void usb_uas_queue_read_ready(UASRequest *req)
 {
     UASStatus *st = usb_uas_alloc_status(req->uas, UAS_UI_READ_READY,
@@ -672,8 +690,9 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
 {
     UASRequest *req;
     uint32_t len;
+    uint16_t tag = be16_to_cpu(ui->hdr.tag);
 
-    req = usb_uas_find_request(uas, be16_to_cpu(ui->hdr.tag));
+    req = usb_uas_find_request(uas, tag);
     if (req) {
         goto overlapped_tag;
     }
@@ -706,16 +725,11 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
     return;
 
 overlapped_tag:
-    usb_uas_queue_response(uas, req->tag, UAS_RC_OVERLAPPED_TAG, 0);
+    usb_uas_queue_fake_sense(uas, tag, sense_code_OVERLAPPED_COMMANDS);
     return;
 
 bad_target:
-    /*
-     * FIXME: Seems to upset linux, is this wrong?
-     * NOTE: Happens only with no scsi devices at the bus, not sure
-     *       this is a valid UAS setup in the first place.
-     */
-    usb_uas_queue_response(uas, req->tag, UAS_RC_INVALID_INFO_UNIT, 0);
+    usb_uas_queue_fake_sense(uas, tag, sense_code_LUN_NOT_SUPPORTED);
     g_free(req);
 }
 
