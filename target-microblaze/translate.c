@@ -166,10 +166,10 @@ static void write_carry(DisasContext *dc, TCGv v)
     tcg_temp_free(t0);
 }
 
-static void write_carryi(DisasContext *dc, int carry)
+static void write_carryi(DisasContext *dc, bool carry)
 {
     TCGv t0 = tcg_temp_new();
-    tcg_gen_movi_tl(t0, carry ? 1 : 0);
+    tcg_gen_movi_tl(t0, carry);
     write_carry(dc, t0);
     tcg_temp_free(t0);
 }
