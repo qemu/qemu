@@ -750,7 +750,7 @@ static void dec_barrel(DisasContext *dc)
 
 static void dec_bit(DisasContext *dc)
 {
-    TCGv t0, t1;
+    TCGv t0;
     unsigned int op;
     int mem_index = cpu_mmu_index(dc->env);
 
@@ -761,19 +761,12 @@ static void dec_bit(DisasContext *dc)
             t0 = tcg_temp_new();
 
             LOG_DIS("src r%d r%d\n", dc->rd, dc->ra);
-            tcg_gen_andi_tl(t0, cpu_R[dc->ra], 1);
+            tcg_gen_andi_tl(t0, cpu_SR[SR_MSR], MSR_CC);
+            write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
-                t1 = tcg_temp_new();
-                read_carry(dc, t1);
-                tcg_gen_shli_tl(t1, t1, 31);
-
                 tcg_gen_shri_tl(cpu_R[dc->rd], cpu_R[dc->ra], 1);
-                tcg_gen_or_tl(cpu_R[dc->rd], cpu_R[dc->rd], t1);
-                tcg_temp_free(t1);
+                tcg_gen_or_tl(cpu_R[dc->rd], cpu_R[dc->rd], t0);
             }
-
-            /* Update carry.  */
-            write_carry(dc, t0);
             tcg_temp_free(t0);
             break;
 
