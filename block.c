@@ -3272,8 +3272,8 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
                                      *pnum, pnum);
     }
 
-    if (!(ret & BDRV_BLOCK_DATA)) {
-        if (bdrv_has_zero_init(bs)) {
+    if (!(ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO)) {
+        if (bdrv_unallocated_blocks_are_zero(bs)) {
             ret |= BDRV_BLOCK_ZERO;
         } else if (bs->backing_hd) {
             BlockDriverState *bs2 = bs->backing_hd;
