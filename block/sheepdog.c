@@ -494,13 +494,13 @@ static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     int ret;
 
     ret = qemu_co_send(sockfd, hdr, sizeof(*hdr));
-    if (ret < sizeof(*hdr)) {
+    if (ret != sizeof(*hdr)) {
         error_report("failed to send a req, %s", strerror(errno));
         return ret;
     }
 
     ret = qemu_co_send(sockfd, data, *wlen);
-    if (ret < *wlen) {
+    if (ret != *wlen) {
         error_report("failed to send a req, %s", strerror(errno));
     }
 
@@ -546,7 +546,7 @@ static coroutine_fn void do_co_req(void *opaque)
     qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
-    if (ret < sizeof(*hdr)) {
+    if (ret != sizeof(*hdr)) {
         error_report("failed to get a rsp, %s", strerror(errno));
         ret = -errno;
         goto out;
@@ -558,7 +558,7 @@ static coroutine_fn void do_co_req(void *opaque)
 
     if (*rlen) {
         ret = qemu_co_recv(sockfd, data, *rlen);
-        if (ret < *rlen) {
+        if (ret != *rlen) {
             error_report("failed to get the data, %s", strerror(errno));
             ret = -errno;
             goto out;
@@ -669,7 +669,7 @@ static void coroutine_fn aio_read_response(void *opaque)
 
     /* read a header */
     ret = qemu_co_recv(fd, &rsp, sizeof(rsp));
-    if (ret < 0) {
+    if (ret != sizeof(rsp)) {
         error_report("failed to get the header, %s", strerror(errno));
         goto out;
     }
@@ -720,7 +720,7 @@ static void coroutine_fn aio_read_response(void *opaque)
     case AIOCB_READ_UDATA:
         ret = qemu_co_recvv(fd, acb->qiov->iov, acb->qiov->niov,
                             aio_req->iov_offset, rsp.data_length);
-        if (ret < 0) {
+        if (ret != rsp.data_length) {
             error_report("failed to get the data, %s", strerror(errno));
             goto out;
         }
@@ -1064,7 +1064,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
 
     /* send a header */
     ret = qemu_co_send(s->fd, &hdr, sizeof(hdr));
-    if (ret < 0) {
+    if (ret != sizeof(hdr)) {
         qemu_co_mutex_unlock(&s->lock);
         error_report("failed to send a req, %s", strerror(errno));
         return -errno;
@@ -1072,7 +1072,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
 
     if (wlen) {
         ret = qemu_co_sendv(s->fd, iov, niov, aio_req->iov_offset, wlen);
-        if (ret < 0) {
+        if (ret != wlen) {
             qemu_co_mutex_unlock(&s->lock);
             error_report("failed to send a data, %s", strerror(errno));
             return -errno;
