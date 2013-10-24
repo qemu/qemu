@@ -1197,11 +1197,15 @@ static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
         return ret;
     }
 
-    aio_req->oid = vid_to_data_oid(s->inode.vdi_id,
-                                   data_oid_to_idx(aio_req->oid));
+    if (is_data_obj(aio_req->oid)) {
+        aio_req->oid = vid_to_data_oid(s->inode.vdi_id,
+                                       data_oid_to_idx(aio_req->oid));
+    } else {
+        aio_req->oid = vid_to_vdi_oid(s->inode.vdi_id);
+    }
 
     /* check whether this request becomes a CoW one */
-    if (acb->aiocb_type == AIOCB_WRITE_UDATA) {
+    if (acb->aiocb_type == AIOCB_WRITE_UDATA && is_data_obj(aio_req->oid)) {
         int idx = data_oid_to_idx(aio_req->oid);
         AIOReq *areq;
 
@@ -1229,8 +1233,15 @@ static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
         create = true;
     }
 out:
-    return add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
-                           create, acb->aiocb_type);
+    if (is_data_obj(aio_req->oid)) {
+        return add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
+                               create, acb->aiocb_type);
+    } else {
+        struct iovec iov;
+        iov.iov_base = &s->inode;
+        iov.iov_len = sizeof(s->inode);
+        return add_aio_request(s, aio_req, &iov, 1, false, AIOCB_WRITE_UDATA);
+    }
 }
 
 /* TODO Convert to fine grained options */
