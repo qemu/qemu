@@ -52,7 +52,7 @@ Configuring and building:
 Assuming you have a working smartcard on the host with the current
 user, using NSS, qemu acts as another NSS client using ccid-card-emulated:
 
-    qemu -usb -device usb-ccid -device ccid-card-emualated
+    qemu -usb -device usb-ccid -device ccid-card-emulated
 
 4. Using ccid-card-emulated with certificates
 
