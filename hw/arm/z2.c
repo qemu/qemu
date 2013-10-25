@@ -360,13 +360,11 @@ static void z2_init(QEMUMachineInitArgs *args)
     qdev_connect_gpio_out(mpu->gpio, Z2_GPIO_LCD_CS,
         qemu_allocate_irqs(z2_lcd_cs, z2_lcd, 1)[0]);
 
-    if (kernel_filename) {
-        z2_binfo.kernel_filename = kernel_filename;
-        z2_binfo.kernel_cmdline = kernel_cmdline;
-        z2_binfo.initrd_filename = initrd_filename;
-        z2_binfo.board_id = 0x6dd;
-        arm_load_kernel(mpu->cpu, &z2_binfo);
-    }
+    z2_binfo.kernel_filename = kernel_filename;
+    z2_binfo.kernel_cmdline = kernel_cmdline;
+    z2_binfo.initrd_filename = initrd_filename;
+    z2_binfo.board_id = 0x6dd;
+    arm_load_kernel(mpu->cpu, &z2_binfo);
 }
 
 static QEMUMachine z2_machine = {

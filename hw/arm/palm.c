@@ -261,12 +261,10 @@ static void palmte_init(QEMUMachineInitArgs *args)
     }
 
     /* Load the kernel.  */
-    if (kernel_filename) {
-        palmte_binfo.kernel_filename = kernel_filename;
-        palmte_binfo.kernel_cmdline = kernel_cmdline;
-        palmte_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(mpu->cpu, &palmte_binfo);
-    }
+    palmte_binfo.kernel_filename = kernel_filename;
+    palmte_binfo.kernel_cmdline = kernel_cmdline;
+    palmte_binfo.initrd_filename = initrd_filename;
+    arm_load_kernel(mpu->cpu, &palmte_binfo);
 }
 
 static QEMUMachine palmte_machine = {
