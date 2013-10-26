@@ -1004,8 +1004,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     ret = bdrv_open(bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv, &local_err);
-    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
-            bs->backing_hd->file->filename);
     if (ret < 0) {
         bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
@@ -1013,6 +1011,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_propagate(errp, local_err);
         return ret;
     }
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+            bs->backing_hd->file->filename);
     return 0;
 }
 
