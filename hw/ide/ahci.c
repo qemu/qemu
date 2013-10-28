@@ -961,7 +961,8 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         /* We're ready to process the command in FIS byte 2. */
         ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
 
-        if (s->dev[port].port.ifs[0].status & READY_STAT) {
+        if ((s->dev[port].port.ifs[0].status & (READY_STAT|DRQ_STAT|BUSY_STAT)) ==
+            READY_STAT) {
             ahci_write_fis_d2h(&s->dev[port], cmd_fis);
         }
     }
