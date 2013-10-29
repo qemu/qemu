@@ -128,17 +128,9 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
 #define PCI_HOST_PROP_PCI_HOLE64_SIZE  "pci-hole64-size"
 #define DEFAULT_PCI_HOLE64_SIZE (~0x0ULL)
 
-static inline uint64_t pci_host_get_hole64_size(uint64_t pci_hole64_size)
-{
-    if (pci_hole64_size == DEFAULT_PCI_HOLE64_SIZE) {
-        return 1ULL << 62;
-    } else {
-        return pci_hole64_size;
-    }
-}
 
-void pc_init_pci64_hole(PcPciInfo *pci_info, uint64_t pci_hole64_start,
-                        uint64_t pci_hole64_size);
+void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
+                            MemoryRegion *pci_address_space);
 
 FWCfgState *pc_memory_init(MemoryRegion *system_memory,
                            const char *kernel_filename,
@@ -187,8 +179,6 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     ram_addr_t ram_size,
-                    hwaddr pci_hole_start,
-                    hwaddr pci_hole_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_memory,
                     MemoryRegion *ram_memory);
