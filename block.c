@@ -2869,9 +2869,10 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (bdrv_dev_has_removable_media(bs)) {
-        if (drv->bdrv_getlength) {
-            return drv->bdrv_getlength(bs);
+    if (drv->has_variable_length) {
+        int ret = refresh_total_sectors(bs, bs->total_sectors);
+        if (ret < 0) {
+            return ret;
         }
     }
     return bs->total_sectors * BDRV_SECTOR_SIZE;
