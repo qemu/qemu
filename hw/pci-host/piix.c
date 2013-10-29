@@ -103,8 +103,6 @@ struct PCII440FXState {
     MemoryRegion *system_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *ram_memory;
-    MemoryRegion pci_hole;
-    MemoryRegion pci_hole_64bit;
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region;
     uint8_t smm_enabled;
@@ -313,8 +311,6 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     ram_addr_t ram_size,
-                    hwaddr pci_hole_start,
-                    hwaddr pci_hole_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_address_space,
                     MemoryRegion *ram_memory)
@@ -327,7 +323,6 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     PCII440FXState *f;
     unsigned i;
     I440FXState *i440fx;
-    uint64_t pci_hole64_size;
 
     dev = qdev_create(NULL, TYPE_I440FX_PCI_HOST_BRIDGE);
     s = PCI_HOST_BRIDGE(dev);
@@ -355,23 +350,10 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
         i440fx->pci_info.w32.begin = 0xe0000000;
     }
 
-    memory_region_init_alias(&f->pci_hole, OBJECT(d), "pci-hole", f->pci_address_space,
-                             pci_hole_start, pci_hole_size);
-    memory_region_add_subregion(f->system_memory, pci_hole_start, &f->pci_hole);
+    /* setup pci memory mapping */
+    pc_pci_as_mapping_init(OBJECT(f), f->system_memory,
+                           f->pci_address_space);
 
-    pci_hole64_size = pci_host_get_hole64_size(i440fx->pci_hole64_size);
-
-    pc_init_pci64_hole(&i440fx->pci_info, 0x100000000ULL + above_4g_mem_size,
-                       pci_hole64_size);
-    memory_region_init_alias(&f->pci_hole_64bit, OBJECT(d), "pci-hole64",
-                             f->pci_address_space,
-                             i440fx->pci_info.w64.begin,
-                             pci_hole64_size);
-    if (pci_hole64_size) {
-        memory_region_add_subregion(f->system_memory,
-                                    i440fx->pci_info.w64.begin,
-                                    &f->pci_hole_64bit);
-    }
     memory_region_init_alias(&f->smram_region, OBJECT(d), "smram-region",
                              f->pci_address_space, 0xa0000, 0x20000);
     memory_region_add_subregion_overlap(f->system_memory, 0xa0000,
