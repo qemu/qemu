@@ -735,58 +735,22 @@ exit:
     return ret;
 }
 
-/* Parse the replay log.  Per the VHDX spec, if the log is present
- * it must be replayed prior to opening the file, even read-only.
- *
- * If read-only, we must replay the log in RAM (or refuse to open
- * a dirty VHDX file read-only */
-static int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s)
-{
-    int ret = 0;
-    int i;
-    VHDXHeader *hdr;
-
-    hdr = s->headers[s->curr_header];
-
-    /* either the log guid, or log length is zero,
-     * then a replay log is present */
-    for (i = 0; i < sizeof(hdr->log_guid.data4); i++) {
-        ret |= hdr->log_guid.data4[i];
-    }
-    if (hdr->log_guid.data1 == 0 &&
-        hdr->log_guid.data2 == 0 &&
-        hdr->log_guid.data3 == 0 &&
-        ret == 0) {
-        goto exit;
-    }
-
-    /* per spec, only log version of 0 is supported */
-    if (hdr->log_version != 0) {
-        ret = -EINVAL;
-        goto exit;
-    }
-
-    if (hdr->log_length == 0) {
-        goto exit;
-    }
-
-    /* We currently do not support images with logs to replay */
-    ret = -ENOTSUP;
-
-exit:
-    return ret;
-}
-
 
 static void vhdx_close(BlockDriverState *bs)
 {
     BDRVVHDXState *s = bs->opaque;
     qemu_vfree(s->headers[0]);
+    s->headers[0] = NULL;
     qemu_vfree(s->headers[1]);
+    s->headers[1] = NULL;
     qemu_vfree(s->bat);
+    s->bat = NULL;
     qemu_vfree(s->parent_entries);
+    s->parent_entries = NULL;
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);
+    qemu_vfree(s->log.hdr);
+    s->log.hdr = NULL;
 }
 
 static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
@@ -797,6 +761,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     uint32_t i;
     uint64_t signature;
     uint32_t data_blocks_cnt, bitmap_blocks_cnt;
+    bool log_flushed = false;
 
 
     s->bat = NULL;
@@ -820,24 +785,25 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     vhdx_guid_generate(&s->session_guid);
 
     ret = vhdx_parse_header(bs, s);
-    if (ret) {
+    if (ret < 0) {
         goto fail;
     }
 
-    ret = vhdx_parse_log(bs, s);
-    if (ret) {
+    ret = vhdx_parse_log(bs, s, &log_flushed);
+    if (ret < 0) {
         goto fail;
     }
 
     ret = vhdx_open_region_tables(bs, s);
-    if (ret) {
+    if (ret < 0) {
         goto fail;
     }
 
     ret = vhdx_parse_metadata(bs, s);
-    if (ret) {
+    if (ret < 0) {
         goto fail;
     }
+
     s->block_size = s->params.block_size;
 
     /* the VHDX spec dictates that virtual_disk_size is always a multiple of
@@ -897,10 +863,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
 
     return 0;
 fail:
-    qemu_vfree(s->headers[0]);
-    qemu_vfree(s->headers[1]);
-    qemu_vfree(s->bat);
-    qemu_vfree(s->parent_entries);
+    vhdx_close(bs);
     return ret;
 }
 
