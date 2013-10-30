@@ -30,6 +30,8 @@
 
 #include "qemu/compiler.h"
 #include "qemu/osdep.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/json-parser.h"
 
 #define MAX_IRQ 256
 
@@ -291,16 +293,38 @@ redo:
     return words;
 }
 
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
+typedef struct {
+    JSONMessageParser parser;
+    QDict *response;
+} QMPResponseParser;
+
+static void qmp_response(JSONMessageParser *parser, QList *tokens)
 {
-    bool has_reply = false;
-    int nesting = 0;
+    QMPResponseParser *qmp = container_of(parser, QMPResponseParser, parser);
+    QObject *obj;
+
+    obj = json_parser_parse(tokens, NULL);
+    if (!obj) {
+        fprintf(stderr, "QMP JSON response parsing failed\n");
+        exit(1);
+    }
+
+    g_assert(qobject_type(obj) == QTYPE_QDICT);
+    g_assert(!qmp->response);
+    qmp->response = (QDict *)obj;
+}
+
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    QMPResponseParser qmp;
 
     /* Send QMP request */
     socket_sendf(s->qmp_fd, fmt, ap);
 
     /* Receive reply */
-    while (!has_reply || nesting > 0) {
+    qmp.response = NULL;
+    json_message_parser_init(&qmp.parser, qmp_response);
+    while (!qmp.response) {
         ssize_t len;
         char c;
 
@@ -314,25 +338,39 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
             exit(1);
         }
 
-        switch (c) {
-        case '{':
-            nesting++;
-            has_reply = true;
-            break;
-        case '}':
-            nesting--;
-            break;
-        }
+        json_message_parser_feed(&qmp.parser, &c, 1);
     }
+    json_message_parser_destroy(&qmp.parser);
+
+    return qmp.response;
+}
+
+QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qtest_qmpv(s, fmt, ap);
+    va_end(ap);
+    return response;
+}
+
+void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
+{
+    QDict *response = qtest_qmpv(s, fmt, ap);
+    QDECREF(response);
 }
 
 void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
+    QDict *response;
 
     va_start(ap, fmt);
-    qtest_qmpv_discard_response(s, fmt, ap);
+    response = qtest_qmpv(s, fmt, ap);
     va_end(ap);
+    QDECREF(response);
 }
 
 const char *qtest_get_arch(void)

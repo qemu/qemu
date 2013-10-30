@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include "qapi/qmp/qdict.h"
 
 typedef struct QTestState QTestState;
 
@@ -53,6 +54,15 @@ void qtest_quit(QTestState *s);
 void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 
 /**
+ * qtest_qmp:
+ * @s: #QTestState instance to operate on.
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
+
+/**
  * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU
@@ -61,6 +71,16 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
  * Sends a QMP message to QEMU and consumes the response.
  */
 void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
+
+/**
+ * qtest_qmpv:
+ * @s: #QTestState instance to operate on.
+ * @fmt: QMP message to send to QEMU
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
  * qtest_get_irq:
@@ -328,6 +348,23 @@ static inline void qtest_end(void)
 {
     qtest_quit(global_qtest);
     global_qtest = NULL;
+}
+
+/**
+ * qmp:
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+static inline QDict *qmp(const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qtest_qmpv(global_qtest, fmt, ap);
+    va_end(ap);
+    return response;
 }
 
 /**
