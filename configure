@@ -247,6 +247,7 @@ gtk=""
 gtkabi="2.0"
 tpm="no"
 libssh2=""
+vhdx=""
 
 # parse CC options first
 for opt do
@@ -972,6 +973,10 @@ for opt do
   ;;
   --enable-libssh2) libssh2="yes"
   ;;
+  --enable-vhdx) vhdx="yes"
+  ;;
+  --disable-vhdx) vhdx="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1204,6 +1209,8 @@ echo "  --gcov=GCOV              use specified gcov [$gcov_tool]"
 echo "  --enable-tpm             enable TPM support"
 echo "  --disable-libssh2        disable ssh block device support"
 echo "  --enable-libssh2         enable ssh block device support"
+echo "  --disable-vhdx           disables support for the Microsoft VHDX image format"
+echo "  --enable-vhdx            enable support for the Microsoft VHDX image format"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2002,6 +2009,18 @@ EOF
     fi
     uuid=no
   fi
+fi
+
+if test "$vhdx" = "yes" ; then
+    if test "$uuid" = "no" ; then
+        error_exit "uuid required for VHDX support"
+    fi
+elif test "$vhdx" != "no" ; then
+    if test "$uuid" = "yes" ; then
+        vhdx=yes
+    else
+        vhdx=no
+    fi
 fi
 
 ##########################################
@@ -3747,6 +3766,7 @@ echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
+echo "vhdx              $vhdx"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -4139,6 +4159,10 @@ fi
 
 if test "$virtio_blk_data_plane" = "yes" ; then
   echo 'CONFIG_VIRTIO_BLK_DATA_PLANE=$(CONFIG_VIRTIO)' >> $config_host_mak
+fi
+
+if test "$vhdx" = "yes" ; then
+  echo "CONFIG_VHDX=y" >> $config_host_mak
 fi
 
 # USB host support

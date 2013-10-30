@@ -67,7 +67,7 @@ typedef struct VHDXFileIdentifier {
  * Microsoft is not just 16 bytes though - it is a structure that is defined,
  * so we need to follow it here so that endianness does not trip us up */
 
-typedef struct MSGUID {
+typedef struct QEMU_PACKED MSGUID {
     uint32_t  data1;
     uint16_t  data2;
     uint16_t  data3;
@@ -309,17 +309,27 @@ typedef struct QEMU_PACKED VHDXParentLocatorEntry {
 /* ----- END VHDX SPECIFICATION STRUCTURES ---- */
 
 
+void vhdx_guid_generate(MSGUID *guid);
+
+uint32_t vhdx_update_checksum(uint8_t *buf, size_t size, int crc_offset);
 uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
                             int crc_offset);
 
 bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 
 
-static void leguid_to_cpus(MSGUID *guid)
+static inline void leguid_to_cpus(MSGUID *guid)
 {
     le32_to_cpus(&guid->data1);
     le16_to_cpus(&guid->data2);
     le16_to_cpus(&guid->data3);
+}
+
+static inline void cpu_to_leguids(MSGUID *guid)
+{
+    cpu_to_le32s(&guid->data1);
+    cpu_to_le16s(&guid->data2);
+    cpu_to_le16s(&guid->data3);
 }
 
 #endif
