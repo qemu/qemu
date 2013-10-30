@@ -58,7 +58,7 @@
 typedef struct VHDXFileIdentifier {
     uint64_t    signature;              /* "vhdxfile" in ASCII */
     uint16_t    creator[256];           /* optional; utf-16 string to identify
-                                           the vhdx file creator.  Diagnotistic
+                                           the vhdx file creator.  Diagnostic
                                            only */
 } VHDXFileIdentifier;
 
@@ -114,8 +114,8 @@ typedef struct QEMU_PACKED VHDXHeader {
                                            there is no valid log. If non-zero,
                                            log entries with this guid are
                                            valid. */
-    uint16_t    log_version;            /* version of the log format. Mustn't be
-                                           zero, unless log_guid is also zero */
+    uint16_t    log_version;            /* version of the log format. Must be
+                                           set to zero */
     uint16_t    version;                /* version of the vhdx file.  Currently,
                                            only supported version is "1" */
     uint32_t    log_length;             /* length of the log.  Must be multiple
@@ -281,7 +281,7 @@ typedef struct QEMU_PACKED VHDXVirtualDiskSize {
 } VHDXVirtualDiskSize;
 
 typedef struct QEMU_PACKED VHDXPage83Data {
-    MSGUID      page_83_data[16];       /* unique id for scsi devices that
+    MSGUID      page_83_data;           /* unique id for scsi devices that
                                            support page 0x83 */
 } VHDXPage83Data;
 
@@ -296,7 +296,7 @@ typedef struct QEMU_PACKED VHDXVirtualDiskPhysicalSectorSize {
 } VHDXVirtualDiskPhysicalSectorSize;
 
 typedef struct QEMU_PACKED VHDXParentLocatorHeader {
-    MSGUID      locator_type[16];       /* type of the parent virtual disk. */
+    MSGUID      locator_type;           /* type of the parent virtual disk. */
     uint16_t    reserved;
     uint16_t    key_value_count;        /* number of key/value pairs for this
                                            locator */
