@@ -44,23 +44,23 @@ QTestState *qtest_init(const char *extra_args);
 void qtest_quit(QTestState *s);
 
 /**
- * qtest_qmp:
+ * qtest_qmp_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu
  *
- * Sends a QMP message to QEMU
+ * Sends a QMP message to QEMU and consumes the response.
  */
-void qtest_qmp(QTestState *s, const char *fmt, ...);
+void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 
 /**
- * qtest_qmpv:
+ * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU
  * @ap: QMP message arguments
  *
- * Sends a QMP message to QEMU.
+ * Sends a QMP message to QEMU and consumes the response.
  */
-void qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
+void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 
 /**
  * qtest_get_irq:
@@ -331,17 +331,17 @@ static inline void qtest_end(void)
 }
 
 /**
- * qmp:
+ * qmp_discard_response:
  * @fmt...: QMP message to send to qemu
  *
- * Sends a QMP message to QEMU
+ * Sends a QMP message to QEMU and consumes the response.
  */
-static inline void qmp(const char *fmt, ...)
+static inline void qmp_discard_response(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_qmpv(global_qtest, fmt, ap);
+    qtest_qmpv_discard_response(global_qtest, fmt, ap);
     va_end(ap);
 }
 

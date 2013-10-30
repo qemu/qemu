@@ -151,8 +151,8 @@ QTestState *qtest_init(const char *extra_args)
     }
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp(s, "");
-    qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
+    qtest_qmp_discard_response(s, "");
+    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
 
     if (getenv("QTEST_STOP")) {
         kill(qtest_qemu_pid(s), SIGSTOP);
@@ -291,7 +291,7 @@ redo:
     return words;
 }
 
-void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
 {
     bool has_reply = false;
     int nesting = 0;
@@ -326,12 +326,12 @@ void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
     }
 }
 
-void qtest_qmp(QTestState *s, const char *fmt, ...)
+void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_qmpv(s, fmt, ap);
+    qtest_qmpv_discard_response(s, fmt, ap);
     va_end(ap);
 }
 
