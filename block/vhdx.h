@@ -30,12 +30,12 @@
  * 0.........64KB...........128KB........192KB..........256KB................1MB
  */
 
-#define VHDX_HEADER_BLOCK_SIZE      (64*1024)
+#define VHDX_HEADER_BLOCK_SIZE      (64 * 1024)
 
 #define VHDX_FILE_ID_OFFSET         0
-#define VHDX_HEADER1_OFFSET         (VHDX_HEADER_BLOCK_SIZE*1)
-#define VHDX_HEADER2_OFFSET         (VHDX_HEADER_BLOCK_SIZE*2)
-#define VHDX_REGION_TABLE_OFFSET    (VHDX_HEADER_BLOCK_SIZE*3)
+#define VHDX_HEADER1_OFFSET         (VHDX_HEADER_BLOCK_SIZE * 1)
+#define VHDX_HEADER2_OFFSET         (VHDX_HEADER_BLOCK_SIZE * 2)
+#define VHDX_REGION_TABLE_OFFSET    (VHDX_HEADER_BLOCK_SIZE * 3)
 
 
 /*
@@ -77,10 +77,10 @@ typedef struct QEMU_PACKED MSGUID {
 #define guid_eq(a, b) \
     (memcmp(&(a), &(b), sizeof(MSGUID)) == 0)
 
-#define VHDX_HEADER_SIZE (4*1024)   /* although the vhdx_header struct in disk
-                                       is only 582 bytes, for purposes of crc
-                                       the header is the first 4KB of the 64KB
-                                       block */
+#define VHDX_HEADER_SIZE (4 * 1024)   /* although the vhdx_header struct in disk
+                                         is only 582 bytes, for purposes of crc
+                                         the header is the first 4KB of the 64KB
+                                         block */
 
 /* The full header is 4KB, although the actual header data is much smaller.
  * But for the checksum calculation, it is over the entire 4KB structure,
@@ -92,7 +92,7 @@ typedef struct QEMU_PACKED VHDXHeader {
                                            VHDX file has 2 of these headers,
                                            and only the header with the highest
                                            sequence number is valid */
-    MSGUID      file_write_guid;       /* 128 bit unique identifier. Must be
+    MSGUID      file_write_guid;        /* 128 bit unique identifier. Must be
                                            updated to new, unique value before
                                            the first modification is made to
                                            file */
@@ -151,7 +151,10 @@ typedef struct QEMU_PACKED VHDXRegionTableEntry {
 
 
 /* ---- LOG ENTRY STRUCTURES ---- */
+#define VHDX_LOG_MIN_SIZE (1024 * 1024)
+#define VHDX_LOG_SECTOR_SIZE 4096
 #define VHDX_LOG_HDR_SIZE 64
+#define VHDX_LOG_SIGNATURE 0x65676f6c
 typedef struct QEMU_PACKED VHDXLogEntryHeader {
     uint32_t    signature;              /* "loge" in ASCII */
     uint32_t    checksum;               /* CRC-32C hash of the 64KB table */
@@ -174,7 +177,8 @@ typedef struct QEMU_PACKED VHDXLogEntryHeader {
 } VHDXLogEntryHeader;
 
 #define VHDX_LOG_DESC_SIZE 32
-
+#define VHDX_LOG_DESC_SIGNATURE 0x63736564
+#define VHDX_LOG_ZERO_SIGNATURE 0x6f72657a
 typedef struct QEMU_PACKED VHDXLogDescriptor {
     uint32_t    signature;              /* "zero" or "desc" in ASCII */
     union  {
@@ -194,6 +198,7 @@ typedef struct QEMU_PACKED VHDXLogDescriptor {
                                            vhdx_log_entry_header */
 } VHDXLogDescriptor;
 
+#define VHDX_LOG_DATA_SIGNATURE 0x61746164
 typedef struct QEMU_PACKED VHDXLogDataSector {
     uint32_t    data_signature;         /* "data" in ASCII */
     uint32_t    sequence_high;          /* 4 MSB of 8 byte sequence_number */
@@ -219,12 +224,12 @@ typedef struct QEMU_PACKED VHDXLogDataSector {
 #define SB_BLOCK_PRESENT        6
 
 /* per the spec */
-#define VHDX_MAX_SECTORS_PER_BLOCK  (1<<23)
+#define VHDX_MAX_SECTORS_PER_BLOCK  (1 << 23)
 
 /* upper 44 bits are the file offset in 1MB units lower 3 bits are the state
    other bits are reserved */
 #define VHDX_BAT_STATE_BIT_MASK 0x07
-#define VHDX_BAT_FILE_OFF_BITS (64-44)
+#define VHDX_BAT_FILE_OFF_BITS (64 - 44)
 typedef uint64_t VHDXBatEntry;
 
 /* ---- METADATA REGION STRUCTURES ---- */
@@ -252,8 +257,8 @@ typedef struct QEMU_PACKED VHDXMetadataTableEntry {
                                            metadata region */
                                         /* note: if length = 0, so is offset */
     uint32_t    length;                 /* length of metadata. <= 1MB. */
-    uint32_t    data_bits;      /* least-significant 3 bits are flags, the
-                                   rest are reserved (see above) */
+    uint32_t    data_bits;              /* least-significant 3 bits are flags,
+                                           the rest are reserved (see above) */
     uint32_t    reserved2;
 } VHDXMetadataTableEntry;
 
@@ -265,8 +270,8 @@ typedef struct QEMU_PACKED VHDXMetadataTableEntry {
 typedef struct QEMU_PACKED VHDXFileParameters {
     uint32_t    block_size;             /* size of each payload block, always
                                            power of 2, <= 256MB and >= 1MB. */
-    uint32_t data_bits;     /* least-significant 2 bits are flags, the rest
-                               are reserved (see above) */
+    uint32_t data_bits;                 /* least-significant 2 bits are flags,
+                                           the rest are reserved (see above) */
 } VHDXFileParameters;
 
 typedef struct QEMU_PACKED VHDXVirtualDiskSize {
@@ -318,6 +323,13 @@ typedef struct VHDXMetadataEntries {
     uint16_t present;
 } VHDXMetadataEntries;
 
+typedef struct VHDXLogEntries {
+    uint64_t offset;
+    uint64_t length;
+    uint32_t head;
+    uint32_t tail;
+} VHDXLogEntries;
+
 typedef struct BDRVVHDXState {
     CoMutex lock;
 
@@ -350,6 +362,8 @@ typedef struct BDRVVHDXState {
     uint64_t bat_offset;
 
     MSGUID session_guid;
+
+    VHDXLogEntries log;
 
     VHDXParentLocatorHeader parent_header;
     VHDXParentLocatorEntry *parent_entries;
