@@ -200,7 +200,6 @@ testlist options
         -vhdx)
             IMGFMT=vhdx
             xpand=false
-            IMGFMT_GENERIC=false
             ;;
 
         -rbd)

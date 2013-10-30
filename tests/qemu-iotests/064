@@ -56,6 +56,17 @@ echo
 echo "=== Verify pattern 0x00, 66M - 1024M ==="
 $QEMU_IO -r -c "read -pP 0x00 66M 958M" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Verify pattern write, 0xc3 99M-157M ==="
+$QEMU_IO -c "write -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
+# first verify we didn't write where we should not have
+$QEMU_IO -c "read -pP 0xa5 0 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x96 33M 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x00 66M 33M" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -pP 0x00 157MM 867MM" "$TEST_IMG" | _filter_qemu_io
+# now verify what we should have actually written
+$QEMU_IO -c "read -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
