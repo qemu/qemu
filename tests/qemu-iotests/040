@@ -54,22 +54,12 @@ class ImageCommitTestCase(iotests.QMPTestCase):
 
         self.assert_no_active_commit()
 
-    def create_image(self, name, size):
-        file = open(name, 'w')
-        i = 0
-        while i < size:
-            sector = struct.pack('>l504xl', i / 512, i / 512)
-            file.write(sector)
-            i = i + 512
-        file.close()
-
-
 class TestSingleDrive(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024
     test_len = 1 * 1024 * 256
 
     def setUp(self):
-        self.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-c', 'write -P 0xab 0 524288', backing_img)
@@ -167,7 +157,7 @@ class TestRelativePaths(ImageCommitTestCase):
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-        self.create_image(self.backing_img_abs, TestRelativePaths.image_len)
+        iotests.create_image(self.backing_img_abs, TestRelativePaths.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img_abs, self.mid_img_abs)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.mid_img_abs, self.test_img)
         qemu_img('rebase', '-u', '-b', self.backing_img, self.mid_img_abs)
