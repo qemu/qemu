@@ -105,16 +105,6 @@ static const MSGUID parent_vhdx_guid = { .data1 = 0xb04aefb7,
      META_PAGE_83_PRESENT | META_LOGICAL_SECTOR_SIZE_PRESENT | \
      META_PHYS_SECTOR_SIZE_PRESENT)
 
-typedef struct VHDXMetadataEntries {
-    VHDXMetadataTableEntry file_parameters_entry;
-    VHDXMetadataTableEntry virtual_disk_size_entry;
-    VHDXMetadataTableEntry page83_data_entry;
-    VHDXMetadataTableEntry logical_sector_size_entry;
-    VHDXMetadataTableEntry phys_sector_size_entry;
-    VHDXMetadataTableEntry parent_locator_entry;
-    uint16_t present;
-} VHDXMetadataEntries;
-
 
 typedef struct VHDXSectorInfo {
     uint32_t bat_idx;       /* BAT entry index */
@@ -124,48 +114,6 @@ typedef struct VHDXSectorInfo {
     uint64_t file_offset;   /* absolute offset in bytes, in file */
     uint64_t block_offset;  /* block offset, in bytes */
 } VHDXSectorInfo;
-
-
-
-typedef struct BDRVVHDXState {
-    CoMutex lock;
-
-    int curr_header;
-    VHDXHeader *headers[2];
-
-    VHDXRegionTableHeader rt;
-    VHDXRegionTableEntry bat_rt;         /* region table for the BAT */
-    VHDXRegionTableEntry metadata_rt;    /* region table for the metadata */
-
-    VHDXMetadataTableHeader metadata_hdr;
-    VHDXMetadataEntries metadata_entries;
-
-    VHDXFileParameters params;
-    uint32_t block_size;
-    uint32_t block_size_bits;
-    uint32_t sectors_per_block;
-    uint32_t sectors_per_block_bits;
-
-    uint64_t virtual_disk_size;
-    uint32_t logical_sector_size;
-    uint32_t physical_sector_size;
-
-    uint64_t chunk_ratio;
-    uint32_t chunk_ratio_bits;
-    uint32_t logical_sector_size_bits;
-
-    uint32_t bat_entries;
-    VHDXBatEntry *bat;
-    uint64_t bat_offset;
-
-    MSGUID session_guid;
-
-
-    VHDXParentLocatorHeader parent_header;
-    VHDXParentLocatorEntry *parent_entries;
-
-    Error *migration_blocker;
-} BDRVVHDXState;
 
 /* Calculates new checksum.
  *
