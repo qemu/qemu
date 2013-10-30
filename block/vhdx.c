@@ -248,6 +248,14 @@ static void vhdx_region_unregister_all(BDRVVHDXState *s)
     }
 }
 
+static void vhdx_set_shift_bits(BDRVVHDXState *s)
+{
+    s->logical_sector_size_bits = 31 - clz32(s->logical_sector_size);
+    s->sectors_per_block_bits =   31 - clz32(s->sectors_per_block);
+    s->chunk_ratio_bits =         63 - clz64(s->chunk_ratio);
+    s->block_size_bits =          31 - clz32(s->block_size);
+}
+
 /*
  * Per the MS VHDX Specification, for every VHDX file:
  *      - The header section is fixed size - 1 MB
@@ -267,6 +275,50 @@ static int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
+/*
+ * Writes the header to the specified offset.
+ *
+ * This will optionally read in buffer data from disk (otherwise zero-fill),
+ * and then update the header checksum.  Header is converted to proper
+ * endianness before being written to the specified file offset
+ */
+static int vhdx_write_header(BlockDriverState *bs_file, VHDXHeader *hdr,
+                             uint64_t offset, bool read)
+{
+    uint8_t *buffer = NULL;
+    int ret;
+    VHDXHeader header_le;
+
+    assert(bs_file != NULL);
+    assert(hdr != NULL);
+
+    /* the header checksum is not over just the packed size of VHDXHeader,
+     * but rather over the entire 'reserved' range for the header, which is
+     * 4KB (VHDX_HEADER_SIZE). */
+
+    buffer = qemu_blockalign(bs_file, VHDX_HEADER_SIZE);
+    if (read) {
+        /* if true, we can't assume the extra reserved bytes are 0 */
+        ret = bdrv_pread(bs_file, offset, buffer, VHDX_HEADER_SIZE);
+        if (ret < 0) {
+            goto exit;
+        }
+    } else {
+        memset(buffer, 0, VHDX_HEADER_SIZE);
+    }
+
+    /* overwrite the actual VHDXHeader portion */
+    memcpy(buffer, hdr, sizeof(VHDXHeader));
+    hdr->checksum = vhdx_update_checksum(buffer, VHDX_HEADER_SIZE,
+                                         offsetof(VHDXHeader, checksum));
+    vhdx_header_le_export(hdr, &header_le);
+    ret = bdrv_pwrite_sync(bs_file, offset, &header_le, sizeof(VHDXHeader));
+
+exit:
+    qemu_vfree(buffer);
+    return ret;
+}
+
 /* Update the VHDX headers
  *
  * This follows the VHDX spec procedures for header updates.
@@ -282,8 +334,6 @@ static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
 
     VHDXHeader *active_header;
     VHDXHeader *inactive_header;
-    VHDXHeader header_le;
-    uint8_t *buffer;
 
     /* operate on the non-current header */
     if (s->curr_header == 0) {
@@ -311,31 +361,13 @@ static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
         inactive_header->log_guid = *log_guid;
     }
 
-    /* the header checksum is not over just the packed size of VHDXHeader,
-     * but rather over the entire 'reserved' range for the header, which is
-     * 4KB (VHDX_HEADER_SIZE). */
-
-    buffer = qemu_blockalign(bs, VHDX_HEADER_SIZE);
-    /* we can't assume the extra reserved bytes are 0 */
-    ret = bdrv_pread(bs->file, header_offset, buffer, VHDX_HEADER_SIZE);
-    if (ret < 0) {
-        goto exit;
-    }
-    /* overwrite the actual VHDXHeader portion */
-    memcpy(buffer, inactive_header, sizeof(VHDXHeader));
-    inactive_header->checksum =
-                        vhdx_update_checksum(buffer, VHDX_HEADER_SIZE,
-                                             offsetof(VHDXHeader, checksum));
-    vhdx_header_le_export(inactive_header, &header_le);
-    ret = bdrv_pwrite_sync(bs->file, header_offset, &header_le,
-                           sizeof(VHDXHeader));
+    vhdx_write_header(bs->file, inactive_header, header_offset, true);
     if (ret < 0) {
         goto exit;
     }
     s->curr_header = hdr_idx;
 
 exit:
-    qemu_vfree(buffer);
     return ret;
 }
 
@@ -773,10 +805,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
         goto exit;
     }
 
-    s->logical_sector_size_bits = 31 - clz32(s->logical_sector_size);
-    s->sectors_per_block_bits =   31 - clz32(s->sectors_per_block);
-    s->chunk_ratio_bits =         63 - clz64(s->chunk_ratio);
-    s->block_size_bits =          31 - clz32(s->block_size);
+    vhdx_set_shift_bits(s);
 
     ret = 0;
 
@@ -785,6 +814,31 @@ exit:
     return ret;
 }
 
+/*
+ * Calculate the number of BAT entries, including sector
+ * bitmap entries.
+ */
+static void vhdx_calc_bat_entries(BDRVVHDXState *s)
+{
+    uint32_t data_blocks_cnt, bitmap_blocks_cnt;
+
+    data_blocks_cnt = s->virtual_disk_size >> s->block_size_bits;
+    if (s->virtual_disk_size - (data_blocks_cnt << s->block_size_bits)) {
+        data_blocks_cnt++;
+    }
+    bitmap_blocks_cnt = data_blocks_cnt >> s->chunk_ratio_bits;
+    if (data_blocks_cnt - (bitmap_blocks_cnt << s->chunk_ratio_bits)) {
+        bitmap_blocks_cnt++;
+    }
+
+    if (s->parent_entries) {
+        s->bat_entries = bitmap_blocks_cnt * (s->chunk_ratio + 1);
+    } else {
+        s->bat_entries = data_blocks_cnt +
+                         ((data_blocks_cnt - 1) >> s->chunk_ratio_bits);
+    }
+
+}
 
 static void vhdx_close(BlockDriverState *bs)
 {
@@ -811,7 +865,6 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     int ret = 0;
     uint32_t i;
     uint64_t signature;
-    uint32_t data_blocks_cnt, bitmap_blocks_cnt;
     bool log_flushed = false;
 
 
@@ -862,21 +915,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
      * logical_sector_size */
     bs->total_sectors = s->virtual_disk_size >> s->logical_sector_size_bits;
 
-    data_blocks_cnt = s->virtual_disk_size >> s->block_size_bits;
-    if (s->virtual_disk_size - (data_blocks_cnt << s->block_size_bits)) {
-        data_blocks_cnt++;
-    }
-    bitmap_blocks_cnt = data_blocks_cnt >> s->chunk_ratio_bits;
-    if (data_blocks_cnt - (bitmap_blocks_cnt << s->chunk_ratio_bits)) {
-        bitmap_blocks_cnt++;
-    }
-
-    if (s->parent_entries) {
-        s->bat_entries = bitmap_blocks_cnt * (s->chunk_ratio + 1);
-    } else {
-        s->bat_entries = data_blocks_cnt +
-                         ((data_blocks_cnt - 1) >> s->chunk_ratio_bits);
-    }
+    vhdx_calc_bat_entries(s);
 
     s->bat_offset = s->bat_rt.file_offset;
 
