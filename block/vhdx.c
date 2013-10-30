@@ -778,6 +778,17 @@ exit:
 }
 
 
+static void vhdx_close(BlockDriverState *bs)
+{
+    BDRVVHDXState *s = bs->opaque;
+    qemu_vfree(s->headers[0]);
+    qemu_vfree(s->headers[1]);
+    qemu_vfree(s->bat);
+    qemu_vfree(s->parent_entries);
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
+}
+
 static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -1034,17 +1045,6 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
     return -ENOTSUP;
 }
 
-
-static void vhdx_close(BlockDriverState *bs)
-{
-    BDRVVHDXState *s = bs->opaque;
-    qemu_vfree(s->headers[0]);
-    qemu_vfree(s->headers[1]);
-    qemu_vfree(s->bat);
-    qemu_vfree(s->parent_entries);
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
-}
 
 static BlockDriver bdrv_vhdx = {
     .format_name            = "vhdx",
