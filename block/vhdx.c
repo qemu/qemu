@@ -6,9 +6,9 @@
  * Authors:
  *  Jeff Cody <jcody@redhat.com>
  *
- *  This is based on the "VHDX Format Specification v0.95", published 4/12/2012
+ *  This is based on the "VHDX Format Specification v1.00", published 8/25/2012
  *  by Microsoft:
- *      https://www.microsoft.com/en-us/download/details.aspx?id=29681
+ *      https://www.microsoft.com/en-us/download/details.aspx?id=34750
  *
  * This work is licensed under the terms of the GNU LGPL, version 2 or later.
  * See the COPYING.LIB file in the top-level directory.
@@ -264,6 +264,7 @@ static int vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s)
     uint64_t h2_seq = 0;
     uint8_t *buffer;
 
+    /* header1 & header2 are freed in vhdx_close() */
     header1 = qemu_blockalign(bs, sizeof(VHDXHeader));
     header2 = qemu_blockalign(bs, sizeof(VHDXHeader));
 
@@ -790,6 +791,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    /* s->bat is freed in vhdx_close() */
     s->bat = qemu_blockalign(bs, s->bat_rt.length);
 
     ret = bdrv_pread(bs->file, s->bat_offset, s->bat, s->bat_rt.length);
