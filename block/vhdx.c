@@ -985,7 +985,7 @@ static void vhdx_block_translate(BDRVVHDXState *s, int64_t sector_num,
 
     sinfo->bytes_avail = sinfo->sectors_avail << s->logical_sector_size_bits;
 
-    sinfo->file_offset = s->bat[sinfo->bat_idx] >> VHDX_BAT_FILE_OFF_BITS;
+    sinfo->file_offset = s->bat[sinfo->bat_idx] & VHDX_BAT_FILE_OFF_MASK;
 
     sinfo->block_offset = block_offset << s->logical_sector_size_bits;
 
@@ -999,7 +999,6 @@ static void vhdx_block_translate(BDRVVHDXState *s, int64_t sector_num,
      * in the block, and add in the payload data block offset
      * in the file, in bytes, to get the final read address */
 
-    sinfo->file_offset <<= 20;  /* now in bytes, rather than 1MB units */
     sinfo->file_offset += sinfo->block_offset;
 }
 
@@ -1098,8 +1097,7 @@ static void vhdx_update_bat_table_entry(BlockDriverState *bs, BDRVVHDXState *s,
 {
     /* The BAT entry is a uint64, with 44 bits for the file offset in units of
      * 1MB, and 3 bits for the block state. */
-    s->bat[sinfo->bat_idx]  = ((sinfo->file_offset>>20) <<
-                               VHDX_BAT_FILE_OFF_BITS);
+    s->bat[sinfo->bat_idx]  = sinfo->file_offset;
 
     s->bat[sinfo->bat_idx] |= state & VHDX_BAT_STATE_BIT_MASK;
 

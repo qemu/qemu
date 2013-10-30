@@ -229,7 +229,6 @@ typedef struct QEMU_PACKED VHDXLogDataSector {
 /* upper 44 bits are the file offset in 1MB units lower 3 bits are the state
    other bits are reserved */
 #define VHDX_BAT_STATE_BIT_MASK 0x07
-#define VHDX_BAT_FILE_OFF_BITS (64 - 44)
 #define VHDX_BAT_FILE_OFF_MASK  0xFFFFFFFFFFF00000 /* upper 44 bits */
 typedef uint64_t VHDXBatEntry;
 
