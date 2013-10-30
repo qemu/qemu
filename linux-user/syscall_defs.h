@@ -1178,6 +1178,7 @@ struct target_stat {
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	unsigned short	st_dev;
 	unsigned char	__pad0[10];
@@ -1213,6 +1214,7 @@ struct target_stat64 {
 } QEMU_PACKED;
 
 #ifdef TARGET_ARM
+#define TARGET_HAS_STRUCT_STAT64
 struct target_eabi_stat64 {
         unsigned long long st_dev;
         unsigned int    __pad1;
@@ -1262,6 +1264,7 @@ struct target_stat {
 	abi_ulong	__unused4[2];
 };
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	unsigned char	__pad0[6];
 	unsigned short	st_dev;
@@ -1317,6 +1320,7 @@ struct target_stat {
 	abi_ulong	__unused4[2];
 };
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	unsigned char	__pad0[6];
 	unsigned short	st_dev;
@@ -1384,6 +1388,8 @@ struct target_stat {
 #endif
 };
 
+#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
+#define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
 	unsigned long long st_dev;
         unsigned long long st_ino;
@@ -1406,6 +1412,7 @@ struct QEMU_PACKED target_stat64 {
         unsigned int   __unused4;
         unsigned int   __unused5;
 };
+#endif
 
 #elif defined(TARGET_MICROBLAZE)
 
@@ -1431,6 +1438,7 @@ struct target_stat {
 };
 
 /* FIXME: Microblaze no-mmu user-space has a difference stat64 layout...  */
+#define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
 	uint64_t st_dev;
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
@@ -1486,6 +1494,7 @@ struct target_stat {
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad1[2];
@@ -1594,6 +1603,7 @@ struct target_stat {
  * struct stat of the 64-bit kernel.
  */
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	unsigned int	st_dev;
 	unsigned int	st_pad0[3];	/* Reserved for st_dev expansion  */
@@ -1665,6 +1675,7 @@ struct target_stat {
  * struct stat of the 64-bit kernel.
  */
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
 	abi_ulong	st_dev;
 	abi_ulong	st_pad0[3];	/* Reserved for st_dev expansion  */
@@ -1721,6 +1732,7 @@ struct target_stat {
        unsigned int    st_gen;
 };
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
        abi_ulong    st_dev;
        abi_ulong    st_ino;
@@ -1770,6 +1782,7 @@ struct target_stat {
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
+#define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
@@ -1897,6 +1910,7 @@ struct target_stat {
     unsigned int __unused5;
 };
 
+#define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
     uint64_t st_dev;
     uint64_t st_ino;
