@@ -4239,7 +4239,8 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_init();
 
-    QEMUMachineInitArgs args = { .ram_size = ram_size,
+    QEMUMachineInitArgs args = { .machine = machine,
+                                 .ram_size = ram_size,
                                  .boot_order = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,
