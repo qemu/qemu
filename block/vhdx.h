@@ -398,6 +398,9 @@ bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 
 int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed);
 
+int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
+                             void *data, uint32_t length, uint64_t offset);
+
 static inline void leguid_to_cpus(MSGUID *guid)
 {
     le32_to_cpus(&guid->data1);
