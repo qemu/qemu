@@ -204,6 +204,50 @@ void vhdx_guid_generate(MSGUID *guid)
     memcpy(guid, uuid, sizeof(MSGUID));
 }
 
+/* Check for region overlaps inside the VHDX image */
+static int vhdx_region_check(BDRVVHDXState *s, uint64_t start, uint64_t length)
+{
+    int ret = 0;
+    uint64_t end;
+    VHDXRegionEntry *r;
+
+    end = start + length;
+    QLIST_FOREACH(r, &s->regions, entries) {
+        if (!((start >= r->end) || (end <= r->start))) {
+            ret = -EINVAL;
+            goto exit;
+        }
+    }
+
+exit:
+    return ret;
+}
+
+/* Register a region for future checks */
+static void vhdx_region_register(BDRVVHDXState *s,
+                                 uint64_t start, uint64_t length)
+{
+    VHDXRegionEntry *r;
+
+    r = g_malloc0(sizeof(*r));
+
+    r->start = start;
+    r->end = start + length;
+
+    QLIST_INSERT_HEAD(&s->regions, r, entries);
+}
+
+/* Free all registered regions */
+static void vhdx_region_unregister_all(BDRVVHDXState *s)
+{
+    VHDXRegionEntry *r, *r_next;
+
+    QLIST_FOREACH_SAFE(r, &s->regions, entries, r_next) {
+        QLIST_REMOVE(r, entries);
+        g_free(r);
+    }
+}
+
 /*
  * Per the MS VHDX Specification, for every VHDX file:
  *      - The header section is fixed size - 1 MB
@@ -389,6 +433,9 @@ static int vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s)
         }
     }
 
+    vhdx_region_register(s, s->headers[s->curr_header]->log_offset,
+                            s->headers[s->curr_header]->log_length);
+
     ret = 0;
 
     goto exit;
@@ -452,6 +499,15 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
         le32_to_cpus(&rt_entry.length);
         le32_to_cpus(&rt_entry.data_bits);
 
+        /* check for region overlap between these entries, and any
+         * other memory regions in the file */
+        ret = vhdx_region_check(s, rt_entry.file_offset, rt_entry.length);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        vhdx_region_register(s, rt_entry.file_offset, rt_entry.length);
+
         /* see if we recognize the entry */
         if (guid_eq(rt_entry.guid, bat_guid)) {
             /* must be unique; if we have already found it this is invalid */
@@ -482,6 +538,12 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
             goto fail;
         }
     }
+
+    if (!bat_rt_found || !metadata_rt_found) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     ret = 0;
 
 fail:
@@ -751,6 +813,7 @@ static void vhdx_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
     qemu_vfree(s->log.hdr);
     s->log.hdr = NULL;
+    vhdx_region_unregister_all(s);
 }
 
 static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
@@ -768,6 +831,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     s->first_visible_write = true;
 
     qemu_co_mutex_init(&s->lock);
+    QLIST_INIT(&s->regions);
 
     /* validate the file signature */
     ret = bdrv_pread(bs->file, 0, &signature, sizeof(uint64_t));
@@ -842,8 +906,26 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    uint64_t payblocks = s->chunk_ratio;
+    /* endian convert, and verify populated BAT field file offsets against
+     * region table and log entries */
     for (i = 0; i < s->bat_entries; i++) {
         le64_to_cpus(&s->bat[i]);
+        if (payblocks--) {
+            /* payload bat entries */
+            if ((s->bat[i] & VHDX_BAT_STATE_BIT_MASK) ==
+                    PAYLOAD_BLOCK_FULL_PRESENT) {
+                ret = vhdx_region_check(s, s->bat[i] & VHDX_BAT_FILE_OFF_MASK,
+                                        s->block_size);
+                if (ret < 0) {
+                    goto fail;
+                }
+            }
+        } else {
+            payblocks = s->chunk_ratio;
+            /* Once differencing files are supported, verify sector bitmap
+             * blocks here */
+        }
     }
 
     if (flags & BDRV_O_RDWR) {
