@@ -230,7 +230,7 @@ static int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
  *  - non-current header is updated with largest sequence number
  */
 static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
-                              bool generate_data_write_guid)
+                              bool generate_data_write_guid, MSGUID *log_guid)
 {
     int ret = 0;
     int hdr_idx = 0;
@@ -260,6 +260,11 @@ static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
      * writes (i.e. something observable via virtual disk read) */
     if (generate_data_write_guid) {
         vhdx_guid_generate(&inactive_header->data_write_guid);
+    }
+
+    /* update the log guid if present */
+    if (log_guid) {
+        inactive_header->log_guid = *log_guid;
     }
 
     /* the header checksum is not over just the packed size of VHDXHeader,
@@ -294,16 +299,16 @@ exit:
  * The VHDX spec calls for header updates to be performed twice, so that both
  * the current and non-current header have valid info
  */
-static int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s,
-                               bool generate_data_write_guid)
+int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s,
+                        bool generate_data_write_guid, MSGUID *log_guid)
 {
     int ret;
 
-    ret = vhdx_update_header(bs, s, generate_data_write_guid);
+    ret = vhdx_update_header(bs, s, generate_data_write_guid, log_guid);
     if (ret < 0) {
         return ret;
     }
-    ret = vhdx_update_header(bs, s, generate_data_write_guid);
+    ret = vhdx_update_header(bs, s, generate_data_write_guid, log_guid);
     return ret;
 }
 
@@ -784,6 +789,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
 
 
     s->bat = NULL;
+    s->first_visible_write = true;
 
     qemu_co_mutex_init(&s->lock);
 
@@ -864,7 +870,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (flags & BDRV_O_RDWR) {
-        ret = vhdx_update_headers(bs, s, false);
+        ret = vhdx_update_headers(bs, s, false, NULL);
         if (ret < 0) {
             goto fail;
         }
@@ -1009,6 +1015,18 @@ exit:
 }
 
 
+
+/* Per the spec, on the first write of guest-visible data to the file the
+ * data write guid must be updated in the header */
+int vhdx_user_visible_write(BlockDriverState *bs, BDRVVHDXState *s)
+{
+    int ret = 0;
+    if (s->first_visible_write) {
+        s->first_visible_write = false;
+        ret = vhdx_update_headers(bs, s, true, NULL);
+    }
+    return ret;
+}
 
 static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                                       int nb_sectors, QEMUIOVector *qiov)
