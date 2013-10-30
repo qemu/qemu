@@ -223,49 +223,6 @@ static int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-/* All VHDX structures on disk are little endian */
-static void vhdx_header_le_import(VHDXHeader *h)
-{
-    assert(h != NULL);
-
-    le32_to_cpus(&h->signature);
-    le32_to_cpus(&h->checksum);
-    le64_to_cpus(&h->sequence_number);
-
-    leguid_to_cpus(&h->file_write_guid);
-    leguid_to_cpus(&h->data_write_guid);
-    leguid_to_cpus(&h->log_guid);
-
-    le16_to_cpus(&h->log_version);
-    le16_to_cpus(&h->version);
-    le32_to_cpus(&h->log_length);
-    le64_to_cpus(&h->log_offset);
-}
-
-/* All VHDX structures on disk are little endian */
-static void vhdx_header_le_export(VHDXHeader *orig_h, VHDXHeader *new_h)
-{
-    assert(orig_h != NULL);
-    assert(new_h != NULL);
-
-    new_h->signature       = cpu_to_le32(orig_h->signature);
-    new_h->checksum        = cpu_to_le32(orig_h->checksum);
-    new_h->sequence_number = cpu_to_le64(orig_h->sequence_number);
-
-    new_h->file_write_guid = orig_h->file_write_guid;
-    new_h->data_write_guid = orig_h->data_write_guid;
-    new_h->log_guid        = orig_h->log_guid;
-
-    cpu_to_leguids(&new_h->file_write_guid);
-    cpu_to_leguids(&new_h->data_write_guid);
-    cpu_to_leguids(&new_h->log_guid);
-
-    new_h->log_version     = cpu_to_le16(orig_h->log_version);
-    new_h->version         = cpu_to_le16(orig_h->version);
-    new_h->log_length      = cpu_to_le32(orig_h->log_length);
-    new_h->log_offset      = cpu_to_le64(orig_h->log_offset);
-}
-
 /* Update the VHDX headers
  *
  * This follows the VHDX spec procedures for header updates.

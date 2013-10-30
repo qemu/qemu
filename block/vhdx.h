@@ -394,4 +394,12 @@ static inline void cpu_to_leguids(MSGUID *guid)
     cpu_to_le16s(&guid->data3);
 }
 
+void vhdx_header_le_import(VHDXHeader *h);
+void vhdx_header_le_export(VHDXHeader *orig_h, VHDXHeader *new_h);
+void vhdx_log_desc_le_import(VHDXLogDescriptor *d);
+void vhdx_log_desc_le_export(VHDXLogDescriptor *d);
+void vhdx_log_data_le_export(VHDXLogDataSector *d);
+void vhdx_log_entry_hdr_le_import(VHDXLogEntryHeader *hdr);
+void vhdx_log_entry_hdr_le_export(VHDXLogEntryHeader *hdr);
+
 #endif
