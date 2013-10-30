@@ -256,6 +256,20 @@ static void smbios_build_type_1_fields(void)
     }
 }
 
+void smbios_set_type1_defaults(const char *manufacturer,
+                               const char *product, const char *version)
+{
+    if (!type1.manufacturer) {
+        type1.manufacturer = manufacturer;
+    }
+    if (!type1.product) {
+        type1.product = product;
+    }
+    if (!type1.version) {
+        type1.version = version;
+    }
+}
+
 uint8_t *smbios_get_table(size_t *length)
 {
     if (!smbios_immutable) {

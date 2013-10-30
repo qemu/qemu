@@ -39,6 +39,7 @@
 #include "hw/pci-host/q35.h"
 #include "exec/address-spaces.h"
 #include "hw/i386/ich9.h"
+#include "hw/i386/smbios.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
 #include "hw/usb.h"
@@ -49,6 +50,7 @@
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
+static bool smbios_type1_defaults = true;
 
 /* PC hardware initialisation */
 static void pc_q35_init(QEMUMachineInitArgs *args)
@@ -112,6 +114,12 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
+
+    if (smbios_type1_defaults) {
+        /* These values are guest ABI, do not change */
+        smbios_set_type1_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
+                                  args->machine->name);
+    }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
@@ -217,8 +225,14 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
+static void pc_compat_1_7(QEMUMachineInitArgs *args)
+{
+    smbios_type1_defaults = false;
+}
+
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
+    pc_compat_1_7(args);
     has_pci_info = false;
     rom_file_in_ram = false;
     has_acpi_build = false;
@@ -234,6 +248,12 @@ static void pc_compat_1_4(QEMUMachineInitArgs *args)
     pc_compat_1_5(args);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_1_7(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_7(args);
+    pc_q35_init(args);
 }
 
 static void pc_q35_init_1_6(QEMUMachineInitArgs *args)

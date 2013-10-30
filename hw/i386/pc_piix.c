@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
+#include "hw/i386/smbios.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
@@ -59,6 +60,7 @@ static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pci_info;
 static bool has_acpi_build = true;
+static bool smbios_type1_defaults = true;
 
 /* PC hardware initialisation */
 static void pc_init1(QEMUMachineInitArgs *args,
@@ -127,6 +129,12 @@ static void pc_init1(QEMUMachineInitArgs *args,
 
     guest_info->has_pci_info = has_pci_info;
     guest_info->isapc_ram_fw = !pci_enabled;
+
+    if (smbios_type1_defaults) {
+        /* These values are guest ABI, do not change */
+        smbios_set_type1_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
+                                  args->machine->name);
+    }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
@@ -233,8 +241,14 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
     pc_init1(args, 1, 1);
 }
 
+static void pc_compat_1_7(QEMUMachineInitArgs *args)
+{
+    smbios_type1_defaults = false;
+}
+
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
+    pc_compat_1_7(args);
     has_pci_info = false;
     rom_file_in_ram = false;
     has_acpi_build = false;
@@ -263,6 +277,12 @@ static void pc_compat_1_2(QEMUMachineInitArgs *args)
 {
     pc_compat_1_3(args);
     disable_kvm_pv_eoi();
+}
+
+static void pc_init_pci_1_7(QEMUMachineInitArgs *args)
+{
+    pc_compat_1_7(args);
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_1_6(QEMUMachineInitArgs *args)
@@ -301,6 +321,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
+    smbios_type1_defaults = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
     pc_init1(args, 1, 0);
@@ -310,6 +331,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 {
     has_pci_info = false;
     has_acpi_build = false;
+    smbios_type1_defaults = false;
     if (!args->cpu_model) {
         args->cpu_model = "486";
     }
@@ -354,7 +376,7 @@ static QEMUMachine pc_i440fx_machine_v2_0 = {
 static QEMUMachine pc_i440fx_machine_v1_7 = {
     PC_I440FX_1_7_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.7",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_7,
 };
 
 #define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
