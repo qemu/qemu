@@ -139,3 +139,78 @@ void vhdx_log_entry_hdr_le_export(VHDXLogEntryHeader *hdr)
 }
 
 
+/* Region table entries */
+void vhdx_region_header_le_import(VHDXRegionTableHeader *hdr)
+{
+    assert(hdr != NULL);
+
+    le32_to_cpus(&hdr->signature);
+    le32_to_cpus(&hdr->checksum);
+    le32_to_cpus(&hdr->entry_count);
+}
+
+void vhdx_region_header_le_export(VHDXRegionTableHeader *hdr)
+{
+    assert(hdr != NULL);
+
+    cpu_to_le32s(&hdr->signature);
+    cpu_to_le32s(&hdr->checksum);
+    cpu_to_le32s(&hdr->entry_count);
+}
+
+void vhdx_region_entry_le_import(VHDXRegionTableEntry *e)
+{
+    assert(e != NULL);
+
+    leguid_to_cpus(&e->guid);
+    le64_to_cpus(&e->file_offset);
+    le32_to_cpus(&e->length);
+    le32_to_cpus(&e->data_bits);
+}
+
+void vhdx_region_entry_le_export(VHDXRegionTableEntry *e)
+{
+    assert(e != NULL);
+
+    cpu_to_leguids(&e->guid);
+    cpu_to_le64s(&e->file_offset);
+    cpu_to_le32s(&e->length);
+    cpu_to_le32s(&e->data_bits);
+}
+
+
+/* Metadata headers & table */
+void vhdx_metadata_header_le_import(VHDXMetadataTableHeader *hdr)
+{
+    assert(hdr != NULL);
+
+    le64_to_cpus(&hdr->signature);
+    le16_to_cpus(&hdr->entry_count);
+}
+
+void vhdx_metadata_header_le_export(VHDXMetadataTableHeader *hdr)
+{
+    assert(hdr != NULL);
+
+    cpu_to_le64s(&hdr->signature);
+    cpu_to_le16s(&hdr->entry_count);
+}
+
+void vhdx_metadata_entry_le_import(VHDXMetadataTableEntry *e)
+{
+    assert(e != NULL);
+
+    leguid_to_cpus(&e->item_id);
+    le32_to_cpus(&e->offset);
+    le32_to_cpus(&e->length);
+    le32_to_cpus(&e->data_bits);
+}
+void vhdx_metadata_entry_le_export(VHDXMetadataTableEntry *e)
+{
+    assert(e != NULL);
+
+    cpu_to_leguids(&e->item_id);
+    cpu_to_le32s(&e->offset);
+    cpu_to_le32s(&e->length);
+    cpu_to_le32s(&e->data_bits);
+}

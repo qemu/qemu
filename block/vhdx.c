@@ -472,10 +472,7 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
         goto fail;
     }
     memcpy(&s->rt, buffer, sizeof(s->rt));
-    le32_to_cpus(&s->rt.signature);
-    le32_to_cpus(&s->rt.checksum);
-    le32_to_cpus(&s->rt.entry_count);
-    le32_to_cpus(&s->rt.reserved);
+    vhdx_region_header_le_import(&s->rt);
     offset += sizeof(s->rt);
 
     if (!vhdx_checksum_is_valid(buffer, VHDX_HEADER_BLOCK_SIZE, 4) ||
@@ -494,10 +491,7 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
         memcpy(&rt_entry, buffer + offset, sizeof(rt_entry));
         offset += sizeof(rt_entry);
 
-        leguid_to_cpus(&rt_entry.guid);
-        le64_to_cpus(&rt_entry.file_offset);
-        le32_to_cpus(&rt_entry.length);
-        le32_to_cpus(&rt_entry.data_bits);
+        vhdx_region_entry_le_import(&rt_entry);
 
         /* check for region overlap between these entries, and any
          * other memory regions in the file */
@@ -587,9 +581,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     memcpy(&s->metadata_hdr, buffer, sizeof(s->metadata_hdr));
     offset += sizeof(s->metadata_hdr);
 
-    le64_to_cpus(&s->metadata_hdr.signature);
-    le16_to_cpus(&s->metadata_hdr.reserved);
-    le16_to_cpus(&s->metadata_hdr.entry_count);
+    vhdx_metadata_header_le_import(&s->metadata_hdr);
 
     if (memcmp(&s->metadata_hdr.signature, "metadata", 8)) {
         ret = -EINVAL;
@@ -608,11 +600,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
         memcpy(&md_entry, buffer + offset, sizeof(md_entry));
         offset += sizeof(md_entry);
 
-        leguid_to_cpus(&md_entry.item_id);
-        le32_to_cpus(&md_entry.offset);
-        le32_to_cpus(&md_entry.length);
-        le32_to_cpus(&md_entry.data_bits);
-        le32_to_cpus(&md_entry.reserved2);
+        vhdx_metadata_entry_le_import(&md_entry);
 
         if (guid_eq(md_entry.item_id, file_param_guid)) {
             if (s->metadata_entries.present & META_FILE_PARAMETER_PRESENT) {

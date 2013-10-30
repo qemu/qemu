@@ -421,7 +421,14 @@ void vhdx_log_desc_le_export(VHDXLogDescriptor *d);
 void vhdx_log_data_le_export(VHDXLogDataSector *d);
 void vhdx_log_entry_hdr_le_import(VHDXLogEntryHeader *hdr);
 void vhdx_log_entry_hdr_le_export(VHDXLogEntryHeader *hdr);
-
+void vhdx_region_header_le_import(VHDXRegionTableHeader *hdr);
+void vhdx_region_header_le_export(VHDXRegionTableHeader *hdr);
+void vhdx_region_entry_le_import(VHDXRegionTableEntry *e);
+void vhdx_region_entry_le_export(VHDXRegionTableEntry *e);
+void vhdx_metadata_header_le_import(VHDXMetadataTableHeader *hdr);
+void vhdx_metadata_header_le_export(VHDXMetadataTableHeader *hdr);
+void vhdx_metadata_entry_le_import(VHDXMetadataTableEntry *e);
+void vhdx_metadata_entry_le_export(VHDXMetadataTableEntry *e);
 int vhdx_user_visible_write(BlockDriverState *bs, BDRVVHDXState *s);
 
 #endif
