@@ -23,6 +23,19 @@
 #include "migration/migration.h"
 
 #include <uuid/uuid.h>
+#include <glib.h>
+
+/* Options for VHDX creation */
+
+#define VHDX_BLOCK_OPT_LOG_SIZE   "log_size"
+#define VHDX_BLOCK_OPT_BLOCK_SIZE "block_size"
+#define VHDX_BLOCK_OPT_ZERO "block_state_zero"
+
+typedef enum VHDXImageType {
+    VHDX_TYPE_DYNAMIC = 0,
+    VHDX_TYPE_FIXED,
+    VHDX_TYPE_DIFFERENCING,   /* Currently unsupported */
+} VHDXImageType;
 
 /* Several metadata and region table data entries are identified by
  * guids in  a MS-specific GUID format. */
@@ -1320,6 +1333,548 @@ exit:
 }
 
 
+
+/*
+ * Create VHDX Headers
+ *
+ * There are 2 headers, and the highest sequence number will represent
+ * the active header
+ */
+static int vhdx_create_new_headers(BlockDriverState *bs, uint64_t image_size,
+                                   uint32_t log_size)
+{
+    int ret = 0;
+    VHDXHeader *hdr = NULL;
+
+    hdr = g_malloc0(sizeof(VHDXHeader));
+
+    hdr->signature       = VHDX_HEADER_SIGNATURE;
+    hdr->sequence_number = g_random_int();
+    hdr->log_version     = 0;
+    hdr->version         = 1;
+    hdr->log_length      = log_size;
+    hdr->log_offset      = VHDX_HEADER_SECTION_END;
+    vhdx_guid_generate(&hdr->file_write_guid);
+    vhdx_guid_generate(&hdr->data_write_guid);
+
+    ret = vhdx_write_header(bs, hdr, VHDX_HEADER1_OFFSET, false);
+    if (ret < 0) {
+        goto exit;
+    }
+    hdr->sequence_number++;
+    ret = vhdx_write_header(bs, hdr, VHDX_HEADER2_OFFSET, false);
+    if (ret < 0) {
+        goto exit;
+    }
+
+exit:
+    g_free(hdr);
+    return ret;
+}
+
+
+/*
+ * Create the Metadata entries.
+ *
+ * For more details on the entries, see section 3.5 (pg 29) in the
+ * VHDX 1.00 specification.
+ *
+ * We support 5 metadata entries (all required by spec):
+ *          File Parameters,
+ *          Virtual Disk Size,
+ *          Page 83 Data,
+ *          Logical Sector Size,
+ *          Physical Sector Size
+ *
+ * The first 64KB of the Metadata section is reserved for the metadata
+ * header and entries; beyond that, the metadata items themselves reside.
+ */
+static int vhdx_create_new_metadata(BlockDriverState *bs,
+                                    uint64_t image_size,
+                                    uint32_t block_size,
+                                    uint32_t sector_size,
+                                    uint64_t metadata_offset,
+                                    VHDXImageType type)
+{
+    int ret = 0;
+    uint32_t offset = 0;
+    void *buffer = NULL;
+    void *entry_buffer;
+    VHDXMetadataTableHeader *md_table;;
+    VHDXMetadataTableEntry  *md_table_entry;
+
+    /* Metadata entries */
+    VHDXFileParameters     *mt_file_params;
+    VHDXVirtualDiskSize    *mt_virtual_size;
+    VHDXPage83Data         *mt_page83;
+    VHDXVirtualDiskLogicalSectorSize  *mt_log_sector_size;
+    VHDXVirtualDiskPhysicalSectorSize *mt_phys_sector_size;
+
+    entry_buffer = g_malloc0(sizeof(VHDXFileParameters)               +
+                             sizeof(VHDXVirtualDiskSize)              +
+                             sizeof(VHDXPage83Data)                   +
+                             sizeof(VHDXVirtualDiskLogicalSectorSize) +
+                             sizeof(VHDXVirtualDiskPhysicalSectorSize));
+
+    mt_file_params = entry_buffer;
+    offset += sizeof(VHDXFileParameters);
+    mt_virtual_size = entry_buffer + offset;
+    offset += sizeof(VHDXVirtualDiskSize);
+    mt_page83 = entry_buffer + offset;
+    offset += sizeof(VHDXPage83Data);
+    mt_log_sector_size = entry_buffer + offset;
+    offset += sizeof(VHDXVirtualDiskLogicalSectorSize);
+    mt_phys_sector_size = entry_buffer + offset;
+
+    mt_file_params->block_size = cpu_to_le32(block_size);
+    if (type == VHDX_TYPE_FIXED) {
+        mt_file_params->data_bits |= VHDX_PARAMS_LEAVE_BLOCKS_ALLOCED;
+        cpu_to_le32s(&mt_file_params->data_bits);
+    }
+
+    vhdx_guid_generate(&mt_page83->page_83_data);
+    cpu_to_leguids(&mt_page83->page_83_data);
+    mt_virtual_size->virtual_disk_size        = cpu_to_le64(image_size);
+    mt_log_sector_size->logical_sector_size   = cpu_to_le32(sector_size);
+    mt_phys_sector_size->physical_sector_size = cpu_to_le32(sector_size);
+
+    buffer = g_malloc0(VHDX_HEADER_BLOCK_SIZE);
+    md_table = buffer;
+
+    md_table->signature   = VHDX_METADATA_SIGNATURE;
+    md_table->entry_count = 5;
+    vhdx_metadata_header_le_export(md_table);
+
+
+    /* This will reference beyond the reserved table portion */
+    offset = 64 * KiB;
+
+    md_table_entry = buffer + sizeof(VHDXMetadataTableHeader);
+
+    md_table_entry[0].item_id = file_param_guid;
+    md_table_entry[0].offset  = offset;
+    md_table_entry[0].length  = sizeof(VHDXFileParameters);
+    md_table_entry[0].data_bits |= VHDX_META_FLAGS_IS_REQUIRED;
+    offset += md_table_entry[0].length;
+    vhdx_metadata_entry_le_export(&md_table_entry[0]);
+
+    md_table_entry[1].item_id = virtual_size_guid;
+    md_table_entry[1].offset  = offset;
+    md_table_entry[1].length  = sizeof(VHDXVirtualDiskSize);
+    md_table_entry[1].data_bits |= VHDX_META_FLAGS_IS_REQUIRED |
+                                   VHDX_META_FLAGS_IS_VIRTUAL_DISK;
+    offset += md_table_entry[1].length;
+    vhdx_metadata_entry_le_export(&md_table_entry[1]);
+
+    md_table_entry[2].item_id = page83_guid;
+    md_table_entry[2].offset  = offset;
+    md_table_entry[2].length  = sizeof(VHDXPage83Data);
+    md_table_entry[2].data_bits |= VHDX_META_FLAGS_IS_REQUIRED |
+                                   VHDX_META_FLAGS_IS_VIRTUAL_DISK;
+    offset += md_table_entry[2].length;
+    vhdx_metadata_entry_le_export(&md_table_entry[2]);
+
+    md_table_entry[3].item_id = logical_sector_guid;
+    md_table_entry[3].offset  = offset;
+    md_table_entry[3].length  = sizeof(VHDXVirtualDiskLogicalSectorSize);
+    md_table_entry[3].data_bits |= VHDX_META_FLAGS_IS_REQUIRED |
+                                   VHDX_META_FLAGS_IS_VIRTUAL_DISK;
+    offset += md_table_entry[3].length;
+    vhdx_metadata_entry_le_export(&md_table_entry[3]);
+
+    md_table_entry[4].item_id = phys_sector_guid;
+    md_table_entry[4].offset  = offset;
+    md_table_entry[4].length  = sizeof(VHDXVirtualDiskPhysicalSectorSize);
+    md_table_entry[4].data_bits |= VHDX_META_FLAGS_IS_REQUIRED |
+                                   VHDX_META_FLAGS_IS_VIRTUAL_DISK;
+    vhdx_metadata_entry_le_export(&md_table_entry[4]);
+
+    ret = bdrv_pwrite(bs, metadata_offset, buffer, VHDX_HEADER_BLOCK_SIZE);
+    if (ret < 0) {
+        goto exit;
+    }
+
+    ret = bdrv_pwrite(bs, metadata_offset + (64 * KiB), entry_buffer,
+                      VHDX_HEADER_BLOCK_SIZE);
+    if (ret < 0) {
+        goto exit;
+    }
+
+
+exit:
+    g_free(buffer);
+    g_free(entry_buffer);
+    return ret;
+}
+
+/* This create the actual BAT itself.  We currently only support
+ * 'Dynamic' and 'Fixed' image types.
+ *
+ *  Dynamic images: default state of the BAT is all zeroes.
+ *
+ *  Fixed images: default state of the BAT is fully populated, with
+ *                file offsets and state PAYLOAD_BLOCK_FULLY_PRESENT.
+ */
+static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
+                           uint64_t image_size, VHDXImageType type,
+                           bool use_zero_blocks, VHDXRegionTableEntry *rt_bat)
+{
+    int ret = 0;
+    uint64_t data_file_offset;
+    uint64_t total_sectors = 0;
+    uint64_t sector_num = 0;
+    uint64_t unused;
+    int block_state;
+    VHDXSectorInfo sinfo;
+
+    assert(s->bat == NULL);
+
+    /* this gives a data start after BAT/bitmap entries, and well
+     * past any metadata entries (with a 4 MB buffer for future
+     * expansion */
+    data_file_offset = rt_bat->file_offset + rt_bat->length + 5 * MiB;
+    total_sectors = image_size >> s->logical_sector_size_bits;
+
+    if (type == VHDX_TYPE_DYNAMIC) {
+        /* All zeroes, so we can just extend the file - the end of the BAT
+         * is the furthest thing we have written yet */
+        ret = bdrv_truncate(bs, data_file_offset);
+        if (ret < 0) {
+            goto exit;
+        }
+    } else if (type == VHDX_TYPE_FIXED) {
+        ret = bdrv_truncate(bs, data_file_offset + image_size);
+        if (ret < 0) {
+            goto exit;
+        }
+    } else {
+        ret = -ENOTSUP;
+        goto exit;
+    }
+
+    if (type == VHDX_TYPE_FIXED ||
+                use_zero_blocks ||
+                bdrv_has_zero_init(bs) == 0) {
+        /* for a fixed file, the default BAT entry is not zero */
+        s->bat = g_malloc0(rt_bat->length);
+        block_state = type == VHDX_TYPE_FIXED ? PAYLOAD_BLOCK_FULLY_PRESENT :
+                                                PAYLOAD_BLOCK_NOT_PRESENT;
+        block_state = use_zero_blocks ? PAYLOAD_BLOCK_ZERO : block_state;
+        /* fill the BAT by emulating sector writes of sectors_per_block size */
+        while (sector_num < total_sectors) {
+            vhdx_block_translate(s, sector_num, s->sectors_per_block, &sinfo);
+            sinfo.file_offset = data_file_offset +
+                                (sector_num << s->logical_sector_size_bits);
+            sinfo.file_offset = ROUND_UP(sinfo.file_offset, MiB);
+            vhdx_update_bat_table_entry(bs, s, &sinfo, &unused, &unused,
+                                        block_state);
+            cpu_to_le64s(&s->bat[sinfo.bat_idx]);
+            sector_num += s->sectors_per_block;
+        }
+        ret = bdrv_pwrite(bs, rt_bat->file_offset, s->bat, rt_bat->length);
+        if (ret < 0) {
+            goto exit;
+        }
+    }
+
+
+
+exit:
+    g_free(s->bat);
+    return ret;
+}
+
+/* Creates the region table header, and region table entries.
+ * There are 2 supported region table entries: BAT, and Metadata/
+ *
+ * As the calculations for the BAT region table are also needed
+ * to create the BAT itself, we will also cause the BAT to be
+ * created.
+ */
+static int vhdx_create_new_region_table(BlockDriverState *bs,
+                                        uint64_t image_size,
+                                        uint32_t block_size,
+                                        uint32_t sector_size,
+                                        uint32_t log_size,
+                                        bool use_zero_blocks,
+                                        VHDXImageType type,
+                                        uint64_t *metadata_offset)
+{
+    int ret = 0;
+    uint32_t offset = 0;
+    void *buffer = NULL;
+    BDRVVHDXState *s = NULL;
+    VHDXRegionTableHeader *region_table;
+    VHDXRegionTableEntry *rt_bat;
+    VHDXRegionTableEntry *rt_metadata;
+
+    assert(metadata_offset != NULL);
+
+    /* Populate enough of the BDRVVHDXState to be able to use the
+     * pre-existing BAT calculation, translation, and update functions */
+    s = g_malloc0(sizeof(BDRVVHDXState));
+
+    s->chunk_ratio = (VHDX_MAX_SECTORS_PER_BLOCK) *
+                     (uint64_t) sector_size / (uint64_t) block_size;
+
+    s->sectors_per_block = block_size / sector_size;
+    s->virtual_disk_size = image_size;
+    s->block_size = block_size;
+    s->logical_sector_size = sector_size;
+
+    vhdx_set_shift_bits(s);
+
+    vhdx_calc_bat_entries(s);
+
+    /* At this point the VHDX state is populated enough for creation */
+
+    /* a single buffer is used so we can calculate the checksum over the
+     * entire 64KB block */
+    buffer = g_malloc0(VHDX_HEADER_BLOCK_SIZE);
+    region_table = buffer;
+    offset += sizeof(VHDXRegionTableHeader);
+    rt_bat = buffer + offset;
+    offset += sizeof(VHDXRegionTableEntry);
+    rt_metadata  = buffer + offset;
+
+    region_table->signature = VHDX_REGION_SIGNATURE;
+    region_table->entry_count = 2;   /* BAT and Metadata */
+
+    rt_bat->guid        = bat_guid;
+    rt_bat->length      = ROUND_UP(s->bat_entries * sizeof(VHDXBatEntry), MiB);
+    rt_bat->file_offset = ROUND_UP(VHDX_HEADER_SECTION_END + log_size, MiB);
+    s->bat_offset = rt_bat->file_offset;
+
+    rt_metadata->guid        = metadata_guid;
+    rt_metadata->file_offset = ROUND_UP(rt_bat->file_offset + rt_bat->length,
+                                        MiB);
+    rt_metadata->length      = 1 * MiB; /* min size, and more than enough */
+    *metadata_offset = rt_metadata->file_offset;
+
+    vhdx_update_checksum(buffer, VHDX_HEADER_BLOCK_SIZE,
+                         offsetof(VHDXRegionTableHeader, checksum));
+
+
+    /* The region table gives us the data we need to create the BAT,
+     * so do that now */
+    ret = vhdx_create_bat(bs, s, image_size, type, use_zero_blocks, rt_bat);
+
+    /* Now write out the region headers to disk */
+    vhdx_region_header_le_export(region_table);
+    vhdx_region_entry_le_export(rt_bat);
+    vhdx_region_entry_le_export(rt_metadata);
+
+    ret = bdrv_pwrite(bs, VHDX_REGION_TABLE_OFFSET, buffer,
+                      VHDX_HEADER_BLOCK_SIZE);
+    if (ret < 0) {
+        goto exit;
+    }
+
+    ret = bdrv_pwrite(bs, VHDX_REGION_TABLE2_OFFSET, buffer,
+                      VHDX_HEADER_BLOCK_SIZE);
+    if (ret < 0) {
+        goto exit;
+    }
+
+
+exit:
+    g_free(s);
+    g_free(buffer);
+    return ret;
+}
+
+/* We need to create the following elements:
+ *
+ *    .-----------------------------------------------------------------.
+ *    |   (A)    |   (B)    |    (C)    |     (D)       |     (E)       |
+ *    |  File ID |  Header1 |  Header 2 |  Region Tbl 1 |  Region Tbl 2 |
+ *    |          |          |           |               |               |
+ *    .-----------------------------------------------------------------.
+ *    0         64KB      128KB       192KB           256KB           320KB
+ *
+ *
+ *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
+ *    |     (F)     |     (G)       |    (H)    |                        |
+ *    | Journal Log |  BAT / Bitmap |  Metadata |  .... data ......      |
+ *    |             |               |           |                        |
+ *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
+ *   1MB
+ */
+static int vhdx_create(const char *filename, QEMUOptionParameter *options,
+                       Error **errp)
+{
+    int ret = 0;
+    uint64_t image_size = (uint64_t) 2 * GiB;
+    uint32_t log_size   = 1 * MiB;
+    uint32_t block_size = 0;
+    uint64_t signature;
+    uint64_t metadata_offset;
+    bool use_zero_blocks = false;
+
+    gunichar2 *creator = NULL;
+    glong creator_items;
+    BlockDriverState *bs;
+    const char *type = NULL;
+    VHDXImageType image_type;
+    Error *local_err = NULL;
+
+    while (options && options->name) {
+        if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
+            image_size = options->value.n;
+        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_LOG_SIZE)) {
+            log_size = options->value.n;
+        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_BLOCK_SIZE)) {
+            block_size = options->value.n;
+        } else if (!strcmp(options->name, BLOCK_OPT_SUBFMT)) {
+            type = options->value.s;
+        } else if (!strcmp(options->name, VHDX_BLOCK_OPT_ZERO)) {
+            use_zero_blocks = options->value.n != 0;
+        }
+        options++;
+    }
+
+    if (image_size > VHDX_MAX_IMAGE_SIZE) {
+        error_setg_errno(errp, EINVAL, "Image size too large; max of 64TB");
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    if (type == NULL) {
+        type = "dynamic";
+    }
+
+    if (!strcmp(type, "dynamic")) {
+        image_type = VHDX_TYPE_DYNAMIC;
+    } else if (!strcmp(type, "fixed")) {
+        image_type = VHDX_TYPE_FIXED;
+    } else if (!strcmp(type, "differencing")) {
+        error_setg_errno(errp, ENOTSUP,
+                         "Differencing files not yet supported");
+        ret = -ENOTSUP;
+        goto exit;
+    } else {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    /* These are pretty arbitrary, and mainly designed to keep the BAT
+     * size reasonable to load into RAM */
+    if (block_size == 0) {
+        if (image_size > 32 * TiB) {
+            block_size = 64 * MiB;
+        } else if (image_size > (uint64_t) 100 * GiB) {
+            block_size = 32 * MiB;
+        } else if (image_size > 1 * GiB) {
+            block_size = 16 * MiB;
+        } else {
+            block_size = 8 * MiB;
+        }
+    }
+
+
+    /* make the log size close to what was specified, but must be
+     * min 1MB, and multiple of 1MB */
+    log_size = ROUND_UP(log_size, MiB);
+
+    block_size = ROUND_UP(block_size, MiB);
+    block_size = block_size > VHDX_BLOCK_SIZE_MAX ? VHDX_BLOCK_SIZE_MAX :
+                                                    block_size;
+
+    ret = bdrv_create_file(filename, options, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
+    }
+
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
+    }
+
+    /* Create (A) */
+
+    /* The creator field is optional, but may be useful for
+     * debugging / diagnostics */
+    creator = g_utf8_to_utf16("QEMU v" QEMU_VERSION, -1, NULL,
+                              &creator_items, NULL);
+    signature = cpu_to_le64(VHDX_FILE_SIGNATURE);
+    bdrv_pwrite(bs, VHDX_FILE_ID_OFFSET, &signature, sizeof(signature));
+    if (ret < 0) {
+        goto delete_and_exit;
+    }
+    if (creator) {
+        bdrv_pwrite(bs, VHDX_FILE_ID_OFFSET + sizeof(signature), creator,
+                    creator_items * sizeof(gunichar2));
+        if (ret < 0) {
+            goto delete_and_exit;
+        }
+    }
+
+
+    /* Creates (B),(C) */
+    ret = vhdx_create_new_headers(bs, image_size, log_size);
+    if (ret < 0) {
+        goto delete_and_exit;
+    }
+
+    /* Creates (D),(E),(G) explicitly. (F) created as by-product */
+    ret = vhdx_create_new_region_table(bs, image_size, block_size, 512,
+                                       log_size, use_zero_blocks, image_type,
+                                       &metadata_offset);
+    if (ret < 0) {
+        goto delete_and_exit;
+    }
+
+    /* Creates (H) */
+    ret = vhdx_create_new_metadata(bs, image_size, block_size, 512,
+                                   metadata_offset, image_type);
+    if (ret < 0) {
+        goto delete_and_exit;
+    }
+
+
+
+delete_and_exit:
+    bdrv_unref(bs);
+exit:
+    g_free(creator);
+    return ret;
+}
+
+static QEMUOptionParameter vhdx_create_options[] = {
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size; max of 64TB."
+    },
+    {
+        .name = VHDX_BLOCK_OPT_LOG_SIZE,
+        .type = OPT_SIZE,
+        .value.n = 1 * MiB,
+        .help = "Log size; min 1MB."
+    },
+    {
+        .name = VHDX_BLOCK_OPT_BLOCK_SIZE,
+        .type = OPT_SIZE,
+        .value.n = 0,
+        .help = "Block Size; min 1MB, max 256MB. " \
+                "0 means auto-calculate based on image size."
+    },
+    {
+        .name = BLOCK_OPT_SUBFMT,
+        .type = OPT_STRING,
+        .help = "VHDX format type, can be either 'dynamic' or 'fixed'. "\
+                "Default is 'dynamic'."
+    },
+    {
+        .name = VHDX_BLOCK_OPT_ZERO,
+        .type = OPT_FLAG,
+        .help = "Force use of payload blocks of type 'ZERO'.  Non-standard."
+    },
+    { NULL }
+};
+
 static BlockDriver bdrv_vhdx = {
     .format_name            = "vhdx",
     .instance_size          = sizeof(BDRVVHDXState),
@@ -1329,6 +1884,9 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_reopen_prepare    = vhdx_reopen_prepare,
     .bdrv_co_readv          = vhdx_co_readv,
     .bdrv_co_writev         = vhdx_co_writev,
+    .bdrv_create            = vhdx_create,
+
+    .create_options         = vhdx_create_options,
 };
 
 static void bdrv_vhdx_init(void)
