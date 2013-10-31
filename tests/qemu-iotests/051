@@ -64,9 +64,9 @@ function run_qemu()
 size=128M
 
 _make_test_img $size
-cp $TEST_IMG $TEST_IMG.orig
-mv $TEST_IMG $TEST_IMG.base
-_make_test_img -b $TEST_IMG.base $size
+cp "$TEST_IMG" "$TEST_IMG.orig"
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" $size
 
 echo
 echo === Unknown option ===
@@ -81,7 +81,7 @@ echo
 echo === Overriding backing file ===
 echo
 
-echo "info block" | run_qemu -drive file=$TEST_IMG,driver=qcow2,backing.file.filename=$TEST_IMG.orig -nodefaults
+echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults
 
 echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
