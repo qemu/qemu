@@ -111,6 +111,8 @@ _make_test_img()
     local image_size=$*
     local optstr=""
     local img_name=""
+    local use_backing=0
+    local backing_file=""
 
     if [ -n "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG_FILE
@@ -123,7 +125,8 @@ _make_test_img()
     fi
 
     if [ "$1" = "-b" ]; then
-        extra_img_options="$1 $2"
+        use_backing=1
+        backing_file=$2
         image_size=$3
     fi
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
@@ -135,7 +138,13 @@ _make_test_img()
     fi
 
     # XXX(hch): have global image options?
-    $QEMU_IMG create -f $IMGFMT $extra_img_options $img_name $image_size 2>&1 | \
+    (
+     if [ $use_backing = 1 ]; then
+        $QEMU_IMG create -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+     else
+        $QEMU_IMG create -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+     fi
+    ) | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
