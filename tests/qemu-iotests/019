@@ -90,12 +90,12 @@ mv "$TEST_IMG" "$TEST_IMG.orig"
 # Test the conversion twice: One test with the old-style -B option and another
 # one with -o backing_file
 
-for backing_option in "-B $TEST_IMG.base" "-o backing_file=$TEST_IMG.base"; do
+for backing_option in "-B " "-o backing_file="; do
 
     echo
-    echo Testing conversion with $backing_option | _filter_testdir | _filter_imgfmt
+    echo Testing conversion with $backing_option$TEST_IMG.base | _filter_testdir | _filter_imgfmt
     echo
-    $QEMU_IMG convert -O $IMGFMT $backing_option "$TEST_IMG.orig" "$TEST_IMG"
+    $QEMU_IMG convert -O $IMGFMT $backing_option"$TEST_IMG.base" "$TEST_IMG.orig" "$TEST_IMG"
 
     echo "Checking if backing clusters are allocated when they shouldn't"
     echo
