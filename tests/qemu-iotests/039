@@ -54,7 +54,7 @@ echo "== Checking that image is clean on shutdown =="
 IMGOPTS="compat=1.1,lazy_refcounts=on"
 _make_test_img $size
 
-$QEMU_IO -c "write -P 0x5a 0 512" ""$TEST_IMG"" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
 # The dirty bit must not be set
 ./qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
