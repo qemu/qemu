@@ -69,7 +69,7 @@ poke_file "$TEST_IMG" "$grain_table_size_offset" "\x01\x00\x00\x00"
 echo
 echo "=== Testing monolithicFlat creation and opening ==="
 IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
-$QEMU_IMG info $TEST_IMG | _filter_testdir
+_img_info
 
 echo
 echo "=== Testing monolithicFlat with zeroed_grain ==="

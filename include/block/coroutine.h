@@ -216,6 +216,15 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
 void coroutine_fn co_sleep_ns(QEMUClockType type, int64_t ns);
 
 /**
+ * Yield the coroutine for a given duration
+ *
+ * Behaves similarly to co_sleep_ns(), but the sleeping coroutine will be
+ * resumed when using qemu_aio_wait().
+ */
+void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,
+                                  int64_t ns);
+
+/**
  * Yield until a file descriptor becomes readable
  *
  * Note that this function clobbers the handlers for the file descriptor.

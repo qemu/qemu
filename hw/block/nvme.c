@@ -69,7 +69,7 @@ static void nvme_isr_notify(NvmeCtrl *n, NvmeCQueue *cq)
         if (msix_enabled(&(n->parent_obj))) {
             msix_notify(&(n->parent_obj), cq->vector);
         } else {
-            qemu_irq_pulse(n->parent_obj.irq[0]);
+            pci_irq_pulse(&n->parent_obj);
         }
     }
 }

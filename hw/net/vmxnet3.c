@@ -336,7 +336,7 @@ static bool _vmxnet3_assert_interrupt_line(VMXNET3State *s, uint32_t int_idx)
     }
 
     VMW_IRPRN("Asserting line for interrupt %u", int_idx);
-    qemu_set_irq(d->irq[int_idx], 1);
+    pci_irq_assert(d);
     return true;
 }
 
@@ -356,7 +356,7 @@ static void _vmxnet3_deassert_interrupt_line(VMXNET3State *s, int lidx)
     assert(!s->msi_used || !msi_enabled(d));
 
     VMW_IRPRN("Deasserting line for interrupt %u", lidx);
-    qemu_set_irq(d->irq[lidx], 0);
+    pci_irq_deassert(d);
 }
 
 static void vmxnet3_update_interrupt_line_state(VMXNET3State *s, int lidx)
@@ -1299,6 +1299,12 @@ static void vmxnet3_update_features(VMXNET3State *s)
     }
 }
 
+static bool vmxnet3_verify_intx(VMXNET3State *s, int intx)
+{
+    return s->msix_used || s->msi_used || (intx ==
+           (pci_get_byte(s->parent_obj.config + PCI_INTERRUPT_PIN) - 1));
+}
+
 static void vmxnet3_activate_device(VMXNET3State *s)
 {
     int i;
@@ -1332,6 +1338,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
 
     s->event_int_idx =
         VMXNET3_READ_DRV_SHARED8(s->drv_shmem, devRead.intrConf.eventIntrIdx);
+    assert(vmxnet3_verify_intx(s, s->event_int_idx));
     VMW_CFPRN("Events interrupt line is %u", s->event_int_idx);
 
     s->auto_int_masking =
@@ -1364,6 +1371,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         /* Read interrupt number for this TX queue */
         s->txq_descr[i].intr_idx =
             VMXNET3_READ_TX_QUEUE_DESCR8(qdescr_pa, conf.intrIdx);
+        assert(vmxnet3_verify_intx(s, s->txq_descr[i].intr_idx));
 
         VMW_CFPRN("TX Queue %d interrupt: %d", i, s->txq_descr[i].intr_idx);
 
@@ -1411,6 +1419,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         /* Read interrupt number for this RX queue */
         s->rxq_descr[i].intr_idx =
             VMXNET3_READ_TX_QUEUE_DESCR8(qd_pa, conf.intrIdx);
+        assert(vmxnet3_verify_intx(s, s->rxq_descr[i].intr_idx));
 
         VMW_CFPRN("RX Queue %d interrupt: %d", i, s->rxq_descr[i].intr_idx);
 

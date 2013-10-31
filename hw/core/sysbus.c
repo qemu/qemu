@@ -49,7 +49,7 @@ void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 }
 
 static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
-                                   bool may_overlap, unsigned priority)
+                                   bool may_overlap, int priority)
 {
     assert(n >= 0 && n < dev->num_mmio);
 
@@ -81,7 +81,7 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
 }
 
 void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
-                             unsigned priority)
+                             int priority)
 {
     sysbus_mmio_map_common(dev, n, addr, true, priority);
 }

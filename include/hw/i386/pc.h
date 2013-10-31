@@ -9,6 +9,9 @@
 #include "hw/i386/ioapic.h"
 
 #include "qemu/range.h"
+#include "qemu/bitmap.h"
+#include "sysemu/sysemu.h"
+#include "hw/pci/pci.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -17,10 +20,27 @@ typedef struct PcPciInfo {
     Range w64;
 } PcPciInfo;
 
+#define ACPI_PM_PROP_S3_DISABLED "disable_s3"
+#define ACPI_PM_PROP_S4_DISABLED "disable_s4"
+#define ACPI_PM_PROP_S4_VAL "s4_val"
+#define ACPI_PM_PROP_SCI_INT "sci_int"
+#define ACPI_PM_PROP_ACPI_ENABLE_CMD "acpi_enable_cmd"
+#define ACPI_PM_PROP_ACPI_DISABLE_CMD "acpi_disable_cmd"
+#define ACPI_PM_PROP_PM_IO_BASE "pm_io_base"
+#define ACPI_PM_PROP_GPE0_BLK "gpe0_blk"
+#define ACPI_PM_PROP_GPE0_BLK_LEN "gpe0_blk_len"
+
 struct PcGuestInfo {
     bool has_pci_info;
     bool isapc_ram_fw;
+    hwaddr ram_size;
+    unsigned apic_id_limit;
+    bool apic_xrupt_override;
+    uint64_t numa_nodes;
+    uint64_t *node_mem;
+    uint64_t *node_cpu;
     FWCfgState *fw_cfg;
+    bool has_acpi_build;
 };
 
 /* parallel.c */
@@ -173,6 +193,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
                     MemoryRegion *pci_memory,
                     MemoryRegion *ram_memory);
 
+PCIBus *find_i440fx(void);
 /* piix4.c */
 extern PCIDevice *piix4_dev;
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn);
@@ -215,6 +236,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory,
 
 /* pvpanic.c */
 void pvpanic_init(ISABus *bus);
+uint16_t pvpanic_port(void);
 
 /* e820 types */
 #define E820_RAM        1

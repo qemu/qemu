@@ -164,7 +164,6 @@ struct UHCIState {
 
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
-    int irq_pin;
 
     /* Active packets */
     QTAILQ_HEAD(, UHCIQueue) queues;
@@ -381,7 +380,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    qemu_set_irq(s->dev.irq[s->irq_pin], level);
+    pci_set_irq(&s->dev, level);
 }
 
 static void uhci_reset(void *opaque)
@@ -1240,8 +1239,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    s->irq_pin = u->info.irq_pin;
-    pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
+    pci_config_set_interrupt_pin(pci_conf, u->info.irq_pin + 1);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];

@@ -18,7 +18,7 @@ LeakyBucket    bkt;
 ThrottleConfig cfg;
 ThrottleState  ts;
 
-/* usefull function */
+/* useful function */
 static bool double_cmp(double x, double y)
 {
     return fabsl(x - y) < 1e-6;
@@ -320,7 +320,7 @@ static void test_have_timer(void)
     /* zero the structure */
     memset(&ts, 0, sizeof(ts));
 
-    /* no timer set shoudl return false */
+    /* no timer set should return false */
     g_assert(!throttle_have_timer(&ts));
 
     /* init the structure */

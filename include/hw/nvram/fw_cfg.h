@@ -46,12 +46,14 @@
 
 #define FW_CFG_INVALID          0xffff
 
+#define FW_CFG_MAX_FILE_PATH    56
+
 #ifndef NO_QEMU_PROTOS
 typedef struct FWCfgFile {
     uint32_t  size;        /* file size */
     uint16_t  select;      /* write this to 0x510 to read it */
     uint16_t  reserved;
-    char      name[56];
+    char      name[FW_CFG_MAX_FILE_PATH];
 } FWCfgFile;
 
 typedef struct FWCfgFiles {
@@ -60,6 +62,7 @@ typedef struct FWCfgFiles {
 } FWCfgFiles;
 
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
+typedef void (*FWCfgReadCallback)(void *opaque, uint32_t offset);
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
@@ -70,6 +73,9 @@ void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
                          void *callback_opaque, void *data, size_t len);
 void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
                      size_t len);
+void fw_cfg_add_file_callback(FWCfgState *s, const char *filename,
+                              FWCfgReadCallback callback, void *callback_opaque,
+                              void *data, size_t len);
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr crl_addr, hwaddr data_addr);
 

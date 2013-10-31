@@ -999,13 +999,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     }
 
     /* backing files always opened read-only */
-    back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT);
+    back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT |
+                                    BDRV_O_COPY_ON_READ);
 
     ret = bdrv_open(bs->backing_hd,
                     *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv, &local_err);
-    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
-            bs->backing_hd->file->filename);
     if (ret < 0) {
         bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
@@ -1013,6 +1012,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_propagate(errp, local_err);
         return ret;
     }
+    pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+            bs->backing_hd->file->filename);
     return 0;
 }
 
@@ -2868,9 +2869,10 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (bdrv_dev_has_removable_media(bs)) {
-        if (drv->bdrv_getlength) {
-            return drv->bdrv_getlength(bs);
+    if (drv->has_variable_length) {
+        int ret = refresh_total_sectors(bs, bs->total_sectors);
+        if (ret < 0) {
+            return ret;
         }
     }
     return bs->total_sectors * BDRV_SECTOR_SIZE;

@@ -225,10 +225,16 @@ static void count_cpreg(gpointer key, gpointer opaque)
 
 static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
 {
-    uint32_t aidx = *(uint32_t *)a;
-    uint32_t bidx = *(uint32_t *)b;
+    uint64_t aidx = cpreg_to_kvm_id(*(uint32_t *)a);
+    uint64_t bidx = cpreg_to_kvm_id(*(uint32_t *)b);
 
-    return aidx - bidx;
+    if (aidx > bidx) {
+        return 1;
+    }
+    if (aidx < bidx) {
+        return -1;
+    }
+    return 0;
 }
 
 static void cpreg_make_keylist(gpointer key, gpointer value, gpointer udata)
@@ -537,6 +543,13 @@ static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static int vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
+{
+    env->cp15.c12_vbar = value & ~0x1Ful;
+    return 0;
+}
+
 static int ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t *value)
 {
@@ -622,6 +635,10 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .resetvalue = 0, .writefn = pmintenclr_write, },
+    { .name = "VBAR", .cp = 15, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+      .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
       .resetvalue = 0, },
@@ -2479,10 +2496,20 @@ void arm_cpu_do_interrupt(CPUState *cs)
     }
     /* High vectors.  */
     if (env->cp15.c1_sys & (1 << 13)) {
+        /* when enabled, base address cannot be remapped.  */
         addr += 0xffff0000;
     } else if (arm_feature(env, ARM_FEATURE_V6_VECBASE)) {
         /* Vector base address */
         addr += env->cp15.c12_vecbase;
+    } else {
+        /* ARM v7 architectures provide a vector base address register to remap
+         * the interrupt vector table.
+         * This register is only followed in non-monitor mode, and has a secure
+         * and un-secure copy. Since the cpu is always in a un-secure operation
+         * and is never in monitor mode this feature is always active.
+         * Note: only bits 31:5 are valid.
+         */
+        addr += env->cp15.c12_vbar;
     }
     switch_mode (env, new_mode);
     env->spsr = cpsr_read(env);

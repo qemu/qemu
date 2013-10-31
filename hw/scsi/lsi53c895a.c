@@ -437,7 +437,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    qemu_set_irq(d->irq[0], level);
+    pci_set_irq(d, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "

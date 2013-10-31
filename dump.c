@@ -66,7 +66,7 @@ typedef struct DumpState {
     uint32_t sh_info;
     bool have_section;
     bool resume;
-    size_t note_size;
+    ssize_t note_size;
     hwaddr memory_offset;
     int fd;
 
@@ -765,7 +765,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
 
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
-    if (ret < 0) {
+    if (s->note_size < 0) {
         error_set(errp, QERR_UNSUPPORTED);
         goto cleanup;
     }

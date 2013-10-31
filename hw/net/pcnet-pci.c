@@ -282,6 +282,7 @@ static void pci_pcnet_uninit(PCIDevice *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
 
+    qemu_free_irq(d->state.irq);
     memory_region_destroy(&d->state.mmio);
     memory_region_destroy(&d->io_bar);
     timer_del(d->state.poll_timer);
@@ -331,7 +332,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     pci_register_bar(pci_dev, 1, 0, &s->mmio);
 
-    s->irq = pci_dev->irq[0];
+    s->irq = pci_allocate_irq(pci_dev);
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = pci_dev;

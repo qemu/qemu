@@ -230,7 +230,7 @@ static void cmd646_update_irq(PCIIDEState *d)
                  !(pd->config[MRDMODE] & MRDMODE_BLK_CH0)) ||
         ((pd->config[MRDMODE] & MRDMODE_INTR_CH1) &&
          !(pd->config[MRDMODE] & MRDMODE_BLK_CH1));
-    qemu_set_irq(pd->irq[0], pci_level);
+    pci_set_irq(pd, pci_level);
 }
 
 /* the PCI irq level is the logical OR of the two channels */

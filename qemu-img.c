@@ -607,7 +607,7 @@ static int img_check(int argc, char **argv)
         if (output_format == OFORMAT_HUMAN) {
             error_report("This image format does not support checks");
         }
-        ret = 1;
+        ret = 63;
         goto fail;
     }
 

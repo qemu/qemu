@@ -716,7 +716,7 @@ static void rtl8139_update_irq(RTL8139State *s)
     DPRINTF("Set IRQ to %d (%04x %04x)\n", isr ? 1 : 0, s->IntrStatus,
         s->IntrMask);
 
-    qemu_set_irq(d->irq[0], (isr != 0));
+    pci_set_irq(d, (isr != 0));
 }
 
 static int rtl8139_RxWrap(RTL8139State *s)

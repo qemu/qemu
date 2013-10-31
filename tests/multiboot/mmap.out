@@ -1,0 +1,93 @@
+
+
+
+=== Running test case: mmap.elf  ===
+
+Lower memory: 639k
+Upper memory: 130040k
+
+e820 memory map:
+0x0 - 0x9fc00: type 1 [entry size: 20]
+0x9fc00 - 0xa0000: type 2 [entry size: 20]
+0xf0000 - 0x100000: type 2 [entry size: 20]
+0x100000 - 0x7ffe000: type 1 [entry size: 20]
+0x7ffe000 - 0x8000000: type 2 [entry size: 20]
+0xfffc0000 - 0x100000000: type 2 [entry size: 20]
+
+mmap start:       0x9000
+mmap end:         0x9090
+real mmap end:    0x9090
+
+
+=== Running test case: mmap.elf -m 1.1M ===
+
+Lower memory: 639k
+Upper memory: 96k
+
+e820 memory map:
+0x0 - 0x9fc00: type 1 [entry size: 20]
+0x9fc00 - 0xa0000: type 2 [entry size: 20]
+0xf0000 - 0x100000: type 2 [entry size: 20]
+0x100000 - 0x118000: type 1 [entry size: 20]
+0x118000 - 0x11a000: type 2 [entry size: 20]
+0xfffc0000 - 0x100000000: type 2 [entry size: 20]
+
+mmap start:       0x9000
+mmap end:         0x9090
+real mmap end:    0x9090
+
+
+=== Running test case: mmap.elf -m 2G ===
+
+Lower memory: 639k
+Upper memory: 2096120k
+
+e820 memory map:
+0x0 - 0x9fc00: type 1 [entry size: 20]
+0x9fc00 - 0xa0000: type 2 [entry size: 20]
+0xf0000 - 0x100000: type 2 [entry size: 20]
+0x100000 - 0x7fffe000: type 1 [entry size: 20]
+0x7fffe000 - 0x80000000: type 2 [entry size: 20]
+0xfffc0000 - 0x100000000: type 2 [entry size: 20]
+
+mmap start:       0x9000
+mmap end:         0x9090
+real mmap end:    0x9090
+
+
+=== Running test case: mmap.elf -m 4G ===
+
+Lower memory: 639k
+Upper memory: 3668984k
+
+e820 memory map:
+0x0 - 0x9fc00: type 1 [entry size: 20]
+0x9fc00 - 0xa0000: type 2 [entry size: 20]
+0xf0000 - 0x100000: type 2 [entry size: 20]
+0x100000 - 0xdfffe000: type 1 [entry size: 20]
+0xdfffe000 - 0xe0000000: type 2 [entry size: 20]
+0xfffc0000 - 0x100000000: type 2 [entry size: 20]
+0x100000000 - 0x120000000: type 1 [entry size: 20]
+
+mmap start:       0x9000
+mmap end:         0x90a8
+real mmap end:    0x90a8
+
+
+=== Running test case: mmap.elf -m 8G ===
+
+Lower memory: 639k
+Upper memory: 3668984k
+
+e820 memory map:
+0x0 - 0x9fc00: type 1 [entry size: 20]
+0x9fc00 - 0xa0000: type 2 [entry size: 20]
+0xf0000 - 0x100000: type 2 [entry size: 20]
+0x100000 - 0xdfffe000: type 1 [entry size: 20]
+0xdfffe000 - 0xe0000000: type 2 [entry size: 20]
+0xfffc0000 - 0x100000000: type 2 [entry size: 20]
+0x100000000 - 0x220000000: type 1 [entry size: 20]
+
+mmap start:       0x9000
+mmap end:         0x90a8
+real mmap end:    0x90a8

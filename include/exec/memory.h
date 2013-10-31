@@ -153,7 +153,7 @@ struct MemoryRegion {
     bool flush_coalesced_mmio;
     MemoryRegion *alias;
     hwaddr alias_offset;
-    unsigned priority;
+    int priority;
     bool may_overlap;
     QTAILQ_HEAD(subregions, MemoryRegion) subregions;
     QTAILQ_ENTRY(MemoryRegion) subregions_link;
@@ -779,7 +779,7 @@ void memory_region_add_subregion(MemoryRegion *mr,
 void memory_region_add_subregion_overlap(MemoryRegion *mr,
                                          hwaddr offset,
                                          MemoryRegion *subregion,
-                                         unsigned priority);
+                                         int priority);
 
 /**
  * memory_region_get_ram_addr: Get the ram address associated with a memory

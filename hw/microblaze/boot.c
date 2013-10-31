@@ -26,6 +26,7 @@
 
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
@@ -39,6 +40,8 @@ static struct
     void (*machine_cpu_reset)(MicroBlazeCPU *);
     uint32_t bootstrap_pc;
     uint32_t cmdline;
+    uint32_t initrd_start;
+    uint32_t initrd_end;
     uint32_t fdt;
 } boot_info;
 
@@ -49,6 +52,7 @@ static void main_cpu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
     env->regs[5] = boot_info.cmdline;
+    env->regs[6] = boot_info.initrd_start;
     env->regs[7] = boot_info.fdt;
     env->sregs[SR_PC] = boot_info.bootstrap_pc;
     if (boot_info.machine_cpu_reset) {
@@ -57,9 +61,11 @@ static void main_cpu_reset(void *opaque)
 }
 
 static int microblaze_load_dtb(hwaddr addr,
-                                      uint32_t ramsize,
-                                      const char *kernel_cmdline,
-                                      const char *dtb_filename)
+                               uint32_t ramsize,
+                               uint32_t initrd_start,
+                               uint32_t initrd_end,
+                               const char *kernel_cmdline,
+                               const char *dtb_filename)
 {
     int fdt_size;
     void *fdt = NULL;
@@ -80,6 +86,14 @@ static int microblaze_load_dtb(hwaddr addr,
         }
     }
 
+    if (initrd_start) {
+        qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                                  initrd_start);
+
+        qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                                  initrd_end);
+    }
+
     cpu_physical_memory_write(addr, fdt, fdt_size);
     return fdt_size;
 }
@@ -90,7 +104,9 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 }
 
 void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
-                            uint32_t ramsize, const char *dtb_filename,
+                            uint32_t ramsize,
+                            const char *initrd_filename,
+                            const char *dtb_filename,
                             void (*machine_cpu_reset)(MicroBlazeCPU *))
 {
     QemuOpts *machine_opts;
@@ -151,14 +167,36 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
             high = (ddr_base + kernel_size + 3) & ~3;
         }
 
+        if (initrd_filename) {
+            int initrd_size;
+            uint32_t initrd_offset;
+
+            high = ROUND_UP(high + kernel_size, 4);
+            boot_info.initrd_start = high;
+            initrd_offset = boot_info.initrd_start - ddr_base;
+            initrd_size = load_image_targphys(initrd_filename,
+                                              boot_info.initrd_start,
+                                              ram_size - initrd_offset);
+            if (initrd_size < 0) {
+                error_report("qemu: could not load initrd '%s'\n",
+                             initrd_filename);
+                exit(EXIT_FAILURE);
+            }
+            boot_info.initrd_end = boot_info.initrd_start + initrd_size;
+            high = ROUND_UP(high + initrd_size, 4);
+        }
+
         boot_info.cmdline = high + 4096;
         if (kernel_cmdline && strlen(kernel_cmdline)) {
             pstrcpy_targphys("cmdline", boot_info.cmdline, 256, kernel_cmdline);
         }
         /* Provide a device-tree.  */
         boot_info.fdt = boot_info.cmdline + 4096;
-        microblaze_load_dtb(boot_info.fdt, ram_size, kernel_cmdline,
-                                                     dtb_filename);
+        microblaze_load_dtb(boot_info.fdt, ram_size,
+                            boot_info.initrd_start,
+                            boot_info.initrd_end,
+                            kernel_cmdline,
+                            dtb_filename);
     }
 
 }
