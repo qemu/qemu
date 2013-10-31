@@ -1842,7 +1842,8 @@ static BlockDriver bdrv_host_cdrom = {
 #endif /* __linux__ */
 
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
-static int cdrom_open(BlockDriverState *bs, QDict *options, int flags)
+static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
+                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     Error *local_err = NULL;
