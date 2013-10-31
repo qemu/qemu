@@ -328,7 +328,7 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
     }
 
     s->mit_irq_level = (pending_ints != 0);
-    qemu_set_irq(d->irq[0], s->mit_irq_level);
+    pci_set_irq(d, s->mit_irq_level);
 }
 
 static void

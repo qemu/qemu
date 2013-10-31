@@ -80,6 +80,10 @@ guest.  This is done with memory_region_add_subregion_overlap(), which
 allows the region to overlap any other region in the same container, and
 specifies a priority that allows the core to decide which of two regions at
 the same address are visible (highest wins).
+Priority values are signed, and the default value is zero. This means that
+you can use memory_region_add_subregion_overlap() both to specify a region
+that must sit 'above' any others (with a positive priority) and also a
+background region that sits 'below' others (with a negative priority).
 
 Visibility
 ----------

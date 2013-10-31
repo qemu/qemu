@@ -83,7 +83,7 @@ static const TypeInfo pcie_bus_info = {
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
-static void pci_set_irq(void *opaque, int irq_num, int level);
+static void pci_irq_handler(void *opaque, int irq_num, int level);
 static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
 static void pci_del_option_rom(PCIDevice *pdev);
 
@@ -161,7 +161,7 @@ void pci_device_deassert_intx(PCIDevice *dev)
 {
     int i;
     for (i = 0; i < PCI_NUM_PINS; ++i) {
-        qemu_set_irq(dev->irq[i], 0);
+        pci_irq_handler(dev, i, 0);
     }
 }
 
@@ -283,6 +283,24 @@ const char *pci_root_bus_path(PCIDevice *dev)
     return rootbus->qbus.name;
 }
 
+static uint64_t master_abort_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+   return -1ULL;
+}
+
+static void master_abort_mem_write(void *opaque, hwaddr addr, uint64_t val,
+                                   unsigned size)
+{
+}
+
+static const MemoryRegionOps master_abort_mem_ops = {
+    .read = master_abort_mem_read,
+    .write = master_abort_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+#define MASTER_ABORT_MEM_PRIORITY INT_MIN
+
 static void pci_bus_init(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
@@ -293,6 +311,14 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     bus->devfn_min = devfn_min;
     bus->address_space_mem = address_space_mem;
     bus->address_space_io = address_space_io;
+
+
+    memory_region_init_io(&bus->master_abort_mem, OBJECT(bus),
+                          &master_abort_mem_ops, bus, "pci-master-abort",
+                          memory_region_size(bus->address_space_mem));
+    memory_region_add_subregion_overlap(bus->address_space_mem,
+                                        0, &bus->master_abort_mem,
+                                        MASTER_ABORT_MEM_PRIORITY);
 
     /* host bridge */
     QLIST_INIT(&bus->child);
@@ -863,14 +889,12 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->config_read = config_read;
     pci_dev->config_write = config_write;
     bus->devices[devfn] = pci_dev;
-    pci_dev->irq = qemu_allocate_irqs(pci_set_irq, pci_dev, PCI_NUM_PINS);
     pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }
 
 static void do_pci_unregister_device(PCIDevice *pci_dev)
 {
-    qemu_free_irqs(pci_dev->irq);
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
     pci_config_free(pci_dev);
 
@@ -1175,7 +1199,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 /* generic PCI irq support */
 
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
-static void pci_set_irq(void *opaque, int irq_num, int level)
+static void pci_irq_handler(void *opaque, int irq_num, int level)
 {
     PCIDevice *pci_dev = opaque;
     int change;
@@ -1189,6 +1213,24 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     if (pci_irq_disabled(pci_dev))
         return;
     pci_change_irq_level(pci_dev, irq_num, change);
+}
+
+static inline int pci_intx(PCIDevice *pci_dev)
+{
+    return pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
+}
+
+qemu_irq pci_allocate_irq(PCIDevice *pci_dev)
+{
+    int intx = pci_intx(pci_dev);
+
+    return qemu_allocate_irq(pci_irq_handler, pci_dev, intx);
+}
+
+void pci_set_irq(PCIDevice *pci_dev, int level)
+{
+    int intx = pci_intx(pci_dev);
+    pci_irq_handler(pci_dev, intx, level);
 }
 
 /* Special hooks used by device assignment */
@@ -2264,7 +2306,7 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
     Range *range = opaque;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     uint16_t cmd = pci_get_word(dev->config + PCI_COMMAND);
-    int r;
+    int i;
 
     if (!(cmd & PCI_COMMAND_MEMORY)) {
         return;
@@ -2283,17 +2325,21 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
             range_extend(range, &pref_range);
         }
     }
-    for (r = 0; r < PCI_NUM_REGIONS; ++r) {
-        PCIIORegion *region = &dev->io_regions[r];
+    for (i = 0; i < PCI_NUM_REGIONS; ++i) {
+        PCIIORegion *r = &dev->io_regions[i];
         Range region_range;
 
-        if (!region->size ||
-            (region->type & PCI_BASE_ADDRESS_SPACE_IO) ||
-            !(region->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
+        if (!r->size ||
+            (r->type & PCI_BASE_ADDRESS_SPACE_IO) ||
+            !(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
             continue;
         }
-        region_range.begin = pci_get_quad(dev->config + pci_bar(dev, r));
-        region_range.end = region_range.begin + region->size;
+        region_range.begin = pci_bar_address(dev, i, r->type, r->size);
+        region_range.end = region_range.begin + r->size;
+
+        if (region_range.begin == PCI_BAR_UNMAPPED) {
+            continue;
+        }
 
         region_range.begin = MAX(region_range.begin, 0x1ULL << 32);
 

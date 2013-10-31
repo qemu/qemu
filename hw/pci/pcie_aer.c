@@ -285,7 +285,7 @@ static void pcie_aer_root_notify(PCIDevice *dev)
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_aer_root_get_vector(dev));
     } else {
-        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
+        pci_irq_assert(dev);
     }
 }
 
@@ -768,7 +768,7 @@ void pcie_aer_root_write_config(PCIDevice *dev,
     uint32_t root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
     /* 6.2.4.1.2 Interrupt Generation */
     if (!msix_enabled(dev) && !msi_enabled(dev)) {
-        qemu_set_irq(dev->irq[dev->exp.aer_intx], !!(root_cmd & enabled_cmd));
+        pci_set_irq(dev, !!(root_cmd & enabled_cmd));
         return;
     }
 

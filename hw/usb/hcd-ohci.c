@@ -1946,7 +1946,7 @@ static int usb_ohci_initfn_pci(PCIDevice *dev)
                       pci_get_address_space(dev)) != 0) {
         return -1;
     }
-    ohci->state.irq = dev->irq[0];
+    ohci->state.irq = pci_allocate_irq(dev);
 
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
     return 0;

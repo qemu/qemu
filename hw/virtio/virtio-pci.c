@@ -116,7 +116,7 @@ static void virtio_pci_notify(DeviceState *d, uint16_t vector)
     if (msix_enabled(&proxy->pci_dev))
         msix_notify(&proxy->pci_dev, vector);
     else
-        qemu_set_irq(proxy->pci_dev.irq[0], proxy->vdev->isr & 1);
+        pci_set_irq(&proxy->pci_dev, proxy->vdev->isr & 1);
 }
 
 static void virtio_pci_save_config(DeviceState *d, QEMUFile *f)
@@ -362,7 +362,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
         /* reading from the ISR also clears it. */
         ret = vdev->isr;
         vdev->isr = 0;
-        qemu_set_irq(proxy->pci_dev.irq[0], 0);
+        pci_irq_deassert(&proxy->pci_dev);
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
         ret = vdev->config_vector;

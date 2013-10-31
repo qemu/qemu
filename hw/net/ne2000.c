@@ -731,7 +731,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     s = &d->ne2000;
     ne2000_setup_io(s, DEVICE(pci_dev), 0x100);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    s->irq = d->dev.irq[0];
+    s->irq = pci_allocate_irq(&d->dev);
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
@@ -752,6 +752,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
 
     memory_region_destroy(&s->io);
     qemu_del_nic(s->nic);
+    qemu_free_irq(s->irq);
 }
 
 static Property ne2000_properties[] = {

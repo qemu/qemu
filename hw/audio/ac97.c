@@ -280,12 +280,12 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
     if (level) {
         s->glob_sta |= masks[r - s->bm_regs];
         dolog ("set irq level=1\n");
-        qemu_set_irq (s->dev.irq[0], 1);
+        pci_irq_assert(&s->dev);
     }
     else {
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
-        qemu_set_irq (s->dev.irq[0], 0);
+        pci_irq_deassert(&s->dev);
     }
 }
 

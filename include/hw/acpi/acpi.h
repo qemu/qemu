@@ -165,6 +165,10 @@ extern int acpi_enabled;
 extern char unsigned *acpi_tables;
 extern size_t acpi_tables_len;
 
+uint8_t *acpi_table_first(void);
+uint8_t *acpi_table_next(uint8_t *current);
+unsigned acpi_table_len(void *current);
 void acpi_table_add(const QemuOpts *opts, Error **errp);
+void acpi_table_add_builtin(const QemuOpts *opts, Error **errp);
 
 #endif /* !QEMU_HW_ACPI_H */

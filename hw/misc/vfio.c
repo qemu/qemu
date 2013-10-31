@@ -302,7 +302,7 @@ static void vfio_intx_interrupt(void *opaque)
             'A' + vdev->intx.pin);
 
     vdev->intx.pending = true;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 1);
+    pci_irq_assert(&vdev->pdev);
     vfio_mmap_set_enabled(vdev, false);
     if (vdev->intx.mmap_timeout) {
         timer_mod(vdev->intx.mmap_timer,
@@ -320,7 +320,7 @@ static void vfio_eoi(VFIODevice *vdev)
             vdev->host.bus, vdev->host.slot, vdev->host.function);
 
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
     vfio_unmask_intx(vdev);
 }
 
@@ -346,7 +346,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
     qemu_set_fd_handler(irqfd.fd, NULL, NULL, vdev);
     vfio_mask_intx(vdev);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
 
     /* Get an eventfd for resample/unmask */
     if (event_notifier_init(&vdev->intx.unmask, 0)) {
@@ -422,7 +422,7 @@ static void vfio_disable_intx_kvm(VFIODevice *vdev)
      */
     vfio_mask_intx(vdev);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
 
     /* Tell KVM to stop listening for an INTx irqfd */
     if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
@@ -493,6 +493,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
     vfio_disable_interrupts(vdev);
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
+    pci_config_set_interrupt_pin(vdev->pdev.config, pin);
 
 #ifdef CONFIG_KVM
     /*
@@ -552,7 +553,7 @@ static void vfio_disable_intx(VFIODevice *vdev)
     vfio_disable_intx_kvm(vdev);
     vfio_disable_irqindex(vdev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
     vfio_mmap_set_enabled(vdev, true);
 
     fd = event_notifier_get_fd(&vdev->intx.interrupt);

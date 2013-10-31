@@ -172,7 +172,7 @@ static void shpc_interrupt_update(PCIDevice *d)
     if (msi_enabled(d) && shpc->msi_requested != level)
         msi_notify(d, 0);
     else
-        qemu_set_irq(d->irq[0], level);
+        pci_set_irq(d, level);
     shpc->msi_requested = level;
 }
 

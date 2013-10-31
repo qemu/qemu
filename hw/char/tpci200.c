@@ -134,8 +134,8 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
     /* Check if the interrupt is edge sensitive */
     if (dev->ctrl[ip_n] & CTRL_INT_EDGE(intno)) {
         if (level) {
-            qemu_set_irq(dev->dev.irq[0], !dev->int_set);
-            qemu_set_irq(dev->dev.irq[0],  dev->int_set);
+            pci_set_irq(&dev->dev, !dev->int_set);
+            pci_set_irq(&dev->dev,  dev->int_set);
         }
     } else {
         unsigned i, j;
@@ -153,10 +153,10 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
         }
 
         if (level_status && !dev->int_set) {
-            qemu_irq_raise(dev->dev.irq[0]);
+            pci_irq_assert(&dev->dev);
             dev->int_set = 1;
         } else if (!level_status && dev->int_set) {
-            qemu_irq_lower(dev->dev.irq[0]);
+            pci_irq_deassert(&dev->dev);
             dev->int_set = 0;
         }
     }
