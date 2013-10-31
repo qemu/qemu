@@ -1914,7 +1914,7 @@
 #
 # Since: 0.14.0
 #
-# Notes: This command only exists as a stop-gap.  It's use is highly
+# Notes: This command only exists as a stop-gap.  Its use is highly
 #        discouraged.  The semantics of this command are not guaranteed.
 #
 #        Known limitations:

@@ -142,7 +142,7 @@ diddit:
 
 /*
  * Send a packet
- * We choose a packet based on it's position in the output queues;
+ * We choose a packet based on its position in the output queues;
  * If there are packets on the fastq, they are sent FIFO, before
  * everything else.  Otherwise we choose the first packet from the
  * batchq and send it.  the next packet chosen will be from the session
