@@ -225,6 +225,27 @@
   } }
 
 ##
+# @ImageInfoSpecificVmdk:
+#
+# @create_type: The create type of VMDK image
+#
+# @cid: Content id of image
+#
+# @parent-cid: Parent VMDK image's cid
+#
+# @extents: List of extent files
+#
+# Since: 1.7
+##
+{ 'type': 'ImageInfoSpecificVmdk',
+  'data': {
+      'create-type': 'str',
+      'cid': 'int',
+      'parent-cid': 'int',
+      'extents': ['ImageInfo']
+  } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -234,7 +255,8 @@
 
 { 'union': 'ImageInfoSpecific',
   'data': {
-      'qcow2': 'ImageInfoSpecificQCow2'
+      'qcow2': 'ImageInfoSpecificQCow2',
+      'vmdk': 'ImageInfoSpecificVmdk'
   } }
 
 ##
