@@ -432,6 +432,17 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
 }
 
+static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
+{
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(opaque);
+    PCIINTxRoute route;
+
+    route.mode = PCI_INTX_ENABLED;
+    route.irq = sphb->lsi_table[pin].irq;
+
+    return route;
+}
+
 /*
  * MSI/MSIX memory region implementation.
  * The handler handles both MSI and MSIX.
@@ -609,6 +620,8 @@ static int spapr_phb_init(SysBusDevice *s)
                        sphb->dtbusname);
 
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
+
+    pci_bus_set_route_irq_fn(bus, spapr_route_intx_pin_to_irq);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
 

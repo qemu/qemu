@@ -212,6 +212,7 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         int index = (addr & 0xf) >> sh;                         \
                                                                 \
         if (msr_le) {                                           \
+            index = n_elems - index - 1;                        \
             r->element[LO_IDX ? index : (adjust - index)] =     \
                 swap(access(env, addr));                        \
         } else {                                                \
@@ -236,6 +237,7 @@ LVE(lvewx, cpu_ldl_data, bswap32, u32)
         int index = (addr & 0xf) >> sh;                                 \
                                                                         \
         if (msr_le) {                                                   \
+            index = n_elems - index - 1;                                \
             access(env, addr, swap(r->element[LO_IDX ? index :          \
                                               (adjust - index)]));      \
         } else {                                                        \

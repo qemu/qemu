@@ -312,7 +312,7 @@ static const VMStateDescription vmstate_slb = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_INT32_EQUAL(env.slb_nr, PowerPCCPU),
-        VMSTATE_SLB_ARRAY(env.slb, PowerPCCPU, 64),
+        VMSTATE_SLB_ARRAY(env.slb, PowerPCCPU, MAX_SLB_ENTRIES),
         VMSTATE_END_OF_LIST()
     }
 };

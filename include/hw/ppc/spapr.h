@@ -29,7 +29,6 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     uint32_t next_irq;
     uint64_t rtc_offset;
-    char *cpu_model;
     bool has_graphics;
 
     uint32_t epow_irq;
@@ -283,6 +282,7 @@ typedef struct sPAPREnvironment {
 #define H_GET_EM_PARMS          0x2B8
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
+#define H_XIRR_X                0x2FC
 #define H_SET_MODE              0x31C
 #define MAX_HCALL_OPCODE        H_SET_MODE
 
@@ -332,14 +332,19 @@ static inline int spapr_allocate_lsi(int hint)
     return spapr_allocate_irq(hint, true);
 }
 
+static inline uint64_t ppc64_phys_to_real(uint64_t addr)
+{
+    return addr & ~0xF000000000000000ULL;
+}
+
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
-    return ldl_be_phys(phys + 4*n);
+    return ldl_be_phys(ppc64_phys_to_real(phys + 4*n));
 }
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
-    stl_be_phys(phys + 4*n, val);
+    stl_be_phys(ppc64_phys_to_real(phys + 4*n), val);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,

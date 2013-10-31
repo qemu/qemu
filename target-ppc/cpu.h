@@ -405,6 +405,7 @@ struct ppc_slb_t {
     uint64_t vsid;
 };
 
+#define MAX_SLB_ENTRIES         64
 #define SEGMENT_SHIFT_256M      28
 #define SEGMENT_MASK_256M       (~((1ULL << SEGMENT_SHIFT_256M) - 1))
 
@@ -949,7 +950,7 @@ struct CPUPPCState {
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
     /* PowerPC 64 SLB area */
-    ppc_slb_t slb[64];
+    ppc_slb_t slb[MAX_SLB_ENTRIES];
     int32_t slb_nr;
 #endif
     /* segment registers */
