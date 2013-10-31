@@ -178,6 +178,7 @@ static BlockDriver bdrv_raw = {
     .bdrv_co_get_block_status = &raw_co_get_block_status,
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
+    .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
     .bdrv_is_inserted     = &raw_is_inserted,
     .bdrv_media_changed   = &raw_media_changed,

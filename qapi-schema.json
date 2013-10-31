@@ -225,6 +225,27 @@
   } }
 
 ##
+# @ImageInfoSpecificVmdk:
+#
+# @create_type: The create type of VMDK image
+#
+# @cid: Content id of image
+#
+# @parent-cid: Parent VMDK image's cid
+#
+# @extents: List of extent files
+#
+# Since: 1.7
+##
+{ 'type': 'ImageInfoSpecificVmdk',
+  'data': {
+      'create-type': 'str',
+      'cid': 'int',
+      'parent-cid': 'int',
+      'extents': ['ImageInfo']
+  } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -234,7 +255,8 @@
 
 { 'union': 'ImageInfoSpecific',
   'data': {
-      'qcow2': 'ImageInfoSpecificQCow2'
+      'qcow2': 'ImageInfoSpecificQCow2',
+      'vmdk': 'ImageInfoSpecificVmdk'
   } }
 
 ##
@@ -256,6 +278,8 @@
 #
 # @encrypted: #optional true if the image is encrypted
 #
+# @compressed: #optional true if the image is compressed (Since 1.7)
+#
 # @backing-filename: #optional name of the backing file
 #
 # @full-backing-filename: #optional full path of the backing file
@@ -276,7 +300,7 @@
 { 'type': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
-           '*cluster-size': 'int', '*encrypted': 'bool',
+           '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
            '*backing-image': 'ImageInfo',

@@ -260,6 +260,13 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             }
         }
 
+        if (s->free_data_block_offset > bdrv_getlength(bs->file)) {
+            error_setg(errp, "block-vpc: free_data_block_offset points after "
+                             "the end of file. The image has been truncated.");
+            ret = -EINVAL;
+            goto fail;
+        }
+
         s->last_bitmap_offset = (int64_t) -1;
 
 #ifdef CACHE

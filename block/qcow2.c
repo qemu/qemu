@@ -1584,6 +1584,16 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         }
     }
 
+    bdrv_close(bs);
+
+    /* Reopen the image without BDRV_O_NO_FLUSH to flush it before returning */
+    ret = bdrv_open(bs, filename, NULL,
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB, drv, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
     ret = 0;
 out:
     bdrv_unref(bs);
@@ -1939,13 +1949,22 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
     BDRVQcowState *s = bs->opaque;
+    int64_t total_sectors = bs->total_sectors;
     int growable = bs->growable;
+    bool zero_beyond_eof = bs->zero_beyond_eof;
     int ret;
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
     bs->growable = 1;
+    bs->zero_beyond_eof = false;
     ret = bdrv_pwritev(bs, qcow2_vm_state_offset(s) + pos, qiov);
     bs->growable = growable;
+    bs->zero_beyond_eof = zero_beyond_eof;
+
+    /* bdrv_co_do_writev will have increased the total_sectors value to include
+     * the VM state - the VM state is however not an actual part of the block
+     * device, therefore, we need to restore the old value. */
+    bs->total_sectors = total_sectors;
 
     return ret;
 }

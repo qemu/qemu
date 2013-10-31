@@ -616,7 +616,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_aio_writev    = raw_aio_writev,
     .bdrv_aio_flush     = raw_aio_flush,
 
-    .bdrv_getlength	= raw_getlength,
+    .bdrv_getlength      = raw_getlength,
+    .has_variable_length = true,
+
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 };
