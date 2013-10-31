@@ -950,15 +950,21 @@ static inline void tcg_out_callr(TCGContext *s, TCGReg addr)
 static void tcg_out_exit_tb(TCGContext *s, tcg_target_long arg)
 {
     int64_t disp;
-    uint64_t imm;
+    uint64_t imm, opc1;
 
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R8, arg);
+    /* At least arg == 0 is a common operation.  */
+    if (arg == sextract64(arg, 0, 22)) {
+        opc1 = tcg_opc_movi_a(TCG_REG_P0, TCG_REG_R8, arg);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R8, arg);
+        opc1 = INSN_NOP_M;
+    }
 
     disp = tb_ret_addr - s->code_ptr;
     imm = (uint64_t)disp >> 4;
 
     tcg_out_bundle(s, mLX,
-                   INSN_NOP_M,
+                   opc1,
                    tcg_opc_l3 (imm),
                    tcg_opc_x3 (TCG_REG_P0, OPC_BRL_SPTK_MANY_X3, imm));
 }
