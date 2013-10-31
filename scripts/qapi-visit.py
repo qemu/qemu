@@ -20,7 +20,10 @@ import errno
 def generate_visit_struct_fields(name, field_prefix, fn_prefix, members, base = None):
     substructs = []
     ret = ''
-    full_name = name if not fn_prefix else "%s_%s" % (name, fn_prefix)
+    if not fn_prefix:
+        full_name = name
+    else:
+        full_name = "%s_%s" % (name, fn_prefix)
 
     for argname, argentry, optional, structured in parse_args(members):
         if structured:
@@ -97,7 +100,10 @@ if (!error_is_set(errp)) {
 ''')
     push_indent()
 
-    full_name = name if not field_prefix else "%s_%s" % (field_prefix, name)
+    if not field_prefix:
+        full_name = name
+    else:
+        full_name = "%s_%s" % (field_prefix, name)
 
     if len(field_prefix):
         ret += mcgen('''
@@ -283,12 +289,17 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
             name=name)
 
     pop_indent()
+
+    if not discriminator:
+        desc_type = "type"
+    else:
+        desc_type = discriminator
     ret += mcgen('''
         visit_type_%(name)sKind(m, &(*obj)->kind, "%(type)s", &err);
         if (!err) {
             switch ((*obj)->kind) {
 ''',
-                 name=name, type="type" if not discriminator else discriminator)
+                 name=name, type=desc_type)
 
     for key in members:
         if not discriminator:
