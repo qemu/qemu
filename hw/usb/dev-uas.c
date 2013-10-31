@@ -76,7 +76,7 @@ typedef struct {
 } QEMU_PACKED  uas_ui_sense;
 
 typedef struct {
-    uint16_t   add_response_info;
+    uint8_t    add_response_info[3];
     uint8_t    response_code;
 } QEMU_PACKED  uas_ui_response;
 
@@ -392,14 +392,12 @@ static void usb_uas_queue_status(UASDevice *uas, UASStatus *st, int length)
     }
 }
 
-static void usb_uas_queue_response(UASDevice *uas, uint16_t tag,
-                                   uint8_t code, uint16_t add_info)
+static void usb_uas_queue_response(UASDevice *uas, uint16_t tag, uint8_t code)
 {
     UASStatus *st = usb_uas_alloc_status(uas, UAS_UI_RESPONSE, tag);
 
     trace_usb_uas_response(uas->dev.addr, tag, code);
     st->status.response.response_code = code;
-    st->status.response.add_response_info = cpu_to_be16(add_info);
     usb_uas_queue_status(uas, st, sizeof(uas_ui_response));
 }
 
@@ -768,32 +766,32 @@ static void usb_uas_task(UASDevice *uas, uas_ui *ui)
         if (req && req->dev == dev) {
             scsi_req_cancel(req->req);
         }
-        usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE, 0);
+        usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE);
         break;
 
     case UAS_TMF_LOGICAL_UNIT_RESET:
         trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag, lun);
         qdev_reset_all(&dev->qdev);
-        usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE, 0);
+        usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE);
         break;
 
     default:
         trace_usb_uas_tmf_unsupported(uas->dev.addr, tag, ui->task.function);
-        usb_uas_queue_response(uas, tag, UAS_RC_TMF_NOT_SUPPORTED, 0);
+        usb_uas_queue_response(uas, tag, UAS_RC_TMF_NOT_SUPPORTED);
         break;
     }
     return;
 
 invalid_tag:
-    usb_uas_queue_response(uas, tag, UAS_RC_INVALID_INFO_UNIT, 0);
+    usb_uas_queue_response(uas, tag, UAS_RC_INVALID_INFO_UNIT);
     return;
 
 overlapped_tag:
-    usb_uas_queue_response(uas, req->tag, UAS_RC_OVERLAPPED_TAG, 0);
+    usb_uas_queue_response(uas, req->tag, UAS_RC_OVERLAPPED_TAG);
     return;
 
 incorrect_lun:
-    usb_uas_queue_response(uas, tag, UAS_RC_INCORRECT_LUN, 0);
+    usb_uas_queue_response(uas, tag, UAS_RC_INCORRECT_LUN);
 }
 
 static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
