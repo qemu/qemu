@@ -7153,6 +7153,59 @@ static void gen_xxpermdi(DisasContext *ctx)
     }
 }
 
+#define OP_ABS 1
+#define OP_NABS 2
+#define OP_NEG 3
+#define OP_CPSGN 4
+#define SGN_MASK_DP  0x8000000000000000ul
+#define SGN_MASK_SP 0x8000000080000000ul
+
+#define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
+static void glue(gen_, name)(DisasContext * ctx)                  \
+    {                                                             \
+        TCGv_i64 xb, sgm;                                         \
+        if (unlikely(!ctx->vsx_enabled)) {                        \
+            gen_exception(ctx, POWERPC_EXCP_VSXU);                \
+            return;                                               \
+        }                                                         \
+        xb = tcg_temp_new();                                      \
+        sgm = tcg_temp_new();                                     \
+        tcg_gen_mov_i64(xb, cpu_vsrh(xB(ctx->opcode)));           \
+        tcg_gen_movi_i64(sgm, sgn_mask);                          \
+        switch (op) {                                             \
+            case OP_ABS: {                                        \
+                tcg_gen_andc_i64(xb, xb, sgm);                    \
+                break;                                            \
+            }                                                     \
+            case OP_NABS: {                                       \
+                tcg_gen_or_i64(xb, xb, sgm);                      \
+                break;                                            \
+            }                                                     \
+            case OP_NEG: {                                        \
+                tcg_gen_xor_i64(xb, xb, sgm);                     \
+                break;                                            \
+            }                                                     \
+            case OP_CPSGN: {                                      \
+                TCGv_i64 xa = tcg_temp_new();                     \
+                tcg_gen_mov_i64(xa, cpu_vsrh(xA(ctx->opcode)));   \
+                tcg_gen_and_i64(xa, xa, sgm);                     \
+                tcg_gen_andc_i64(xb, xb, sgm);                    \
+                tcg_gen_or_i64(xb, xb, xa);                       \
+                tcg_temp_free(xa);                                \
+                break;                                            \
+            }                                                     \
+        }                                                         \
+        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xb);           \
+        tcg_temp_free(xb);                                        \
+        tcg_temp_free(sgm);                                       \
+    }
+
+VSX_SCALAR_MOVE(xsabsdp, OP_ABS, SGN_MASK_DP)
+VSX_SCALAR_MOVE(xsnabsdp, OP_NABS, SGN_MASK_DP)
+VSX_SCALAR_MOVE(xsnegdp, OP_NEG, SGN_MASK_DP)
+VSX_SCALAR_MOVE(xscpsgndp, OP_CPSGN, SGN_MASK_DP)
+
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -9610,6 +9663,18 @@ GEN_HANDLER_E(stxsdx, 0x1F, 0xC, 0x16, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(stxvw4x, 0x1F, 0xC, 0x1C, 0, PPC_NONE, PPC2_VSX),
 
+#undef GEN_XX2FORM
+#define GEN_XX2FORM(name, opc2, opc3, fl2)                           \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2)
+
+#undef GEN_XX3FORM
+#define GEN_XX3FORM(name, opc2, opc3, fl2)                           \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 0, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 0, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 0, PPC_NONE, fl2)
+
 #undef GEN_XX3FORM_DM
 #define GEN_XX3FORM_DM(name, opc2, opc3) \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
@@ -9628,6 +9693,11 @@ GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
 GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x01, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
 GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x02, opc3|0x0C, 0, PPC_NONE, PPC2_VSX),\
 GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x03, opc3|0x0C, 0, PPC_NONE, PPC2_VSX)
+
+GEN_XX2FORM(xsabsdp, 0x12, 0x15, PPC2_VSX),
+GEN_XX2FORM(xsnabsdp, 0x12, 0x16, PPC2_VSX),
+GEN_XX2FORM(xsnegdp, 0x12, 0x17, PPC2_VSX),
+GEN_XX3FORM(xscpsgndp, 0x00, 0x16, PPC2_VSX),
 
 GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
