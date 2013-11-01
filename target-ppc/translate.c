@@ -7034,6 +7034,21 @@ static void gen_lxvd2x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_lxvdsx(DisasContext *ctx)
+{
+    TCGv EA;
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
+    tcg_gen_mov_tl(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xT(ctx->opcode)));
+    tcg_temp_free(EA);
+}
+
 static void gen_stxvd2x(DisasContext *ctx)
 {
     TCGv EA;
@@ -9519,6 +9534,7 @@ GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
+GEN_HANDLER_E(lxvdsx, 0x1F, 0x0C, 0x0A, 0, PPC_NONE, PPC2_VSX),
 
 GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
 
