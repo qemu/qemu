@@ -500,6 +500,7 @@ EXTRACT_HELPER_SPLIT(xB, 1, 1, 11, 5);
 EXTRACT_HELPER_SPLIT(xC, 3, 1,  6, 5);
 EXTRACT_HELPER(DM, 8, 2);
 EXTRACT_HELPER(UIM, 16, 2);
+EXTRACT_HELPER(SHW, 8, 2);
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
 
@@ -7388,6 +7389,66 @@ static void gen_xxspltw(DisasContext *ctx)
     tcg_temp_free(b2);
 }
 
+static void gen_xxsldwi(DisasContext *ctx)
+{
+    TCGv_i64 xth, xtl;
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    xth = tcg_temp_new();
+    xtl = tcg_temp_new();
+
+    switch (SHW(ctx->opcode)) {
+        case 0: {
+            tcg_gen_mov_i64(xth, cpu_vsrh(xA(ctx->opcode)));
+            tcg_gen_mov_i64(xtl, cpu_vsrl(xA(ctx->opcode)));
+            break;
+        }
+        case 1: {
+            TCGv_i64 t0 = tcg_temp_new();
+            tcg_gen_mov_i64(xth, cpu_vsrh(xA(ctx->opcode)));
+            tcg_gen_shli_i64(xth, xth, 32);
+            tcg_gen_mov_i64(t0, cpu_vsrl(xA(ctx->opcode)));
+            tcg_gen_shri_i64(t0, t0, 32);
+            tcg_gen_or_i64(xth, xth, t0);
+            tcg_gen_mov_i64(xtl, cpu_vsrl(xA(ctx->opcode)));
+            tcg_gen_shli_i64(xtl, xtl, 32);
+            tcg_gen_mov_i64(t0, cpu_vsrh(xB(ctx->opcode)));
+            tcg_gen_shri_i64(t0, t0, 32);
+            tcg_gen_or_i64(xtl, xtl, t0);
+            tcg_temp_free(t0);
+            break;
+        }
+        case 2: {
+            tcg_gen_mov_i64(xth, cpu_vsrl(xA(ctx->opcode)));
+            tcg_gen_mov_i64(xtl, cpu_vsrh(xB(ctx->opcode)));
+            break;
+        }
+        case 3: {
+            TCGv_i64 t0 = tcg_temp_new();
+            tcg_gen_mov_i64(xth, cpu_vsrl(xA(ctx->opcode)));
+            tcg_gen_shli_i64(xth, xth, 32);
+            tcg_gen_mov_i64(t0, cpu_vsrh(xB(ctx->opcode)));
+            tcg_gen_shri_i64(t0, t0, 32);
+            tcg_gen_or_i64(xth, xth, t0);
+            tcg_gen_mov_i64(xtl, cpu_vsrh(xB(ctx->opcode)));
+            tcg_gen_shli_i64(xtl, xtl, 32);
+            tcg_gen_mov_i64(t0, cpu_vsrl(xB(ctx->opcode)));
+            tcg_gen_shri_i64(t0, t0, 32);
+            tcg_gen_or_i64(xtl, xtl, t0);
+            tcg_temp_free(t0);
+            break;
+        }
+    }
+
+    tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xth);
+    tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xtl);
+
+    tcg_temp_free(xth);
+    tcg_temp_free(xtl);
+}
+
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -9903,6 +9964,7 @@ VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
 GEN_XX2FORM(xxspltw, 0x08, 0x0A, PPC2_VSX),
+GEN_XX3FORM_DM(xxsldwi, 0x08, 0x00),
 
 #define GEN_XXSEL_ROW(opc3) \
 GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x18, opc3, 0, PPC_NONE, PPC2_VSX), \
