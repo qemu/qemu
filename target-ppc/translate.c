@@ -7268,6 +7268,24 @@ VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
 
 
+#define VSX_LOGICAL(name, tcg_op)                                    \
+static void glue(gen_, name)(DisasContext * ctx)                     \
+    {                                                                \
+        if (unlikely(!ctx->vsx_enabled)) {                           \
+            gen_exception(ctx, POWERPC_EXCP_VSXU);                   \
+            return;                                                  \
+        }                                                            \
+        tcg_op(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)), \
+            cpu_vsrh(xB(ctx->opcode)));                              \
+        tcg_op(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)), \
+            cpu_vsrl(xB(ctx->opcode)));                              \
+    }
+
+VSX_LOGICAL(xxland, tcg_gen_and_tl)
+VSX_LOGICAL(xxlandc, tcg_gen_andc_tl)
+VSX_LOGICAL(xxlor, tcg_gen_or_tl)
+VSX_LOGICAL(xxlxor, tcg_gen_xor_tl)
+VSX_LOGICAL(xxlnor, tcg_gen_nor_tl)
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -9770,6 +9788,17 @@ GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
 GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
 GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
 GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
+
+#undef VSX_LOGICAL
+#define VSX_LOGICAL(name, opc2, opc3, fl2) \
+GEN_XX3FORM(name, opc2, opc3, fl2)
+
+VSX_LOGICAL(xxland, 0x8, 0x10, PPC2_VSX),
+VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
+VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
+VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
+VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
+
 GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
 #undef GEN_SPE
