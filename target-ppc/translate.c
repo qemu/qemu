@@ -499,6 +499,7 @@ EXTRACT_HELPER_SPLIT(xA, 2, 1, 16, 5);
 EXTRACT_HELPER_SPLIT(xB, 1, 1, 11, 5);
 EXTRACT_HELPER_SPLIT(xC, 3, 1,  6, 5);
 EXTRACT_HELPER(DM, 8, 2);
+EXTRACT_HELPER(UIM, 16, 2);
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
 
@@ -7358,6 +7359,35 @@ static void gen_xxsel(DisasContext * ctx)
     tcg_temp_free(c);
 }
 
+static void gen_xxspltw(DisasContext *ctx)
+{
+    TCGv_i64 b, b2;
+    TCGv_i64 vsr = (UIM(ctx->opcode) & 2) ?
+                   cpu_vsrl(xB(ctx->opcode)) :
+                   cpu_vsrh(xB(ctx->opcode));
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+
+    b = tcg_temp_new();
+    b2 = tcg_temp_new();
+
+    if (UIM(ctx->opcode) & 1) {
+        tcg_gen_ext32u_i64(b, vsr);
+    } else {
+        tcg_gen_shri_i64(b, vsr, 32);
+    }
+
+    tcg_gen_shli_i64(b2, b, 32);
+    tcg_gen_or_i64(cpu_vsrh(xT(ctx->opcode)), b, b2);
+    tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xT(ctx->opcode)));
+
+    tcg_temp_free(b);
+    tcg_temp_free(b2);
+}
+
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -9872,6 +9902,7 @@ VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
 VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
+GEN_XX2FORM(xxspltw, 0x08, 0x0A, PPC2_VSX),
 
 #define GEN_XXSEL_ROW(opc3) \
 GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x18, opc3, 0, PPC_NONE, PPC2_VSX), \
