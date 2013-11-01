@@ -7287,6 +7287,45 @@ VSX_LOGICAL(xxlor, tcg_gen_or_tl)
 VSX_LOGICAL(xxlxor, tcg_gen_xor_tl)
 VSX_LOGICAL(xxlnor, tcg_gen_nor_tl)
 
+#define VSX_XXMRG(name, high)                               \
+static void glue(gen_, name)(DisasContext * ctx)            \
+    {                                                       \
+        TCGv_i64 a0, a1, b0, b1;                            \
+        if (unlikely(!ctx->vsx_enabled)) {                  \
+            gen_exception(ctx, POWERPC_EXCP_VSXU);          \
+            return;                                         \
+        }                                                   \
+        a0 = tcg_temp_new();                                \
+        a1 = tcg_temp_new();                                \
+        b0 = tcg_temp_new();                                \
+        b1 = tcg_temp_new();                                \
+        if (high) {                                         \
+            tcg_gen_mov_i64(a0, cpu_vsrh(xA(ctx->opcode))); \
+            tcg_gen_mov_i64(a1, cpu_vsrh(xA(ctx->opcode))); \
+            tcg_gen_mov_i64(b0, cpu_vsrh(xB(ctx->opcode))); \
+            tcg_gen_mov_i64(b1, cpu_vsrh(xB(ctx->opcode))); \
+        } else {                                            \
+            tcg_gen_mov_i64(a0, cpu_vsrl(xA(ctx->opcode))); \
+            tcg_gen_mov_i64(a1, cpu_vsrl(xA(ctx->opcode))); \
+            tcg_gen_mov_i64(b0, cpu_vsrl(xB(ctx->opcode))); \
+            tcg_gen_mov_i64(b1, cpu_vsrl(xB(ctx->opcode))); \
+        }                                                   \
+        tcg_gen_shri_i64(a0, a0, 32);                       \
+        tcg_gen_shri_i64(b0, b0, 32);                       \
+        tcg_gen_deposit_i64(cpu_vsrh(xT(ctx->opcode)),      \
+                            b0, a0, 32, 32);                \
+        tcg_gen_deposit_i64(cpu_vsrl(xT(ctx->opcode)),      \
+                            b1, a1, 32, 32);                \
+        tcg_temp_free(a0);                                  \
+        tcg_temp_free(a1);                                  \
+        tcg_temp_free(b0);                                  \
+        tcg_temp_free(b1);                                  \
+    }
+
+VSX_XXMRG(xxmrghw, 1)
+VSX_XXMRG(xxmrglw, 0)
+
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
@@ -9798,6 +9837,8 @@ VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
 VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
 VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
 VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
+GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
+GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
 
 GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
