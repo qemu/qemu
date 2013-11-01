@@ -497,6 +497,7 @@ EXTRACT_HELPER_SPLIT(xT, 0, 1, 21, 5);
 EXTRACT_HELPER_SPLIT(xS, 0, 1, 21, 5);
 EXTRACT_HELPER_SPLIT(xA, 2, 1, 16, 5);
 EXTRACT_HELPER_SPLIT(xB, 1, 1, 11, 5);
+EXTRACT_HELPER_SPLIT(xC, 3, 1,  6, 5);
 EXTRACT_HELPER(DM, 8, 2);
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
@@ -7325,6 +7326,38 @@ static void glue(gen_, name)(DisasContext * ctx)            \
 VSX_XXMRG(xxmrghw, 1)
 VSX_XXMRG(xxmrglw, 0)
 
+static void gen_xxsel(DisasContext * ctx)
+{
+    TCGv_i64 a, b, c;
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    a = tcg_temp_new();
+    b = tcg_temp_new();
+    c = tcg_temp_new();
+
+    tcg_gen_mov_i64(a, cpu_vsrh(xA(ctx->opcode)));
+    tcg_gen_mov_i64(b, cpu_vsrh(xB(ctx->opcode)));
+    tcg_gen_mov_i64(c, cpu_vsrh(xC(ctx->opcode)));
+
+    tcg_gen_and_i64(b, b, c);
+    tcg_gen_andc_i64(a, a, c);
+    tcg_gen_or_i64(cpu_vsrh(xT(ctx->opcode)), a, b);
+
+    tcg_gen_mov_i64(a, cpu_vsrl(xA(ctx->opcode)));
+    tcg_gen_mov_i64(b, cpu_vsrl(xB(ctx->opcode)));
+    tcg_gen_mov_i64(c, cpu_vsrl(xC(ctx->opcode)));
+
+    tcg_gen_and_i64(b, b, c);
+    tcg_gen_andc_i64(a, a, c);
+    tcg_gen_or_i64(cpu_vsrl(xT(ctx->opcode)), a, b);
+
+    tcg_temp_free(a);
+    tcg_temp_free(b);
+    tcg_temp_free(c);
+}
+
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -9839,6 +9872,49 @@ VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
 VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
+
+#define GEN_XXSEL_ROW(opc3) \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x18, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x19, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1A, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1B, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1C, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1D, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1E, opc3, 0, PPC_NONE, PPC2_VSX), \
+GEN_HANDLER2_E(xxsel, "xxsel", 0x3C, 0x1F, opc3, 0, PPC_NONE, PPC2_VSX), \
+
+GEN_XXSEL_ROW(0x00)
+GEN_XXSEL_ROW(0x01)
+GEN_XXSEL_ROW(0x02)
+GEN_XXSEL_ROW(0x03)
+GEN_XXSEL_ROW(0x04)
+GEN_XXSEL_ROW(0x05)
+GEN_XXSEL_ROW(0x06)
+GEN_XXSEL_ROW(0x07)
+GEN_XXSEL_ROW(0x08)
+GEN_XXSEL_ROW(0x09)
+GEN_XXSEL_ROW(0x0A)
+GEN_XXSEL_ROW(0x0B)
+GEN_XXSEL_ROW(0x0C)
+GEN_XXSEL_ROW(0x0D)
+GEN_XXSEL_ROW(0x0E)
+GEN_XXSEL_ROW(0x0F)
+GEN_XXSEL_ROW(0x10)
+GEN_XXSEL_ROW(0x11)
+GEN_XXSEL_ROW(0x12)
+GEN_XXSEL_ROW(0x13)
+GEN_XXSEL_ROW(0x14)
+GEN_XXSEL_ROW(0x15)
+GEN_XXSEL_ROW(0x16)
+GEN_XXSEL_ROW(0x17)
+GEN_XXSEL_ROW(0x18)
+GEN_XXSEL_ROW(0x19)
+GEN_XXSEL_ROW(0x1A)
+GEN_XXSEL_ROW(0x1B)
+GEN_XXSEL_ROW(0x1C)
+GEN_XXSEL_ROW(0x1D)
+GEN_XXSEL_ROW(0x1E)
+GEN_XXSEL_ROW(0x1F)
 
 GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
