@@ -7205,6 +7205,69 @@ VSX_SCALAR_MOVE(xsnabsdp, OP_NABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE(xsnegdp, OP_NEG, SGN_MASK_DP)
 VSX_SCALAR_MOVE(xscpsgndp, OP_CPSGN, SGN_MASK_DP)
 
+#define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
+static void glue(gen_, name)(DisasContext * ctx)                 \
+    {                                                            \
+        TCGv_i64 xbh, xbl, sgm;                                  \
+        if (unlikely(!ctx->vsx_enabled)) {                       \
+            gen_exception(ctx, POWERPC_EXCP_VSXU);               \
+            return;                                              \
+        }                                                        \
+        xbh = tcg_temp_new();                                    \
+        xbl = tcg_temp_new();                                    \
+        sgm = tcg_temp_new();                                    \
+        tcg_gen_mov_i64(xbh, cpu_vsrh(xB(ctx->opcode)));         \
+        tcg_gen_mov_i64(xbl, cpu_vsrl(xB(ctx->opcode)));         \
+        tcg_gen_movi_i64(sgm, sgn_mask);                         \
+        switch (op) {                                            \
+            case OP_ABS: {                                       \
+                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
+                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
+                break;                                           \
+            }                                                    \
+            case OP_NABS: {                                      \
+                tcg_gen_or_i64(xbh, xbh, sgm);                   \
+                tcg_gen_or_i64(xbl, xbl, sgm);                   \
+                break;                                           \
+            }                                                    \
+            case OP_NEG: {                                       \
+                tcg_gen_xor_i64(xbh, xbh, sgm);                  \
+                tcg_gen_xor_i64(xbl, xbl, sgm);                  \
+                break;                                           \
+            }                                                    \
+            case OP_CPSGN: {                                     \
+                TCGv_i64 xah = tcg_temp_new();                   \
+                TCGv_i64 xal = tcg_temp_new();                   \
+                tcg_gen_mov_i64(xah, cpu_vsrh(xA(ctx->opcode))); \
+                tcg_gen_mov_i64(xal, cpu_vsrl(xA(ctx->opcode))); \
+                tcg_gen_and_i64(xah, xah, sgm);                  \
+                tcg_gen_and_i64(xal, xal, sgm);                  \
+                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
+                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
+                tcg_gen_or_i64(xbh, xbh, xah);                   \
+                tcg_gen_or_i64(xbl, xbl, xal);                   \
+                tcg_temp_free(xah);                              \
+                tcg_temp_free(xal);                              \
+                break;                                           \
+            }                                                    \
+        }                                                        \
+        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xbh);         \
+        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xbl);         \
+        tcg_temp_free(xbh);                                      \
+        tcg_temp_free(xbl);                                      \
+        tcg_temp_free(sgm);                                      \
+    }
+
+VSX_VECTOR_MOVE(xvabsdp, OP_ABS, SGN_MASK_DP)
+VSX_VECTOR_MOVE(xvnabsdp, OP_NABS, SGN_MASK_DP)
+VSX_VECTOR_MOVE(xvnegdp, OP_NEG, SGN_MASK_DP)
+VSX_VECTOR_MOVE(xvcpsgndp, OP_CPSGN, SGN_MASK_DP)
+VSX_VECTOR_MOVE(xvabssp, OP_ABS, SGN_MASK_SP)
+VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
+VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
+VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
+
+
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -9699,6 +9762,14 @@ GEN_XX2FORM(xsnabsdp, 0x12, 0x16, PPC2_VSX),
 GEN_XX2FORM(xsnegdp, 0x12, 0x17, PPC2_VSX),
 GEN_XX3FORM(xscpsgndp, 0x00, 0x16, PPC2_VSX),
 
+GEN_XX2FORM(xvabsdp, 0x12, 0x1D, PPC2_VSX),
+GEN_XX2FORM(xvnabsdp, 0x12, 0x1E, PPC2_VSX),
+GEN_XX2FORM(xvnegdp, 0x12, 0x1F, PPC2_VSX),
+GEN_XX3FORM(xvcpsgndp, 0x00, 0x1E, PPC2_VSX),
+GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
+GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
+GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
+GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
 GEN_XX3FORM_DM(xxpermdi, 0x08, 0x01),
 
 #undef GEN_SPE
