@@ -7107,6 +7107,33 @@ static void gen_stxvd2x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_stxvw4x(DisasContext *ctx)
+{
+    TCGv EA, tmp;
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    tmp = tcg_temp_new();
+
+    tcg_gen_shri_i64(tmp, cpu_vsrh(xS(ctx->opcode)), 32);
+    gen_qemu_st32(ctx, tmp, EA);
+    tcg_gen_addi_tl(EA, EA, 4);
+    gen_qemu_st32(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
+
+    tcg_gen_shri_i64(tmp, cpu_vsrl(xS(ctx->opcode)), 32);
+    tcg_gen_addi_tl(EA, EA, 4);
+    gen_qemu_st32(ctx, tmp, EA);
+    tcg_gen_addi_tl(EA, EA, 4);
+    gen_qemu_st32(ctx, cpu_vsrl(xS(ctx->opcode)), EA);
+
+    tcg_temp_free(EA);
+    tcg_temp_free(tmp);
+}
+
 static void gen_xxpermdi(DisasContext *ctx)
 {
     if (unlikely(!ctx->vsx_enabled)) {
@@ -9581,6 +9608,7 @@ GEN_HANDLER_E(lxvw4x, 0x1F, 0x0C, 0x18, 0, PPC_NONE, PPC2_VSX),
 
 GEN_HANDLER_E(stxsdx, 0x1F, 0xC, 0x16, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
+GEN_HANDLER_E(stxvw4x, 0x1F, 0xC, 0x1C, 0, PPC_NONE, PPC2_VSX),
 
 #undef GEN_XX3FORM_DM
 #define GEN_XX3FORM_DM(name, opc2, opc3) \
