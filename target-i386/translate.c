@@ -596,6 +596,15 @@ static inline void gen_op_st_T1_A0(DisasContext *s, int idx)
     gen_op_st_v(s, idx, cpu_T[1], cpu_A0);
 }
 
+static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
+{
+    if (d == OR_TMP0) {
+        gen_op_st_T0_A0(s, idx);
+    } else {
+        gen_op_mov_reg_T0(idx, d);
+    }
+}
+
 static inline void gen_jmp_im(target_ulong pc)
 {
     tcg_gen_movi_tl(cpu_tmp0, pc);
@@ -1403,10 +1412,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
         gen_compute_eflags_c(s1, cpu_tmp4);
         tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update3_cc(cpu_tmp4);
         set_cc_op(s1, CC_OP_ADCB + ot);
         break;
@@ -1414,57 +1420,39 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
         gen_compute_eflags_c(s1, cpu_tmp4);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update3_cc(cpu_tmp4);
         set_cc_op(s1, CC_OP_SBBB + ot);
         break;
     case OP_ADDL:
         gen_op_addl_T0_T1();
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update2_cc();
         set_cc_op(s1, CC_OP_ADDB + ot);
         break;
     case OP_SUBL:
         tcg_gen_mov_tl(cpu_cc_srcT, cpu_T[0]);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update2_cc();
         set_cc_op(s1, CC_OP_SUBB + ot);
         break;
     default:
     case OP_ANDL:
         tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
     case OP_ORL:
         tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
     case OP_XORL:
         tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-        if (d != OR_TMP0)
-            gen_op_mov_reg_T0(ot, d);
-        else
-            gen_op_st_T0_A0(s1, ot);
+        gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
@@ -1493,10 +1481,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         tcg_gen_addi_tl(cpu_T[0], cpu_T[0], -1);
         set_cc_op(s1, CC_OP_DECB + ot);
     }
-    if (d != OR_TMP0)
-        gen_op_mov_reg_T0(ot, d);
-    else
-        gen_op_st_T0_A0(s1, ot);
+    gen_op_st_rm_T0_A0(s1, ot, d);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
@@ -1576,11 +1561,7 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
     }
 
     /* store */
-    if (op1 == OR_TMP0) {
-        gen_op_st_T0_A0(s, ot);
-    } else {
-        gen_op_mov_reg_T0(ot, op1);
-    }
+    gen_op_st_rm_T0_A0(s, ot, op1);
 
     gen_shift_flags(s, ot, cpu_T[0], cpu_tmp0, cpu_T[1], is_right);
 }
@@ -1615,11 +1596,8 @@ static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
     }
 
     /* store */
-    if (op1 == OR_TMP0)
-        gen_op_st_T0_A0(s, ot);
-    else
-        gen_op_mov_reg_T0(ot, op1);
-        
+    gen_op_st_rm_T0_A0(s, ot, op1);
+
     /* update eflags if non zero shift */
     if (op2 != 0) {
         tcg_gen_mov_tl(cpu_cc_src, cpu_tmp4);
@@ -1683,11 +1661,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
     }
 
     /* store */
-    if (op1 == OR_TMP0) {
-        gen_op_st_T0_A0(s, ot);
-    } else {
-        gen_op_mov_reg_T0(ot, op1);
-    }
+    gen_op_st_rm_T0_A0(s, ot, op1);
 
     /* We'll need the flags computed into CC_SRC.  */
     gen_compute_eflags(s);
@@ -1778,11 +1752,7 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
     }
 
     /* store */
-    if (op1 == OR_TMP0) {
-        gen_op_st_T0_A0(s, ot);
-    } else {
-        gen_op_mov_reg_T0(ot, op1);
-    }
+    gen_op_st_rm_T0_A0(s, ot, op1);
 
     if (op2 != 0) {
         /* Compute the flags into CC_SRC.  */
@@ -1855,10 +1825,7 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
         }
     }
     /* store */
-    if (op1 == OR_TMP0)
-        gen_op_st_T0_A0(s, ot);
-    else
-        gen_op_mov_reg_T0(ot, op1);
+    gen_op_st_rm_T0_A0(s, ot, op1);
 }
 
 /* XXX: add faster immediate case */
@@ -1937,11 +1904,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
     }
 
     /* store */
-    if (op1 == OR_TMP0) {
-        gen_op_st_T0_A0(s, ot);
-    } else {
-        gen_op_mov_reg_T0(ot, op1);
-    }
+    gen_op_st_rm_T0_A0(s, ot, op1);
 
     gen_shift_flags(s, ot, cpu_T[0], cpu_tmp0, count, is_right);
     tcg_temp_free(count);
