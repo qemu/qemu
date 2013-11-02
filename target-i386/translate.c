@@ -576,11 +576,6 @@ static inline void gen_op_addq_A0_reg_sN(int shift, int reg)
 }
 #endif
 
-static inline void gen_op_lds_T0_A0(DisasContext *s, int idx)
-{
-    tcg_gen_qemu_ld_tl(cpu_T[0], cpu_A0, s->mem_index, idx | MO_LE | MO_SIGN);
-}
-
 static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
 {
     tcg_gen_qemu_ld_tl(t0, a0, s->mem_index, idx | MO_LE);
@@ -5700,7 +5695,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             } else {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
                 if (b & 8) {
-                    gen_op_lds_T0_A0(s, ot);
+                    gen_op_ld_v(s, ot | MO_SIGN, cpu_T[0], cpu_A0);
                 } else {
                     gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
                 }
@@ -6012,7 +6007,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 3:
                     default:
-                        gen_op_lds_T0_A0(s, MO_16);
+                        gen_op_ld_v(s, MO_SW, cpu_T[0], cpu_A0);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_FT0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -6051,7 +6046,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 3:
                     default:
-                        gen_op_lds_T0_A0(s, MO_16);
+                        gen_op_ld_v(s, MO_SW, cpu_T[0], cpu_A0);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_ST0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -7797,7 +7792,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             } else {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
                 if (d_ot == MO_64) {
-                    gen_op_lds_T0_A0(s, MO_32);
+                    gen_op_ld_v(s, MO_32 | MO_SIGN, cpu_T[0], cpu_A0);
                 } else {
                     gen_op_ld_v(s, MO_32, cpu_T[0], cpu_A0);
                 }
