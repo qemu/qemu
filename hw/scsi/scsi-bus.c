@@ -460,7 +460,8 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         break;
     case REQUEST_SENSE:
         scsi_target_alloc_buf(&r->req, SCSI_SENSE_LEN);
-        r->len = scsi_device_get_sense(r->req.dev, r->buf, r->buf_len,
+        r->len = scsi_device_get_sense(r->req.dev, r->buf,
+                                       MIN(req->cmd.xfer, r->buf_len),
                                        (req->cmd.buf[1] & 1) == 0);
         if (r->req.dev->sense_is_ua) {
             scsi_device_unit_attention_reported(req->dev);
