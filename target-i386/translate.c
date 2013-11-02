@@ -586,11 +586,6 @@ static inline void gen_op_st_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     tcg_gen_qemu_st_tl(t0, a0, s->mem_index, idx | MO_LE);
 }
 
-static inline void gen_op_st_T1_A0(DisasContext *s, int idx)
-{
-    gen_op_st_v(s, idx, cpu_T[1], cpu_A0);
-}
-
 static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
 {
     if (d == OR_TMP0) {
@@ -2490,7 +2485,7 @@ static void gen_push_T1(DisasContext *s)
         gen_op_movq_A0_reg(R_ESP);
         if (s->dflag) {
             gen_op_addq_A0_im(-8);
-            gen_op_st_T1_A0(s, MO_64);
+            gen_op_st_v(s, MO_64, cpu_T[1], cpu_A0);
         } else {
             gen_op_addq_A0_im(-2);
             gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
@@ -2512,7 +2507,7 @@ static void gen_push_T1(DisasContext *s)
             gen_op_andl_A0_ffff();
             gen_op_addl_A0_seg(s, R_SS);
         }
-        gen_op_st_T1_A0(s, s->dflag + 1);
+        gen_op_st_v(s, s->dflag + 1, cpu_T[1], cpu_A0);
 
         if (s->ss32 && !s->addseg)
             gen_op_mov_reg_A0(1, R_ESP);
