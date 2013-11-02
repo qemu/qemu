@@ -163,14 +163,6 @@ enum {
     JCC_LE,
 };
 
-/* operand size */
-enum {
-    OT_BYTE = 0,
-    OT_WORD,
-    OT_LONG,
-    OT_QUAD,
-};
-
 enum {
     /* I386 int registers */
     OR_EAX,   /* MUST be even numbered */
@@ -373,24 +365,24 @@ static inline bool byte_reg_is_xH(int reg)
 static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
 {
     switch(ot) {
-    case OT_BYTE:
+    case MO_8:
         if (!byte_reg_is_xH(reg)) {
             tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 8);
         } else {
             tcg_gen_deposit_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], t0, 8, 8);
         }
         break;
-    case OT_WORD:
+    case MO_16:
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 16);
         break;
     default: /* XXX this shouldn't be reached;  abort? */
-    case OT_LONG:
+    case MO_32:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
         tcg_gen_ext32u_tl(cpu_regs[reg], t0);
         break;
 #ifdef TARGET_X86_64
-    case OT_QUAD:
+    case MO_64:
         tcg_gen_mov_tl(cpu_regs[reg], t0);
         break;
 #endif
@@ -410,17 +402,17 @@ static inline void gen_op_mov_reg_T1(int ot, int reg)
 static inline void gen_op_mov_reg_A0(int size, int reg)
 {
     switch(size) {
-    case OT_BYTE:
+    case MO_8:
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_A0, 0, 16);
         break;
     default: /* XXX this shouldn't be reached;  abort? */
-    case OT_WORD:
+    case MO_16:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
         tcg_gen_ext32u_tl(cpu_regs[reg], cpu_A0);
         break;
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         tcg_gen_mov_tl(cpu_regs[reg], cpu_A0);
         break;
 #endif
@@ -429,7 +421,7 @@ static inline void gen_op_mov_reg_A0(int size, int reg)
 
 static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
 {
-    if (ot == OT_BYTE && byte_reg_is_xH(reg)) {
+    if (ot == MO_8 && byte_reg_is_xH(reg)) {
         tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
         tcg_gen_ext8u_tl(t0, t0);
     } else {
@@ -485,11 +477,11 @@ static inline void gen_op_jmp_T0(void)
 static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
 {
     switch(size) {
-    case OT_BYTE:
+    case MO_8:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
-    case OT_WORD:
+    case MO_16:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a nop. */
@@ -497,7 +489,7 @@ static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
         tcg_gen_mov_tl(cpu_regs[reg], cpu_tmp0);
         break;
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         tcg_gen_addi_tl(cpu_regs[reg], cpu_regs[reg], val);
         break;
 #endif
@@ -507,11 +499,11 @@ static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
 static inline void gen_op_add_reg_T0(int size, int reg)
 {
     switch(size) {
-    case OT_BYTE:
+    case MO_8:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
-    case OT_WORD:
+    case MO_16:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a nop. */
@@ -519,7 +511,7 @@ static inline void gen_op_add_reg_T0(int size, int reg)
         tcg_gen_mov_tl(cpu_regs[reg], cpu_tmp0);
         break;
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         tcg_gen_add_tl(cpu_regs[reg], cpu_regs[reg], cpu_T[0]);
         break;
 #endif
@@ -696,14 +688,14 @@ static inline void gen_op_movl_T0_Dshift(int ot)
 static TCGv gen_ext_tl(TCGv dst, TCGv src, int size, bool sign)
 {
     switch (size) {
-    case OT_BYTE:
+    case MO_8:
         if (sign) {
             tcg_gen_ext8s_tl(dst, src);
         } else {
             tcg_gen_ext8u_tl(dst, src);
         }
         return dst;
-    case OT_WORD:
+    case MO_16:
         if (sign) {
             tcg_gen_ext16s_tl(dst, src);
         } else {
@@ -711,7 +703,7 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, int size, bool sign)
         }
         return dst;
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         if (sign) {
             tcg_gen_ext32s_tl(dst, src);
         } else {
@@ -751,13 +743,13 @@ static inline void gen_op_jz_ecx(int size, int label1)
 static void gen_helper_in_func(int ot, TCGv v, TCGv_i32 n)
 {
     switch (ot) {
-    case OT_BYTE:
+    case MO_8:
         gen_helper_inb(v, n);
         break;
-    case OT_WORD:
+    case MO_16:
         gen_helper_inw(v, n);
         break;
-    case OT_LONG:
+    case MO_32:
         gen_helper_inl(v, n);
         break;
     }
@@ -766,13 +758,13 @@ static void gen_helper_in_func(int ot, TCGv v, TCGv_i32 n)
 static void gen_helper_out_func(int ot, TCGv_i32 v, TCGv_i32 n)
 {
     switch (ot) {
-    case OT_BYTE:
+    case MO_8:
         gen_helper_outb(v, n);
         break;
-    case OT_WORD:
+    case MO_16:
         gen_helper_outw(v, n);
         break;
-    case OT_LONG:
+    case MO_32:
         gen_helper_outl(v, n);
         break;
     }
@@ -791,13 +783,13 @@ static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
         state_saved = 1;
         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
         switch (ot) {
-        case OT_BYTE:
+        case MO_8:
             gen_helper_check_iob(cpu_env, cpu_tmp2_i32);
             break;
-        case OT_WORD:
+        case MO_16:
             gen_helper_check_iow(cpu_env, cpu_tmp2_i32);
             break;
-        case OT_LONG:
+        case MO_32:
             gen_helper_check_iol(cpu_env, cpu_tmp2_i32);
             break;
         }
@@ -1244,7 +1236,7 @@ static int gen_jz_ecx_string(DisasContext *s, target_ulong next_eip)
 
 static inline void gen_stos(DisasContext *s, int ot)
 {
-    gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+    gen_op_mov_TN_reg(MO_32, 0, R_EAX);
     gen_string_movl_A0_EDI(s);
     gen_op_st_T0_A0(s, ot);
     gen_op_movl_T0_Dshift(ot);
@@ -1289,7 +1281,7 @@ static inline void gen_ins(DisasContext *s, int ot)
        case of page fault. */
     gen_op_movl_T0_0();
     gen_op_st_T0_A0(s, ot);
-    gen_op_mov_TN_reg(OT_WORD, 1, R_EDX);
+    gen_op_mov_TN_reg(MO_16, 1, R_EDX);
     tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[1]);
     tcg_gen_andi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0xffff);
     gen_helper_in_func(ot, cpu_T[0], cpu_tmp2_i32);
@@ -1307,7 +1299,7 @@ static inline void gen_outs(DisasContext *s, int ot)
     gen_string_movl_A0_ESI(s);
     gen_op_ld_T0_A0(s, ot);
 
-    gen_op_mov_TN_reg(OT_WORD, 1, R_EDX);
+    gen_op_mov_TN_reg(MO_16, 1, R_EDX);
     tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[1]);
     tcg_gen_andi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0xffff);
     tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_T[0]);
@@ -1576,7 +1568,7 @@ static void gen_shift_flags(DisasContext *s, int ot, TCGv result, TCGv shm1,
 static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
                             int is_right, int is_arith)
 {
-    target_ulong mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    target_ulong mask = (ot == MO_64 ? 0x3f : 0x1f);
 
     /* load */
     if (op1 == OR_TMP0) {
@@ -1616,7 +1608,7 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
 static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
                             int is_right, int is_arith)
 {
-    int mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    int mask = (ot == MO_64 ? 0x3f : 0x1f);
 
     /* load */
     if (op1 == OR_TMP0)
@@ -1666,7 +1658,7 @@ static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2)
 
 static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
 {
-    target_ulong mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    target_ulong mask = (ot == MO_64 ? 0x3f : 0x1f);
     TCGv_i32 t0, t1;
 
     /* load */
@@ -1679,18 +1671,18 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
     tcg_gen_andi_tl(cpu_T[1], cpu_T[1], mask);
 
     switch (ot) {
-    case OT_BYTE:
+    case MO_8:
         /* Replicate the 8-bit input so that a 32-bit rotate works.  */
         tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
         tcg_gen_muli_tl(cpu_T[0], cpu_T[0], 0x01010101);
         goto do_long;
-    case OT_WORD:
+    case MO_16:
         /* Replicate the 16-bit input so that a 32-bit rotate works.  */
         tcg_gen_deposit_tl(cpu_T[0], cpu_T[0], cpu_T[0], 16, 16);
         goto do_long;
     do_long:
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
         tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_T[1]);
         if (is_right) {
@@ -1756,7 +1748,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
 static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
                           int is_right)
 {
-    int mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    int mask = (ot == MO_64 ? 0x3f : 0x1f);
     int shift;
 
     /* load */
@@ -1770,7 +1762,7 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
     if (op2 != 0) {
         switch (ot) {
 #ifdef TARGET_X86_64
-        case OT_LONG:
+        case MO_32:
             tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
             if (is_right) {
                 tcg_gen_rotri_i32(cpu_tmp2_i32, cpu_tmp2_i32, op2);
@@ -1787,10 +1779,10 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
                 tcg_gen_rotli_tl(cpu_T[0], cpu_T[0], op2);
             }
             break;
-        case OT_BYTE:
+        case MO_8:
             mask = 7;
             goto do_shifts;
-        case OT_WORD:
+        case MO_16:
             mask = 15;
         do_shifts:
             shift = op2 & mask;
@@ -1849,34 +1841,34 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
     
     if (is_right) {
         switch (ot) {
-        case OT_BYTE:
+        case MO_8:
             gen_helper_rcrb(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case OT_WORD:
+        case MO_16:
             gen_helper_rcrw(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case OT_LONG:
+        case MO_32:
             gen_helper_rcrl(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #ifdef TARGET_X86_64
-        case OT_QUAD:
+        case MO_64:
             gen_helper_rcrq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
         }
     } else {
         switch (ot) {
-        case OT_BYTE:
+        case MO_8:
             gen_helper_rclb(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case OT_WORD:
+        case MO_16:
             gen_helper_rclw(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case OT_LONG:
+        case MO_32:
             gen_helper_rcll(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #ifdef TARGET_X86_64
-        case OT_QUAD:
+        case MO_64:
             gen_helper_rclq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
@@ -1893,7 +1885,7 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
 static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
                              bool is_right, TCGv count_in)
 {
-    target_ulong mask = (ot == OT_QUAD ? 63 : 31);
+    target_ulong mask = (ot == MO_64 ? 63 : 31);
     TCGv count;
 
     /* load */
@@ -1907,7 +1899,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
     tcg_gen_andi_tl(count, count_in, mask);
 
     switch (ot) {
-    case OT_WORD:
+    case MO_16:
         /* Note: we implement the Intel behaviour for shift count > 16.
            This means "shrdw C, B, A" shifts A:B:A >> C.  Build the B:A
            portion by constructing it as a 32-bit value.  */
@@ -1920,7 +1912,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
         }
         /* FALLTHRU */
 #ifdef TARGET_X86_64
-    case OT_LONG:
+    case MO_32:
         /* Concatenate the two 32-bit values and use a 64-bit shift.  */
         tcg_gen_subi_tl(cpu_tmp0, count, 1);
         if (is_right) {
@@ -1946,7 +1938,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
             tcg_gen_shl_tl(cpu_T[1], cpu_T[1], cpu_tmp4);
         } else {
             tcg_gen_shl_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
-            if (ot == OT_WORD) {
+            if (ot == MO_16) {
                 /* Only needed if count > 16, for Intel behaviour.  */
                 tcg_gen_subfi_tl(cpu_tmp4, 33, count);
                 tcg_gen_shr_tl(cpu_tmp4, cpu_T[1], cpu_tmp4);
@@ -2329,16 +2321,16 @@ static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, int ot)
     uint32_t ret;
 
     switch(ot) {
-    case OT_BYTE:
+    case MO_8:
         ret = cpu_ldub_code(env, s->pc);
         s->pc++;
         break;
-    case OT_WORD:
+    case MO_16:
         ret = cpu_lduw_code(env, s->pc);
         s->pc += 2;
         break;
     default:
-    case OT_LONG:
+    case MO_32:
         ret = cpu_ldl_code(env, s->pc);
         s->pc += 4;
         break;
@@ -2348,10 +2340,11 @@ static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, int ot)
 
 static inline int insn_const_size(unsigned int ot)
 {
-    if (ot <= OT_LONG)
+    if (ot <= MO_32) {
         return 1 << ot;
-    else
+    } else {
         return 4;
+    }
 }
 
 static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
@@ -2518,10 +2511,10 @@ static void gen_push_T0(DisasContext *s)
         gen_op_movq_A0_reg(R_ESP);
         if (s->dflag) {
             gen_op_addq_A0_im(-8);
-            gen_op_st_T0_A0(s, OT_QUAD);
+            gen_op_st_T0_A0(s, MO_64);
         } else {
             gen_op_addq_A0_im(-2);
-            gen_op_st_T0_A0(s, OT_WORD);
+            gen_op_st_T0_A0(s, MO_16);
         }
         gen_op_mov_reg_A0(2, R_ESP);
     } else
@@ -2559,10 +2552,10 @@ static void gen_push_T1(DisasContext *s)
         gen_op_movq_A0_reg(R_ESP);
         if (s->dflag) {
             gen_op_addq_A0_im(-8);
-            gen_op_st_T1_A0(s, OT_QUAD);
+            gen_op_st_T1_A0(s, MO_64);
         } else {
             gen_op_addq_A0_im(-2);
-            gen_op_st_T0_A0(s, OT_WORD);
+            gen_op_st_T0_A0(s, MO_16);
         }
         gen_op_mov_reg_A0(2, R_ESP);
     } else
@@ -2596,7 +2589,7 @@ static void gen_pop_T0(DisasContext *s)
 #ifdef TARGET_X86_64
     if (CODE64(s)) {
         gen_op_movq_A0_reg(R_ESP);
-        gen_op_ld_T0_A0(s, s->dflag ? OT_QUAD : OT_WORD);
+        gen_op_ld_T0_A0(s, s->dflag ? MO_64 : MO_16);
     } else
 #endif
     {
@@ -2646,11 +2639,11 @@ static void gen_pusha(DisasContext *s)
     if (s->addseg)
         gen_op_addl_A0_seg(s, R_SS);
     for(i = 0;i < 8; i++) {
-        gen_op_mov_TN_reg(OT_LONG, 0, 7 - i);
-        gen_op_st_T0_A0(s, OT_WORD + s->dflag);
+        gen_op_mov_TN_reg(MO_32, 0, 7 - i);
+        gen_op_st_T0_A0(s, MO_16 + s->dflag);
         gen_op_addl_A0_im(2 <<  s->dflag);
     }
-    gen_op_mov_reg_T1(OT_WORD + s->ss32, R_ESP);
+    gen_op_mov_reg_T1(MO_16 + s->ss32, R_ESP);
 }
 
 /* NOTE: wrap around in 16 bit not fully handled */
@@ -2667,12 +2660,12 @@ static void gen_popa(DisasContext *s)
     for(i = 0;i < 8; i++) {
         /* ESP is not reloaded */
         if (i != 3) {
-            gen_op_ld_T0_A0(s, OT_WORD + s->dflag);
-            gen_op_mov_reg_T0(OT_WORD + s->dflag, 7 - i);
+            gen_op_ld_T0_A0(s, MO_16 + s->dflag);
+            gen_op_mov_reg_T0(MO_16 + s->dflag, 7 - i);
         }
         gen_op_addl_A0_im(2 <<  s->dflag);
     }
-    gen_op_mov_reg_T1(OT_WORD + s->ss32, R_ESP);
+    gen_op_mov_reg_T1(MO_16 + s->ss32, R_ESP);
 }
 
 static void gen_enter(DisasContext *s, int esp_addend, int level)
@@ -2682,7 +2675,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     level &= 0x1f;
 #ifdef TARGET_X86_64
     if (CODE64(s)) {
-        ot = s->dflag ? OT_QUAD : OT_WORD;
+        ot = s->dflag ? MO_64 : MO_16;
         opsize = 1 << ot;
 
         gen_op_movl_A0_reg(R_ESP);
@@ -2690,21 +2683,21 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         tcg_gen_mov_tl(cpu_T[1], cpu_A0);
 
         /* push bp */
-        gen_op_mov_TN_reg(OT_LONG, 0, R_EBP);
+        gen_op_mov_TN_reg(MO_32, 0, R_EBP);
         gen_op_st_T0_A0(s, ot);
         if (level) {
             /* XXX: must save state */
             gen_helper_enter64_level(cpu_env, tcg_const_i32(level),
-                                     tcg_const_i32((ot == OT_QUAD)),
+                                     tcg_const_i32((ot == MO_64)),
                                      cpu_T[1]);
         }
         gen_op_mov_reg_T1(ot, R_EBP);
         tcg_gen_addi_tl(cpu_T[1], cpu_T[1], -esp_addend + (-opsize * level));
-        gen_op_mov_reg_T1(OT_QUAD, R_ESP);
+        gen_op_mov_reg_T1(MO_64, R_ESP);
     } else
 #endif
     {
-        ot = s->dflag + OT_WORD;
+        ot = s->dflag + MO_16;
         opsize = 2 << s->dflag;
 
         gen_op_movl_A0_reg(R_ESP);
@@ -2715,7 +2708,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         if (s->addseg)
             gen_op_addl_A0_seg(s, R_SS);
         /* push bp */
-        gen_op_mov_TN_reg(OT_LONG, 0, R_EBP);
+        gen_op_mov_TN_reg(MO_32, 0, R_EBP);
         gen_op_st_T0_A0(s, ot);
         if (level) {
             /* XXX: must save state */
@@ -2725,7 +2718,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         }
         gen_op_mov_reg_T1(ot, R_EBP);
         tcg_gen_addi_tl(cpu_T[1], cpu_T[1], -esp_addend + (-opsize * level));
-        gen_op_mov_reg_T1(OT_WORD + s->ss32, R_ESP);
+        gen_op_mov_reg_T1(MO_16 + s->ss32, R_ESP);
     }
 }
 
@@ -3288,18 +3281,18 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             } else {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                     xmm_regs[reg].XMM_L(0)));
-                gen_op_st_T0_A0(s, OT_LONG);
+                gen_op_st_T0_A0(s, MO_32);
             }
             break;
         case 0x6e: /* movd mm, ea */
 #ifdef TARGET_X86_64
             if (s->dflag == 2) {
-                gen_ldst_modrm(env, s, modrm, OT_QUAD, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_64, OR_TMP0, 0);
                 tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,fpregs[reg].mmx));
             } else
 #endif
             {
-                gen_ldst_modrm(env, s, modrm, OT_LONG, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_32, OR_TMP0, 0);
                 tcg_gen_addi_ptr(cpu_ptr0, cpu_env, 
                                  offsetof(CPUX86State,fpregs[reg].mmx));
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
@@ -3309,14 +3302,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x16e: /* movd xmm, ea */
 #ifdef TARGET_X86_64
             if (s->dflag == 2) {
-                gen_ldst_modrm(env, s, modrm, OT_QUAD, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_64, OR_TMP0, 0);
                 tcg_gen_addi_ptr(cpu_ptr0, cpu_env, 
                                  offsetof(CPUX86State,xmm_regs[reg]));
                 gen_helper_movq_mm_T0_xmm(cpu_ptr0, cpu_T[0]);
             } else
 #endif
             {
-                gen_ldst_modrm(env, s, modrm, OT_LONG, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_32, OR_TMP0, 0);
                 tcg_gen_addi_ptr(cpu_ptr0, cpu_env, 
                                  offsetof(CPUX86State,xmm_regs[reg]));
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
@@ -3353,7 +3346,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x210: /* movss xmm, ea */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_T0_A0(s, OT_LONG);
+                gen_op_ld_T0_A0(s, MO_32);
                 tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
                 gen_op_movl_T0_0();
                 tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_regs[reg].XMM_L(1)));
@@ -3476,13 +3469,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             if (s->dflag == 2) {
                 tcg_gen_ld_i64(cpu_T[0], cpu_env, 
                                offsetof(CPUX86State,fpregs[reg].mmx));
-                gen_ldst_modrm(env, s, modrm, OT_QUAD, OR_TMP0, 1);
+                gen_ldst_modrm(env, s, modrm, MO_64, OR_TMP0, 1);
             } else
 #endif
             {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, 
                                  offsetof(CPUX86State,fpregs[reg].mmx.MMX_L(0)));
-                gen_ldst_modrm(env, s, modrm, OT_LONG, OR_TMP0, 1);
+                gen_ldst_modrm(env, s, modrm, MO_32, OR_TMP0, 1);
             }
             break;
         case 0x17e: /* movd ea, xmm */
@@ -3490,13 +3483,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             if (s->dflag == 2) {
                 tcg_gen_ld_i64(cpu_T[0], cpu_env, 
                                offsetof(CPUX86State,xmm_regs[reg].XMM_Q(0)));
-                gen_ldst_modrm(env, s, modrm, OT_QUAD, OR_TMP0, 1);
+                gen_ldst_modrm(env, s, modrm, MO_64, OR_TMP0, 1);
             } else
 #endif
             {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, 
                                  offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
-                gen_ldst_modrm(env, s, modrm, OT_LONG, OR_TMP0, 1);
+                gen_ldst_modrm(env, s, modrm, MO_32, OR_TMP0, 1);
             }
             break;
         case 0x27e: /* movq xmm, ea */
@@ -3540,7 +3533,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_regs[reg].XMM_L(0)));
-                gen_op_st_T0_A0(s, OT_LONG);
+                gen_op_st_T0_A0(s, MO_32);
             } else {
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movl(offsetof(CPUX86State,xmm_regs[rm].XMM_L(0)),
@@ -3623,7 +3616,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                              offsetof(CPUX86State,xmm_regs[rm]));
             gen_helper_movmskps(cpu_tmp2_i32, cpu_env, cpu_ptr0);
             tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-            gen_op_mov_reg_T0(OT_LONG, reg);
+            gen_op_mov_reg_T0(MO_32, reg);
             break;
         case 0x150: /* movmskpd */
             rm = (modrm & 7) | REX_B(s);
@@ -3631,7 +3624,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                              offsetof(CPUX86State,xmm_regs[rm]));
             gen_helper_movmskpd(cpu_tmp2_i32, cpu_env, cpu_ptr0);
             tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-            gen_op_mov_reg_T0(OT_LONG, reg);
+            gen_op_mov_reg_T0(MO_32, reg);
             break;
         case 0x02a: /* cvtpi2ps */
         case 0x12a: /* cvtpi2pd */
@@ -3659,11 +3652,11 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             break;
         case 0x22a: /* cvtsi2ss */
         case 0x32a: /* cvtsi2sd */
-            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+            ot = (s->dflag == 2) ? MO_64 : MO_32;
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
-            if (ot == OT_LONG) {
+            if (ot == MO_32) {
                 SSEFunc_0_epi sse_fn_epi = sse_op_table3ai[(b >> 8) & 1];
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 sse_fn_epi(cpu_env, cpu_ptr0, cpu_tmp2_i32);
@@ -3711,13 +3704,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x32c: /* cvttsd2si */
         case 0x22d: /* cvtss2si */
         case 0x32d: /* cvtsd2si */
-            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+            ot = (s->dflag == 2) ? MO_64 : MO_32;
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
                 if ((b >> 8) & 1) {
                     gen_ldq_env_A0(s, offsetof(CPUX86State, xmm_t0.XMM_Q(0)));
                 } else {
-                    gen_op_ld_T0_A0(s, OT_LONG);
+                    gen_op_ld_T0_A0(s, MO_32);
                     tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_t0.XMM_L(0)));
                 }
                 op2_offset = offsetof(CPUX86State,xmm_t0);
@@ -3726,7 +3719,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 op2_offset = offsetof(CPUX86State,xmm_regs[rm]);
             }
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op2_offset);
-            if (ot == OT_LONG) {
+            if (ot == MO_32) {
                 SSEFunc_i_ep sse_fn_i_ep =
                     sse_op_table3bi[((b >> 7) & 2) | (b & 1)];
                 sse_fn_i_ep(cpu_tmp2_i32, cpu_env, cpu_ptr0);
@@ -3745,7 +3738,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0xc4: /* pinsrw */
         case 0x1c4:
             s->rip_offset = 1;
-            gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
             val = cpu_ldub_code(env, s->pc++);
             if (b1) {
                 val &= 7;
@@ -3761,7 +3754,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x1c5:
             if (mod != 3)
                 goto illegal_op;
-            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+            ot = (s->dflag == 2) ? MO_64 : MO_32;
             val = cpu_ldub_code(env, s->pc++);
             if (b1) {
                 val &= 7;
@@ -3817,7 +3810,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             }
             tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             reg = ((modrm >> 3) & 7) | rex_r;
-            gen_op_mov_reg_T0(OT_LONG, reg);
+            gen_op_mov_reg_T0(MO_32, reg);
             break;
 
         case 0x138:
@@ -3914,20 +3907,20 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     goto illegal_op;
                 }
                 if ((b & 0xff) == 0xf0) {
-                    ot = OT_BYTE;
+                    ot = MO_8;
                 } else if (s->dflag != 2) {
-                    ot = (s->prefix & PREFIX_DATA ? OT_WORD : OT_LONG);
+                    ot = (s->prefix & PREFIX_DATA ? MO_16 : MO_32);
                 } else {
-                    ot = OT_QUAD;
+                    ot = MO_64;
                 }
 
-                gen_op_mov_TN_reg(OT_LONG, 0, reg);
+                gen_op_mov_TN_reg(MO_32, 0, reg);
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 gen_helper_crc32(cpu_T[0], cpu_tmp2_i32,
                                  cpu_T[0], tcg_const_i32(8 << ot));
 
-                ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+                ot = (s->dflag == 2) ? MO_64 : MO_32;
                 gen_op_mov_reg_T0(ot, reg);
                 break;
 
@@ -3946,9 +3939,9 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     goto illegal_op;
                 }
                 if (s->dflag != 2) {
-                    ot = (s->prefix & PREFIX_DATA ? OT_WORD : OT_LONG);
+                    ot = (s->prefix & PREFIX_DATA ? MO_16 : MO_32);
                 } else {
-                    ot = OT_QUAD;
+                    ot = MO_64;
                 }
 
                 /* Load the data incoming to the bswap.  Note that the TCG
@@ -3959,27 +3952,27 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 } else {
                     switch (ot) {
-                    case OT_WORD:
+                    case MO_16:
                         tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[reg]);
                         break;
                     default:
                         tcg_gen_ext32u_tl(cpu_T[0], cpu_regs[reg]);
                         break;
-                    case OT_QUAD:
+                    case MO_64:
                         tcg_gen_mov_tl(cpu_T[0], cpu_regs[reg]);
                         break;
                     }
                 }
 
                 switch (ot) {
-                case OT_WORD:
+                case MO_16:
                     tcg_gen_bswap16_tl(cpu_T[0], cpu_T[0]);
                     break;
                 default:
                     tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0]);
                     break;
 #ifdef TARGET_X86_64
-                case OT_QUAD:
+                case MO_64:
                     tcg_gen_bswap64_tl(cpu_T[0], cpu_T[0]);
                     break;
 #endif
@@ -3998,7 +3991,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 tcg_gen_andc_tl(cpu_T[0], cpu_regs[s->vex_v], cpu_T[0]);
                 gen_op_mov_reg_T0(ot, reg);
@@ -4012,7 +4005,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 {
                     TCGv bound, zero;
 
@@ -4022,7 +4015,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     tcg_gen_ext8u_tl(cpu_A0, cpu_regs[s->vex_v]);
                     tcg_gen_shr_tl(cpu_T[0], cpu_T[0], cpu_A0);
 
-                    bound = tcg_const_tl(ot == OT_QUAD ? 63 : 31);
+                    bound = tcg_const_tl(ot == MO_64 ? 63 : 31);
                     zero = tcg_const_tl(0);
                     tcg_gen_movcond_tl(TCG_COND_LEU, cpu_T[0], cpu_A0, bound,
                                        cpu_T[0], zero);
@@ -4052,11 +4045,11 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 tcg_gen_ext8u_tl(cpu_T[1], cpu_regs[s->vex_v]);
                 {
-                    TCGv bound = tcg_const_tl(ot == OT_QUAD ? 63 : 31);
+                    TCGv bound = tcg_const_tl(ot == MO_64 ? 63 : 31);
                     /* Note that since we're using BMILG (in order to get O
                        cleared) we need to store the inverse into C.  */
                     tcg_gen_setcond_tl(TCG_COND_LT, cpu_cc_src,
@@ -4079,7 +4072,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 switch (ot) {
                 default:
@@ -4091,7 +4084,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     tcg_gen_extu_i32_tl(cpu_regs[reg], cpu_tmp3_i32);
                     break;
 #ifdef TARGET_X86_64
-                case OT_QUAD:
+                case MO_64:
                     tcg_gen_mulu2_i64(cpu_regs[s->vex_v], cpu_regs[reg],
                                       cpu_T[0], cpu_regs[R_EDX]);
                     break;
@@ -4105,7 +4098,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 /* Note that by zero-extending the mask operand, we
                    automatically handle zero-extending the result.  */
@@ -4123,7 +4116,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 /* Note that by zero-extending the mask operand, we
                    automatically handle zero-extending the result.  */
@@ -4143,7 +4136,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     TCGv carry_in, carry_out, zero;
                     int end_op;
 
-                    ot = (s->dflag == 2 ? OT_QUAD : OT_LONG);
+                    ot = (s->dflag == 2 ? MO_64 : MO_32);
                     gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
 
                     /* Re-use the carry-out from a previous round.  */
@@ -4187,7 +4180,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
 
                     switch (ot) {
 #ifdef TARGET_X86_64
-                    case OT_LONG:
+                    case MO_32:
                         /* If we know TL is 64-bit, and we want a 32-bit
                            result, just do everything in 64-bit arithmetic.  */
                         tcg_gen_ext32u_i64(cpu_regs[reg], cpu_regs[reg]);
@@ -4222,9 +4215,9 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = (s->dflag == 2 ? OT_QUAD : OT_LONG);
+                ot = (s->dflag == 2 ? MO_64 : MO_32);
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-                if (ot == OT_QUAD) {
+                if (ot == MO_64) {
                     tcg_gen_andi_tl(cpu_T[1], cpu_regs[s->vex_v], 63);
                 } else {
                     tcg_gen_andi_tl(cpu_T[1], cpu_regs[s->vex_v], 31);
@@ -4232,12 +4225,12 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 if (b == 0x1f7) {
                     tcg_gen_shl_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                 } else if (b == 0x2f7) {
-                    if (ot != OT_QUAD) {
+                    if (ot != MO_64) {
                         tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
                     }
                     tcg_gen_sar_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
                 } else {
-                    if (ot != OT_QUAD) {
+                    if (ot != MO_64) {
                         tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
                     }
                     tcg_gen_shr_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
@@ -4254,7 +4247,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
 
                 switch (reg & 7) {
@@ -4311,7 +4304,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 goto illegal_op;
 
             if (sse_fn_eppi == SSE_SPECIAL) {
-                ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+                ot = (s->dflag == 2) ? MO_64 : MO_32;
                 rm = (modrm & 7) | REX_B(s);
                 if (mod != 3)
                     gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
@@ -4339,7 +4332,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     }
                     break;
                 case 0x16:
-                    if (ot == OT_LONG) { /* pextrd */
+                    if (ot == MO_32) { /* pextrd */
                         tcg_gen_ld_i32(cpu_tmp2_i32, cpu_env,
                                         offsetof(CPUX86State,
                                                 xmm_regs[reg].XMM_L(val & 3)));
@@ -4378,7 +4371,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     break;
                 case 0x20: /* pinsrb */
                     if (mod == 3) {
-                        gen_op_mov_TN_reg(OT_LONG, 0, rm);
+                        gen_op_mov_TN_reg(MO_32, 0, rm);
                     } else {
                         tcg_gen_qemu_ld_tl(cpu_T[0], cpu_A0,
                                            s->mem_index, MO_UB);
@@ -4416,7 +4409,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                                 xmm_regs[reg].XMM_L(3)));
                     break;
                 case 0x22:
-                    if (ot == OT_LONG) { /* pinsrd */
+                    if (ot == MO_32) { /* pinsrd */
                         if (mod == 3) {
                             gen_op_mov_v_reg(ot, cpu_tmp0, rm);
                         } else {
@@ -4494,10 +4487,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     || s->vex_l != 0) {
                     goto illegal_op;
                 }
-                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                ot = s->dflag == 2 ? MO_64 : MO_32;
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 b = cpu_ldub_code(env, s->pc++);
-                if (ot == OT_QUAD) {
+                if (ot == MO_64) {
                     tcg_gen_rotri_tl(cpu_T[0], cpu_T[0], b & 63);
                 } else {
                     tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
@@ -4536,7 +4529,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     /* specific case for SSE single instructions */
                     if (b1 == 2) {
                         /* 32 bit access */
-                        gen_op_ld_T0_A0(s, OT_LONG);
+                        gen_op_ld_T0_A0(s, MO_32);
                         tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_t0.XMM_L(0)));
                     } else {
                         /* 64 bit access */
@@ -4819,9 +4812,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             f = (b >> 1) & 3;
 
             if ((b & 1) == 0)
-                ot = OT_BYTE;
+                ot = MO_8;
             else
-                ot = dflag + OT_WORD;
+                ot = dflag + MO_16;
 
             switch(f) {
             case 0: /* OP Ev, Gv */
@@ -4879,9 +4872,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             int val;
 
             if ((b & 1) == 0)
-                ot = OT_BYTE;
+                ot = MO_8;
             else
-                ot = dflag + OT_WORD;
+                ot = dflag + MO_16;
 
             modrm = cpu_ldub_code(env, s->pc++);
             mod = (modrm >> 6) & 3;
@@ -4907,7 +4900,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 val = insn_get(env, s, ot);
                 break;
             case 0x83:
-                val = (int8_t)insn_get(env, s, OT_BYTE);
+                val = (int8_t)insn_get(env, s, MO_8);
                 break;
             }
             gen_op_movl_T1_im(val);
@@ -4918,19 +4911,19 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         /**************************/
         /* inc, dec, and other misc arith */
     case 0x40 ... 0x47: /* inc Gv */
-        ot = dflag ? OT_LONG : OT_WORD;
+        ot = dflag ? MO_32 : MO_16;
         gen_inc(s, ot, OR_EAX + (b & 7), 1);
         break;
     case 0x48 ... 0x4f: /* dec Gv */
-        ot = dflag ? OT_LONG : OT_WORD;
+        ot = dflag ? MO_32 : MO_16;
         gen_inc(s, ot, OR_EAX + (b & 7), -1);
         break;
     case 0xf6: /* GRP3 */
     case 0xf7:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
 
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
@@ -4972,32 +4965,32 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 4: /* mul */
             switch(ot) {
-            case OT_BYTE:
-                gen_op_mov_TN_reg(OT_BYTE, 1, R_EAX);
+            case MO_8:
+                gen_op_mov_TN_reg(MO_8, 1, R_EAX);
                 tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
                 tcg_gen_ext8u_tl(cpu_T[1], cpu_T[1]);
                 /* XXX: use 32 bit mul which could be faster */
                 tcg_gen_mul_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-                gen_op_mov_reg_T0(OT_WORD, R_EAX);
+                gen_op_mov_reg_T0(MO_16, R_EAX);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                 tcg_gen_andi_tl(cpu_cc_src, cpu_T[0], 0xff00);
                 set_cc_op(s, CC_OP_MULB);
                 break;
-            case OT_WORD:
-                gen_op_mov_TN_reg(OT_WORD, 1, R_EAX);
+            case MO_16:
+                gen_op_mov_TN_reg(MO_16, 1, R_EAX);
                 tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
                 tcg_gen_ext16u_tl(cpu_T[1], cpu_T[1]);
                 /* XXX: use 32 bit mul which could be faster */
                 tcg_gen_mul_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-                gen_op_mov_reg_T0(OT_WORD, R_EAX);
+                gen_op_mov_reg_T0(MO_16, R_EAX);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                 tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 16);
-                gen_op_mov_reg_T0(OT_WORD, R_EDX);
+                gen_op_mov_reg_T0(MO_16, R_EDX);
                 tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
                 set_cc_op(s, CC_OP_MULW);
                 break;
             default:
-            case OT_LONG:
+            case MO_32:
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_regs[R_EAX]);
                 tcg_gen_mulu2_i32(cpu_tmp2_i32, cpu_tmp3_i32,
@@ -5009,7 +5002,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 set_cc_op(s, CC_OP_MULL);
                 break;
 #ifdef TARGET_X86_64
-            case OT_QUAD:
+            case MO_64:
                 tcg_gen_mulu2_i64(cpu_regs[R_EAX], cpu_regs[R_EDX],
                                   cpu_T[0], cpu_regs[R_EAX]);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_regs[R_EAX]);
@@ -5021,34 +5014,34 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 5: /* imul */
             switch(ot) {
-            case OT_BYTE:
-                gen_op_mov_TN_reg(OT_BYTE, 1, R_EAX);
+            case MO_8:
+                gen_op_mov_TN_reg(MO_8, 1, R_EAX);
                 tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
                 tcg_gen_ext8s_tl(cpu_T[1], cpu_T[1]);
                 /* XXX: use 32 bit mul which could be faster */
                 tcg_gen_mul_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-                gen_op_mov_reg_T0(OT_WORD, R_EAX);
+                gen_op_mov_reg_T0(MO_16, R_EAX);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                 tcg_gen_ext8s_tl(cpu_tmp0, cpu_T[0]);
                 tcg_gen_sub_tl(cpu_cc_src, cpu_T[0], cpu_tmp0);
                 set_cc_op(s, CC_OP_MULB);
                 break;
-            case OT_WORD:
-                gen_op_mov_TN_reg(OT_WORD, 1, R_EAX);
+            case MO_16:
+                gen_op_mov_TN_reg(MO_16, 1, R_EAX);
                 tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
                 tcg_gen_ext16s_tl(cpu_T[1], cpu_T[1]);
                 /* XXX: use 32 bit mul which could be faster */
                 tcg_gen_mul_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-                gen_op_mov_reg_T0(OT_WORD, R_EAX);
+                gen_op_mov_reg_T0(MO_16, R_EAX);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
                 tcg_gen_ext16s_tl(cpu_tmp0, cpu_T[0]);
                 tcg_gen_sub_tl(cpu_cc_src, cpu_T[0], cpu_tmp0);
                 tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 16);
-                gen_op_mov_reg_T0(OT_WORD, R_EDX);
+                gen_op_mov_reg_T0(MO_16, R_EDX);
                 set_cc_op(s, CC_OP_MULW);
                 break;
             default:
-            case OT_LONG:
+            case MO_32:
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_regs[R_EAX]);
                 tcg_gen_muls2_i32(cpu_tmp2_i32, cpu_tmp3_i32,
@@ -5062,7 +5055,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 set_cc_op(s, CC_OP_MULL);
                 break;
 #ifdef TARGET_X86_64
-            case OT_QUAD:
+            case MO_64:
                 tcg_gen_muls2_i64(cpu_regs[R_EAX], cpu_regs[R_EDX],
                                   cpu_T[0], cpu_regs[R_EAX]);
                 tcg_gen_mov_tl(cpu_cc_dst, cpu_regs[R_EAX]);
@@ -5075,21 +5068,21 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 6: /* div */
             switch(ot) {
-            case OT_BYTE:
+            case MO_8:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divb_AL(cpu_env, cpu_T[0]);
                 break;
-            case OT_WORD:
+            case MO_16:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divw_AX(cpu_env, cpu_T[0]);
                 break;
             default:
-            case OT_LONG:
+            case MO_32:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divl_EAX(cpu_env, cpu_T[0]);
                 break;
 #ifdef TARGET_X86_64
-            case OT_QUAD:
+            case MO_64:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divq_EAX(cpu_env, cpu_T[0]);
                 break;
@@ -5098,21 +5091,21 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 7: /* idiv */
             switch(ot) {
-            case OT_BYTE:
+            case MO_8:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivb_AL(cpu_env, cpu_T[0]);
                 break;
-            case OT_WORD:
+            case MO_16:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivw_AX(cpu_env, cpu_T[0]);
                 break;
             default:
-            case OT_LONG:
+            case MO_32:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivl_EAX(cpu_env, cpu_T[0]);
                 break;
 #ifdef TARGET_X86_64
-            case OT_QUAD:
+            case MO_64:
                 gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivq_EAX(cpu_env, cpu_T[0]);
                 break;
@@ -5127,9 +5120,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xfe: /* GRP4 */
     case 0xff: /* GRP5 */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
 
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
@@ -5141,12 +5134,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (CODE64(s)) {
             if (op == 2 || op == 4) {
                 /* operand size for jumps is 64 bit */
-                ot = OT_QUAD;
+                ot = MO_64;
             } else if (op == 3 || op == 5) {
-                ot = dflag ? OT_LONG + (rex_w == 1) : OT_WORD;
+                ot = dflag ? MO_32 + (rex_w == 1) : MO_16;
             } else if (op == 6) {
                 /* default push size is 64 bit */
-                ot = dflag ? OT_QUAD : OT_WORD;
+                ot = dflag ? MO_64 : MO_16;
             }
         }
         if (mod != 3) {
@@ -5184,8 +5177,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 3: /* lcall Ev */
             gen_op_ld_T1_A0(s, ot);
-            gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
-            gen_op_ldu_T0_A0(s, OT_WORD);
+            gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
+            gen_op_ldu_T0_A0(s, MO_16);
         do_lcall:
             if (s->pe && !s->vm86) {
                 gen_update_cc_op(s);
@@ -5210,8 +5203,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 5: /* ljmp Ev */
             gen_op_ld_T1_A0(s, ot);
-            gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
-            gen_op_ldu_T0_A0(s, OT_WORD);
+            gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
+            gen_op_ldu_T0_A0(s, MO_16);
         do_ljmp:
             if (s->pe && !s->vm86) {
                 gen_update_cc_op(s);
@@ -5237,9 +5230,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x84: /* test Ev, Gv */
     case 0x85:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
 
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
@@ -5253,9 +5246,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xa8: /* test eAX, Iv */
     case 0xa9:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         val = insn_get(env, s, ot);
 
         gen_op_mov_TN_reg(ot, 0, OR_EAX);
@@ -5267,45 +5260,45 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x98: /* CWDE/CBW */
 #ifdef TARGET_X86_64
         if (dflag == 2) {
-            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_32, 0, R_EAX);
             tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
-            gen_op_mov_reg_T0(OT_QUAD, R_EAX);
+            gen_op_mov_reg_T0(MO_64, R_EAX);
         } else
 #endif
         if (dflag == 1) {
-            gen_op_mov_TN_reg(OT_WORD, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_16, 0, R_EAX);
             tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
-            gen_op_mov_reg_T0(OT_LONG, R_EAX);
+            gen_op_mov_reg_T0(MO_32, R_EAX);
         } else {
-            gen_op_mov_TN_reg(OT_BYTE, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_8, 0, R_EAX);
             tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
-            gen_op_mov_reg_T0(OT_WORD, R_EAX);
+            gen_op_mov_reg_T0(MO_16, R_EAX);
         }
         break;
     case 0x99: /* CDQ/CWD */
 #ifdef TARGET_X86_64
         if (dflag == 2) {
-            gen_op_mov_TN_reg(OT_QUAD, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_64, 0, R_EAX);
             tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 63);
-            gen_op_mov_reg_T0(OT_QUAD, R_EDX);
+            gen_op_mov_reg_T0(MO_64, R_EDX);
         } else
 #endif
         if (dflag == 1) {
-            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_32, 0, R_EAX);
             tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
             tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 31);
-            gen_op_mov_reg_T0(OT_LONG, R_EDX);
+            gen_op_mov_reg_T0(MO_32, R_EDX);
         } else {
-            gen_op_mov_TN_reg(OT_WORD, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_16, 0, R_EAX);
             tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
             tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 15);
-            gen_op_mov_reg_T0(OT_WORD, R_EDX);
+            gen_op_mov_reg_T0(MO_16, R_EDX);
         }
         break;
     case 0x1af: /* imul Gv, Ev */
     case 0x69: /* imul Gv, Ev, I */
     case 0x6b:
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         if (b == 0x69)
@@ -5317,21 +5310,21 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             val = insn_get(env, s, ot);
             gen_op_movl_T1_im(val);
         } else if (b == 0x6b) {
-            val = (int8_t)insn_get(env, s, OT_BYTE);
+            val = (int8_t)insn_get(env, s, MO_8);
             gen_op_movl_T1_im(val);
         } else {
             gen_op_mov_TN_reg(ot, 1, reg);
         }
         switch (ot) {
 #ifdef TARGET_X86_64
-        case OT_QUAD:
+        case MO_64:
             tcg_gen_muls2_i64(cpu_regs[reg], cpu_T[1], cpu_T[0], cpu_T[1]);
             tcg_gen_mov_tl(cpu_cc_dst, cpu_regs[reg]);
             tcg_gen_sari_tl(cpu_cc_src, cpu_cc_dst, 63);
             tcg_gen_sub_tl(cpu_cc_src, cpu_cc_src, cpu_T[1]);
             break;
 #endif
-        case OT_LONG:
+        case MO_32:
             tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
             tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_T[1]);
             tcg_gen_muls2_i32(cpu_tmp2_i32, cpu_tmp3_i32,
@@ -5358,9 +5351,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1c0:
     case 0x1c1: /* xadd Ev, Gv */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         mod = (modrm >> 6) & 3;
@@ -5389,9 +5382,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             TCGv t0, t1, t2, a0;
 
             if ((b & 1) == 0)
-                ot = OT_BYTE;
+                ot = MO_8;
             else
-                ot = dflag + OT_WORD;
+                ot = dflag + MO_16;
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
@@ -5470,14 +5463,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         /**************************/
         /* push/pop */
     case 0x50 ... 0x57: /* push */
-        gen_op_mov_TN_reg(OT_LONG, 0, (b & 7) | REX_B(s));
+        gen_op_mov_TN_reg(MO_32, 0, (b & 7) | REX_B(s));
         gen_push_T0(s);
         break;
     case 0x58 ... 0x5f: /* pop */
         if (CODE64(s)) {
-            ot = dflag ? OT_QUAD : OT_WORD;
+            ot = dflag ? MO_64 : MO_16;
         } else {
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         }
         gen_pop_T0(s);
         /* NOTE: order is important for pop %sp */
@@ -5497,22 +5490,22 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x68: /* push Iv */
     case 0x6a:
         if (CODE64(s)) {
-            ot = dflag ? OT_QUAD : OT_WORD;
+            ot = dflag ? MO_64 : MO_16;
         } else {
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         }
         if (b == 0x68)
             val = insn_get(env, s, ot);
         else
-            val = (int8_t)insn_get(env, s, OT_BYTE);
+            val = (int8_t)insn_get(env, s, MO_8);
         gen_op_movl_T0_im(val);
         gen_push_T0(s);
         break;
     case 0x8f: /* pop Ev */
         if (CODE64(s)) {
-            ot = dflag ? OT_QUAD : OT_WORD;
+            ot = dflag ? MO_64 : MO_16;
         } else {
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         }
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
@@ -5542,20 +5535,20 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xc9: /* leave */
         /* XXX: exception not precise (ESP is updated before potential exception) */
         if (CODE64(s)) {
-            gen_op_mov_TN_reg(OT_QUAD, 0, R_EBP);
-            gen_op_mov_reg_T0(OT_QUAD, R_ESP);
+            gen_op_mov_TN_reg(MO_64, 0, R_EBP);
+            gen_op_mov_reg_T0(MO_64, R_ESP);
         } else if (s->ss32) {
-            gen_op_mov_TN_reg(OT_LONG, 0, R_EBP);
-            gen_op_mov_reg_T0(OT_LONG, R_ESP);
+            gen_op_mov_TN_reg(MO_32, 0, R_EBP);
+            gen_op_mov_reg_T0(MO_32, R_ESP);
         } else {
-            gen_op_mov_TN_reg(OT_WORD, 0, R_EBP);
-            gen_op_mov_reg_T0(OT_WORD, R_ESP);
+            gen_op_mov_TN_reg(MO_16, 0, R_EBP);
+            gen_op_mov_reg_T0(MO_16, R_ESP);
         }
         gen_pop_T0(s);
         if (CODE64(s)) {
-            ot = dflag ? OT_QUAD : OT_WORD;
+            ot = dflag ? MO_64 : MO_16;
         } else {
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         }
         gen_op_mov_reg_T0(ot, R_EBP);
         gen_pop_update(s);
@@ -5612,9 +5605,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x88:
     case 0x89: /* mov Gv, Ev */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
 
@@ -5624,9 +5617,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xc6:
     case 0xc7: /* mov Ev, Iv */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod != 3) {
@@ -5643,9 +5636,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x8a:
     case 0x8b: /* mov Ev, Gv */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = OT_WORD + dflag;
+            ot = MO_16 + dflag;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
 
@@ -5657,7 +5650,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         reg = (modrm >> 3) & 7;
         if (reg >= 6 || reg == R_CS)
             goto illegal_op;
-        gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+        gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
         gen_movl_seg_T0(s, reg, pc_start - s->cs_base);
         if (reg == R_SS) {
             /* if reg == SS, inhibit interrupts/trace */
@@ -5680,9 +5673,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         gen_op_movl_T0_seg(reg);
         if (mod == 3)
-            ot = OT_WORD + dflag;
+            ot = MO_16 + dflag;
         else
-            ot = OT_WORD;
+            ot = MO_16;
         gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
         break;
 
@@ -5693,9 +5686,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         {
             int d_ot;
             /* d_ot is the size of destination */
-            d_ot = dflag + OT_WORD;
+            d_ot = dflag + MO_16;
             /* ot is the size of source */
-            ot = (b & 1) + OT_BYTE;
+            ot = (b & 1) + MO_8;
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
@@ -5704,17 +5697,17 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (mod == 3) {
                 gen_op_mov_TN_reg(ot, 0, rm);
                 switch(ot | (b & 8)) {
-                case OT_BYTE:
+                case MO_8:
                     tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
                     break;
-                case OT_BYTE | 8:
+                case MO_8 | 8:
                     tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
                     break;
-                case OT_WORD:
+                case MO_16:
                     tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
                     break;
                 default:
-                case OT_WORD | 8:
+                case MO_16 | 8:
                     tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
                     break;
                 }
@@ -5732,7 +5725,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         break;
 
     case 0x8d: /* lea */
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod == 3)
@@ -5744,7 +5737,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         s->addseg = 0;
         gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
         s->addseg = val;
-        gen_op_mov_reg_A0(ot - OT_WORD, reg);
+        gen_op_mov_reg_A0(ot - MO_16, reg);
         break;
 
     case 0xa0: /* mov EAX, Ov */
@@ -5755,9 +5748,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             target_ulong offset_addr;
 
             if ((b & 1) == 0)
-                ot = OT_BYTE;
+                ot = MO_8;
             else
-                ot = dflag + OT_WORD;
+                ot = dflag + MO_16;
 #ifdef TARGET_X86_64
             if (s->aflag == 2) {
                 offset_addr = cpu_ldq_code(env, s->pc);
@@ -5767,9 +5760,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #endif
             {
                 if (s->aflag) {
-                    offset_addr = insn_get(env, s, OT_LONG);
+                    offset_addr = insn_get(env, s, MO_32);
                 } else {
-                    offset_addr = insn_get(env, s, OT_WORD);
+                    offset_addr = insn_get(env, s, MO_16);
                 }
                 gen_op_movl_A0_im(offset_addr);
             }
@@ -5787,14 +5780,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #ifdef TARGET_X86_64
         if (s->aflag == 2) {
             gen_op_movq_A0_reg(R_EBX);
-            gen_op_mov_TN_reg(OT_QUAD, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_64, 0, R_EAX);
             tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
             tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_T[0]);
         } else
 #endif
         {
             gen_op_movl_A0_reg(R_EBX);
-            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            gen_op_mov_TN_reg(MO_32, 0, R_EAX);
             tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
             tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_T[0]);
             if (s->aflag == 0)
@@ -5803,13 +5796,13 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
         }
         gen_add_A0_ds_seg(s);
-        gen_op_ldu_T0_A0(s, OT_BYTE);
-        gen_op_mov_reg_T0(OT_BYTE, R_EAX);
+        gen_op_ldu_T0_A0(s, MO_8);
+        gen_op_mov_reg_T0(MO_8, R_EAX);
         break;
     case 0xb0 ... 0xb7: /* mov R, Ib */
-        val = insn_get(env, s, OT_BYTE);
+        val = insn_get(env, s, MO_8);
         gen_op_movl_T0_im(val);
-        gen_op_mov_reg_T0(OT_BYTE, (b & 7) | REX_B(s));
+        gen_op_mov_reg_T0(MO_8, (b & 7) | REX_B(s));
         break;
     case 0xb8 ... 0xbf: /* mov R, Iv */
 #ifdef TARGET_X86_64
@@ -5820,11 +5813,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             s->pc += 8;
             reg = (b & 7) | REX_B(s);
             gen_movtl_T0_im(tmp);
-            gen_op_mov_reg_T0(OT_QUAD, reg);
+            gen_op_mov_reg_T0(MO_64, reg);
         } else
 #endif
         {
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
             val = insn_get(env, s, ot);
             reg = (b & 7) | REX_B(s);
             gen_op_movl_T0_im(val);
@@ -5834,16 +5827,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
     case 0x91 ... 0x97: /* xchg R, EAX */
     do_xchg_reg_eax:
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         reg = (b & 7) | REX_B(s);
         rm = R_EAX;
         goto do_xchg_reg;
     case 0x86:
     case 0x87: /* xchg Ev, Gv */
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         mod = (modrm >> 6) & 3;
@@ -5884,7 +5877,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1b5: /* lgs Gv */
         op = R_GS;
     do_lxx:
-        ot = dflag ? OT_LONG : OT_WORD;
+        ot = dflag ? MO_32 : MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         mod = (modrm >> 6) & 3;
@@ -5892,9 +5885,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
         gen_op_ld_T1_A0(s, ot);
-        gen_add_A0_im(s, 1 << (ot - OT_WORD + 1));
+        gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
         /* load the segment first to handle exceptions properly */
-        gen_op_ldu_T0_A0(s, OT_WORD);
+        gen_op_ldu_T0_A0(s, MO_16);
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
         /* then put the data */
         gen_op_mov_reg_T1(ot, reg);
@@ -5913,9 +5906,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     grp2:
         {
             if ((b & 1) == 0)
-                ot = OT_BYTE;
+                ot = MO_8;
             else
-                ot = dflag + OT_WORD;
+                ot = dflag + MO_16;
 
             modrm = cpu_ldub_code(env, s->pc++);
             mod = (modrm >> 6) & 3;
@@ -5969,7 +5962,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         op = 1;
         shift = 0;
     do_shiftd:
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
         rm = (modrm & 7) | REX_B(s);
@@ -6018,12 +6011,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
                     switch(op >> 4) {
                     case 0:
-                        gen_op_ld_T0_A0(s, OT_LONG);
+                        gen_op_ld_T0_A0(s, MO_32);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_flds_FT0(cpu_env, cpu_tmp2_i32);
                         break;
                     case 1:
-                        gen_op_ld_T0_A0(s, OT_LONG);
+                        gen_op_ld_T0_A0(s, MO_32);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_FT0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -6034,7 +6027,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 3:
                     default:
-                        gen_op_lds_T0_A0(s, OT_WORD);
+                        gen_op_lds_T0_A0(s, MO_16);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_FT0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -6057,12 +6050,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 case 0:
                     switch(op >> 4) {
                     case 0:
-                        gen_op_ld_T0_A0(s, OT_LONG);
+                        gen_op_ld_T0_A0(s, MO_32);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_flds_ST0(cpu_env, cpu_tmp2_i32);
                         break;
                     case 1:
-                        gen_op_ld_T0_A0(s, OT_LONG);
+                        gen_op_ld_T0_A0(s, MO_32);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_ST0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -6073,7 +6066,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 3:
                     default:
-                        gen_op_lds_T0_A0(s, OT_WORD);
+                        gen_op_lds_T0_A0(s, MO_16);
                         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                         gen_helper_fildl_ST0(cpu_env, cpu_tmp2_i32);
                         break;
@@ -6085,7 +6078,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     case 1:
                         gen_helper_fisttl_ST0(cpu_tmp2_i32, cpu_env);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        gen_op_st_T0_A0(s, OT_LONG);
+                        gen_op_st_T0_A0(s, MO_32);
                         break;
                     case 2:
                         gen_helper_fisttll_ST0(cpu_tmp1_i64, cpu_env);
@@ -6096,7 +6089,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     default:
                         gen_helper_fistt_ST0(cpu_tmp2_i32, cpu_env);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        gen_op_st_T0_A0(s, OT_WORD);
+                        gen_op_st_T0_A0(s, MO_16);
                         break;
                     }
                     gen_helper_fpop(cpu_env);
@@ -6106,12 +6099,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     case 0:
                         gen_helper_fsts_ST0(cpu_tmp2_i32, cpu_env);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        gen_op_st_T0_A0(s, OT_LONG);
+                        gen_op_st_T0_A0(s, MO_32);
                         break;
                     case 1:
                         gen_helper_fistl_ST0(cpu_tmp2_i32, cpu_env);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        gen_op_st_T0_A0(s, OT_LONG);
+                        gen_op_st_T0_A0(s, MO_32);
                         break;
                     case 2:
                         gen_helper_fstl_ST0(cpu_tmp1_i64, cpu_env);
@@ -6122,7 +6115,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     default:
                         gen_helper_fist_ST0(cpu_tmp2_i32, cpu_env);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        gen_op_st_T0_A0(s, OT_WORD);
+                        gen_op_st_T0_A0(s, MO_16);
                         break;
                     }
                     if ((op & 7) == 3)
@@ -6136,7 +6129,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_helper_fldenv(cpu_env, cpu_A0, tcg_const_i32(s->dflag));
                 break;
             case 0x0d: /* fldcw mem */
-                gen_op_ld_T0_A0(s, OT_WORD);
+                gen_op_ld_T0_A0(s, MO_16);
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 gen_helper_fldcw(cpu_env, cpu_tmp2_i32);
                 break;
@@ -6148,7 +6141,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             case 0x0f: /* fnstcw mem */
                 gen_helper_fnstcw(cpu_tmp2_i32, cpu_env);
                 tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                gen_op_st_T0_A0(s, OT_WORD);
+                gen_op_st_T0_A0(s, MO_16);
                 break;
             case 0x1d: /* fldt mem */
                 gen_update_cc_op(s);
@@ -6174,7 +6167,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             case 0x2f: /* fnstsw mem */
                 gen_helper_fnstsw(cpu_tmp2_i32, cpu_env);
                 tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                gen_op_st_T0_A0(s, OT_WORD);
+                gen_op_st_T0_A0(s, MO_16);
                 break;
             case 0x3c: /* fbld */
                 gen_update_cc_op(s);
@@ -6459,7 +6452,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 case 0:
                     gen_helper_fnstsw(cpu_tmp2_i32, cpu_env);
                     tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                    gen_op_mov_reg_T0(OT_WORD, R_EAX);
+                    gen_op_mov_reg_T0(MO_16, R_EAX);
                     break;
                 default:
                     goto illegal_op;
@@ -6517,9 +6510,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xa4: /* movsS */
     case 0xa5:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
 
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_movs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
@@ -6531,9 +6524,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xaa: /* stosS */
     case 0xab:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
 
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_stos(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
@@ -6544,9 +6537,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xac: /* lodsS */
     case 0xad:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_lods(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
@@ -6556,9 +6549,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xae: /* scasS */
     case 0xaf:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         if (prefixes & PREFIX_REPNZ) {
             gen_repz_scas(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 1);
         } else if (prefixes & PREFIX_REPZ) {
@@ -6571,9 +6564,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xa6: /* cmpsS */
     case 0xa7:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag + OT_WORD;
+            ot = dflag + MO_16;
         if (prefixes & PREFIX_REPNZ) {
             gen_repz_cmps(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 1);
         } else if (prefixes & PREFIX_REPZ) {
@@ -6585,10 +6578,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x6c: /* insS */
     case 0x6d:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
+            ot = dflag ? MO_32 : MO_16;
+        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, pc_start - s->cs_base, 
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) | 4);
@@ -6604,10 +6597,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x6e: /* outsS */
     case 0x6f:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
+            ot = dflag ? MO_32 : MO_16;
+        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, pc_start - s->cs_base,
                      svm_is_rep(prefixes) | 4);
@@ -6627,9 +6620,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xe4:
     case 0xe5:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
         val = cpu_ldub_code(env, s->pc++);
         gen_op_movl_T0_im(val);
         gen_check_io(s, ot, pc_start - s->cs_base,
@@ -6647,9 +6640,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xe6:
     case 0xe7:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
         val = cpu_ldub_code(env, s->pc++);
         gen_op_movl_T0_im(val);
         gen_check_io(s, ot, pc_start - s->cs_base,
@@ -6669,10 +6662,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xec:
     case 0xed:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
+            ot = dflag ? MO_32 : MO_16;
+        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, pc_start - s->cs_base,
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
@@ -6689,10 +6682,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xee:
     case 0xef:
         if ((b & 1) == 0)
-            ot = OT_BYTE;
+            ot = MO_8;
         else
-            ot = dflag ? OT_LONG : OT_WORD;
-        gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
+            ot = dflag ? MO_32 : MO_16;
+        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
         gen_op_andl_T0_ffff();
         gen_check_io(s, ot, pc_start - s->cs_base,
                      svm_is_rep(prefixes));
@@ -6786,9 +6779,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xe8: /* call im */
         {
             if (dflag)
-                tval = (int32_t)insn_get(env, s, OT_LONG);
+                tval = (int32_t)insn_get(env, s, MO_32);
             else
-                tval = (int16_t)insn_get(env, s, OT_WORD);
+                tval = (int16_t)insn_get(env, s, MO_16);
             next_eip = s->pc - s->cs_base;
             tval += next_eip;
             if (s->dflag == 0)
@@ -6806,9 +6799,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
             if (CODE64(s))
                 goto illegal_op;
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
             offset = insn_get(env, s, ot);
-            selector = insn_get(env, s, OT_WORD);
+            selector = insn_get(env, s, MO_16);
 
             gen_op_movl_T0_im(selector);
             gen_op_movl_T1_imu(offset);
@@ -6816,9 +6809,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         goto do_lcall;
     case 0xe9: /* jmp im */
         if (dflag)
-            tval = (int32_t)insn_get(env, s, OT_LONG);
+            tval = (int32_t)insn_get(env, s, MO_32);
         else
-            tval = (int16_t)insn_get(env, s, OT_WORD);
+            tval = (int16_t)insn_get(env, s, MO_16);
         tval += s->pc - s->cs_base;
         if (s->dflag == 0)
             tval &= 0xffff;
@@ -6832,29 +6825,29 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
             if (CODE64(s))
                 goto illegal_op;
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
             offset = insn_get(env, s, ot);
-            selector = insn_get(env, s, OT_WORD);
+            selector = insn_get(env, s, MO_16);
 
             gen_op_movl_T0_im(selector);
             gen_op_movl_T1_imu(offset);
         }
         goto do_ljmp;
     case 0xeb: /* jmp Jb */
-        tval = (int8_t)insn_get(env, s, OT_BYTE);
+        tval = (int8_t)insn_get(env, s, MO_8);
         tval += s->pc - s->cs_base;
         if (s->dflag == 0)
             tval &= 0xffff;
         gen_jmp(s, tval);
         break;
     case 0x70 ... 0x7f: /* jcc Jb */
-        tval = (int8_t)insn_get(env, s, OT_BYTE);
+        tval = (int8_t)insn_get(env, s, MO_8);
         goto do_jcc;
     case 0x180 ... 0x18f: /* jcc Jv */
         if (dflag) {
-            tval = (int32_t)insn_get(env, s, OT_LONG);
+            tval = (int32_t)insn_get(env, s, MO_32);
         } else {
-            tval = (int16_t)insn_get(env, s, OT_WORD);
+            tval = (int16_t)insn_get(env, s, MO_16);
         }
     do_jcc:
         next_eip = s->pc - s->cs_base;
@@ -6867,13 +6860,13 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x190 ... 0x19f: /* setcc Gv */
         modrm = cpu_ldub_code(env, s->pc++);
         gen_setcc1(s, b, cpu_T[0]);
-        gen_ldst_modrm(env, s, modrm, OT_BYTE, OR_TMP0, 1);
+        gen_ldst_modrm(env, s, modrm, MO_8, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
         if (!(s->cpuid_features & CPUID_CMOV)) {
             goto illegal_op;
         }
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         gen_cmovcc1(env, s, ot, b, modrm, reg);
@@ -6952,7 +6945,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x9e: /* sahf */
         if (CODE64(s) && !(s->cpuid_ext3_features & CPUID_EXT3_LAHF_LM))
             goto illegal_op;
-        gen_op_mov_TN_reg(OT_BYTE, 0, R_AH);
+        gen_op_mov_TN_reg(MO_8, 0, R_AH);
         gen_compute_eflags(s);
         tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, CC_O);
         tcg_gen_andi_tl(cpu_T[0], cpu_T[0], CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -6964,7 +6957,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_compute_eflags(s);
         /* Note: gen_compute_eflags() only gives the condition codes */
         tcg_gen_ori_tl(cpu_T[0], cpu_cc_src, 0x02);
-        gen_op_mov_reg_T0(OT_BYTE, R_AH);
+        gen_op_mov_reg_T0(MO_8, R_AH);
         break;
     case 0xf5: /* cmc */
         gen_compute_eflags(s);
@@ -6990,7 +6983,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         /************************/
         /* bit operations */
     case 0x1ba: /* bt/bts/btr/btc Gv, im */
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         op = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
@@ -7021,12 +7014,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1bb: /* btc */
         op = 3;
     do_btx:
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         mod = (modrm >> 6) & 3;
         rm = (modrm & 7) | REX_B(s);
-        gen_op_mov_TN_reg(OT_LONG, 1, reg);
+        gen_op_mov_TN_reg(MO_32, 1, reg);
         if (mod != 3) {
             gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
             /* specific case: we need to add a displacement */
@@ -7078,7 +7071,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         break;
     case 0x1bc: /* bsf / tzcnt */
     case 0x1bd: /* bsr / lzcnt */
-        ot = dflag + OT_WORD;
+        ot = dflag + MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
         gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
@@ -7277,7 +7270,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x62: /* bound */
         if (CODE64(s))
             goto illegal_op;
-        ot = dflag ? OT_LONG : OT_WORD;
+        ot = dflag ? MO_32 : MO_16;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = (modrm >> 3) & 7;
         mod = (modrm >> 6) & 3;
@@ -7287,7 +7280,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
         gen_jmp_im(pc_start - s->cs_base);
         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
-        if (ot == OT_WORD) {
+        if (ot == MO_16) {
             gen_helper_boundw(cpu_env, cpu_A0, cpu_tmp2_i32);
         } else {
             gen_helper_boundl(cpu_env, cpu_A0, cpu_tmp2_i32);
@@ -7297,16 +7290,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         reg = (b & 7) | REX_B(s);
 #ifdef TARGET_X86_64
         if (dflag == 2) {
-            gen_op_mov_TN_reg(OT_QUAD, 0, reg);
+            gen_op_mov_TN_reg(MO_64, 0, reg);
             tcg_gen_bswap64_i64(cpu_T[0], cpu_T[0]);
-            gen_op_mov_reg_T0(OT_QUAD, reg);
+            gen_op_mov_reg_T0(MO_64, reg);
         } else
 #endif
         {
-            gen_op_mov_TN_reg(OT_LONG, 0, reg);
+            gen_op_mov_TN_reg(MO_32, 0, reg);
             tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
             tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0]);
-            gen_op_mov_reg_T0(OT_LONG, reg);
+            gen_op_mov_reg_T0(MO_32, reg);
         }
         break;
     case 0xd6: /* salc */
@@ -7314,7 +7307,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         gen_compute_eflags_c(s, cpu_T[0]);
         tcg_gen_neg_tl(cpu_T[0], cpu_T[0]);
-        gen_op_mov_reg_T0(OT_BYTE, R_EAX);
+        gen_op_mov_reg_T0(MO_8, R_EAX);
         break;
     case 0xe0: /* loopnz */
     case 0xe1: /* loopz */
@@ -7323,7 +7316,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         {
             int l1, l2, l3;
 
-            tval = (int8_t)insn_get(env, s, OT_BYTE);
+            tval = (int8_t)insn_get(env, s, MO_8);
             next_eip = s->pc - s->cs_base;
             tval += next_eip;
             if (s->dflag == 0)
@@ -7464,7 +7457,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 goto illegal_op;
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_LDTR_READ);
             tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,ldt.selector));
-            ot = OT_WORD;
+            ot = MO_16;
             if (mod == 3)
                 ot += s->dflag;
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
@@ -7476,7 +7469,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_LDTR_WRITE);
-                gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
                 gen_jmp_im(pc_start - s->cs_base);
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 gen_helper_lldt(cpu_env, cpu_tmp2_i32);
@@ -7487,7 +7480,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 goto illegal_op;
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_TR_READ);
             tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,tr.selector));
-            ot = OT_WORD;
+            ot = MO_16;
             if (mod == 3)
                 ot += s->dflag;
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
@@ -7499,7 +7492,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_TR_WRITE);
-                gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
                 gen_jmp_im(pc_start - s->cs_base);
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 gen_helper_ltr(cpu_env, cpu_tmp2_i32);
@@ -7509,7 +7502,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 5: /* verw */
             if (!s->pe || s->vm86)
                 goto illegal_op;
-            gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
             gen_update_cc_op(s);
             if (op == 4) {
                 gen_helper_verr(cpu_env, cpu_T[0]);
@@ -7534,12 +7527,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_READ);
             gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
             tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, gdt.limit));
-            gen_op_st_T0_A0(s, OT_WORD);
+            gen_op_st_T0_A0(s, MO_16);
             gen_add_A0_im(s, 2);
             tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, gdt.base));
             if (!s->dflag)
                 gen_op_andl_T0_im(0xffffff);
-            gen_op_st_T0_A0(s, CODE64(s) + OT_LONG);
+            gen_op_st_T0_A0(s, CODE64(s) + MO_32);
             break;
         case 1:
             if (mod == 3) {
@@ -7597,12 +7590,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_READ);
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, idt.limit));
-                gen_op_st_T0_A0(s, OT_WORD);
+                gen_op_st_T0_A0(s, MO_16);
                 gen_add_A0_im(s, 2);
                 tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, idt.base));
                 if (!s->dflag)
                     gen_op_andl_T0_im(0xffffff);
-                gen_op_st_T0_A0(s, CODE64(s) + OT_LONG);
+                gen_op_st_T0_A0(s, CODE64(s) + MO_32);
             }
             break;
         case 2: /* lgdt */
@@ -7697,9 +7690,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_svm_check_intercept(s, pc_start,
                                         op==2 ? SVM_EXIT_GDTR_WRITE : SVM_EXIT_IDTR_WRITE);
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_T1_A0(s, OT_WORD);
+                gen_op_ld_T1_A0(s, MO_16);
                 gen_add_A0_im(s, 2);
-                gen_op_ld_T0_A0(s, CODE64(s) + OT_LONG);
+                gen_op_ld_T0_A0(s, CODE64(s) + MO_32);
                 if (!s->dflag)
                     gen_op_andl_T0_im(0xffffff);
                 if (op == 2) {
@@ -7718,14 +7711,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #else
             tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,cr[0]));
 #endif
-            gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 1);
+            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 1);
             break;
         case 6: /* lmsw */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
-                gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
                 gen_helper_lmsw(cpu_env, cpu_T[0]);
                 gen_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
@@ -7802,7 +7795,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (CODE64(s)) {
             int d_ot;
             /* d_ot is the size of destination */
-            d_ot = dflag + OT_WORD;
+            d_ot = dflag + MO_16;
 
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
@@ -7810,17 +7803,18 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             rm = (modrm & 7) | REX_B(s);
 
             if (mod == 3) {
-                gen_op_mov_TN_reg(OT_LONG, 0, rm);
+                gen_op_mov_TN_reg(MO_32, 0, rm);
                 /* sign extend */
-                if (d_ot == OT_QUAD)
+                if (d_ot == MO_64) {
                     tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+                }
                 gen_op_mov_reg_T0(d_ot, reg);
             } else {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                if (d_ot == OT_QUAD) {
-                    gen_op_lds_T0_A0(s, OT_LONG);
+                if (d_ot == MO_64) {
+                    gen_op_lds_T0_A0(s, MO_32);
                 } else {
-                    gen_op_ld_T0_A0(s, OT_LONG);
+                    gen_op_ld_T0_A0(s, MO_32);
                 }
                 gen_op_mov_reg_T0(d_ot, reg);
             }
@@ -7835,7 +7829,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             t0 = tcg_temp_local_new();
             t1 = tcg_temp_local_new();
             t2 = tcg_temp_local_new();
-            ot = OT_WORD;
+            ot = MO_16;
             modrm = cpu_ldub_code(env, s->pc++);
             reg = (modrm >> 3) & 7;
             mod = (modrm >> 6) & 3;
@@ -7880,10 +7874,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             TCGv t0;
             if (!s->pe || s->vm86)
                 goto illegal_op;
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = dflag ? MO_32 : MO_16;
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
-            gen_ldst_modrm(env, s, modrm, OT_WORD, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
             t0 = tcg_temp_local_new();
             gen_update_cc_op(s);
             if (b == 0x102) {
@@ -7937,9 +7931,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             rm = (modrm & 7) | REX_B(s);
             reg = ((modrm >> 3) & 7) | rex_r;
             if (CODE64(s))
-                ot = OT_QUAD;
+                ot = MO_64;
             else
-                ot = OT_LONG;
+                ot = MO_32;
             if ((prefixes & PREFIX_LOCK) && (reg == 0) &&
                 (s->cpuid_ext3_features & CPUID_EXT3_CR8LEG)) {
                 reg = 8;
@@ -7982,9 +7976,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             rm = (modrm & 7) | REX_B(s);
             reg = ((modrm >> 3) & 7) | rex_r;
             if (CODE64(s))
-                ot = OT_QUAD;
+                ot = MO_64;
             else
-                ot = OT_LONG;
+                ot = MO_32;
             /* XXX: do it dynamically with CR4.DE bit */
             if (reg == 4 || reg == 5 || reg >= 8)
                 goto illegal_op;
@@ -8016,7 +8010,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1c3: /* MOVNTI reg, mem */
         if (!(s->cpuid_features & CPUID_SSE2))
             goto illegal_op;
-        ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+        ot = s->dflag == 2 ? MO_64 : MO_32;
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod == 3)
@@ -8068,12 +8062,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 goto illegal_op;
             gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
             if (op == 2) {
-                gen_op_ld_T0_A0(s, OT_LONG);
+                gen_op_ld_T0_A0(s, MO_32);
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 gen_helper_ldmxcsr(cpu_env, cpu_tmp2_i32);
             } else {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, mxcsr));
-                gen_op_st_T0_A0(s, OT_LONG);
+                gen_op_st_T0_A0(s, MO_32);
             }
             break;
         case 5: /* lfence */
@@ -8126,11 +8120,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         reg = ((modrm >> 3) & 7) | rex_r;
 
         if (s->prefix & PREFIX_DATA)
-            ot = OT_WORD;
+            ot = MO_16;
         else if (s->dflag != 2)
-            ot = OT_LONG;
+            ot = MO_32;
         else
-            ot = OT_QUAD;
+            ot = MO_64;
 
         gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
         gen_helper_popcnt(cpu_T[0], cpu_env, cpu_T[0], tcg_const_i32(ot));
