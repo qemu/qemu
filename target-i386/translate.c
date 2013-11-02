@@ -586,11 +586,6 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     tcg_gen_qemu_ld_tl(t0, a0, s->mem_index, idx | MO_LE);
 }
 
-static inline void gen_op_ldu_T0_A0(DisasContext *s, int idx)
-{
-    gen_op_ld_v(s, idx, cpu_T[0], cpu_A0);
-}
-
 static inline void gen_op_ld_T1_A0(DisasContext *s, int idx)
 {
     gen_op_ld_v(s, idx, cpu_T[1], cpu_A0);
@@ -5173,7 +5168,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 3: /* lcall Ev */
             gen_op_ld_T1_A0(s, ot);
             gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
-            gen_op_ldu_T0_A0(s, MO_16);
+            gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_lcall:
             if (s->pe && !s->vm86) {
                 gen_update_cc_op(s);
@@ -5199,7 +5194,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 5: /* ljmp Ev */
             gen_op_ld_T1_A0(s, ot);
             gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
-            gen_op_ldu_T0_A0(s, MO_16);
+            gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_ljmp:
             if (s->pe && !s->vm86) {
                 gen_update_cc_op(s);
@@ -5712,7 +5707,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 if (b & 8) {
                     gen_op_lds_T0_A0(s, ot);
                 } else {
-                    gen_op_ldu_T0_A0(s, ot);
+                    gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
                 }
                 gen_op_mov_reg_T0(d_ot, reg);
             }
@@ -5791,7 +5786,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
         }
         gen_add_A0_ds_seg(s);
-        gen_op_ldu_T0_A0(s, MO_8);
+        gen_op_ld_v(s, MO_8, cpu_T[0], cpu_A0);
         gen_op_mov_reg_T0(MO_8, R_EAX);
         break;
     case 0xb0 ... 0xb7: /* mov R, Ib */
@@ -5882,7 +5877,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_op_ld_T1_A0(s, ot);
         gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
         /* load the segment first to handle exceptions properly */
-        gen_op_ldu_T0_A0(s, MO_16);
+        gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
         /* then put the data */
         gen_op_mov_reg_T1(ot, reg);
