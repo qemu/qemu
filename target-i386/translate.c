@@ -5618,11 +5618,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0x1be: /* movsbS Gv, Eb */
     case 0x1bf: /* movswS Gv, Eb */
         {
-            int d_ot;
+            TCGMemOp d_ot;
+            TCGMemOp s_ot;
+
             /* d_ot is the size of destination */
             d_ot = dflag + MO_16;
             /* ot is the size of source */
             ot = (b & 1) + MO_8;
+            /* s_ot is the sign+size of source */
+            s_ot = b & 8 ? MO_SIGN | ot : ot;
+
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
@@ -5630,29 +5635,25 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
             if (mod == 3) {
                 gen_op_mov_TN_reg(ot, 0, rm);
-                switch(ot | (b & 8)) {
-                case MO_8:
+                switch (s_ot) {
+                case MO_UB:
                     tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
                     break;
-                case MO_8 | 8:
+                case MO_SB:
                     tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
                     break;
-                case MO_16:
+                case MO_UW:
                     tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
                     break;
                 default:
-                case MO_16 | 8:
+                case MO_SW:
                     tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
                     break;
                 }
                 gen_op_mov_reg_T0(d_ot, reg);
             } else {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                if (b & 8) {
-                    gen_op_ld_v(s, ot | MO_SIGN, cpu_T[0], cpu_A0);
-                } else {
-                    gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
-                }
+                gen_op_ld_v(s, s_ot, cpu_T[0], cpu_A0);
                 gen_op_mov_reg_T0(d_ot, reg);
             }
         }
