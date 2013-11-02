@@ -612,25 +612,7 @@ static inline void gen_op_ld_T1_A0(DisasContext *s, int idx)
 
 static inline void gen_op_st_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
 {
-    int mem_index = s->mem_index;
-    switch(idx & 3) {
-    case OT_BYTE:
-        tcg_gen_qemu_st8(t0, a0, mem_index);
-        break;
-    case OT_WORD:
-        tcg_gen_qemu_st16(t0, a0, mem_index);
-        break;
-    case OT_LONG:
-        tcg_gen_qemu_st32(t0, a0, mem_index);
-        break;
-    default:
-    case OT_QUAD:
-        /* Should never happen on 32-bit targets.  */
-#ifdef TARGET_X86_64
-        tcg_gen_qemu_st64(t0, a0, mem_index);
-#endif
-        break;
-    }
+    tcg_gen_qemu_st_tl(t0, a0, s->mem_index, idx | MO_LE);
 }
 
 static inline void gen_op_st_T0_A0(DisasContext *s, int idx)
@@ -2825,7 +2807,7 @@ static inline void gen_ldq_env_A0(DisasContext *s, int offset)
 static inline void gen_stq_env_A0(DisasContext *s, int offset)
 {
     tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset);
-    tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0, s->mem_index);
+    tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0, s->mem_index, MO_LEQ);
 }
 
 static inline void gen_ldo_env_A0(DisasContext *s, int offset)
@@ -2842,10 +2824,10 @@ static inline void gen_sto_env_A0(DisasContext *s, int offset)
 {
     int mem_index = s->mem_index;
     tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
-    tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0, mem_index);
+    tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0, mem_index, MO_LEQ);
     tcg_gen_addi_tl(cpu_tmp0, cpu_A0, 8);
     tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
-    tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_tmp0, mem_index);
+    tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_tmp0, mem_index, MO_LEQ);
 }
 
 static inline void gen_op_movo(int d_offset, int s_offset)
@@ -4339,18 +4321,22 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 case 0x14: /* pextrb */
                     tcg_gen_ld8u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                                             xmm_regs[reg].XMM_B(val & 15)));
-                    if (mod == 3)
+                    if (mod == 3) {
                         gen_op_mov_reg_T0(ot, rm);
-                    else
-                        tcg_gen_qemu_st8(cpu_T[0], cpu_A0, s->mem_index);
+                    } else {
+                        tcg_gen_qemu_st_tl(cpu_T[0], cpu_A0,
+                                           s->mem_index, MO_UB);
+                    }
                     break;
                 case 0x15: /* pextrw */
                     tcg_gen_ld16u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                                             xmm_regs[reg].XMM_W(val & 7)));
-                    if (mod == 3)
+                    if (mod == 3) {
                         gen_op_mov_reg_T0(ot, rm);
-                    else
-                        tcg_gen_qemu_st16(cpu_T[0], cpu_A0, s->mem_index);
+                    } else {
+                        tcg_gen_qemu_st_tl(cpu_T[0], cpu_A0,
+                                           s->mem_index, MO_LEUW);
+                    }
                     break;
                 case 0x16:
                     if (ot == OT_LONG) { /* pextrd */
@@ -4358,20 +4344,23 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                         offsetof(CPUX86State,
                                                 xmm_regs[reg].XMM_L(val & 3)));
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                        if (mod == 3)
+                        if (mod == 3) {
                             gen_op_mov_reg_v(ot, rm, cpu_T[0]);
-                        else
-                            tcg_gen_qemu_st32(cpu_T[0], cpu_A0, s->mem_index);
+                        } else {
+                            tcg_gen_qemu_st_tl(cpu_T[0], cpu_A0,
+                                               s->mem_index, MO_LEUL);
+                        }
                     } else { /* pextrq */
 #ifdef TARGET_X86_64
                         tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env,
                                         offsetof(CPUX86State,
                                                 xmm_regs[reg].XMM_Q(val & 1)));
-                        if (mod == 3)
+                        if (mod == 3) {
                             gen_op_mov_reg_v(ot, rm, cpu_tmp1_i64);
-                        else
-                            tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0,
-                                              s->mem_index);
+                        } else {
+                            tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0,
+                                                s->mem_index, MO_LEQ);
+                        }
 #else
                         goto illegal_op;
 #endif
@@ -4380,10 +4369,12 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 case 0x17: /* extractps */
                     tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                                             xmm_regs[reg].XMM_L(val & 3)));
-                    if (mod == 3)
+                    if (mod == 3) {
                         gen_op_mov_reg_T0(ot, rm);
-                    else
-                        tcg_gen_qemu_st32(cpu_T[0], cpu_A0, s->mem_index);
+                    } else {
+                        tcg_gen_qemu_st_tl(cpu_T[0], cpu_A0,
+                                           s->mem_index, MO_LEUL);
+                    }
                     break;
                 case 0x20: /* pinsrb */
                     if (mod == 3) {
@@ -6098,7 +6089,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 2:
                         gen_helper_fisttll_ST0(cpu_tmp1_i64, cpu_env);
-                        tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0, s->mem_index);
+                        tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0,
+                                            s->mem_index, MO_LEQ);
                         break;
                     case 3:
                     default:
@@ -6123,7 +6115,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         break;
                     case 2:
                         gen_helper_fstl_ST0(cpu_tmp1_i64, cpu_env);
-                        tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0, s->mem_index);
+                        tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0,
+                                            s->mem_index, MO_LEQ);
                         break;
                     case 3:
                     default:
@@ -6200,7 +6193,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             case 0x3f: /* fistpll */
                 gen_helper_fistll_ST0(cpu_tmp1_i64, cpu_env);
-                tcg_gen_qemu_st64(cpu_tmp1_i64, cpu_A0, s->mem_index);
+                tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0, s->mem_index, MO_LEQ);
                 gen_helper_fpop(cpu_env);
                 break;
             default:
