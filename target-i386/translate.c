@@ -2488,7 +2488,7 @@ static void gen_push_T1(DisasContext *s)
             gen_op_st_v(s, MO_64, cpu_T[1], cpu_A0);
         } else {
             gen_op_addq_A0_im(-2);
-            gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
+            gen_op_st_v(s, MO_16, cpu_T[1], cpu_A0);
         }
         gen_op_mov_reg_A0(2, R_ESP);
     } else
