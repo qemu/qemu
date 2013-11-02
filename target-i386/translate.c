@@ -586,11 +586,6 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     tcg_gen_qemu_ld_tl(t0, a0, s->mem_index, idx | MO_LE);
 }
 
-static inline void gen_op_ld_T1_A0(DisasContext *s, int idx)
-{
-    gen_op_ld_v(s, idx, cpu_T[1], cpu_A0);
-}
-
 static inline void gen_op_st_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
 {
     tcg_gen_qemu_st_tl(t0, a0, s->mem_index, idx | MO_LE);
@@ -1244,7 +1239,7 @@ static inline void gen_lods(DisasContext *s, int ot)
 static inline void gen_scas(DisasContext *s, int ot)
 {
     gen_string_movl_A0_EDI(s);
-    gen_op_ld_T1_A0(s, ot);
+    gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
     gen_op(s, OP_CMPL, ot, R_EAX);
     gen_op_movl_T0_Dshift(ot);
     gen_op_add_reg_T0(s->aflag, R_EDI);
@@ -1253,7 +1248,7 @@ static inline void gen_scas(DisasContext *s, int ot)
 static inline void gen_cmps(DisasContext *s, int ot)
 {
     gen_string_movl_A0_EDI(s);
-    gen_op_ld_T1_A0(s, ot);
+    gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
     gen_string_movl_A0_ESI(s);
     gen_op(s, OP_CMPL, ot, OR_TMP0);
     gen_op_movl_T0_Dshift(ot);
@@ -4835,7 +4830,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 rm = (modrm & 7) | REX_B(s);
                 if (mod != 3) {
                     gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                    gen_op_ld_T1_A0(s, ot);
+                    gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
                 } else if (op == OP_XORL && rm == reg) {
                     goto xor_zero;
                 } else {
@@ -5166,7 +5161,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
         case 3: /* lcall Ev */
-            gen_op_ld_T1_A0(s, ot);
+            gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
             gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
             gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_lcall:
@@ -5192,7 +5187,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
         case 5: /* ljmp Ev */
-            gen_op_ld_T1_A0(s, ot);
+            gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
             gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
             gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_ljmp:
@@ -5357,7 +5352,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         } else {
             gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
             gen_op_mov_TN_reg(ot, 0, reg);
-            gen_op_ld_T1_A0(s, ot);
+            gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
             gen_op_addl_T0_T1();
             gen_op_st_T0_A0(s, ot);
             gen_op_mov_reg_T1(ot, reg);
@@ -5843,7 +5838,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             /* for xchg, lock is implicit */
             if (!(prefixes & PREFIX_LOCK))
                 gen_helper_lock();
-            gen_op_ld_T1_A0(s, ot);
+            gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
             gen_op_st_T0_A0(s, ot);
             if (!(prefixes & PREFIX_LOCK))
                 gen_helper_unlock();
@@ -5874,7 +5869,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (mod == 3)
             goto illegal_op;
         gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-        gen_op_ld_T1_A0(s, ot);
+        gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
         gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
         /* load the segment first to handle exceptions properly */
         gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
@@ -7680,7 +7675,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_svm_check_intercept(s, pc_start,
                                         op==2 ? SVM_EXIT_GDTR_WRITE : SVM_EXIT_IDTR_WRITE);
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_T1_A0(s, MO_16);
+                gen_op_ld_v(s, MO_16, cpu_T[1], cpu_A0);
                 gen_add_A0_im(s, 2);
                 gen_op_ld_v(s, CODE64(s) + MO_32, cpu_T[0], cpu_A0);
                 if (!s->dflag)
