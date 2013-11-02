@@ -1259,8 +1259,7 @@ static inline void gen_ins(DisasContext *s, int ot)
        case of page fault. */
     gen_op_movl_T0_0();
     gen_op_st_v(s, ot, cpu_T[0], cpu_A0);
-    gen_op_mov_TN_reg(MO_16, 1, R_EDX);
-    tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[1]);
+    tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[R_EDX]);
     tcg_gen_andi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0xffff);
     gen_helper_in_func(ot, cpu_T[0], cpu_tmp2_i32);
     gen_op_st_v(s, ot, cpu_T[0], cpu_A0);
@@ -1277,8 +1276,7 @@ static inline void gen_outs(DisasContext *s, int ot)
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
 
-    gen_op_mov_TN_reg(MO_16, 1, R_EDX);
-    tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[1]);
+    tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[R_EDX]);
     tcg_gen_andi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0xffff);
     tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_T[0]);
     gen_helper_out_func(ot, cpu_tmp2_i32, cpu_tmp3_i32);
@@ -3839,8 +3837,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     ot = MO_64;
                 }
 
-                gen_op_mov_TN_reg(MO_32, 0, reg);
-                tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+                tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_regs[reg]);
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
                 gen_helper_crc32(cpu_T[0], cpu_tmp2_i32,
                                  cpu_T[0], tcg_const_i32(8 << ot));
