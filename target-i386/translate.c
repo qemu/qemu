@@ -3869,44 +3869,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     ot = MO_64;
                 }
 
-                /* Load the data incoming to the bswap.  Note that the TCG
-                   implementation of bswap requires the input be zero
-                   extended.  In the case of the loads, we simply know that
-                   gen_op_ld_v via gen_ldst_modrm does that already.  */
+                gen_lea_modrm(env, s, modrm);
                 if ((b & 1) == 0) {
-                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-                } else {
-                    switch (ot) {
-                    case MO_16:
-                        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[reg]);
-                        break;
-                    default:
-                        tcg_gen_ext32u_tl(cpu_T[0], cpu_regs[reg]);
-                        break;
-                    case MO_64:
-                        tcg_gen_mov_tl(cpu_T[0], cpu_regs[reg]);
-                        break;
-                    }
-                }
-
-                switch (ot) {
-                case MO_16:
-                    tcg_gen_bswap16_tl(cpu_T[0], cpu_T[0]);
-                    break;
-                default:
-                    tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0]);
-                    break;
-#ifdef TARGET_X86_64
-                case MO_64:
-                    tcg_gen_bswap64_tl(cpu_T[0], cpu_T[0]);
-                    break;
-#endif
-                }
-
-                if ((b & 1) == 0) {
+                    tcg_gen_qemu_ld_tl(cpu_T[0], cpu_A0,
+                                       s->mem_index, ot | MO_BE);
                     gen_op_mov_reg_T0(ot, reg);
                 } else {
-                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+                    tcg_gen_qemu_st_tl(cpu_regs[reg], cpu_A0,
+                                       s->mem_index, ot | MO_BE);
                 }
                 break;
 
