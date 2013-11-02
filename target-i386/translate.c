@@ -7747,11 +7747,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_op_mov_reg_T0(d_ot, reg);
             } else {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                if (d_ot == MO_64) {
-                    gen_op_ld_v(s, MO_32 | MO_SIGN, cpu_T[0], cpu_A0);
-                } else {
-                    gen_op_ld_v(s, MO_32, cpu_T[0], cpu_A0);
-                }
+                gen_op_ld_v(s, MO_32 | MO_SIGN, cpu_T[0], cpu_A0);
                 gen_op_mov_reg_T0(d_ot, reg);
             }
         } else
