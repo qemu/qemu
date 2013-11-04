@@ -28,7 +28,9 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
+#include "elf.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
@@ -38,6 +40,10 @@
 
 typedef struct RavenPCIState {
     PCIDevice dev;
+
+    uint32_t elf_machine;
+    char *bios_name;
+    MemoryRegion bios;
 } RavenPCIState;
 
 #define RAVEN_PCI_HOST_BRIDGE(obj) \
@@ -51,6 +57,8 @@ typedef struct PRePPCIState {
     PCIBus pci_bus;
     RavenPCIState pci_dev;
 } PREPPCIState;
+
+#define BIOS_SIZE (1024 * 1024)
 
 static inline uint32_t PPC_PCIIO_config(hwaddr addr)
 {
@@ -169,9 +177,44 @@ static void raven_pcihost_initfn(Object *obj)
 
 static int raven_init(PCIDevice *d)
 {
+    RavenPCIState *s = RAVEN_PCI_DEVICE(d);
+    char *filename;
+    int bios_size = -1;
+
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x34] = 0x00; // capabilities_pointer
+
+    memory_region_init_ram(&s->bios, OBJECT(s), "bios", BIOS_SIZE);
+    memory_region_set_readonly(&s->bios, true);
+    memory_region_add_subregion(get_system_memory(), (uint32_t)(-BIOS_SIZE),
+                                &s->bios);
+    vmstate_register_ram_global(&s->bios);
+    if (s->bios_name) {
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, s->bios_name);
+        if (filename) {
+            if (s->elf_machine != EM_NONE) {
+                bios_size = load_elf(filename, NULL, NULL, NULL,
+                                     NULL, NULL, 1, s->elf_machine, 0);
+            }
+            if (bios_size < 0) {
+                bios_size = get_image_size(filename);
+                if (bios_size > 0 && bios_size <= BIOS_SIZE) {
+                    hwaddr bios_addr;
+                    bios_size = (bios_size + 0xfff) & ~0xfff;
+                    bios_addr = (uint32_t)(-BIOS_SIZE);
+                    bios_size = load_image_targphys(filename, bios_addr,
+                                                    bios_size);
+                }
+            }
+        }
+        if (bios_size < 0 || bios_size > BIOS_SIZE) {
+            hw_error("qemu: could not load bios image '%s'\n", s->bios_name);
+        }
+        if (filename) {
+            g_free(filename);
+        }
+    }
 
     return 0;
 }
@@ -212,12 +255,20 @@ static const TypeInfo raven_info = {
     .class_init = raven_class_init,
 };
 
+static Property raven_pcihost_properties[] = {
+    DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
+                       EM_NONE),
+    DEFINE_PROP_STRING("bios-name", PREPPCIState, pci_dev.bios_name),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void raven_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = raven_pcihost_realizefn;
+    dc->props = raven_pcihost_properties;
     dc->fw_name = "pci";
 }
 
