@@ -108,6 +108,18 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
+static CPUUnassignedAccess real_do_unassigned_access;
+static void mips_jazz_do_unassigned_access(CPUState *cpu, hwaddr addr,
+                                           bool is_write, bool is_exec,
+                                           int opaque, unsigned size)
+{
+    if (!is_exec) {
+        /* ignore invalid access (ie do not raise exception) */
+        return;
+    }
+    (*real_do_unassigned_access)(cpu, addr, is_write, is_exec, opaque, size);
+}
+
 static void mips_jazz_init(MemoryRegion *address_space,
                            MemoryRegion *address_space_io,
                            ram_addr_t ram_size,
@@ -117,6 +129,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     char *filename;
     int bios_size, n;
     MIPSCPU *cpu;
+    CPUClass *cc;
     CPUMIPSState *env;
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
@@ -153,6 +166,17 @@ static void mips_jazz_init(MemoryRegion *address_space,
     }
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
+
+    /* Chipset returns 0 in invalid reads and do not raise data exceptions.
+     * However, we can't simply add a global memory region to catch
+     * everything, as memory core directly call unassigned_mem_read/write
+     * on some invalid accesses, which call do_unassigned_access on the
+     * CPU, which raise an exception.
+     * Handle that case by hijacking the do_unassigned_access method on
+     * the CPU, and do not raise exceptions for data access. */
+    cc = CPU_GET_CLASS(cpu);
+    real_do_unassigned_access = cc->do_unassigned_access;
+    cc->do_unassigned_access = mips_jazz_do_unassigned_access;
 
     /* allocate RAM */
     memory_region_init_ram(ram, NULL, "mips_jazz.ram", ram_size);
