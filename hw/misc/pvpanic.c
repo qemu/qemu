@@ -112,11 +112,6 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(d, &s->io, s->ioport);
 }
 
-void pvpanic_init(ISABus *bus)
-{
-    isa_create_simple(bus, TYPE_ISA_PVPANIC_DEVICE);
-}
-
 #define PVPANIC_IOPORT_PROP "ioport"
 
 uint16_t pvpanic_port(void)
