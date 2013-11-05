@@ -3538,16 +3538,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, 
                              offsetof(CPUX86State,xmm_regs[rm]));
             gen_helper_movmskps(cpu_tmp2_i32, cpu_env, cpu_ptr0);
-            tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-            gen_op_mov_reg_T0(MO_32, reg);
+            tcg_gen_extu_i32_tl(cpu_regs[reg], cpu_tmp2_i32);
             break;
         case 0x150: /* movmskpd */
             rm = (modrm & 7) | REX_B(s);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, 
                              offsetof(CPUX86State,xmm_regs[rm]));
             gen_helper_movmskpd(cpu_tmp2_i32, cpu_env, cpu_ptr0);
-            tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-            gen_op_mov_reg_T0(MO_32, reg);
+            tcg_gen_extu_i32_tl(cpu_regs[reg], cpu_tmp2_i32);
             break;
         case 0x02a: /* cvtpi2ps */
         case 0x12a: /* cvtpi2pd */
@@ -3731,9 +3729,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 tcg_gen_addi_ptr(cpu_ptr0, cpu_env, offsetof(CPUX86State,fpregs[rm].mmx));
                 gen_helper_pmovmskb_mmx(cpu_tmp2_i32, cpu_env, cpu_ptr0);
             }
-            tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             reg = ((modrm >> 3) & 7) | rex_r;
-            gen_op_mov_reg_T0(MO_32, reg);
+            tcg_gen_extu_i32_tl(cpu_regs[reg], cpu_tmp2_i32);
             break;
 
         case 0x138:
@@ -4229,8 +4226,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                         offsetof(CPUX86State,
                                                 xmm_regs[reg].XMM_L(val & 3)));
                         if (mod == 3) {
-                            tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
-                            gen_op_mov_reg_v(ot, rm, cpu_T[0]);
+                            tcg_gen_extu_i32_tl(cpu_regs[rm], cpu_tmp2_i32);
                         } else {
                             tcg_gen_qemu_st_i32(cpu_tmp2_i32, cpu_A0,
                                                 s->mem_index, MO_LEUL);
@@ -4241,7 +4237,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                         offsetof(CPUX86State,
                                                 xmm_regs[reg].XMM_Q(val & 1)));
                         if (mod == 3) {
-                            gen_op_mov_reg_v(ot, rm, cpu_tmp1_i64);
+                            tcg_gen_mov_i64(cpu_regs[rm], cpu_tmp1_i64);
                         } else {
                             tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0,
                                                 s->mem_index, MO_LEQ);
