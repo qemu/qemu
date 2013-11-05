@@ -334,25 +334,9 @@ static inline void gen_op_mov_reg_T1(TCGMemOp ot, int reg)
     gen_op_mov_reg_v(ot, reg, cpu_T[1]);
 }
 
-static void gen_op_mov_reg_A0(TCGMemOp size, int reg)
+static inline void gen_op_mov_reg_A0(TCGMemOp size, int reg)
 {
-    switch (size) {
-    case MO_8:
-        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_A0, 0, 16);
-        break;
-    case MO_16:
-        /* For x86_64, this sets the higher half of register to zero.
-           For i386, this is equivalent to a mov. */
-        tcg_gen_ext32u_tl(cpu_regs[reg], cpu_A0);
-        break;
-#ifdef TARGET_X86_64
-    case MO_32:
-        tcg_gen_mov_tl(cpu_regs[reg], cpu_A0);
-        break;
-#endif
-    default:
-        tcg_abort();
-    }
+    gen_op_mov_reg_v(size, reg, cpu_A0);
 }
 
 static inline void gen_op_mov_v_reg(TCGMemOp ot, TCGv t0, int reg)
@@ -2381,7 +2365,7 @@ static void gen_push_T0(DisasContext *s)
             gen_op_addq_A0_im(-2);
             gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
         }
-        gen_op_mov_reg_A0(2, R_ESP);
+        gen_op_mov_reg_A0(MO_64, R_ESP);
     } else
 #endif
     {
@@ -2402,9 +2386,9 @@ static void gen_push_T0(DisasContext *s)
         }
         gen_op_st_v(s, s->dflag + 1, cpu_T[0], cpu_A0);
         if (s->ss32 && !s->addseg)
-            gen_op_mov_reg_A0(1, R_ESP);
+            gen_op_mov_reg_A0(MO_32, R_ESP);
         else
-            gen_op_mov_reg_T1(s->ss32 + 1, R_ESP);
+            gen_op_mov_reg_T1(MO_16 + s->ss32, R_ESP);
     }
 }
 
@@ -2422,7 +2406,7 @@ static void gen_push_T1(DisasContext *s)
             gen_op_addq_A0_im(-2);
             gen_op_st_v(s, MO_16, cpu_T[1], cpu_A0);
         }
-        gen_op_mov_reg_A0(2, R_ESP);
+        gen_op_mov_reg_A0(MO_64, R_ESP);
     } else
 #endif
     {
@@ -2442,7 +2426,7 @@ static void gen_push_T1(DisasContext *s)
         gen_op_st_v(s, s->dflag + 1, cpu_T[1], cpu_A0);
 
         if (s->ss32 && !s->addseg)
-            gen_op_mov_reg_A0(1, R_ESP);
+            gen_op_mov_reg_A0(MO_32, R_ESP);
         else
             gen_stack_update(s, (-2) << s->dflag);
     }
@@ -5566,7 +5550,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         s->addseg = 0;
         gen_lea_modrm(env, s, modrm);
         s->addseg = val;
-        gen_op_mov_reg_A0(ot - MO_16, reg);
+        gen_op_mov_reg_A0(ot, reg);
         break;
 
     case 0xa0: /* mov EAX, Ov */
