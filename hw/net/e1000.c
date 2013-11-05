@@ -528,8 +528,7 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
         n = cse + 1;
     if (sloc < n-1) {
         sum = net_checksum_add(n-css, data+css);
-        cpu_to_be16wu((uint16_t *)(data + sloc),
-                      net_checksum_finish(sum));
+        stw_be_p(data + sloc, net_checksum_finish(sum));
     }
 }
 
@@ -590,13 +589,11 @@ xmit_seg(E1000State *s)
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
         if (tp->ip) {		// IPv4
-            cpu_to_be16wu((uint16_t *)(tp->data+css+2),
-                          tp->size - css);
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
+            stw_be_p(tp->data+css+2, tp->size - css);
+            stw_be_p(tp->data+css+4,
                           be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
         } else			// IPv6
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
-                          tp->size - css);
+            stw_be_p(tp->data+css+4, tp->size - css);
         css = tp->tucss;
         len = tp->size - css;
         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
@@ -607,14 +604,14 @@ xmit_seg(E1000State *s)
             if (tp->paylen - sofar > tp->mss)
                 tp->data[css + 13] &= ~9;		// PSH, FIN
         } else	// UDP
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4), len);
+            stw_be_p(tp->data+css+4, len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
             // add pseudo-header length before checksum calculation
             sp = (uint16_t *)(tp->data + tp->tucso);
             phsum = be16_to_cpup(sp) + len;
             phsum = (phsum >> 16) + (phsum & 0xffff);
-            cpu_to_be16wu(sp, phsum);
+            stw_be_p(sp, phsum);
         }
         tp->tso_frames++;
     }
@@ -684,9 +681,9 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     if (vlan_enabled(s) && is_vlan_txd(txd_lower) &&
         (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
         tp->vlan_needed = 1;
-        cpu_to_be16wu((uint16_t *)(tp->vlan_header),
+        stw_be_p(tp->vlan_header,
                       le16_to_cpup((uint16_t *)(s->mac_reg + VET)));
-        cpu_to_be16wu((uint16_t *)(tp->vlan_header + 2),
+        stw_be_p(tp->vlan_header + 2,
                       le16_to_cpu(dp->upper.fields.special));
     }
         

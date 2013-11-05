@@ -77,7 +77,7 @@ int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
         q += 4;
     }
     len = q - buf;
-    cpu_to_be16wu((uint16_t *)buf, len - 2);
+    stw_be_p(buf, len - 2);
     return len;
 }
 
@@ -150,6 +150,6 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
     }
 
     len = q - buf;
-    cpu_to_be16wu((uint16_t *)buf, len - 2);
+    stw_be_p(buf, len - 2);
     return len;
 }
