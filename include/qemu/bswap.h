@@ -412,11 +412,6 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* Legacy unaligned versions.  Note that we never had a complete set.  */
 
-static inline uint32_t be32_to_cpupu(const uint32_t *p)
-{
-    return ldl_be_p(p);
-}
-
 static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
 {
     stw_be_p(p, v);
