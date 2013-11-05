@@ -599,8 +599,7 @@ xmit_seg(E1000State *s)
         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
         if (tp->tcp) {
             sofar = frames * tp->mss;
-            cpu_to_be32wu((uint32_t *)(tp->data+css+4),	// seq
-                ldl_be_p(tp->data+css+4)+sofar);
+            stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
             if (tp->paylen - sofar > tp->mss)
                 tp->data[css + 13] &= ~9;		// PSH, FIN
         } else	// UDP
