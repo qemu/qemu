@@ -252,16 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_op_movl_T1_im(int32_t val)
-{
-    tcg_gen_movi_tl(cpu_T[1], val);
-}
-
-static inline void gen_op_movl_T1_imu(uint32_t val)
-{
-    tcg_gen_movi_tl(cpu_T[1], val);
-}
-
 static inline void gen_op_movl_A0_im(uint32_t val)
 {
     tcg_gen_movi_tl(cpu_A0, val);
@@ -1934,7 +1924,7 @@ static void gen_shifti(DisasContext *s1, int op, int ot, int d, int c)
         break;
     default:
         /* currently not optimized */
-        gen_op_movl_T1_im(c);
+        tcg_gen_movi_tl(cpu_T[1], c);
         gen_shift(s1, op, ot, d, OR_TMP1);
         break;
     }
@@ -4727,7 +4717,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             case 2: /* OP A, Iv */
                 val = insn_get(env, s, ot);
-                gen_op_movl_T1_im(val);
+                tcg_gen_movi_tl(cpu_T[1], val);
                 gen_op(s, op, ot, OR_EAX);
                 break;
             }
@@ -4775,7 +4765,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 val = (int8_t)insn_get(env, s, MO_8);
                 break;
             }
-            gen_op_movl_T1_im(val);
+            tcg_gen_movi_tl(cpu_T[1], val);
             gen_op(s, op, ot, opreg);
         }
         break;
@@ -4813,7 +4803,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         switch(op) {
         case 0: /* test */
             val = insn_get(env, s, ot);
-            gen_op_movl_T1_im(val);
+            tcg_gen_movi_tl(cpu_T[1], val);
             gen_op_testl_T0_T1_cc();
             set_cc_op(s, CC_OP_LOGICB + ot);
             break;
@@ -5124,7 +5114,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         val = insn_get(env, s, ot);
 
         gen_op_mov_TN_reg(ot, 0, OR_EAX);
-        gen_op_movl_T1_im(val);
+        tcg_gen_movi_tl(cpu_T[1], val);
         gen_op_testl_T0_T1_cc();
         set_cc_op(s, CC_OP_LOGICB + ot);
         break;
@@ -5180,10 +5170,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
         if (b == 0x69) {
             val = insn_get(env, s, ot);
-            gen_op_movl_T1_im(val);
+            tcg_gen_movi_tl(cpu_T[1], val);
         } else if (b == 0x6b) {
             val = (int8_t)insn_get(env, s, MO_8);
-            gen_op_movl_T1_im(val);
+            tcg_gen_movi_tl(cpu_T[1], val);
         } else {
             gen_op_mov_TN_reg(ot, 1, reg);
         }
@@ -6676,7 +6666,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             selector = insn_get(env, s, MO_16);
 
             tcg_gen_movi_tl(cpu_T[0], selector);
-            gen_op_movl_T1_imu(offset);
+            tcg_gen_movi_tl(cpu_T[1], offset);
         }
         goto do_lcall;
     case 0xe9: /* jmp im */
@@ -6702,7 +6692,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             selector = insn_get(env, s, MO_16);
 
             tcg_gen_movi_tl(cpu_T[0], selector);
-            gen_op_movl_T1_imu(offset);
+            tcg_gen_movi_tl(cpu_T[1], offset);
         }
         goto do_ljmp;
     case 0xeb: /* jmp Jb */
@@ -6869,7 +6859,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         /* load shift */
         val = cpu_ldub_code(env, s->pc++);
-        gen_op_movl_T1_im(val);
+        tcg_gen_movi_tl(cpu_T[1], val);
         if (op < 4)
             goto illegal_op;
         op -= 4;
