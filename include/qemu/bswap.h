@@ -410,13 +410,6 @@ static inline void stfq_be_p(void *ptr, float64 v)
     stq_be_p(ptr, u.ll);
 }
 
-/* Legacy unaligned versions.  Note that we never had a complete set.  */
-
-static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
-{
-    stl_p(p, v);
-}
-
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
     /* In order to break an include loop between here and
