@@ -170,8 +170,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     }
 
     /* increase number of tables */
-    stw_le_p(acpi_tables,
-             le16_to_cpupu((uint16_t *)acpi_tables) + 1u);
+    stw_le_p(acpi_tables, lduw_le_p(acpi_tables) + 1u);
 
     /* Update the header fields. The strings need not be NUL-terminated. */
     changed_fields = 0;

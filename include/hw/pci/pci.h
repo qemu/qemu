@@ -427,7 +427,7 @@ pci_set_word(uint8_t *config, uint16_t val)
 static inline uint16_t
 pci_get_word(const uint8_t *config)
 {
-    return le16_to_cpupu((const uint16_t *)config);
+    return lduw_le_p(config);
 }
 
 static inline void
