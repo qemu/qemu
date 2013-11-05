@@ -1707,7 +1707,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     } else if (is_buffer_shared(surface) &&
                (full_update || surface_data(surface) != s->vram_ptr
                 + (s->start_addr * 4))) {
-        DisplaySurface *surface;
         surface = qemu_create_displaysurface_from(disp_width,
                 height, depth, s->line_offset,
                 s->vram_ptr + (s->start_addr * 4), byteswap);
