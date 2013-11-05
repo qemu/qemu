@@ -433,7 +433,7 @@ pci_get_word(const uint8_t *config)
 static inline void
 pci_set_long(uint8_t *config, uint32_t val)
 {
-    cpu_to_le32wu((uint32_t *)config, val);
+    stl_le_p(config, val);
 }
 
 static inline uint32_t
