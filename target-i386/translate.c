@@ -252,16 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_movtl_T0_im(target_ulong val)
-{
-    tcg_gen_movi_tl(cpu_T[0], val);
-}
-
-static inline void gen_movtl_T1_im(target_ulong val)
-{
-    tcg_gen_movi_tl(cpu_T[1], val);
-}
-
 static inline void gen_op_andl_T0_ffff(void)
 {
     tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
@@ -5020,7 +5010,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
             next_eip = s->pc - s->cs_base;
-            gen_movtl_T1_im(next_eip);
+            tcg_gen_movi_tl(cpu_T[1], next_eip);
             gen_push_T1(s);
             gen_op_jmp_T0();
             gen_eob(s);
@@ -5663,7 +5653,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tmp = cpu_ldq_code(env, s->pc);
             s->pc += 8;
             reg = (b & 7) | REX_B(s);
-            gen_movtl_T0_im(tmp);
+            tcg_gen_movi_tl(cpu_T[0], tmp);
             gen_op_mov_reg_T0(MO_64, reg);
         } else
 #endif
@@ -6637,7 +6627,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tval &= 0xffff;
             else if(!CODE64(s))
                 tval &= 0xffffffff;
-            gen_movtl_T0_im(next_eip);
+            tcg_gen_movi_tl(cpu_T[0], next_eip);
             gen_push_T0(s);
             gen_jmp(s, tval);
         }
