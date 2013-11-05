@@ -227,10 +227,12 @@ static const MemoryRegionOps ioapic_io_ops = {
 
 static void ioapic_init(IOAPICCommonState *s, int instance_no)
 {
+    DeviceState *dev = DEVICE(s);
+
     memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
                           "ioapic", 0x1000);
 
-    qdev_init_gpio_in(DEVICE(s), ioapic_set_irq, IOAPIC_NUM_PINS);
+    qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
     ioapics[instance_no] = s;
 }

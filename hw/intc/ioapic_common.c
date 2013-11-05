@@ -109,9 +109,9 @@ static const TypeInfo ioapic_common_type = {
     .abstract = true,
 };
 
-static void register_types(void)
+static void ioapic_common_register_types(void)
 {
     type_register_static(&ioapic_common_type);
 }
 
-type_init(register_types)
+type_init(ioapic_common_register_types)
