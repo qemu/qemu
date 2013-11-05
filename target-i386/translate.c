@@ -252,18 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_op_movl_A0_im(uint32_t val)
-{
-    tcg_gen_movi_tl(cpu_A0, val);
-}
-
-#ifdef TARGET_X86_64
-static inline void gen_op_movq_A0_im(int64_t val)
-{
-    tcg_gen_movi_tl(cpu_A0, val);
-}
-#endif
-
 static inline void gen_movtl_T0_im(target_ulong val)
 {
     tcg_gen_movi_tl(cpu_T[0], val);
@@ -2046,7 +2034,7 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
             if (rm == 6) {
                 disp = cpu_lduw_code(env, s->pc);
                 s->pc += 2;
-                gen_op_movl_A0_im(disp);
+                tcg_gen_movi_tl(cpu_A0, disp);
                 rm = 0; /* avoid SS override */
                 goto no_rm;
             } else {
@@ -5619,7 +5607,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (s->aflag == 2) {
                 offset_addr = cpu_ldq_code(env, s->pc);
                 s->pc += 8;
-                gen_op_movq_A0_im(offset_addr);
             } else
 #endif
             {
@@ -5628,8 +5615,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 } else {
                     offset_addr = insn_get(env, s, MO_16);
                 }
-                gen_op_movl_A0_im(offset_addr);
             }
+            tcg_gen_movi_tl(cpu_A0, offset_addr);
             gen_add_A0_ds_seg(s);
             if ((b & 2) == 0) {
                 gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
