@@ -36,6 +36,9 @@
 
 static IOAPICCommonState *ioapics[MAX_IOAPICS];
 
+/* global variable from ioapic_common.c */
+extern int ioapic_no;
+
 static void ioapic_service(IOAPICCommonState *s)
 {
     uint8_t i;
@@ -225,16 +228,16 @@ static const MemoryRegionOps ioapic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void ioapic_init(IOAPICCommonState *s, int instance_no)
+static void ioapic_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(s);
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
     memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
                           "ioapic", 0x1000);
 
     qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
-    ioapics[instance_no] = s;
+    ioapics[ioapic_no] = s;
 }
 
 static void ioapic_class_init(ObjectClass *klass, void *data)
@@ -242,7 +245,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = ioapic_init;
+    k->realize = ioapic_realize;
     dc->reset = ioapic_reset_common;
 }
 
