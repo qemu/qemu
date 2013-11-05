@@ -36,8 +36,10 @@ static const MemoryRegionOps xen_apic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void xen_apic_init(APICCommonState *s)
+static void xen_apic_realize(DeviceState *dev, Error **errp)
 {
+    APICCommonState *s = APIC_COMMON(dev);
+
     memory_region_init_io(&s->io_memory, OBJECT(s), &xen_apic_io_ops, s,
                           "xen-apic-msi", APIC_SPACE_SIZE);
 
@@ -72,7 +74,7 @@ static void xen_apic_class_init(ObjectClass *klass, void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
-    k->init = xen_apic_init;
+    k->realize = xen_apic_realize;
     k->set_base = xen_apic_set_base;
     k->set_tpr = xen_apic_set_tpr;
     k->get_tpr = xen_apic_get_tpr;

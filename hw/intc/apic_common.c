@@ -298,7 +298,7 @@ static int apic_init_common(ICCDevice *dev)
     s->idx = apic_no++;
 
     info = APIC_COMMON_GET_CLASS(s);
-    info->init(s);
+    info->realize(DEVICE(dev), NULL);
     if (!mmio_registered) {
         ICCBus *b = ICC_BUS(qdev_get_parent_bus(DEVICE(dev)));
         memory_region_add_subregion(b->apic_address_space, 0, &s->io_memory);
