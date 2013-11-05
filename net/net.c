@@ -443,7 +443,6 @@ void qemu_flush_queued_packets(NetClientState *nc)
         if (net_hub_flush(nc->peer)) {
             qemu_notify_event();
         }
-        return;
     }
     if (qemu_net_queue_flush(nc->incoming_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
