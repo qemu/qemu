@@ -412,11 +412,6 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* Legacy unaligned versions.  Note that we never had a complete set.  */
 
-static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
-{
-    stq_be_p(p, v);
-}
-
 static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
 {
     stl_p(p, v);
