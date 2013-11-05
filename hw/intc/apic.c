@@ -171,9 +171,9 @@ static void apic_local_deliver(APICCommonState *s, int vector)
     }
 }
 
-void apic_deliver_pic_intr(DeviceState *d, int level)
+void apic_deliver_pic_intr(DeviceState *dev, int level)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
 
     if (level) {
         apic_local_deliver(s, APIC_LVT_LINT0);
@@ -376,9 +376,9 @@ static void apic_update_irq(APICCommonState *s)
     }
 }
 
-void apic_poll_irq(DeviceState *d)
+void apic_poll_irq(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(d);
+    APICCommonState *s = APIC_COMMON(dev);
 
     apic_sync_vapic(s, SYNC_FROM_VAPIC);
     apic_update_irq(s);
@@ -482,9 +482,9 @@ static void apic_startup(APICCommonState *s, int vector_num)
     cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 }
 
-void apic_sipi(DeviceState *d)
+void apic_sipi(DeviceState *dev)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
 
     cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 
@@ -494,11 +494,11 @@ void apic_sipi(DeviceState *d)
     s->wait_for_sipi = 0;
 }
 
-static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
+static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t trigger_mode)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICCommonState *apic_iter;
@@ -551,9 +551,9 @@ static bool apic_check_pic(APICCommonState *s)
     return true;
 }
 
-int apic_get_interrupt(DeviceState *d)
+int apic_get_interrupt(DeviceState *dev)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int intno;
 
     /* if the APIC is installed or enabled, we let the 8259 handle the
@@ -585,9 +585,9 @@ int apic_get_interrupt(DeviceState *d)
     return intno;
 }
 
-int apic_accept_pic_intr(DeviceState *d)
+int apic_accept_pic_intr(DeviceState *dev)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     uint32_t lvt0;
 
     if (!s)
@@ -657,16 +657,16 @@ static void apic_mem_writew(void *opaque, hwaddr addr, uint32_t val)
 
 static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
 {
-    DeviceState *d;
+    DeviceState *dev;
     APICCommonState *s;
     uint32_t val;
     int index;
 
-    d = cpu_get_current_apic();
-    if (!d) {
+    dev = cpu_get_current_apic();
+    if (!dev) {
         return 0;
     }
-    s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    s = APIC_COMMON(dev);
 
     index = (addr >> 4) & 0xff;
     switch(index) {
@@ -752,7 +752,7 @@ static void apic_send_msi(hwaddr addr, uint32_t data)
 
 static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
 {
-    DeviceState *d;
+    DeviceState *dev;
     APICCommonState *s;
     int index = (addr >> 4) & 0xff;
     if (addr > 0xfff || !index) {
@@ -765,11 +765,11 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
         return;
     }
 
-    d = cpu_get_current_apic();
-    if (!d) {
+    dev = cpu_get_current_apic();
+    if (!dev) {
         return;
     }
-    s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    s = APIC_COMMON(dev);
 
     trace_apic_mem_writel(addr, val);
 
@@ -810,7 +810,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 0x30:
         s->icr[0] = val;
-        apic_deliver(d, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+        apic_deliver(dev, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
                      (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
                      (s->icr[0] >> 15) & 1);
         break;

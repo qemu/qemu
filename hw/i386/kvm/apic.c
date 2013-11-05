@@ -25,9 +25,9 @@ static inline uint32_t kvm_apic_get_reg(struct kvm_lapic_state *kapic,
     return *((uint32_t *)(kapic->regs + (reg_id << 4)));
 }
 
-void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
+void kvm_put_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int i;
 
     memset(kapic, 0, sizeof(*kapic));
@@ -51,9 +51,9 @@ void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
     kvm_apic_set_reg(kapic, 0x3e, s->divide_conf);
 }
 
-void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
+void kvm_get_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonState *s = APIC_COMMON(dev);
     int i, v;
 
     s->id = kvm_apic_get_reg(kapic, 0x2) >> 24;
