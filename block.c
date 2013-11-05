@@ -1084,8 +1084,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
             snprintf(backing_filename, sizeof(backing_filename),
                      "%s", filename);
         } else if (!realpath(filename, backing_filename)) {
-            error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
             ret = -errno;
+            error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
             goto fail;
         }
 
