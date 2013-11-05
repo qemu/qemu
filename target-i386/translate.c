@@ -605,17 +605,17 @@ static void gen_exts(TCGMemOp ot, TCGv reg)
     gen_ext_tl(reg, reg, ot, true);
 }
 
-static inline void gen_op_jnz_ecx(int size, int label1)
+static inline void gen_op_jnz_ecx(TCGMemOp size, int label1)
 {
     tcg_gen_mov_tl(cpu_tmp0, cpu_regs[R_ECX]);
-    gen_extu(size + 1, cpu_tmp0);
+    gen_extu(size, cpu_tmp0);
     tcg_gen_brcondi_tl(TCG_COND_NE, cpu_tmp0, 0, label1);
 }
 
-static inline void gen_op_jz_ecx(int size, int label1)
+static inline void gen_op_jz_ecx(TCGMemOp size, int label1)
 {
     tcg_gen_mov_tl(cpu_tmp0, cpu_regs[R_ECX]);
-    gen_extu(size + 1, cpu_tmp0);
+    gen_extu(size, cpu_tmp0);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
 }
 
@@ -1113,7 +1113,7 @@ static int gen_jz_ecx_string(DisasContext *s, target_ulong next_eip)
 
     l1 = gen_new_label();
     l2 = gen_new_label();
-    gen_op_jnz_ecx(s->aflag, l1);
+    gen_op_jnz_ecx(s->aflag + 1, l1);
     gen_set_label(l2);
     gen_jmp_tb(s, next_eip, 1);
     gen_set_label(l1);
@@ -1209,7 +1209,7 @@ static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
     /* a loop would cause two single step exceptions if ECX = 1               \
        before rep string_insn */                                              \
     if (!s->jmp_opt)                                                          \
-        gen_op_jz_ecx(s->aflag, l2);                                          \
+        gen_op_jz_ecx(s->aflag + 1, l2);                                      \
     gen_jmp(s, cur_eip);                                                      \
 }
 
@@ -1227,7 +1227,7 @@ static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
     gen_update_cc_op(s);                                                      \
     gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);                                 \
     if (!s->jmp_opt)                                                          \
-        gen_op_jz_ecx(s->aflag, l2);                                          \
+        gen_op_jz_ecx(s->aflag + 1, l2);                                      \
     gen_jmp(s, cur_eip);                                                      \
 }
 
@@ -7134,16 +7134,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             case 0: /* loopnz */
             case 1: /* loopz */
                 gen_op_add_reg_im(s->aflag + 1, R_ECX, -1);
-                gen_op_jz_ecx(s->aflag, l3);
+                gen_op_jz_ecx(s->aflag + 1, l3);
                 gen_jcc1(s, (JCC_Z << 1) | (b ^ 1), l1);
                 break;
             case 2: /* loop */
                 gen_op_add_reg_im(s->aflag + 1, R_ECX, -1);
-                gen_op_jnz_ecx(s->aflag, l1);
+                gen_op_jnz_ecx(s->aflag + 1, l1);
                 break;
             default:
             case 3: /* jcxz */
-                gen_op_jz_ecx(s->aflag, l1);
+                gen_op_jz_ecx(s->aflag + 1, l1);
                 break;
             }
 
