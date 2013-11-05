@@ -382,7 +382,8 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
 {
     unsigned int i, j;
     unsigned long page_number, c;
-    hwaddr addr, addr1;
+    hwaddr addr;
+    ram_addr_t start = section->offset_within_region + section->mr->ram_addr;
     ram_addr_t ram_addr;
     unsigned int pages = int128_get64(section->size) / getpagesize();
     unsigned int len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
@@ -399,9 +400,8 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
                 j = ffsl(c) - 1;
                 c &= ~(1ul << j);
                 page_number = (i * HOST_LONG_BITS + j) * hpratio;
-                addr1 = page_number * TARGET_PAGE_SIZE;
-                addr = section->offset_within_region + addr1;
-                ram_addr = section->mr->ram_addr + addr;
+                addr = page_number * TARGET_PAGE_SIZE;
+                ram_addr = start + addr;
                 cpu_physical_memory_set_dirty_range(ram_addr,
                                                     TARGET_PAGE_SIZE * hpratio);
             } while (c != 0);
