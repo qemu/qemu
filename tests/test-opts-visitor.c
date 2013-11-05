@@ -125,7 +125,7 @@ test_value(OptsVisitorFixture *f, gconstpointer test_data)
         g_assert((magic & bitval) == 0);
         magic |= bitval;
     }
-    g_assert(magic == 0xBADC0FFEE0DDF00D);
+    g_assert(magic == 0xBADC0FFEE0DDF00DULL);
 
     magic = 0;
     for (u16 = f->userdef->u16; u16 != NULL; u16 = u16->next) {
