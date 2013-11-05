@@ -2741,10 +2741,7 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
 
     switch (addr)
     {
-        case MAC0 ... MAC0+4:
-            s->phys[addr - MAC0] = val;
-            break;
-        case MAC0+5:
+        case MAC0 ... MAC0+5:
             s->phys[addr - MAC0] = val;
             qemu_format_nic_info_str(qemu_get_queue(s->nic), s->phys);
             break;
