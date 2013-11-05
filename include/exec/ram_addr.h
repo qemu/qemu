@@ -79,6 +79,37 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
     xen_modified_memory(start, length);
 }
 
+static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
+                                                          ram_addr_t start,
+                                                          ram_addr_t pages)
+{
+    unsigned int i, j;
+    unsigned long page_number, c;
+    hwaddr addr;
+    ram_addr_t ram_addr;
+    unsigned int len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
+    unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
+
+    /*
+     * bitmap-traveling is faster than memory-traveling (for addr...)
+     * especially when most of the memory is not dirty.
+     */
+    for (i = 0; i < len; i++) {
+        if (bitmap[i] != 0) {
+            c = leul_to_cpu(bitmap[i]);
+            do {
+                j = ffsl(c) - 1;
+                c &= ~(1ul << j);
+                page_number = (i * HOST_LONG_BITS + j) * hpratio;
+                addr = page_number * TARGET_PAGE_SIZE;
+                ram_addr = start + addr;
+                cpu_physical_memory_set_dirty_range(ram_addr,
+                                                    TARGET_PAGE_SIZE * hpratio);
+            } while (c != 0);
+        }
+    }
+}
+
 static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
                                                          ram_addr_t length,
                                                          unsigned client)
