@@ -252,11 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_op_andl_T0_im(uint32_t val)
-{
-    tcg_gen_andi_tl(cpu_T[0], cpu_T[0], val);
-}
-
 static inline void gen_op_movl_T0_T1(void)
 {
     tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
@@ -7363,8 +7358,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
             gen_add_A0_im(s, 2);
             tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, gdt.base));
-            if (!s->dflag)
-                gen_op_andl_T0_im(0xffffff);
+            if (s->dflag == 0) {
+                tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffffff);
+            }
             gen_op_st_v(s, CODE64(s) + MO_32, cpu_T[0], cpu_A0);
             break;
         case 1:
@@ -7426,8 +7422,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
                 gen_add_A0_im(s, 2);
                 tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, idt.base));
-                if (!s->dflag)
-                    gen_op_andl_T0_im(0xffffff);
+                if (s->dflag == 0) {
+                    tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffffff);
+                }
                 gen_op_st_v(s, CODE64(s) + MO_32, cpu_T[0], cpu_A0);
             }
             break;
@@ -7526,8 +7523,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_op_ld_v(s, MO_16, cpu_T[1], cpu_A0);
                 gen_add_A0_im(s, 2);
                 gen_op_ld_v(s, CODE64(s) + MO_32, cpu_T[0], cpu_A0);
-                if (!s->dflag)
-                    gen_op_andl_T0_im(0xffffff);
+                if (s->dflag == 0) {
+                    tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffffff);
+                }
                 if (op == 2) {
                     tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,gdt.base));
                     tcg_gen_st32_tl(cpu_T[1], cpu_env, offsetof(CPUX86State,gdt.limit));
