@@ -252,11 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_op_andl_T0_ffff(void)
-{
-    tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
-}
-
 static inline void gen_op_andl_T0_im(uint32_t val)
 {
     tcg_gen_andi_tl(cpu_T[0], cpu_T[0], val);
@@ -5007,8 +5002,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 2: /* call Ev */
             /* XXX: optimize if memory (no 'and' is necessary) */
-            if (s->dflag == 0)
-                gen_op_andl_T0_ffff();
+            if (s->dflag == 0) {
+                tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
+            }
             next_eip = s->pc - s->cs_base;
             tcg_gen_movi_tl(cpu_T[1], next_eip);
             gen_push_T1(s);
@@ -5036,8 +5032,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
         case 4: /* jmp Ev */
-            if (s->dflag == 0)
-                gen_op_andl_T0_ffff();
+            if (s->dflag == 0) {
+                tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
+            }
             gen_op_jmp_T0();
             gen_eob(s);
             break;
@@ -6422,8 +6419,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             ot = MO_8;
         else
             ot = dflag ? MO_32 : MO_16;
-        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
-        gen_op_andl_T0_ffff();
+        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[R_EDX]);
         gen_check_io(s, ot, pc_start - s->cs_base, 
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) | 4);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
@@ -6441,8 +6437,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             ot = MO_8;
         else
             ot = dflag ? MO_32 : MO_16;
-        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
-        gen_op_andl_T0_ffff();
+        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[R_EDX]);
         gen_check_io(s, ot, pc_start - s->cs_base,
                      svm_is_rep(prefixes) | 4);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
@@ -6504,8 +6499,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             ot = MO_8;
         else
             ot = dflag ? MO_32 : MO_16;
-        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
-        gen_op_andl_T0_ffff();
+        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[R_EDX]);
         gen_check_io(s, ot, pc_start - s->cs_base,
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
         if (use_icount)
@@ -6524,8 +6518,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             ot = MO_8;
         else
             ot = dflag ? MO_32 : MO_16;
-        gen_op_mov_TN_reg(MO_16, 0, R_EDX);
-        gen_op_andl_T0_ffff();
+        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[R_EDX]);
         gen_check_io(s, ot, pc_start - s->cs_base,
                      svm_is_rep(prefixes));
         gen_op_mov_TN_reg(ot, 1, R_EAX);
@@ -6550,16 +6543,18 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (CODE64(s) && s->dflag)
             s->dflag = 2;
         gen_stack_update(s, val + (2 << s->dflag));
-        if (s->dflag == 0)
-            gen_op_andl_T0_ffff();
+        if (s->dflag == 0) {
+            tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
+        }
         gen_op_jmp_T0();
         gen_eob(s);
         break;
     case 0xc3: /* ret */
         gen_pop_T0(s);
         gen_pop_update(s);
-        if (s->dflag == 0)
-            gen_op_andl_T0_ffff();
+        if (s->dflag == 0) {
+            tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
+        }
         gen_op_jmp_T0();
         gen_eob(s);
         break;
@@ -6575,15 +6570,13 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         } else {
             gen_stack_A0(s);
             /* pop offset */
-            gen_op_ld_v(s, 1 + s->dflag, cpu_T[0], cpu_A0);
-            if (s->dflag == 0)
-                gen_op_andl_T0_ffff();
+            gen_op_ld_v(s, MO_16 + s->dflag, cpu_T[0], cpu_A0);
             /* NOTE: keeping EIP updated is not a problem in case of
                exception */
             gen_op_jmp_T0();
             /* pop selector */
             gen_op_addl_A0_im(2 << s->dflag);
-            gen_op_ld_v(s, 1 + s->dflag, cpu_T[0], cpu_A0);
+            gen_op_ld_v(s, MO_16 + s->dflag, cpu_T[0], cpu_A0);
             gen_op_movl_seg_T0_vm(R_CS);
             /* add stack offset */
             gen_stack_update(s, val + (4 << s->dflag));
