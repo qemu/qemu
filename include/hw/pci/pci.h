@@ -439,7 +439,7 @@ pci_set_long(uint8_t *config, uint32_t val)
 static inline uint32_t
 pci_get_long(const uint8_t *config)
 {
-    return le32_to_cpupu((const uint32_t *)config);
+    return ldl_le_p(config);
 }
 
 static inline void
