@@ -42,6 +42,7 @@
 #include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 static const int sector_len = 128 * 1024;
 
@@ -58,7 +59,7 @@ static void connex_init(QEMUMachineInitArgs *args)
     cpu = pxa255_init(address_space_mem, connex_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!dinfo) {
+    if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
@@ -70,7 +71,8 @@ static void connex_init(QEMUMachineInitArgs *args)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "connext.rom", connex_rom,
-                               dinfo->bdrv, sector_len, connex_rom / sector_len,
+                               dinfo ? dinfo->bdrv : NULL,
+                               sector_len, connex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
@@ -95,7 +97,7 @@ static void verdex_init(QEMUMachineInitArgs *args)
     cpu = pxa270_init(address_space_mem, verdex_ram, cpu_model ?: "pxa270-c0");
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!dinfo) {
+    if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
         exit(1);
@@ -107,7 +109,8 @@ static void verdex_init(QEMUMachineInitArgs *args)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "verdex.rom", verdex_rom,
-                               dinfo->bdrv, sector_len, verdex_rom / sector_len,
+                               dinfo ? dinfo->bdrv : NULL,
+                               sector_len, verdex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);

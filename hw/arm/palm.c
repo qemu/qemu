@@ -19,6 +19,7 @@
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "hw/boards.h"
@@ -255,7 +256,7 @@ static void palmte_init(QEMUMachineInitArgs *args)
         }
     }
 
-    if (!rom_loaded && !kernel_filename) {
+    if (!rom_loaded && !kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Kernel or ROM image must be specified\n");
         exit(1);
     }

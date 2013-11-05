@@ -7,96 +7,28 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-#include "qemu/timer.h"
+#include "hw/cpu/arm11mpcore.h"
+#include "hw/intc/realview_gic.h"
 
-/* MPCore private memory region.  */
-
-#define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
-#define ARM11MPCORE_PRIV(obj) \
-    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
-
-typedef struct ARM11MPCorePriveState {
-    SysBusDevice parent_obj;
-
-    uint32_t scu_control;
-    int iomemtype;
-    uint32_t old_timer_status[8];
-    uint32_t num_cpu;
-    MemoryRegion iomem;
-    MemoryRegion container;
-    DeviceState *mptimer;
-    DeviceState *wdtimer;
-    DeviceState *gic;
-    uint32_t num_irq;
-} ARM11MPCorePriveState;
-
-/* Per-CPU private memory mapped IO.  */
-
-static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
-                                unsigned size)
-{
-    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    int id;
-    /* SCU */
-    switch (offset) {
-    case 0x00: /* Control.  */
-        return s->scu_control;
-    case 0x04: /* Configuration.  */
-        id = ((1 << s->num_cpu) - 1) << 4;
-        return id | (s->num_cpu - 1);
-    case 0x08: /* CPU status.  */
-        return 0;
-    case 0x0c: /* Invalidate all.  */
-        return 0;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "mpcore_priv_read: Bad offset %x\n", (int)offset);
-        return 0;
-    }
-}
-
-static void mpcore_scu_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
-{
-    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    /* SCU */
-    switch (offset) {
-    case 0: /* Control register.  */
-        s->scu_control = value & 1;
-        break;
-    case 0x0c: /* Invalidate all.  */
-        /* This is a no-op as cache is not emulated.  */
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "mpcore_priv_read: Bad offset %x\n", (int)offset);
-    }
-}
-
-static const MemoryRegionOps mpcore_scu_ops = {
-    .read = mpcore_scu_read,
-    .write = mpcore_scu_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
     ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
-    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
 static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
-    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
-    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
-    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
-    memory_region_init(&s->container, OBJECT(s),
-                       "mpcode-priv-container", 0x2000);
-    memory_region_init_io(&s->iomem, OBJECT(s),
-                          &mpcore_scu_ops, s, "mpcore-scu", 0x100);
-    memory_region_add_subregion(&s->container, 0, &s->iomem);
+    SysBusDevice *scubusdev = SYS_BUS_DEVICE(&s->scu);
+    DeviceState *gicdev = DEVICE(&s->gic);
+    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(&s->gic);
+    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
+    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(&s->wdtimer);
+
+    memory_region_add_subregion(&s->container, 0,
+                                sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interfaces: "current CPU" at 0x100, then specific CPUs
      * at 0x200, 0x300...
      */
@@ -124,133 +56,83 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
         sysbus_connect_irq(timerbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 29));
+                           qdev_get_gpio_in(gicdev, ppibase + 29));
         sysbus_connect_irq(wdtbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 30));
+                           qdev_get_gpio_in(gicdev, ppibase + 30));
     }
 }
 
-static int mpcore_priv_init(SysBusDevice *sbd)
+static void mpcore_priv_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(dev);
+    DeviceState *scudev = DEVICE(&s->scu);
+    DeviceState *gicdev = DEVICE(&s->gic);
+    DeviceState *mptimerdev = DEVICE(&s->mptimer);
+    DeviceState *wdtimerdev = DEVICE(&s->wdtimer);
+    Error *err = NULL;
 
-    s->gic = qdev_create(NULL, "arm_gic");
-    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
-    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
-    /* Request the legacy 11MPCore GIC behaviour: */
-    qdev_prop_set_uint32(s->gic, "revision", 0);
-    qdev_init_nofail(s->gic);
+    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(s->gic));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->gic));
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, mpcore_priv_set_irq, s->num_irq - 32);
 
-    s->mptimer = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->mptimer);
+    qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->mptimer), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
-    s->wdtimer = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->wdtimer, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->wdtimer);
+    qdev_prop_set_uint32(wdtimerdev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->wdtimer), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     mpcore_priv_map_setup(s);
+}
+
+static void mpcore_priv_initfn(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ARM11MPCorePriveState *s = ARM11MPCORE_PRIV(obj);
+
+    memory_region_init(&s->container, OBJECT(s),
+                       "mpcore-priv-container", 0x2000);
     sysbus_init_mmio(sbd, &s->container);
-    return 0;
+
+    object_initialize(&s->scu, sizeof(s->scu), TYPE_ARM11_SCU);
+    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+    /* Request the legacy 11MPCore GIC behaviour: */
+    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 0);
+
+    object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
+
+    object_initialize(&s->wdtimer, sizeof(s->wdtimer), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->wdtimer), sysbus_get_default());
 }
-
-#define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
-#define REALVIEW_MPCORE_RIRQ(obj) \
-    OBJECT_CHECK(mpcore_rirq_state, (obj), TYPE_REALVIEW_MPCORE_RIRQ)
-
-/* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
-   controllers.  The output of these, plus some of the raw input lines
-   are fed into a single SMP-aware interrupt controller on the CPU.  */
-typedef struct {
-    SysBusDevice parent_obj;
-
-    SysBusDevice *priv;
-    qemu_irq cpuic[32];
-    qemu_irq rvic[4][64];
-    uint32_t num_cpu;
-} mpcore_rirq_state;
-
-/* Map baseboard IRQs onto CPU IRQ lines.  */
-static const int mpcore_irq_map[32] = {
-    -1, -1, -1, -1,  1,  2, -1, -1,
-    -1, -1,  6, -1,  4,  5, -1, -1,
-    -1, 14, 15,  0,  7,  8, -1, -1,
-    -1, -1, -1, -1,  9,  3, -1, -1,
-};
-
-static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
-{
-    mpcore_rirq_state *s = (mpcore_rirq_state *)opaque;
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        qemu_set_irq(s->rvic[i][irq], level);
-    }
-    if (irq < 32) {
-        irq = mpcore_irq_map[irq];
-        if (irq >= 0) {
-            qemu_set_irq(s->cpuic[irq], level);
-        }
-    }
-}
-
-static int realview_mpcore_init(SysBusDevice *sbd)
-{
-    DeviceState *dev = DEVICE(sbd);
-    mpcore_rirq_state *s = REALVIEW_MPCORE_RIRQ(dev);
-    DeviceState *gic;
-    DeviceState *priv;
-    int n;
-    int i;
-
-    priv = qdev_create(NULL, TYPE_ARM11MPCORE_PRIV);
-    qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
-    qdev_init_nofail(priv);
-    s->priv = SYS_BUS_DEVICE(priv);
-    sysbus_pass_irq(sbd, s->priv);
-    for (i = 0; i < 32; i++) {
-        s->cpuic[i] = qdev_get_gpio_in(priv, i);
-    }
-    /* ??? IRQ routing is hardcoded to "normal" mode.  */
-    for (n = 0; n < 4; n++) {
-        gic = sysbus_create_simple("realview_gic", 0x10040000 + n * 0x10000,
-                                   s->cpuic[10 + n]);
-        for (i = 0; i < 64; i++) {
-            s->rvic[n][i] = qdev_get_gpio_in(gic, i);
-        }
-    }
-    qdev_init_gpio_in(dev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio(sbd, sysbus_mmio_get_region(s->priv, 0));
-    return 0;
-}
-
-static Property mpcore_rirq_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", mpcore_rirq_state, num_cpu, 1),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = realview_mpcore_init;
-    dc->props = mpcore_rirq_properties;
-}
-
-static const TypeInfo mpcore_rirq_info = {
-    .name          = TYPE_REALVIEW_MPCORE_RIRQ,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mpcore_rirq_state),
-    .class_init    = mpcore_rirq_class_init,
-};
 
 static Property mpcore_priv_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARM11MPCorePriveState, num_cpu, 1),
@@ -269,9 +151,8 @@ static Property mpcore_priv_properties[] = {
 static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mpcore_priv_init;
+    dc->realize = mpcore_priv_realize;
     dc->props = mpcore_priv_properties;
 }
 
@@ -279,12 +160,12 @@ static const TypeInfo mpcore_priv_info = {
     .name          = TYPE_ARM11MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARM11MPCorePriveState),
+    .instance_init = mpcore_priv_initfn,
     .class_init    = mpcore_priv_class_init,
 };
 
 static void arm11mpcore_register_types(void)
 {
-    type_register_static(&mpcore_rirq_info);
     type_register_static(&mpcore_priv_info);
 }
 

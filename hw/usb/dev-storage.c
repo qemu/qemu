@@ -703,7 +703,7 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
         return NULL;
     }
     if (qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv) < 0) {
-        qdev_free(&dev->qdev);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
     if (qdev_init(&dev->qdev) < 0)
