@@ -360,11 +360,10 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
     return (next - base) << TARGET_PAGE_BITS;
 }
 
-static inline bool migration_bitmap_set_dirty(MemoryRegion *mr,
-                                              ram_addr_t offset)
+static inline bool migration_bitmap_set_dirty(ram_addr_t addr)
 {
     bool ret;
-    int nr = (mr->ram_addr + offset) >> TARGET_PAGE_BITS;
+    int nr = addr >> TARGET_PAGE_BITS;
 
     ret = test_and_set_bit(nr, migration_bitmap);
 
@@ -374,12 +373,28 @@ static inline bool migration_bitmap_set_dirty(MemoryRegion *mr,
     return ret;
 }
 
+static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
+{
+    ram_addr_t addr;
+
+    for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
+        if (cpu_physical_memory_get_dirty(start + addr,
+                                          TARGET_PAGE_SIZE,
+                                          DIRTY_MEMORY_MIGRATION)) {
+            cpu_physical_memory_reset_dirty(start + addr,
+                                            TARGET_PAGE_SIZE,
+                                            DIRTY_MEMORY_MIGRATION);
+            migration_bitmap_set_dirty(start + addr);
+        }
+    }
+}
+
+
 /* Needs iothread lock! */
 
 static void migration_bitmap_sync(void)
 {
     RAMBlock *block;
-    ram_addr_t addr;
     uint64_t num_dirty_pages_init = migration_dirty_pages;
     MigrationState *s = migrate_get_current();
     static int64_t start_time;
@@ -400,16 +415,7 @@ static void migration_bitmap_sync(void)
     address_space_sync_dirty_bitmap(&address_space_memory);
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (cpu_physical_memory_get_dirty(block->mr->ram_addr + addr,
-                                              TARGET_PAGE_SIZE,
-                                              DIRTY_MEMORY_MIGRATION)) {
-                cpu_physical_memory_reset_dirty(block->mr->ram_addr + addr,
-                                                TARGET_PAGE_SIZE,
-                                                DIRTY_MEMORY_MIGRATION);
-                migration_bitmap_set_dirty(block->mr, addr);
-            }
-        }
+        migration_bitmap_sync_range(block->mr->ram_addr, block->length);
     }
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
