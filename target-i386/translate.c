@@ -126,7 +126,7 @@ typedef struct DisasContext {
 static void gen_eob(DisasContext *s);
 static void gen_jmp(DisasContext *s, target_ulong eip);
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
-static void gen_op(DisasContext *s1, int op, int ot, int d);
+static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d);
 
 /* i386 arith/logic operations */
 enum {
@@ -295,7 +295,7 @@ static inline bool byte_reg_is_xH(int reg)
     return true;
 }
 
-static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
+static void gen_op_mov_reg_v(TCGMemOp ot, int reg, TCGv t0)
 {
     switch(ot) {
     case MO_8:
@@ -308,7 +308,6 @@ static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
     case MO_16:
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 16);
         break;
-    default: /* XXX this shouldn't be reached;  abort? */
     case MO_32:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
@@ -319,26 +318,27 @@ static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
         tcg_gen_mov_tl(cpu_regs[reg], t0);
         break;
 #endif
+    default:
+        tcg_abort();
     }
 }
 
-static inline void gen_op_mov_reg_T0(int ot, int reg)
+static inline void gen_op_mov_reg_T0(TCGMemOp ot, int reg)
 {
     gen_op_mov_reg_v(ot, reg, cpu_T[0]);
 }
 
-static inline void gen_op_mov_reg_T1(int ot, int reg)
+static inline void gen_op_mov_reg_T1(TCGMemOp ot, int reg)
 {
     gen_op_mov_reg_v(ot, reg, cpu_T[1]);
 }
 
-static inline void gen_op_mov_reg_A0(int size, int reg)
+static void gen_op_mov_reg_A0(TCGMemOp size, int reg)
 {
-    switch(size) {
+    switch (size) {
     case MO_8:
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_A0, 0, 16);
         break;
-    default: /* XXX this shouldn't be reached;  abort? */
     case MO_16:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
@@ -349,10 +349,12 @@ static inline void gen_op_mov_reg_A0(int size, int reg)
         tcg_gen_mov_tl(cpu_regs[reg], cpu_A0);
         break;
 #endif
+    default:
+        tcg_abort();
     }
 }
 
-static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
+static inline void gen_op_mov_v_reg(TCGMemOp ot, TCGv t0, int reg)
 {
     if (ot == MO_8 && byte_reg_is_xH(reg)) {
         tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
@@ -362,7 +364,7 @@ static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
     }
 }
 
-static inline void gen_op_mov_TN_reg(int ot, int t_index, int reg)
+static inline void gen_op_mov_TN_reg(TCGMemOp ot, int t_index, int reg)
 {
     gen_op_mov_v_reg(ot, cpu_T[t_index], reg);
 }
@@ -588,13 +590,13 @@ static inline void gen_string_movl_A0_EDI(DisasContext *s)
     }
 }
 
-static inline void gen_op_movl_T0_Dshift(int ot) 
+static inline void gen_op_movl_T0_Dshift(TCGMemOp ot)
 {
     tcg_gen_ld32s_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, df));
     tcg_gen_shli_tl(cpu_T[0], cpu_T[0], ot);
 };
 
-static TCGv gen_ext_tl(TCGv dst, TCGv src, int size, bool sign)
+static TCGv gen_ext_tl(TCGv dst, TCGv src, TCGMemOp size, bool sign)
 {
     switch (size) {
     case MO_8:
@@ -625,12 +627,12 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, int size, bool sign)
     }
 }
 
-static void gen_extu(int ot, TCGv reg)
+static void gen_extu(TCGMemOp ot, TCGv reg)
 {
     gen_ext_tl(reg, reg, ot, false);
 }
 
-static void gen_exts(int ot, TCGv reg)
+static void gen_exts(TCGMemOp ot, TCGv reg)
 {
     gen_ext_tl(reg, reg, ot, true);
 }
@@ -649,7 +651,7 @@ static inline void gen_op_jz_ecx(int size, int label1)
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
 }
 
-static void gen_helper_in_func(int ot, TCGv v, TCGv_i32 n)
+static void gen_helper_in_func(TCGMemOp ot, TCGv v, TCGv_i32 n)
 {
     switch (ot) {
     case MO_8:
@@ -661,10 +663,12 @@ static void gen_helper_in_func(int ot, TCGv v, TCGv_i32 n)
     case MO_32:
         gen_helper_inl(v, n);
         break;
+    default:
+        tcg_abort();
     }
 }
 
-static void gen_helper_out_func(int ot, TCGv_i32 v, TCGv_i32 n)
+static void gen_helper_out_func(TCGMemOp ot, TCGv_i32 v, TCGv_i32 n)
 {
     switch (ot) {
     case MO_8:
@@ -676,10 +680,12 @@ static void gen_helper_out_func(int ot, TCGv_i32 v, TCGv_i32 n)
     case MO_32:
         gen_helper_outl(v, n);
         break;
+    default:
+        tcg_abort();
     }
 }
 
-static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
+static void gen_check_io(DisasContext *s, TCGMemOp ot, target_ulong cur_eip,
                          uint32_t svm_flags)
 {
     int state_saved;
@@ -701,6 +707,8 @@ static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
         case MO_32:
             gen_helper_check_iol(cpu_env, cpu_tmp2_i32);
             break;
+        default:
+            tcg_abort();
         }
     }
     if(s->flags & HF_SVMI_MASK) {
@@ -717,7 +725,7 @@ static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
     }
 }
 
-static inline void gen_movs(DisasContext *s, int ot)
+static inline void gen_movs(DisasContext *s, TCGMemOp ot)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
@@ -911,7 +919,7 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
     default:
         {
-            int size = (s->cc_op - CC_OP_ADDB) & 3;
+            TCGMemOp size = (s->cc_op - CC_OP_ADDB) & 3;
             TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size, true);
             return (CCPrepare) { .cond = TCG_COND_LT, .reg = t0, .mask = -1 };
         }
@@ -952,7 +960,7 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
         return (CCPrepare) { .cond = TCG_COND_ALWAYS, .mask = -1 };
     default:
         {
-            int size = (s->cc_op - CC_OP_ADDB) & 3;
+            TCGMemOp size = (s->cc_op - CC_OP_ADDB) & 3;
             TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size, false);
             return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
         }
@@ -963,7 +971,8 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
    value 'b'. In the fast case, T0 is guaranted not to be used. */
 static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
 {
-    int inv, jcc_op, size, cond;
+    int inv, jcc_op, cond;
+    TCGMemOp size;
     CCPrepare cc;
     TCGv t0;
 
@@ -1143,7 +1152,7 @@ static int gen_jz_ecx_string(DisasContext *s, target_ulong next_eip)
     return l2;
 }
 
-static inline void gen_stos(DisasContext *s, int ot)
+static inline void gen_stos(DisasContext *s, TCGMemOp ot)
 {
     gen_op_mov_TN_reg(MO_32, 0, R_EAX);
     gen_string_movl_A0_EDI(s);
@@ -1152,7 +1161,7 @@ static inline void gen_stos(DisasContext *s, int ot)
     gen_op_add_reg_T0(s->aflag, R_EDI);
 }
 
-static inline void gen_lods(DisasContext *s, int ot)
+static inline void gen_lods(DisasContext *s, TCGMemOp ot)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, cpu_T[0], cpu_A0);
@@ -1161,7 +1170,7 @@ static inline void gen_lods(DisasContext *s, int ot)
     gen_op_add_reg_T0(s->aflag, R_ESI);
 }
 
-static inline void gen_scas(DisasContext *s, int ot)
+static inline void gen_scas(DisasContext *s, TCGMemOp ot)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
@@ -1170,7 +1179,7 @@ static inline void gen_scas(DisasContext *s, int ot)
     gen_op_add_reg_T0(s->aflag, R_EDI);
 }
 
-static inline void gen_cmps(DisasContext *s, int ot)
+static inline void gen_cmps(DisasContext *s, TCGMemOp ot)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
@@ -1181,7 +1190,7 @@ static inline void gen_cmps(DisasContext *s, int ot)
     gen_op_add_reg_T0(s->aflag, R_EDI);
 }
 
-static inline void gen_ins(DisasContext *s, int ot)
+static inline void gen_ins(DisasContext *s, TCGMemOp ot)
 {
     if (use_icount)
         gen_io_start();
@@ -1200,7 +1209,7 @@ static inline void gen_ins(DisasContext *s, int ot)
         gen_io_end();
 }
 
-static inline void gen_outs(DisasContext *s, int ot)
+static inline void gen_outs(DisasContext *s, TCGMemOp ot)
 {
     if (use_icount)
         gen_io_start();
@@ -1221,7 +1230,7 @@ static inline void gen_outs(DisasContext *s, int ot)
 /* same method as Valgrind : we generate jumps to current or next
    instruction */
 #define GEN_REPZ(op)                                                          \
-static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
+static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
                                  target_ulong cur_eip, target_ulong next_eip) \
 {                                                                             \
     int l2;\
@@ -1237,7 +1246,7 @@ static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
 }
 
 #define GEN_REPZ2(op)                                                         \
-static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
+static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
                                    target_ulong cur_eip,                      \
                                    target_ulong next_eip,                     \
                                    int nz)                                    \
@@ -1319,7 +1328,7 @@ static void gen_helper_fp_arith_STN_ST0(int op, int opreg)
 }
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
-static void gen_op(DisasContext *s1, int op, int ot, int d)
+static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
 {
     if (d != OR_TMP0) {
         gen_op_mov_TN_reg(ot, 0, d);
@@ -1385,7 +1394,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
 }
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
-static void gen_inc(DisasContext *s1, int ot, int d, int c)
+static void gen_inc(DisasContext *s1, TCGMemOp ot, int d, int c)
 {
     if (d != OR_TMP0) {
         gen_op_mov_TN_reg(ot, 0, d);
@@ -1404,8 +1413,8 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
-static void gen_shift_flags(DisasContext *s, int ot, TCGv result, TCGv shm1,
-                            TCGv count, bool is_right)
+static void gen_shift_flags(DisasContext *s, TCGMemOp ot, TCGv result,
+                            TCGv shm1, TCGv count, bool is_right)
 {
     TCGv_i32 z32, s32, oldop;
     TCGv z_tl;
@@ -1449,7 +1458,7 @@ static void gen_shift_flags(DisasContext *s, int ot, TCGv result, TCGv shm1,
     set_cc_op(s, CC_OP_DYNAMIC);
 }
 
-static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
+static void gen_shift_rm_T1(DisasContext *s, TCGMemOp ot, int op1,
                             int is_right, int is_arith)
 {
     target_ulong mask = (ot == MO_64 ? 0x3f : 0x1f);
@@ -1485,7 +1494,7 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
     gen_shift_flags(s, ot, cpu_T[0], cpu_tmp0, cpu_T[1], is_right);
 }
 
-static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
+static void gen_shift_rm_im(DisasContext *s, TCGMemOp ot, int op1, int op2,
                             int is_right, int is_arith)
 {
     int mask = (ot == MO_64 ? 0x3f : 0x1f);
@@ -1533,7 +1542,7 @@ static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2)
         tcg_gen_shri_tl(ret, arg1, -arg2);
 }
 
-static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
+static void gen_rot_rm_T1(DisasContext *s, TCGMemOp ot, int op1, int is_right)
 {
     target_ulong mask = (ot == MO_64 ? 0x3f : 0x1f);
     TCGv_i32 t0, t1;
@@ -1618,7 +1627,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
     set_cc_op(s, CC_OP_DYNAMIC);
 }
 
-static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
+static void gen_rot_rm_im(DisasContext *s, TCGMemOp ot, int op1, int op2,
                           int is_right)
 {
     int mask = (ot == MO_64 ? 0x3f : 0x1f);
@@ -1696,7 +1705,7 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
 }
 
 /* XXX: add faster immediate = 1 case */
-static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1, 
+static void gen_rotc_rm_T1(DisasContext *s, TCGMemOp ot, int op1,
                            int is_right)
 {
     gen_compute_eflags(s);
@@ -1724,6 +1733,8 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
             gen_helper_rcrq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
+        default:
+            tcg_abort();
         }
     } else {
         switch (ot) {
@@ -1741,6 +1752,8 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
             gen_helper_rclq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
+        default:
+            tcg_abort();
         }
     }
     /* store */
@@ -1748,7 +1761,7 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
 }
 
 /* XXX: add faster immediate case */
-static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
+static void gen_shiftd_rm_T1(DisasContext *s, TCGMemOp ot, int op1,
                              bool is_right, TCGv count_in)
 {
     target_ulong mask = (ot == MO_64 ? 63 : 31);
@@ -1829,7 +1842,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
     tcg_temp_free(count);
 }
 
-static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
+static void gen_shift(DisasContext *s1, int op, TCGMemOp ot, int d, int s)
 {
     if (s != OR_TMP1)
         gen_op_mov_TN_reg(ot, 1, s);
@@ -1859,7 +1872,7 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
     }
 }
 
-static void gen_shifti(DisasContext *s1, int op, int ot, int d, int c)
+static void gen_shifti(DisasContext *s1, int op, TCGMemOp ot, int d, int c)
 {
     switch(op) {
     case OP_ROL:
@@ -2140,7 +2153,7 @@ static void gen_add_A0_ds_seg(DisasContext *s)
 /* generate modrm memory load or store of 'reg'. TMP0 is used if reg ==
    OR_TMP0 */
 static void gen_ldst_modrm(CPUX86State *env, DisasContext *s, int modrm,
-                           int ot, int reg, int is_store)
+                           TCGMemOp ot, int reg, int is_store)
 {
     int mod, rm;
 
@@ -2170,11 +2183,11 @@ static void gen_ldst_modrm(CPUX86State *env, DisasContext *s, int modrm,
     }
 }
 
-static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, int ot)
+static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, TCGMemOp ot)
 {
     uint32_t ret;
 
-    switch(ot) {
+    switch (ot) {
     case MO_8:
         ret = cpu_ldub_code(env, s->pc);
         s->pc++;
@@ -2183,16 +2196,20 @@ static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, int ot)
         ret = cpu_lduw_code(env, s->pc);
         s->pc += 2;
         break;
-    default:
     case MO_32:
+#ifdef TARGET_X86_64
+    case MO_64:
+#endif
         ret = cpu_ldl_code(env, s->pc);
         s->pc += 4;
         break;
+    default:
+        tcg_abort();
     }
     return ret;
 }
 
-static inline int insn_const_size(unsigned int ot)
+static inline int insn_const_size(TCGMemOp ot)
 {
     if (ot <= MO_32) {
         return 1 << ot;
@@ -2251,7 +2268,7 @@ static inline void gen_jcc(DisasContext *s, int b,
     }
 }
 
-static void gen_cmovcc1(CPUX86State *env, DisasContext *s, int ot, int b,
+static void gen_cmovcc1(CPUX86State *env, DisasContext *s, TCGMemOp ot, int b,
                         int modrm, int reg)
 {
     CCPrepare cc;
@@ -2524,7 +2541,8 @@ static void gen_popa(DisasContext *s)
 
 static void gen_enter(DisasContext *s, int esp_addend, int level)
 {
-    int ot, opsize;
+    TCGMemOp ot;
+    int opsize;
 
     level &= 0x1f;
 #ifdef TARGET_X86_64
@@ -3036,12 +3054,13 @@ static const struct SSEOpHelper_eppi sse_op_table7[256] = {
 static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     target_ulong pc_start, int rex_r)
 {
-    int b1, op1_offset, op2_offset, is_xmm, val, ot;
+    int b1, op1_offset, op2_offset, is_xmm, val;
     int modrm, mod, rm, reg;
     SSEFunc_0_epp sse_fn_epp;
     SSEFunc_0_eppi sse_fn_eppi;
     SSEFunc_0_ppi sse_fn_ppi;
     SSEFunc_0_eppt sse_fn_eppt;
+    TCGMemOp ot;
 
     b &= 0xff;
     if (s->prefix & PREFIX_DATA)
@@ -4445,7 +4464,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                target_ulong pc_start)
 {
     int b, prefixes, aflag, dflag;
-    int shift, ot;
+    int shift;
+    TCGMemOp ot;
     int modrm, reg, rm, mod, op, opreg, val;
     target_ulong next_eip, tval;
     int rex_w, rex_r;
