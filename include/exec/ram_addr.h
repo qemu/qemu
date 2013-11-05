@@ -83,29 +83,47 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                                                           ram_addr_t start,
                                                           ram_addr_t pages)
 {
-    unsigned int i, j;
+    unsigned long i, j;
     unsigned long page_number, c;
     hwaddr addr;
     ram_addr_t ram_addr;
-    unsigned int len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
+    unsigned long len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
+    unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
 
-    /*
-     * bitmap-traveling is faster than memory-traveling (for addr...)
-     * especially when most of the memory is not dirty.
-     */
-    for (i = 0; i < len; i++) {
-        if (bitmap[i] != 0) {
-            c = leul_to_cpu(bitmap[i]);
-            do {
-                j = ffsl(c) - 1;
-                c &= ~(1ul << j);
-                page_number = (i * HOST_LONG_BITS + j) * hpratio;
-                addr = page_number * TARGET_PAGE_SIZE;
-                ram_addr = start + addr;
-                cpu_physical_memory_set_dirty_range(ram_addr,
-                                                    TARGET_PAGE_SIZE * hpratio);
-            } while (c != 0);
+    /* start address is aligned at the start of a word? */
+    if (((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) {
+        long k;
+        long nr = BITS_TO_LONGS(pages);
+
+        for (k = 0; k < nr; k++) {
+            if (bitmap[k]) {
+                unsigned long temp = leul_to_cpu(bitmap[k]);
+
+                ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION][page + k] |= temp;
+                ram_list.dirty_memory[DIRTY_MEMORY_VGA][page + k] |= temp;
+                ram_list.dirty_memory[DIRTY_MEMORY_CODE][page + k] |= temp;
+            }
+        }
+        xen_modified_memory(start, pages);
+    } else {
+        /*
+         * bitmap-traveling is faster than memory-traveling (for addr...)
+         * especially when most of the memory is not dirty.
+         */
+        for (i = 0; i < len; i++) {
+            if (bitmap[i] != 0) {
+                c = leul_to_cpu(bitmap[i]);
+                do {
+                    j = ffsl(c) - 1;
+                    c &= ~(1ul << j);
+                    page_number = (i * HOST_LONG_BITS + j) * hpratio;
+                    addr = page_number * TARGET_PAGE_SIZE;
+                    ram_addr = start + addr;
+                    cpu_physical_memory_set_dirty_range(ram_addr,
+                                       TARGET_PAGE_SIZE * hpratio);
+                } while (c != 0);
+            }
         }
     }
 }
