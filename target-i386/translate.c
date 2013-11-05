@@ -252,11 +252,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-static inline void gen_op_movl_T0_T1(void)
-{
-    tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-}
-
 static inline void gen_op_andl_A0_ffff(void)
 {
     tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffff);
@@ -5046,7 +5041,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                           tcg_const_i32(s->pc - pc_start));
             } else {
                 gen_op_movl_seg_T0_vm(R_CS);
-                gen_op_movl_T0_T1();
+                tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
                 gen_op_jmp_T0();
             }
             gen_eob(s);
