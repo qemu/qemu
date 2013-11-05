@@ -421,7 +421,7 @@ pci_get_byte(const uint8_t *config)
 static inline void
 pci_set_word(uint8_t *config, uint16_t val)
 {
-    cpu_to_le16wu((uint16_t *)config, val);
+    stw_le_p(config, val);
 }
 
 static inline uint16_t
