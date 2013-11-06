@@ -398,9 +398,9 @@ static void gen_add_A0_im(DisasContext *s, int val)
         gen_op_addl_A0_im(val);
 }
 
-static inline void gen_op_jmp_T0(void)
+static inline void gen_op_jmp_v(TCGv dest)
 {
-    tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, eip));
+    tcg_gen_st_tl(dest, cpu_env, offsetof(CPUX86State, eip));
 }
 
 static inline void gen_op_add_reg_im(TCGMemOp size, int reg, int32_t val)
@@ -495,7 +495,7 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
 static inline void gen_jmp_im(target_ulong pc)
 {
     tcg_gen_movi_tl(cpu_tmp0, pc);
-    tcg_gen_st_tl(cpu_tmp0, cpu_env, offsetof(CPUX86State, eip));
+    gen_op_jmp_v(cpu_tmp0);
 }
 
 static inline void gen_string_movl_A0_ESI(DisasContext *s)
@@ -4918,7 +4918,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             next_eip = s->pc - s->cs_base;
             tcg_gen_movi_tl(cpu_T[1], next_eip);
             gen_push_v(s, cpu_T[1]);
-            gen_op_jmp_T0();
+            gen_op_jmp_v(cpu_T[0]);
             gen_eob(s);
             break;
         case 3: /* lcall Ev */
@@ -4945,7 +4945,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (dflag == MO_16) {
                 tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
             }
-            gen_op_jmp_T0();
+            gen_op_jmp_v(cpu_T[0]);
             gen_eob(s);
             break;
         case 5: /* ljmp Ev */
@@ -4962,7 +4962,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             } else {
                 gen_op_movl_seg_T0_vm(R_CS);
                 tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-                gen_op_jmp_T0();
+                gen_op_jmp_v(cpu_T[0]);
             }
             gen_eob(s);
             break;
@@ -6358,14 +6358,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         ot = gen_pop_T0(s);
         gen_stack_update(s, val + (1 << ot));
         /* Note that gen_pop_T0 uses a zero-extending load.  */
-        gen_op_jmp_T0();
+        gen_op_jmp_v(cpu_T[0]);
         gen_eob(s);
         break;
     case 0xc3: /* ret */
         ot = gen_pop_T0(s);
         gen_pop_update(s, ot);
         /* Note that gen_pop_T0 uses a zero-extending load.  */
-        gen_op_jmp_T0();
+        gen_op_jmp_v(cpu_T[0]);
         gen_eob(s);
         break;
     case 0xca: /* lret im */
@@ -6383,7 +6383,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_op_ld_v(s, dflag, cpu_T[0], cpu_A0);
             /* NOTE: keeping EIP updated is not a problem in case of
                exception */
-            gen_op_jmp_T0();
+            gen_op_jmp_v(cpu_T[0]);
             /* pop selector */
             gen_op_addl_A0_im(1 << dflag);
             gen_op_ld_v(s, dflag, cpu_T[0], cpu_A0);
