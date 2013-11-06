@@ -4961,8 +4961,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                           tcg_const_i32(s->pc - pc_start));
             } else {
                 gen_op_movl_seg_T0_vm(R_CS);
-                tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-                gen_op_jmp_v(cpu_T[0]);
+                gen_op_jmp_v(cpu_T[1]);
             }
             gen_eob(s);
             break;
