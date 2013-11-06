@@ -2384,78 +2384,36 @@ static inline void gen_stack_update(DisasContext *s, int addend)
     }
 }
 
-/* generate a push. It depends on ss32, addseg and dflag */
-static void gen_push_T0(DisasContext *s)
+/* Generate a push. It depends on ss32, addseg and dflag.  */
+static void gen_push_v(DisasContext *s, TCGv val)
 {
-#ifdef TARGET_X86_64
-    if (CODE64(s)) {
-        gen_op_movq_A0_reg(R_ESP);
-        if (s->dflag != MO_16) {
-            gen_op_addq_A0_im(-8);
-            gen_op_st_v(s, MO_64, cpu_T[0], cpu_A0);
-        } else {
-            gen_op_addq_A0_im(-2);
-            gen_op_st_v(s, MO_16, cpu_T[0], cpu_A0);
-        }
-        gen_op_mov_reg_A0(MO_64, R_ESP);
-    } else
-#endif
-    {
-        gen_op_movl_A0_reg(R_ESP);
-        gen_op_addl_A0_im(-1 << s->dflag);
-        if (s->ss32) {
-            if (s->addseg) {
-                tcg_gen_mov_tl(cpu_T[1], cpu_A0);
-                gen_op_addl_A0_seg(s, R_SS);
-            }
-        } else {
-            tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
-            tcg_gen_mov_tl(cpu_T[1], cpu_A0);
-            gen_op_addl_A0_seg(s, R_SS);
-        }
-        gen_op_st_v(s, s->dflag, cpu_T[0], cpu_A0);
-        if (s->ss32 && !s->addseg)
-            gen_op_mov_reg_A0(MO_32, R_ESP);
-        else
-            gen_op_mov_reg_T1(MO_16 + s->ss32, R_ESP);
-    }
-}
+    TCGMemOp a_ot, d_ot = mo_pushpop(s, s->dflag);
+    int size = 1 << d_ot;
+    TCGv new_esp = cpu_A0;
 
-/* generate a push. It depends on ss32, addseg and dflag */
-/* slower version for T1, only used for call Ev */
-static void gen_push_T1(DisasContext *s)
-{
-#ifdef TARGET_X86_64
-    if (CODE64(s)) {
-        gen_op_movq_A0_reg(R_ESP);
-        if (s->dflag != MO_16) {
-            gen_op_addq_A0_im(-8);
-            gen_op_st_v(s, MO_64, cpu_T[1], cpu_A0);
-        } else {
-            gen_op_addq_A0_im(-2);
-            gen_op_st_v(s, MO_16, cpu_T[1], cpu_A0);
-        }
-        gen_op_mov_reg_A0(MO_64, R_ESP);
-    } else
-#endif
-    {
-        gen_op_movl_A0_reg(R_ESP);
-        gen_op_addl_A0_im(-1 << s->dflag);
-        if (s->ss32) {
-            if (s->addseg) {
-                gen_op_addl_A0_seg(s, R_SS);
-            }
-        } else {
-            tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
-            gen_op_addl_A0_seg(s, R_SS);
-        }
-        gen_op_st_v(s, s->dflag, cpu_T[1], cpu_A0);
+    tcg_gen_subi_tl(cpu_A0, cpu_regs[R_ESP], size);
 
-        if (s->ss32 && !s->addseg)
-            gen_op_mov_reg_A0(MO_32, R_ESP);
-        else
-            gen_stack_update(s, -1 << s->dflag);
+    if (CODE64(s)) {
+        a_ot = MO_64;
+    } else if (s->ss32) {
+        a_ot = MO_32;
+        if (s->addseg) {
+            new_esp = cpu_tmp4;
+            tcg_gen_mov_tl(new_esp, cpu_A0);
+            gen_op_addl_A0_seg(s, R_SS);
+        } else {
+            tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
+        }
+    } else {
+        a_ot = MO_16;
+        new_esp = cpu_tmp4;
+        tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
+        tcg_gen_mov_tl(new_esp, cpu_A0);
+        gen_op_addl_A0_seg(s, R_SS);
     }
+
+    gen_op_st_v(s, d_ot, val, cpu_A0);
+    gen_op_mov_reg_v(a_ot, R_ESP, new_esp);
 }
 
 /* two step pop is necessary for precise exceptions */
@@ -4984,7 +4942,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             next_eip = s->pc - s->cs_base;
             tcg_gen_movi_tl(cpu_T[1], next_eip);
-            gen_push_T1(s);
+            gen_push_v(s, cpu_T[1]);
             gen_op_jmp_T0();
             gen_eob(s);
             break;
@@ -5034,7 +4992,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_eob(s);
             break;
         case 6: /* push Ev */
-            gen_push_T0(s);
+            gen_push_v(s, cpu_T[0]);
             break;
         default:
             goto illegal_op;
@@ -5276,7 +5234,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         /* push/pop */
     case 0x50 ... 0x57: /* push */
         gen_op_mov_TN_reg(MO_32, 0, (b & 7) | REX_B(s));
-        gen_push_T0(s);
+        gen_push_v(s, cpu_T[0]);
         break;
     case 0x58 ... 0x5f: /* pop */
         ot = mo_pushpop(s, dflag);
@@ -5303,7 +5261,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         else
             val = (int8_t)insn_get(env, s, MO_8);
         tcg_gen_movi_tl(cpu_T[0], val);
-        gen_push_T0(s);
+        gen_push_v(s, cpu_T[0]);
         break;
     case 0x8f: /* pop Ev */
         ot = mo_pushpop(s, dflag);
@@ -5356,12 +5314,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (CODE64(s))
             goto illegal_op;
         gen_op_movl_T0_seg(b >> 3);
-        gen_push_T0(s);
+        gen_push_v(s, cpu_T[0]);
         break;
     case 0x1a0: /* push fs */
     case 0x1a8: /* push gs */
         gen_op_movl_T0_seg((b >> 3) & 7);
-        gen_push_T0(s);
+        gen_push_v(s, cpu_T[0]);
         break;
     case 0x07: /* pop es */
     case 0x17: /* pop ss */
@@ -6510,7 +6468,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tval &= 0xffffffff;
             }
             tcg_gen_movi_tl(cpu_T[0], next_eip);
-            gen_push_T0(s);
+            gen_push_v(s, cpu_T[0]);
             gen_jmp(s, tval);
         }
         break;
@@ -6606,7 +6564,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         } else {
             gen_update_cc_op(s);
             gen_helper_read_eflags(cpu_T[0], cpu_env);
-            gen_push_T0(s);
+            gen_push_v(s, cpu_T[0]);
         }
         break;
     case 0x9d: /* popf */
