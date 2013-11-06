@@ -58,7 +58,7 @@ static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pvpanic;
-static bool has_pci_info = true;
+static bool has_pci_info;
 static bool has_acpi_build = true;
 
 /* PC hardware initialisation */
