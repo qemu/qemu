@@ -4923,7 +4923,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 3: /* lcall Ev */
             gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
-            gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
+            gen_add_A0_im(s, 1 << ot);
             gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_lcall:
             if (s->pe && !s->vm86) {
@@ -4950,7 +4950,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 5: /* ljmp Ev */
             gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
-            gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
+            gen_add_A0_im(s, 1 << ot);
             gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         do_ljmp:
             if (s->pe && !s->vm86) {
@@ -5578,7 +5578,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         gen_lea_modrm(env, s, modrm);
         gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
-        gen_add_A0_im(s, 1 << (ot - MO_16 + 1));
+        gen_add_A0_im(s, 1 << ot);
         /* load the segment first to handle exceptions properly */
         gen_op_ld_v(s, MO_16, cpu_T[0], cpu_A0);
         gen_movl_seg_T0(s, op, pc_start - s->cs_base);
