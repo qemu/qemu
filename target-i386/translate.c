@@ -2028,51 +2028,49 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
             break;
         default:
         case 2:
-            disp = cpu_lduw_code(env, s->pc);
+            disp = (int16_t)cpu_lduw_code(env, s->pc);
             s->pc += 2;
             break;
         }
-        switch(rm) {
+
+        sum = cpu_A0;
+        switch (rm) {
         case 0:
-            gen_op_movl_A0_reg(R_EBX);
-            gen_op_addl_A0_reg_sN(0, R_ESI);
+            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBX], cpu_regs[R_ESI]);
             break;
         case 1:
-            gen_op_movl_A0_reg(R_EBX);
-            gen_op_addl_A0_reg_sN(0, R_EDI);
+            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBX], cpu_regs[R_EDI]);
             break;
         case 2:
-            gen_op_movl_A0_reg(R_EBP);
-            gen_op_addl_A0_reg_sN(0, R_ESI);
+            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBP], cpu_regs[R_ESI]);
             break;
         case 3:
-            gen_op_movl_A0_reg(R_EBP);
-            gen_op_addl_A0_reg_sN(0, R_EDI);
+            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBP], cpu_regs[R_EDI]);
             break;
         case 4:
-            gen_op_movl_A0_reg(R_ESI);
+            sum = cpu_regs[R_ESI];
             break;
         case 5:
-            gen_op_movl_A0_reg(R_EDI);
+            sum = cpu_regs[R_EDI];
             break;
         case 6:
-            gen_op_movl_A0_reg(R_EBP);
+            sum = cpu_regs[R_EBP];
             break;
         default:
         case 7:
-            gen_op_movl_A0_reg(R_EBX);
+            sum = cpu_regs[R_EBX];
             break;
         }
-        if (disp != 0)
-            gen_op_addl_A0_im(disp);
+        tcg_gen_addi_tl(cpu_A0, sum, disp);
         tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
     no_rm:
         if (must_add_seg) {
             if (override < 0) {
-                if (rm == 2 || rm == 3 || rm == 6)
+                if (rm == 2 || rm == 3 || rm == 6) {
                     override = R_SS;
-                else
+                } else {
                     override = R_DS;
+                }
             }
             gen_op_addl_A0_seg(s, override);
         }
