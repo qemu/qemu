@@ -726,6 +726,9 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 #ifdef CONFIG_VDE
         [NET_CLIENT_OPTIONS_KIND_VDE]       = net_init_vde,
 #endif
+#ifdef CONFIG_NETMAP
+        [NET_CLIENT_OPTIONS_KIND_NETMAP]    = net_init_netmap,
+#endif
         [NET_CLIENT_OPTIONS_KIND_DUMP]      = net_init_dump,
 #ifdef CONFIG_NET_BRIDGE
         [NET_CLIENT_OPTIONS_KIND_BRIDGE]    = net_init_bridge,
@@ -756,6 +759,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         case NET_CLIENT_OPTIONS_KIND_SOCKET:
 #ifdef CONFIG_VDE
         case NET_CLIENT_OPTIONS_KIND_VDE:
+#endif
+#ifdef CONFIG_NETMAP
+        case NET_CLIENT_OPTIONS_KIND_NETMAP:
 #endif
 #ifdef CONFIG_NET_BRIDGE
         case NET_CLIENT_OPTIONS_KIND_BRIDGE:

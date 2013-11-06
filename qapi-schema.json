@@ -3009,6 +3009,27 @@
     'hubid':     'int32' } }
 
 ##
+# @NetdevNetmapOptions
+#
+# Connect a client to a netmap-enabled NIC or to a VALE switch port
+#
+# @ifname: Either the name of an existing network interface supported by
+#          netmap, or the name of a VALE port (created on the fly).
+#          A VALE port name is in the form 'valeXXX:YYY', where XXX and
+#          YYY are non-negative integers. XXX identifies a switch and
+#          YYY identifies a port of the switch. VALE ports having the
+#          same XXX are therefore connected to the same switch.
+#
+# @devname: #optional path of the netmap device (default: '/dev/netmap').
+#
+# Since 1.8
+##
+{ 'type': 'NetdevNetmapOptions',
+  'data': {
+    'ifname':     'str',
+    '*devname':    'str' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
@@ -3025,7 +3046,8 @@
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
-    'hubport':  'NetdevHubPortOptions' } }
+    'hubport':  'NetdevHubPortOptions',
+    'netmap':   'NetdevNetmapOptions' } }
 
 ##
 # @NetLegacy
