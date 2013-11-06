@@ -639,6 +639,8 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+T: git git://repo.or.cz/qemu/kevin.git block
+T: git git://github.com/stefanha/qemu.git block
 
 Character Devices
 M: Anthony Liguori <aliguori@amazon.com>
