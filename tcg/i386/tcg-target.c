@@ -240,13 +240,14 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #endif
 
 #define P_EXT		0x100		/* 0x0f opcode prefix */
-#define P_DATA16	0x200		/* 0x66 opcode prefix */
+#define P_EXT38         0x200           /* 0x0f 0x38 opcode prefix */
+#define P_DATA16        0x400           /* 0x66 opcode prefix */
 #if TCG_TARGET_REG_BITS == 64
-# define P_ADDR32	0x400		/* 0x67 opcode prefix */
-# define P_REXW		0x800		/* Set REX.W = 1 */
-# define P_REXB_R	0x1000		/* REG field as byte register */
-# define P_REXB_RM	0x2000		/* R/M field as byte register */
-# define P_GS           0x4000          /* gs segment override */
+# define P_ADDR32       0x800           /* 0x67 opcode prefix */
+# define P_REXW         0x1000          /* Set REX.W = 1 */
+# define P_REXB_R       0x2000          /* REG field as byte register */
+# define P_REXB_RM      0x4000          /* R/M field as byte register */
+# define P_GS           0x8000          /* gs segment override */
 #else
 # define P_ADDR32	0
 # define P_REXW		0
@@ -398,9 +399,13 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
         tcg_out8(s, (uint8_t)(rex | 0x40));
     }
 
-    if (opc & P_EXT) {
+    if (opc & (P_EXT | P_EXT38)) {
         tcg_out8(s, 0x0f);
+        if (opc & P_EXT38) {
+            tcg_out8(s, 0x38);
+        }
     }
+
     tcg_out8(s, opc);
 }
 #else
@@ -409,8 +414,11 @@ static void tcg_out_opc(TCGContext *s, int opc)
     if (opc & P_DATA16) {
         tcg_out8(s, 0x66);
     }
-    if (opc & P_EXT) {
+    if (opc & (P_EXT | P_EXT38)) {
         tcg_out8(s, 0x0f);
+        if (opc & P_EXT38) {
+            tcg_out8(s, 0x38);
+        }
     }
     tcg_out8(s, opc);
 }
