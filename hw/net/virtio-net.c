@@ -1601,7 +1601,7 @@ static int virtio_net_device_exit(DeviceState *qdev)
         if (q->tx_timer) {
             timer_del(q->tx_timer);
             timer_free(q->tx_timer);
-        } else {
+        } else if (q->tx_bh) {
             qemu_bh_delete(q->tx_bh);
         }
     }
