@@ -555,7 +555,7 @@ static int spapr_phb_init(SysBusDevice *s)
 
     /* Initialize memory regions */
     sprintf(namebuf, "%s.mmio", sphb->dtbusname);
-    memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, INT64_MAX);
+    memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, UINT64_MAX);
 
     sprintf(namebuf, "%s.mmio-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->memwindow, OBJECT(sphb),
