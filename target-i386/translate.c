@@ -358,11 +358,6 @@ static void gen_op_mov_reg_v(TCGMemOp ot, int reg, TCGv t0)
     }
 }
 
-static inline void gen_op_mov_reg_A0(TCGMemOp size, int reg)
-{
-    gen_op_mov_reg_v(size, reg, cpu_A0);
-}
-
 static inline void gen_op_mov_v_reg(TCGMemOp ot, TCGv t0, int reg)
 {
     if (ot == MO_8 && byte_reg_is_xH(reg)) {
@@ -5458,7 +5453,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         s->addseg = 0;
         gen_lea_modrm(env, s, modrm);
         s->addseg = val;
-        gen_op_mov_reg_A0(ot, reg);
+        gen_op_mov_reg_v(ot, reg, cpu_A0);
         break;
 
     case 0xa0: /* mov EAX, Ov */
