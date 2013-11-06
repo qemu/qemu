@@ -640,7 +640,7 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
         if (length < 0) {
             return length;
         }
-        hint = length >> BDRV_SECTOR_BITS;
+        hint = DIV_ROUND_UP(length, BDRV_SECTOR_SIZE);
     }
 
     bs->total_sectors = hint;
