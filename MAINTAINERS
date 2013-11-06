@@ -710,6 +710,14 @@ S: Maintained
 F: net/
 T: git git://github.com/stefanha/qemu.git net
 
+Netmap network backend
+M: Luigi Rizzo <rizzo@iet.unipi.it>
+M: Giuseppe Lettieri <g.lettieri@iet.unipi.it>
+M: Vincenzo Maffione <v.maffione@gmail.com>
+W: http://info.iet.unipi.it/~luigi/netmap/
+S: Maintained
+F: net/netmap.c
+
 Network Block Device (NBD)
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Odd Fixes
