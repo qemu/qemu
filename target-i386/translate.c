@@ -408,11 +408,6 @@ static void gen_add_A0_im(DisasContext *s, int val)
         gen_op_addl_A0_im(val);
 }
 
-static inline void gen_op_addl_T0_T1(void)
-{
-    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-}
-
 static inline void gen_op_jmp_T0(void)
 {
     tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, eip));
@@ -1340,7 +1335,7 @@ static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
         set_cc_op(s1, CC_OP_SBBB + ot);
         break;
     case OP_ADDL:
-        gen_op_addl_T0_T1();
+        tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         gen_op_st_rm_T0_A0(s1, ot, d);
         gen_op_update2_cc();
         set_cc_op(s1, CC_OP_ADDB + ot);
@@ -5124,14 +5119,14 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             rm = (modrm & 7) | REX_B(s);
             gen_op_mov_TN_reg(ot, 0, reg);
             gen_op_mov_TN_reg(ot, 1, rm);
-            gen_op_addl_T0_T1();
+            tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
             gen_op_mov_reg_v(ot, reg, cpu_T[1]);
             gen_op_mov_reg_v(ot, rm, cpu_T[0]);
         } else {
             gen_lea_modrm(env, s, modrm);
             gen_op_mov_TN_reg(ot, 0, reg);
             gen_op_ld_v(s, ot, cpu_T[1], cpu_A0);
-            gen_op_addl_T0_T1();
+            tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
             gen_op_st_v(s, ot, cpu_T[0], cpu_A0);
             gen_op_mov_reg_v(ot, reg, cpu_T[1]);
         }
