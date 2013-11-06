@@ -381,7 +381,7 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     }
 
     rex = 0;
-    rex |= (opc & P_REXW) >> 8;		/* REX.W */
+    rex |= (opc & P_REXW) ? 0x8 : 0x0;  /* REX.W */
     rex |= (r & 8) >> 1;		/* REX.R */
     rex |= (x & 8) >> 2;		/* REX.X */
     rex |= (rm & 8) >> 3;		/* REX.B */
