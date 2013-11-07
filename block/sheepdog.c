@@ -1464,9 +1464,7 @@ out:
     return ret;
 }
 
-static int do_sd_create(BDRVSheepdogState *s, char *filename, int64_t vdi_size,
-                        uint32_t base_vid, uint32_t *vdi_id, int snapshot,
-                        uint8_t copy_policy)
+static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
 {
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
@@ -1483,11 +1481,11 @@ static int do_sd_create(BDRVSheepdogState *s, char *filename, int64_t vdi_size,
      * does not fit in buf?  For now, just truncate and avoid buffer overrun.
      */
     memset(buf, 0, sizeof(buf));
-    pstrcpy(buf, sizeof(buf), filename);
+    pstrcpy(buf, sizeof(buf), s->name);
 
     memset(&hdr, 0, sizeof(hdr));
     hdr.opcode = SD_OP_NEW_VDI;
-    hdr.vdi_id = base_vid;
+    hdr.vdi_id = s->inode.vdi_id;
 
     wlen = SD_MAX_VDI_LEN;
 
@@ -1495,8 +1493,8 @@ static int do_sd_create(BDRVSheepdogState *s, char *filename, int64_t vdi_size,
     hdr.snapid = snapshot;
 
     hdr.data_length = wlen;
-    hdr.vdi_size = vdi_size;
-    hdr.copy_policy = copy_policy;
+    hdr.vdi_size = s->inode.vdi_size;
+    hdr.copy_policy = s->inode.copy_policy;
 
     ret = do_req(fd, (SheepdogReq *)&hdr, buf, &wlen, &rlen);
 
@@ -1507,7 +1505,7 @@ static int do_sd_create(BDRVSheepdogState *s, char *filename, int64_t vdi_size,
     }
 
     if (rsp->result != SD_RES_SUCCESS) {
-        error_report("%s, %s", sd_strerror(rsp->result), filename);
+        error_report("%s, %s", sd_strerror(rsp->result), s->inode.name);
         return -EIO;
     }
 
@@ -1568,23 +1566,21 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
                      Error **errp)
 {
     int ret = 0;
-    uint32_t vid = 0, base_vid = 0;
-    int64_t vdi_size = 0;
+    uint32_t vid = 0;
     char *backing_file = NULL;
     BDRVSheepdogState *s;
-    char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
+    char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     bool prealloc = false;
     Error *local_err = NULL;
 
     s = g_malloc0(sizeof(BDRVSheepdogState));
 
-    memset(vdi, 0, sizeof(vdi));
     memset(tag, 0, sizeof(tag));
     if (strstr(filename, "://")) {
-        ret = sd_parse_uri(s, filename, vdi, &snapid, tag);
+        ret = sd_parse_uri(s, filename, s->name, &snapid, tag);
     } else {
-        ret = parse_vdiname(s, filename, vdi, &snapid, tag);
+        ret = parse_vdiname(s, filename, s->name, &snapid, tag);
     }
     if (ret < 0) {
         goto out;
@@ -1592,7 +1588,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
 
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            vdi_size = options->value.n;
+            s->inode.vdi_size = options->value.n;
         } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
             backing_file = options->value.s;
         } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
@@ -1610,7 +1606,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         options++;
     }
 
-    if (vdi_size > SD_MAX_VDI_SIZE) {
+    if (s->inode.vdi_size > SD_MAX_VDI_SIZE) {
         error_report("too big image size");
         ret = -EINVAL;
         goto out;
@@ -1645,12 +1641,11 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             goto out;
         }
 
-        base_vid = s->inode.vdi_id;
         bdrv_unref(bs);
     }
 
     /* TODO: allow users to specify copy number */
-    ret = do_sd_create(s, vdi, vdi_size, base_vid, &vid, 0, 0);
+    ret = do_sd_create(s, &vid, 0);
     if (!prealloc || ret) {
         goto out;
     }
@@ -1833,8 +1828,7 @@ static int sd_create_branch(BDRVSheepdogState *s)
      * false bail out.
      */
     deleted = sd_delete(s);
-    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &vid,
-                       !deleted, s->inode.copy_policy);
+    ret = do_sd_create(s, &vid, !deleted);
     if (ret) {
         goto out;
     }
@@ -2097,8 +2091,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &new_vid,
-                       1, s->inode.copy_policy);
+    ret = do_sd_create(s, &new_vid, 1);
     if (ret < 0) {
         error_report("failed to create inode for snapshot. %s",
                      strerror(errno));
