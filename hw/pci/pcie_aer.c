@@ -425,7 +425,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
             /* 7.10.8 Header Log Register */
             uint8_t *header_log =
                 aer_cap + PCI_ERR_HEADER_LOG + i * sizeof err->header[0];
-            cpu_to_be32wu((uint32_t*)header_log, err->header[i]);
+            stl_be_p(header_log, err->header[i]);
         }
     } else {
         assert(!(err->flags & PCIE_AER_ERR_TLP_PREFIX_PRESENT));
@@ -439,7 +439,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
             /* 7.10.12 tlp prefix log register */
             uint8_t *prefix_log =
                 aer_cap + PCI_ERR_TLP_PREFIX_LOG + i * sizeof err->prefix[0];
-            cpu_to_be32wu((uint32_t*)prefix_log, err->prefix[i]);
+            stl_be_p(prefix_log, err->prefix[i]);
         }
         errcap |= PCI_ERR_CAP_TLP;
     } else {

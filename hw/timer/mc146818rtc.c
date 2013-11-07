@@ -70,7 +70,6 @@ typedef struct RTCState {
     uint64_t last_update;
     int64_t offset;
     qemu_irq irq;
-    qemu_irq sqw_irq;
     int it_shift;
     /* periodic timer */
     QEMUTimer *periodic_timer;
@@ -151,8 +150,7 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
     if (period_code != 0
-        && ((s->cmos_data[RTC_REG_B] & REG_B_PIE)
-            || ((s->cmos_data[RTC_REG_B] & REG_B_SQWE) && s->sqw_irq))) {
+        && (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
         if (period_code <= 2)
             period_code += 7;
         /* period in 32 Khz cycles */
@@ -201,11 +199,6 @@ static void rtc_periodic_timer(void *opaque)
         } else
 #endif
         qemu_irq_raise(s->irq);
-    }
-    if (s->cmos_data[RTC_REG_B] & REG_B_SQWE) {
-        /* Not square wave at all but we don't want 2048Hz interrupts!
-           Must be seen as a pulse.  */
-        qemu_irq_raise(s->sqw_irq);
     }
 }
 

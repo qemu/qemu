@@ -165,36 +165,38 @@ int64_t cpu_get_icount(void)
 /* Caller must hold the BQL */
 int64_t cpu_get_ticks(void)
 {
+    int64_t ticks;
+
     if (use_icount) {
         return cpu_get_icount();
     }
-    if (!timers_state.cpu_ticks_enabled) {
-        return timers_state.cpu_ticks_offset;
-    } else {
-        int64_t ticks;
-        ticks = cpu_get_real_ticks();
-        if (timers_state.cpu_ticks_prev > ticks) {
-            /* Note: non increasing ticks may happen if the host uses
-               software suspend */
-            timers_state.cpu_ticks_offset += timers_state.cpu_ticks_prev - ticks;
-        }
-        timers_state.cpu_ticks_prev = ticks;
-        return ticks + timers_state.cpu_ticks_offset;
+
+    ticks = timers_state.cpu_ticks_offset;
+    if (timers_state.cpu_ticks_enabled) {
+        ticks += cpu_get_real_ticks();
     }
+
+    if (timers_state.cpu_ticks_prev > ticks) {
+        /* Note: non increasing ticks may happen if the host uses
+           software suspend */
+        timers_state.cpu_ticks_offset += timers_state.cpu_ticks_prev - ticks;
+        ticks = timers_state.cpu_ticks_prev;
+    }
+
+    timers_state.cpu_ticks_prev = ticks;
+    return ticks;
 }
 
 static int64_t cpu_get_clock_locked(void)
 {
-    int64_t ti;
+    int64_t ticks;
 
-    if (!timers_state.cpu_ticks_enabled) {
-        ti = timers_state.cpu_clock_offset;
-    } else {
-        ti = get_clock();
-        ti += timers_state.cpu_clock_offset;
+    ticks = timers_state.cpu_clock_offset;
+    if (timers_state.cpu_ticks_enabled) {
+        ticks += get_clock();
     }
 
-    return ti;
+    return ticks;
 }
 
 /* return the host CPU monotonic timer and handle stop/restart */
@@ -235,7 +237,7 @@ void cpu_disable_ticks(void)
     /* Here, the really thing protected by seqlock is cpu_clock_offset. */
     seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (timers_state.cpu_ticks_enabled) {
-        timers_state.cpu_ticks_offset = cpu_get_ticks();
+        timers_state.cpu_ticks_offset += cpu_get_real_ticks();
         timers_state.cpu_clock_offset = cpu_get_clock_locked();
         timers_state.cpu_ticks_enabled = 0;
     }

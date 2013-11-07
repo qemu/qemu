@@ -421,25 +421,25 @@ pci_get_byte(const uint8_t *config)
 static inline void
 pci_set_word(uint8_t *config, uint16_t val)
 {
-    cpu_to_le16wu((uint16_t *)config, val);
+    stw_le_p(config, val);
 }
 
 static inline uint16_t
 pci_get_word(const uint8_t *config)
 {
-    return le16_to_cpupu((const uint16_t *)config);
+    return lduw_le_p(config);
 }
 
 static inline void
 pci_set_long(uint8_t *config, uint32_t val)
 {
-    cpu_to_le32wu((uint32_t *)config, val);
+    stl_le_p(config, val);
 }
 
 static inline uint32_t
 pci_get_long(const uint8_t *config)
 {
-    return le32_to_cpupu((const uint32_t *)config);
+    return ldl_le_p(config);
 }
 
 static inline void
