@@ -91,6 +91,14 @@
 #define SD_NR_VDIS   (1U << 24)
 #define SD_DATA_OBJ_SIZE (UINT64_C(1) << 22)
 #define SD_MAX_VDI_SIZE (SD_DATA_OBJ_SIZE * MAX_DATA_OBJS)
+/*
+ * For erasure coding, we use at most SD_EC_MAX_STRIP for data strips and
+ * (SD_EC_MAX_STRIP - 1) for parity strips
+ *
+ * SD_MAX_COPIES is sum of number of data strips and parity strips.
+ */
+#define SD_EC_MAX_STRIP 16
+#define SD_MAX_COPIES (SD_EC_MAX_STRIP * 2 - 1)
 
 #define SD_INODE_SIZE (sizeof(SheepdogInode))
 #define CURRENT_VDI_ID 0
@@ -1495,6 +1503,7 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
     hdr.data_length = wlen;
     hdr.vdi_size = s->inode.vdi_size;
     hdr.copy_policy = s->inode.copy_policy;
+    hdr.copies = s->inode.nr_copies;
 
     ret = do_req(fd, (SheepdogReq *)&hdr, buf, &wlen, &rlen);
 
@@ -1562,6 +1571,60 @@ out:
     return ret;
 }
 
+/*
+ * Sheepdog support two kinds of redundancy, full replication and erasure
+ * coding.
+ *
+ * # create a fully replicated vdi with x copies
+ * -o redundancy=x (1 <= x <= SD_MAX_COPIES)
+ *
+ * # create a erasure coded vdi with x data strips and y parity strips
+ * -o redundancy=x:y (x must be one of {2,4,8,16} and 1 <= y < SD_EC_MAX_STRIP)
+ */
+static int parse_redundancy(BDRVSheepdogState *s, const char *opt)
+{
+    struct SheepdogInode *inode = &s->inode;
+    const char *n1, *n2;
+    long copy, parity;
+    char p[10];
+
+    pstrcpy(p, sizeof(p), opt);
+    n1 = strtok(p, ":");
+    n2 = strtok(NULL, ":");
+
+    if (!n1) {
+        return -EINVAL;
+    }
+
+    copy = strtol(n1, NULL, 10);
+    if (copy > SD_MAX_COPIES || copy < 1) {
+        return -EINVAL;
+    }
+    if (!n2) {
+        inode->copy_policy = 0;
+        inode->nr_copies = copy;
+        return 0;
+    }
+
+    if (copy != 2 && copy != 4 && copy != 8 && copy != 16) {
+        return -EINVAL;
+    }
+
+    parity = strtol(n2, NULL, 10);
+    if (parity >= SD_EC_MAX_STRIP || parity < 1) {
+        return -EINVAL;
+    }
+
+    /*
+     * 4 bits for parity and 4 bits for data.
+     * We have to compress upper data bits because it can't represent 16
+     */
+    inode->copy_policy = ((copy / 2) << 4) + parity;
+    inode->nr_copies = copy + parity;
+
+    return 0;
+}
+
 static int sd_create(const char *filename, QEMUOptionParameter *options,
                      Error **errp)
 {
@@ -1600,6 +1663,11 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
                 error_report("Invalid preallocation mode: '%s'",
                              options->value.s);
                 ret = -EINVAL;
+                goto out;
+            }
+        } else if (!strcmp(options->name, BLOCK_OPT_REDUNDANCY)) {
+            ret = parse_redundancy(s, options->value.s);
+            if (ret < 0) {
                 goto out;
             }
         }
@@ -1644,7 +1712,6 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
         bdrv_unref(bs);
     }
 
-    /* TODO: allow users to specify copy number */
     ret = do_sd_create(s, &vid, 0);
     if (!prealloc || ret) {
         goto out;
@@ -2431,6 +2498,11 @@ static QEMUOptionParameter sd_create_options[] = {
         .name = BLOCK_OPT_PREALLOC,
         .type = OPT_STRING,
         .help = "Preallocation mode (allowed values: off, full)"
+    },
+    {
+        .name = BLOCK_OPT_REDUNDANCY,
+        .type = OPT_STRING,
+        .help = "Redundancy of the image"
     },
     { NULL }
 };

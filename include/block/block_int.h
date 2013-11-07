@@ -53,6 +53,7 @@
 #define BLOCK_OPT_COMPAT_LEVEL      "compat"
 #define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
 #define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
+#define BLOCK_OPT_REDUNDANCY        "redundancy"
 
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
