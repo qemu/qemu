@@ -67,6 +67,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
+check-qtest-pci-y += tests/rtl8139-test$(EXESUF)
+gcov-files-pci-y += hw/net/rtl8139.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -207,6 +209,7 @@ tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 tests/e1000-test$(EXESUF): tests/e1000-test.o
+tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
