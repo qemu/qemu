@@ -90,7 +90,9 @@ struct e820_table {
     struct e820_entry entry[E820_NR_ENTRIES];
 } QEMU_PACKED __attribute((__aligned__(4)));
 
-static struct e820_table e820_table;
+static struct e820_table e820_reserve;
+static struct e820_entry *e820_table;
+static unsigned e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 void gsi_handler(void *opaque, int n, int level)
@@ -577,19 +579,32 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
-    int index = le32_to_cpu(e820_table.count);
+    int index = le32_to_cpu(e820_reserve.count);
     struct e820_entry *entry;
 
-    if (index >= E820_NR_ENTRIES)
-        return -EBUSY;
-    entry = &e820_table.entry[index++];
+    if (type != E820_RAM) {
+        /* old FW_CFG_E820_TABLE entry -- reservations only */
+        if (index >= E820_NR_ENTRIES) {
+            return -EBUSY;
+        }
+        entry = &e820_reserve.entry[index++];
 
-    entry->address = cpu_to_le64(address);
-    entry->length = cpu_to_le64(length);
-    entry->type = cpu_to_le32(type);
+        entry->address = cpu_to_le64(address);
+        entry->length = cpu_to_le64(length);
+        entry->type = cpu_to_le32(type);
 
-    e820_table.count = cpu_to_le32(index);
-    return index;
+        e820_reserve.count = cpu_to_le32(index);
+    }
+
+    /* new "etc/e820" file -- include ram too */
+    e820_table = g_realloc(e820_table,
+                           sizeof(struct e820_entry) * (e820_entries+1));
+    e820_table[e820_entries].address = cpu_to_le64(address);
+    e820_table[e820_entries].length = cpu_to_le64(length);
+    e820_table[e820_entries].type = cpu_to_le32(type);
+    e820_entries++;
+
+    return e820_entries;
 }
 
 /* Calculates the limit to CPU APIC ID values
@@ -640,7 +655,9 @@ static FWCfgState *bochs_bios_init(void)
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_table, smbios_len);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE,
-                     &e820_table, sizeof(e820_table));
+                     &e820_reserve, sizeof(e820_reserve));
+    fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
+                    sizeof(struct e820_entry) * e820_entries);
 
     fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, &hpet_cfg, sizeof(hpet_cfg));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
@@ -1157,13 +1174,7 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
                              0, below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
-    if (0) {
-        /*
-         * Ideally we should do that too, but that would ruin the e820
-         * reservations added by seabios before initializing fw_cfg.
-         */
-        e820_add_entry(0, below_4g_mem_size, E820_RAM);
-    }
+    e820_add_entry(0, below_4g_mem_size, E820_RAM);
     if (above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
         memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g", ram,

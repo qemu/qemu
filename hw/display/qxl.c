@@ -1701,15 +1701,9 @@ static const MemoryRegionOps qxl_io_ops = {
     },
 };
 
-static void pipe_read(void *opaque)
+static void qxl_update_irq_bh(void *opaque)
 {
     PCIQXLDevice *d = opaque;
-    char dummy;
-    int len;
-
-    do {
-        len = read(d->pipe[0], &dummy, sizeof(dummy));
-    } while (len == sizeof(dummy));
     qxl_update_irq(d);
 }
 
@@ -1730,28 +1724,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     if ((old_pending & le_events) == le_events) {
         return;
     }
-    if (qemu_thread_is_self(&d->main)) {
-        qxl_update_irq(d);
-    } else {
-        if (write(d->pipe[1], d, 1) != 1) {
-            dprint(d, 1, "%s: write to pipe failed\n", __func__);
-        }
-    }
-}
-
-static void init_pipe_signaling(PCIQXLDevice *d)
-{
-    if (pipe(d->pipe) < 0) {
-        fprintf(stderr, "%s:%s: qxl pipe creation failed\n",
-                __FILE__, __func__);
-        exit(1);
-    }
-    fcntl(d->pipe[0], F_SETFL, O_NONBLOCK);
-    fcntl(d->pipe[1], F_SETFL, O_NONBLOCK);
-    fcntl(d->pipe[0], F_SETOWN, getpid());
-
-    qemu_thread_get_self(&d->main);
-    qemu_set_fd_handler(d->pipe[0], pipe_read, NULL, d);
+    qemu_bh_schedule(d->update_irq);
 }
 
 /* graphics console */
@@ -2044,7 +2017,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     }
     qemu_add_vm_change_state_handler(qxl_vm_change_state_handler, qxl);
 
-    init_pipe_signaling(qxl);
+    qxl->update_irq = qemu_bh_new(qxl_update_irq_bh, qxl);
     qxl_reset_state(qxl);
 
     qxl->update_area_bh = qemu_bh_new(qxl_render_update_area_bh, qxl);

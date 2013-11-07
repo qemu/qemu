@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
+#include "sysemu/qtest.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -84,6 +85,9 @@ static void puv3_load_kernel(const char *kernel_filename)
 {
     int size;
 
+    if (kernel_filename == NULL && qtest_enabled()) {
+        return;
+    }
     assert(kernel_filename != NULL);
 
     /* only zImage format supported */

@@ -186,7 +186,8 @@ static const MemoryRegionOps stcb_ide_ops = {
 static MMIOState *stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
-    ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
+    // TODO
+    //~ ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
     memory_region_init_io(&s->slow, OBJECT(s),
                           &stcb_ide_ops, s, "stcb-ide", 0x1000000);
     memory_region_init_alias(&s->fast, NULL, "stcb-ide", &s->slow, 0, 0x1000000);

@@ -254,7 +254,7 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
          ++devfn) {
         PCIDevice *affected_dev = shpc->sec_bus->devices[devfn];
         if (affected_dev) {
-            qdev_free(&affected_dev->qdev);
+            object_unparent(OBJECT(affected_dev));
         }
     }
 }

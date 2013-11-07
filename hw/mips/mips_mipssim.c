@@ -38,6 +38,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 static struct _loaderparams {
     int ram_size;
@@ -190,7 +191,8 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     } else {
         bios_size = -1;
     }
-    if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
+    if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
+        !kernel_filename && !qtest_enabled()) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         error_report("Could not load MIPS bios '%s', and no "
                      "-kernel argument was specified", filename);

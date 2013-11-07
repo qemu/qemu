@@ -178,7 +178,7 @@ static int scsi_qdev_init(DeviceState *qdev)
         d = scsi_device_find(bus, dev->channel, dev->id, dev->lun);
         assert(d);
         if (d->lun == dev->lun && dev != d) {
-            qdev_free(&d->qdev);
+            object_unparent(OBJECT(d));
         }
     }
 
@@ -231,13 +231,13 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     }
     if (qdev_prop_set_drive(dev, "drive", bdrv) < 0) {
         error_setg(errp, "Setting drive property failed");
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
     return SCSI_DEVICE(dev);
