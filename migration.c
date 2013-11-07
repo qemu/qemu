@@ -326,9 +326,16 @@ void migrate_fd_error(MigrationState *s)
 
 static void migrate_fd_cancel(MigrationState *s)
 {
+    int old_state ;
     DPRINTF("cancelling migration\n");
 
-    migrate_set_state(s, s->state, MIG_STATE_CANCELLED);
+    do {
+        old_state = s->state;
+        if (old_state != MIG_STATE_SETUP && old_state != MIG_STATE_ACTIVE) {
+            break;
+        }
+        migrate_set_state(s, old_state, MIG_STATE_CANCELLED);
+    } while (s->state != MIG_STATE_CANCELLED);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
