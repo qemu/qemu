@@ -796,7 +796,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
             iotlb |= PHYS_SECTION_ROM;
         }
     } else {
-        iotlb = section - address_space_memory.dispatch->map.sections;
+        iotlb = section - section->address_space->dispatch->map.sections;
         iotlb += xlat;
     }
 
