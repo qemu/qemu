@@ -64,6 +64,10 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
+
+check-qtest-pci-y += tests/e1000-test$(EXESUF)
+gcov-files-pci-y += hw/net/e1000.c
+
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
 gcov-files-i386-y = hw/block/fdc.c
@@ -77,6 +81,8 @@ check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
 check-qtest-i386-y += tests/blockdev-test$(EXESUF)
 check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
+check-qtest-i386-y += $(check-qtest-pci-y)
+gcov-files-i386-y += $(gcov-files-pci-y)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -196,6 +202,7 @@ tests/acpi-test$(EXESUF): tests/acpi-test.o $(libqos-obj-y)
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
+tests/e1000-test$(EXESUF): tests/e1000-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
