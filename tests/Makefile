@@ -83,6 +83,10 @@ check-qtest-i386-y += tests/blockdev-test$(EXESUF)
 check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
 check-qtest-i386-y += $(check-qtest-pci-y)
 gcov-files-i386-y += $(gcov-files-pci-y)
+check-qtest-i386-y += tests/vmxnet3-test$(EXESUF)
+gcov-files-i386-y += hw/net/vmxnet3.c
+gcov-files-i386-y += hw/net/vmxnet_rx_pkt.c
+gcov-files-i386-y += hw/net/vmxnet_tx_pkt.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -203,6 +207,7 @@ tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 tests/e1000-test$(EXESUF): tests/e1000-test.o
+tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
