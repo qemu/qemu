@@ -88,7 +88,15 @@ struct PhysPageEntry {
     uint16_t ptr : 15;
 };
 
-typedef PhysPageEntry Node[L2_SIZE];
+/* Size of the L2 (and L3, etc) page tables.  */
+#define ADDR_SPACE_BITS TARGET_PHYS_ADDR_SPACE_BITS
+
+#define P_L2_BITS 10
+#define P_L2_SIZE (1 << P_L2_BITS)
+
+#define P_L2_LEVELS (((ADDR_SPACE_BITS - TARGET_PAGE_BITS - 1) / P_L2_BITS) + 1)
+
+typedef PhysPageEntry Node[P_L2_SIZE];
 
 struct AddressSpaceDispatch {
     /* This is a multi-level map on the physical address space.
@@ -155,7 +163,7 @@ static uint16_t phys_map_node_alloc(void)
     ret = next_map.nodes_nb++;
     assert(ret != PHYS_MAP_NODE_NIL);
     assert(ret != next_map.nodes_nb_alloc);
-    for (i = 0; i < L2_SIZE; ++i) {
+    for (i = 0; i < P_L2_SIZE; ++i) {
         next_map.nodes[ret][i].is_leaf = 0;
         next_map.nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
     }
@@ -168,13 +176,13 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
 {
     PhysPageEntry *p;
     int i;
-    hwaddr step = (hwaddr)1 << (level * L2_BITS);
+    hwaddr step = (hwaddr)1 << (level * P_L2_BITS);
 
     if (!lp->is_leaf && lp->ptr == PHYS_MAP_NODE_NIL) {
         lp->ptr = phys_map_node_alloc();
         p = next_map.nodes[lp->ptr];
         if (level == 0) {
-            for (i = 0; i < L2_SIZE; i++) {
+            for (i = 0; i < P_L2_SIZE; i++) {
                 p[i].is_leaf = 1;
                 p[i].ptr = PHYS_SECTION_UNASSIGNED;
             }
@@ -182,9 +190,9 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
     } else {
         p = next_map.nodes[lp->ptr];
     }
-    lp = &p[(*index >> (level * L2_BITS)) & (L2_SIZE - 1)];
+    lp = &p[(*index >> (level * P_L2_BITS)) & (P_L2_SIZE - 1)];
 
-    while (*nb && lp < &p[L2_SIZE]) {
+    while (*nb && lp < &p[P_L2_SIZE]) {
         if ((*index & (step - 1)) == 0 && *nb >= step) {
             lp->is_leaf = true;
             lp->ptr = leaf;
@@ -218,7 +226,7 @@ static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr index,
             return &sections[PHYS_SECTION_UNASSIGNED];
         }
         p = nodes[lp.ptr];
-        lp = p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
+        lp = p[(index >> (i * P_L2_BITS)) & (P_L2_SIZE - 1)];
     }
     return &sections[lp.ptr];
 }
@@ -1778,7 +1786,12 @@ void address_space_destroy_dispatch(AddressSpace *as)
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
-    memory_region_init(system_memory, NULL, "system", INT64_MAX);
+
+    assert(ADDR_SPACE_BITS <= 64);
+
+    memory_region_init(system_memory, NULL, "system",
+                       ADDR_SPACE_BITS == 64 ?
+                       UINT64_MAX : (0x1ULL << ADDR_SPACE_BITS));
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
