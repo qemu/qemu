@@ -1746,10 +1746,9 @@ static uint16_t dummy_section(PhysPageMap *map, MemoryRegion *mr)
     return phys_section_add(map, &section);
 }
 
-MemoryRegion *iotlb_to_region(hwaddr index)
+MemoryRegion *iotlb_to_region(AddressSpace *as, hwaddr index)
 {
-    return address_space_memory.dispatch->map.sections[
-           index & ~TARGET_PAGE_MASK].mr;
+    return as->dispatch->map.sections[index & ~TARGET_PAGE_MASK].mr;
 }
 
 static void io_mem_init(void)
