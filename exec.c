@@ -892,6 +892,7 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
 
     if (!(existing->mr->subpage)) {
         subpage = subpage_init(d->as, base);
+        subsection.address_space = d->as;
         subsection.mr = &subpage->iomem;
         phys_page_set(d, base >> TARGET_PAGE_BITS, 1,
                       phys_section_add(&d->map, &subsection));
@@ -1737,6 +1738,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 static uint16_t dummy_section(PhysPageMap *map, MemoryRegion *mr)
 {
     MemoryRegionSection section = {
+        .address_space = &address_space_memory,
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
