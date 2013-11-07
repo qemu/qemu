@@ -102,7 +102,7 @@ void tlb_flush(CPUArchState *env, int flush_global);
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
-void tb_invalidate_phys_addr(hwaddr addr);
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
 #else
 static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
 {

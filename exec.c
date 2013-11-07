@@ -503,7 +503,8 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
     hwaddr phys = cpu_get_phys_page_debug(cpu, pc);
     if (phys != -1) {
-        tb_invalidate_phys_addr(phys | (pc & ~TARGET_PAGE_MASK));
+        tb_invalidate_phys_addr(&address_space_memory,
+                                phys | (pc & ~TARGET_PAGE_MASK));
     }
 }
 #endif
