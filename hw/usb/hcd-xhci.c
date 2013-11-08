@@ -3025,6 +3025,14 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
         } else if (!(val & USBCMD_RS) && (xhci->usbcmd & USBCMD_RS)) {
             xhci_stop(xhci);
         }
+        if (val & USBCMD_CSS) {
+            /* save state */
+            xhci->usbsts &= ~USBSTS_SRE;
+        }
+        if (val & USBCMD_CRS) {
+            /* restore state */
+            xhci->usbsts |= USBSTS_SRE;
+        }
         xhci->usbcmd = val & 0xc0f;
         xhci_mfwrap_update(xhci);
         if (val & USBCMD_HCRST) {
