@@ -34,6 +34,10 @@
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
 
+#ifdef _WIN32
+# define _WIN32_WINNT 0x0601 /* needed to get definition of MAPVK_VK_TO_VSC */
+#endif
+
 #include "qemu-common.h"
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
@@ -726,10 +730,15 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
     int gdk_keycode;
-    int qemu_keycode;
     int i;
 
     gdk_keycode = key->hardware_keycode;
+
+#ifdef _WIN32
+    /* MapVirtualKey doesn't return scancode with needed higher byte */
+    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+#else
+    int qemu_keycode;
 
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
@@ -744,6 +753,7 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     } else {
         qemu_keycode = 0;
     }
+#endif
 
     DPRINTF("translated GDK keycode %d to QEMU keycode %d (%s)\n",
             gdk_keycode, qemu_keycode,
