@@ -8,6 +8,7 @@
 #include "qmp-commands.h"
 
 static QemuOptsList *vm_config_groups[32];
+static QemuOptsList *drive_config_groups[4];
 
 static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
                                Error **errp)
@@ -77,6 +78,59 @@ static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
     return param_list;
 }
 
+/* remove repeated entry from the info list */
+static void cleanup_infolist(CommandLineParameterInfoList *head)
+{
+    CommandLineParameterInfoList *pre_entry, *cur, *del_entry;
+
+    cur = head;
+    while (cur->next) {
+        pre_entry = head;
+        while (pre_entry != cur->next) {
+            if (!strcmp(pre_entry->value->name, cur->next->value->name)) {
+                del_entry = cur->next;
+                cur->next = cur->next->next;
+                g_free(del_entry);
+                break;
+            }
+            pre_entry = pre_entry->next;
+        }
+        cur = cur->next;
+    }
+}
+
+/* merge the description items of two parameter infolists */
+static void connect_infolist(CommandLineParameterInfoList *head,
+                             CommandLineParameterInfoList *new)
+{
+    CommandLineParameterInfoList *cur;
+
+    cur = head;
+    while (cur->next) {
+        cur = cur->next;
+    }
+    cur->next = new;
+}
+
+/* access all the local QemuOptsLists for drive option */
+static CommandLineParameterInfoList *get_drive_infolist(void)
+{
+    CommandLineParameterInfoList *head = NULL, *cur;
+    int i;
+
+    for (i = 0; drive_config_groups[i] != NULL; i++) {
+        if (!head) {
+            head = query_option_descs(drive_config_groups[i]->desc);
+        } else {
+            cur = query_option_descs(drive_config_groups[i]->desc);
+            connect_infolist(head, cur);
+        }
+    }
+    cleanup_infolist(head);
+
+    return head;
+}
+
 CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
                                                           const char *option,
                                                           Error **errp)
@@ -89,7 +143,12 @@ CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
         if (!has_option || !strcmp(option, vm_config_groups[i]->name)) {
             info = g_malloc0(sizeof(*info));
             info->option = g_strdup(vm_config_groups[i]->name);
-            info->parameters = query_option_descs(vm_config_groups[i]->desc);
+            if (!strcmp("drive", vm_config_groups[i]->name)) {
+                info->parameters = get_drive_infolist();
+            } else {
+                info->parameters =
+                    query_option_descs(vm_config_groups[i]->desc);
+            }
             entry = g_malloc0(sizeof(*entry));
             entry->value = info;
             entry->next = conf_list;
@@ -107,6 +166,22 @@ CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)
 {
     return find_list(vm_config_groups, group, errp);
+}
+
+void qemu_add_drive_opts(QemuOptsList *list)
+{
+    int entries, i;
+
+    entries = ARRAY_SIZE(drive_config_groups);
+    entries--; /* keep list NULL terminated */
+    for (i = 0; i < entries; i++) {
+        if (drive_config_groups[i] == NULL) {
+            drive_config_groups[i] = list;
+            return;
+        }
+    }
+    fprintf(stderr, "ran out of space in drive_config_groups");
+    abort();
 }
 
 void qemu_add_opts(QemuOptsList *list)
