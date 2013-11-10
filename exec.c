@@ -1741,12 +1741,7 @@ void address_space_destroy_dispatch(AddressSpace *as)
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
-
-    assert(TARGET_PHYS_ADDR_SPACE_BITS <= 64);
-
-    memory_region_init(system_memory, NULL, "system",
-                       TARGET_PHYS_ADDR_SPACE_BITS == 64 ?
-                       UINT64_MAX : (0x1ULL << TARGET_PHYS_ADDR_SPACE_BITS));
+    memory_region_init(system_memory, NULL, "system", INT64_MAX);
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
