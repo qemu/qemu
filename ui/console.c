@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "trace.h"
 #include "ui/console.h"
 #include "hw/qdev-core.h"
 #include "qemu/timer.h"
