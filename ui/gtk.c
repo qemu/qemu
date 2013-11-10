@@ -59,27 +59,13 @@
 #endif
 #include <math.h>
 
+#include "trace.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "x_keymap.h"
 #include "keymaps.h"
 #include "sysemu/char.h"
-
-//#define DEBUG_GTK
-
-#define DPRINTF(fmt, ...) debug_printf(fmt, ## __VA_ARGS__)
-
-static inline GCC_FMT_ATTR(1, 2) void debug_printf(const char *fmt, ...)
-{
-#ifdef DEBUG_GTK
-    va_list arg;
-    va_start(arg, fmt);
-    vprintf(fmt, arg);
-    va_end(arg);
-#else
-#endif
-}
 
 #if !defined(CONFIG_VTE)
 # define VTE_CHECK_VERSION(a, b, c) 0
@@ -319,7 +305,7 @@ static void gd_update(DisplayChangeListener *dcl,
     int fbw, fbh;
     int ww, wh;
 
-    DPRINTF("update(x=%d, y=%d, w=%d, h=%d)\n", x, y, w, h);
+    trace_gd_update(x, y, w, h);
 
     if (s->convert) {
         pixman_image_composite(PIXMAN_OP_SRC, s->ds->image, NULL, s->convert,
@@ -413,8 +399,7 @@ static void gd_switch(DisplayChangeListener *dcl,
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     bool resized = true;
 
-    DPRINTF("resize(width=%d, height=%d)\n",
-            surface_width(surface), surface_height(surface));
+    trace_gd_switch(surface_width(surface), surface_height(surface));
 
     if (s->surface) {
         cairo_surface_destroy(s->surface);
@@ -755,9 +740,8 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     }
 #endif
 
-    DPRINTF("translated GDK keycode %d to QEMU keycode %d (%s)\n",
-            gdk_keycode, qemu_keycode,
-            (key->type == GDK_KEY_PRESS) ? "down" : "up");
+    trace_gd_key_event(gdk_keycode, qemu_keycode,
+                       (key->type == GDK_KEY_PRESS) ? "down" : "up");
 
     for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
         if (qemu_keycode == modifier_keycode[i]) {
