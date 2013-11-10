@@ -28,6 +28,7 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
+#include "trace.h"
 
 /* Capability Registers Base Address - section 2.2 */
 #define CAPLENGTH        0x0000  /* 1-byte, 0x0001 reserved */
