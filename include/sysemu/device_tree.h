@@ -18,7 +18,7 @@ void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 
 int qemu_fdt_setprop(void *fdt, const char *node_path,
-                     const char *property, const void *val_array, int size);
+                     const char *property, const void *val, int size);
 int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
                           const char *property, uint32_t val);
 int qemu_fdt_setprop_u64(void *fdt, const char *node_path,
