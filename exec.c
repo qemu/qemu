@@ -84,10 +84,12 @@ typedef struct PhysPageEntry PhysPageEntry;
 
 struct PhysPageEntry {
     /* How many bits skip to next level (in units of L2_SIZE). 0 for a leaf. */
-    uint16_t skip : 1;
+    uint32_t skip : 6;
      /* index into phys_sections (!skip) or phys_map_nodes (skip) */
-    uint16_t ptr : 15;
+    uint32_t ptr : 26;
 };
+
+#define PHYS_MAP_NODE_NIL (((uint32_t)~0) >> 6)
 
 /* Size of the L2 (and L3, etc) page tables.  */
 #define ADDR_SPACE_BITS TARGET_PHYS_ADDR_SPACE_BITS
@@ -134,8 +136,6 @@ typedef struct PhysPageMap {
 static PhysPageMap *prev_map;
 static PhysPageMap next_map;
 
-#define PHYS_MAP_NODE_NIL (((uint16_t)~0) >> 1)
-
 static void io_mem_init(void);
 static void memory_map_init(void);
 
@@ -156,10 +156,10 @@ static void phys_map_node_reserve(unsigned nodes)
     }
 }
 
-static uint16_t phys_map_node_alloc(void)
+static uint32_t phys_map_node_alloc(void)
 {
     unsigned i;
-    uint16_t ret;
+    uint32_t ret;
 
     ret = next_map.nodes_nb++;
     assert(ret != PHYS_MAP_NODE_NIL);
