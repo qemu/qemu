@@ -83,8 +83,9 @@ int use_icount;
 typedef struct PhysPageEntry PhysPageEntry;
 
 struct PhysPageEntry {
-    uint16_t is_leaf : 1;
-     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
+    /* How many bits skip to next level (in units of L2_SIZE). 0 for a leaf. */
+    uint16_t skip : 1;
+     /* index into phys_sections (!skip) or phys_map_nodes (skip) */
     uint16_t ptr : 15;
 };
 
@@ -164,7 +165,7 @@ static uint16_t phys_map_node_alloc(void)
     assert(ret != PHYS_MAP_NODE_NIL);
     assert(ret != next_map.nodes_nb_alloc);
     for (i = 0; i < P_L2_SIZE; ++i) {
-        next_map.nodes[ret][i].is_leaf = 0;
+        next_map.nodes[ret][i].skip = 1;
         next_map.nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
     }
     return ret;
@@ -178,12 +179,12 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
     int i;
     hwaddr step = (hwaddr)1 << (level * P_L2_BITS);
 
-    if (!lp->is_leaf && lp->ptr == PHYS_MAP_NODE_NIL) {
+    if (lp->skip && lp->ptr == PHYS_MAP_NODE_NIL) {
         lp->ptr = phys_map_node_alloc();
         p = next_map.nodes[lp->ptr];
         if (level == 0) {
             for (i = 0; i < P_L2_SIZE; i++) {
-                p[i].is_leaf = 1;
+                p[i].skip = 0;
                 p[i].ptr = PHYS_SECTION_UNASSIGNED;
             }
         }
@@ -194,7 +195,7 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
 
     while (*nb && lp < &p[P_L2_SIZE]) {
         if ((*index & (step - 1)) == 0 && *nb >= step) {
-            lp->is_leaf = true;
+            lp->skip = 0;
             lp->ptr = leaf;
             *index += step;
             *nb -= step;
@@ -221,7 +222,7 @@ static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr index,
     PhysPageEntry *p;
     int i;
 
-    for (i = P_L2_LEVELS - 1; i >= 0 && !lp.is_leaf; i--) {
+    for (i = P_L2_LEVELS; lp.skip && (i -= lp.skip) >= 0;) {
         if (lp.ptr == PHYS_MAP_NODE_NIL) {
             return &sections[PHYS_SECTION_UNASSIGNED];
         }
@@ -1681,7 +1682,7 @@ static void mem_begin(MemoryListener *listener)
     AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
     AddressSpaceDispatch *d = g_new(AddressSpaceDispatch, 1);
 
-    d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .is_leaf = 0 };
+    d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
     d->as = as;
     as->next_dispatch = d;
 }
