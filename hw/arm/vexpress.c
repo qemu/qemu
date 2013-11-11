@@ -419,13 +419,13 @@ static int add_virtio_mmio_node(void *fdt, uint32_t acells, uint32_t scells,
     int rc;
     char *nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, addr);
 
-    rc = qemu_devtree_add_subnode(fdt, nodename);
-    rc |= qemu_devtree_setprop_string(fdt, nodename,
-                                      "compatible", "virtio,mmio");
-    rc |= qemu_devtree_setprop_sized_cells(fdt, nodename, "reg",
-                                           acells, addr, scells, size);
-    qemu_devtree_setprop_cells(fdt, nodename, "interrupt-parent", intc);
-    qemu_devtree_setprop_cells(fdt, nodename, "interrupts", 0, irq, 1);
+    rc = qemu_fdt_add_subnode(fdt, nodename);
+    rc |= qemu_fdt_setprop_string(fdt, nodename,
+                                  "compatible", "virtio,mmio");
+    rc |= qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
+                                       acells, addr, scells, size);
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupt-parent", intc);
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupts", 0, irq, 1);
     g_free(nodename);
     if (rc) {
         return -1;
@@ -456,8 +456,8 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
     uint32_t acells, scells, intc;
     const VEDBoardInfo *daughterboard = (const VEDBoardInfo *)info;
 
-    acells = qemu_devtree_getprop_cell(fdt, "/", "#address-cells");
-    scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
+    acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells");
+    scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells");
     intc = find_int_controller(fdt);
     if (!intc) {
         /* Not fatal, we just won't provide virtio. This will

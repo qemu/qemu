@@ -131,8 +131,8 @@ static int findnode_nofail(void *fdt, const char *node_path)
     return offset;
 }
 
-int qemu_devtree_setprop(void *fdt, const char *node_path,
-                         const char *property, const void *val_array, int size)
+int qemu_fdt_setprop(void *fdt, const char *node_path,
+                     const char *property, const void *val_array, int size)
 {
     int r;
 
@@ -146,8 +146,8 @@ int qemu_devtree_setprop(void *fdt, const char *node_path,
     return r;
 }
 
-int qemu_devtree_setprop_cell(void *fdt, const char *node_path,
-                              const char *property, uint32_t val)
+int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
+                          const char *property, uint32_t val)
 {
     int r;
 
@@ -161,15 +161,15 @@ int qemu_devtree_setprop_cell(void *fdt, const char *node_path,
     return r;
 }
 
-int qemu_devtree_setprop_u64(void *fdt, const char *node_path,
-                             const char *property, uint64_t val)
+int qemu_fdt_setprop_u64(void *fdt, const char *node_path,
+                         const char *property, uint64_t val)
 {
     val = cpu_to_be64(val);
-    return qemu_devtree_setprop(fdt, node_path, property, &val, sizeof(val));
+    return qemu_fdt_setprop(fdt, node_path, property, &val, sizeof(val));
 }
 
-int qemu_devtree_setprop_string(void *fdt, const char *node_path,
-                                const char *property, const char *string)
+int qemu_fdt_setprop_string(void *fdt, const char *node_path,
+                            const char *property, const char *string)
 {
     int r;
 
@@ -183,8 +183,8 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
     return r;
 }
 
-const void *qemu_devtree_getprop(void *fdt, const char *node_path,
-                                 const char *property, int *lenp)
+const void *qemu_fdt_getprop(void *fdt, const char *node_path,
+                             const char *property, int *lenp)
 {
     int len;
     const void *r;
@@ -200,11 +200,11 @@ const void *qemu_devtree_getprop(void *fdt, const char *node_path,
     return r;
 }
 
-uint32_t qemu_devtree_getprop_cell(void *fdt, const char *node_path,
-                                   const char *property)
+uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
+                               const char *property)
 {
     int len;
-    const uint32_t *p = qemu_devtree_getprop(fdt, node_path, property, &len);
+    const uint32_t *p = qemu_fdt_getprop(fdt, node_path, property, &len);
     if (len != 4) {
         fprintf(stderr, "%s: %s/%s not 4 bytes long (not a cell?)\n",
                 __func__, node_path, property);
@@ -213,7 +213,7 @@ uint32_t qemu_devtree_getprop_cell(void *fdt, const char *node_path,
     return be32_to_cpu(*p);
 }
 
-uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
+uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 {
     uint32_t r;
 
@@ -227,15 +227,15 @@ uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
     return r;
 }
 
-int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
-                                 const char *property,
-                                 const char *target_node_path)
+int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
+                             const char *property,
+                             const char *target_node_path)
 {
-    uint32_t phandle = qemu_devtree_get_phandle(fdt, target_node_path);
-    return qemu_devtree_setprop_cell(fdt, node_path, property, phandle);
+    uint32_t phandle = qemu_fdt_get_phandle(fdt, target_node_path);
+    return qemu_fdt_setprop_cell(fdt, node_path, property, phandle);
 }
 
-uint32_t qemu_devtree_alloc_phandle(void *fdt)
+uint32_t qemu_fdt_alloc_phandle(void *fdt)
 {
     static int phandle = 0x0;
 
@@ -259,7 +259,7 @@ uint32_t qemu_devtree_alloc_phandle(void *fdt)
     return phandle++;
 }
 
-int qemu_devtree_nop_node(void *fdt, const char *node_path)
+int qemu_fdt_nop_node(void *fdt, const char *node_path)
 {
     int r;
 
@@ -273,7 +273,7 @@ int qemu_devtree_nop_node(void *fdt, const char *node_path)
     return r;
 }
 
-int qemu_devtree_add_subnode(void *fdt, const char *name)
+int qemu_fdt_add_subnode(void *fdt, const char *name)
 {
     char *dupname = g_strdup(name);
     char *basename = strrchr(dupname, '/');
@@ -303,7 +303,7 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     return retval;
 }
 
-void qemu_devtree_dumpdtb(void *fdt, int size)
+void qemu_fdt_dumpdtb(void *fdt, int size)
 {
     const char *dumpdtb = qemu_opt_get(qemu_get_machine_opts(), "dumpdtb");
 
@@ -313,11 +313,11 @@ void qemu_devtree_dumpdtb(void *fdt, int size)
     }
 }
 
-int qemu_devtree_setprop_sized_cells_from_array(void *fdt,
-                                                const char *node_path,
-                                                const char *property,
-                                                int numvalues,
-                                                uint64_t *values)
+int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
+                                            const char *node_path,
+                                            const char *property,
+                                            int numvalues,
+                                            uint64_t *values)
 {
     uint32_t *propcells;
     uint64_t value;
@@ -342,6 +342,6 @@ int qemu_devtree_setprop_sized_cells_from_array(void *fdt,
         propcells[cellnum++] = cpu_to_be32(value);
     }
 
-    return qemu_devtree_setprop(fdt, node_path, property, propcells,
-                                cellnum * sizeof(uint32_t));
+    return qemu_fdt_setprop(fdt, node_path, property, propcells,
+                            cellnum * sizeof(uint32_t));
 }
