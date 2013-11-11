@@ -51,6 +51,8 @@
 
 #include "exec/memory-internal.h"
 
+#include "qemu/range.h"
+
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
@@ -216,6 +218,68 @@ static void phys_page_set(AddressSpaceDispatch *d,
     phys_page_set_level(&d->phys_map, &index, &nb, leaf, P_L2_LEVELS - 1);
 }
 
+/* Compact a non leaf page entry. Simply detect that the entry has a single child,
+ * and update our entry so we can skip it and go directly to the destination.
+ */
+static void phys_page_compact(PhysPageEntry *lp, Node *nodes, unsigned long *compacted)
+{
+    unsigned valid_ptr = P_L2_SIZE;
+    int valid = 0;
+    PhysPageEntry *p;
+    int i;
+
+    if (lp->ptr == PHYS_MAP_NODE_NIL) {
+        return;
+    }
+
+    p = nodes[lp->ptr];
+    for (i = 0; i < P_L2_SIZE; i++) {
+        if (p[i].ptr == PHYS_MAP_NODE_NIL) {
+            continue;
+        }
+
+        valid_ptr = i;
+        valid++;
+        if (p[i].skip) {
+            phys_page_compact(&p[i], nodes, compacted);
+        }
+    }
+
+    /* We can only compress if there's only one child. */
+    if (valid != 1) {
+        return;
+    }
+
+    assert(valid_ptr < P_L2_SIZE);
+
+    /* Don't compress if it won't fit in the # of bits we have. */
+    if (lp->skip + p[valid_ptr].skip >= (1 << 3)) {
+        return;
+    }
+
+    lp->ptr = p[valid_ptr].ptr;
+    if (!p[valid_ptr].skip) {
+        /* If our only child is a leaf, make this a leaf. */
+        /* By design, we should have made this node a leaf to begin with so we
+         * should never reach here.
+         * But since it's so simple to handle this, let's do it just in case we
+         * change this rule.
+         */
+        lp->skip = 0;
+    } else {
+        lp->skip += p[valid_ptr].skip;
+    }
+}
+
+static void phys_page_compact_all(AddressSpaceDispatch *d, int nodes_nb)
+{
+    DECLARE_BITMAP(compacted, nodes_nb);
+
+    if (d->phys_map.skip) {
+        phys_page_compact(&d->phys_map, d->nodes, compacted);
+    }
+}
+
 static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
                                            Node *nodes, MemoryRegionSection *sections)
 {
@@ -230,7 +294,14 @@ static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
         p = nodes[lp.ptr];
         lp = p[(index >> (i * P_L2_BITS)) & (P_L2_SIZE - 1)];
     }
-    return &sections[lp.ptr];
+
+    if (sections[lp.ptr].size.hi ||
+        range_covers_byte(sections[lp.ptr].offset_within_address_space,
+                          sections[lp.ptr].size.lo, addr)) {
+        return &sections[lp.ptr];
+    } else {
+        return &sections[PHYS_SECTION_UNASSIGNED];
+    }
 }
 
 bool memory_region_is_unassigned(MemoryRegion *mr)
@@ -1695,6 +1766,8 @@ static void mem_commit(MemoryListener *listener)
 
     next->nodes = next_map.nodes;
     next->sections = next_map.sections;
+
+    phys_page_compact_all(next, next_map.nodes_nb);
 
     as->dispatch = next;
     g_free(cur);
