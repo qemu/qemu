@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Test VHDX read/write from a sample image created with Hyper-V
+# Test VHDX log replay from an image with a journal that needs to be
+# replayed
 #
 # Copyright (C) 2013 Red Hat, Inc.
 #
@@ -42,30 +43,23 @@ _supported_fmt vhdx
 _supported_proto generic
 _supported_os Linux
 
-_use_sample_img iotest-dynamic-1G.vhdx.bz2
+# With the log replayed, the pattern 0xa5 extends to 0xc025000
+# If the log was not replayed, it would only extend to 0xc000000
+#
+# This image is a 10G dynamic image, with 4M block size, and 1 unplayed
+# data sector in the log
+#
+# This image was created with qemu-img, however it was verified using
+# Hyper-V to properly replay the logs and give the same post-replay
+# image as qemu.
+_use_sample_img iotest-dirtylog-10G-4M.vhdx.bz2
 
 echo
-echo "=== Verify pattern 0xa5, 0 - 33MB ==="
-$QEMU_IO -r -c "read -pP 0xa5 0 33M" "$TEST_IMG" | _filter_qemu_io
+echo "=== Verify open image read-only fails, due to dirty log ==="
+$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | grep -o "Permission denied"
 
-echo
-echo "=== Verify pattern 0x96, 33M - 66M ==="
-$QEMU_IO -r -c "read -pP 0x96 33M 33M" "$TEST_IMG" | _filter_qemu_io
-
-echo
-echo "=== Verify pattern 0x00, 66M - 1024M ==="
-$QEMU_IO -r -c "read -pP 0x00 66M 958M" "$TEST_IMG" | _filter_qemu_io
-
-echo
-echo "=== Verify pattern write, 0xc3 99M-157M ==="
-$QEMU_IO -c "write -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
-# first verify we didn't write where we should not have
-$QEMU_IO -c "read -pP 0xa5 0 33M" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -pP 0x96 33M 33M" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -pP 0x00 66M 33M" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -pP 0x00 157MM 867MM" "$TEST_IMG" | _filter_qemu_io
-# now verify what we should have actually written
-$QEMU_IO -c "read -pP 0xc3 99M 58M" "$TEST_IMG" | _filter_qemu_io
+echo "=== Verify open image replays log  ==="
+$QEMU_IO  -c "read -pP 0xa5 0 18M" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

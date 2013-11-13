@@ -640,7 +640,7 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
         if (length < 0) {
             return length;
         }
-        hint = length >> BDRV_SECTOR_BITS;
+        hint = DIV_ROUND_UP(length, BDRV_SECTOR_SIZE);
     }
 
     bs->total_sectors = hint;
@@ -1084,8 +1084,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
             snprintf(backing_filename, sizeof(backing_filename),
                      "%s", filename);
         } else if (!realpath(filename, backing_filename)) {
-            error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
             ret = -errno;
+            error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
             goto fail;
         }
 

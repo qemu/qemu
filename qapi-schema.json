@@ -227,7 +227,7 @@
 ##
 # @ImageInfoSpecificVmdk:
 #
-# @create_type: The create type of VMDK image
+# @create-type: The create type of VMDK image
 #
 # @cid: Content id of image
 #
