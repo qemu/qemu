@@ -2639,6 +2639,8 @@ static void *pfifo_puller_thread(void *arg)
             state->last_engine = state->bound_engines[command->subchannel];
             qemu_mutex_unlock(&state->pull_lock);
         }
+
+        g_free(command);
     }
 
     return NULL;
