@@ -88,6 +88,11 @@ static void coroutine_fn stream_run(void *opaque)
     int n = 0;
     void *buf;
 
+    if (!bs->backing_hd) {
+        block_job_completed(&s->common, 0);
+        return;
+    }
+
     s->common.len = bdrv_getlength(bs);
     if (s->common.len < 0) {
         block_job_completed(&s->common, s->common.len);
