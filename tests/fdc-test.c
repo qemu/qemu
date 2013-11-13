@@ -290,10 +290,12 @@ static void test_media_insert(void)
 
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
-    qmp("{'execute':'change', 'arguments':{ 'device':'floppy0', "
-        "'target': '%s' }}", test_image);
-    qmp(""); /* ignore event (FIXME open -> open transition?!) */
-    qmp(""); /* ignore event */
+    qmp_discard_response("{'execute':'change', 'arguments':{"
+                         " 'device':'floppy0', 'target': '%s' }}",
+                         test_image);
+    qmp_discard_response(""); /* ignore event
+                                 (FIXME open -> open transition?!) */
+    qmp_discard_response(""); /* ignore event */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -322,8 +324,9 @@ static void test_media_change(void)
 
     /* Eject the floppy and check that DSKCHG is set. Reading it out doesn't
      * reset the bit. */
-    qmp("{'execute':'eject', 'arguments':{ 'device':'floppy0' }}");
-    qmp(""); /* ignore event */
+    qmp_discard_response("{'execute':'eject', 'arguments':{"
+                         " 'device':'floppy0' }}");
+    qmp_discard_response(""); /* ignore event */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);

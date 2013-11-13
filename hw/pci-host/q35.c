@@ -61,8 +61,13 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
 {
-    /* For backwards compat with old device paths */
-    return "0000";
+    Q35PCIHost *s = Q35_HOST_DEVICE(host_bridge);
+
+     /* For backwards compat with old device paths */
+    if (s->mch.short_root_bus) {
+        return "0000";
+    }
+    return "0000:00";
 }
 
 static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
@@ -124,6 +129,7 @@ static Property mch_props[] = {
                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT),
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, Q35PCIHost,
                      mch.pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
+    DEFINE_PROP_UINT32("short_root_bus", Q35PCIHost, mch.short_root_bus, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

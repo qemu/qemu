@@ -1,0 +1,8 @@
+QA output created by 070
+
+=== Verify open image read-only fails, due to dirty log ===
+Permission denied
+=== Verify open image replays log  ===
+read 18874368/18874368 bytes at offset 0
+18 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

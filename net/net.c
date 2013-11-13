@@ -27,6 +27,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "net/slirp.h"
+#include "net/eth.h"
 #include "util.h"
 
 #include "monitor/monitor.h"
@@ -442,7 +443,6 @@ void qemu_flush_queued_packets(NetClientState *nc)
         if (net_hub_flush(nc->peer)) {
             qemu_notify_event();
         }
-        return;
     }
     if (qemu_net_queue_flush(nc->incoming_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
@@ -687,6 +687,11 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
     if (nic->has_macaddr &&
         net_parse_macaddr(nd->macaddr.a, nic->macaddr) < 0) {
         error_report("invalid syntax for ethernet address");
+        return -1;
+    }
+    if (nic->has_macaddr &&
+        is_multicast_ether_addr(nd->macaddr.a)) {
+        error_report("NIC cannot have multicast MAC address (odd 1st byte)");
         return -1;
     }
     qemu_macaddr_default_if_unset(&nd->macaddr);

@@ -699,6 +699,7 @@ S: Supported
 F: monitor.c
 F: hmp.c
 F: hmp-commands.hx
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 Network device layer
 M: Anthony Liguori <aliguori@amazon.com>
@@ -720,6 +721,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QAPI Schema
 M: Eric Blake <eblake@redhat.com>
@@ -727,6 +729,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi-schema.json
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QMP
 M: Luiz Capitulino <lcapitulino@redhat.com>
@@ -735,6 +738,7 @@ F: qmp.c
 F: monitor.c
 F: qmp-commands.hx
 F: QMP/
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
