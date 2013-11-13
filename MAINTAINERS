@@ -863,3 +863,43 @@ Stable 0.10
 L: qemu-stable@nongnu.org
 T: git git://git.qemu-project.org/qemu-stable-0.10.git
 S: Orphan
+
+Block drivers
+-------------
+VMDK
+M: Fam Zheng <famz@redhat.com>
+S: Supported
+F: block/vmdk.c
+
+RBD
+M: Josh Durgin <josh.durgin@inktank.com>
+S: Supported
+F: block/rbd.c
+
+Sheepdog
+M: MORITA Kazutaka <morita.kazutaka@lab.ntt.co.jp>
+M: Liu Yuan <namei.unix@gmail.com>
+S: Supported
+F: block/sheepdog.c
+
+VHDX
+M: Jeff Cody <jcody@redhat.com>
+S: Supported
+F: block/vhdx*
+
+VDI
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: block/vdi.c
+
+iSCSI
+M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Peter Lieven <pl@kamp.de>
+S: Supported
+F: block/iscsi.c
+
+SSH
+M: Richard W.M. Jones <rjones@redhat.com>
+S: Supported
+F: block/ssh.c
