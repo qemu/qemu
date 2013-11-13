@@ -23,7 +23,6 @@ struct PCIBus {
     PCIDevice *parent_dev;
     MemoryRegion *address_space_mem;
     MemoryRegion *address_space_io;
-    MemoryRegion master_abort_mem;
 
     QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
     QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */

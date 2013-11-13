@@ -48,6 +48,7 @@ typedef struct I440FXState {
     PCIHostState parent_obj;
     PcPciInfo pci_info;
     uint64_t pci_hole64_size;
+    uint32_t short_root_bus;
 } I440FXState;
 
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
@@ -720,13 +721,19 @@ static const TypeInfo i440fx_info = {
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)
 {
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(host_bridge);
+
     /* For backwards compat with old device paths */
-    return "0000";
+    if (s->short_root_bus) {
+        return "0000";
+    }
+    return "0000:00";
 }
 
 static Property i440fx_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, I440FXState,
                      pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
+    DEFINE_PROP_UINT32("short_root_bus", I440FXState, short_root_bus, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

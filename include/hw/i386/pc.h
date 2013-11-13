@@ -260,6 +260,14 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "qemu32-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(3),\
+        },{\
+            .driver   = "i440FX-pcihost",\
+            .property = "short_root_bus",\
+            .value    = stringify(1),\
+        },{\
+            .driver   = "q35-pcihost",\
+            .property = "short_root_bus",\
+            .value    = stringify(1),\
         }
 
 #define PC_COMPAT_1_5 \
@@ -296,6 +304,14 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver = TYPE_X86_CPU,\
             .property = "pmu",\
             .value = "on",\
+        },{\
+            .driver   = "i440FX-pcihost",\
+            .property = "short_root_bus",\
+            .value    = stringify(0),\
+        },{\
+            .driver   = "q35-pcihost",\
+            .property = "short_root_bus",\
+            .value    = stringify(0),\
         }
 
 #define PC_COMPAT_1_4 \

@@ -1182,6 +1182,11 @@ void acpi_setup(PcGuestInfo *guest_info)
         return;
     }
 
+    if (!acpi_enabled) {
+        ACPI_BUILD_DPRINTF(3, "ACPI disabled. Bailing out.\n");
+        return;
+    }
+
     build_state = g_malloc0(sizeof *build_state);
 
     build_state->guest_info = guest_info;
