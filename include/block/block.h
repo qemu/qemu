@@ -419,12 +419,15 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
 struct HBitmapIter;
-void bdrv_set_dirty_tracking(BlockDriverState *bs, int granularity);
-int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
+typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
+BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity);
+void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
+int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
-void bdrv_dirty_iter_init(BlockDriverState *bs, struct HBitmapIter *hbi);
-int64_t bdrv_get_dirty_count(BlockDriverState *bs);
+void bdrv_dirty_iter_init(BlockDriverState *bs,
+                          BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
+int64_t bdrv_get_dirty_count(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
 
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);

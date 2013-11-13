@@ -49,6 +49,11 @@
 #include <windows.h>
 #endif
 
+struct BdrvDirtyBitmap {
+    HBitmap *bitmap;
+    QLIST_ENTRY(BdrvDirtyBitmap) list;
+};
+
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
@@ -318,6 +323,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     BlockDriverState *bs;
 
     bs = g_malloc0(sizeof(BlockDriverState));
+    QLIST_INIT(&bs->dirty_bitmaps);
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
         QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
@@ -1617,7 +1623,7 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->iostatus           = bs_src->iostatus;
 
     /* dirty bitmap */
-    bs_dest->dirty_bitmap       = bs_src->dirty_bitmap;
+    bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
 
     /* reference count */
     bs_dest->refcnt             = bs_src->refcnt;
@@ -1650,7 +1656,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
 
     /* bs_new must be anonymous and shouldn't have anything fancy enabled */
     assert(bs_new->device_name[0] == '\0');
-    assert(bs_new->dirty_bitmap == NULL);
+    assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->dev == NULL);
     assert(bs_new->in_use == 0);
@@ -1711,6 +1717,7 @@ static void bdrv_delete(BlockDriverState *bs)
     assert(!bs->job);
     assert(!bs->in_use);
     assert(!bs->refcnt);
+    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
     bdrv_close(bs);
 
@@ -2858,9 +2865,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         ret = bdrv_co_flush(bs);
     }
 
-    if (bs->dirty_bitmap) {
-        bdrv_set_dirty(bs, sector_num, nb_sectors);
-    }
+    bdrv_set_dirty(bs, sector_num, nb_sectors);
 
     if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
         bs->wr_highest_sector = sector_num + nb_sectors - 1;
@@ -3431,7 +3436,7 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
-    assert(!bs->dirty_bitmap);
+    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
@@ -4296,9 +4301,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return -EROFS;
     }
 
-    if (bs->dirty_bitmap) {
-        bdrv_reset_dirty(bs, sector_num, nb_sectors);
-    }
+    bdrv_reset_dirty(bs, sector_num, nb_sectors);
 
     /* Do nothing if disabled.  */
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
@@ -4490,58 +4493,70 @@ bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
     return true;
 }
 
-void bdrv_set_dirty_tracking(BlockDriverState *bs, int granularity)
+BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity)
 {
     int64_t bitmap_size;
+    BdrvDirtyBitmap *bitmap;
 
     assert((granularity & (granularity - 1)) == 0);
 
-    if (granularity) {
-        granularity >>= BDRV_SECTOR_BITS;
-        assert(!bs->dirty_bitmap);
-        bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
-        bs->dirty_bitmap = hbitmap_alloc(bitmap_size, ffs(granularity) - 1);
-    } else {
-        if (bs->dirty_bitmap) {
-            hbitmap_free(bs->dirty_bitmap);
-            bs->dirty_bitmap = NULL;
+    granularity >>= BDRV_SECTOR_BITS;
+    assert(granularity);
+    bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
+    bitmap = g_malloc0(sizeof(BdrvDirtyBitmap));
+    bitmap->bitmap = hbitmap_alloc(bitmap_size, ffs(granularity) - 1);
+    QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
+    return bitmap;
+}
+
+void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    BdrvDirtyBitmap *bm, *next;
+    QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
+        if (bm == bitmap) {
+            QLIST_REMOVE(bitmap, list);
+            hbitmap_free(bitmap->bitmap);
+            g_free(bitmap);
+            return;
         }
     }
 }
 
-int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
+int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector)
 {
-    if (bs->dirty_bitmap) {
-        return hbitmap_get(bs->dirty_bitmap, sector);
+    if (bitmap) {
+        return hbitmap_get(bitmap->bitmap, sector);
     } else {
         return 0;
     }
 }
 
-void bdrv_dirty_iter_init(BlockDriverState *bs, HBitmapIter *hbi)
+void bdrv_dirty_iter_init(BlockDriverState *bs,
+                          BdrvDirtyBitmap *bitmap, HBitmapIter *hbi)
 {
-    hbitmap_iter_init(hbi, bs->dirty_bitmap, 0);
+    hbitmap_iter_init(hbi, bitmap->bitmap, 0);
 }
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
                     int nr_sectors)
 {
-    hbitmap_set(bs->dirty_bitmap, cur_sector, nr_sectors);
-}
-
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                      int nr_sectors)
-{
-    hbitmap_reset(bs->dirty_bitmap, cur_sector, nr_sectors);
-}
-
-int64_t bdrv_get_dirty_count(BlockDriverState *bs)
-{
-    if (bs->dirty_bitmap) {
-        return hbitmap_count(bs->dirty_bitmap);
-    } else {
-        return 0;
+    BdrvDirtyBitmap *bitmap;
+    QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
+        hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
     }
+}
+
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors)
+{
+    BdrvDirtyBitmap *bitmap;
+    QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
+        hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
+    }
+}
+
+int64_t bdrv_get_dirty_count(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    return hbitmap_count(bitmap->bitmap);
 }
 
 /* Get a reference to bs */
