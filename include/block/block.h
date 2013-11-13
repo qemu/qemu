@@ -422,6 +422,7 @@ struct HBitmapIter;
 typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity);
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
+BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
 int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);

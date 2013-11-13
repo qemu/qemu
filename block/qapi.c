@@ -204,6 +204,11 @@ void bdrv_query_info(BlockDriverState *bs,
         info->io_status = bs->iostatus;
     }
 
+    if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {
+        info->has_dirty_bitmaps = true;
+        info->dirty_bitmaps = bdrv_query_dirty_bitmaps(bs);
+    }
+
     if (bs->drv) {
         info->has_inserted = true;
         info->inserted = g_malloc0(sizeof(*info->inserted));
