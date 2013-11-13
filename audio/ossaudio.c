@@ -849,6 +849,10 @@ static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
 
 static void *oss_audio_init (void)
 {
+    if (access(conf.devpath_in, R_OK | W_OK) < 0 ||
+        access(conf.devpath_out, R_OK | W_OK) < 0) {
+        return NULL;
+    }
     return &conf;
 }
 
@@ -932,7 +936,7 @@ struct audio_driver oss_audio_driver = {
     .init           = oss_audio_init,
     .fini           = oss_audio_fini,
     .pcm_ops        = &oss_pcm_ops,
-    .can_be_default = 0,
+    .can_be_default = 1,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof (OSSVoiceOut),
