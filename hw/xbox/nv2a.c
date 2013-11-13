@@ -29,6 +29,7 @@
 
 #include "hw/xbox/u_format_r11g11b10f.h"
 #include "hw/xbox/nv2a_vsh.h"
+#include "hw/xbox/nv2a_psh.h"
 
 #include "hw/xbox/nv2a.h"
 
@@ -259,6 +260,19 @@
 #       define NV_PGRAPH_CLEARRECTY_YMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTY_YMAX                          0x0FFF0000
 #define NV_PGRAPH_COLORCLEARVALUE                        0x0000186C
+#define NV_PGRAPH_COMBINEFACTOR0                         0x00001880
+#define NV_PGRAPH_COMBINEFACTOR1                         0x000018A0
+#define NV_PGRAPH_COMBINEALPHAI0                         0x000018C0
+#define NV_PGRAPH_COMBINEALPHAO0                         0x000018E0
+#define NV_PGRAPH_COMBINECOLORI0                         0x00001900
+#define NV_PGRAPH_COMBINECOLORO0                         0x00001920
+#define NV_PGRAPH_COMBINECTL                             0x00001940
+#define NV_PGRAPH_COMBINESPECFOG0                        0x00001944
+#define NV_PGRAPH_COMBINESPECFOG1                        0x00001948
+#define NV_PGRAPH_SHADERCTL                              0x00001998
+#define NV_PGRAPH_SHADERPROG                             0x0000199C
+#define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
+#define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 
 #define NV_PCRTC_INTR_0                                  0x00000100
@@ -409,8 +423,15 @@
 #       define NV097_SET_SURFACE_PITCH_ZETA                       0xFFFF0000
 #   define NV097_SET_SURFACE_COLOR_OFFSET                     0x00970210
 #   define NV097_SET_SURFACE_ZETA_OFFSET                      0x00970214
+#   define NV097_SET_COMBINER_ALPHA_ICW                       0x00970260
+#   define NV097_SET_COMBINER_SPECULAR_FOG_CW0                0x00970288
+#   define NV097_SET_COMBINER_SPECULAR_FOG_CW1                0x0097028C
 #   define NV097_SET_COLOR_MASK                               0x00970358
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
+#   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
+#   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
+#   define NV097_SET_COMBINER_ALPHA_OCW                       0x00970AA0
+#   define NV097_SET_COMBINER_COLOR_ICW                       0x00970AC0
 #   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
 #   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
@@ -486,6 +507,10 @@
 #       define NV097_CLEAR_SURFACE_A                                (1 << 7)
 #   define NV097_SET_CLEAR_RECT_HORIZONTAL                    0x00971D98
 #   define NV097_SET_CLEAR_RECT_VERTICAL                      0x00971D9C
+#   define NV097_SET_COMBINER_COLOR_OCW                       0x00971E40
+#   define NV097_SET_COMBINER_CONTROL                         0x00971E60
+#   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
+#   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
@@ -1239,7 +1264,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
                                              shader->program_length);
         const char* shader_code_str = qstring_get_str(shader_code);
 
-        NV2A_DPRINTF("bind shader %d, code:\n%s\n",
+        NV2A_DPRINTF("bind vertex program %d, code:\n%s\n",
                      kelvin->vertexshader_start_slot,
                      shader_code_str);
 
@@ -1252,7 +1277,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
         GLint pos;
         glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
         if (pos != -1) {
-            fprintf(stderr, "nv2a: Vertex shader compilation failed:\n"
+            fprintf(stderr, "nv2a: vertex shader compilation failed:\n"
                             "      pos %d, %s\n",
                     pos, glGetString(GL_PROGRAM_ERROR_STRING_ARB));
             fprintf(stderr, "ucode:\n");
@@ -1402,15 +1427,53 @@ static void pgraph_bind_textures(NV2AState *d)
 
 static void pgraph_bind_fragment_shader(PGRAPHState *pg)
 {
-    const char *shader_code = "\n"
-"uniform sampler2DRect texSamp0;\n"
-"void main() {\n"
-"   gl_FragColor = texture2DRect(texSamp0, gl_TexCoord[0].st);\n"
-//"   gl_FragColor = vec4(1, 0, 0, 1);\n"
-"}\n";
+    int i;
 
     if (pg->fragment_shader_dirty) {
-        glShaderSource(pg->gl_fragment_shader, 1, &shader_code, 0);
+        uint32_t combiner_control = pg->regs[NV_PGRAPH_COMBINECTL];
+        uint32_t shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG];
+        uint32_t other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL];
+        uint32_t final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0];
+        uint32_t final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1];
+        uint32_t final_constant_0 = pg->regs[NV_PGRAPH_SPECFOGFACTOR0];
+        uint32_t final_constant_1 = pg->regs[NV_PGRAPH_SPECFOGFACTOR1];
+
+        uint32_t rgb_inputs[8], rgb_outputs[8],
+            alpha_inputs[8], alpha_outputs[8],
+            constant_0[8], constant_1[8];
+
+        for (i = 0; i < 8; i++) {
+            rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
+            rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
+            alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
+            alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
+            constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
+            constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
+        }
+
+        bool rect_tex[4];
+        for (i = 0; i < 4; i++) {
+            rect_tex[i] = false;
+            if (pg->textures[i].enabled 
+                && kelvin_color_format_map[pg->textures[i].color_format].linear) {
+                rect_tex[i] = true;
+            }
+        }
+
+        QString *shader_code = psh_translate(combiner_control, shader_stage_program,
+                       other_stage_input,
+                       rgb_inputs, rgb_outputs,
+                       alpha_inputs, alpha_outputs,
+                       constant_0, constant_1,
+                       final_inputs_0, final_inputs_1,
+                       final_constant_0, final_constant_1,
+                       rect_tex);
+
+        const char *shader_code_str = qstring_get_str(shader_code);
+
+        NV2A_DPRINTF("bind pixel shader, code:\n%s\n", shader_code_str);
+
+        glShaderSource(pg->gl_fragment_shader, 1, &shader_code_str, 0);
         glCompileShader(pg->gl_fragment_shader);
 
         /* Check it compiled */
@@ -1419,7 +1482,7 @@ static void pgraph_bind_fragment_shader(PGRAPHState *pg)
         if (!compiled) {
             GLchar log[1024];
             glGetShaderInfoLog(pg->gl_fragment_shader, 1024, NULL, log);
-            fprintf(stderr, "nv2a: Fragment shader compilation failed: %s\n", log);  
+            fprintf(stderr, "nv2a: fragment shader compilation failed: %s\n", log);  
             abort();
         }
 
@@ -1430,26 +1493,33 @@ static void pgraph_bind_fragment_shader(PGRAPHState *pg)
         if(!linked) {
             GLchar log[1024];
             glGetProgramInfoLog(pg->gl_program, 1024, NULL, log);
-            fprintf(stderr, "nv2a: Fragment shader linking failed: %s\n", log);
-            abort();
-        }
-
-        glValidateProgram(pg->gl_program);
-        GLint valid = 0;
-        glGetProgramiv(pg->gl_program, GL_VALIDATE_STATUS, &valid);
-        if (!valid) {
-            GLchar log[1024];
-            glGetProgramInfoLog(pg->gl_program, 1024, NULL, log);
-            fprintf(stderr, "nv2a: Fragment shader validation failed: %s\n", log);
+            fprintf(stderr, "nv2a: fragment shader linking failed: %s\n", log);
             abort();
         }
 
         glUseProgram(pg->gl_program);
 
-        GLint texSamp0Loc = glGetUniformLocation(pg->gl_program, "texSamp0");
-        glUniform1i(texSamp0Loc, 0);
+        /* set texture samplers */
+        for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
+            char samplerName[16];
+            snprintf(samplerName, sizeof(samplerName), "texSamp%d", i);
+            GLint texSampLoc = glGetUniformLocation(pg->gl_program, samplerName);
+            if (texSampLoc >= 0) {
+                glUniform1i(texSampLoc, i);
+            }
+        }
 
+        /*glValidateProgram(pg->gl_program);
+        GLint valid = 0;
+        glGetProgramiv(pg->gl_program, GL_VALIDATE_STATUS, &valid);
+        if (!valid) {
+            GLchar log[1024];
+            glGetProgramInfoLog(pg->gl_program, 1024, NULL, log);
+            fprintf(stderr, "nv2a: fragment shader validation failed: %s\n", log);
+            abort();
+        }*/
 
+        QDECREF(shader_code);
         pg->fragment_shader_dirty = false;
     } else {
         glUseProgram(pg->gl_program);
@@ -1513,7 +1583,7 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
 
             assert(d->pgraph.surface_color.pitch % bytes_per_pixel == 0);
 
-            glDisable(GL_FRAGMENT_PROGRAM_ARB);
+            //glDisable(GL_FRAGMENT_PROGRAM_ARB);
             glUseProgram(0);
 
             int rl, pa;
@@ -1919,6 +1989,24 @@ static void pgraph_method(NV2AState *d,
 
         pg->surface_zeta.offset = parameter;
         break;
+
+    case NV097_SET_COMBINER_ALPHA_ICW ...
+            NV097_SET_COMBINER_ALPHA_ICW + 28:
+        slot = (class_method - NV097_SET_COMBINER_ALPHA_ICW) / 4;
+        pg->regs[NV_PGRAPH_COMBINEALPHAI0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_SPECULAR_FOG_CW0:
+        pg->regs[NV_PGRAPH_COMBINESPECFOG0] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_SPECULAR_FOG_CW1:
+        pg->regs[NV_PGRAPH_COMBINESPECFOG1] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
     case NV097_SET_COLOR_MASK:
         pg->color_mask = parameter;
         break;
@@ -1932,6 +2020,35 @@ static void pgraph_method(NV2AState *d,
         kelvin->constants[59].data[slot] = parameter;
         kelvin->constants[59].dirty = true;
         break;
+
+    case NV097_SET_COMBINER_FACTOR0 ...
+            NV097_SET_COMBINER_FACTOR0 + 28:
+        slot = (class_method - NV097_SET_COMBINER_FACTOR0) / 4;
+        pg->regs[NV_PGRAPH_COMBINEFACTOR0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_FACTOR1 ...
+            NV097_SET_COMBINER_FACTOR1 + 28:
+        slot = (class_method - NV097_SET_COMBINER_FACTOR1) / 4;
+        pg->regs[NV_PGRAPH_COMBINEFACTOR1 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_ALPHA_OCW ...
+            NV097_SET_COMBINER_ALPHA_OCW + 28:
+        slot = (class_method - NV097_SET_COMBINER_ALPHA_OCW) / 4;
+        pg->regs[NV_PGRAPH_COMBINEALPHAO0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_COLOR_ICW ...
+            NV097_SET_COMBINER_COLOR_ICW + 28:
+        slot = (class_method - NV097_SET_COMBINER_COLOR_ICW) / 4;
+        pg->regs[NV_PGRAPH_COMBINECOLORI0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
     case NV097_SET_VIEWPORT_SCALE ...
             NV097_SET_VIEWPORT_SCALE + 12:
 
@@ -2274,6 +2391,28 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CLEAR_RECT_VERTICAL:
         pg->regs[NV_PGRAPH_CLEARRECTY] = parameter;
+        break;
+
+    case NV097_SET_COMBINER_COLOR_OCW ...
+            NV097_SET_COMBINER_COLOR_OCW + 28:
+        slot = (class_method - NV097_SET_COMBINER_COLOR_OCW) / 4;
+        pg->regs[NV_PGRAPH_COMBINECOLORO0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_COMBINER_CONTROL:
+        pg->regs[NV_PGRAPH_COMBINECTL] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_SHADER_STAGE_PROGRAM:
+        pg->regs[NV_PGRAPH_SHADERPROG] = parameter;
+        pg->fragment_shader_dirty = true;
+        break;
+
+    case NV097_SET_SHADER_OTHER_STAGE_INPUT:
+        pg->regs[NV_PGRAPH_SHADERCTL] = parameter;
+        pg->fragment_shader_dirty = true;
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:

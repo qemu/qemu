@@ -72,6 +72,17 @@ QString *qstring_from_str(const char *str)
     return qstring_from_substr(str, 0, strlen(str) - 1);
 }
 
+QString *qstring_from_fmt(const char *fmt, ...)
+{
+    QString *ret = qstring_new();
+    va_list ap;
+    va_start(ap, fmt);
+    qstring_append_va(ret, fmt, ap);
+    va_end(ap);
+
+    return ret;
+}
+
 static void capacity_increase(QString *qstring, size_t len)
 {
     if (qstring->capacity < (qstring->length + len)) {
@@ -110,6 +121,40 @@ void qstring_append_chr(QString *qstring, int c)
     capacity_increase(qstring, 1);
     qstring->string[qstring->length++] = c;
     qstring->string[qstring->length] = 0;
+}
+
+void qstring_append_fmt(QString *qstring, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    qstring_append_va(qstring, fmt, ap);
+    va_end(ap);
+}
+
+void qstring_append_va(QString *qstring, const char *fmt, va_list va)
+{
+    char scratch[256];
+
+    va_list ap;
+    va_copy(ap, va);
+    const int len = vsnprintf(scratch, sizeof(scratch), fmt, ap);
+    va_end(ap);
+
+    if (len == 0) {
+        return;
+    } else if (len < sizeof(scratch)) {
+        qstring_append(qstring, scratch);
+        return;
+    }
+
+    /* overflowed out scratch buffer, alloc and try again */
+    char *buf = g_malloc(len + 1);
+    va_copy(ap, va);
+    vsnprintf(buf, len + 1, fmt, ap);
+    va_end(ap);
+
+    qstring_append(qstring, buf);
+    g_free(buf);
 }
 
 /**
