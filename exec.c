@@ -409,8 +409,10 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 #else
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
-    tb_invalidate_phys_addr(cpu_get_phys_page_debug(cpu, pc) |
-            (pc & ~TARGET_PAGE_MASK));
+    hwaddr phys = cpu_get_phys_page_debug(cpu, pc);
+    if (phys != -1) {
+        tb_invalidate_phys_addr(phys | (pc & ~TARGET_PAGE_MASK));
+    }
 }
 #endif
 #endif /* TARGET_HAS_ICE */
