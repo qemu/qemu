@@ -96,7 +96,7 @@ struct PhysPageEntry {
 /* Size of the L2 (and L3, etc) page tables.  */
 #define ADDR_SPACE_BITS 64
 
-#define P_L2_BITS 10
+#define P_L2_BITS 9
 #define P_L2_SIZE (1 << P_L2_BITS)
 
 #define P_L2_LEVELS (((ADDR_SPACE_BITS - TARGET_PAGE_BITS - 1) / P_L2_BITS) + 1)
