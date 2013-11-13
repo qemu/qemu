@@ -36,9 +36,6 @@
 // Xbox vertex read/write shader
 #define VSH_VERSION_XVSW                   0x7778
 
-
-#define VSH_D3DSCM_CORRECTION 96
-
 QString* vsh_translate(uint16_t version,
                        uint32_t *tokens, unsigned int tokens_length);
 

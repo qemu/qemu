@@ -31,9 +31,9 @@
 
 #include "hw/xbox/nv2a_vsh.h"
 
+#define VSH_D3DSCM_CORRECTION 96
 
 #define VSH_TOKEN_SIZE 4
-
 
 typedef enum {
     FLD_ILU = 0,

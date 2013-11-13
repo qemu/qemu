@@ -227,6 +227,7 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
     case ClassInterfaceRequest | HID_GET_REPORT:
         DPRINTF("xid GET_REPORT %x\n", value);
         if (value == 0x100) { /* input */
+            assert(s->in_state.bLength <= length);
             memcpy(data, &s->in_state, s->in_state.bLength);
             p->actual_length = s->in_state.bLength;
         } else {
@@ -241,6 +242,7 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
     case InterfaceRequestVendor | USB_REQ_GET_DESCRIPTOR:
         DPRINTF("xid GET_DESCRIPTOR %x\n", value);
         if (value == 0x4200) {
+            assert(s->xid_desc->bLength <= length);
             memcpy(data, s->xid_desc, s->xid_desc->bLength);
             p->actual_length = s->xid_desc->bLength;
         } else {
