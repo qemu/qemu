@@ -216,10 +216,11 @@ static void phys_page_set(AddressSpaceDispatch *d,
     phys_page_set_level(&d->phys_map, &index, &nb, leaf, P_L2_LEVELS - 1);
 }
 
-static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr index,
+static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr addr,
                                            Node *nodes, MemoryRegionSection *sections)
 {
     PhysPageEntry *p;
+    hwaddr index = addr >> TARGET_PAGE_BITS;
     int i;
 
     for (i = P_L2_LEVELS; lp.skip && (i -= lp.skip) >= 0;) {
@@ -245,8 +246,7 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
     MemoryRegionSection *section;
     subpage_t *subpage;
 
-    section = phys_page_find(d->phys_map, addr >> TARGET_PAGE_BITS,
-                             d->nodes, d->sections);
+    section = phys_page_find(d->phys_map, addr, d->nodes, d->sections);
     if (resolve_subpage && section->mr->subpage) {
         subpage = container_of(section->mr, subpage_t, iomem);
         section = &d->sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
@@ -802,7 +802,7 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     subpage_t *subpage;
     hwaddr base = section->offset_within_address_space
         & TARGET_PAGE_MASK;
-    MemoryRegionSection *existing = phys_page_find(d->phys_map, base >> TARGET_PAGE_BITS,
+    MemoryRegionSection *existing = phys_page_find(d->phys_map, base,
                                                    next_map.nodes, next_map.sections);
     MemoryRegionSection subsection = {
         .offset_within_address_space = base,
