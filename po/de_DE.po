@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-07-05 22:36+0200\n"
+"POT-Creation-Date: 2013-11-14 07:11+0100\n"
 "PO-Revision-Date: 2012-02-28 16:00+0100\n"
 "Last-Translator: Kevin Wolf <kwolf@redhat.com>\n"
 "Language-Team: Deutsch <de@li.org>\n"
@@ -16,47 +16,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
 
-#: ui/gtk.c:214
+#: ui/gtk.c:217
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - Strg+Alt+G drücken, um Eingabegeräte freizugeben"
 
-#: ui/gtk.c:218
+#: ui/gtk.c:221
 msgid " [Paused]"
 msgstr " [Angehalten]"
 
-#: ui/gtk.c:1318
+#: ui/gtk.c:1326
 msgid "_Pause"
 msgstr "_Angehalten"
 
-#: ui/gtk.c:1324
+#: ui/gtk.c:1332
 msgid "_Reset"
 msgstr "_Reset"
 
-#: ui/gtk.c:1327
+#: ui/gtk.c:1335
 msgid "Power _Down"
 msgstr "_Herunterfahren"
 
-#: ui/gtk.c:1381
+#: ui/gtk.c:1393
 msgid "Zoom To _Fit"
 msgstr "Auf _Fenstergröße skalieren"
 
-#: ui/gtk.c:1387
+#: ui/gtk.c:1399
 msgid "Grab On _Hover"
 msgstr "Tastatur _automatisch einfangen"
 
-#: ui/gtk.c:1390
+#: ui/gtk.c:1402
 msgid "_Grab Input"
 msgstr "_Eingabegeräte einfangen"
 
-#: ui/gtk.c:1416
+#: ui/gtk.c:1429
 msgid "Show _Tabs"
 msgstr "_Tableiste anzeigen"
 
-#: ui/gtk.c:1430
+#: ui/gtk.c:1443
 msgid "_Machine"
 msgstr "_Maschine"
 
-#: ui/gtk.c:1435
+#: ui/gtk.c:1448
 msgid "_View"
 msgstr "_Ansicht"
 
