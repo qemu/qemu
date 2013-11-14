@@ -1053,21 +1053,15 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         int64_t total_size;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *create_options;
-        char backing_filename[PATH_MAX];
-
-        if (qdict_size(options) != 0) {
-            error_setg(errp, "Can't use snapshot=on with driver-specific options");
-            ret = -EINVAL;
-            goto fail;
-        }
-        assert(filename != NULL);
+        QDict *snapshot_options;
 
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
 
-        /* if there is a backing file, use it */
+        /* Get the required size from the image */
         bs1 = bdrv_new("");
-        ret = bdrv_open(bs1, filename, NULL, 0, drv, &local_err);
+        QINCREF(options);
+        ret = bdrv_open(bs1, filename, options, 0, drv, &local_err);
         if (ret < 0) {
             bdrv_unref(bs1);
             goto fail;
@@ -1076,19 +1070,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
         bdrv_unref(bs1);
 
+        /* Create the temporary image */
         ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not get temporary filename");
-            goto fail;
-        }
-
-        /* Real path is meaningless for protocols */
-        if (path_has_protocol(filename)) {
-            snprintf(backing_filename, sizeof(backing_filename),
-                     "%s", filename);
-        } else if (!realpath(filename, backing_filename)) {
-            ret = -errno;
-            error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
             goto fail;
         }
 
@@ -1097,12 +1082,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
                                                  NULL);
 
         set_option_parameter_int(create_options, BLOCK_OPT_SIZE, total_size);
-        set_option_parameter(create_options, BLOCK_OPT_BACKING_FILE,
-                             backing_filename);
-        if (drv) {
-            set_option_parameter(create_options, BLOCK_OPT_BACKING_FMT,
-                drv->format_name);
-        }
 
         ret = bdrv_create(bdrv_qcow2, tmp_filename, create_options, &local_err);
         free_option_parameters(create_options);
@@ -1114,6 +1093,22 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
             local_err = NULL;
             goto fail;
         }
+
+        /* Prepare a new options QDict for the temporary file, where user
+         * options refer to the backing file */
+        if (filename) {
+            qdict_put(options, "file.filename", qstring_from_str(filename));
+        }
+        if (drv) {
+            qdict_put(options, "driver", qstring_from_str(drv->format_name));
+        }
+
+        snapshot_options = qdict_new();
+        qdict_put(snapshot_options, "backing", options);
+        qdict_flatten(snapshot_options);
+
+        bs->options = snapshot_options;
+        options = qdict_clone_shallow(bs->options);
 
         filename = tmp_filename;
         drv = bdrv_qcow2;
