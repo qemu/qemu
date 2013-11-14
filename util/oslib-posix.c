@@ -47,6 +47,9 @@ extern int daemon(int, int);
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
 
+#include <termios.h>
+#include <unistd.h>
+
 #include <glib/gprintf.h>
 
 #include "config-host.h"
@@ -250,4 +253,19 @@ qemu_get_local_state_pathname(const char *relative_pathname)
 {
     return g_strdup_printf("%s/%s", CONFIG_QEMU_LOCALSTATEDIR,
                            relative_pathname);
+}
+
+void qemu_set_tty_echo(int fd, bool echo)
+{
+    struct termios tty;
+
+    tcgetattr(fd, &tty);
+
+    if (echo) {
+        tty.c_lflag |= ECHO | ECHONL | ICANON | IEXTEN;
+    } else {
+        tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
+    }
+
+    tcsetattr(fd, TCSANOW, &tty);
 }

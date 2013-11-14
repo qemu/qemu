@@ -240,4 +240,6 @@ static inline void qemu_init_auxval(char **envp) { }
 void qemu_init_auxval(char **envp);
 #endif
 
+void qemu_set_tty_echo(int fd, bool echo);
+
 #endif
