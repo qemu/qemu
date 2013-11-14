@@ -37,7 +37,7 @@
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
-#include "monitor/readline.h"
+#include "qemu/readline.h"
 #include "ui/console.h"
 #include "sysemu/blockdev.h"
 #include "audio/audio.h"

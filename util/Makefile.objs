@@ -13,3 +13,4 @@ util-obj-y += hexdump.o
 util-obj-y += crc32c.o
 util-obj-y += throttle.o
 util-obj-y += getauxval.o
+util-obj-y += readline.o

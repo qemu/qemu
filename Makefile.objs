@@ -43,7 +43,6 @@ libcacard-y += libcacard/vcardt.o
 ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
-common-obj-y += readline.o
 common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o

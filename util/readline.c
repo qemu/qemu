@@ -23,7 +23,7 @@
  */
 
 #include "qemu-common.h"
-#include "monitor/readline.h"
+#include "qemu/readline.h"
 
 #define IS_NORM 0
 #define IS_ESC  1
