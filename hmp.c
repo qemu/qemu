@@ -1092,11 +1092,11 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-static void hmp_change_read_arg(Monitor *mon, const char *password,
-                                void *opaque)
+static void hmp_change_read_arg(void *opaque, const char *password,
+                                void *readline_opaque)
 {
     qmp_change_vnc_password(password, NULL);
-    monitor_read_command(mon, 1);
+    monitor_read_command(opaque, 1);
 }
 
 void hmp_change(Monitor *mon, const QDict *qdict)

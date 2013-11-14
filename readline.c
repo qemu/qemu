@@ -21,21 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "qemu-common.h"
 #include "monitor/readline.h"
-#include "monitor/monitor.h"
 
 #define IS_NORM 0
 #define IS_ESC  1
 #define IS_CSI  2
 #define IS_SS3  3
 
-#undef printf
-#define printf do_not_use_printf
-
 void readline_show_prompt(ReadLineState *rs)
 {
-    monitor_printf(rs->mon, "%s", rs->prompt);
-    monitor_flush(rs->mon);
+    rs->printf_func(rs->opaque, "%s", rs->prompt);
+    rs->flush_func(rs->opaque);
     rs->last_cmd_buf_index = 0;
     rs->last_cmd_buf_size = 0;
     rs->esc_state = IS_NORM;
@@ -49,17 +47,17 @@ static void readline_update(ReadLineState *rs)
     if (rs->cmd_buf_size != rs->last_cmd_buf_size ||
         memcmp(rs->cmd_buf, rs->last_cmd_buf, rs->cmd_buf_size) != 0) {
         for(i = 0; i < rs->last_cmd_buf_index; i++) {
-            monitor_printf(rs->mon, "\033[D");
+            rs->printf_func(rs->opaque, "\033[D");
         }
         rs->cmd_buf[rs->cmd_buf_size] = '\0';
         if (rs->read_password) {
             len = strlen(rs->cmd_buf);
             for(i = 0; i < len; i++)
-                monitor_printf(rs->mon, "*");
+                rs->printf_func(rs->opaque, "*");
         } else {
-            monitor_printf(rs->mon, "%s", rs->cmd_buf);
+            rs->printf_func(rs->opaque, "%s", rs->cmd_buf);
         }
-        monitor_printf(rs->mon, "\033[K");
+        rs->printf_func(rs->opaque, "\033[K");
         memcpy(rs->last_cmd_buf, rs->cmd_buf, rs->cmd_buf_size);
         rs->last_cmd_buf_size = rs->cmd_buf_size;
         rs->last_cmd_buf_index = rs->cmd_buf_size;
@@ -68,17 +66,17 @@ static void readline_update(ReadLineState *rs)
         delta = rs->cmd_buf_index - rs->last_cmd_buf_index;
         if (delta > 0) {
             for(i = 0;i < delta; i++) {
-                monitor_printf(rs->mon, "\033[C");
+                rs->printf_func(rs->opaque, "\033[C");
             }
         } else {
             delta = -delta;
             for(i = 0;i < delta; i++) {
-                monitor_printf(rs->mon, "\033[D");
+                rs->printf_func(rs->opaque, "\033[D");
             }
         }
         rs->last_cmd_buf_index = rs->cmd_buf_index;
     }
-    monitor_flush(rs->mon);
+    rs->flush_func(rs->opaque);
 }
 
 static void readline_insert_char(ReadLineState *rs, int ch)
@@ -284,7 +282,7 @@ static void readline_completion(ReadLineState *rs)
     cmdline = g_malloc(rs->cmd_buf_index + 1);
     memcpy(cmdline, rs->cmd_buf, rs->cmd_buf_index);
     cmdline[rs->cmd_buf_index] = '\0';
-    rs->completion_finder(rs->mon, cmdline);
+    rs->completion_finder(rs->opaque, cmdline);
     g_free(cmdline);
 
     /* no completion found */
@@ -299,7 +297,7 @@ static void readline_completion(ReadLineState *rs)
         if (len > 0 && rs->completions[0][len - 1] != '/')
             readline_insert_char(rs, ' ');
     } else {
-        monitor_printf(rs->mon, "\n");
+        rs->printf_func(rs->opaque, "\n");
         max_width = 0;
         max_prefix = 0;	
         for(i = 0; i < rs->nb_completions; i++) {
@@ -329,9 +327,9 @@ static void readline_completion(ReadLineState *rs)
         nb_cols = 80 / max_width;
         j = 0;
         for(i = 0; i < rs->nb_completions; i++) {
-            monitor_printf(rs->mon, "%-*s", max_width, rs->completions[i]);
+            rs->printf_func(rs->opaque, "%-*s", max_width, rs->completions[i]);
             if (++j == nb_cols || i == (rs->nb_completions - 1)) {
-                monitor_printf(rs->mon, "\n");
+                rs->printf_func(rs->opaque, "\n");
                 j = 0;
             }
         }
@@ -365,12 +363,12 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             rs->cmd_buf[rs->cmd_buf_size] = '\0';
             if (!rs->read_password)
                 readline_hist_add(rs, rs->cmd_buf);
-            monitor_printf(rs->mon, "\n");
+            rs->printf_func(rs->opaque, "\n");
             rs->cmd_buf_index = 0;
             rs->cmd_buf_size = 0;
             rs->last_cmd_buf_index = 0;
             rs->last_cmd_buf_size = 0;
-            rs->readline_func(rs->mon, rs->cmd_buf, rs->readline_opaque);
+            rs->readline_func(rs->opaque, rs->cmd_buf, rs->readline_opaque);
             break;
         case 23:
             /* ^W */
@@ -480,13 +478,17 @@ const char *readline_get_history(ReadLineState *rs, unsigned int index)
     return rs->history[index];
 }
 
-ReadLineState *readline_init(Monitor *mon,
+ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
+                             ReadLineFlushFunc *flush_func,
+                             void *opaque,
                              ReadLineCompletionFunc *completion_finder)
 {
     ReadLineState *rs = g_malloc0(sizeof(*rs));
 
     rs->hist_entry = -1;
-    rs->mon = mon;
+    rs->opaque = opaque;
+    rs->printf_func = printf_func;
+    rs->flush_func = flush_func;
     rs->completion_finder = completion_finder;
 
     return rs;

@@ -1,14 +1,15 @@
 #ifndef READLINE_H
 #define READLINE_H
 
-#include "qemu-common.h"
-
 #define READLINE_CMD_BUF_SIZE 4095
 #define READLINE_MAX_CMDS 64
 #define READLINE_MAX_COMPLETIONS 256
 
-typedef void ReadLineFunc(Monitor *mon, const char *str, void *opaque);
-typedef void ReadLineCompletionFunc(Monitor *mon,
+typedef void ReadLinePrintfFunc(void *opaque, const char *fmt, ...);
+typedef void ReadLineFlushFunc(void *opaque);
+typedef void ReadLineFunc(void *opaque, const char *str,
+                          void *readline_opaque);
+typedef void ReadLineCompletionFunc(void *opaque,
                                     const char *cmdline);
 
 typedef struct ReadLineState {
@@ -35,7 +36,10 @@ typedef struct ReadLineState {
     void *readline_opaque;
     int read_password;
     char prompt[256];
-    Monitor *mon;
+
+    ReadLinePrintfFunc *printf_func;
+    ReadLineFlushFunc *flush_func;
+    void *opaque;
 } ReadLineState;
 
 void readline_add_completion(ReadLineState *rs, const char *str);
@@ -46,11 +50,13 @@ const char *readline_get_history(ReadLineState *rs, unsigned int index);
 void readline_handle_byte(ReadLineState *rs, int ch);
 
 void readline_start(ReadLineState *rs, const char *prompt, int read_password,
-                    ReadLineFunc *readline_func, void *opaque);
+                    ReadLineFunc *readline_func, void *readline_opaque);
 void readline_restart(ReadLineState *rs);
 void readline_show_prompt(ReadLineState *rs);
 
-ReadLineState *readline_init(Monitor *mon,
+ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
+                             ReadLineFlushFunc *flush_func,
+                             void *opaque,
                              ReadLineCompletionFunc *completion_finder);
 
 #endif /* !READLINE_H */
