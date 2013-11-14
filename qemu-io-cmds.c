@@ -94,6 +94,21 @@ static const cmdinfo_t *find_command(const char *cmd)
     return NULL;
 }
 
+/* Invoke fn() for commands with a matching prefix */
+void qemuio_complete_command(const char *input,
+                             void (*fn)(const char *cmd, void *opaque),
+                             void *opaque)
+{
+    cmdinfo_t *ct;
+    size_t input_len = strlen(input);
+
+    for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
+        if (strncmp(input, ct->name, input_len) == 0) {
+            fn(ct->name, opaque);
+        }
+    }
+}
+
 static char **breakline(char *input, int *count)
 {
     int c = 0;

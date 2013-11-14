@@ -236,9 +236,15 @@ static void readline_func(void *opaque, const char *str, void *readline_opaque)
     *line = g_strdup(str);
 }
 
+static void completion_match(const char *cmd, void *opaque)
+{
+    readline_add_completion(readline_state, cmd);
+}
+
 static void readline_completion_func(void *opaque, const char *str)
 {
-    /* No command or argument completion implemented yet */
+    readline_set_completion_index(readline_state, strlen(str));
+    qemuio_complete_command(str, completion_match, NULL);
 }
 
 static char *fetchline_readline(void)
