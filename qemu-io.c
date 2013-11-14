@@ -18,6 +18,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qemu/readline.h"
 #include "block/block_int.h"
 #include "trace/control.h"
 
@@ -31,6 +32,8 @@ extern int qemuio_misalign;
 /* qemu-io commands passed using -c */
 static int ncmdline;
 static char **cmdline;
+
+static ReadLineState *readline_state;
 
 static int close_f(BlockDriverState *bs, int argc, char **argv)
 {
@@ -203,14 +206,6 @@ static void usage(const char *name)
     name);
 }
 
-
-#if defined(ENABLE_READLINE)
-# include <readline/history.h>
-# include <readline/readline.h>
-#elif defined(ENABLE_EDITLINE)
-# include <histedit.h>
-#endif
-
 static char *get_prompt(void)
 {
     static char prompt[FILENAME_MAX + 2 /*"> "*/ + 1 /*"\0"*/ ];
@@ -222,52 +217,47 @@ static char *get_prompt(void)
     return prompt;
 }
 
-#if defined(ENABLE_READLINE)
-static char *fetchline(void)
+static void readline_printf_func(void *opaque, const char *fmt, ...)
 {
-    char *line = readline(get_prompt());
-    if (line && *line) {
-        add_history(line);
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+}
+
+static void readline_flush_func(void *opaque)
+{
+    fflush(stdout);
+}
+
+static void readline_func(void *opaque, const char *str, void *readline_opaque)
+{
+    char **line = readline_opaque;
+    *line = g_strdup(str);
+}
+
+static void readline_completion_func(void *opaque, const char *str)
+{
+    /* No command or argument completion implemented yet */
+}
+
+static char *fetchline_readline(void)
+{
+    char *line = NULL;
+
+    readline_start(readline_state, get_prompt(), 0, readline_func, &line);
+    while (!line) {
+        int ch = getchar();
+        if (ch == EOF) {
+            break;
+        }
+        readline_handle_byte(readline_state, ch);
     }
     return line;
 }
-#elif defined(ENABLE_EDITLINE)
-static char *el_get_prompt(EditLine *e)
-{
-    return get_prompt();
-}
 
-static char *fetchline(void)
-{
-    static EditLine *el;
-    static History *hist;
-    HistEvent hevent;
-    char *line;
-    int count;
-
-    if (!el) {
-        hist = history_init();
-        history(hist, &hevent, H_SETSIZE, 100);
-        el = el_init(progname, stdin, stdout, stderr);
-        el_source(el, NULL);
-        el_set(el, EL_SIGNAL, 1);
-        el_set(el, EL_PROMPT, el_get_prompt);
-        el_set(el, EL_HIST, history, (const char *)hist);
-    }
-    line = strdup(el_gets(el, &count));
-    if (line) {
-        if (count > 0) {
-            line[count-1] = '\0';
-        }
-        if (*line) {
-            history(hist, &hevent, H_ENTER, line);
-        }
-    }
-    return line;
-}
-#else
-# define MAXREADLINESZ 1024
-static char *fetchline(void)
+#define MAXREADLINESZ 1024
+static char *fetchline_fgets(void)
 {
     char *p, *line = g_malloc(MAXREADLINESZ);
 
@@ -283,7 +273,15 @@ static char *fetchline(void)
 
     return line;
 }
-#endif
+
+static char *fetchline(void)
+{
+    if (readline_state) {
+        return fetchline_readline();
+    } else {
+        return fetchline_fgets();
+    }
+}
 
 static void prep_fetchline(void *opaque)
 {
@@ -337,6 +335,11 @@ static void add_user_command(char *optarg)
 {
     cmdline = g_realloc(cmdline, ++ncmdline * sizeof(char *));
     cmdline[ncmdline-1] = optarg;
+}
+
+static void reenable_tty_echo(void)
+{
+    qemu_set_tty_echo(STDIN_FILENO, true);
 }
 
 int main(int argc, char **argv)
@@ -435,6 +438,15 @@ int main(int argc, char **argv)
     qemuio_add_command(&open_cmd);
     qemuio_add_command(&close_cmd);
 
+    if (isatty(STDIN_FILENO)) {
+        readline_state = readline_init(readline_printf_func,
+                                       readline_flush_func,
+                                       NULL,
+                                       readline_completion_func);
+        qemu_set_tty_echo(STDIN_FILENO, false);
+        atexit(reenable_tty_echo);
+    }
+
     /* open the device */
     if (!readonly) {
         flags |= BDRV_O_RDWR;
@@ -453,5 +465,6 @@ int main(int argc, char **argv)
     if (qemuio_bs) {
         bdrv_unref(qemuio_bs);
     }
+    g_free(readline_state);
     return 0;
 }
