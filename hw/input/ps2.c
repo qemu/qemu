@@ -25,12 +25,7 @@
 #include "hw/input/ps2.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
-
-/* debug PC keyboard */
-//#define DEBUG_KBD
-
-/* debug PC keyboard : only mouse */
-//#define DEBUG_MOUSE
+#include "trace.h"
 
 /* Keyboard Commands */
 #define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
@@ -300,8 +295,8 @@ void ps2_write_keyboard(void *opaque, int val)
 
 void ps2_keyboard_set_translation(void *opaque, int mode)
 {
-    fprintf(stderr, "%s:%u %s(%d)\n", __FILE__, __LINE__, __func__, mode);
     PS2KbdState *s = (PS2KbdState *)opaque;
+    trace_ps2_keyboard_set_translation(mode);
     s->translate = mode;
 }
 
@@ -395,9 +390,7 @@ void ps2_mouse_fake_event(void *opaque)
 void ps2_write_mouse(void *opaque, int val)
 {
     PS2MouseState *s = (PS2MouseState *)opaque;
-#ifdef DEBUG_MOUSE
-    printf("kbd: write mouse 0x%02x\n", val);
-#endif
+    trace_ps2_write_mouse(val);
     switch(s->common.write_cmd) {
     default:
     case -1:
