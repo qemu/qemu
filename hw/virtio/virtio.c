@@ -14,6 +14,7 @@
 #include <inttypes.h>
 
 #include "trace.h"
+#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/atomic.h"
@@ -111,7 +112,7 @@ static inline uint32_t vring_desc_len(hwaddr desc_pa, int i)
 {
     hwaddr pa;
     pa = desc_pa + sizeof(VRingDesc) * i + offsetof(VRingDesc, len);
-    return ldl_phys(pa);
+    return ldl_phys(&address_space_memory, pa);
 }
 
 static inline uint16_t vring_desc_flags(hwaddr desc_pa, int i)

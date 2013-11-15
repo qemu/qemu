@@ -263,7 +263,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             info.queue = ldq_phys(ccw.cda);
-            info.align = ldl_phys(ccw.cda + sizeof(info.queue));
+            info.align = ldl_phys(&address_space_memory,
+                                  ccw.cda + sizeof(info.queue));
             info.index = lduw_phys(ccw.cda + sizeof(info.queue)
                                    + sizeof(info.align));
             info.num = lduw_phys(ccw.cda + sizeof(info.queue)
@@ -320,7 +321,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             features.index = ldub_phys(ccw.cda + sizeof(features.features));
-            features.features = ldl_le_phys(ccw.cda);
+            features.features = ldl_le_phys(&address_space_memory, ccw.cda);
             if (features.index < ARRAY_SIZE(dev->host_features)) {
                 virtio_bus_set_vdev_features(&dev->bus, features.features);
                 vdev->guest_features = features.features;

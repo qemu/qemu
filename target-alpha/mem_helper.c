@@ -24,9 +24,10 @@
 /* Softmmu support */
 #ifndef CONFIG_USER_ONLY
 
-uint64_t helper_ldl_phys(uint64_t p)
+uint64_t helper_ldl_phys(CPUAlphaState *env, uint64_t p)
 {
-    return (int32_t)ldl_phys(p);
+    CPUState *cs = ENV_GET_CPU(env);
+    return (int32_t)ldl_phys(cs->as, p);
 }
 
 uint64_t helper_ldq_phys(uint64_t p)
@@ -36,8 +37,9 @@ uint64_t helper_ldq_phys(uint64_t p)
 
 uint64_t helper_ldl_l_phys(CPUAlphaState *env, uint64_t p)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     env->lock_addr = p;
-    return env->lock_value = (int32_t)ldl_phys(p);
+    return env->lock_value = (int32_t)ldl_phys(cs->as, p);
 }
 
 uint64_t helper_ldq_l_phys(CPUAlphaState *env, uint64_t p)
@@ -58,10 +60,11 @@ void helper_stq_phys(uint64_t p, uint64_t v)
 
 uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ret = 0;
 
     if (p == env->lock_addr) {
-        int32_t old = ldl_phys(p);
+        int32_t old = ldl_phys(cs->as, p);
         if (old == (int32_t)env->lock_value) {
             stl_phys(p, v);
             ret = 1;

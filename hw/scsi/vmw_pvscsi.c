@@ -43,7 +43,8 @@
     (sizeof(PVSCSICmdDescSetupRings)/sizeof(uint32_t))
 
 #define RS_GET_FIELD(rs_pa, field) \
-    (ldl_le_phys(rs_pa + offsetof(struct PVSCSIRingsState, field)))
+    (ldl_le_phys(&address_space_memory, \
+                 rs_pa + offsetof(struct PVSCSIRingsState, field)))
 #define RS_SET_FIELD(rs_pa, field, val) \
     (stl_le_phys(rs_pa + offsetof(struct PVSCSIRingsState, field), val))
 

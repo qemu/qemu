@@ -101,7 +101,7 @@ DEF_HELPER_FLAGS_2(ieee_input_cmp, TCG_CALL_NO_WG, void, env, i64)
 DEF_HELPER_2(hw_ret, void, env, i64)
 DEF_HELPER_3(call_pal, void, env, i64, i64)
 
-DEF_HELPER_1(ldl_phys, i64, i64)
+DEF_HELPER_2(ldl_phys, i64, env, i64)
 DEF_HELPER_1(ldq_phys, i64, i64)
 DEF_HELPER_2(ldl_l_phys, i64, env, i64)
 DEF_HELPER_2(ldq_l_phys, i64, env, i64)

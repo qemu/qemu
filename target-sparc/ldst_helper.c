@@ -447,6 +447,7 @@ static uint64_t leon3_cache_control_ld(CPUSPARCState *env, target_ulong addr,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ret = 0;
 #if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_addr = addr;
@@ -615,7 +616,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             break;
         default:
         case 4:
-            ret = ldl_phys(addr);
+            ret = ldl_phys(cs->as, addr);
             break;
         case 8:
             ret = ldq_phys(addr);
@@ -634,7 +635,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             break;
         default:
         case 4:
-            ret = ldl_phys((hwaddr)addr
+            ret = ldl_phys(cs->as, (hwaddr)addr
                            | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 8:
@@ -1284,6 +1285,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ret = 0;
 #if defined(DEBUG_ASI)
     target_ulong last_addr = addr;
@@ -1438,7 +1440,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                 ret = lduw_phys(addr);
                 break;
             case 4:
-                ret = ldl_phys(addr);
+                ret = ldl_phys(cs->as, addr);
                 break;
             default:
             case 8:

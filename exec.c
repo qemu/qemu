@@ -1614,7 +1614,7 @@ static uint64_t watch_mem_read(void *opaque, hwaddr addr,
     switch (size) {
     case 1: return ldub_phys(addr);
     case 2: return lduw_phys(addr);
-    case 4: return ldl_phys(addr);
+    case 4: return ldl_phys(&address_space_memory, addr);
     default: abort();
     }
 }
@@ -2348,7 +2348,7 @@ void cpu_physical_memory_unmap(void *buffer, hwaddr len,
 }
 
 /* warning: addr must be aligned */
-static inline uint32_t ldl_phys_internal(hwaddr addr,
+static inline uint32_t ldl_phys_internal(AddressSpace *as, hwaddr addr,
                                          enum device_endian endian)
 {
     uint8_t *ptr;
@@ -2357,8 +2357,7 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
     hwaddr l = 4;
     hwaddr addr1;
 
-    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                 false);
+    mr = address_space_translate(as, addr, &addr1, &l, false);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
         io_mem_read(mr, addr1, &val, 4);
@@ -2391,19 +2390,19 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
     return val;
 }
 
-uint32_t ldl_phys(hwaddr addr)
+uint32_t ldl_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldl_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
+    return ldl_phys_internal(as, addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint32_t ldl_le_phys(hwaddr addr)
+uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldl_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
+    return ldl_phys_internal(as, addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint32_t ldl_be_phys(hwaddr addr)
+uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldl_phys_internal(addr, DEVICE_BIG_ENDIAN);
+    return ldl_phys_internal(as, addr, DEVICE_BIG_ENDIAN);
 }
 
 /* warning: addr must be aligned */

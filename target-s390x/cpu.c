@@ -70,7 +70,7 @@ static void s390_cpu_set_pc(CPUState *cs, vaddr value)
 static void s390_cpu_load_normal(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
-    cpu->env.psw.addr = ldl_phys(4) & PSW_MASK_ESA_ADDR;
+    cpu->env.psw.addr = ldl_phys(s->as, 4) & PSW_MASK_ESA_ADDR;
     cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
     s390_add_running_cpu(cpu);
 }

@@ -395,7 +395,10 @@ int cpu_exec(CPUArchState *env)
                             /* FIXME: this should respect TPR */
                             cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR,
                                                           0);
-                            intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
+                            intno = ldl_phys(cpu->as,
+                                             env->vm_vmcb
+                                             + offsetof(struct vmcb,
+                                                        control.int_vector));
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
                             do_interrupt_x86_hardirq(env, intno, 1);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_VIRQ;

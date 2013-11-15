@@ -390,6 +390,7 @@ static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
 
 static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint32_t size;
 
     if (addr == 0) {
@@ -397,7 +398,7 @@ static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_be_phys(addr + 0x4);
+    size = ldl_be_phys(cs->as, addr + 0x4);
     if (size < 0x8) {
         return H_PARAMETER;
     }
@@ -425,6 +426,7 @@ static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
 
 static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint32_t size;
 
     if (addr == 0) {
@@ -432,7 +434,7 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_be_phys(addr + 0x4);
+    size = ldl_be_phys(cs->as, addr + 0x4);
 
     if (size < 48) {
         return H_PARAMETER;
@@ -532,6 +534,7 @@ static target_ulong h_rtas(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
+    CPUState *cs = CPU(cpu);
     target_ulong size = args[0];
     target_ulong addr = args[1];
 
@@ -543,7 +546,7 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         args[0] = lduw_phys(addr);
         return H_SUCCESS;
     case 4:
-        args[0] = ldl_phys(addr);
+        args[0] = ldl_phys(cs->as, addr);
         return H_SUCCESS;
     case 8:
         args[0] = ldq_phys(addr);
@@ -579,6 +582,8 @@ static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
+    CPUState *cs = CPU(cpu);
+
     target_ulong dst   = args[0]; /* Destination address */
     target_ulong src   = args[1]; /* Source address */
     target_ulong esize = args[2]; /* Element size (0=1,1=2,2=4,3=8) */
@@ -611,7 +616,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             tmp = lduw_phys(src);
             break;
         case 2:
-            tmp = ldl_phys(src);
+            tmp = ldl_phys(cs->as, src);
             break;
         case 3:
             tmp = ldq_phys(src);

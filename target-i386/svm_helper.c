@@ -101,11 +101,12 @@ static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
 static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
                                 SegmentCache *sc)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     unsigned int flags;
 
     sc->selector = lduw_phys(addr + offsetof(struct vmcb_seg, selector));
     sc->base = ldq_phys(addr + offsetof(struct vmcb_seg, base));
-    sc->limit = ldl_phys(addr + offsetof(struct vmcb_seg, limit));
+    sc->limit = ldl_phys(cs->as, addr + offsetof(struct vmcb_seg, limit));
     flags = lduw_phys(addr + offsetof(struct vmcb_seg, attrib));
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 }
@@ -122,6 +123,7 @@ static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
 
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     target_ulong addr;
     uint32_t event_inj;
     uint32_t int_ctl;
@@ -190,7 +192,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     env->intercept_dr_write = lduw_phys(env->vm_vmcb +
                                         offsetof(struct vmcb,
                                                  control.intercept_dr_write));
-    env->intercept_exceptions = ldl_phys(env->vm_vmcb +
+    env->intercept_exceptions = ldl_phys(cs->as, env->vm_vmcb +
                                          offsetof(struct vmcb,
                                                   control.intercept_exceptions
                                                   ));
@@ -203,12 +205,12 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     env->gdt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
                                                       save.gdtr.base));
-    env->gdt.limit = ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->gdt.limit = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.gdtr.limit));
 
     env->idt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
                                                       save.idtr.base));
-    env->idt.limit = ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->idt.limit = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.idtr.limit));
 
     /* clear exit_info_2 so we behave like the real hardware */
@@ -221,7 +223,8 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     cpu_x86_update_cr3(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
                                                              save.cr3)));
     env->cr[2] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr2));
-    int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+    int_ctl = ldl_phys(cs->as,
+                       env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
     if (int_ctl & V_INTR_MASKING_MASK) {
         env->v_tpr = int_ctl & V_TPR_MASK;
@@ -277,12 +280,12 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     }
 
     /* maybe we need to inject an event */
-    event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+    event_inj = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                  control.event_inj));
     if (event_inj & SVM_EVTINJ_VALID) {
         uint8_t vector = event_inj & SVM_EVTINJ_VEC_MASK;
         uint16_t valid_err = event_inj & SVM_EVTINJ_VALID_ERR;
-        uint32_t event_inj_err = ldl_phys(env->vm_vmcb +
+        uint32_t event_inj_err = ldl_phys(cs->as, env->vm_vmcb +
                                           offsetof(struct vmcb,
                                                    control.event_inj_err));
 
@@ -594,7 +597,8 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr3), env->cr[3]);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr4), env->cr[4]);
 
-    int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+    int_ctl = ldl_phys(cs->as,
+                       env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
     int_ctl |= env->v_tpr & V_TPR_MASK;
     if (cs->interrupt_request & CPU_INTERRUPT_VIRQ) {
@@ -623,12 +627,12 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 
     env->gdt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb,
                                                        save.gdtr.base));
-    env->gdt.limit = ldl_phys(env->vm_hsave + offsetof(struct vmcb,
+    env->gdt.limit = ldl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.gdtr.limit));
 
     env->idt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb,
                                                        save.idtr.base));
-    env->idt.limit = ldl_phys(env->vm_hsave + offsetof(struct vmcb,
+    env->idt.limit = ldl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.idtr.limit));
 
     cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
@@ -674,10 +678,10 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
              exit_info_1);
 
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info),
-             ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+             ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                               control.event_inj)));
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info_err),
-             ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+             ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                               control.event_inj_err)));
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), 0);
 

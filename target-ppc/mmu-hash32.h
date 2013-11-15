@@ -68,15 +68,17 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 static inline target_ulong ppc_hash32_load_hpte0(CPUPPCState *env,
                                                  hwaddr pte_offset)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     assert(!env->external_htab); /* Not supported on 32-bit for now */
-    return ldl_phys(env->htab_base + pte_offset);
+    return ldl_phys(cs->as, env->htab_base + pte_offset);
 }
 
 static inline target_ulong ppc_hash32_load_hpte1(CPUPPCState *env,
                                                  hwaddr pte_offset)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     assert(!env->external_htab); /* Not supported on 32-bit for now */
-    return ldl_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_32/2);
+    return ldl_phys(cs->as, env->htab_base + pte_offset + HASH_PTE_SIZE_32/2);
 }
 
 static inline void ppc_hash32_store_hpte0(CPUPPCState *env,

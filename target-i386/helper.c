@@ -515,6 +515,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write1, int mmu_idx)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, is_write, is_user;
@@ -734,7 +735,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         /* page directory entry */
         pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) &
             env->a20_mask;
-        pde = ldl_phys(pde_addr);
+        pde = ldl_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             error_code = 0;
             goto do_fault;
@@ -792,7 +793,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             /* page directory entry */
             pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
                 env->a20_mask;
-            pte = ldl_phys(pte_addr);
+            pte = ldl_phys(cs->as, pte_addr);
             if (!(pte & PG_PRESENT_MASK)) {
                 error_code = 0;
                 goto do_fault;
@@ -963,7 +964,7 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
         /* page directory entry */
         pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) & env->a20_mask;
-        pde = ldl_phys(pde_addr);
+        pde = ldl_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK))
             return -1;
         if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
@@ -972,7 +973,7 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         } else {
             /* page directory entry */
             pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask;
-            pte = ldl_phys(pte_addr);
+            pte = ldl_phys(cs->as, pte_addr);
             if (!(pte & PG_PRESENT_MASK))
                 return -1;
             page_size = 4096;

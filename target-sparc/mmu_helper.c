@@ -86,6 +86,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     uint32_t pde;
     int error_code = 0, is_dirty, is_user;
     unsigned long page_offset;
+    CPUState *cs = ENV_GET_CPU(env);
 
     is_user = mmu_idx == MMU_USER_IDX;
 
@@ -108,7 +109,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(pde_ptr);
+    pde = ldl_phys(cs->as, pde_ptr);
 
     /* Ctx pde */
     switch (pde & PTE_ENTRYTYPE_MASK) {
@@ -120,7 +121,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
         return 4 << 2;
     case 1: /* L0 PDE */
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(pde_ptr);
+        pde = ldl_phys(cs->as, pde_ptr);
 
         switch (pde & PTE_ENTRYTYPE_MASK) {
         default:
@@ -130,7 +131,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
             return (1 << 8) | (4 << 2);
         case 1: /* L1 PDE */
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(pde_ptr);
+            pde = ldl_phys(cs->as, pde_ptr);
 
             switch (pde & PTE_ENTRYTYPE_MASK) {
             default:
@@ -140,7 +141,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
                 return (2 << 8) | (4 << 2);
             case 1: /* L2 PDE */
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(pde_ptr);
+                pde = ldl_phys(cs->as, pde_ptr);
 
                 switch (pde & PTE_ENTRYTYPE_MASK) {
                 default:
@@ -244,13 +245,14 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
 
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     hwaddr pde_ptr;
     uint32_t pde;
 
     /* Context base + context number */
     pde_ptr = (hwaddr)(env->mmuregs[1] << 4) +
         (env->mmuregs[2] << 2);
-    pde = ldl_phys(pde_ptr);
+    pde = ldl_phys(cs->as, pde_ptr);
 
     switch (pde & PTE_ENTRYTYPE_MASK) {
     default:
@@ -263,7 +265,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
             return pde;
         }
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(pde_ptr);
+        pde = ldl_phys(cs->as, pde_ptr);
 
         switch (pde & PTE_ENTRYTYPE_MASK) {
         default:
@@ -277,7 +279,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                 return pde;
             }
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(pde_ptr);
+            pde = ldl_phys(cs->as, pde_ptr);
 
             switch (pde & PTE_ENTRYTYPE_MASK) {
             default:
@@ -291,7 +293,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                     return pde;
                 }
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(pde_ptr);
+                pde = ldl_phys(cs->as, pde_ptr);
 
                 switch (pde & PTE_ENTRYTYPE_MASK) {
                 default:
@@ -317,7 +319,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
     uint32_t pde;
 
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(pde_ptr);
+    pde = ldl_phys(cs->as, pde_ptr);
     (*cpu_fprintf)(f, "Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
                    (hwaddr)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {

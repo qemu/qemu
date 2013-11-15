@@ -95,7 +95,7 @@ vmw_shmem_st16(hwaddr addr, uint16_t value)
 static inline uint32_t
 vmw_shmem_ld32(hwaddr addr)
 {
-    uint32_t res = ldl_le_phys(addr);
+    uint32_t res = ldl_le_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load32: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
