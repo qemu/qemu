@@ -34,6 +34,16 @@
 
 #include "hw/xbox/nv2a_psh.h"
 
+/*
+ * This implements translation of register combiners into glsl
+ * fragment shaders, but all terminology is in terms of Xbox DirectX
+ * pixel shaders, since I wanted to be lazy while referencing existing
+ * work / stealing code.
+ *
+ * For some background, see the OpenGL extension:
+ * https://www.opengl.org/registry/specs/NV/register_combiners.txt
+ */
+
 
 enum PS_TEXTUREMODES
 {                                 // valid in stage 0 1 2 3
@@ -263,8 +273,8 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
         }
         break;
     case PS_REGISTER_FOG: // TODO
-        assert(false);
-        break;
+        //return qstring_from_str("fog");
+        return qstring_from_str("0.0");
     case PS_REGISTER_V0:
         return qstring_from_str("v0");
     case PS_REGISTER_V1:
@@ -491,7 +501,7 @@ static void add_final_stage_code(struct PixelShader *ps, struct FCInputInfo fina
     QString *g = get_input_var(ps, final.g, false);
 
     add_var_ref(ps, "r0");
-    qstring_append_fmt(ps->code, "r0.rgb = (%s * %s) + ((1.0 - %s) * %s) + %s;\n",
+    qstring_append_fmt(ps->code, "r0.rgb = vec3((%s * %s) + ((1.0 - %s) * %s) + %s);\n",
                        qstring_get_str(a), qstring_get_str(b),
                        qstring_get_str(a), qstring_get_str(c), qstring_get_str(d));
     qstring_append_fmt(ps->code, "r0.a = %s;\n", qstring_get_str(g));

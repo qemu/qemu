@@ -435,6 +435,7 @@
 #   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
 #   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
+#   define NV097_SET_VERTEX4F                                 0x00971518
 #   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET                 0x00971720
 #   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT                 0x00971760
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE            0x0000000F
@@ -464,11 +465,16 @@
 #       define NV097_DRAW_ARRAYS_COUNT                            0xFF000000
 #       define NV097_DRAW_ARRAYS_START_INDEX                      0x00FFFFFF
 #   define NV097_INLINE_ARRAY                                 0x00971818
+#   define NV097_SET_VERTEX_DATA4UB                           0x00971940
 #   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
 #       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
 #       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5       0x02
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5       0x03
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4       0x04
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5         0x05
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8       0x06
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8       0x07
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5   0x0C
@@ -507,6 +513,7 @@
 #       define NV097_CLEAR_SURFACE_A                                (1 << 7)
 #   define NV097_SET_CLEAR_RECT_HORIZONTAL                    0x00971D98
 #   define NV097_SET_CLEAR_RECT_VERTICAL                      0x00971D9C
+#   define NV097_SET_SPECULAR_FOG_FACTOR                      0x00971E20
 #   define NV097_SET_COMBINER_COLOR_OCW                       0x00971E40
 #   define NV097_SET_COMBINER_CONTROL                         0x00971E60
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
@@ -554,34 +561,58 @@ static const GLenum kelvin_texture_mag_filter_map[] = {
 typedef struct ColorFormatInfo {
     unsigned int bytes_per_pixel;
     bool swizzled;
-    bool linear;
     GLint gl_internal_format;
     GLenum gl_format;
     GLenum gl_type;
 } ColorFormatInfo;
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
+        {2, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
+        {2, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
+        {2, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
+        {2, true, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
-        {4, true,  false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
-        {4, true,  false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5] =
-        {4, true,  false, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
+        {4, true, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8] =
-        {4, true,  false, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, GL_RGBA},
+        {4, true, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
-        {4, false, true,  GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
-        {2, true,  false, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
+        {2, true, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
-        {4, false, true,  GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
-        {2, false, true,  GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
+        {2, false, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
 };
 
+
+#define NV2A_VERTEX_ATTR_POSITION       0
+#define NV2A_VERTEX_ATTR_WEIGHT         1
+#define NV2A_VERTEX_ATTR_NORMAL         2
+#define NV2A_VERTEX_ATTR_DIFFUSE        3
+#define NV2A_VERTEX_ATTR_SPECULAR       4
+#define NV2A_VERTEX_ATTR_FOG            5
+#define NV2A_VERTEX_ATTR_POINT_SIZE     6
+#define NV2A_VERTEX_ATTR_BACK_DIFFUSE   7
+#define NV2A_VERTEX_ATTR_BACK_SPECULAR  8
+#define NV2A_VERTEX_ATTR_TEXTURE0       9
+#define NV2A_VERTEX_ATTR_TEXTURE1       10
+#define NV2A_VERTEX_ATTR_TEXTURE2       11
+#define NV2A_VERTEX_ATTR_TEXTURE3       12
+#define NV2A_VERTEX_ATTR_RESERVED1      13
+#define NV2A_VERTEX_ATTR_RESERVED2      14
+#define NV2A_VERTEX_ATTR_RESERVED3      15
 
 
 #define NV2A_CRYSTAL_FREQ 13500000
@@ -644,7 +675,9 @@ typedef struct VertexAttribute {
 
     /* inline arrays are packed in order?
      * Need to pass the offset to converted attributes */
-    unsigned int inline_offset;
+    unsigned int inline_array_offset;
+
+    uint32_t inline_value;
 
     unsigned int format;
     unsigned int size; /* size of the data type */
@@ -719,6 +752,11 @@ typedef struct Surface {
     hwaddr offset;
 } Surface;
 
+typedef struct InlineVertexBufferEntry {
+    uint32_t position[4];
+    uint32_t diffuse;
+} InlineVertexBufferEntry;
+
 typedef struct KelvinState {
     hwaddr dma_notifies;
     hwaddr dma_state;
@@ -738,11 +776,14 @@ typedef struct KelvinState {
 
     VertexAttribute vertex_attributes[NV2A_VERTEXSHADER_ATTRIBUTES];
 
-    unsigned int inline_vertex_data_length;
-    uint32_t inline_vertex_data[NV2A_MAX_BATCH_LENGTH];
+    unsigned int inline_array_length;
+    uint32_t inline_array[NV2A_MAX_BATCH_LENGTH];
 
-    unsigned int array_batch_length;
-    uint32_t array_batch[NV2A_MAX_BATCH_LENGTH];
+    unsigned int inline_elements_length;
+    uint32_t inline_elements[NV2A_MAX_BATCH_LENGTH];
+
+    unsigned int inline_buffer_length;
+    InlineVertexBufferEntry inline_buffer[NV2A_MAX_BATCH_LENGTH];
 
     bool use_vertex_program;
     bool enable_vertex_program_write;
@@ -1141,8 +1182,8 @@ static void kelvin_bind_converted_vertex_attributes(NV2AState *d,
 
             uint8_t *data;
             if (inline_data) {
-                data = (uint8_t*)kelvin->inline_vertex_data
-                        + attribute->inline_offset;
+                data = (uint8_t*)kelvin->inline_array
+                        + attribute->inline_array_offset;
             } else {
                 hwaddr dma_len;
                 if (attribute->dma_select) {
@@ -1191,7 +1232,7 @@ static void kelvin_bind_converted_vertex_attributes(NV2AState *d,
     }
 }
 
-static unsigned int kelvin_bind_inline_vertex_data(KelvinState *kelvin)
+static unsigned int kelvin_bind_inline_array(KelvinState *kelvin)
 {
     int i;
     unsigned int offset = 0;
@@ -1199,7 +1240,9 @@ static unsigned int kelvin_bind_inline_vertex_data(KelvinState *kelvin)
         VertexAttribute *attribute = &kelvin->vertex_attributes[i];
         if (attribute->count) {
 
-            attribute->inline_offset = offset;
+            glEnableVertexAttribArray(i);
+
+            attribute->inline_array_offset = offset;
 
             if (!attribute->needs_conversion) {
                 glVertexAttribPointer(i,
@@ -1207,20 +1250,16 @@ static unsigned int kelvin_bind_inline_vertex_data(KelvinState *kelvin)
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
-                    (uint8_t*)kelvin->inline_vertex_data + offset);
+                    (uint8_t*)kelvin->inline_array + offset);
             }
 
-            glEnableVertexAttribArray(i);
-
             offset += attribute->size * attribute->count;
-        } else {
-            glDisableVertexAttribArray(i);
         }
     }
     return offset;
 }
 
-static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
+static void kelvin_bind_vertex_attributes(NV2AState *d,
                                                  KelvinState *kelvin)
 {
     int i;
@@ -1228,6 +1267,8 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         VertexAttribute *attribute = &kelvin->vertex_attributes[i];
         if (attribute->count) {
+            glEnableVertexAttribArray(i);
+
             if (!attribute->needs_conversion) {
                 hwaddr dma_len;
                 uint8_t *vertex_data;
@@ -1248,10 +1289,10 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
                     attribute->stride,
                     vertex_data);
             }
-
-            glEnableVertexAttribArray(i);
         } else {
             glDisableVertexAttribArray(i);
+
+            glVertexAttrib4ubv(i, (GLubyte *)&attribute->inline_value);
         }
     }
 }
@@ -1289,7 +1330,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
         GLint pos;
         glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
         if (pos != -1) {
-            fprintf(stderr, "nv2a: vertex shader compilation failed:\n"
+            fprintf(stderr, "nv2a: vertex program compilation failed:\n"
                             "      pos %d, %s\n",
                     pos, glGetString(GL_PROGRAM_ERROR_STRING_ARB));
             fprintf(stderr, "ucode:\n");
@@ -1347,7 +1388,7 @@ static void pgraph_bind_textures(NV2AState *d)
             GLenum gl_target;
             GLuint gl_texture;
             unsigned int width, height;
-            if (f.linear) {
+            if (!f.swizzled) {
                 /* linear textures use unnormalised texcoords.
                  * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
                  * does not allow repeat and mirror wrap modes.
@@ -1413,7 +1454,7 @@ static void pgraph_bind_textures(NV2AState *d)
                                        width/4 * height/4 * block_size,
                                        texture_data);
             } else {
-                if (f.linear) {
+                if (!f.swizzled) {
                     /* Can't handle retarded strides */
                     assert(texture->pitch % f.bytes_per_pixel == 0);
                     glPixelStorei(GL_UNPACK_ROW_LENGTH,
@@ -1423,7 +1464,7 @@ static void pgraph_bind_textures(NV2AState *d)
                              width, height, 0,
                              f.gl_format, f.gl_type,
                              texture_data);
-                if (f.linear) {
+                if (!f.swizzled) {
                     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
                 }
             }
@@ -1485,7 +1526,7 @@ static void pgraph_bind_fragment_shader(PGRAPHState *pg)
         for (i = 0; i < 4; i++) {
             state.rect_tex[i] = false;
             if (pg->textures[i].enabled 
-                && kelvin_color_format_map[pg->textures[i].color_format].linear) {
+                && !kelvin_color_format_map[pg->textures[i].color_format].swizzled) {
                 state.rect_tex[i] = true;
             }
         }
@@ -2143,6 +2184,24 @@ static void pgraph_method(NV2AState *d,
         constant->dirty = true;
         break;
 
+    case NV097_SET_VERTEX4F ...
+            NV097_SET_VERTEX4F + 12: {
+
+        slot = (class_method - NV097_SET_VERTEX4F) / 4;
+
+        assert(kelvin->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
+        
+        InlineVertexBufferEntry *entry =
+            &kelvin->inline_buffer[kelvin->inline_buffer_length];
+
+        entry->position[slot] = parameter;
+        if (slot == 3) {
+            entry->diffuse =
+                kelvin->vertex_attributes[NV2A_VERTEX_ATTR_DIFFUSE].inline_value;
+            kelvin->inline_buffer_length++;
+        }
+        break;
+    }
 
     case NV097_SET_VERTEX_DATA_ARRAY_FORMAT ...
             NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 0x3c:
@@ -2225,32 +2284,51 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_BEGIN_END:
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
 
-            if (kelvin->inline_vertex_data_length) {
+            if (kelvin->inline_buffer_length) {
+                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_POSITION);
+                glVertexAttribPointer(NV2A_VERTEX_ATTR_POSITION,
+                        4,
+                        GL_FLOAT,
+                        GL_FALSE,
+                        sizeof(InlineVertexBufferEntry),
+                        kelvin->inline_buffer);
+
+                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_DIFFUSE);
+                glVertexAttribPointer(NV2A_VERTEX_ATTR_POSITION,
+                        1,
+                        GL_UNSIGNED_INT,
+                        GL_FALSE,
+                        sizeof(InlineVertexBufferEntry),
+                        &kelvin->inline_buffer[0].diffuse);
+
+                glDrawArrays(kelvin->gl_primitive_mode,
+                             0, kelvin->inline_buffer_length);
+            } else if (kelvin->inline_array_length) {
                 unsigned int vertex_size =
-                    kelvin_bind_inline_vertex_data(kelvin);
+                    kelvin_bind_inline_array(kelvin);
                 unsigned int index_count =
-                    kelvin->inline_vertex_data_length*4 / vertex_size;
+                    kelvin->inline_array_length*4 / vertex_size;
                 
                 kelvin_bind_converted_vertex_attributes(d, kelvin,
                     true, index_count);
                 glDrawArrays(kelvin->gl_primitive_mode,
                              0, index_count);
-            } else if (kelvin->array_batch_length) {
+            } else if (kelvin->inline_elements_length) {
 
 
                 uint32_t max_element = 0;
                 uint32_t min_elemenet = (uint32_t)-1;
-                for (i=0; i<kelvin->array_batch_length; i++) {
-                    max_element = MAX(kelvin->array_batch[i], max_element);
-                    min_elemenet = MIN(kelvin->array_batch[i], min_elemenet);
+                for (i=0; i<kelvin->inline_elements_length; i++) {
+                    max_element = MAX(kelvin->inline_elements[i], max_element);
+                    min_elemenet = MIN(kelvin->inline_elements[i], min_elemenet);
                 }
 
                 kelvin_bind_converted_vertex_attributes(d, kelvin,
                     false, max_element+1);
                 glDrawElements(kelvin->gl_primitive_mode,
-                               kelvin->array_batch_length,
+                               kelvin->inline_elements_length,
                                GL_UNSIGNED_INT,
-                               kelvin->array_batch);
+                               kelvin->inline_elements);
             }/* else {
                 assert(false);
             }*/
@@ -2270,13 +2348,14 @@ static void pgraph_method(NV2AState *d,
             pgraph_bind_fragment_shader(pg);
 
             pgraph_bind_textures(d);
-            kelvin_bind_vertex_attribute_offsets(d, kelvin);
+            kelvin_bind_vertex_attributes(d, kelvin);
 
 
             kelvin->gl_primitive_mode = kelvin_primitive_map[parameter];
 
-            kelvin->array_batch_length = 0;
-            kelvin->inline_vertex_data_length = 0;
+            kelvin->inline_elements_length = 0;
+            kelvin->inline_array_length = 0;
+            kelvin->inline_buffer_length = 0;
         }
         pg->surface_color.draw_dirty = true;
         break;
@@ -2300,6 +2379,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V);
 
         pg->textures[slot].dirty = true;
+        pg->fragment_shader_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
@@ -2310,7 +2390,8 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MIN_LOD_CLAMP);
         pg->textures[slot].max_mipmap_level =
             GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP);
-        
+
+        pg->fragment_shader_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
@@ -2338,17 +2419,18 @@ static void pgraph_method(NV2AState *d,
         
         pg->textures[slot].dirty = true;
         break;
+
     case NV097_ARRAY_ELEMENT16:
-        assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
-        kelvin->array_batch[
-            kelvin->array_batch_length++] = parameter & 0xFFFF;
-        kelvin->array_batch[
-            kelvin->array_batch_length++] = parameter >> 16;
+        assert(kelvin->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
+        kelvin->inline_elements[
+            kelvin->inline_elements_length++] = parameter & 0xFFFF;
+        kelvin->inline_elements[
+            kelvin->inline_elements_length++] = parameter >> 16;
         break;
     case NV097_ARRAY_ELEMENT32:
-        assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
-        kelvin->array_batch[
-            kelvin->array_batch_length++] = parameter;
+        assert(kelvin->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
+        kelvin->inline_elements[
+            kelvin->inline_elements_length++] = parameter;
         break;
     case NV097_DRAW_ARRAYS: {
         unsigned int start = GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX);
@@ -2362,9 +2444,15 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     case NV097_INLINE_ARRAY:
-        assert(kelvin->inline_vertex_data_length < NV2A_MAX_BATCH_LENGTH);
-        kelvin->inline_vertex_data[
-            kelvin->inline_vertex_data_length++] = parameter;
+        assert(kelvin->inline_array_length < NV2A_MAX_BATCH_LENGTH);
+        kelvin->inline_array[
+            kelvin->inline_array_length++] = parameter;
+        break;
+
+    case NV097_SET_VERTEX_DATA4UB ...
+            NV097_SET_VERTEX_DATA4UB + 0x3c:
+        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 64;
+        kelvin->vertex_attributes[slot].inline_value = parameter;
         break;
 
     case NV097_SET_SEMAPHORE_OFFSET:
@@ -2453,6 +2541,13 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CLEAR_RECT_VERTICAL:
         pg->regs[NV_PGRAPH_CLEARRECTY] = parameter;
+        break;
+
+    case NV097_SET_SPECULAR_FOG_FACTOR ...
+            NV097_SET_SPECULAR_FOG_FACTOR + 4:
+        slot = (class_method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
+        pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
+        pg->fragment_shader_dirty = true;
         break;
 
     case NV097_SET_COMBINER_COLOR_OCW ...
