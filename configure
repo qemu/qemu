@@ -1457,7 +1457,7 @@ fi
 # If it is supplied, compiled files are not written.
 # Use it for Python versions which support it.
 if $python -B -c 'import sys; sys.exit(0)' 2>/dev/null; then
-  $python="$python -B"
+  python="$python -B"
 fi
 
 if test -z "${target_list+xxx}" ; then
