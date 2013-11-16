@@ -20,7 +20,7 @@ hw/i386/%.hex: $(SRC_PATH)/hw/i386/%.dsl $(SRC_PATH)/scripts/acpi_extract_prepro
 	$(call quiet-command, cpp -P $< -o $*.dsl.i.orig, "  CPP $(TARGET_DIR)$*.dsl.i.orig")
 	$(call quiet-command, $(PYTHON) $(SRC_PATH)/scripts/acpi_extract_preprocess.py $*.dsl.i.orig > $*.dsl.i, "  ACPI_PREPROCESS $(TARGET_DIR)$*.dsl.i")
 	$(call quiet-command, $(IASL) $(call iasl-option,$(IASL),-Pn,) -vs -l -tc -p $* $*.dsl.i $(if $(V), , > /dev/null) 2>&1 ,"  IASL $(TARGET_DIR)$*.dsl.i")
-	$(call quiet-command, $(SRC_PATH)/scripts/acpi_extract.py $*.lst > $*.off, "  ACPI_EXTRACT $(TARGET_DIR)$*.off")
+	$(call quiet-command, $(PYTHON) $(SRC_PATH)/scripts/acpi_extract.py $*.lst > $*.off, "  ACPI_EXTRACT $(TARGET_DIR)$*.off")
 	$(call quiet-command, cat $*.off > $@, "  CAT $(TARGET_DIR)$@")
 else
 #IASL Not present. Restore pre-generated hex files.

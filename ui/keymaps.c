@@ -33,6 +33,12 @@ static int get_keysym(const name2keysym_t *table,
         if (!strcmp(p->name, name))
             return p->keysym;
     }
+    if (name[0] == 'U' && strlen(name) == 5) { /* try unicode Uxxxx */
+        char *end;
+        int ret = (int)strtoul(name + 1, &end, 16);
+        if (*end == '\0' && ret > 0)
+          return ret;
+    }
     return 0;
 }
 

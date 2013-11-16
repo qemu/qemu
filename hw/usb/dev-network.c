@@ -637,7 +637,6 @@ typedef struct USBNetState {
     unsigned int out_ptr;
     uint8_t out_buf[2048];
 
-    USBPacket *inpkt;
     unsigned int in_ptr, in_len;
     uint8_t in_buf[2048];
 
