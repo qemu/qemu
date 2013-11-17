@@ -597,7 +597,7 @@ static QString* psh_convert(struct PixelShader *ps)
         }
     }
     for (i = 0; i < ps->num_const_refs; i++) {
-        qstring_append_fmt(vars, "vec4 %s;\n", ps->const_refs[i]);
+        qstring_append_fmt(preflight, "uniform vec4 %s;\n", ps->const_refs[i]);
     }
 
 

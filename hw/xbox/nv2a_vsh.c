@@ -674,7 +674,7 @@ QString* vsh_translate(uint16_t version,
         "RCP R1.x, c[58].x;\n"
         "RCP R1.y, c[58].y;\n"
 
-        /* scale_z = view_z == 0 ? 1 : 1 / view_z */
+        /* scale_z = view_z == 0 ? 1 : (1 / view_z) */
         "ABS R1.z, c[58].z;\n"
         "SGE R1.z, -R1.z, 0;\n"
         "ADD R1.z, R1.z, c[58].z;\n"
