@@ -253,6 +253,12 @@
 #define NV_PGRAPH_CHANNEL_CTX_TRIGGER                    0x00000788
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
+#define NV_PGRAPH_CSV0_D                                 0x00000FB4
+#   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
+#   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
+#define NV_PGRAPH_CSV0_C                                 0x00000FB8
+#define NV_PGRAPH_CSV1_B                                 0x00000FBC
+#define NV_PGRAPH_CSV1_A                                 0x00000FC0
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
 #       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
@@ -519,6 +525,8 @@
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
+#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE           0x00000003
+#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE     0xFFFFFFFC
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
 #   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
@@ -731,7 +739,8 @@ typedef struct Texture {
     GLuint gl_texture_rect;
 } Texture;
 
-typedef struct FragmentShaderState {
+typedef struct ShaderState {
+    /* fragment shader - register combiner stuff */
     uint32_t combiner_control;
     uint32_t shader_stage_program;
     uint32_t other_stage_input;
@@ -742,7 +751,11 @@ typedef struct FragmentShaderState {
     uint32_t alpha_inputs[8], alpha_outputs[8];
 
     bool rect_tex[4];
-} FragmentShaderState;
+
+    /* vertex shader */
+    bool fixed_function;
+
+} ShaderState;
 
 typedef struct Surface {
     bool draw_dirty;
@@ -785,7 +798,6 @@ typedef struct KelvinState {
     unsigned int inline_buffer_length;
     InlineVertexBufferEntry inline_buffer[NV2A_MAX_BATCH_LENGTH];
 
-    bool use_vertex_program;
     bool enable_vertex_program_write;
 } KelvinState;
 
@@ -864,7 +876,7 @@ typedef struct PGRAPHState {
     hwaddr dma_a, dma_b;
     Texture textures[NV2A_MAX_TEXTURES];
 
-    bool fragment_shader_dirty;
+    bool shaders_dirty;
     GHashTable *shader_cache;
     GLuint gl_program;
 
@@ -920,6 +932,7 @@ typedef struct Cache1State {
     /* The actual command queue */
     QemuMutex cache_lock;
     QemuCond cache_cond;
+    int cache_size;
     QSIMPLEQ_HEAD(, CacheEntry) cache;
 } Cache1State;
 
@@ -1151,6 +1164,9 @@ static void load_graphics_object(NV2AState *d, hwaddr instance_address,
         }
         assert(glGetError() == GL_NO_ERROR);
 
+        /* temp hack? */
+        kelvin->vertex_attributes[NV2A_VERTEX_ATTR_DIFFUSE].inline_value = 0xFFFFFFF;
+
         break;
     default:
         break;
@@ -1297,15 +1313,10 @@ static void kelvin_bind_vertex_attributes(NV2AState *d,
     }
 }
 
-static void kelvin_bind_vertexshader(KelvinState *kelvin)
+static void kelvin_bind_vertex_program(KelvinState *kelvin)
 {
     int i;
     VertexShader *shader;
-
-    assert(kelvin->use_vertex_program);
-
-    /* TODO */
-    assert(!kelvin->enable_vertex_program_write);
 
     shader = &kelvin->vertexshaders[kelvin->vertexshader_start_slot];
 
@@ -1365,6 +1376,93 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
     }
 
     assert(glGetError() == GL_NO_ERROR);
+}
+
+
+static void unswizzle_rect(
+    uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    unsigned int depth,
+    uint8_t *dst_buf,
+    unsigned int pitch,
+    unsigned int bytes_per_pixel)
+{
+    unsigned int offset_u = 0, offset_v = 0, offset_w = 0;
+    uint32_t mask_u = 0, mask_v = 0, mask_w = 0;
+
+    unsigned int i = 1, j = 1;
+
+    while( (i <= width) || (i <= height) || (i <= depth) ) {
+        if(i < width) {
+            mask_u |= j;
+            j<<=1;
+        }
+        if(i < height) {
+            mask_v |= j;
+            j<<=1;
+        }
+        if(i < depth) {
+            mask_w |= j;
+            j<<=1;
+        }
+        i<<=1;
+    }
+
+    uint32_t start_u = 0;
+    uint32_t start_v = 0;
+    uint32_t start_w = 0;
+    uint32_t mask_max = 0;
+
+    // get the biggest mask
+    if(mask_u > mask_v)
+        mask_max = mask_u;
+    else
+        mask_max = mask_v;
+    if(mask_w > mask_max)
+        mask_max = mask_w;
+
+    for(i = 1; i <= mask_max; i<<=1) {
+        if(i<=mask_u) {
+            if(mask_u & i) start_u |= (offset_u & i);
+            else offset_u <<= 1;
+        }
+
+        if(i <= mask_v) {
+            if(mask_v & i) start_v |= (offset_v & i);
+            else offset_v<<=1;
+        }
+
+        if(i <= mask_w) {
+            if(mask_w & i) start_w |= (offset_w & i);
+            else offset_w <<= 1;
+        }
+    }
+
+    uint32_t w = start_w;
+    unsigned int z;
+    for(z=0; z<depth; z++) {
+        uint32_t v = start_v;
+
+        unsigned int y;
+        for(y=0; y<height; y++) {
+            uint32_t u = start_u;
+
+            unsigned int x;
+            for (x=0; x<width; x++) {
+                memcpy(dst_buf,
+                       src_buf + ( (u|v|w)*bytes_per_pixel ),
+                       bytes_per_pixel);
+                dst_buf += bytes_per_pixel;
+
+                u = (u - mask_u) & mask_u;
+            }
+            dst_buf += pitch - width * bytes_per_pixel;
+
+            v = (v - mask_v) & mask_v;
+        }
+        w = (w - mask_w) & mask_w;
+    }
 }
 
 static void pgraph_bind_textures(NV2AState *d)
@@ -1439,9 +1537,6 @@ static void pgraph_bind_textures(NV2AState *d)
                          i, texture->color_format,
                          width, height, texture->pitch);
 
-            /* TODO: handle swizzling */
-
-
             if (f.gl_format == 0) { /* retarded way of indicating compressed */
                 unsigned int block_size;
                 if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
@@ -1454,7 +1549,14 @@ static void pgraph_bind_textures(NV2AState *d)
                                        width/4 * height/4 * block_size,
                                        texture_data);
             } else {
-                if (!f.swizzled) {
+
+                if (f.swizzled) {
+                    unsigned int pitch = width * f.bytes_per_pixel;
+                    uint8_t *unswizzled = g_malloc(height * pitch);
+                    unswizzle_rect(texture_data, width, height, 1,
+                                   unswizzled, pitch, f.bytes_per_pixel);
+                    texture_data = unswizzled;
+                } else {
                     /* Can't handle retarded strides */
                     assert(texture->pitch % f.bytes_per_pixel == 0);
                     glPixelStorei(GL_UNPACK_ROW_LENGTH,
@@ -1464,7 +1566,9 @@ static void pgraph_bind_textures(NV2AState *d)
                              width, height, 0,
                              f.gl_format, f.gl_type,
                              texture_data);
-                if (!f.swizzled) {
+                if (f.swizzled) {
+                    g_free(texture_data);
+                } else {
                     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
                 }
             }
@@ -1483,7 +1587,7 @@ static guint shader_hash(gconstpointer key)
     /* 64 bit Fowler/Noll/Vo FNV-1a hash code */
     uint64_t hval = 0xcbf29ce484222325ULL;
     const uint8_t *bp = key;
-    const uint8_t *be = key + sizeof(FragmentShaderState);
+    const uint8_t *be = key + sizeof(ShaderState);
     while (bp < be) {
         hval ^= (uint64_t) *bp++;
         hval += (hval << 1) + (hval << 4) + (hval << 5) +
@@ -1495,124 +1599,185 @@ static guint shader_hash(gconstpointer key)
 
 static gboolean shader_equal(gconstpointer a, gconstpointer b)
 {
-    const FragmentShaderState *as = a, *bs = b;
-    return memcmp(as, bs, sizeof(FragmentShaderState)) == 0;
+    const ShaderState *as = a, *bs = b;
+    return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
-static void pgraph_bind_fragment_shader(PGRAPHState *pg)
+static void pgraph_bind_shaders(PGRAPHState *pg)
 {
     int i;
 
-    if (pg->fragment_shader_dirty) {
-        FragmentShaderState state = {
-            .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
-            .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
-            .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
-            .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
-            .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
-        };
-        //uint32_t final_constant_0 = pg->regs[NV_PGRAPH_SPECFOGFACTOR0];
-        //uint32_t final_constant_1 = pg->regs[NV_PGRAPH_SPECFOGFACTOR1];
+    if (!pg->shaders_dirty) {
+        glUseProgram(pg->gl_program);
+        return;
+    }
 
-        for (i = 0; i < 8; i++) {
-            state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
-            state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
-            state.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
-            state.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
-            //constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
-            //constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
+    ShaderState state = {
+        /* register combier stuff */
+        .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
+        .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
+        .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
+        .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
+        .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
+
+        /* fixed function stuff */
+        .fixed_function = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                                   NV_PGRAPH_CSV0_D_MODE) == 0,
+    };
+    //uint32_t final_constant_0 = pg->regs[NV_PGRAPH_SPECFOGFACTOR0];
+    //uint32_t final_constant_1 = pg->regs[NV_PGRAPH_SPECFOGFACTOR1];
+
+    for (i = 0; i < 8; i++) {
+        state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
+        state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
+        state.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
+        state.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
+        //constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
+        //constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
+    }
+
+    for (i = 0; i < 4; i++) {
+        state.rect_tex[i] = false;
+        if (pg->textures[i].enabled
+            && !kelvin_color_format_map[pg->textures[i].color_format].swizzled) {
+            state.rect_tex[i] = true;
         }
+    }
 
-        for (i = 0; i < 4; i++) {
-            state.rect_tex[i] = false;
-            if (pg->textures[i].enabled 
-                && !kelvin_color_format_map[pg->textures[i].color_format].swizzled) {
-                state.rect_tex[i] = true;
-            }
-        }
-        gpointer cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
-        if (cached_shader) {
-            pg->gl_program = (GLuint)cached_shader;
-            glUseProgram(pg->gl_program);
-        } else {
-            QString *shader_code = psh_translate(state.combiner_control, state.shader_stage_program,
-                           state.other_stage_input,
-                           state.rgb_inputs, state.rgb_outputs,
-                           state.alpha_inputs, state.alpha_outputs,
-                           /* constant_0, constant_1, */
-                           state.final_inputs_0, state.final_inputs_1,
-                           /* final_constant_0, final_constant_1, */
-                           state.rect_tex);
+    gpointer cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
+    if (cached_shader) {
+        pg->gl_program = (GLuint)cached_shader;
+        glUseProgram(pg->gl_program);
+    } else {
+        GLuint program = glCreateProgram();
 
-            const char *shader_code_str = qstring_get_str(shader_code);
 
-            NV2A_DPRINTF("bind new pixel shader, code:\n%s\n", shader_code_str);
+        if (state.fixed_function) {
+            /* generate vertex shader mimicking function function */
+            GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+            glAttachShader(program, vertex_shader);
 
-            GLuint program = glCreateProgram();
-            GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-            glAttachShader(program, fragment_shader);
+            const char *vertex_shader_code =
+"attribute vec4 position;\n"
+"attribute vec3 normal;\n"
+"attribute vec4 diffuse;\n"
+"attribute vec4 specular;\n"
+"attribute float fogCoord;\n"
+"attribute vec4 multiTexCoord0;\n"
+"attribute vec4 multiTexCoord1;\n"
+"attribute vec4 multiTexCoord2;\n"
+"attribute vec4 multiTexCoord3;\n"
+"void main() {\n"
+"   gl_Position = position;\n"
+"   gl_FrontColor = diffuse;\n"
+"   gl_TexCoord[0] = multiTexCoord0;\n"
+"   gl_TexCoord[1] = multiTexCoord1;\n"
+"   gl_TexCoord[2] = multiTexCoord2;\n"
+"   gl_TexCoord[3] = multiTexCoord3;\n"
+"}\n";
+            
+            glShaderSource(vertex_shader, 1, &vertex_shader_code, 0);
+            glCompileShader(vertex_shader);
 
-            glShaderSource(fragment_shader, 1, &shader_code_str, 0);
-            glCompileShader(fragment_shader);
+            NV2A_DPRINTF("bind new vertex shader, code:\n%s\n", vertex_shader_code);
 
             /* Check it compiled */
             GLint compiled = 0;
-            glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
+            glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compiled);
             if (!compiled) {
                 GLchar log[1024];
-                glGetShaderInfoLog(fragment_shader, 1024, NULL, log);
-                fprintf(stderr, "nv2a: fragment shader compilation failed: %s\n", log);  
+                glGetShaderInfoLog(vertex_shader, 1024, NULL, log);
+                fprintf(stderr, "nv2a: vertex shader compilation failed: %s\n", log);
                 abort();
             }
 
-            /* re-link the program */
-            glLinkProgram(program);
-            GLint linked = 0;
-            glGetProgramiv(program, GL_LINK_STATUS, &linked);
-            if(!linked) {
-                GLchar log[1024];
-                glGetProgramInfoLog(program, 1024, NULL, log);
-                fprintf(stderr, "nv2a: fragment shader linking failed: %s\n", log);
-                abort();
-            }
-
-            glUseProgram(program);
-
-            /* set texture samplers */
-            for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-                char samplerName[16];
-                snprintf(samplerName, sizeof(samplerName), "texSamp%d", i);
-                GLint texSampLoc = glGetUniformLocation(program, samplerName);
-                if (texSampLoc >= 0) {
-                    glUniform1i(texSampLoc, i);
-                }
-            }
-
-            /*glValidateProgram(pg->gl_program);
-            GLint valid = 0;
-            glGetProgramiv(pg->gl_program, GL_VALIDATE_STATUS, &valid);
-            if (!valid) {
-                GLchar log[1024];
-                glGetProgramInfoLog(pg->gl_program, 1024, NULL, log);
-                fprintf(stderr, "nv2a: fragment shader validation failed: %s\n", log);
-                abort();
-            }*/
-
-            pg->gl_program = program;
-
-            /* cache it */
-            FragmentShaderState *cache_state = g_malloc(sizeof(*cache_state));
-            memcpy(cache_state, &state, sizeof(*cache_state));
-            g_hash_table_insert(pg->shader_cache, cache_state, (gpointer)program);
-
-
-            QDECREF(shader_code);
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_POSITION, "position");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE0, "multiTexCoord0");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE1, "multiTexCoord1");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE2, "multiTexCoord2");
+            glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE3, "multiTexCoord3");
         }
-        pg->fragment_shader_dirty = false;
-    } else {
-        glUseProgram(pg->gl_program);
-    }
 
+
+        /* generate a fragment hader from register combiners */
+        GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+        glAttachShader(program, fragment_shader);
+
+        QString *fragment_shader_code = psh_translate(state.combiner_control,
+                       state.shader_stage_program,
+                       state.other_stage_input,
+                       state.rgb_inputs, state.rgb_outputs,
+                       state.alpha_inputs, state.alpha_outputs,
+                       /* constant_0, constant_1, */
+                       state.final_inputs_0, state.final_inputs_1,
+                       /* final_constant_0, final_constant_1, */
+                       state.rect_tex);
+
+        const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
+
+        NV2A_DPRINTF("bind new fragment shader, code:\n%s\n", fragment_shader_code_str);
+
+        glShaderSource(fragment_shader, 1, &fragment_shader_code_str, 0);
+        glCompileShader(fragment_shader);
+
+        /* Check it compiled */
+        GLint compiled = 0;
+        glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
+        if (!compiled) {
+            GLchar log[1024];
+            glGetShaderInfoLog(fragment_shader, 1024, NULL, log);
+            fprintf(stderr, "nv2a: fragment shader compilation failed: %s\n", log);
+            abort();
+        }
+
+        QDECREF(fragment_shader_code);
+
+
+
+        /* link the program */
+        glLinkProgram(program);
+        GLint linked = 0;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if(!linked) {
+            GLchar log[1024];
+            glGetProgramInfoLog(program, 1024, NULL, log);
+            fprintf(stderr, "nv2a: fragment shader linking failed: %s\n", log);
+            abort();
+        }
+
+        glUseProgram(program);
+
+        /* set texture samplers */
+        for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
+            char samplerName[16];
+            snprintf(samplerName, sizeof(samplerName), "texSamp%d", i);
+            GLint texSampLoc = glGetUniformLocation(program, samplerName);
+            if (texSampLoc >= 0) {
+                glUniform1i(texSampLoc, i);
+            }
+        }
+
+        /*glValidateProgram(pg->gl_program);
+        GLint valid = 0;
+        glGetProgramiv(pg->gl_program, GL_VALIDATE_STATUS, &valid);
+        if (!valid) {
+            GLchar log[1024];
+            glGetProgramInfoLog(pg->gl_program, 1024, NULL, log);
+            fprintf(stderr, "nv2a: fragment shader validation failed: %s\n", log);
+            abort();
+        }*/
+
+        pg->gl_program = program;
+
+        /* cache it */
+        ShaderState *cache_state = g_malloc(sizeof(*cache_state));
+        memcpy(cache_state, &state, sizeof(*cache_state));
+        g_hash_table_insert(pg->shader_cache, cache_state, (gpointer)program);
+    }
+    pg->shaders_dirty = false;
 }
 
 static void pgraph_update_surface(NV2AState *d, bool upload)
@@ -1800,8 +1965,7 @@ static void pgraph_init(PGRAPHState *pg)
     glViewport(0, 0, 640, 480);
     //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
-    pg->fragment_shader_dirty = true;
-
+    pg->shaders_dirty = true;
 
     /* generate textures */
     for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
@@ -2097,17 +2261,17 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_COMBINER_ALPHA_ICW + 28:
         slot = (class_method - NV097_SET_COMBINER_ALPHA_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAI0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_SPECULAR_FOG_CW0:
         pg->regs[NV_PGRAPH_COMBINESPECFOG0] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_SPECULAR_FOG_CW1:
         pg->regs[NV_PGRAPH_COMBINESPECFOG1] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COLOR_MASK:
@@ -2128,28 +2292,28 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_COMBINER_FACTOR0 + 28:
         slot = (class_method - NV097_SET_COMBINER_FACTOR0) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_FACTOR1 ...
             NV097_SET_COMBINER_FACTOR1 + 28:
         slot = (class_method - NV097_SET_COMBINER_FACTOR1) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR1 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_ALPHA_OCW ...
             NV097_SET_COMBINER_ALPHA_OCW + 28:
         slot = (class_method - NV097_SET_COMBINER_ALPHA_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAO0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_COLOR_ICW ...
             NV097_SET_COMBINER_COLOR_ICW + 28:
         slot = (class_method - NV097_SET_COMBINER_COLOR_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORI0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_VIEWPORT_SCALE ...
@@ -2338,14 +2502,16 @@ static void pgraph_method(NV2AState *d,
 
             pgraph_update_surface(d, true);
 
-            if (kelvin->use_vertex_program) {
+            bool use_vertex_program = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                                               NV_PGRAPH_CSV0_D_MODE) == 2;
+            if (use_vertex_program) {
                 glEnable(GL_VERTEX_PROGRAM_ARB);
-                kelvin_bind_vertexshader(kelvin);
+                kelvin_bind_vertex_program(kelvin);
             } else {
                 glDisable(GL_VERTEX_PROGRAM_ARB);
             }
 
-            pgraph_bind_fragment_shader(pg);
+            pgraph_bind_shaders(pg);
 
             pgraph_bind_textures(d);
             kelvin_bind_vertex_attributes(d, kelvin);
@@ -2379,7 +2545,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V);
 
         pg->textures[slot].dirty = true;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
@@ -2391,7 +2557,7 @@ static void pgraph_method(NV2AState *d,
         pg->textures[slot].max_mipmap_level =
             GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP);
 
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
@@ -2547,33 +2713,36 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_SPECULAR_FOG_FACTOR + 4:
         slot = (class_method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
         pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_COLOR_OCW ...
             NV097_SET_COMBINER_COLOR_OCW + 28:
         slot = (class_method - NV097_SET_COMBINER_COLOR_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORO0 + slot*4] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_CONTROL:
         pg->regs[NV_PGRAPH_COMBINECTL] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_SHADER_STAGE_PROGRAM:
         pg->regs[NV_PGRAPH_SHADERPROG] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_SHADER_OTHER_STAGE_INPUT:
         pg->regs[NV_PGRAPH_SHADERCTL] = parameter;
-        pg->fragment_shader_dirty = true;
+        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
-        kelvin->use_vertex_program = (parameter & 3) == 2;
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_MODE,
+                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE));
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_RANGE_MODE,
+                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE));
         break;
     case NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN:
         kelvin->enable_vertex_program_write = parameter;
@@ -2673,6 +2842,7 @@ static void *pfifo_puller_thread(void *arg)
         }
         command = QSIMPLEQ_FIRST(&state->cache);
         QSIMPLEQ_REMOVE_HEAD(&state->cache, entry);
+        state->cache_size--;
         qemu_mutex_unlock(&state->cache_lock);
 
         if (command->method == 0) {
@@ -2799,6 +2969,7 @@ static void pfifo_run_pusher(NV2AState *d) {
             command->parameter = word;
             qemu_mutex_lock(&state->cache_lock);
             QSIMPLEQ_INSERT_TAIL(&state->cache, command, entry);
+            state->cache_size++;
             qemu_cond_signal(&state->cache_cond);
             qemu_mutex_unlock(&state->cache_lock);
 
