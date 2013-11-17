@@ -189,7 +189,6 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
             pki_applet->sign_buffer = sign_buffer;
             pki_applet->sign_buffer_len = size;
             *response = vcard_make_response(VCARD7816_STATUS_SUCCESS);
-            ret = VCARD_DONE;
             break;
         case 0x00:
             /* we now have the whole buffer, do the operation, result will be
