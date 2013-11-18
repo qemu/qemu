@@ -3,467 +3,467 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=3221227008
 Filling base image
 
 === IO: pattern 195
-qemu-io> wrote 512/512 bytes at offset 3221194240
+wrote 512/512 bytes at offset 3221194240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221195264
+wrote 512/512 bytes at offset 3221195264
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221196288
+wrote 512/512 bytes at offset 3221196288
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221197312
+wrote 512/512 bytes at offset 3221197312
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221198336
+wrote 512/512 bytes at offset 3221198336
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221199360
+wrote 512/512 bytes at offset 3221199360
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221200384
+wrote 512/512 bytes at offset 3221200384
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221201408
+wrote 512/512 bytes at offset 3221201408
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221202432
+wrote 512/512 bytes at offset 3221202432
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221203456
+wrote 512/512 bytes at offset 3221203456
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221204480
+wrote 512/512 bytes at offset 3221204480
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221205504
+wrote 512/512 bytes at offset 3221205504
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221206528
+wrote 512/512 bytes at offset 3221206528
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221207552
+wrote 512/512 bytes at offset 3221207552
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221208576
+wrote 512/512 bytes at offset 3221208576
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221209600
+wrote 512/512 bytes at offset 3221209600
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221210624
+wrote 512/512 bytes at offset 3221210624
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221211648
+wrote 512/512 bytes at offset 3221211648
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221212672
+wrote 512/512 bytes at offset 3221212672
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221213696
+wrote 512/512 bytes at offset 3221213696
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221214720
+wrote 512/512 bytes at offset 3221214720
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221215744
+wrote 512/512 bytes at offset 3221215744
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221216768
+wrote 512/512 bytes at offset 3221216768
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221217792
+wrote 512/512 bytes at offset 3221217792
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221218816
+wrote 512/512 bytes at offset 3221218816
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221219840
+wrote 512/512 bytes at offset 3221219840
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221220864
+wrote 512/512 bytes at offset 3221220864
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221221888
+wrote 512/512 bytes at offset 3221221888
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221222912
+wrote 512/512 bytes at offset 3221222912
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221223936
+wrote 512/512 bytes at offset 3221223936
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221224960
+wrote 512/512 bytes at offset 3221224960
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221225984
+wrote 512/512 bytes at offset 3221225984
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> No errors were found on the image.
+No errors were found on the image.
 Creating test image with backing file
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294968832 backing_file='TEST_DIR/t.IMGFMT.base' 
 Filling test image
 
 === IO: pattern 196
-qemu-io> wrote 512/512 bytes at offset 3221194752
+wrote 512/512 bytes at offset 3221194752
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221195776
+wrote 512/512 bytes at offset 3221195776
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221196800
+wrote 512/512 bytes at offset 3221196800
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221197824
+wrote 512/512 bytes at offset 3221197824
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221198848
+wrote 512/512 bytes at offset 3221198848
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221199872
+wrote 512/512 bytes at offset 3221199872
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221200896
+wrote 512/512 bytes at offset 3221200896
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221201920
+wrote 512/512 bytes at offset 3221201920
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221202944
+wrote 512/512 bytes at offset 3221202944
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221203968
+wrote 512/512 bytes at offset 3221203968
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221204992
+wrote 512/512 bytes at offset 3221204992
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221206016
+wrote 512/512 bytes at offset 3221206016
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221207040
+wrote 512/512 bytes at offset 3221207040
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221208064
+wrote 512/512 bytes at offset 3221208064
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221209088
+wrote 512/512 bytes at offset 3221209088
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221210112
+wrote 512/512 bytes at offset 3221210112
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221211136
+wrote 512/512 bytes at offset 3221211136
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221212160
+wrote 512/512 bytes at offset 3221212160
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221213184
+wrote 512/512 bytes at offset 3221213184
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221214208
+wrote 512/512 bytes at offset 3221214208
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221215232
+wrote 512/512 bytes at offset 3221215232
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221216256
+wrote 512/512 bytes at offset 3221216256
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221217280
+wrote 512/512 bytes at offset 3221217280
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221218304
+wrote 512/512 bytes at offset 3221218304
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221219328
+wrote 512/512 bytes at offset 3221219328
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221220352
+wrote 512/512 bytes at offset 3221220352
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221221376
+wrote 512/512 bytes at offset 3221221376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221222400
+wrote 512/512 bytes at offset 3221222400
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221223424
+wrote 512/512 bytes at offset 3221223424
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221224448
+wrote 512/512 bytes at offset 3221224448
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221225472
+wrote 512/512 bytes at offset 3221225472
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221226496
+wrote 512/512 bytes at offset 3221226496
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221227520
+wrote 512/512 bytes at offset 3221227520
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221228544
+wrote 512/512 bytes at offset 3221228544
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221229568
+wrote 512/512 bytes at offset 3221229568
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221230592
+wrote 512/512 bytes at offset 3221230592
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221231616
+wrote 512/512 bytes at offset 3221231616
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221232640
+wrote 512/512 bytes at offset 3221232640
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221233664
+wrote 512/512 bytes at offset 3221233664
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221234688
+wrote 512/512 bytes at offset 3221234688
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221235712
+wrote 512/512 bytes at offset 3221235712
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221236736
+wrote 512/512 bytes at offset 3221236736
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221237760
+wrote 512/512 bytes at offset 3221237760
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221238784
+wrote 512/512 bytes at offset 3221238784
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221239808
+wrote 512/512 bytes at offset 3221239808
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221240832
+wrote 512/512 bytes at offset 3221240832
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221241856
+wrote 512/512 bytes at offset 3221241856
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221242880
+wrote 512/512 bytes at offset 3221242880
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221243904
+wrote 512/512 bytes at offset 3221243904
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221244928
+wrote 512/512 bytes at offset 3221244928
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221245952
+wrote 512/512 bytes at offset 3221245952
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221246976
+wrote 512/512 bytes at offset 3221246976
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221248000
+wrote 512/512 bytes at offset 3221248000
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221249024
+wrote 512/512 bytes at offset 3221249024
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221250048
+wrote 512/512 bytes at offset 3221250048
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221251072
+wrote 512/512 bytes at offset 3221251072
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221252096
+wrote 512/512 bytes at offset 3221252096
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221253120
+wrote 512/512 bytes at offset 3221253120
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221254144
+wrote 512/512 bytes at offset 3221254144
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221255168
+wrote 512/512 bytes at offset 3221255168
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221256192
+wrote 512/512 bytes at offset 3221256192
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221257216
+wrote 512/512 bytes at offset 3221257216
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221258240
+wrote 512/512 bytes at offset 3221258240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 512/512 bytes at offset 3221259264
+wrote 512/512 bytes at offset 3221259264
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> No errors were found on the image.
+No errors were found on the image.
 Reading
 
 === IO: pattern 195
-qemu-io> read 512/512 bytes at offset 3221194240
+read 512/512 bytes at offset 3221194240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221195264
+read 512/512 bytes at offset 3221195264
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221196288
+read 512/512 bytes at offset 3221196288
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221197312
+read 512/512 bytes at offset 3221197312
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221198336
+read 512/512 bytes at offset 3221198336
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221199360
+read 512/512 bytes at offset 3221199360
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221200384
+read 512/512 bytes at offset 3221200384
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221201408
+read 512/512 bytes at offset 3221201408
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221202432
+read 512/512 bytes at offset 3221202432
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221203456
+read 512/512 bytes at offset 3221203456
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221204480
+read 512/512 bytes at offset 3221204480
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221205504
+read 512/512 bytes at offset 3221205504
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221206528
+read 512/512 bytes at offset 3221206528
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221207552
+read 512/512 bytes at offset 3221207552
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221208576
+read 512/512 bytes at offset 3221208576
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221209600
+read 512/512 bytes at offset 3221209600
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221210624
+read 512/512 bytes at offset 3221210624
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221211648
+read 512/512 bytes at offset 3221211648
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221212672
+read 512/512 bytes at offset 3221212672
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221213696
+read 512/512 bytes at offset 3221213696
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221214720
+read 512/512 bytes at offset 3221214720
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221215744
+read 512/512 bytes at offset 3221215744
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221216768
+read 512/512 bytes at offset 3221216768
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221217792
+read 512/512 bytes at offset 3221217792
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221218816
+read 512/512 bytes at offset 3221218816
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221219840
+read 512/512 bytes at offset 3221219840
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221220864
+read 512/512 bytes at offset 3221220864
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221221888
+read 512/512 bytes at offset 3221221888
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221222912
+read 512/512 bytes at offset 3221222912
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221223936
+read 512/512 bytes at offset 3221223936
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221224960
+read 512/512 bytes at offset 3221224960
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221225984
+read 512/512 bytes at offset 3221225984
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> === IO: pattern 196
-qemu-io> read 512/512 bytes at offset 3221194752
+=== IO: pattern 196
+read 512/512 bytes at offset 3221194752
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221195776
+read 512/512 bytes at offset 3221195776
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221196800
+read 512/512 bytes at offset 3221196800
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221197824
+read 512/512 bytes at offset 3221197824
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221198848
+read 512/512 bytes at offset 3221198848
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221199872
+read 512/512 bytes at offset 3221199872
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221200896
+read 512/512 bytes at offset 3221200896
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221201920
+read 512/512 bytes at offset 3221201920
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221202944
+read 512/512 bytes at offset 3221202944
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221203968
+read 512/512 bytes at offset 3221203968
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221204992
+read 512/512 bytes at offset 3221204992
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221206016
+read 512/512 bytes at offset 3221206016
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221207040
+read 512/512 bytes at offset 3221207040
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221208064
+read 512/512 bytes at offset 3221208064
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221209088
+read 512/512 bytes at offset 3221209088
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221210112
+read 512/512 bytes at offset 3221210112
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221211136
+read 512/512 bytes at offset 3221211136
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221212160
+read 512/512 bytes at offset 3221212160
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221213184
+read 512/512 bytes at offset 3221213184
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221214208
+read 512/512 bytes at offset 3221214208
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221215232
+read 512/512 bytes at offset 3221215232
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221216256
+read 512/512 bytes at offset 3221216256
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221217280
+read 512/512 bytes at offset 3221217280
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221218304
+read 512/512 bytes at offset 3221218304
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221219328
+read 512/512 bytes at offset 3221219328
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221220352
+read 512/512 bytes at offset 3221220352
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221221376
+read 512/512 bytes at offset 3221221376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221222400
+read 512/512 bytes at offset 3221222400
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221223424
+read 512/512 bytes at offset 3221223424
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221224448
+read 512/512 bytes at offset 3221224448
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221225472
+read 512/512 bytes at offset 3221225472
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221226496
+read 512/512 bytes at offset 3221226496
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221227520
+read 512/512 bytes at offset 3221227520
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221228544
+read 512/512 bytes at offset 3221228544
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221229568
+read 512/512 bytes at offset 3221229568
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221230592
+read 512/512 bytes at offset 3221230592
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221231616
+read 512/512 bytes at offset 3221231616
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221232640
+read 512/512 bytes at offset 3221232640
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221233664
+read 512/512 bytes at offset 3221233664
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221234688
+read 512/512 bytes at offset 3221234688
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221235712
+read 512/512 bytes at offset 3221235712
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221236736
+read 512/512 bytes at offset 3221236736
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221237760
+read 512/512 bytes at offset 3221237760
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221238784
+read 512/512 bytes at offset 3221238784
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221239808
+read 512/512 bytes at offset 3221239808
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221240832
+read 512/512 bytes at offset 3221240832
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221241856
+read 512/512 bytes at offset 3221241856
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221242880
+read 512/512 bytes at offset 3221242880
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221243904
+read 512/512 bytes at offset 3221243904
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221244928
+read 512/512 bytes at offset 3221244928
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221245952
+read 512/512 bytes at offset 3221245952
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221246976
+read 512/512 bytes at offset 3221246976
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221248000
+read 512/512 bytes at offset 3221248000
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221249024
+read 512/512 bytes at offset 3221249024
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221250048
+read 512/512 bytes at offset 3221250048
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221251072
+read 512/512 bytes at offset 3221251072
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221252096
+read 512/512 bytes at offset 3221252096
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221253120
+read 512/512 bytes at offset 3221253120
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221254144
+read 512/512 bytes at offset 3221254144
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221255168
+read 512/512 bytes at offset 3221255168
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221256192
+read 512/512 bytes at offset 3221256192
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221257216
+read 512/512 bytes at offset 3221257216
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221258240
+read 512/512 bytes at offset 3221258240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221259264
+read 512/512 bytes at offset 3221259264
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> === IO: pattern 0
-qemu-io> read 512/512 bytes at offset 3221227008
+=== IO: pattern 0
+read 512/512 bytes at offset 3221227008
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221228032
+read 512/512 bytes at offset 3221228032
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221229056
+read 512/512 bytes at offset 3221229056
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221230080
+read 512/512 bytes at offset 3221230080
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221231104
+read 512/512 bytes at offset 3221231104
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221232128
+read 512/512 bytes at offset 3221232128
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221233152
+read 512/512 bytes at offset 3221233152
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221234176
+read 512/512 bytes at offset 3221234176
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221235200
+read 512/512 bytes at offset 3221235200
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221236224
+read 512/512 bytes at offset 3221236224
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221237248
+read 512/512 bytes at offset 3221237248
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221238272
+read 512/512 bytes at offset 3221238272
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221239296
+read 512/512 bytes at offset 3221239296
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221240320
+read 512/512 bytes at offset 3221240320
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221241344
+read 512/512 bytes at offset 3221241344
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221242368
+read 512/512 bytes at offset 3221242368
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221243392
+read 512/512 bytes at offset 3221243392
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221244416
+read 512/512 bytes at offset 3221244416
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221245440
+read 512/512 bytes at offset 3221245440
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221246464
+read 512/512 bytes at offset 3221246464
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221247488
+read 512/512 bytes at offset 3221247488
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221248512
+read 512/512 bytes at offset 3221248512
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221249536
+read 512/512 bytes at offset 3221249536
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221250560
+read 512/512 bytes at offset 3221250560
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221251584
+read 512/512 bytes at offset 3221251584
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221252608
+read 512/512 bytes at offset 3221252608
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221253632
+read 512/512 bytes at offset 3221253632
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221254656
+read 512/512 bytes at offset 3221254656
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221255680
+read 512/512 bytes at offset 3221255680
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221256704
+read 512/512 bytes at offset 3221256704
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221257728
+read 512/512 bytes at offset 3221257728
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 512/512 bytes at offset 3221258752
+read 512/512 bytes at offset 3221258752
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> No errors were found on the image.
+No errors were found on the image.
 No errors were found on the image.
 *** done
