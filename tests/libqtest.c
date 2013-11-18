@@ -135,6 +135,7 @@ QTestState *qtest_init(const char *extra_args)
                                   "-qmp unix:%s,nowait "
                                   "-pidfile %s "
                                   "-machine accel=qtest "
+                                  "-display none "
                                   "%s", qemu_binary, s->socket_path,
                                   s->qmp_socket_path, pid_file,
                                   extra_args ?: "");
