@@ -385,6 +385,8 @@ static void usb_desc_ep_init(USBDevice *dev)
             usb_ep_set_ifnum(dev, pid, ep, iface->bInterfaceNumber);
             usb_ep_set_max_packet_size(dev, pid, ep,
                                        iface->eps[e].wMaxPacketSize);
+            usb_ep_set_max_streams(dev, pid, ep,
+                                   iface->eps[e].bmAttributes_super);
         }
     }
 }

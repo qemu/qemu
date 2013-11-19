@@ -189,6 +189,7 @@ struct USBEndpoint {
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
+    int max_streams;
     bool pipeline;
     bool halted;
     USBDevice *dev;
@@ -421,6 +422,8 @@ void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum);
 void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
+void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw);
+int usb_ep_get_max_streams(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
 void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted);
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,

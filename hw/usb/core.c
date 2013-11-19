@@ -623,6 +623,7 @@ void usb_ep_reset(USBDevice *dev)
     dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
     dev->ep_ctl.ifnum = 0;
     dev->ep_ctl.max_packet_size = 64;
+    dev->ep_ctl.max_streams = 0;
     dev->ep_ctl.dev = dev;
     dev->ep_ctl.pipeline = false;
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
@@ -636,6 +637,8 @@ void usb_ep_reset(USBDevice *dev)
         dev->ep_out[ep].ifnum = USB_INTERFACE_INVALID;
         dev->ep_in[ep].max_packet_size = 0;
         dev->ep_out[ep].max_packet_size = 0;
+        dev->ep_in[ep].max_streams = 0;
+        dev->ep_out[ep].max_streams = 0;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
         dev->ep_in[ep].pipeline = false;
@@ -762,6 +765,25 @@ int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     return uep->max_packet_size;
+}
+
+void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    int MaxStreams;
+
+    MaxStreams = raw & 0x1f;
+    if (MaxStreams) {
+        uep->max_streams = 1 << MaxStreams;
+    } else {
+        uep->max_streams = 0;
+    }
+}
+
+int usb_ep_get_max_streams(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    return uep->max_streams;
 }
 
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled)
