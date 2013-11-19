@@ -2086,14 +2086,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         /* cache info: needed for Core compatibility */
         if (cpu->cache_info_passthrough) {
             host_cpuid(index, count, eax, ebx, ecx, edx);
-            break;
-        }
-        if (cs->nr_cores > 1) {
-            *eax = (cs->nr_cores - 1) << 26;
+            *eax &= ~0xFC000000;
         } else {
             *eax = 0;
-        }
-        switch (count) {
+            switch (count) {
             case 0: /* L1 dcache info */
                 *eax |= CPUID_4_TYPE_DCACHE | \
                         CPUID_4_LEVEL(1) | \
@@ -2133,6 +2129,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 *ecx = 0;
                 *edx = 0;
                 break;
+            }
+        }
+
+        /* QEMU gives out its own APIC IDs, never pass down bits 31..26.  */
+        if ((*eax & 31) && cs->nr_cores > 1) {
+            *eax |= (cs->nr_cores - 1) << 26;
         }
         break;
     case 5:
