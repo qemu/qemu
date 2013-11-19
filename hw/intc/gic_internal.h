@@ -34,7 +34,6 @@
 #define GIC_TEST_ENABLED(irq, cm) ((s->irq_state[irq].enabled & (cm)) != 0)
 #define GIC_SET_PENDING(irq, cm) s->irq_state[irq].pending |= (cm)
 #define GIC_CLEAR_PENDING(irq, cm) s->irq_state[irq].pending &= ~(cm)
-#define GIC_TEST_PENDING(irq, cm) ((s->irq_state[irq].pending & (cm)) != 0)
 #define GIC_SET_ACTIVE(irq, cm) s->irq_state[irq].active |= (cm)
 #define GIC_CLEAR_ACTIVE(irq, cm) s->irq_state[irq].active &= ~(cm)
 #define GIC_TEST_ACTIVE(irq, cm) ((s->irq_state[irq].active & (cm)) != 0)
@@ -62,5 +61,20 @@ void gic_complete_irq(GICState *s, int cpu, int irq);
 void gic_update(GICState *s);
 void gic_init_irqs_and_distributor(GICState *s, int num_irq);
 void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val);
+
+static inline bool gic_test_pending(GICState *s, int irq, int cm)
+{
+    if (s->revision == REV_NVIC || s->revision == REV_11MPCORE) {
+        return s->irq_state[irq].pending & cm;
+    } else {
+        /* Edge-triggered interrupts are marked pending on a rising edge, but
+         * level-triggered interrupts are either considered pending when the
+         * level is active or if software has explicitly written to
+         * GICD_ISPENDR to set the state pending.
+         */
+        return (s->irq_state[irq].pending & cm) ||
+            (!GIC_TEST_EDGE_TRIGGER(irq) && GIC_TEST_LEVEL(irq, cm));
+    }
+}
 
 #endif /* !QEMU_ARM_GIC_INTERNAL_H */

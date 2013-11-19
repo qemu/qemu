@@ -66,7 +66,7 @@ void gic_update(GICState *s)
         best_prio = 0x100;
         best_irq = 1023;
         for (irq = 0; irq < s->num_irq; irq++) {
-            if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
+            if (GIC_TEST_ENABLED(irq, cm) && gic_test_pending(s, irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
                     best_irq = irq;
@@ -89,12 +89,41 @@ void gic_set_pending_private(GICState *s, int cpu, int irq)
 {
     int cm = 1 << cpu;
 
-    if (GIC_TEST_PENDING(irq, cm))
+    if (gic_test_pending(s, irq, cm)) {
         return;
+    }
 
     DPRINTF("Set %d pending cpu %d\n", irq, cpu);
     GIC_SET_PENDING(irq, cm);
     gic_update(s);
+}
+
+static void gic_set_irq_11mpcore(GICState *s, int irq, int level,
+                                 int cm, int target)
+{
+    if (level) {
+        GIC_SET_LEVEL(irq, cm);
+        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+            DPRINTF("Set %d pending mask %x\n", irq, target);
+            GIC_SET_PENDING(irq, target);
+        }
+    } else {
+        GIC_CLEAR_LEVEL(irq, cm);
+    }
+}
+
+static void gic_set_irq_generic(GICState *s, int irq, int level,
+                                int cm, int target)
+{
+    if (level) {
+        GIC_SET_LEVEL(irq, cm);
+        DPRINTF("Set %d pending mask %x\n", irq, target);
+        if (GIC_TEST_EDGE_TRIGGER(irq)) {
+            GIC_SET_PENDING(irq, target);
+        }
+    } else {
+        GIC_CLEAR_LEVEL(irq, cm);
+    }
 }
 
 /* Process a change in an external IRQ input.  */
@@ -126,15 +155,12 @@ static void gic_set_irq(void *opaque, int irq, int level)
         return;
     }
 
-    if (level) {
-        GIC_SET_LEVEL(irq, cm);
-        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
-            DPRINTF("Set %d pending mask %x\n", irq, target);
-            GIC_SET_PENDING(irq, target);
-        }
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+        gic_set_irq_11mpcore(s, irq, level, cm, target);
     } else {
-        GIC_CLEAR_LEVEL(irq, cm);
+        gic_set_irq_generic(s, irq, level, cm, target);
     }
+
     gic_update(s);
 }
 
@@ -195,14 +221,18 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
     }
     if (s->running_irq[cpu] == 1023)
         return; /* No active IRQ.  */
-    /* Mark level triggered interrupts as pending if they are still
-       raised.  */
-    if (!GIC_TEST_EDGE_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
-        && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
-        DPRINTF("Set %d pending mask %x\n", irq, cm);
-        GIC_SET_PENDING(irq, cm);
-        update = 1;
+
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
+        /* Mark level triggered interrupts as pending if they are still
+           raised.  */
+        if (!GIC_TEST_EDGE_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
+            && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
+            DPRINTF("Set %d pending mask %x\n", irq, cm);
+            GIC_SET_PENDING(irq, cm);
+            update = 1;
+        }
     }
+
     if (irq != s->running_irq[cpu]) {
         /* Complete an IRQ that is not currently running.  */
         int tmp = s->running_irq[cpu];
@@ -273,7 +303,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         res = 0;
         mask = (irq < GIC_INTERNAL) ?  cm : ALL_CPU_MASK;
         for (i = 0; i < 8; i++) {
-            if (GIC_TEST_PENDING(irq + i, mask)) {
+            if (gic_test_pending(s, irq + i, mask)) {
                 res |= (1 << i);
             }
         }
