@@ -1495,7 +1495,8 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
     }
 
     if (!xhci->slots[slotid-1].uport ||
-        !xhci->slots[slotid-1].uport->dev) {
+        !xhci->slots[slotid-1].uport->dev ||
+        !xhci->slots[slotid-1].uport->dev->attached) {
         return CC_USB_TRANSACTION_ERROR;
     }
 
@@ -1982,6 +1983,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    /* If the device has been detached, but the guest has not noticed this
+       yet the 2 above checks will succeed, but we must NOT continue */
+    if (!xhci->slots[slotid - 1].uport ||
+        !xhci->slots[slotid - 1].uport->dev ||
+        !xhci->slots[slotid - 1].uport->dev->attached) {
+        return;
+    }
+
     if (epctx->retry) {
         XHCITransfer *xfer = epctx->retry;
 
@@ -2206,7 +2215,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     trace_usb_xhci_slot_address(slotid, uport->path);
 
     dev = uport->dev;
-    if (!dev) {
+    if (!dev || !dev->attached) {
         fprintf(stderr, "xhci: port %s not connected\n", uport->path);
         return CC_USB_TRANSACTION_ERROR;
     }
