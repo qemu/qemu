@@ -286,7 +286,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint64_t xinfo;
 
     if ((nargs < 6) || (nargs > 7) || nret != 1) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -306,9 +306,9 @@ static void check_exception(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         cpu_physical_memory_write(buf, pending_epow, len);
         g_free(pending_epow);
         pending_epow = NULL;
-        rtas_st(rets, 0, 0);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     } else {
-        rtas_st(rets, 0, 1);
+        rtas_st(rets, 0, RTAS_OUT_NO_ERRORS_FOUND);
     }
 }
 

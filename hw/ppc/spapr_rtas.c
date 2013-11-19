@@ -47,10 +47,10 @@ static void rtas_display_character(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     VIOsPAPRDevice *sdev = vty_lookup(spapr, 0);
 
     if (!sdev) {
-        rtas_st(rets, 0, -1);
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
     } else {
         vty_putchars(sdev, &c, sizeof(c));
-        rtas_st(rets, 0, 0);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     }
 }
 
@@ -62,13 +62,13 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     struct tm tm;
 
     if (nret != 8) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     qemu_get_timedate(&tm, spapr->rtc_offset);
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, tm.tm_year + 1900);
     rtas_st(rets, 2, tm.tm_mon + 1);
     rtas_st(rets, 3, tm.tm_mday);
@@ -96,7 +96,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtc_change_mon_event(&tm);
     spapr->rtc_offset = qemu_timedate_diff(&tm);
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_power_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -104,11 +104,11 @@ static void rtas_power_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            uint32_t nret, target_ulong rets)
 {
     if (nargs != 2 || nret != 1) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
     qemu_system_shutdown_request();
-    rtas_st(rets, 0, 0);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_system_reboot(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -117,11 +117,11 @@ static void rtas_system_reboot(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                uint32_t nret, target_ulong rets)
 {
     if (nargs != 0 || nret != 1) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
     qemu_system_reset_request();
-    rtas_st(rets, 0, 0);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
@@ -134,7 +134,7 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
     CPUState *cpu;
 
     if (nargs != 1 || nret != 2) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -147,12 +147,12 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
             rtas_st(rets, 1, 2);
         }
 
-        rtas_st(rets, 0, 0);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
         return;
     }
 
     /* Didn't find a matching cpu */
-    rtas_st(rets, 0, -3);
+    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
 static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
@@ -164,7 +164,7 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
     CPUState *cs;
 
     if (nargs != 3 || nret != 1) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -178,7 +178,7 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
         CPUPPCState *env = &cpu->env;
 
         if (!cs->halted) {
-            rtas_st(rets, 0, -1);
+            rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
             return;
         }
 
@@ -194,12 +194,12 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
 
         qemu_cpu_kick(cs);
 
-        rtas_st(rets, 0, 0);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
         return;
     }
 
     /* Didn't find a matching cpu */
-    rtas_st(rets, 0, -3);
+    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
 static void rtas_stop_self(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -255,7 +255,7 @@ target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     hcall_dprintf("Unknown RTAS token 0x%x\n", token);
-    rtas_st(rets, 0, -3);
+    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
     return H_PARAMETER;
 }
 
