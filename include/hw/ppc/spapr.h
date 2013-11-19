@@ -338,6 +338,8 @@ static inline int spapr_allocate_lsi(int hint)
 #define RTAS_OUT_HW_ERROR           -1
 #define RTAS_OUT_BUSY               -2
 #define RTAS_OUT_PARAM_ERROR        -3
+#define RTAS_OUT_NOT_SUPPORTED      -3
+#define RTAS_OUT_NOT_AUTHORIZED     -9002
 
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {

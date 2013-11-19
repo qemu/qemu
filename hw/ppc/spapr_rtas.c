@@ -224,6 +224,49 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     env->msr = 0;
 }
 
+#define DIAGNOSTICS_RUN_MODE        42
+
+static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
+                                          sPAPREnvironment *spapr,
+                                          uint32_t token, uint32_t nargs,
+                                          target_ulong args,
+                                          uint32_t nret, target_ulong rets)
+{
+    target_ulong parameter = rtas_ld(args, 0);
+    target_ulong buffer = rtas_ld(args, 1);
+    target_ulong length = rtas_ld(args, 2);
+    target_ulong ret = RTAS_OUT_NOT_SUPPORTED;
+
+    switch (parameter) {
+    case DIAGNOSTICS_RUN_MODE:
+        if (length == 1) {
+            rtas_st(buffer, 0, 0);
+            ret = RTAS_OUT_SUCCESS;
+        }
+        break;
+    }
+
+    rtas_st(rets, 0, ret);
+}
+
+static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
+                                          sPAPREnvironment *spapr,
+                                          uint32_t token, uint32_t nargs,
+                                          target_ulong args,
+                                          uint32_t nret, target_ulong rets)
+{
+    target_ulong parameter = rtas_ld(args, 0);
+    target_ulong ret = RTAS_OUT_NOT_SUPPORTED;
+
+    switch (parameter) {
+    case DIAGNOSTICS_RUN_MODE:
+        ret = RTAS_OUT_NOT_AUTHORIZED;
+        break;
+    }
+
+    rtas_st(rets, 0, ret);
+}
+
 static struct rtas_call {
     const char *name;
     spapr_rtas_fn fn;
@@ -345,6 +388,10 @@ static void core_rtas_register_types(void)
                         rtas_query_cpu_stopped_state);
     spapr_rtas_register("start-cpu", rtas_start_cpu);
     spapr_rtas_register("stop-self", rtas_stop_self);
+    spapr_rtas_register("ibm,get-system-parameter",
+                        rtas_ibm_get_system_parameter);
+    spapr_rtas_register("ibm,set-system-parameter",
+                        rtas_ibm_set_system_parameter);
 }
 
 type_init(core_rtas_register_types)
