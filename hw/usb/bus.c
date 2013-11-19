@@ -203,6 +203,24 @@ void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
     }
 }
 
+int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                             int streams)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->alloc_streams) {
+        return klass->alloc_streams(dev, eps, nr_eps, streams);
+    }
+    return 0;
+}
+
+void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->free_streams) {
+        klass->free_streams(dev, eps, nr_eps);
+    }
+}
+
 static int usb_qdev_init(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);

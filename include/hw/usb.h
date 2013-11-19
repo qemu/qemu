@@ -315,6 +315,14 @@ typedef struct USBDeviceClass {
      */
     void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
 
+    /*
+     * Called by the hcd to alloc / free streams on a bulk endpoint.
+     * Optional may be NULL.
+     */
+    int (*alloc_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                         int streams);
+    void (*free_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps);
+
     const char *product_desc;
     const USBDesc *usb_desc;
 } USBDeviceClass;
@@ -552,6 +560,10 @@ void usb_device_set_interface(USBDevice *dev, int interface,
 void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
 
 void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep);
+
+int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                             int streams);
+void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps);
 
 const char *usb_device_get_product_desc(USBDevice *dev);
 
