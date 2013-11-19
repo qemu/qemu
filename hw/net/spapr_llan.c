@@ -531,6 +531,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
     k->dt_type = "network";
     k->dt_compatible = "IBM,l-lan";
     k->signal_mask = 0x1;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->props = spapr_vlan_properties;
     k->rtce_window_size = 0x10000000;
     dc->vmsd = &vmstate_spapr_llan;
