@@ -48,7 +48,7 @@
 #define MAX_SATA_PORTS     6
 
 static bool has_pvpanic;
-static bool has_pci_info = true;
+static bool has_pci_info;
 static bool has_acpi_build = true;
 
 /* PC hardware initialisation */
