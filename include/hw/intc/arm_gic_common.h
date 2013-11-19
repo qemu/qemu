@@ -55,6 +55,13 @@ typedef struct GICState {
     uint8_t priority1[GIC_INTERNAL][GIC_NCPU];
     uint8_t priority2[GIC_MAXIRQ - GIC_INTERNAL];
     uint16_t last_active[GIC_MAXIRQ][GIC_NCPU];
+    /* For each SGI on the target CPU, we store 8 bits
+     * indicating which source CPUs have made this SGI
+     * pending on the target CPU. These correspond to
+     * the bytes in the GIC_SPENDSGIR* registers as
+     * read by the target CPU.
+     */
+    uint8_t sgi_pending[GIC_NR_SGIS][GIC_NCPU];
 
     uint16_t priority_mask[GIC_NCPU];
     uint16_t running_irq[GIC_NCPU];
