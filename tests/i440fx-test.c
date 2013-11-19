@@ -265,7 +265,7 @@ int main(int argc, char **argv)
 
     data.num_cpus = 1;
 
-    cmdline = g_strdup_printf("-display none -smp %d", data.num_cpus);
+    cmdline = g_strdup_printf("-smp %d", data.num_cpus);
     s = qtest_start(cmdline);
     g_free(cmdline);
 

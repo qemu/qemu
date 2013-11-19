@@ -34,7 +34,7 @@ static void test_a_boot_order(const char *machine,
     char *args;
     uint64_t actual;
 
-    args = g_strdup_printf("-nodefaults -display none%s%s %s",
+    args = g_strdup_printf("-nodefaults%s%s %s",
                            machine ? " -M " : "",
                            machine ?: "",
                            test_args);

@@ -552,7 +552,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-display none -rtc clock=vm");
+    s = qtest_start("-rtc clock=vm");
     qtest_irq_intercept_in(s, "ioapic");
 
     qtest_add_func("/rtc/check-time/bcd", bcd_check_time);

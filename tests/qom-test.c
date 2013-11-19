@@ -18,7 +18,7 @@ static void test_nop(gconstpointer data)
     const char *machine = data;
     char *args;
 
-    args = g_strdup_printf("-display none -machine %s", machine);
+    args = g_strdup_printf("-machine %s", machine);
     s = qtest_start(args);
     if (s) {
         qtest_quit(s);
