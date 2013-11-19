@@ -1736,7 +1736,8 @@
 # @existing: QEMU should look for an existing image file.
 #
 # @absolute-paths: QEMU should create a new image with absolute paths
-# for the backing file.
+# for the backing file. If there is no backing file available, the new
+# image will not be backed either.
 #
 # Since: 1.1
 ##
