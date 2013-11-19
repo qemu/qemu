@@ -31,6 +31,9 @@
 /* Maximum number of possible CPU interfaces, determined by GIC architecture */
 #define GIC_NCPU 8
 
+#define MAX_NR_GROUP_PRIO 128
+#define GIC_NR_APRS (MAX_NR_GROUP_PRIO / 32)
+
 typedef struct gic_irq_state {
     /* The enable bits are only banked for per-cpu interrupts.  */
     uint8_t enabled;
@@ -74,6 +77,22 @@ typedef struct GICState {
      */
     uint8_t  bpr[GIC_NCPU];
     uint8_t  abpr[GIC_NCPU];
+
+    /* The APR is implementation defined, so we choose a layout identical to
+     * the KVM ABI layout for QEMU's implementation of the gic:
+     * If an interrupt for preemption level X is active, then
+     *   APRn[X mod 32] == 0b1,  where n = X / 32
+     * otherwise the bit is clear.
+     *
+     * TODO: rewrite the interrupt acknowlege/complete routines to use
+     * the APR registers to track the necessary information to update
+     * s->running_priority[] on interrupt completion (ie completely remove
+     * last_active[][] and running_irq[]). This will be necessary if we ever
+     * want to support TCG<->KVM migration, or TCG guests which can
+     * do power management involving powering down and restarting
+     * the GIC.
+     */
+    uint32_t apr[GIC_NR_APRS][GIC_NCPU];
 
     uint32_t num_cpu;
 

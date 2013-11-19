@@ -678,6 +678,8 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
         return s->current_pending[cpu];
     case 0x1c: /* Aliased Binary Point */
         return s->abpr[cpu];
+    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
+        return s->apr[(offset - 0xd0) / 4][cpu];
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_read: Bad offset %x\n", (int)offset);
@@ -704,6 +706,9 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         if (s->revision >= 2) {
             s->abpr[cpu] = (value & 0x7);
         }
+        break;
+    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
+        qemu_log_mask(LOG_UNIMP, "Writing APR not implemented\n");
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
