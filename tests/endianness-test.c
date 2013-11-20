@@ -121,7 +121,7 @@ static void test_endianness(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");
@@ -196,7 +196,7 @@ static void test_endianness_split(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");
@@ -243,7 +243,7 @@ static void test_endianness_combine(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");

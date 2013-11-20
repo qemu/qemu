@@ -1009,7 +1009,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         bdrv_unref(bs->backing_hd);
         bs->backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
-        error_propagate(errp, local_err);
+        error_setg(errp, "Could not open backing file: %s",
+                   error_get_pretty(local_err));
+        error_free(local_err);
         return ret;
     }
     pstrcpy(bs->backing_file, sizeof(bs->backing_file),
@@ -1135,6 +1137,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     if (drvname) {
         drv = bdrv_find_format(drvname);
         qdict_del(options, "driver");
+        if (!drv) {
+            error_setg(errp, "Invalid driver: '%s'", drvname);
+            ret = -EINVAL;
+            goto unlink_and_fail;
+        }
     }
 
     if (!drv) {

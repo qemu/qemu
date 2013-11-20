@@ -47,7 +47,6 @@
 #include "sysemu/arch_init.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
-extern QemuOptsList qemu_common_drive_opts;
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -2029,7 +2028,9 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
-    if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
+    if ((sync == MIRROR_SYNC_MODE_FULL || !source)
+        && mode != NEW_IMAGE_MODE_EXISTING)
+    {
         /* create new image w/o backing file */
         assert(format && drv);
         bdrv_img_create(target, format,

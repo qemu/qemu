@@ -280,7 +280,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         } else {
             ret = -EINVAL;
         }
-        error_setg_errno(errp, -ret, "Could not open file");
         goto fail;
     }
 

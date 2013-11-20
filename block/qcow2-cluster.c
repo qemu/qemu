@@ -290,7 +290,7 @@ static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
         uint64_t *l2_table, uint64_t stop_flags)
 {
     int i;
-    uint64_t mask = stop_flags | L2E_OFFSET_MASK | QCOW2_CLUSTER_COMPRESSED;
+    uint64_t mask = stop_flags | L2E_OFFSET_MASK | QCOW_OFLAG_COMPRESSED;
     uint64_t first_entry = be64_to_cpu(l2_table[0]);
     uint64_t offset = first_entry & mask;
 

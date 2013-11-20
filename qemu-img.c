@@ -1020,10 +1020,10 @@ static int img_compare(int argc, char **argv)
                 }
                 ret = compare_sectors(buf1, buf2, nb_sectors, &pnum);
                 if (ret || pnum != nb_sectors) {
-                    ret = 1;
                     qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
                             sectors_to_bytes(
                                 ret ? sector_num : sector_num + pnum));
+                    ret = 1;
                     goto out;
                 }
             }
@@ -1045,9 +1045,9 @@ static int img_compare(int argc, char **argv)
             }
             if (ret) {
                 if (ret < 0) {
-                    ret = 4;
                     error_report("Error while reading offset %" PRId64 ": %s",
                                  sectors_to_bytes(sector_num), strerror(-ret));
+                    ret = 4;
                 }
                 goto out;
             }
@@ -1092,10 +1092,10 @@ static int img_compare(int argc, char **argv)
                                           filename_over, buf1, quiet);
                 if (ret) {
                     if (ret < 0) {
-                        ret = 4;
                         error_report("Error while reading offset %" PRId64
                                      " of %s: %s", sectors_to_bytes(sector_num),
                                      filename_over, strerror(-ret));
+                        ret = 4;
                     }
                     goto out;
                 }

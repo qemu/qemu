@@ -838,8 +838,9 @@ char *object_property_get_str(Object *obj, const char *name,
 void object_property_set_link(Object *obj, Object *value,
                               const char *name, Error **errp)
 {
-    object_property_set_str(obj, object_get_canonical_path(value),
-                            name, errp);
+    gchar *path = object_get_canonical_path(value);
+    object_property_set_str(obj, path, name, errp);
+    g_free(path);
 }
 
 Object *object_property_get_link(Object *obj, const char *name,

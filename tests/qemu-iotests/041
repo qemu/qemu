@@ -677,5 +677,30 @@ class TestSetSpeed(ImageMirroringTestCase):
 
         self.wait_ready_and_cancel()
 
+class TestUnbackedSource(ImageMirroringTestCase):
+    image_len = 2 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img,
+                 str(TestUnbackedSource.image_len))
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(target_img)
+
+    def test_absolute_paths(self):
+        self.assert_no_active_block_jobs()
+
+        for sync_mode in ['full', 'top', 'none']:
+            result = self.vm.qmp('drive-mirror', device='drive0',
+                                 sync=sync_mode, target=target_img,
+                                 mode='absolute-paths')
+            self.assert_qmp(result, 'return', {})
+            self.complete_and_wait()
+            self.assert_no_active_block_jobs()
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
