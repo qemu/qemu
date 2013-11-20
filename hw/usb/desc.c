@@ -6,16 +6,6 @@
 
 /* ------------------------------------------------------------------ */
 
-static uint8_t usb_lo(uint16_t val)
-{
-    return val & 0xff;
-}
-
-static uint8_t usb_hi(uint16_t val)
-{
-    return (val >> 8) & 0xff;
-}
-
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len)
 {
