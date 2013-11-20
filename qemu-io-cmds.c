@@ -1956,6 +1956,18 @@ static int break_f(BlockDriverState *bs, int argc, char **argv)
     return 0;
 }
 
+static int remove_break_f(BlockDriverState *bs, int argc, char **argv)
+{
+    int ret;
+
+    ret = bdrv_debug_remove_breakpoint(bs, argv[1]);
+    if (ret < 0) {
+        printf("Could not remove breakpoint %s: %s\n", argv[1], strerror(-ret));
+    }
+
+    return 0;
+}
+
 static const cmdinfo_t break_cmd = {
        .name           = "break",
        .argmin         = 2,
@@ -1964,6 +1976,15 @@ static const cmdinfo_t break_cmd = {
        .args           = "event tag",
        .oneline        = "sets a breakpoint on event and tags the stopped "
                          "request as tag",
+};
+
+static const cmdinfo_t remove_break_cmd = {
+       .name           = "remove_break",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = remove_break_f,
+       .args           = "tag",
+       .oneline        = "remove a breakpoint by tag",
 };
 
 static int resume_f(BlockDriverState *bs, int argc, char **argv)
@@ -2126,6 +2147,7 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&alloc_cmd);
     qemuio_add_command(&map_cmd);
     qemuio_add_command(&break_cmd);
+    qemuio_add_command(&remove_break_cmd);
     qemuio_add_command(&resume_cmd);
     qemuio_add_command(&wait_break_cmd);
     qemuio_add_command(&abort_cmd);
