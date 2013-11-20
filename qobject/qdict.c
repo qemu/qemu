@@ -481,7 +481,7 @@ static void qdict_do_flatten(QDict *qdict, QDict *target, const char *prefix)
 {
     QObject *value;
     const QDictEntry *entry, *next;
-    const char *new_key;
+    char *new_key;
     bool delete;
 
     entry = qdict_first(qdict);
@@ -505,6 +505,8 @@ static void qdict_do_flatten(QDict *qdict, QDict *target, const char *prefix)
                              new_key ? new_key : entry->key);
             delete = true;
         }
+
+        g_free(new_key);
 
         if (delete) {
             qdict_del(qdict, entry->key);
