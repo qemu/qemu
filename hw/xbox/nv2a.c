@@ -244,6 +244,9 @@
 #   define NV_PGRAPH_TRAPPED_ADDR_CHID                        0x01F00000
 #   define NV_PGRAPH_TRAPPED_ADDR_DHV                         0x10000000
 #define NV_PGRAPH_TRAPPED_DATA_LOW                       0x00000708
+#define NV_PGRAPH_INCREMENT                              0x0000071C
+#   define NV_PGRAPH_INCREMENT_READ_BLIT                        (1 << 0)
+#   define NV_PGRAPH_INCREMENT_READ_3D                          (1 << 1)
 #define NV_PGRAPH_FIFO                                   0x00000720
 #   define NV_PGRAPH_FIFO_ACCESS                                (1 << 0)
 #define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
@@ -280,6 +283,8 @@
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
+#define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
+#define NV_PGRAPH_ZCLIPMIN                               0x00001A90
 
 #define NV_PCRTC_INTR_0                                  0x00000100
 #   define NV_PCRTC_INTR_0_VBLANK                               (1 << 0)
@@ -433,6 +438,8 @@
 #   define NV097_SET_COMBINER_SPECULAR_FOG_CW0                0x00970288
 #   define NV097_SET_COMBINER_SPECULAR_FOG_CW1                0x0097028C
 #   define NV097_SET_COLOR_MASK                               0x00970358
+#   define NV097_SET_CLIP_MIN                                 0x00970394
+#   define NV097_SET_CLIP_MAX                                 0x00970398
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
@@ -569,7 +576,7 @@ static const GLenum kelvin_texture_mag_filter_map[] = {
 
 typedef struct ColorFormatInfo {
     unsigned int bytes_per_pixel;
-    bool swizzled;
+    bool linear;
     GLint gl_internal_format;
     GLenum gl_format;
     GLenum gl_type;
@@ -577,32 +584,32 @@ typedef struct ColorFormatInfo {
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
-        {2, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+        {2, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
-        {2, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
+        {2, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
-        {2, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
+        {2, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
-        {2, true, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV},
+        {2, false, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
-        {4, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
-        {4, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5] =
-        {4, true, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
+        {4, false, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8] =
-        {4, true, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, GL_RGBA},
+        {4, false, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
-        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
-        {2, true, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
+        {2, false, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
-        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
-        {2, false, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
+        {2, true, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
 };
 
 
@@ -861,6 +868,8 @@ typedef struct PGRAPHState {
 
     bool fifo_access;
     QemuCond fifo_access_cond;
+
+    QemuSemaphore read_3d;
 
     unsigned int channel_id;
     bool channel_valid;
@@ -1326,19 +1335,19 @@ static void kelvin_bind_vertex_program(KelvinState *kelvin)
     glBindProgramARB(GL_VERTEX_PROGRAM_ARB, shader->gl_program);
 
     if (shader->dirty) {
-        QString *shader_code = vsh_translate(VSH_VERSION_XVS,
+        QString *program_code = vsh_translate(VSH_VERSION_XVS,
                                              shader->program_data,
                                              shader->program_length);
-        const char* shader_code_str = qstring_get_str(shader_code);
+        const char* program_code_str = qstring_get_str(program_code);
 
         NV2A_DPRINTF("bind vertex program %d, code:\n%s\n",
                      kelvin->vertexshader_start_slot,
-                     shader_code_str);
+                     program_code_str);
 
         glProgramStringARB(GL_VERTEX_PROGRAM_ARB,
                            GL_PROGRAM_FORMAT_ASCII_ARB,
-                           strlen(shader_code_str),
-                           shader_code_str);
+                           strlen(program_code_str),
+                           program_code_str);
 
         /* Check it compiled */
         GLint pos;
@@ -1363,7 +1372,7 @@ static void kelvin_bind_vertex_program(KelvinState *kelvin)
 
         assert(glGetError() == GL_NO_ERROR);
 
-        QDECREF(shader_code);
+        QDECREF(program_code);
         shader->dirty = false;
     }
 
@@ -1489,7 +1498,7 @@ static void pgraph_bind_textures(NV2AState *d)
             GLenum gl_target;
             GLuint gl_texture;
             unsigned int width, height;
-            if (!f.swizzled) {
+            if (f.linear) {
                 /* linear textures use unnormalised texcoords.
                  * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
                  * does not allow repeat and mirror wrap modes.
@@ -1553,26 +1562,26 @@ static void pgraph_bind_textures(NV2AState *d)
                                        texture_data);
             } else {
 
-                if (f.swizzled) {
+                if (f.linear) {
+                    /* Can't handle retarded strides */
+                    assert(texture->pitch % f.bytes_per_pixel == 0);
+                    glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                                  texture->pitch / f.bytes_per_pixel);
+                } else {
                     unsigned int pitch = width * f.bytes_per_pixel;
                     uint8_t *unswizzled = g_malloc(height * pitch);
                     unswizzle_rect(texture_data, width, height, 1,
                                    unswizzled, pitch, f.bytes_per_pixel);
                     texture_data = unswizzled;
-                } else {
-                    /* Can't handle retarded strides */
-                    assert(texture->pitch % f.bytes_per_pixel == 0);
-                    glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                                  texture->pitch / f.bytes_per_pixel);
                 }
                 glTexImage2D(gl_target, 0, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
                              texture_data);
-                if (f.swizzled) {
-                    g_free(texture_data);
-                } else {
+                if (f.linear) {
                     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                } else {
+                    g_free(texture_data);
                 }
             }
 
@@ -1629,11 +1638,13 @@ static GLuint generate_shaders(ShaderState state)
 "attribute vec4 multiTexCoord3;\n"
 
 "uniform mat4 composite;\n"
+"uniform mat4 invViewport;\n"
 "void main() {\n"
-"   gl_Position = position * composite;\n"
+"   gl_Position = invViewport * (position * composite);\n"
 /* temp hack: the composite matrix includes the view transform... */
-"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
-"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
+//"   gl_Position = position * composite;\n"
+//"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
+//"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
 "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n"
 "   gl_FrontColor = diffuse;\n"
 "   gl_TexCoord[0] = multiTexCoord0;\n"
@@ -1772,8 +1783,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         for (i = 0; i < 4; i++) {
             state.rect_tex[i] = false;
             if (pg->textures[i].enabled
-                && !kelvin_color_format_map[
-                        pg->textures[i].color_format].swizzled) {
+                && kelvin_color_format_map[
+                        pg->textures[i].color_format].linear) {
                 state.rect_tex[i] = true;
             }
         }
@@ -1826,8 +1837,36 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
     /* update fixed function composite matrix */
     if (fixed_function) {
-        GLint loc = glGetUniformLocation(pg->gl_program, "composite");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, pg->composite_matrix);
+        GLint comLoc = glGetUniformLocation(pg->gl_program, "composite");
+        glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
+
+
+        float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
+        float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
+
+        /* estimate the viewport by assuming it matches the surface ... */
+        float m11 = 0.5 * pg->surface_width;
+        float m22 = -0.5 * pg->surface_height;
+        float m33 = zclip_max - zclip_min;
+        //float m41 = m11;
+        //float m42 = -m22;
+        float m43 = zclip_min;
+        //float m44 = 1.0;
+
+
+        if (m33 == 0.0) {
+            m33 = 1.0;
+        }
+        float invViewport[16] = {
+            1.0/m11, 0, 0, 0,
+            0, 1.0/m22, 0, 0,
+            0, 0, 1.0/m33, 0,
+            -1.0, 1.0, -m43/m33, 1.0
+        };
+
+        GLint viewLoc = glGetUniformLocation(pg->gl_program, "invViewport");
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &invViewport[0]);
+
     }
 
     pg->shaders_dirty = false;
@@ -1967,6 +2006,7 @@ static void pgraph_init(PGRAPHState *pg)
     qemu_mutex_init(&pg->lock);
     qemu_cond_init(&pg->interrupt_cond);
     qemu_cond_init(&pg->fifo_access_cond);
+    qemu_sem_init(&pg->read_3d, 0);
 
     /* fire up opengl */
 
@@ -2041,6 +2081,7 @@ static void pgraph_destroy(PGRAPHState *pg)
     qemu_mutex_destroy(&pg->lock);
     qemu_cond_destroy(&pg->interrupt_cond);
     qemu_cond_destroy(&pg->fifo_access_cond);
+    qemu_sem_destroy(&pg->read_3d);
 
     glo_set_current(pg->gl_context);
 
@@ -2206,23 +2247,23 @@ static void pgraph_method(NV2AState *d,
          * but nothing obvious sticks out. Weird.
          */
         if (parameter != 0) {
-            assert(!(d->pgraph.pending_interrupts & NV_PGRAPH_INTR_NOTIFY));
+            assert(!(pg->pending_interrupts & NV_PGRAPH_INTR_NOTIFY));
 
-            d->pgraph.trapped_channel_id = d->pgraph.channel_id;
-            d->pgraph.trapped_subchannel = subchannel;
-            d->pgraph.trapped_method = method;
-            d->pgraph.trapped_data[0] = parameter;
-            d->pgraph.notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
-            d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
+            pg->trapped_channel_id = pg->channel_id;
+            pg->trapped_subchannel = subchannel;
+            pg->trapped_method = method;
+            pg->trapped_data[0] = parameter;
+            pg->notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
+            pg->pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
 
-            qemu_mutex_unlock(&d->pgraph.lock);
+            qemu_mutex_unlock(&pg->lock);
             qemu_mutex_lock_iothread();
             update_irq(d);
-            qemu_mutex_lock(&d->pgraph.lock);
+            qemu_mutex_lock(&pg->lock);
             qemu_mutex_unlock_iothread();
 
-            while (d->pgraph.pending_interrupts & NV_PGRAPH_INTR_NOTIFY) {
-                qemu_cond_wait(&d->pgraph.interrupt_cond, &d->pgraph.lock);
+            while (pg->pending_interrupts & NV_PGRAPH_INTR_NOTIFY) {
+                qemu_cond_wait(&pg->interrupt_cond, &pg->lock);
             }
         }
         break;
@@ -2234,6 +2275,10 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_FLIP_STALL:
         pgraph_update_surface(d, false);
+
+        qemu_mutex_unlock(&pg->lock);
+        qemu_sem_wait(&pg->read_3d);
+        qemu_mutex_lock(&pg->lock);
         break;
     
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
@@ -2329,6 +2374,13 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COLOR_MASK:
         pg->color_mask = parameter;
+        break;
+
+    case NV097_SET_CLIP_MIN:
+        pg->regs[NV_PGRAPH_ZCLIPMIN] = parameter;
+        break;
+    case NV097_SET_CLIP_MAX:
+        pg->regs[NV_PGRAPH_ZCLIPMAX] = parameter;
         break;
 
     case NV097_SET_COMPOSITE_MATRIX ...
@@ -2540,10 +2592,10 @@ static void pgraph_method(NV2AState *d,
 
 
                 uint32_t max_element = 0;
-                uint32_t min_elemenet = (uint32_t)-1;
+                uint32_t min_element = (uint32_t)-1;
                 for (i=0; i<kelvin->inline_elements_length; i++) {
                     max_element = MAX(kelvin->inline_elements[i], max_element);
-                    min_elemenet = MIN(kelvin->inline_elements[i], min_elemenet);
+                    min_element = MIN(kelvin->inline_elements[i], min_element);
                 }
 
                 kelvin_bind_converted_vertex_attributes(d, kelvin,
@@ -3756,6 +3808,11 @@ static void pgraph_write(void *opaque, hwaddr addr,
         qemu_mutex_lock(&d->pgraph.lock);
         pgraph_set_context_user(d, val);
         qemu_mutex_unlock(&d->pgraph.lock);
+        break;
+    case NV_PGRAPH_INCREMENT:
+        if (val & NV_PGRAPH_INCREMENT_READ_3D) {
+            qemu_sem_post(&d->pgraph.read_3d);
+        }
         break;
     case NV_PGRAPH_FIFO:
         qemu_mutex_lock(&d->pgraph.lock);
