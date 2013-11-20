@@ -7224,7 +7224,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto do_xchg_reg_eax;
         }
         if (prefixes & PREFIX_REPZ) {
-            gen_svm_check_intercept(s, pc_start, SVM_EXIT_PAUSE);
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_pause(cpu_env, tcg_const_i32(s->pc - pc_start));
+            s->is_jmp = DISAS_TB_JUMP;
         }
         break;
     case 0x9b: /* fwait */
