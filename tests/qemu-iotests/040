@@ -39,21 +39,6 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
-    def cancel_and_wait(self, drive='drive0'):
-        '''Cancel a block job and wait for it to finish'''
-        result = self.vm.qmp('block-job-cancel', device=drive)
-        self.assert_qmp(result, 'return', {})
-
-        cancelled = False
-        while not cancelled:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_CANCELLED':
-                    self.assert_qmp(event, 'data/type', 'commit')
-                    self.assert_qmp(event, 'data/device', drive)
-                    cancelled = True
-
-        self.assert_no_active_commit()
-
 class TestSingleDrive(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024
     test_len = 1 * 1024 * 256
