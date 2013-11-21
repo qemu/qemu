@@ -456,11 +456,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     uint32_t signature[3];
     int r;
 
+    memset(&cpuid_data, 0, sizeof(cpuid_data));
+
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
     c = &cpuid_data.entries[cpuid_i++];
-    memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_SIGNATURE;
     if (!hyperv_enabled(cpu)) {
         memcpy(signature, "KVMKVMKVM\0\0\0", 12);
@@ -474,7 +475,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     c->edx = signature[2];
 
     c = &cpuid_data.entries[cpuid_i++];
-    memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_FEATURES;
     c->eax = env->features[FEAT_KVM];
 
@@ -483,13 +483,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->eax = signature[0];
 
         c = &cpuid_data.entries[cpuid_i++];
-        memset(c, 0, sizeof(*c));
         c->function = HYPERV_CPUID_VERSION;
         c->eax = 0x00001bbc;
         c->ebx = 0x00060001;
 
         c = &cpuid_data.entries[cpuid_i++];
-        memset(c, 0, sizeof(*c));
         c->function = HYPERV_CPUID_FEATURES;
         if (cpu->hyperv_relaxed_timing) {
             c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
@@ -500,7 +498,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
 
         c = &cpuid_data.entries[cpuid_i++];
-        memset(c, 0, sizeof(*c));
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
             c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
@@ -511,13 +508,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->ebx = cpu->hyperv_spinlock_attempts;
 
         c = &cpuid_data.entries[cpuid_i++];
-        memset(c, 0, sizeof(*c));
         c->function = HYPERV_CPUID_IMPLEMENT_LIMITS;
         c->eax = 0x40;
         c->ebx = 0x40;
 
         c = &cpuid_data.entries[cpuid_i++];
-        memset(c, 0, sizeof(*c));
         c->function = KVM_CPUID_SIGNATURE_NEXT;
         memcpy(signature, "KVMKVMKVM\0\0\0", 12);
         c->eax = 0;
@@ -1314,8 +1309,8 @@ static int kvm_get_xcrs(X86CPU *cpu)
 
     for (i = 0; i < xcrs.nr_xcrs; i++) {
         /* Only support xcr0 now */
-        if (xcrs.xcrs[0].xcr == 0) {
-            env->xcr0 = xcrs.xcrs[0].value;
+        if (xcrs.xcrs[i].xcr == 0) {
+            env->xcr0 = xcrs.xcrs[i].value;
             break;
         }
     }
