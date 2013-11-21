@@ -1828,6 +1828,11 @@ static void tcg_commit(MemoryListener *listener)
     CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
+        /* FIXME: Disentangle the cpu.h circular files deps so we can
+           directly get the right CPU from listener.  */
+        if (cpu->tcg_as_listener != listener) {
+            continue;
+        }
         tlb_flush(env, 1);
     }
 }
