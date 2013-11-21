@@ -7,9 +7,10 @@ int main(void)
 
     b = 0x01;
     c = 0xffffffff;
-    result = 1;
+    result = 0;
     __asm
-    ("l.addc   %0, %1, %2\n\t"
+    ("l.add r1, r1, r0\n\t" /* clear carry */
+     "l.addc   %0, %1, %2\n\t"
      : "=r"(a)
      : "r"(b), "r"(c)
     );
@@ -22,7 +23,8 @@ int main(void)
     c = 0xffffffff;
     result = 0x80000001;
     __asm
-    ("l.addc   %0, %1, %2\n\t"
+    ("l.add r1, r1, r0\n\t" /* clear carry */
+     "l.addc   %0, %1, %2\n\t"
      "l.movhi  %2, 0x7fff\n\t"
      "l.ori    %2, %2, 0xffff\n\t"
      "l.addc   %0, %1, %2\n\t"
