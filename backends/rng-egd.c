@@ -91,12 +91,14 @@ static int rng_egd_chr_can_read(void *opaque)
 static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
 {
     RngEgd *s = RNG_EGD(opaque);
+    size_t buf_offset = 0;
 
     while (size > 0 && s->requests) {
         RngRequest *req = s->requests->data;
         int len = MIN(size, req->size - req->offset);
 
-        memcpy(req->data + req->offset, buf, len);
+        memcpy(req->data + req->offset, buf + buf_offset, len);
+        buf_offset += len;
         req->offset += len;
         size -= len;
 
