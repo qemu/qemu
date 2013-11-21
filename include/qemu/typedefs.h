@@ -26,6 +26,7 @@ typedef struct BusClass BusClass;
 typedef struct AddressSpace AddressSpace;
 typedef struct MemoryRegion MemoryRegion;
 typedef struct MemoryRegionSection MemoryRegionSection;
+typedef struct MemoryListener MemoryListener;
 
 typedef struct MemoryMappingList MemoryMappingList;
 

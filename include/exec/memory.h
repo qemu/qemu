@@ -163,8 +163,6 @@ struct MemoryRegion {
     NotifierList iommu_notify;
 };
 
-typedef struct MemoryListener MemoryListener;
-
 /**
  * MemoryListener: callbacks structure for updates to the physical memory map
  *
