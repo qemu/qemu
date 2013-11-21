@@ -720,6 +720,9 @@ static void usb_host_ep_update(USBHostDevice *s)
     struct libusb_config_descriptor *conf;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
+#if LIBUSBX_API_VERSION >= 0x01000103
+    struct libusb_ss_endpoint_companion_descriptor *endp_ss_comp;
+#endif
     uint8_t devep, type;
     int pid, ep;
     int rc, i, e;
@@ -765,6 +768,15 @@ static void usb_host_ep_update(USBHostDevice *s)
             usb_ep_set_type(udev, pid, ep, type);
             usb_ep_set_ifnum(udev, pid, ep, i);
             usb_ep_set_halted(udev, pid, ep, 0);
+#if LIBUSBX_API_VERSION >= 0x01000103
+            if (type == LIBUSB_TRANSFER_TYPE_BULK &&
+                    libusb_get_ss_endpoint_companion_descriptor(ctx, endp,
+                        &endp_ss_comp) == LIBUSB_SUCCESS) {
+                usb_ep_set_max_streams(udev, pid, ep,
+                                       endp_ss_comp->bmAttributes);
+                libusb_free_ss_endpoint_companion_descriptor(endp_ss_comp);
+            }
+#endif
         }
     }
 
