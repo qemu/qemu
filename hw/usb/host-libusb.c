@@ -1214,10 +1214,23 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
             usb_packet_copy(p, r->buffer, size);
         }
         ep = p->ep->nr | (r->in ? USB_DIR_IN : 0);
-        libusb_fill_bulk_transfer(r->xfer, s->dh, ep,
-                                  r->buffer, size,
-                                  usb_host_req_complete_data, r,
-                                  BULK_TIMEOUT);
+        if (p->stream) {
+#if LIBUSBX_API_VERSION >= 0x01000103
+            libusb_fill_bulk_stream_transfer(r->xfer, s->dh, ep, p->stream,
+                                             r->buffer, size,
+                                             usb_host_req_complete_data, r,
+                                             BULK_TIMEOUT);
+#else
+            usb_host_req_free(r);
+            p->status = USB_RET_STALL;
+            return;
+#endif
+        } else {
+            libusb_fill_bulk_transfer(r->xfer, s->dh, ep,
+                                      r->buffer, size,
+                                      usb_host_req_complete_data, r,
+                                      BULK_TIMEOUT);
+        }
         break;
     case USB_ENDPOINT_XFER_INT:
         r = usb_host_req_alloc(s, p, p->pid == USB_TOKEN_IN, p->iov.size);
