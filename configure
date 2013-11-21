@@ -1320,9 +1320,11 @@ for flag in $gcc_flags; do
     fi
 done
 
-if compile_prog "-Werror -fstack-protector-all" "" ; then
+if test "$mingw32" != "yes"; then
+  if compile_prog "-Werror -fstack-protector-all" ""; then
     QEMU_CFLAGS="$QEMU_CFLAGS -fstack-protector-all"
     LIBTOOLFLAGS="$LIBTOOLFLAGS -Wc,-fstack-protector-all"
+  fi
 fi
 
 # Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
