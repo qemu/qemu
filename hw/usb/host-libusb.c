@@ -1280,6 +1280,54 @@ static void usb_host_handle_reset(USBDevice *udev)
     }
 }
 
+static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
+                                  int nr_eps, int streams)
+{
+#if LIBUSBX_API_VERSION >= 0x01000103
+    USBHostDevice *s = USB_HOST_DEVICE(udev);
+    unsigned char endpoints[30];
+    int i, rc;
+
+    for (i = 0; i < nr_eps; i++) {
+        endpoints[i] = eps[i]->nr;
+        if (eps[i]->pid == USB_TOKEN_IN) {
+            endpoints[i] |= 0x80;
+        }
+    }
+    rc = libusb_alloc_streams(s->dh, streams, endpoints, nr_eps);
+    if (rc < 0) {
+        usb_host_libusb_error("libusb_alloc_streams", rc);
+    } else if (rc != streams) {
+        fprintf(stderr,
+            "libusb_alloc_streams: got less streams then requested %d < %d\n",
+            rc, streams);
+    }
+
+    return (rc == streams) ? 0 : -1;
+#else
+    fprintf(stderr, "libusb_alloc_streams: error not implemented\n");
+    return -1;
+#endif
+}
+
+static void usb_host_free_streams(USBDevice *udev, USBEndpoint **eps,
+                                  int nr_eps)
+{
+#if LIBUSBX_API_VERSION >= 0x01000103
+    USBHostDevice *s = USB_HOST_DEVICE(udev);
+    unsigned char endpoints[30];
+    int i;
+
+    for (i = 0; i < nr_eps; i++) {
+        endpoints[i] = eps[i]->nr;
+        if (eps[i]->pid == USB_TOKEN_IN) {
+            endpoints[i] |= 0x80;
+        }
+    }
+    libusb_free_streams(s->dh, endpoints, nr_eps);
+#endif
+}
+
 /*
  * This is *NOT* about restoring state.  We have absolutely no idea
  * what state the host device is in at the moment and whenever it is
@@ -1361,6 +1409,8 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usb_host_handle_reset;
     uc->handle_destroy = usb_host_handle_destroy;
     uc->flush_ep_queue = usb_host_flush_ep_queue;
+    uc->alloc_streams  = usb_host_alloc_streams;
+    uc->free_streams   = usb_host_free_streams;
     dc->vmsd = &vmstate_usb_host;
     dc->props = usb_host_dev_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
