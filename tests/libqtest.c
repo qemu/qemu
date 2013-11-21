@@ -45,7 +45,6 @@ struct QTestState
     GString *rx;
     int child_pid;   /* Child process created to execute QEMU */
     pid_t qemu_pid;  /* QEMU process spawned by our child */
-    char *socket_path, *qmp_socket_path;
 };
 
 #define g_assert_no_errno(ret) do { \
@@ -110,6 +109,8 @@ QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
     gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
@@ -120,12 +121,12 @@ QTestState *qtest_init(const char *extra_args)
 
     s = g_malloc(sizeof(*s));
 
-    s->socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    s->qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
     pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
 
-    sock = init_socket(s->socket_path);
-    qmpsock = init_socket(s->qmp_socket_path);
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
 
     pid = fork();
     if (pid == 0) {
@@ -136,8 +137,8 @@ QTestState *qtest_init(const char *extra_args)
                                   "-pidfile %s "
                                   "-machine accel=qtest "
                                   "-display none "
-                                  "%s", qemu_binary, s->socket_path,
-                                  s->qmp_socket_path, pid_file,
+                                  "%s", qemu_binary, socket_path,
+                                  qmp_socket_path, pid_file,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
@@ -145,6 +146,10 @@ QTestState *qtest_init(const char *extra_args)
 
     s->fd = socket_accept(sock);
     s->qmp_fd = socket_accept(qmpsock);
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+    g_free(socket_path);
+    g_free(qmp_socket_path);
 
     s->rx = g_string_new("");
     s->child_pid = pid;
@@ -179,10 +184,6 @@ void qtest_quit(QTestState *s)
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
-    unlink(s->socket_path);
-    unlink(s->qmp_socket_path);
-    g_free(s->socket_path);
-    g_free(s->qmp_socket_path);
     g_free(s);
 }
 
