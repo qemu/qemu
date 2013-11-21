@@ -30,6 +30,7 @@ typedef struct {
     AcpiRsdpDescriptor rsdp_table;
     AcpiRsdtDescriptorRev1 rsdt_table;
     AcpiFadtDescriptorRev1 fadt_table;
+    AcpiFacsDescriptorRev1 facs_table;
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
     AcpiSdtTable dsdt_table;
@@ -252,6 +253,22 @@ static void test_acpi_fadt_table(test_data *data)
     g_assert(!acpi_checksum((uint8_t *)fadt_table, fadt_table->length));
 }
 
+static void test_acpi_facs_table(test_data *data)
+{
+    AcpiFacsDescriptorRev1 *facs_table = &data->facs_table;
+    uint32_t addr = data->fadt_table.firmware_ctrl;
+
+    ACPI_READ_FIELD(facs_table->signature, addr);
+    ACPI_READ_FIELD(facs_table->length, addr);
+    ACPI_READ_FIELD(facs_table->hardware_signature, addr);
+    ACPI_READ_FIELD(facs_table->firmware_waking_vector, addr);
+    ACPI_READ_FIELD(facs_table->global_lock, addr);
+    ACPI_READ_FIELD(facs_table->flags, addr);
+    ACPI_READ_ARRAY(facs_table->resverved3, addr);
+
+    g_assert_cmphex(facs_table->signature, ==, ACPI_FACS_SIGNATURE);
+}
+
 static void test_dst_table(AcpiSdtTable *sdt_table, uint32_t addr)
 {
     uint8_t checksum;
@@ -329,6 +346,7 @@ static void test_acpi_one(const char *params)
     test_acpi_rsdp_table(&data);
     test_acpi_rsdt_table(&data);
     test_acpi_fadt_table(&data);
+    test_acpi_facs_table(data);
     test_acpi_dsdt_table(&data);
     test_acpi_ssdt_tables(&data);
 
