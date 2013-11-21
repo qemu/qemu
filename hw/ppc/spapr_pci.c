@@ -32,6 +32,7 @@
 #include "exec/address-spaces.h"
 #include <libfdt.h>
 #include "trace.h"
+#include "qemu/error-report.h"
 
 #include "hw/pci/pci_bus.h"
 
@@ -292,7 +293,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         ret_intr_type = RTAS_TYPE_MSIX;
         break;
     default:
-        fprintf(stderr, "rtas_ibm_change_msi(%u) is not implemented\n", func);
+        error_report("rtas_ibm_change_msi(%u) is not implemented", func);
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
@@ -326,7 +327,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     /* Find a device number in the map to add or reuse the existing one */
     ndev = spapr_msicfg_find(phb, config_addr, true);
     if (ndev >= SPAPR_MSIX_MAX_DEVS || ndev < 0) {
-        fprintf(stderr, "No free entry for a new MSI device\n");
+        error_report("No free entry for a new MSI device");
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -335,7 +336,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     /* Check if there is an old config and MSI number has not changed */
     if (phb->msi_table[ndev].nvec && (req_num != phb->msi_table[ndev].nvec)) {
         /* Unexpected behaviour */
-        fprintf(stderr, "Cannot reuse MSI config for device#%d", ndev);
+        error_report("Cannot reuse MSI config for device#%d", ndev);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -345,7 +346,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         irq = spapr_allocate_irq_block(req_num, false,
                                        ret_intr_type == RTAS_TYPE_MSI);
         if (irq < 0) {
-            fprintf(stderr, "Cannot allocate MSIs for device#%d", ndev);
+            error_report("Cannot allocate MSIs for device#%d", ndev);
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
             return;
         }
