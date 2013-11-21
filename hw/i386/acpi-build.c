@@ -287,16 +287,17 @@ static inline void build_append_array(GArray *array, GArray *val)
 
 static void build_append_nameseg(GArray *array, const char *format, ...)
 {
-    GString *s = g_string_new("");
+    /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
+    char s[] = "XXXX";
+    int len;
     va_list args;
 
     va_start(args, format);
-    g_string_vprintf(s, format, args);
+    len = vsnprintf(s, sizeof s, format, args);
     va_end(args);
 
-    assert(s->len == 4);
-    g_array_append_vals(array, s->str, s->len);
-    g_string_free(s, true);
+    assert(len == 4);
+    g_array_append_vals(array, s, len);
 }
 
 /* 5.4 Definition Block Encoding */
