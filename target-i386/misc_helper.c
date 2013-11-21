@@ -566,6 +566,15 @@ void helper_rdmsr(CPUX86State *env)
 }
 #endif
 
+static void QEMU_NORETURN do_pause(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    /* Just let another CPU run.  */
+    env->exception_index = EXCP_INTERRUPT;
+    cpu_loop_exit(env);
+}
+
 static void QEMU_NORETURN do_hlt(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -596,7 +605,7 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0);
 }
 
-void helper_mwait(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_mwait(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs;
     X86CPU *cpu;
@@ -611,11 +620,20 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     cs = CPU(cpu);
     /* XXX: not complete but not completely erroneous */
     if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
-        /* more than one CPU: do not sleep because another CPU may
-           wake this one */
+        do_pause(cpu);
     } else {
         do_hlt(cpu);
     }
+}
+
+void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
+{
+    X86CPU *cpu = x86_env_get_cpu(env);
+
+    cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0);
+    env->eip += next_eip_addend;
+
+    do_pause(cpu);
 }
 
 void QEMU_NORETURN helper_debug(CPUX86State *env)

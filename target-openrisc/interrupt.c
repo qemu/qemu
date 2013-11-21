@@ -30,26 +30,15 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
 #ifndef CONFIG_USER_ONLY
-    if (env->flags & D_FLAG) { /* Delay Slot insn */
+
+    env->epcr = env->pc;
+    if (env->flags & D_FLAG) {
         env->flags &= ~D_FLAG;
         env->sr |= SR_DSX;
-        if (env->exception_index == EXCP_TICK    ||
-            env->exception_index == EXCP_INT     ||
-            env->exception_index == EXCP_SYSCALL ||
-            env->exception_index == EXCP_FPE) {
-            env->epcr = env->jmp_pc;
-        } else {
-            env->epcr = env->pc - 4;
-        }
-    } else {
-        if (env->exception_index == EXCP_TICK    ||
-            env->exception_index == EXCP_INT     ||
-            env->exception_index == EXCP_SYSCALL ||
-            env->exception_index == EXCP_FPE) {
-            env->epcr = env->npc;
-        } else {
-            env->epcr = env->pc;
-        }
+        env->epcr -= 4;
+    }
+    if (env->exception_index == EXCP_SYSCALL) {
+        env->epcr += 4;
     }
 
     /* For machine-state changed between user-mode and supervisor mode,

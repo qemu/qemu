@@ -90,7 +90,7 @@ enum {
 
 GArray *bios_linker_loader_init(void)
 {
-    return g_array_new(false, true /* clear */, sizeof(BiosLinkerLoaderEntry));
+    return g_array_new(false, true /* clear */, 1);
 }
 
 /* Free linker wrapper and return the linker array. */
@@ -115,7 +115,7 @@ void bios_linker_loader_alloc(GArray *linker,
                                     BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
 
     /* Alloc entries must come first, so prepend them */
-    g_array_prepend_val(linker, entry);
+    g_array_prepend_vals(linker, &entry, sizeof entry);
 }
 
 void bios_linker_loader_add_checksum(GArray *linker, const char *file,
@@ -132,7 +132,7 @@ void bios_linker_loader_add_checksum(GArray *linker, const char *file,
     entry.cksum.start = cpu_to_le32((uint8_t *)start - (uint8_t *)table);
     entry.cksum.length = cpu_to_le32(size);
 
-    g_array_append_val(linker, entry);
+    g_array_append_vals(linker, &entry, sizeof entry);
 }
 
 void bios_linker_loader_add_pointer(GArray *linker,
@@ -154,5 +154,5 @@ void bios_linker_loader_add_pointer(GArray *linker,
     assert(pointer_size == 1 || pointer_size == 2 ||
            pointer_size == 4 || pointer_size == 8);
 
-    g_array_append_val(linker, entry);
+    g_array_append_vals(linker, &entry, sizeof entry);
 }

@@ -168,14 +168,14 @@
 #endif
 
 #ifndef atomic_xchg
-#ifdef __ATOMIC_SEQ_CST
+#if defined(__clang__)
+#define atomic_xchg(ptr, i)    __sync_swap(ptr, i)
+#elif defined(__ATOMIC_SEQ_CST)
 #define atomic_xchg(ptr, i)    ({                           \
     typeof(*ptr) _new = (i), _old;                          \
     __atomic_exchange(ptr, &_new, &_old, __ATOMIC_SEQ_CST); \
     _old;                                                   \
 })
-#elif defined __clang__
-#define atomic_xchg(ptr, i)    __sync_exchange(ptr, i)
 #else
 /* __sync_lock_test_and_set() is documented to be an acquire barrier only.  */
 #define atomic_xchg(ptr, i)    (smp_mb(), __sync_lock_test_and_set(ptr, i))

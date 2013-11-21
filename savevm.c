@@ -794,7 +794,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
-        f->bytes_xfer += size;
+        f->bytes_xfer += l;
         if (f->ops->writev_buffer) {
             add_to_iovec(f, f->buf + f->buf_index, l);
         }

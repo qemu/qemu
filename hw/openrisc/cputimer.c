@@ -30,19 +30,28 @@ static int is_counting;
 
 void cpu_openrisc_count_update(OpenRISCCPU *cpu)
 {
-    uint64_t now, next;
-    uint32_t wait;
+    uint64_t now;
 
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     if (!is_counting) {
-        timer_del(cpu->env.timer);
-        last_clk = now;
         return;
     }
-
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     cpu->env.ttcr += (uint32_t)muldiv64(now - last_clk, TIMER_FREQ,
                                         get_ticks_per_sec());
     last_clk = now;
+}
+
+void cpu_openrisc_timer_update(OpenRISCCPU *cpu)
+{
+    uint32_t wait;
+    uint64_t now, next;
+
+    if (!is_counting) {
+        return;
+    }
+
+    cpu_openrisc_count_update(cpu);
+    now = last_clk;
 
     if ((cpu->env.ttmr & TTMR_TP) <= (cpu->env.ttcr & TTMR_TP)) {
         wait = TTMR_TP - (cpu->env.ttcr & TTMR_TP) + 1;
@@ -50,7 +59,6 @@ void cpu_openrisc_count_update(OpenRISCCPU *cpu)
     } else {
         wait = (cpu->env.ttmr & TTMR_TP) - (cpu->env.ttcr & TTMR_TP);
     }
-
     next = now + muldiv64(wait, get_ticks_per_sec(), TIMER_FREQ);
     timer_mod(cpu->env.timer, next);
 }
@@ -63,8 +71,9 @@ void cpu_openrisc_count_start(OpenRISCCPU *cpu)
 
 void cpu_openrisc_count_stop(OpenRISCCPU *cpu)
 {
-    is_counting = 0;
+    timer_del(cpu->env.timer);
     cpu_openrisc_count_update(cpu);
+    is_counting = 0;
 }
 
 static void openrisc_timer_cb(void *opaque)
@@ -84,15 +93,15 @@ static void openrisc_timer_cb(void *opaque)
         break;
     case TIMER_INTR:
         cpu->env.ttcr = 0;
-        cpu_openrisc_count_start(cpu);
         break;
     case TIMER_SHOT:
         cpu_openrisc_count_stop(cpu);
         break;
     case TIMER_CONT:
-        cpu_openrisc_count_start(cpu);
         break;
     }
+
+    cpu_openrisc_timer_update(cpu);
 }
 
 void cpu_openrisc_clock_init(OpenRISCCPU *cpu)

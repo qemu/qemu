@@ -139,6 +139,12 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
     VirtIORNG *vrng = VIRTIO_RNG(vdev);
     Error *local_err = NULL;
 
+    if (!vrng->conf.period_ms > 0) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "period",
+                      "a positive number");
+        return -1;
+    }
+
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
 
