@@ -34,7 +34,7 @@ typedef struct {
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
     AcpiSdtTable dsdt_table;
-    AcpiSdtTable *ssdt_tables;
+    GArray *ssdt_tables;
 } test_data;
 
 #define LOW(x) ((x) & 0xff)
@@ -117,6 +117,18 @@ static uint8_t boot_sector[0x200] = {
 };
 
 static const char *disk = "tests/acpi-test-disk.raw";
+
+static void free_test_data(test_data *data)
+{
+    int i;
+
+    g_free(data->rsdt_tables_addr);
+    for (i = 0; i < data->ssdt_tables->len; ++i) {
+        g_free(g_array_index(data->ssdt_tables, AcpiSdtTable, i).aml);
+    }
+    g_array_free(data->ssdt_tables, false);
+    g_free(data->dsdt_table.aml);
+}
 
 static uint8_t acpi_checksum(const uint8_t *data, int len)
 {
@@ -295,30 +307,30 @@ static void test_acpi_dsdt_table(test_data *data)
 
 static void test_acpi_ssdt_tables(test_data *data)
 {
-    AcpiSdtTable *ssdt_tables;
+    GArray *ssdt_tables;
     int ssdt_tables_nr = data->rsdt_tables_nr - 1; /* fadt is first */
     int i;
 
-    ssdt_tables = g_new0(AcpiSdtTable, ssdt_tables_nr);
+    ssdt_tables = g_array_sized_new(false, true, sizeof(AcpiSdtTable),
+                                    ssdt_tables_nr);
     for (i = 0; i < ssdt_tables_nr; i++) {
-        AcpiSdtTable *ssdt_table = &ssdt_tables[i];
+        AcpiSdtTable ssdt_table;
         uint32_t addr = data->rsdt_tables_addr[i + 1]; /* fadt is first */
-
-        test_dst_table(ssdt_table, addr);
+        test_dst_table(&ssdt_table, addr);
+        g_array_append_val(ssdt_tables, ssdt_table);
     }
     data->ssdt_tables = ssdt_tables;
 }
 
-static void test_acpi_one(const char *params)
+static void test_acpi_one(const char *params, test_data *data)
 {
     char *args;
     uint8_t signature_low;
     uint8_t signature_high;
     uint16_t signature;
     int i;
-    test_data data;
 
-    memset(&data, 0, sizeof(data));
+    memset(data, 0, sizeof(*data));
     args = g_strdup_printf("-net none -display none %s %s",
                            params ? params : "", disk);
     qtest_start(args);
@@ -342,20 +354,13 @@ static void test_acpi_one(const char *params)
     }
     g_assert_cmphex(signature, ==, SIGNATURE);
 
-    test_acpi_rsdp_address(&data);
-    test_acpi_rsdp_table(&data);
-    test_acpi_rsdt_table(&data);
-    test_acpi_fadt_table(&data);
+    test_acpi_rsdp_address(data);
+    test_acpi_rsdp_table(data);
+    test_acpi_rsdt_table(data);
+    test_acpi_fadt_table(data);
     test_acpi_facs_table(data);
-    test_acpi_dsdt_table(&data);
-    test_acpi_ssdt_tables(&data);
-
-    g_free(data.rsdt_tables_addr);
-    for (i = 0; i < (data.rsdt_tables_nr - 1); ++i) {
-        g_free(data.ssdt_tables[i].aml);
-    }
-    g_free(data.ssdt_tables);
-    g_free(data.dsdt_table.aml);
+    test_acpi_dsdt_table(data);
+    test_acpi_ssdt_tables(data);
 
     qtest_quit(global_qtest);
     g_free(args);
@@ -363,10 +368,14 @@ static void test_acpi_one(const char *params)
 
 static void test_acpi_tcg(void)
 {
+    test_data data;
+
     /* Supplying -machine accel argument overrides the default (qtest).
      * This is to make guest actually run.
      */
-    test_acpi_one("-machine accel=tcg");
+    test_acpi_one("-machine accel=tcg", &data);
+
+    free_test_data(&data);
 }
 
 int main(int argc, char *argv[])
