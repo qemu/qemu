@@ -1071,15 +1071,23 @@ void qmp_set_link(const char *name, bool up, Error **errp)
         nc->info->link_status_changed(nc);
     }
 
-    /* Notify peer. Don't update peer link status: this makes it possible to
-     * disconnect from host network without notifying the guest.
-     * FIXME: is disconnected link status change operation useful?
-     *
-     * Current behaviour is compatible with qemu vlans where there could be
-     * multiple clients that can still communicate with each other in
-     * disconnected mode. For now maintain this compatibility. */
-    if (nc->peer && nc->peer->info->link_status_changed) {
-        nc->peer->info->link_status_changed(nc->peer);
+    if (nc->peer) {
+        /* Change peer link only if the peer is NIC and then notify peer.
+         * If the peer is a HUBPORT or a backend, we do not change the
+         * link status.
+         *
+         * This behavior is compatible with qemu vlans where there could be
+         * multiple clients that can still communicate with each other in
+         * disconnected mode. For now maintain this compatibility.
+         */
+        if (nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+            for (i = 0; i < queues; i++) {
+                ncs[i]->peer->link_down = !up;
+            }
+        }
+        if (nc->peer->info->link_status_changed) {
+            nc->peer->info->link_status_changed(nc->peer);
+        }
     }
 }
 
