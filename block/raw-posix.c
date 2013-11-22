@@ -139,9 +139,10 @@ typedef struct BDRVRawState {
     void *aio_ctx;
 #endif
 #ifdef CONFIG_XFS
-    bool is_xfs : 1;
+    bool is_xfs:1;
 #endif
-    bool has_discard : 1;
+    bool has_discard:1;
+    bool discard_zeroes:1;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -283,6 +284,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     Error *local_err = NULL;
     const char *filename;
     int fd, ret;
+    struct stat st;
 
     opts = qemu_opts_create_nofail(&raw_runtime_opts);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -324,6 +326,15 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #endif
 
     s->has_discard = true;
+
+    if (fstat(s->fd, &st) < 0) {
+        error_setg_errno(errp, errno, "Could not stat file");
+        goto fail;
+    }
+    if (S_ISREG(st.st_mode)) {
+        s->discard_zeroes = true;
+    }
+
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
         s->is_xfs = true;
@@ -787,6 +798,29 @@ static int aio_worker(void *arg)
     return ret;
 }
 
+static int paio_submit_co(BlockDriverState *bs, int fd,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        int type)
+{
+    RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    ThreadPool *pool;
+
+    acb->bs = bs;
+    acb->aio_type = type;
+    acb->aio_fildes = fd;
+
+    if (qiov) {
+        acb->aio_iov = qiov->iov;
+        acb->aio_niov = qiov->niov;
+    }
+    acb->aio_nbytes = nb_sectors * 512;
+    acb->aio_offset = sector_num * 512;
+
+    trace_paio_submit_co(sector_num, nb_sectors, type);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_co(pool, aio_worker, acb);
+}
+
 static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
@@ -1199,6 +1233,31 @@ static coroutine_fn BlockDriverAIOCB *raw_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD);
 }
 
+static int coroutine_fn raw_co_write_zeroes(
+    BlockDriverState *bs, int64_t sector_num,
+    int nb_sectors, BdrvRequestFlags flags)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
+        return -ENOTSUP;
+    }
+    if (!s->discard_zeroes) {
+        return -ENOTSUP;
+    }
+    return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                          QEMU_AIO_DISCARD);
+}
+
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BDRVRawState *s = bs->opaque;
+
+    bdi->unallocated_blocks_are_zero = s->discard_zeroes;
+    bdi->can_write_zeroes_with_unmap = s->discard_zeroes;
+    return 0;
+}
+
 static QEMUOptionParameter raw_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -1222,6 +1281,7 @@ static BlockDriver bdrv_file = {
     .bdrv_create = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = raw_co_get_block_status,
+    .bdrv_co_write_zeroes = raw_co_write_zeroes,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,
@@ -1230,6 +1290,7 @@ static BlockDriver bdrv_file = {
 
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
+    .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
@@ -1585,6 +1646,7 @@ static BlockDriver bdrv_host_device = {
 
     .bdrv_truncate      = raw_truncate,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 

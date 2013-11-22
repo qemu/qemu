@@ -128,6 +128,7 @@ thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
 
 # block/raw-win32.c
 # block/raw-posix.c
+paio_submit_co(int64_t sector_num, int nb_sectors, int type) "sector_num %"PRId64" nb_sectors %d type %d"
 paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
 
 # ioport.c
