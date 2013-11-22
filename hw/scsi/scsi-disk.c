@@ -1548,6 +1548,11 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
     int len = r->req.cmd.xfer;
     UnmapCBData *data;
 
+    /* Reject ANCHOR=1.  */
+    if (r->req.cmd.buf[1] & 0x1) {
+        goto invalid_field;
+    }
+
     if (len < 8) {
         goto invalid_param_len;
     }
@@ -1578,6 +1583,10 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
 
 invalid_param_len:
     scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
+    return;
+
+invalid_field:
+    scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
 }
 
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
@@ -1856,8 +1865,9 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 
         /*
          * We only support WRITE SAME with the unmap bit set for now.
+         * Reject UNMAP=0 or ANCHOR=1.
          */
-        if (!(req->cmd.buf[1] & 0x8)) {
+        if (!(req->cmd.buf[1] & 0x8) || (req->cmd.buf[1] & 0x10)) {
             goto illegal_request;
         }
 
