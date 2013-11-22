@@ -39,7 +39,7 @@
 030 rw auto backing
 031 rw auto quick
 032 rw auto
-033 rw auto
+033 rw auto quick
 034 rw auto backing
 035 rw auto quick
 036 rw auto quick
