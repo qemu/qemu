@@ -122,6 +122,14 @@ static VirtBoardInfo machines[] = {
         .memmap = a15memmap,
         .irqmap = a15irqmap,
     },
+    {
+        .cpu_model = "host",
+        /* We use the A15 private peripheral model to get a V2 GIC */
+        .qdevname = "a15mpcore_priv",
+        .gic_compatible = "arm,cortex-a15-gic",
+        .memmap = a15memmap,
+        .irqmap = a15irqmap,
+    },
 };
 
 static VirtBoardInfo *find_machine_info(const char *cpu)
