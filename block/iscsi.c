@@ -1505,11 +1505,6 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
-static int iscsi_has_zero_init(BlockDriverState *bs)
-{
-    return 0;
-}
-
 static int iscsi_create(const char *filename, QEMUOptionParameter *options,
                         Error **errp)
 {
@@ -1607,8 +1602,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
     .bdrv_aio_flush  = iscsi_aio_flush,
-
-    .bdrv_has_zero_init = iscsi_has_zero_init,
 
 #ifdef __linux__
     .bdrv_ioctl       = iscsi_ioctl,
