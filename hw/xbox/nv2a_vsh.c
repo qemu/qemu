@@ -533,6 +533,7 @@ static QString* decode_token(uint32_t *shader_token)
                             vsh_get_field(shader_token, FLD_OUT_MAC_MASK),
                             mac_opcode[mac],
                             inputs_mac);
+        QDECREF(inputs_mac);
     } else {
         ret = qstring_new();
     }
