@@ -428,6 +428,10 @@ static int vmdk_add_extent(BlockDriverState *bs,
     extent->l2_size = l2_size;
     extent->cluster_sectors = flat ? sectors : cluster_sectors;
 
+    if (!flat) {
+        bs->bl.write_zeroes_alignment =
+            MAX(bs->bl.write_zeroes_alignment, cluster_sectors);
+    }
     if (s->num_extents > 1) {
         extent->end_sector = (*(extent - 1)).end_sector + extent->sectors;
     } else {

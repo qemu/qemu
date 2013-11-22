@@ -718,6 +718,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     qemu_opts_del(opts);
+    bs->bl.write_zeroes_alignment = s->cluster_sectors;
 
     if (s->use_lazy_refcounts && s->qcow_version < 3) {
         error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
