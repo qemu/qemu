@@ -331,6 +331,7 @@ static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     logout("\n");
     bdi->cluster_size = s->block_size;
     bdi->vm_state_offset = 0;
+    bdi->unallocated_blocks_are_zero = true;
     return 0;
 }
 
