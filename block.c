@@ -2888,7 +2888,7 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
                                       int64_t sector_num, int nb_sectors,
                                       BdrvRequestFlags flags)
 {
-    trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors);
+    trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors, flags);
 
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
         flags &= ~BDRV_REQ_MAY_UNMAP;
