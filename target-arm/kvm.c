@@ -23,15 +23,6 @@
 #include "cpu.h"
 #include "hw/arm/arm.h"
 
-/* Check that cpu.h's idea of coprocessor fields matches KVM's */
-#if (CP_REG_SIZE_SHIFT != KVM_REG_SIZE_SHIFT) || \
-    (CP_REG_SIZE_MASK != KVM_REG_SIZE_MASK) ||   \
-    (CP_REG_SIZE_U32 != KVM_REG_SIZE_U32) || \
-    (CP_REG_SIZE_U64 != KVM_REG_SIZE_U64) || \
-    (CP_REG_ARM != KVM_REG_ARM)
-#error mismatch between cpu.h and KVM header definitions
-#endif
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
