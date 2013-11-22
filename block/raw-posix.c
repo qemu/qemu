@@ -334,6 +334,22 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     if (S_ISREG(st.st_mode)) {
         s->discard_zeroes = true;
     }
+    if (S_ISBLK(st.st_mode)) {
+#ifdef BLKDISCARDZEROES
+        unsigned int arg;
+        if (ioctl(s->fd, BLKDISCARDZEROES, &arg) == 0 && arg) {
+            s->discard_zeroes = true;
+        }
+#endif
+#ifdef __linux__
+        /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
+         * not rely on the contents of discarded blocks unless using O_DIRECT.
+         */
+        if (!(bs->open_flags & BDRV_O_NOCACHE)) {
+            s->discard_zeroes = false;
+        }
+#endif
+    }
 
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
@@ -1586,6 +1602,26 @@ static coroutine_fn BlockDriverAIOCB *hdev_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
+static coroutine_fn int hdev_co_write_zeroes(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int rc;
+
+    rc = fd_open(bs);
+    if (rc < 0) {
+        return rc;
+    }
+    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
+        return -ENOTSUP;
+    }
+    if (!s->discard_zeroes) {
+        return -ENOTSUP;
+    }
+    return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                          QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
+}
+
 static int hdev_create(const char *filename, QEMUOptionParameter *options,
                        Error **errp)
 {
@@ -1638,6 +1674,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .bdrv_co_write_zeroes = hdev_co_write_zeroes,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
