@@ -55,6 +55,7 @@ typedef struct IscsiLun {
     QEMUTimer *nop_timer;
     uint8_t lbpme;
     uint8_t lbprz;
+    uint8_t has_write_same;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
     unsigned char *zeroblock;
@@ -976,8 +977,13 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
         return -EINVAL;
     }
 
-    if (!iscsilun->lbp.lbpws) {
-        /* WRITE SAME is not supported by the target */
+    if (!(flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->has_write_same) {
+        /* WRITE SAME without UNMAP is not supported by the target */
+        return -ENOTSUP;
+    }
+
+    if ((flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->lbp.lbpws) {
+        /* WRITE SAME with UNMAP is not supported by the target */
         return -ENOTSUP;
     }
 
@@ -1012,6 +1018,14 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
+        if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
+            iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
+            iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE) {
+            /* WRITE SAME is not supported by the target */
+            iscsilun->has_write_same = false;
+            return -ENOTSUP;
+        }
+
         return -EIO;
     }
 
@@ -1375,6 +1389,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     iscsilun->type = inq->periperal_device_type;
+    iscsilun->has_write_same = true;
 
     if ((ret = iscsi_readcapacity_sync(iscsilun)) != 0) {
         goto out;
