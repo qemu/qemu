@@ -682,7 +682,8 @@ QString* vsh_translate(uint16_t version,
         "RCP R1.z, R1.z;\n"
 
         "MUL R12.xyz, R12, R1;\n"
-        
+        "MOV R12.w, 1;\n"
+
         /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
          * in state.c
          *
@@ -691,9 +692,9 @@ QString* vsh_translate(uint16_t version,
          * into account: z = ((z / w) * 2 - 1) * w, which is the same as
          * z = z * 2 - w.
          */
-        "# Apply Z coord mapping\n"
-        "ADD R12.z, R12.z, R12.z;\n"
-        "ADD R12.z, R12.z, -R12.w;\n"
+        //"# Apply Z coord mapping\n"
+        //"ADD R12.z, R12.z, R12.z;\n"
+        //"ADD R12.z, R12.z, -R12.w;\n"
 
         "# End of shader:\n"
         "MOV oPos, R12;\n"
