@@ -1543,6 +1543,7 @@ done:
 
 static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint8_t *p = inbuf;
     int len = r->req.cmd.xfer;
     UnmapCBData *data;
@@ -1558,6 +1559,11 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
     }
     if (lduw_be_p(&p[2]) & 15) {
         goto invalid_param_len;
+    }
+
+    if (bdrv_is_read_only(s->qdev.conf.bs)) {
+        scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
+        return;
     }
 
     data = g_new0(UnmapCBData, 1);
