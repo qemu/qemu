@@ -142,6 +142,7 @@ typedef struct BDRVRawState {
     bool is_xfs:1;
 #endif
     bool has_discard:1;
+    bool has_write_zeroes:1;
     bool discard_zeroes:1;
 } BDRVRawState;
 
@@ -326,6 +327,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #endif
 
     s->has_discard = true;
+    s->has_write_zeroes = true;
 
     if (fstat(s->fd, &st) < 0) {
         error_setg_errno(errp, errno, "Could not stat file");
@@ -344,9 +346,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #ifdef __linux__
         /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
          * not rely on the contents of discarded blocks unless using O_DIRECT.
+         * Same for BLKZEROOUT.
          */
         if (!(bs->open_flags & BDRV_O_NOCACHE)) {
             s->discard_zeroes = false;
+            s->has_write_zeroes = false;
         }
 #endif
     }
@@ -702,6 +706,23 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
 }
 
 #ifdef CONFIG_XFS
+static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
+{
+    struct xfs_flock64 fl;
+
+    memset(&fl, 0, sizeof(fl));
+    fl.l_whence = SEEK_SET;
+    fl.l_start = offset;
+    fl.l_len = bytes;
+
+    if (xfsctl(NULL, s->fd, XFS_IOC_ZERO_RANGE, &fl) < 0) {
+        DEBUG_BLOCK_PRINT("cannot write zero range (%s)\n", strerror(errno));
+        return -errno;
+    }
+
+    return 0;
+}
+
 static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
@@ -719,6 +740,42 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
     return 0;
 }
 #endif
+
+static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+{
+    int ret = -EOPNOTSUPP;
+    BDRVRawState *s = aiocb->bs->opaque;
+
+    if (s->has_write_zeroes == 0) {
+        return -ENOTSUP;
+    }
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+#ifdef BLKZEROOUT
+        do {
+            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+            if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
+
+        ret = -errno;
+#endif
+    } else {
+#ifdef CONFIG_XFS
+        if (s->is_xfs) {
+            return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+        }
+#endif
+    }
+
+    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
+        ret == -ENOTTY) {
+        s->has_write_zeroes = false;
+        ret = -ENOTSUP;
+    }
+    return ret;
+}
 
 static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 {
@@ -803,6 +860,9 @@ static int aio_worker(void *arg)
         break;
     case QEMU_AIO_DISCARD:
         ret = handle_aiocb_discard(aiocb);
+        break;
+    case QEMU_AIO_WRITE_ZEROES:
+        ret = handle_aiocb_write_zeroes(aiocb);
         break;
     default:
         fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
@@ -1256,13 +1316,13 @@ static int coroutine_fn raw_co_write_zeroes(
     BDRVRawState *s = bs->opaque;
 
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return -ENOTSUP;
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_WRITE_ZEROES);
+    } else if (s->discard_zeroes) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_DISCARD);
     }
-    if (!s->discard_zeroes) {
-        return -ENOTSUP;
-    }
-    return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
-                          QEMU_AIO_DISCARD);
+    return -ENOTSUP;
 }
 
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
@@ -1613,13 +1673,13 @@ static coroutine_fn int hdev_co_write_zeroes(BlockDriverState *bs,
         return rc;
     }
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return -ENOTSUP;
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_WRITE_ZEROES|QEMU_AIO_BLKDEV);
+    } else if (s->discard_zeroes) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
     }
-    if (!s->discard_zeroes) {
-        return -ENOTSUP;
-    }
-    return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
-                          QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
+    return -ENOTSUP;
 }
 
 static int hdev_create(const char *filename, QEMUOptionParameter *options,
