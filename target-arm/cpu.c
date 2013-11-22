@@ -217,6 +217,12 @@ static void arm_cpu_initfn(Object *obj)
                        ARRAY_SIZE(cpu->gt_timer_outputs));
 #endif
 
+    /* DTB consumers generally don't in fact care what the 'compatible'
+     * string is, so always provide some string and trust that a hypothetical
+     * picky DTB consumer will also provide a helpful error message.
+     */
+    cpu->dtb_compatible = "qemu,unknown";
+
     if (tcg_enabled() && !inited) {
         inited = true;
         arm_translate_init();
@@ -318,6 +324,8 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 static void arm926_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm926";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
@@ -331,6 +339,8 @@ static void arm926_initfn(Object *obj)
 static void arm946_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm946";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_MPU);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
@@ -342,6 +352,8 @@ static void arm946_initfn(Object *obj)
 static void arm1026_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm1026";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
@@ -374,6 +386,8 @@ static void arm1136_r2_initfn(Object *obj)
      * for 1136_r2 (in particular r0p2 does not actually implement most
      * of the ID registers).
      */
+
+    cpu->dtb_compatible = "arm,arm1136";
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
@@ -403,6 +417,8 @@ static void arm1136_r2_initfn(Object *obj)
 static void arm1136_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm1136";
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
@@ -433,6 +449,8 @@ static void arm1136_initfn(Object *obj)
 static void arm1176_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm1176";
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
@@ -463,6 +481,8 @@ static void arm1176_initfn(Object *obj)
 static void arm11mpcore_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,arm11mpcore";
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
@@ -516,6 +536,8 @@ static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
 static void cortex_a8_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,cortex-a8";
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_VFP3);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
@@ -580,6 +602,8 @@ static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
 static void cortex_a9_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,cortex-a9";
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_VFP3);
     set_feature(&cpu->env, ARM_FEATURE_VFP_FP16);
@@ -649,6 +673,8 @@ static const ARMCPRegInfo cortexa15_cp_reginfo[] = {
 static void cortex_a15_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,cortex-a15";
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_VFP4);
     set_feature(&cpu->env, ARM_FEATURE_VFP_FP16);
@@ -697,6 +723,8 @@ static void ti925t_initfn(Object *obj)
 static void sa1100_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "intel,sa1100";
     set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     cpu->midr = 0x4401A11B;
@@ -715,6 +743,8 @@ static void sa1110_initfn(Object *obj)
 static void pxa250_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     cpu->midr = 0x69052100;
@@ -725,6 +755,8 @@ static void pxa250_initfn(Object *obj)
 static void pxa255_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     cpu->midr = 0x69052d00;
@@ -735,6 +767,8 @@ static void pxa255_initfn(Object *obj)
 static void pxa260_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     cpu->midr = 0x69052903;
@@ -745,6 +779,8 @@ static void pxa260_initfn(Object *obj)
 static void pxa261_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     cpu->midr = 0x69052d05;
@@ -755,6 +791,8 @@ static void pxa261_initfn(Object *obj)
 static void pxa262_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     cpu->midr = 0x69052d06;
@@ -765,6 +803,8 @@ static void pxa262_initfn(Object *obj)
 static void pxa270a0_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
@@ -776,6 +816,8 @@ static void pxa270a0_initfn(Object *obj)
 static void pxa270a1_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
@@ -787,6 +829,8 @@ static void pxa270a1_initfn(Object *obj)
 static void pxa270b0_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
@@ -798,6 +842,8 @@ static void pxa270b0_initfn(Object *obj)
 static void pxa270b1_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
@@ -809,6 +855,8 @@ static void pxa270b1_initfn(Object *obj)
 static void pxa270c0_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
@@ -820,6 +868,8 @@ static void pxa270c0_initfn(Object *obj)
 static void pxa270c5_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "marvell,xscale";
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
