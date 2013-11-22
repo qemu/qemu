@@ -323,10 +323,10 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    s->has_discard = 1;
+    s->has_discard = true;
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
-        s->is_xfs = 1;
+        s->is_xfs = true;
     }
 #endif
 
@@ -698,8 +698,8 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
     int ret = -EOPNOTSUPP;
     BDRVRawState *s = aiocb->bs->opaque;
 
-    if (s->has_discard == 0) {
-        return 0;
+    if (!s->has_discard) {
+        return -ENOTSUP;
     }
 
     if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
@@ -734,8 +734,8 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 
     if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
         ret == -ENOTTY) {
-        s->has_discard = 0;
-        ret = 0;
+        s->has_discard = false;
+        ret = -ENOTSUP;
     }
     return ret;
 }
