@@ -77,7 +77,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     struct kvm_reg_list *rlp;
     ARMCPU *cpu = ARM_CPU(cs);
 
-    init.target = KVM_ARM_TARGET_CORTEX_A15;
+    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE) {
+        fprintf(stderr, "KVM is not supported for this guest CPU type\n");
+        return -EINVAL;
+    }
+
+    init.target = cpu->kvm_target;
     memset(init.features, 0, sizeof(init.features));
     if (cpu->start_powered_off) {
         init.features[0] = 1 << KVM_ARM_VCPU_POWER_OFF;
