@@ -2771,14 +2771,21 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
 
-        /* align request */
-        if (bs->bl.write_zeroes_alignment &&
-            num >= bs->bl.write_zeroes_alignment &&
-            sector_num % bs->bl.write_zeroes_alignment) {
-            if (num > bs->bl.write_zeroes_alignment) {
+        /* Align request.  Block drivers can expect the "bulk" of the request
+         * to be aligned.
+         */
+        if (bs->bl.write_zeroes_alignment
+            && num > bs->bl.write_zeroes_alignment) {
+            if (sector_num % bs->bl.write_zeroes_alignment != 0) {
+                /* Make a small request up to the first aligned sector.  */
                 num = bs->bl.write_zeroes_alignment;
+                num -= sector_num % bs->bl.write_zeroes_alignment;
+            } else if ((sector_num + num) % bs->bl.write_zeroes_alignment != 0) {
+                /* Shorten the request to the last aligned sector.  num cannot
+                 * underflow because num > bs->bl.write_zeroes_alignment.
+                 */
+                num -= (sector_num + num) % bs->bl.write_zeroes_alignment;
             }
-            num -= sector_num % bs->bl.write_zeroes_alignment;
         }
 
         /* limit request size */
@@ -2796,16 +2803,20 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
             /* Fall back to bounce buffer if write zeroes is unsupported */
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
-                /* allocate bounce buffer only once and ensure that it
-                 * is big enough for this and all future requests.
-                 */
-                size_t bufsize = num <= nb_sectors ? num : max_write_zeroes;
-                iov.iov_base = qemu_blockalign(bs, bufsize * BDRV_SECTOR_SIZE);
-                memset(iov.iov_base, 0, bufsize * BDRV_SECTOR_SIZE);
+                iov.iov_base = qemu_blockalign(bs, num * BDRV_SECTOR_SIZE);
+                memset(iov.iov_base, 0, num * BDRV_SECTOR_SIZE);
             }
             qemu_iovec_init_external(&qiov, &iov, 1);
 
             ret = drv->bdrv_co_writev(bs, sector_num, num, &qiov);
+
+            /* Keep bounce buffer around if it is big enough for all
+             * all future requests.
+             */
+            if (num < max_write_zeroes) {
+                qemu_vfree(iov.iov_base);
+                iov.iov_base = NULL;
+            }
         }
 
         sector_num += num;
