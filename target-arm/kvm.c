@@ -79,6 +79,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     init.target = KVM_ARM_TARGET_CORTEX_A15;
     memset(init.features, 0, sizeof(init.features));
+    if (cpu->start_powered_off) {
+        init.features[0] = 1 << KVM_ARM_VCPU_POWER_OFF;
+    }
     ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
     if (ret) {
         return ret;

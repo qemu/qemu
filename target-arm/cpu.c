@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "hw/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
@@ -944,6 +945,11 @@ static const ARMCPUInfo arm_cpus[] = {
 #endif
 };
 
+static Property arm_cpu_properties[] = {
+    DEFINE_PROP_BOOL("start-powered-off", ARMCPU, start_powered_off, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -952,6 +958,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     acc->parent_realize = dc->realize;
     dc->realize = arm_cpu_realizefn;
+    dc->props = arm_cpu_properties;
 
     acc->parent_reset = cc->reset;
     cc->reset = arm_cpu_reset;

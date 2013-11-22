@@ -94,6 +94,9 @@ typedef struct ARMCPU {
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 
+    /* Should CPU start in PSCI powered-off state? */
+    bool start_powered_off;
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant
