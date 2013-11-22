@@ -497,6 +497,7 @@
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
+#       define NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS             0x000F0000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U               0x00F00000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V               0x0F000000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_P               0xF0000000
@@ -508,6 +509,7 @@
 #   define NV097_SET_TEXTURE_CONTROL1                         0x00971B10
 #       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
 #   define NV097_SET_TEXTURE_FILTER                           0x00971B14
+#       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
 #       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
@@ -729,6 +731,7 @@ typedef struct Texture {
 
     unsigned int dimensionality;
     unsigned int color_format;
+    unsigned int levels;
     unsigned int log_width, log_height;
 
     unsigned int rect_width, rect_height;
@@ -736,6 +739,7 @@ typedef struct Texture {
     unsigned int min_mipmap_level, max_mipmap_level;
     unsigned int pitch;
 
+    unsigned int lod_bias;
     unsigned int min_filter, mag_filter;
 
     bool dma_select;
@@ -1522,12 +1526,6 @@ static void pgraph_bind_textures(NV2AState *d)
 
             if (!texture->dirty) continue;
 
-            /* set parameters */
-            glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
-                texture->min_mipmap_level);
-            glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
-                texture->max_mipmap_level);
-
             glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
                 kelvin_texture_min_filter_map[texture->min_filter]);
             glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
@@ -1545,44 +1543,74 @@ static void pgraph_bind_textures(NV2AState *d)
             assert(texture->offset < dma_len);
             texture_data += texture->offset;
 
-            NV2A_DPRINTF(" texture %d is format 0x%x, (%d, %d; %d)\n",
+            NV2A_DPRINTF(" texture %d is format 0x%x, (%d, %d; %d),"
+                            " filter %x %x, levels %d-%d %d bias %d\n",
                          i, texture->color_format,
-                         width, height, texture->pitch);
+                         width, height, texture->pitch,
+                         texture->min_filter, texture->mag_filter,
+                         texture->min_mipmap_level, texture->max_mipmap_level, texture->levels,
+                         texture->lod_bias);
 
-            if (f.gl_format == 0) { /* retarded way of indicating compressed */
-                unsigned int block_size;
-                if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
-                    block_size = 8;
-                } else {
-                    block_size = 16;
-                }
-                glCompressedTexImage2D(gl_target, 0, f.gl_internal_format,
-                                       width, height, 0,
-                                       width/4 * height/4 * block_size,
-                                       texture_data);
-            } else {
+            if (f.linear) {
+                /* Can't handle retarded strides */
+                assert(texture->pitch % f.bytes_per_pixel == 0);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                              texture->pitch / f.bytes_per_pixel);
 
-                if (f.linear) {
-                    /* Can't handle retarded strides */
-                    assert(texture->pitch % f.bytes_per_pixel == 0);
-                    glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                                  texture->pitch / f.bytes_per_pixel);
-                } else {
-                    unsigned int pitch = width * f.bytes_per_pixel;
-                    uint8_t *unswizzled = g_malloc(height * pitch);
-                    unswizzle_rect(texture_data, width, height, 1,
-                                   unswizzled, pitch, f.bytes_per_pixel);
-                    texture_data = unswizzled;
-                }
                 glTexImage2D(gl_target, 0, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
                              texture_data);
-                if (f.linear) {
-                    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-                } else {
-                    g_free(texture_data);
+
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            } else {
+                unsigned int levels = texture->levels;
+                if (texture->max_mipmap_level < levels) {
+                    levels = texture->max_mipmap_level;
                 }
+
+                glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
+                    texture->min_mipmap_level);
+                glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
+                    levels-1);
+
+
+                int level;
+                for (level = 0; level < levels; level++) {
+                    if (f.gl_format == 0) { /* retarded way of indicating compressed */
+                        unsigned int block_size;
+                        if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
+                            block_size = 8;
+                        } else {
+                            block_size = 16;
+                        }
+
+                        if (width < 4) width = 4;
+                        if (height < 4) height = 4;
+
+                        glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
+                                               width, height, 0,
+                                               width/4 * height/4 * block_size,
+                                               texture_data);
+                    } else {
+                        unsigned int pitch = width * f.bytes_per_pixel;
+                        uint8_t *unswizzled = g_malloc(height * pitch);
+                        unswizzle_rect(texture_data, width, height, 1,
+                                       unswizzled, pitch, f.bytes_per_pixel);
+
+                        glTexImage2D(gl_target, level, f.gl_internal_format,
+                                     width, height, 0,
+                                     f.gl_format, f.gl_type,
+                                     unswizzled);
+
+                        g_free(unswizzled);
+                    }
+
+                    texture_data += width * height * f.bytes_per_pixel;
+                    width /= 2;
+                    height /= 2;
+                }
+
             }
 
             texture->dirty = false;
@@ -2570,9 +2598,9 @@ static void pgraph_method(NV2AState *d,
 
                 glEnableVertexAttribArray(NV2A_VERTEX_ATTR_DIFFUSE);
                 glVertexAttribPointer(NV2A_VERTEX_ATTR_DIFFUSE,
-                        1,
-                        GL_UNSIGNED_INT,
-                        GL_FALSE,
+                        4,
+                        GL_UNSIGNED_BYTE,
+                        GL_TRUE,
                         sizeof(InlineVertexBufferEntry),
                         &kelvin->inline_buffer[0].diffuse);
 
@@ -2650,6 +2678,8 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY);
         pg->textures[slot].color_format = 
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_COLOR);
+        pg->textures[slot].levels =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS);
         pg->textures[slot].log_width =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U);
         pg->textures[slot].log_height =
@@ -2680,6 +2710,8 @@ static void pgraph_method(NV2AState *d,
     CASE_4(NV097_SET_TEXTURE_FILTER, 64):
         slot = (class_method - NV097_SET_TEXTURE_FILTER) / 64;
 
+        pg->textures[slot].lod_bias =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS);
         pg->textures[slot].min_filter =
             GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MIN);
         pg->textures[slot].mag_filter =
@@ -2728,7 +2760,7 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX_DATA4UB ...
             NV097_SET_VERTEX_DATA4UB + 0x3c:
-        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 64;
+        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
         kelvin->vertex_attributes[slot].inline_value = parameter;
         break;
 
