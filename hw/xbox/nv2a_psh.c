@@ -241,7 +241,8 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
         }
         break;
     case PS_REGISTER_C0:
-        if (ps->flags & PS_COMBINERCOUNT_UNIQUE_C0) {
+        /* TODO: should the final stage really always be unique? */
+        if (ps->flags & PS_COMBINERCOUNT_UNIQUE_C0 || ps->cur_stage == 8) {
             QString *reg = qstring_from_fmt("c_%d_%d", ps->cur_stage, 0);
             add_const_ref(ps, qstring_get_str(reg));
             if (ps->cur_stage == 8) {
@@ -257,7 +258,7 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
         }
         break;
     case PS_REGISTER_C1:
-        if (ps->flags & PS_COMBINERCOUNT_UNIQUE_C1) {
+        if (ps->flags & PS_COMBINERCOUNT_UNIQUE_C1 || ps->cur_stage == 8) {
             QString *reg = qstring_from_fmt("c_%d_%d", ps->cur_stage, 1);
             add_const_ref(ps, qstring_get_str(reg));
             if (ps->cur_stage == 8) {
@@ -274,7 +275,7 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
         break;
     case PS_REGISTER_FOG: // TODO
         //return qstring_from_str("fog");
-        return qstring_from_str("0.0");
+        return qstring_from_str("vec4(1.0)");
     case PS_REGISTER_V0:
         return qstring_from_str("v0");
     case PS_REGISTER_V1:
@@ -690,7 +691,7 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
     struct InputInfo blank;
     ps.final_input.enabled = final_inputs_0 || final_inputs_1;
     if (ps.final_input.enabled) {
-        parse_combiner_inputs(final_inputs_0, &ps.final_input.a, &ps.final_input.a,
+        parse_combiner_inputs(final_inputs_0, &ps.final_input.a, &ps.final_input.b,
                               &ps.final_input.c, &ps.final_input.d);
         parse_combiner_inputs(final_inputs_1, &ps.final_input.e, &ps.final_input.f,
                               &ps.final_input.g, &blank);
