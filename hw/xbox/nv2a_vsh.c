@@ -682,7 +682,9 @@ QString* vsh_translate(uint16_t version,
         "RCP R1.z, R1.z;\n"
 
         "MUL R12.xyz, R12, R1;\n"
-        "MOV R12.w, 1;\n"
+
+        /* undo the perspective divide */
+        "MUL R12.xyz, R12, R12.w;\n"
 
         /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
          * in state.c
