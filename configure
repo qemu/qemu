@@ -272,8 +272,6 @@ for opt do
   ;;
   --cxx=*) CXX="$optarg"
   ;;
-  --iasl=*) iasl="$optarg"
-  ;;
   --source-path=*) source_path="$optarg"
   ;;
   --cpu=*) cpu="$optarg"
@@ -648,6 +646,8 @@ for opt do
   --host-cc=*) host_cc="$optarg"
   ;;
   --cxx=*)
+  ;;
+  --iasl=*) iasl="$optarg"
   ;;
   --objcc=*) objcc="$optarg"
   ;;
