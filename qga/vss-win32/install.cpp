@@ -25,8 +25,8 @@ extern HINSTANCE g_hinstDll;
 
 const GUID CLSID_COMAdminCatalog = { 0xF618C514, 0xDFB8, 0x11d1,
     {0xA2, 0xCF, 0x00, 0x80, 0x5F, 0xC7, 0x92, 0x35} };
-const GUID IID_ICOMAdminCatalog = { 0xDD662187, 0xDFC2, 0x11d1,
-    {0xA2, 0xCF, 0x00, 0x80, 0x5F, 0xC7, 0x92, 0x35} };
+const GUID IID_ICOMAdminCatalog2 = { 0x790C6E0B, 0x9194, 0x4cc9,
+    {0x94, 0x26, 0xA4, 0x8A, 0x63, 0x18, 0x56, 0x96} };
 const GUID CLSID_WbemLocator = { 0x4590f811, 0x1d3a, 0x11d0,
     {0x89, 0x1f, 0x00, 0xaa, 0x00, 0x4b, 0x2e, 0x24} };
 const GUID IID_IWbemLocator = { 0xdc12a687, 0x737f, 0x11cf,
@@ -141,7 +141,7 @@ static HRESULT QGAProviderFind(
     HRESULT hr;
     COMInitializer initializer;
     COMPointer<IUnknown> pUnknown;
-    COMPointer<ICOMAdminCatalog> pCatalog;
+    COMPointer<ICOMAdminCatalog2> pCatalog;
     COMPointer<ICatalogCollection> pColl;
     COMPointer<ICatalogObject> pObj;
     _variant_t var;
@@ -149,7 +149,7 @@ static HRESULT QGAProviderFind(
 
     chk(CoCreateInstance(CLSID_COMAdminCatalog, NULL, CLSCTX_INPROC_SERVER,
                          IID_IUnknown, (void **)pUnknown.replace()));
-    chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog,
+    chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog2,
                                  (void **)pCatalog.replace()));
     chk(pCatalog->GetCollection(_bstr_t(L"Applications"),
                                 (IDispatch **)pColl.replace()));
@@ -206,7 +206,7 @@ STDAPI COMRegister(void)
     HRESULT hr;
     COMInitializer initializer;
     COMPointer<IUnknown> pUnknown;
-    COMPointer<ICOMAdminCatalog> pCatalog;
+    COMPointer<ICOMAdminCatalog2> pCatalog;
     COMPointer<ICatalogCollection> pApps, pRoles, pUsersInRole;
     COMPointer<ICatalogObject> pObj;
     long n;
@@ -229,7 +229,7 @@ STDAPI COMRegister(void)
 
     chk(CoCreateInstance(CLSID_COMAdminCatalog, NULL, CLSCTX_INPROC_SERVER,
                          IID_IUnknown, (void **)pUnknown.replace()));
-    chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog,
+    chk(pUnknown->QueryInterface(IID_ICOMAdminCatalog2,
                                  (void **)pCatalog.replace()));
 
     /* Install COM+ Component */
@@ -273,6 +273,10 @@ STDAPI COMRegister(void)
         goto out;
     }
 
+    chk(pCatalog->CreateServiceForApplication(
+            _bstr_t(QGA_PROVIDER_LNAME), _bstr_t(QGA_PROVIDER_LNAME),
+            _bstr_t(L"SERVICE_AUTO_START"), _bstr_t(L"SERVICE_ERROR_NORMAL"),
+            _bstr_t(L""), _bstr_t(L".\\localsystem"), _bstr_t(L""), FALSE));
     chk(pCatalog->InstallComponent(_bstr_t(QGA_PROVIDER_LNAME),
                                    _bstr_t(dllPath), _bstr_t(tlbPath),
                                    _bstr_t("")));
