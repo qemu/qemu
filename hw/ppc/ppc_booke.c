@@ -174,6 +174,12 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
 
     if (*next == now) {
         (*next)++;
+    } else {
+        /*
+         * There's no point to fake any granularity that's more fine grained
+         * than milliseconds. Anything beyond that just overloads the system.
+         */
+        *next = MAX(*next, now + SCALE_MS);
     }
 
     /* Fire the next timer */
