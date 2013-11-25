@@ -596,7 +596,7 @@ static void *migration_thread(void *opaque)
 
                 ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
                 if (ret >= 0) {
-                    qemu_file_set_rate_limit(s->file, INT_MAX);
+                    qemu_file_set_rate_limit(s->file, INT64_MAX);
                     qemu_savevm_state_complete(s->file);
                 }
                 qemu_mutex_unlock_iothread();
