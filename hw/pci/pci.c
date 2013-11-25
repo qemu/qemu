@@ -47,6 +47,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static int pcibus_reset(BusState *qbus);
+static void pci_bus_finalize(Object *obj);
 
 static Property pci_props[] = {
     DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
@@ -73,6 +74,7 @@ static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(PCIBus),
+    .instance_finalize = pci_bus_finalize,
     .class_init = pci_bus_class_init,
 };
 
@@ -373,6 +375,12 @@ int pci_bus_num(PCIBus *s)
     if (pci_bus_is_root(s))
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
+}
+
+static void pci_bus_finalize(Object *obj)
+{
+    PCIBus *bus = PCI_BUS(obj);
+    vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
