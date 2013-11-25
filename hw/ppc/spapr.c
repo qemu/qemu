@@ -532,9 +532,6 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
 
     /* memory node(s) */
     node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
-    if (spapr->rma_size > node0_size) {
-        spapr->rma_size = node0_size;
-    }
 
     /* RMA */
     mem_reg_property[0] = 0;
@@ -688,7 +685,8 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
     /* Update the RMA size if necessary */
     if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(ram_size, spapr->htab_shift);
+        hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+        spapr->rma_size = kvmppc_rma_size(node0_size, spapr->htab_shift);
     }
 }
 
@@ -1105,6 +1103,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     hwaddr rma_alloc_size;
+    hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;
@@ -1126,10 +1125,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    if (rma_alloc_size && (rma_alloc_size < ram_size)) {
+    if (rma_alloc_size && (rma_alloc_size < node0_size)) {
         spapr->rma_size = rma_alloc_size;
     } else {
-        spapr->rma_size = ram_size;
+        spapr->rma_size = node0_size;
 
         /* With KVM, we don't actually know whether KVM supports an
          * unbounded RMA (PR KVM) or is limited by the hash table size
@@ -1144,6 +1143,12 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             spapr->vrma_adjust = 1;
             spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
         }
+    }
+
+    if (spapr->rma_size > node0_size) {
+        fprintf(stderr, "Error: Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")\n",
+                spapr->rma_size);
+        exit(1);
     }
 
     /* We place the device tree and RTAS just below either the top of the RMA,
