@@ -501,6 +501,45 @@ static void bus_unparent(Object *obj)
     }
 }
 
+static bool bus_get_realized(Object *obj, Error **err)
+{
+    BusState *bus = BUS(obj);
+
+    return bus->realized;
+}
+
+static void bus_set_realized(Object *obj, bool value, Error **err)
+{
+    BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(bus);
+    Error *local_err = NULL;
+
+    if (value && !bus->realized) {
+        if (bc->realize) {
+            bc->realize(bus, &local_err);
+
+            if (local_err != NULL) {
+                goto error;
+            }
+
+        }
+    } else if (!value && bus->realized) {
+        if (bc->unrealize) {
+            bc->unrealize(bus, &local_err);
+
+            if (local_err != NULL) {
+                goto error;
+            }
+        }
+    }
+
+    bus->realized = value;
+    return;
+
+error:
+    error_propagate(err, local_err);
+}
+
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name)
 {
@@ -889,6 +928,8 @@ static void qbus_initfn(Object *obj)
     object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
                              TYPE_HOTPLUG_HANDLER,
                              (Object **)&bus->hotplug_handler, NULL);
+    object_property_add_bool(obj, "realized",
+                             bus_get_realized, bus_set_realized, NULL);
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)
