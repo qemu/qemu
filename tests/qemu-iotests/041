@@ -691,16 +691,32 @@ class TestUnbackedSource(ImageMirroringTestCase):
         os.remove(test_img)
         os.remove(target_img)
 
-    def test_absolute_paths(self):
+    def test_absolute_paths_full(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-mirror', device='drive0',
+                             sync='full', target=target_img,
+                             mode='absolute-paths')
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
-        for sync_mode in ['full', 'top', 'none']:
-            result = self.vm.qmp('drive-mirror', device='drive0',
-                                 sync=sync_mode, target=target_img,
-                                 mode='absolute-paths')
-            self.assert_qmp(result, 'return', {})
-            self.complete_and_wait()
-            self.assert_no_active_block_jobs()
+    def test_absolute_paths_top(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-mirror', device='drive0',
+                             sync='top', target=target_img,
+                             mode='absolute-paths')
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait()
+        self.assert_no_active_block_jobs()
+
+    def test_absolute_paths_none(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-mirror', device='drive0',
+                             sync='none', target=target_img,
+                             mode='absolute-paths')
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait()
+        self.assert_no_active_block_jobs()
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
