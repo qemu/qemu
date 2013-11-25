@@ -128,13 +128,22 @@ static uint8_t booke_get_wdt_target(CPUPPCState *env, ppc_tb_t *tb_env)
 static void booke_update_fixed_timer(CPUPPCState         *env,
                                      uint8_t           target_bit,
                                      uint64_t          *next,
-                                     struct QEMUTimer *timer)
+                                     QEMUTimer         *timer,
+                                     int               tsr_bit)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t delta_tick, ticks = 0;
     uint64_t tb;
     uint64_t period;
     uint64_t now;
+
+    if (!(env->spr[SPR_BOOKE_TSR] & tsr_bit)) {
+        /*
+         * Don't arm the timer again when the guest has the current
+         * interrupt still pending. Wait for it to ack it.
+         */
+        return;
+    }
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     tb  = cpu_ppc_get_tb(tb_env, now, tb_env->tb_offset);
@@ -167,6 +176,7 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
         (*next)++;
     }
 
+    /* Fire the next timer */
     timer_mod(timer, *next);
 }
 
@@ -200,7 +210,8 @@ static void booke_fit_cb(void *opaque)
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),
                              &booke_timer->fit_next,
-                             booke_timer->fit_timer);
+                             booke_timer->fit_timer,
+                             TSR_FIS);
 }
 
 static void booke_wdt_cb(void *opaque)
@@ -220,15 +231,35 @@ static void booke_wdt_cb(void *opaque)
     booke_update_fixed_timer(env,
                              booke_get_wdt_target(env, tb_env),
                              &booke_timer->wdt_next,
-                             booke_timer->wdt_timer);
+                             booke_timer->wdt_timer,
+                             TSR_WIS);
 }
 
 void store_booke_tsr(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    ppc_tb_t *tb_env = env->tb_env;
+    booke_timer_t *booke_timer = tb_env->opaque;
 
     env->spr[SPR_BOOKE_TSR] &= ~val;
     kvmppc_clear_tsr_bits(cpu, val);
+
+    if (val & TSR_FIS) {
+        booke_update_fixed_timer(env,
+                                 booke_get_fit_target(env, tb_env),
+                                 &booke_timer->fit_next,
+                                 booke_timer->fit_timer,
+                                 TSR_FIS);
+    }
+
+    if (val & TSR_WIS) {
+        booke_update_fixed_timer(env,
+                                 booke_get_wdt_target(env, tb_env),
+                                 &booke_timer->wdt_next,
+                                 booke_timer->wdt_timer,
+                                 TSR_WIS);
+    }
+
     booke_update_irq(cpu);
 }
 
@@ -247,12 +278,14 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),
                              &booke_timer->fit_next,
-                             booke_timer->fit_timer);
+                             booke_timer->fit_timer,
+                             TSR_FIS);
 
     booke_update_fixed_timer(env,
                              booke_get_wdt_target(env, tb_env),
                              &booke_timer->wdt_next,
-                             booke_timer->wdt_timer);
+                             booke_timer->wdt_timer,
+                             TSR_WIS);
 }
 
 static void ppc_booke_timer_reset_handle(void *opaque)
