@@ -110,7 +110,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     }
 
     if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
-        slog("guest-shutdown failed: %d", GetLastError());
+        slog("guest-shutdown failed: %lu", GetLastError());
         error_set(err, QERR_UNDEFINED_ERROR);
     }
 }
@@ -301,7 +301,7 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
     DWORD ret = 0;
 
     if (!SetSuspendState(*mode == GUEST_SUSPEND_MODE_DISK, TRUE, TRUE)) {
-        slog("failed to suspend guest, %s", GetLastError());
+        slog("failed to suspend guest, %lu", GetLastError());
         ret = -1;
     }
     g_free(mode);
