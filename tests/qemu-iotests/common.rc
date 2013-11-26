@@ -170,6 +170,17 @@ _make_test_img()
     fi
 }
 
+_rm_test_img()
+{
+    local img=$1
+    if [ "$IMGFMT" = "vmdk" ]; then
+        # Remove all the extents for vmdk
+        $QEMU_IMG info $img 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
+            | xargs -I {} rm -f "{}"
+    fi
+    rm -f $img
+}
+
 _cleanup_test_img()
 {
     case "$IMGPROTO" in
@@ -179,9 +190,9 @@ _cleanup_test_img()
             rm -f "$TEST_IMG_FILE"
             ;;
         file)
-            rm -f "$TEST_DIR/t.$IMGFMT"
-            rm -f "$TEST_DIR/t.$IMGFMT.orig"
-            rm -f "$TEST_DIR/t.$IMGFMT.base"
+            _rm_test_img "$TEST_DIR/t.$IMGFMT"
+            _rm_test_img "$TEST_DIR/t.$IMGFMT.orig"
+            _rm_test_img "$TEST_DIR/t.$IMGFMT.base"
             if [ -n "$SAMPLE_IMG_FILE" ]
             then
                 rm -f "$TEST_DIR/$SAMPLE_IMG_FILE"
