@@ -406,6 +406,17 @@ _default_cache_mode()
     fi
 }
 
+_unsupported_imgopts()
+{
+    for bad_opt
+    do
+        if echo "$IMGOPTS" | grep -q 2>/dev/null "$bad_opt"
+        then
+            _notrun "not suitable for image option: $bad_opt"
+        fi
+    done
+}
+
 # this test requires that a specified command (executable) exists
 #
 _require_command()
