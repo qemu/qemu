@@ -425,7 +425,7 @@ static inline void *acpi_data_push(GArray *table_data, unsigned size)
 
 static unsigned acpi_data_len(GArray *table)
 {
-#if GLIB_CHECK_VERSION(2, 14, 0)
+#if GLIB_CHECK_VERSION(2, 22, 0)
     assert(g_array_get_element_size(table) == 1);
 #endif
     return table->len;
@@ -436,9 +436,7 @@ static void acpi_align_size(GArray *blob, unsigned align)
     /* Align size to multiple of given size. This reduces the chance
      * we need to change size in the future (breaking cross version migration).
      */
-    g_array_set_size(blob, (ROUND_UP(acpi_data_len(blob), align) +
-                            g_array_get_element_size(blob) - 1) /
-                             g_array_get_element_size(blob));
+    g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
 }
 
 /* Get pointer within table in a safe manner */
