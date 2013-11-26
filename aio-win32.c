@@ -161,11 +161,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers--;
 
-    /* early return if we only have the aio_notify() fd */
-    if (count == 1) {
-        return progress;
-    }
-
     /* wait until next event */
     while (count > 0) {
         int ret;
