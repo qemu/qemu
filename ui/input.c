@@ -116,3 +116,74 @@ void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
     key->qcode = q;
     qemu_input_event_send_key(src, key, down);
 }
+
+InputEvent *qemu_input_event_new_btn(InputButton btn, bool down)
+{
+    InputEvent *evt = g_new0(InputEvent, 1);
+    evt->btn = g_new0(InputBtnEvent, 1);
+    evt->kind = INPUT_EVENT_KIND_BTN;
+    evt->btn->button = btn;
+    evt->btn->down = down;
+    return evt;
+}
+
+void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down)
+{
+    InputEvent *evt;
+    evt = qemu_input_event_new_btn(btn, down);
+    qemu_input_event_send(src, evt);
+    qapi_free_InputEvent(evt);
+}
+
+void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
+                               uint32_t button_old, uint32_t button_new)
+{
+    InputButton btn;
+    uint32_t mask;
+
+    for (btn = 0; btn < INPUT_BUTTON_MAX; btn++) {
+        mask = button_map[btn];
+        if ((button_old & mask) == (button_new & mask)) {
+            continue;
+        }
+        qemu_input_queue_btn(src, btn, button_new & mask);
+    }
+}
+
+int qemu_input_scale_axis(int value, int size_in, int size_out)
+{
+    if (size_in < 2) {
+        return size_out / 2;
+    }
+    return (int64_t)value * (size_out - 1) / (size_in - 1);
+}
+
+InputEvent *qemu_input_event_new_move(InputEventKind kind,
+                                      InputAxis axis, int value)
+{
+    InputEvent *evt = g_new0(InputEvent, 1);
+    InputMoveEvent *move = g_new0(InputMoveEvent, 1);
+
+    evt->kind = kind;
+    evt->data = move;
+    move->axis = axis;
+    move->value = value;
+    return evt;
+}
+
+void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
+{
+    InputEvent *evt;
+    evt = qemu_input_event_new_move(INPUT_EVENT_KIND_REL, axis, value);
+    qemu_input_event_send(src, evt);
+    qapi_free_InputEvent(evt);
+}
+
+void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value, int size)
+{
+    InputEvent *evt;
+    int scaled = qemu_input_scale_axis(value, size, INPUT_EVENT_ABS_SIZE);
+    evt = qemu_input_event_new_move(INPUT_EVENT_KIND_ABS, axis, scaled);
+    qemu_input_event_send(src, evt);
+    qapi_free_InputEvent(evt);
+}
