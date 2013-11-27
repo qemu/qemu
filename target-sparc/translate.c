@@ -3626,6 +3626,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 if ((rd == 0x13) && (dc->def->features &
                                                      CPU_FEATURE_POWERDOWN)) {
                                     /* LEON3 power-down */
+                                    save_state(dc);
                                     gen_helper_power_down(cpu_env);
                                 }
                                 break;
