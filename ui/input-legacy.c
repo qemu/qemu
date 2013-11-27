@@ -41,6 +41,12 @@ struct QEMUPutMouseEntry {
 
     /* used internally by qemu for handling mice */
     QTAILQ_ENTRY(QEMUPutMouseEntry) node;
+
+    /* new input core */
+    QemuInputHandler h;
+    QemuInputHandlerState *s;
+    int axis[INPUT_AXIS_MAX];
+    int buttons;
 };
 
 struct QEMUPutKbdEntry {
@@ -376,6 +382,51 @@ static void check_mode_change(void)
     current_has_absolute = has_absolute;
 }
 
+static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
+                               InputEvent *evt)
+{
+    static const int bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
+    };
+    QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
+
+    switch (evt->kind) {
+    case INPUT_EVENT_KIND_BTN:
+        if (evt->btn->down) {
+            s->buttons |= bmap[evt->btn->button];
+        } else {
+            s->buttons &= ~bmap[evt->btn->button];
+        }
+        break;
+    case INPUT_EVENT_KIND_ABS:
+        s->axis[evt->abs->axis] = evt->abs->value;
+        break;
+    case INPUT_EVENT_KIND_REL:
+        s->axis[evt->rel->axis] += evt->rel->value;
+        break;
+    default:
+        break;
+    }
+}
+
+static void legacy_mouse_sync(DeviceState *dev)
+{
+    QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
+
+    s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
+                            s->axis[INPUT_AXIS_X],
+                            s->axis[INPUT_AXIS_Y],
+                            0,
+                            s->buttons);
+
+    if (!s->qemu_put_mouse_event_absolute) {
+        s->axis[INPUT_AXIS_X] = 0;
+        s->axis[INPUT_AXIS_Y] = 0;
+    }
+}
+
 QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
                                                 void *opaque, int absolute,
                                                 const char *name)
@@ -393,6 +444,14 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
 
     QTAILQ_INSERT_TAIL(&mouse_handlers, s, node);
 
+    s->h.name = name;
+    s->h.mask = INPUT_EVENT_MASK_BTN |
+        (absolute ? INPUT_EVENT_MASK_ABS : INPUT_EVENT_MASK_REL);
+    s->h.event = legacy_mouse_event;
+    s->h.sync = legacy_mouse_sync;
+    s->s = qemu_input_handler_register((DeviceState *)s,
+                                       &s->h);
+
     check_mode_change();
 
     return s;
@@ -403,12 +462,16 @@ void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry)
     QTAILQ_REMOVE(&mouse_handlers, entry, node);
     QTAILQ_INSERT_HEAD(&mouse_handlers, entry, node);
 
+    qemu_input_handler_activate(entry->s);
+
     check_mode_change();
 }
 
 void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
 {
     QTAILQ_REMOVE(&mouse_handlers, entry, node);
+
+    qemu_input_handler_unregister(entry->s);
 
     g_free(entry->qemu_put_mouse_event_name);
     g_free(entry);
