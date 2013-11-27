@@ -247,6 +247,9 @@ typedef struct BlockLimits {
 
     /* optimal alignment for write zeroes requests in sectors */
     int64_t write_zeroes_alignment;
+
+    /* optimal transfer length in sectors */
+    int opt_transfer_length;
 } BlockLimits;
 
 /*
