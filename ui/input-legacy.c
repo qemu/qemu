@@ -260,10 +260,8 @@ static void free_keycodes(void)
 static void release_keys(void *opaque)
 {
     while (keycodes_size > 0) {
-        if (keycodes[--keycodes_size] & SCANCODE_GREY) {
-            kbd_put_keycode(SCANCODE_EMUL0);
-        }
-        kbd_put_keycode(keycodes[keycodes_size] | SCANCODE_UP);
+        qemu_input_event_send_key_number(NULL, keycodes[--keycodes_size],
+                                         false);
     }
 
     free_keycodes();
@@ -297,10 +295,7 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
             return;
         }
 
-        if (keycode & SCANCODE_GREY) {
-            kbd_put_keycode(SCANCODE_EMUL0);
-        }
-        kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
+        qemu_input_event_send_key_number(NULL, keycode, true);
 
         keycodes = g_realloc(keycodes, sizeof(int) * (keycodes_size + 1));
         keycodes[keycodes_size++] = keycode;
