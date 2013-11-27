@@ -1130,13 +1130,15 @@ out3:
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret = 0, n, n1, bs_n, bs_i, compress, cluster_size,
+    int c, n, n1, bs_n, bs_i, compress, cluster_size,
         cluster_sectors, skip_create;
+    int64_t ret = 0;
     int progress = 0, flags;
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
-    int64_t total_sectors, nb_sectors, sector_num, bs_offset;
+    int64_t total_sectors, nb_sectors, sector_num, bs_offset,
+            sector_num_next_status = 0;
     uint64_t bs_sectors;
     uint8_t * buf = NULL;
     const uint8_t *buf1;
@@ -1145,7 +1147,6 @@ static int img_convert(int argc, char **argv)
     QEMUOptionParameter *out_baseimg_param;
     char *options = NULL;
     const char *snapshot_name = NULL;
-    float local_progress = 0;
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
     bool quiet = false;
     Error *local_err = NULL;
@@ -1430,10 +1431,6 @@ static int img_convert(int argc, char **argv)
         sector_num = 0;
 
         nb_sectors = total_sectors;
-        if (nb_sectors != 0) {
-            local_progress = (float)100 /
-                (nb_sectors / MIN(nb_sectors, cluster_sectors));
-        }
 
         for(;;) {
             int64_t bs_num;
@@ -1491,7 +1488,7 @@ static int img_convert(int argc, char **argv)
                 }
             }
             sector_num += n;
-            qemu_progress_print(local_progress, 100);
+            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
         }
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
@@ -1508,20 +1505,12 @@ static int img_convert(int argc, char **argv)
 
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
-        if (nb_sectors != 0) {
-            local_progress = (float)100 /
-                (nb_sectors / MIN(nb_sectors, IO_BUF_SIZE / 512));
-        }
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0) {
+                ret = 0;
                 break;
-            }
-            if (nb_sectors >= (IO_BUF_SIZE / 512)) {
-                n = (IO_BUF_SIZE / 512);
-            } else {
-                n = nb_sectors;
             }
 
             while (sector_num - bs_offset >= bs_sectors) {
@@ -1534,33 +1523,45 @@ static int img_convert(int argc, char **argv)
                    sector_num, bs_i, bs_offset, bs_sectors); */
             }
 
-            if (n > bs_offset + bs_sectors - sector_num) {
-                n = bs_offset + bs_sectors - sector_num;
-            }
-
-            /* If the output image is being created as a copy on write image,
-               assume that sectors which are unallocated in the input image
-               are present in both the output's and input's base images (no
-               need to copy them). */
-            if (out_baseimg) {
-                ret = bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
-                                        n, &n1);
+            if ((out_baseimg || has_zero_init) &&
+                sector_num >= sector_num_next_status) {
+                n = nb_sectors > INT_MAX ? INT_MAX : nb_sectors;
+                ret = bdrv_get_block_status(bs[bs_i], sector_num - bs_offset,
+                                            n, &n1);
                 if (ret < 0) {
-                    error_report("error while reading metadata for sector "
-                                 "%" PRId64 ": %s",
-                                 sector_num - bs_offset, strerror(-ret));
+                    error_report("error while reading block status of sector %"
+                                 PRId64 ": %s", sector_num - bs_offset,
+                                 strerror(-ret));
                     goto out;
                 }
-                if (!ret) {
+                /* If the output image is zero initialized, we are not working
+                 * on a shared base and the input is zero we can skip the next
+                 * n1 sectors */
+                if (has_zero_init && !out_baseimg && (ret & BDRV_BLOCK_ZERO)) {
                     sector_num += n1;
                     continue;
                 }
-                /* The next 'n1' sectors are allocated in the input image. Copy
-                   only those as they may be followed by unallocated sectors. */
-                n = n1;
-            } else {
-                n1 = n;
+                /* If the output image is being created as a copy on write
+                 * image, assume that sectors which are unallocated in the
+                 * input image are present in both the output's and input's
+                 * base images (no need to copy them). */
+                if (out_baseimg) {
+                    if (!(ret & BDRV_BLOCK_DATA)) {
+                        sector_num += n1;
+                        continue;
+                    }
+                    /* The next 'n1' sectors are allocated in the input image.
+                     * Copy only those as they may be followed by unallocated
+                     * sectors. */
+                    nb_sectors = n1;
+                }
+                /* avoid redundant callouts to get_block_status */
+                sector_num_next_status = sector_num + n1;
             }
+
+            n = MIN(nb_sectors, IO_BUF_SIZE / 512);
+            n = MIN(n, bs_sectors - (sector_num - bs_offset));
+            n1 = n;
 
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
@@ -1586,10 +1587,13 @@ static int img_convert(int argc, char **argv)
                 n -= n1;
                 buf1 += n1 * 512;
             }
-            qemu_progress_print(local_progress, 100);
+            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
         }
     }
 out:
+    if (!ret) {
+        qemu_progress_print(100, 0);
+    }
     qemu_progress_end();
     free_option_parameters(create_options);
     free_option_parameters(param);
