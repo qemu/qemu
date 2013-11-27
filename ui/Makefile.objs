@@ -7,7 +7,7 @@ vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 vnc-obj-$(CONFIG_VNC_WS) += vnc-ws.o
 vnc-obj-y += vnc-jobs.o
 
-common-obj-y += keymaps.o console.o cursor.o input-legacy.o qemu-pixman.o
+common-obj-y += keymaps.o console.o cursor.o input.o input-legacy.o qemu-pixman.o
 common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
 common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
