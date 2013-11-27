@@ -1129,8 +1129,7 @@ out3:
 
 static int img_convert(int argc, char **argv)
 {
-    int c, n, n1, bs_n, bs_i, compress, cluster_size,
-        cluster_sectors, skip_create;
+    int c, n, n1, bs_n, bs_i, compress, cluster_sectors, skip_create;
     int64_t ret = 0;
     int progress = 0, flags;
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
@@ -1424,19 +1423,23 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    if (compress) {
-        ret = bdrv_get_info(out_bs, &bdi);
-        if (ret < 0) {
+    cluster_sectors = 0;
+    ret = bdrv_get_info(out_bs, &bdi);
+    if (ret < 0) {
+        if (compress) {
             error_report("could not get block driver info");
             goto out;
         }
-        cluster_size = bdi.cluster_size;
-        if (cluster_size <= 0 || cluster_size > bufsectors * BDRV_SECTOR_SIZE) {
+    } else {
+        cluster_sectors = bdi.cluster_size / BDRV_SECTOR_SIZE;
+    }
+
+    if (compress) {
+        if (cluster_sectors <= 0 || cluster_sectors > bufsectors) {
             error_report("invalid cluster size");
             ret = -1;
             goto out;
         }
-        cluster_sectors = cluster_size >> 9;
         sector_num = 0;
 
         nb_sectors = total_sectors;
@@ -1569,6 +1572,19 @@ static int img_convert(int argc, char **argv)
             }
 
             n = MIN(nb_sectors, bufsectors);
+
+            /* round down request length to an aligned sector, but
+             * do not bother doing this on short requests. They happen
+             * when we found an all-zero area, and the next sector to
+             * write will not be sector_num + n. */
+            if (cluster_sectors > 0 && n >= cluster_sectors) {
+                int64_t next_aligned_sector = (sector_num + n);
+                next_aligned_sector -= next_aligned_sector % cluster_sectors;
+                if (sector_num + n > next_aligned_sector) {
+                    n = next_aligned_sector - sector_num;
+                }
+            }
+
             n = MIN(n, bs_sectors - (sector_num - bs_offset));
             n1 = n;
 
