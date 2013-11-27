@@ -1140,6 +1140,7 @@ static int img_convert(int argc, char **argv)
             sector_num_next_status = 0;
     uint64_t bs_sectors;
     uint8_t * buf = NULL;
+    size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
     BlockDriverInfo bdi;
     QEMUOptionParameter *param = NULL, *create_options = NULL;
@@ -1398,7 +1399,16 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
-    buf = qemu_blockalign(out_bs, IO_BUF_SIZE);
+
+    /* increase bufsectors from the default 4096 (2M) if opt_transfer_length
+     * or discard_alignment of the out_bs is greater. Limit to 32768 (16MB)
+     * as maximum. */
+    bufsectors = MIN(32768,
+                     MAX(bufsectors, MAX(out_bs->bl.opt_transfer_length,
+                                         out_bs->bl.discard_alignment))
+                    );
+
+    buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
         int64_t output_length = bdrv_getlength(out_bs);
@@ -1421,7 +1431,7 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
         cluster_size = bdi.cluster_size;
-        if (cluster_size <= 0 || cluster_size > IO_BUF_SIZE) {
+        if (cluster_size <= 0 || cluster_size > bufsectors * BDRV_SECTOR_SIZE) {
             error_report("invalid cluster size");
             ret = -1;
             goto out;
@@ -1558,7 +1568,7 @@ static int img_convert(int argc, char **argv)
                 sector_num_next_status = sector_num + n1;
             }
 
-            n = MIN(nb_sectors, IO_BUF_SIZE / 512);
+            n = MIN(nb_sectors, bufsectors);
             n = MIN(n, bs_sectors - (sector_num - bs_offset));
             n1 = n;
 
