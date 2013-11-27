@@ -1457,6 +1457,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         }
         bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                         iscsilun);
+
+        bs->bl.opt_transfer_length = sector_lun2qemu(iscsilun->bl.opt_xfer_len,
+                                                     iscsilun);
     }
 
 #if defined(LIBISCSI_FEATURE_NOP_COUNTER)
