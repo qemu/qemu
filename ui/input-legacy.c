@@ -29,6 +29,7 @@
 #include "qmp-commands.h"
 #include "qapi-types.h"
 #include "ui/keymaps.h"
+#include "ui/input.h"
 
 struct QEMUPutMouseEntry {
     QEMUPutMouseEvent *qemu_put_mouse_event;
@@ -45,7 +46,7 @@ struct QEMUPutMouseEntry {
 struct QEMUPutKbdEntry {
     QEMUPutKBDEvent *put_kbd;
     void *opaque;
-    QTAILQ_ENTRY(QEMUPutKbdEntry) next;
+    QemuInputHandlerState *s;
 };
 
 struct QEMUPutLEDEntry {
@@ -56,8 +57,6 @@ struct QEMUPutLEDEntry {
 
 static QTAILQ_HEAD(, QEMUPutLEDEntry) led_handlers =
     QTAILQ_HEAD_INITIALIZER(led_handlers);
-static QTAILQ_HEAD(, QEMUPutKbdEntry) kbd_handlers =
-    QTAILQ_HEAD_INITIALIZER(kbd_handlers);
 static QTAILQ_HEAD(, QEMUPutMouseEntry) mouse_handlers =
     QTAILQ_HEAD_INITIALIZER(mouse_handlers);
 static NotifierList mouse_mode_notifiers =
@@ -312,20 +311,56 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                    muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
+static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
+                             InputEvent *evt)
+{
+    QEMUPutKbdEntry *entry = (QEMUPutKbdEntry *)dev;
+    int keycode = keycode_from_keyvalue(evt->key->key);
+
+    if (!entry || !entry->put_kbd) {
+        return;
+    }
+    if (evt->key->key->kind == KEY_VALUE_KIND_QCODE &&
+        evt->key->key->qcode == Q_KEY_CODE_PAUSE) {
+        /* specific case */
+        int v = evt->key->down ? 0 : 0x80;
+        entry->put_kbd(entry->opaque, 0xe1);
+        entry->put_kbd(entry->opaque, 0x1d | v);
+        entry->put_kbd(entry->opaque, 0x45 | v);
+        return;
+    }
+    if (keycode & SCANCODE_GREY) {
+        entry->put_kbd(entry->opaque, SCANCODE_EMUL0);
+        keycode &= ~SCANCODE_GREY;
+    }
+    if (!evt->key->down) {
+        keycode |= SCANCODE_UP;
+    }
+    entry->put_kbd(entry->opaque, keycode);
+}
+
+static QemuInputHandler legacy_kbd_handler = {
+    .name  = "legacy-kbd",
+    .mask  = INPUT_EVENT_MASK_KEY,
+    .event = legacy_kbd_event,
+};
+
 QEMUPutKbdEntry *qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
 {
     QEMUPutKbdEntry *entry;
 
-    entry = g_malloc0(sizeof(QEMUPutKbdEntry));
+    entry = g_new0(QEMUPutKbdEntry, 1);
     entry->put_kbd = func;
     entry->opaque = opaque;
-    QTAILQ_INSERT_HEAD(&kbd_handlers, entry, next);
+    entry->s = qemu_input_handler_register((DeviceState *)entry,
+                                           &legacy_kbd_handler);
     return entry;
 }
 
 void qemu_remove_kbd_event_handler(QEMUPutKbdEntry *entry)
 {
-    QTAILQ_REMOVE(&kbd_handlers, entry, next);
+    qemu_input_handler_unregister(entry->s);
+    g_free(entry);
 }
 
 static void check_mode_change(void)
@@ -409,14 +444,25 @@ void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry)
 
 void kbd_put_keycode(int keycode)
 {
-    QEMUPutKbdEntry *entry = QTAILQ_FIRST(&kbd_handlers);
+    static bool emul0;
+    bool up;
 
-    if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
+    if (keycode == SCANCODE_EMUL0) {
+        emul0 = true;
         return;
     }
-    if (entry && entry->put_kbd) {
-        entry->put_kbd(entry->opaque, keycode);
+    if (keycode & SCANCODE_UP) {
+        keycode &= ~SCANCODE_UP;
+        up = true;
+    } else {
+        up = false;
     }
+    if (emul0) {
+        keycode |= SCANCODE_GREY;
+        emul0 = false;
+    }
+
+    qemu_input_event_send_key_number(NULL, keycode, !up);
 }
 
 void kbd_put_ledstate(int ledstate)
