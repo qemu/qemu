@@ -517,7 +517,8 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
         tail = s->reply_queue_head;
         if (megasas_use_queue64(s)) {
             queue_offset = tail * sizeof(uint64_t);
-            stq_le_phys(s->reply_queue_pa + queue_offset, context);
+            stq_le_phys(&address_space_memory,
+                        s->reply_queue_pa + queue_offset, context);
         } else {
             queue_offset = tail * sizeof(uint32_t);
             stl_le_phys(s->reply_queue_pa + queue_offset, context);

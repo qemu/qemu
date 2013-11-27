@@ -2683,22 +2683,22 @@ void stw_be_phys(hwaddr addr, uint32_t val)
 }
 
 /* XXX: optimize */
-void stq_phys(hwaddr addr, uint64_t val)
+void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 {
     val = tswap64(val);
-    cpu_physical_memory_write(addr, &val, 8);
+    address_space_rw(as, addr, (void *) &val, 8, 1);
 }
 
-void stq_le_phys(hwaddr addr, uint64_t val)
+void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 {
     val = cpu_to_le64(val);
-    cpu_physical_memory_write(addr, &val, 8);
+    address_space_rw(as, addr, (void *) &val, 8, 1);
 }
 
-void stq_be_phys(hwaddr addr, uint64_t val)
+void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 {
     val = cpu_to_be64(val);
-    cpu_physical_memory_write(addr, &val, 8);
+    address_space_rw(as, addr, (void *) &val, 8, 1);
 }
 
 /* virtual memory access for debug (includes writing to ROM) */

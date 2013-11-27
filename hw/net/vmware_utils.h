@@ -119,7 +119,7 @@ static inline void
 vmw_shmem_st64(hwaddr addr, uint64_t value)
 {
     VMW_SHPRN("SHMEM store64: %" PRIx64 " (value %" PRIx64 ")", addr, value);
-    stq_le_phys(addr, value);
+    stq_le_phys(&address_space_memory, addr, value);
 }
 
 /* Macros for simplification of operations on array-style registers */

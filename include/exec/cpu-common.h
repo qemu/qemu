@@ -95,8 +95,8 @@ void stw_le_phys(hwaddr addr, uint32_t val);
 void stw_be_phys(hwaddr addr, uint32_t val);
 void stl_le_phys(hwaddr addr, uint32_t val);
 void stl_be_phys(hwaddr addr, uint32_t val);
-void stq_le_phys(hwaddr addr, uint64_t val);
-void stq_be_phys(hwaddr addr, uint64_t val);
+void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val);
+void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 
 #ifdef NEED_CPU_H
 uint32_t lduw_phys(AddressSpace *as, hwaddr addr);
@@ -105,7 +105,7 @@ uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
 void stl_phys_notdirty(hwaddr addr, uint32_t val);
 void stw_phys(hwaddr addr, uint32_t val);
 void stl_phys(hwaddr addr, uint32_t val);
-void stq_phys(hwaddr addr, uint64_t val);
+void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 #endif
 
 void cpu_physical_memory_write_rom(hwaddr addr,

@@ -1010,6 +1010,7 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte = 0;
 
@@ -1019,7 +1020,7 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
        According to spec we'd have to find it out ourselves */
     /* XXX Linux is fine with overwriting the pte, the spec requires
        us to only set the invalid bit */
-    stq_phys(pte_addr, pte | _PAGE_INVALID);
+    stq_phys(cs->as, pte_addr, pte | _PAGE_INVALID);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */

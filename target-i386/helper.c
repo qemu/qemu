@@ -881,7 +881,8 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         error_code |= PG_ERROR_I_D_MASK;
     if (env->intercept_exceptions & (1 << EXCP0E_PAGE)) {
         /* cr2 is not modified in case of exceptions */
-        stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), 
+        stq_phys(cs->as,
+                 env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
                  addr);
     } else {
         env->cr[2] = addr;

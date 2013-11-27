@@ -378,7 +378,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
         vring = s390_virtio_next_ring(bus);
         virtio_queue_set_addr(dev->vdev, i, vring);
         virtio_queue_set_vector(dev->vdev, i, i);
-        stq_be_phys(vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
+        stq_be_phys(&address_space_memory,
+                    vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
         stw_be_phys(vq + VIRTIO_VQCONFIG_OFFS_NUM, virtio_queue_get_num(dev->vdev, i));
     }
 

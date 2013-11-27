@@ -559,6 +559,8 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
+    CPUState *cs = CPU(cpu);
+
     target_ulong size = args[0];
     target_ulong addr = args[1];
     target_ulong val  = args[2];
@@ -574,7 +576,7 @@ static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         stl_phys(addr, val);
         return H_SUCCESS;
     case 8:
-        stq_phys(addr, val);
+        stq_phys(cs->as, addr, val);
         return H_SUCCESS;
     }
     return H_PARAMETER;
@@ -639,7 +641,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             stl_phys(dst, tmp);
             break;
         case 3:
-            stq_phys(dst, tmp);
+            stq_phys(cs->as, dst, tmp);
             break;
         }
         dst = dst + step;

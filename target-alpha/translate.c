@@ -3229,7 +3229,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 break;
             case 0x1:
                 /* Quadword physical access */
-                gen_helper_stq_phys(addr, val);
+                gen_helper_stq_phys(cpu_env, addr, val);
                 break;
             case 0x2:
                 /* Longword physical access with lock */

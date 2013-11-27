@@ -873,7 +873,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         }
         indicators = ldq_phys(&address_space_memory, dev->indicators);
         indicators |= 1ULL << vector;
-        stq_phys(dev->indicators, indicators);
+        stq_phys(&address_space_memory, dev->indicators, indicators);
     } else {
         if (!dev->indicators2) {
             return;
@@ -881,7 +881,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         vector = 0;
         indicators = ldq_phys(&address_space_memory, dev->indicators2);
         indicators |= 1ULL << vector;
-        stq_phys(dev->indicators2, indicators);
+        stq_phys(&address_space_memory, dev->indicators2, indicators);
     }
 
     css_conditional_io_interrupt(sch);

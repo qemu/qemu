@@ -55,9 +55,10 @@ void helper_stl_phys(uint64_t p, uint64_t v)
     stl_phys(p, v);
 }
 
-void helper_stq_phys(uint64_t p, uint64_t v)
+void helper_stq_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    stq_phys(p, v);
+    CPUState *cs = ENV_GET_CPU(env);
+    stq_phys(cs->as, p, v);
 }
 
 uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
@@ -85,7 +86,7 @@ uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
     if (p == env->lock_addr) {
         uint64_t old = ldq_phys(cs->as, p);
         if (old == env->lock_value) {
-            stq_phys(p, v);
+            stq_phys(cs->as, p, v);
             ret = 1;
         }
     }
