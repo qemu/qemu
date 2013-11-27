@@ -29,4 +29,9 @@ void qemu_input_handler_unregister(QemuInputHandlerState *s);
 void qemu_input_event_send(QemuConsole *src, InputEvent *evt);
 void qemu_input_event_sync(void);
 
+InputEvent *qemu_input_event_new_key(KeyValue *key, bool down);
+void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down);
+void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down);
+void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down);
+
 #endif /* INPUT_H */

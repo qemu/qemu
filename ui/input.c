@@ -81,3 +81,38 @@ void qemu_input_event_sync(void)
         s->events = 0;
     }
 }
+
+InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
+{
+    InputEvent *evt = g_new0(InputEvent, 1);
+    evt->key = g_new0(InputKeyEvent, 1);
+    evt->kind = INPUT_EVENT_KIND_KEY;
+    evt->key->key = key;
+    evt->key->down = down;
+    return evt;
+}
+
+void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
+{
+    InputEvent *evt;
+    evt = qemu_input_event_new_key(key, down);
+    qemu_input_event_send(src, evt);
+    qemu_input_event_sync();
+    qapi_free_InputEvent(evt);
+}
+
+void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
+{
+    KeyValue *key = g_new0(KeyValue, 1);
+    key->kind = KEY_VALUE_KIND_NUMBER;
+    key->number = num;
+    qemu_input_event_send_key(src, key, down);
+}
+
+void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
+{
+    KeyValue *key = g_new0(KeyValue, 1);
+    key->kind = KEY_VALUE_KIND_QCODE;
+    key->qcode = q;
+    qemu_input_event_send_key(src, key, down);
+}
