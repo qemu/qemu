@@ -194,7 +194,7 @@ static void gd_update_cursor(GtkDisplayState *s, gboolean override)
     on_vga = gd_on_vga(s);
 
     if ((override || on_vga) &&
-        (s->full_screen || kbd_mouse_is_absolute() || gd_is_grab_active(s))) {
+        (s->full_screen || qemu_input_is_absolute() || gd_is_grab_active(s))) {
         gdk_window_set_cursor(window, s->null_cursor);
     } else {
         gdk_window_set_cursor(window, NULL);
@@ -580,7 +580,6 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
                                 void *opaque)
 {
     GtkDisplayState *s = opaque;
-    int dx, dy;
     int x, y;
     int mx, my;
     int fbh, fbw;
@@ -608,25 +607,21 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
         return TRUE;
     }
 
-    if (kbd_mouse_is_absolute()) {
-        dx = x * 0x7FFF / (surface_width(s->ds) - 1);
-        dy = y * 0x7FFF / (surface_height(s->ds) - 1);
-    } else if (s->last_x == -1 || s->last_y == -1) {
-        dx = 0;
-        dy = 0;
-    } else {
-        dx = x - s->last_x;
-        dy = y - s->last_y;
+    if (qemu_input_is_absolute()) {
+        qemu_input_queue_abs(s->dcl.con, INPUT_AXIS_X, x,
+                             surface_width(s->ds));
+        qemu_input_queue_abs(s->dcl.con, INPUT_AXIS_Y, y,
+                             surface_height(s->ds));
+        qemu_input_event_sync();
+    } else if (s->last_x != -1 && s->last_y != -1 && gd_is_grab_active(s)) {
+        qemu_input_queue_rel(s->dcl.con, INPUT_AXIS_X, x - s->last_x);
+        qemu_input_queue_rel(s->dcl.con, INPUT_AXIS_Y, y - s->last_y);
+        qemu_input_event_sync();
     }
-
     s->last_x = x;
     s->last_y = y;
 
-    if (kbd_mouse_is_absolute() || gd_is_grab_active(s)) {
-        kbd_mouse_event(dx, dy, 0, s->button_mask);
-    }
-
-    if (!kbd_mouse_is_absolute() && gd_is_grab_active(s)) {
+    if (!qemu_input_is_absolute() && gd_is_grab_active(s)) {
         GdkScreen *screen = gtk_widget_get_screen(s->drawing_area);
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
@@ -671,35 +666,20 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
                                 void *opaque)
 {
     GtkDisplayState *s = opaque;
-    int dx, dy;
-    int n;
+    InputButton btn;
 
     if (button->button == 1) {
-        n = 0x01;
+        btn = INPUT_BUTTON_LEFT;
     } else if (button->button == 2) {
-        n = 0x04;
+        btn = INPUT_BUTTON_MIDDLE;
     } else if (button->button == 3) {
-        n = 0x02;
+        btn = INPUT_BUTTON_RIGHT;
     } else {
-        n = 0x00;
+        return TRUE;
     }
 
-    if (button->type == GDK_BUTTON_PRESS) {
-        s->button_mask |= n;
-    } else if (button->type == GDK_BUTTON_RELEASE) {
-        s->button_mask &= ~n;
-    }
-
-    if (kbd_mouse_is_absolute()) {
-        dx = s->last_x * 0x7FFF / (surface_width(s->ds) - 1);
-        dy = s->last_y * 0x7FFF / (surface_height(s->ds) - 1);
-    } else {
-        dx = 0;
-        dy = 0;
-    }
-
-    kbd_mouse_event(dx, dy, 0, s->button_mask);
-        
+    qemu_input_queue_btn(s->dcl.con, btn, button->type == GDK_BUTTON_PRESS);
+    qemu_input_event_sync();
     return TRUE;
 }
 
