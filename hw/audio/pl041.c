@@ -632,7 +632,6 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
 
     k->init = pl041_init;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->reset = pl041_device_reset;
     dc->vmsd = &vmstate_pl041;
     dc->props = pl041_device_properties;

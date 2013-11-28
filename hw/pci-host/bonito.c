@@ -819,11 +819,9 @@ static const TypeInfo bonito_info = {
 
 static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = bonito_pcihost_initfn;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo bonito_pcihost_info = {

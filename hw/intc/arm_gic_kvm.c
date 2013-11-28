@@ -150,7 +150,6 @@ static void kvm_arm_gic_class_init(ObjectClass *klass, void *data)
     kgc->parent_reset = dc->reset;
     dc->realize = kvm_arm_gic_realize;
     dc->reset = kvm_arm_gic_reset;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo kvm_arm_gic_info = {

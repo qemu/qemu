@@ -727,7 +727,6 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     hc->root_bus_path = i440fx_pcihost_root_bus_path;
     dc->realize = i440fx_pcihost_realize;
     dc->fw_name = "pci";
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = i440fx_props;
 }
 

@@ -143,10 +143,8 @@ static const TypeInfo grackle_pci_info = {
 static void pci_grackle_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = pci_grackle_init_device;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo grackle_pci_host_info = {

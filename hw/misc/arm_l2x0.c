@@ -179,7 +179,6 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
 
     k->init = l2x0_priv_init;
     dc->vmsd = &vmstate_l2x0;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = l2x0_properties;
     dc->reset = l2x0_priv_reset;
 }
