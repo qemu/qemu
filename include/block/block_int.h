@@ -258,6 +258,9 @@ typedef struct BlockLimits {
 
     /* optimal transfer length in sectors */
     int opt_transfer_length;
+
+    /* memory alignment so that no bounce buffer is needed */
+    size_t opt_mem_alignment;
 } BlockLimits;
 
 /*

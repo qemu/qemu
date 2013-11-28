@@ -218,6 +218,16 @@ static void bdrv_io_limits_intercept(BlockDriverState *bs,
     qemu_co_queue_next(&bs->throttled_reqs[is_write]);
 }
 
+size_t bdrv_opt_mem_align(BlockDriverState *bs)
+{
+    if (!bs || !bs->drv) {
+        /* 4k should be on the safe side */
+        return 4096;
+    }
+
+    return bs->bl.opt_mem_alignment;
+}
+
 /* check if the path starts with "<protocol>:" */
 static int path_has_protocol(const char *path)
 {
@@ -497,6 +507,9 @@ int bdrv_refresh_limits(BlockDriverState *bs)
     if (bs->file) {
         bdrv_refresh_limits(bs->file);
         bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
+        bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
+    } else {
+        bs->bl.opt_mem_alignment = 512;
     }
 
     if (bs->backing_hd) {
@@ -504,6 +517,9 @@ int bdrv_refresh_limits(BlockDriverState *bs)
         bs->bl.opt_transfer_length =
             MAX(bs->bl.opt_transfer_length,
                 bs->backing_hd->bl.opt_transfer_length);
+        bs->bl.opt_mem_alignment =
+            MAX(bs->bl.opt_mem_alignment,
+                bs->backing_hd->bl.opt_mem_alignment);
     }
 
     /* Then let the driver override it */
@@ -4797,7 +4813,7 @@ void bdrv_set_buffer_alignment(BlockDriverState *bs, int align)
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
-    return qemu_memalign((bs && bs->buffer_alignment) ? bs->buffer_alignment : 512, size);
+    return qemu_memalign(bdrv_opt_mem_align(bs), size);
 }
 
 /*
@@ -4806,12 +4822,13 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size)
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
 {
     int i;
+    size_t alignment = bdrv_opt_mem_align(bs);
 
     for (i = 0; i < qiov->niov; i++) {
-        if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
+        if ((uintptr_t) qiov->iov[i].iov_base % alignment) {
             return false;
         }
-        if (qiov->iov[i].iov_len % bs->buffer_alignment) {
+        if (qiov->iov[i].iov_len % alignment) {
             return false;
         }
     }
