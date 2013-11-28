@@ -53,7 +53,7 @@
 #define ARP_OP_REQUEST_REV 0x3
 
 static int announce_self_create(uint8_t *buf,
-				uint8_t *mac_addr)
+                                uint8_t *mac_addr)
 {
     /* Ethernet header. */
     memset(buf, 0xff, 6);         /* destination MAC addr */
@@ -100,16 +100,16 @@ static void qemu_announce_self_once(void *opaque)
         timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
                        50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
-	    timer_del(timer);
-	    timer_free(timer);
+            timer_del(timer);
+            timer_free(timer);
     }
 }
 
 void qemu_announce_self(void)
 {
-	static QEMUTimer *timer;
-	timer = timer_new_ms(QEMU_CLOCK_REALTIME, qemu_announce_self_once, &timer);
-	qemu_announce_self_once(&timer);
+    static QEMUTimer *timer;
+    timer = timer_new_ms(QEMU_CLOCK_REALTIME, qemu_announce_self_once, &timer);
+    qemu_announce_self_once(&timer);
 }
 
 /***********************************************************/
@@ -420,8 +420,8 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
     QEMUFileSocket *s;
 
     if (mode == NULL ||
-	(mode[0] != 'r' && mode[0] != 'w') ||
-	mode[1] != 'b' || mode[2] != 0) {
+        (mode[0] != 'r' && mode[0] != 'w') ||
+        mode[1] != 'b' || mode[2] != 0) {
         fprintf(stderr, "qemu_fdopen: Argument validity check failed\n");
         return NULL;
     }
@@ -1959,7 +1959,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         int len;
 
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
-	    continue;
+            continue;
         }
         trace_savevm_section_start();
         /* Section type */
