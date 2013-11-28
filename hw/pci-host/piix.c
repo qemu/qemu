@@ -635,7 +635,6 @@ static void piix3_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config;
@@ -643,6 +642,11 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
     k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
+    /*
+     * Reason: part of PIIX3 southbridge, needs to be wired up by
+     * pc_piix.c's pc_init1()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo piix3_info = {
@@ -659,7 +663,6 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config_xen;
@@ -667,6 +670,11 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
     k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
+    /*
+     * Reason: part of PIIX3 southbridge, needs to be wired up by
+     * pc_piix.c's pc_init1()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 };
 
 static const TypeInfo piix3_xen_info = {
