@@ -41,6 +41,7 @@ void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down);
 void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
                                uint32_t button_old, uint32_t button_new);
 
+bool qemu_input_is_absolute(void);
 int qemu_input_scale_axis(int value, int size_in, int size_out);
 InputEvent *qemu_input_event_new_move(InputEventKind kind,
                                       InputAxis axis, int value);

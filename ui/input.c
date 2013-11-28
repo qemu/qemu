@@ -181,6 +181,14 @@ void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
     }
 }
 
+bool qemu_input_is_absolute(void)
+{
+    QemuInputHandlerState *s;
+
+    s = qemu_input_find_handler(INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS);
+    return (s != NULL) && (s->handler->mask & INPUT_EVENT_MASK_ABS);
+}
+
 int qemu_input_scale_axis(int value, int size_in, int size_out)
 {
     if (size_in < 2) {
