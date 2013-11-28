@@ -289,6 +289,9 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
+int qemu_console_get_index(QemuConsole *con);
+int qemu_console_get_width(QemuConsole *con, int fallback);
+int qemu_console_get_height(QemuConsole *con, int fallback);
 
 void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);

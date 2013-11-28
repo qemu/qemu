@@ -1641,6 +1641,30 @@ bool qemu_console_is_fixedsize(QemuConsole *con)
     return con && (con->console_type != TEXT_CONSOLE);
 }
 
+int qemu_console_get_index(QemuConsole *con)
+{
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con ? con->index : -1;
+}
+
+int qemu_console_get_width(QemuConsole *con, int fallback)
+{
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con ? surface_width(con->surface) : fallback;
+}
+
+int qemu_console_get_height(QemuConsole *con, int fallback)
+{
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con ? surface_height(con->surface) : fallback;
+}
+
 static void text_console_set_echo(CharDriverState *chr, bool echo)
 {
     QemuConsole *s = chr->opaque;
