@@ -30,6 +30,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "x_keymap.h"
 #include "sdl_zoom.h"
@@ -261,9 +262,7 @@ static void reset_keys(void)
     int i;
     for(i = 0; i < 256; i++) {
         if (modifiers_state[i]) {
-            if (i & SCANCODE_GREY)
-                kbd_put_keycode(SCANCODE_EMUL0);
-            kbd_put_keycode(i | SCANCODE_UP);
+            qemu_input_event_send_key_number(dcl->con, i, false);
             modifiers_state[i] = 0;
         }
     }
@@ -271,16 +270,12 @@ static void reset_keys(void)
 
 static void sdl_process_key(SDL_KeyboardEvent *ev)
 {
-    int keycode, v;
+    int keycode;
 
     if (ev->keysym.sym == SDLK_PAUSE) {
         /* specific case */
-        v = 0;
-        if (ev->type == SDL_KEYUP)
-            v |= SCANCODE_UP;
-        kbd_put_keycode(0xe1);
-        kbd_put_keycode(0x1d | v);
-        kbd_put_keycode(0x45 | v);
+        qemu_input_event_send_key_qcode(dcl->con, Q_KEY_CODE_PAUSE,
+                                        ev->type == SDL_KEYDOWN);
         return;
     }
 
@@ -312,19 +307,15 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
     case 0x45: /* num lock */
     case 0x3a: /* caps lock */
         /* SDL does not send the key up event, so we generate it */
-        kbd_put_keycode(keycode);
-        kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(dcl->con, keycode, true);
+        qemu_input_event_send_key_number(dcl->con, keycode, false);
         return;
 #endif
     }
 
     /* now send the key code */
-    if (keycode & SCANCODE_GREY)
-        kbd_put_keycode(SCANCODE_EMUL0);
-    if (ev->type == SDL_KEYUP)
-        kbd_put_keycode(keycode | SCANCODE_UP);
-    else
-        kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
+    qemu_input_event_send_key_number(dcl->con, keycode,
+                                     ev->type == SDL_KEYDOWN);
 }
 
 static void sdl_update_caption(void)
