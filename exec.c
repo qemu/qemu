@@ -2534,14 +2534,14 @@ uint32_t lduw_be_phys(AddressSpace *as, hwaddr addr)
 /* warning: addr must be aligned. The ram page is not masked as dirty
    and the code inside is not invalidated. It is useful if the dirty
    bits are used to track modified PTEs */
-void stl_phys_notdirty(hwaddr addr, uint32_t val)
+void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val)
 {
     uint8_t *ptr;
     MemoryRegion *mr;
     hwaddr l = 4;
     hwaddr addr1;
 
-    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+    mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
         io_mem_write(mr, addr1, val, 4);

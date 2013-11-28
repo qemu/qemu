@@ -574,7 +574,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             }
             if (!(pml4e & PG_ACCESSED_MASK)) {
                 pml4e |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(pml4e_addr, pml4e);
+                stl_phys_notdirty(cs->as, pml4e_addr, pml4e);
             }
             ptep = pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PHYS_ADDR_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
@@ -591,7 +591,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             ptep &= pdpe ^ PG_NX_MASK;
             if (!(pdpe & PG_ACCESSED_MASK)) {
                 pdpe |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(pdpe_addr, pdpe);
+                stl_phys_notdirty(cs->as, pdpe_addr, pdpe);
             }
         } else
 #endif
@@ -661,7 +661,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                 pde |= PG_ACCESSED_MASK;
                 if (is_dirty)
                     pde |= PG_DIRTY_MASK;
-                stl_phys_notdirty(pde_addr, pde);
+                stl_phys_notdirty(cs->as, pde_addr, pde);
             }
             /* align to page_size */
             pte = pde & ((PHYS_ADDR_MASK & ~(page_size - 1)) | 0xfff);
@@ -670,7 +670,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             /* 4 KB page */
             if (!(pde & PG_ACCESSED_MASK)) {
                 pde |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(pde_addr, pde);
+                stl_phys_notdirty(cs->as, pde_addr, pde);
             }
             pte_addr = ((pde & PHYS_ADDR_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
                 env->a20_mask;
@@ -723,7 +723,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                 pte |= PG_ACCESSED_MASK;
                 if (is_dirty)
                     pte |= PG_DIRTY_MASK;
-                stl_phys_notdirty(pte_addr, pte);
+                stl_phys_notdirty(cs->as, pte_addr, pte);
             }
             page_size = 4096;
             virt_addr = addr & ~0xfff;
@@ -778,7 +778,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                 pde |= PG_ACCESSED_MASK;
                 if (is_dirty)
                     pde |= PG_DIRTY_MASK;
-                stl_phys_notdirty(pde_addr, pde);
+                stl_phys_notdirty(cs->as, pde_addr, pde);
             }
 
             pte = pde & ~( (page_size - 1) & ~0xfff); /* align to page_size */
@@ -787,7 +787,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         } else {
             if (!(pde & PG_ACCESSED_MASK)) {
                 pde |= PG_ACCESSED_MASK;
-                stl_phys_notdirty(pde_addr, pde);
+                stl_phys_notdirty(cs->as, pde_addr, pde);
             }
 
             /* page directory entry */
@@ -835,7 +835,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                 pte |= PG_ACCESSED_MASK;
                 if (is_dirty)
                     pte |= PG_DIRTY_MASK;
-                stl_phys_notdirty(pte_addr, pte);
+                stl_phys_notdirty(cs->as, pte_addr, pte);
             }
             page_size = 4096;
             virt_addr = addr & ~0xfff;

@@ -180,7 +180,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
         if (is_dirty) {
             pde |= PG_MODIFIED_MASK;
         }
-        stl_phys_notdirty(pde_ptr, pde);
+        stl_phys_notdirty(cs->as, pde_ptr, pde);
     }
 
     /* the page can be put in the TLB */

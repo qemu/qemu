@@ -102,7 +102,7 @@ void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 uint32_t lduw_phys(AddressSpace *as, hwaddr addr);
 uint32_t ldl_phys(AddressSpace *as, hwaddr addr);
 uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
-void stl_phys_notdirty(hwaddr addr, uint32_t val);
+void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val);
 void stw_phys(hwaddr addr, uint32_t val);
 void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
