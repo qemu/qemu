@@ -2234,7 +2234,6 @@ static void isabus_fdc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = isabus_fdc_realize;
     dc->fw_name = "fdc";
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->reset = fdctrl_external_reset_isa;
     dc->vmsd = &vmstate_isa_fdc;
     dc->props = isa_fdc_properties;

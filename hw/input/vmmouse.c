@@ -282,10 +282,11 @@ static void vmmouse_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = vmmouse_realizefn;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->reset = vmmouse_reset;
     dc->vmsd = &vmstate_vmmouse;
     dc->props = vmmouse_properties;
+    /* Reason: pointer property "ps2_mouse" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo vmmouse_info = {

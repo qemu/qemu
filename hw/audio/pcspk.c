@@ -192,8 +192,9 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = pcspk_properties;
+    /* Reason: pointer property "pit", realize sets global pcspk_state */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pcspk_info = {

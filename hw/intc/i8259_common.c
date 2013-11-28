@@ -135,9 +135,15 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = pic_properties_common;
     dc->realize = pic_common_realize;
+    /*
+     * Reason: unlike ordinary ISA devices, the PICs need additional
+     * wiring: its IRQ input lines are set up by board code, and the
+     * wiring of the slave to the master is hard-coded in device model
+     * code.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pic_common_type = {
