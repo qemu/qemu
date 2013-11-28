@@ -2021,6 +2021,9 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (!source && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
     }
+    if (sync == MIRROR_SYNC_MODE_NONE) {
+        source = bs;
+    }
 
     size = bdrv_getlength(bs);
     if (size < 0) {
