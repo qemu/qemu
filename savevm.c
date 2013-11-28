@@ -578,7 +578,7 @@ int qemu_file_get_error(QEMUFile *f)
     return f->last_error;
 }
 
-static void qemu_file_set_error(QEMUFile *f, int ret)
+void qemu_file_set_error(QEMUFile *f, int ret)
 {
     if (f->last_error == 0) {
         f->last_error = ret;
@@ -827,14 +827,14 @@ void qemu_put_byte(QEMUFile *f, int v)
     }
 }
 
-static void qemu_file_skip(QEMUFile *f, int size)
+void qemu_file_skip(QEMUFile *f, int size)
 {
     if (f->buf_index + size <= f->buf_size) {
         f->buf_index += size;
     }
 }
 
-static int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
+int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
 {
     int pending;
     int index;
@@ -880,7 +880,7 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
     return done;
 }
 
-static int qemu_peek_byte(QEMUFile *f, int offset)
+int qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
 
