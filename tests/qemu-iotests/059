@@ -75,6 +75,11 @@ echo
 echo "=== Testing monolithicFlat with zeroed_grain ==="
 IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
 
+echo
+echo "=== Testing version 3 ==="
+_use_sample_img iotest-version3.vmdk.bz2
+_img_info
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
