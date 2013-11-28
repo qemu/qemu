@@ -2114,7 +2114,8 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
-static const VMStateDescription *vmstate_get_subsection(const VMStateSubsection *sub, char *idstr)
+static const VMStateDescription *
+    vmstate_get_subsection(const VMStateSubsection *sub, char *idstr)
 {
     while (sub && sub->needed) {
         if (strcmp(idstr, sub->vmsd->name) == 0) {
