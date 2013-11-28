@@ -806,7 +806,7 @@ static void bonito_class_init(ObjectClass *klass, void *data)
     k->revision = 0x01;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     dc->desc = "Host bridge";
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->vmsd = &vmstate_bonito;
 }
 
@@ -823,7 +823,7 @@ static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = bonito_pcihost_initfn;
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo bonito_pcihost_info = {

@@ -273,7 +273,7 @@ static void pl190_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl190_init;
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->reset = pl190_reset;
     dc->vmsd = &vmstate_pl190;
 }

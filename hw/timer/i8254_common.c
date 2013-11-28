@@ -282,7 +282,7 @@ static void pit_common_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pit_common_realize;
     dc->vmsd = &vmstate_pit_common;
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo pit_common_type = {

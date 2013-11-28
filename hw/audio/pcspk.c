@@ -192,7 +192,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = pcspk_properties;
 }
 

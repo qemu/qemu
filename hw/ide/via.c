@@ -225,7 +225,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     k->revision = 0x06;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo via_ide_info = {

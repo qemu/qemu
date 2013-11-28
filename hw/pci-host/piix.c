@@ -635,7 +635,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
-    dc->no_user     = 1,
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config;
@@ -659,7 +659,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
-    dc->no_user     = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config_xen;
@@ -689,7 +689,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
     k->revision = 0x02;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     dc->desc = "Host bridge";
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->vmsd = &vmstate_i440fx;
 }
 
@@ -727,7 +727,7 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     hc->root_bus_path = i440fx_pcihost_root_bus_path;
     dc->realize = i440fx_pcihost_realize;
     dc->fw_name = "pci";
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->props = i440fx_props;
 }
 

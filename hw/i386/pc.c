@@ -547,7 +547,7 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     dc->realize = port92_realizefn;
     dc->reset = port92_reset;
     dc->vmsd = &vmstate_port92_isa;

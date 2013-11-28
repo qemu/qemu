@@ -182,7 +182,7 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     k->init = s390_ipl_init;
     dc->props = s390_ipl_properties;
     dc->reset = s390_ipl_reset;
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
 }
 
 static const TypeInfo s390_ipl_info = {

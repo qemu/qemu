@@ -644,7 +644,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     dc->reset = ich9_lpc_reset;
     k->init = ich9_lpc_initfn;
     dc->vmsd = &vmstate_ich9_lpc;
-    dc->no_user = 1;
+    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
     k->config_write = ich9_lpc_config_write;
     dc->desc = "ICH9 LPC bridge";
     k->vendor_id = PCI_VENDOR_ID_INTEL;

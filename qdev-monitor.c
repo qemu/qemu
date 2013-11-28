@@ -87,7 +87,7 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
     }
-    if (dc->no_user) {
+    if (dc->cannot_instantiate_with_device_add_yet) {
         error_printf(", no-user");
     }
     error_printf("\n");
@@ -127,7 +127,8 @@ static void qdev_print_devinfos(bool show_no_user)
             if ((i < DEVICE_CATEGORY_MAX
                  ? !test_bit(i, dc->categories)
                  : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
-                || (!show_no_user && dc->no_user)) {
+                || (!show_no_user
+                    && dc->cannot_instantiate_with_device_add_yet)) {
                 continue;
             }
             if (!cat_printed) {
