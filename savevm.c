@@ -137,14 +137,12 @@ struct QEMUFile {
     int last_error;
 };
 
-typedef struct QEMUFileStdio
-{
+typedef struct QEMUFileStdio {
     FILE *stdio_file;
     QEMUFile *file;
 } QEMUFileStdio;
 
-typedef struct QEMUFileSocket
-{
+typedef struct QEMUFileSocket {
     int fd;
     QEMUFile *file;
 } QEMUFileSocket;
@@ -208,7 +206,8 @@ static int stdio_get_fd(void *opaque)
     return fileno(s->stdio_file);
 }
 
-static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
+static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
+                            int size)
 {
     QEMUFileStdio *s = opaque;
     return fwrite(buf, 1, size, s->stdio_file);
@@ -310,7 +309,7 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
 
     s->stdio_file = stdio_file;
 
-    if(mode[0] == 'r') {
+    if (mode[0] == 'r') {
         s->file = qemu_fopen_ops(s, &stdio_pipe_read_ops);
     } else {
         s->file = qemu_fopen_ops(s, &stdio_pipe_write_ops);
@@ -429,7 +428,7 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
     s = g_malloc0(sizeof(QEMUFileSocket));
     s->fd = fd;
 
-    if(mode[0] == 'r') {
+    if (mode[0] == 'r') {
         s->file = qemu_fopen_ops(s, &unix_read_ops);
     } else {
         s->file = qemu_fopen_ops(s, &unix_write_ops);
@@ -491,10 +490,11 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
     s = g_malloc0(sizeof(QEMUFileStdio));
 
     s->stdio_file = fopen(filename, mode);
-    if (!s->stdio_file)
+    if (!s->stdio_file) {
         goto fail;
-    
-    if(mode[0] == 'w') {
+    }
+
+    if (mode[0] == 'w') {
         s->file = qemu_fopen_ops(s, &stdio_file_write_ops);
     } else {
         s->file = qemu_fopen_ops(s, &stdio_file_read_ops);
@@ -550,8 +550,9 @@ static const QEMUFileOps bdrv_write_ops = {
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
-    if (is_writable)
+    if (is_writable) {
         return qemu_fopen_ops(bs, &bdrv_write_ops);
+    }
     return qemu_fopen_ops(bs, &bdrv_read_ops);
 }
 
@@ -703,8 +704,9 @@ static void qemu_fill_buffer(QEMUFile *f)
         f->pos += len;
     } else if (len == 0) {
         qemu_file_set_error(f, -EIO);
-    } else if (len != -EAGAIN)
+    } else if (len != -EAGAIN) {
         qemu_file_set_error(f, len);
+    }
 }
 
 int qemu_get_fd(QEMUFile *f)
@@ -791,8 +793,9 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 
     while (size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
-        if (l > size)
+        if (l > size) {
             l = size;
+        }
         memcpy(f->buf + f->buf_index, buf, l);
         f->bytes_xfer += l;
         if (f->ops->writev_buffer) {
@@ -1100,8 +1103,9 @@ static int get_int32_equal(QEMUFile *f, void *pv, size_t size)
     int32_t v2;
     qemu_get_sbe32s(f, &v2);
 
-    if (*v == v2)
+    if (*v == v2) {
         return 0;
+    }
     return -EINVAL;
 }
 
@@ -1120,8 +1124,9 @@ static int get_int32_le(QEMUFile *f, void *pv, size_t size)
     int32_t new;
     qemu_get_sbe32s(f, &new);
 
-    if (*old <= new)
+    if (*old <= new) {
         return 0;
+    }
     return -EINVAL;
 }
 
@@ -1287,8 +1292,9 @@ static int get_uint8_equal(QEMUFile *f, void *pv, size_t size)
     uint8_t v2;
     qemu_get_8s(f, &v2);
 
-    if (*v == v2)
+    if (*v == v2) {
         return 0;
+    }
     return -EINVAL;
 }
 
@@ -1307,8 +1313,9 @@ static int get_uint16_equal(QEMUFile *f, void *pv, size_t size)
     uint16_t v2;
     qemu_get_be16s(f, &v2);
 
-    if (*v == v2)
+    if (*v == v2) {
         return 0;
+    }
     return -EINVAL;
 }
 
@@ -1502,8 +1509,9 @@ static int calculate_compat_instance_id(const char *idstr)
     int instance_id = 0;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (!se->compat)
+        if (!se->compat) {
             continue;
+        }
 
         if (strcmp(idstr, se->compat->idstr) == 0
             && instance_id <= se->compat->instance_id) {
@@ -1690,10 +1698,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     }
     if (vmsd->pre_load) {
         int ret = vmsd->pre_load(opaque);
-        if (ret)
+        if (ret) {
             return ret;
+        }
     }
-    while(field->name) {
+    while (field->name) {
         if ((field->field_exists &&
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
@@ -1729,7 +1738,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     addr = *(void **)addr;
                 }
                 if (field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, field->vmsd, addr, field->vmsd->version_id);
+                    ret = vmstate_load_state(f, field->vmsd, addr,
+                                             field->vmsd->version_id);
                 } else {
                     ret = field->info->get(f, addr, size);
 
@@ -1759,7 +1769,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     if (vmsd->pre_save) {
         vmsd->pre_save(opaque);
     }
-    while(field->name) {
+    while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
             void *base_addr = opaque + field->offset;
@@ -1818,7 +1828,7 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
         se->ops->save_state(f, se->opaque);
         return;
     }
-    vmstate_save_state(f,se->vmsd, se->opaque);
+    vmstate_save_state(f, se->vmsd, se->opaque);
 }
 
 bool qemu_savevm_state_blocked(Error **errp)
@@ -1846,7 +1856,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
         }
         se->ops->set_params(params, se->opaque);
     }
-    
+
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
@@ -2106,7 +2116,7 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 
 static const VMStateDescription *vmstate_get_subsection(const VMStateSubsection *sub, char *idstr)
 {
-    while(sub && sub->needed) {
+    while (sub && sub->needed) {
         if (strcmp(idstr, sub->vmsd->name) == 0) {
             return sub->vmsd;
         }
@@ -2198,16 +2208,18 @@ int qemu_loadvm_state(QEMUFile *f)
     }
 
     v = qemu_get_be32(f);
-    if (v != QEMU_VM_FILE_MAGIC)
+    if (v != QEMU_VM_FILE_MAGIC) {
         return -EINVAL;
+    }
 
     v = qemu_get_be32(f);
     if (v == QEMU_VM_FILE_VERSION_COMPAT) {
         fprintf(stderr, "SaveVM v2 format is obsolete and don't work anymore\n");
         return -ENOTSUP;
     }
-    if (v != QEMU_VM_FILE_VERSION)
+    if (v != QEMU_VM_FILE_VERSION) {
         return -ENOTSUP;
+    }
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
         uint32_t instance_id, version_id, section_id;
@@ -2326,8 +2338,7 @@ static int del_existing_snapshots(Monitor *mon, const char *name)
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
         if (bdrv_can_snapshot(bs) &&
-            bdrv_snapshot_find(bs, snapshot, name) >= 0)
-        {
+            bdrv_snapshot_find(bs, snapshot, name) >= 0) {
             bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
             if (error_is_set(&err)) {
                 monitor_printf(mon,
@@ -2437,8 +2448,9 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     }
 
  the_end:
-    if (saved_vm_running)
+    if (saved_vm_running) {
         vm_start();
+    }
 }
 
 void qmp_xen_save_devices_state(const char *filename, Error **errp)
@@ -2462,8 +2474,9 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
     }
 
  the_end:
-    if (saved_vm_running)
+    if (saved_vm_running) {
         vm_start();
+    }
 }
 
 int load_vmstate(const char *name)
