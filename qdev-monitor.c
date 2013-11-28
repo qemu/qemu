@@ -490,6 +490,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     dc = DEVICE_CLASS(oc);
+    if (dc->cannot_instantiate_with_device_add_yet) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
+                      "pluggable device type");
+        return NULL;
+    }
 
     /* find bus */
     path = qemu_opt_get(opts, "bus");
