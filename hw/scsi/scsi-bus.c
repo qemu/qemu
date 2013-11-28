@@ -886,7 +886,6 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case RELEASE:
     case ERASE:
     case ALLOW_MEDIUM_REMOVAL:
-    case VERIFY_10:
     case SEEK_10:
     case SYNCHRONIZE_CACHE:
     case SYNCHRONIZE_CACHE_16:
@@ -902,6 +901,16 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case PRE_FETCH_16:
     case ALLOW_OVERWRITE:
         cmd->xfer = 0;
+        break;
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
+        if ((buf[1] & 2) == 0) {
+            cmd->xfer = 0;
+        } else if ((buf[1] & 4) == 1) {
+            cmd->xfer = 1;
+        }
+        cmd->xfer *= dev->blocksize;
         break;
     case MODE_SENSE:
         break;
@@ -1100,6 +1109,9 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case WRITE_VERIFY_12:
     case WRITE_16:
     case WRITE_VERIFY_16:
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
     case COPY:
     case COPY_VERIFY:
     case COMPARE:
