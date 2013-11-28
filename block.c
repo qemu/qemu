@@ -1061,7 +1061,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         /* Get the required size from the image */
         bs1 = bdrv_new("");
         QINCREF(options);
-        ret = bdrv_open(bs1, filename, options, 0, drv, &local_err);
+        ret = bdrv_open(bs1, filename, options, BDRV_O_NO_BACKING,
+                        drv, &local_err);
         if (ret < 0) {
             bdrv_unref(bs1);
             goto fail;

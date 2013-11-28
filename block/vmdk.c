@@ -1690,7 +1690,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     }
     if (backing_file) {
         BlockDriverState *bs = bdrv_new("");
-        ret = bdrv_open(bs, backing_file, NULL, 0, NULL, errp);
+        ret = bdrv_open(bs, backing_file, NULL, BDRV_O_NO_BACKING, NULL, errp);
         if (ret != 0) {
             bdrv_unref(bs);
             return ret;
