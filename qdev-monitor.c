@@ -478,7 +478,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         }
     }
 
-    if (!oc) {
+    if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
         qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
         return NULL;
     }
