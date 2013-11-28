@@ -198,7 +198,11 @@ static void raven_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     dc->desc = "PReP Host Bridge - Motorola Raven";
     dc->vmsd = &vmstate_raven;
-    dc->cannot_instantiate_with_device_add_yet = true; /* FIXME explain why */
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo raven_info = {
