@@ -59,6 +59,7 @@
 
 #include "trace.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "x_keymap.h"
@@ -280,10 +281,7 @@ static void gtk_release_modifiers(GtkDisplayState *s)
         if (!s->modifier_pressed[i]) {
             continue;
         }
-        if (keycode & SCANCODE_GREY) {
-            kbd_put_keycode(SCANCODE_EMUL0);
-        }
-        kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(s->dcl.con, keycode, false);
         s->modifier_pressed[i] = false;
     }
 }
@@ -745,17 +743,8 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
         }
     }
 
-    if (qemu_keycode & SCANCODE_GREY) {
-        kbd_put_keycode(SCANCODE_EMUL0);
-    }
-
-    if (key->type == GDK_KEY_PRESS) {
-        kbd_put_keycode(qemu_keycode & SCANCODE_KEYCODEMASK);
-    } else if (key->type == GDK_KEY_RELEASE) {
-        kbd_put_keycode(qemu_keycode | SCANCODE_UP);
-    } else {
-        g_assert_not_reached();
-    }
+    qemu_input_event_send_key_number(s->dcl.con, qemu_keycode,
+                                     key->type == GDK_KEY_PRESS);
 
     return TRUE;
 }
