@@ -2,9 +2,11 @@
  * qtest I440FX test case
  *
  * Copyright IBM, Corp. 2012-2013
+ * Copyright Red Hat, Inc. 2013
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Laszlo Ersek      <lersek@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -256,7 +258,6 @@ static void test_i440fx_pam(gconstpointer opaque)
 
 int main(int argc, char **argv)
 {
-    QTestState *s;
     TestData data;
     char *cmdline;
     int ret;
@@ -266,20 +267,17 @@ int main(int argc, char **argv)
     data.num_cpus = 1;
 
     cmdline = g_strdup_printf("-smp %d", data.num_cpus);
-    s = qtest_start(cmdline);
+    qtest_start(cmdline);
     g_free(cmdline);
 
     data.bus = qpci_init_pc();
 
     g_test_add_data_func("/i440fx/defaults", &data, test_i440fx_defaults);
     g_test_add_data_func("/i440fx/pam", &data, test_i440fx_pam);
-    
 
     ret = g_test_run();
 
-    if (s) {
-        qtest_quit(s);
-    }
+    qtest_end();
 
     return ret;
 }
