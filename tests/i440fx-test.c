@@ -35,6 +35,11 @@ typedef struct TestData
     int num_cpus;
 } TestData;
 
+typedef struct FirmwareTestFixture {
+    /* decides whether we're testing -bios or -pflash */
+    bool is_bios;
+} FirmwareTestFixture;
+
 static QPCIBus *test_start_get_bus(const TestData *s)
 {
     char *cmdline;
@@ -278,6 +283,7 @@ static void test_i440fx_pam(gconstpointer opaque)
 }
 
 #define BLOB_SIZE ((size_t)65536)
+#define ISA_BIOS_MAXSZ ((size_t)(128 * 1024))
 
 /* Create a blob file, and return its absolute pathname as a dynamically
  * allocated string.
@@ -326,23 +332,86 @@ static char *create_blob_file(void)
     return ret == -1 ? NULL : pathname;
 }
 
+static void test_i440fx_firmware(FirmwareTestFixture *fixture,
+                                 gconstpointer user_data)
+{
+    char *fw_pathname, *cmdline;
+    uint8_t *buf;
+    size_t i, isa_bios_size;
+
+    fw_pathname = create_blob_file();
+    g_assert(fw_pathname != NULL);
+
+    /* Better hope the user didn't put metacharacters in TMPDIR and co. */
+    cmdline = g_strdup_printf("-S %s %s",
+                              fixture->is_bios ? "-bios" : "-pflash",
+                              fw_pathname);
+    g_test_message("qemu cmdline: %s", cmdline);
+    qtest_start(cmdline);
+    g_free(cmdline);
+
+    /* Qemu has loaded the firmware (because qtest_start() only returns after
+     * the QMP handshake completes). We must unlink the firmware blob right
+     * here, because any assertion firing below would leak it in the
+     * filesystem. This is also the reason why we recreate the blob every time
+     * this function is invoked.
+     */
+    unlink(fw_pathname);
+    g_free(fw_pathname);
+
+    /* check below 4G */
+    buf = g_malloc0(BLOB_SIZE);
+    memread(0x100000000ULL - BLOB_SIZE, buf, BLOB_SIZE);
+    for (i = 0; i < BLOB_SIZE; ++i) {
+        g_assert_cmphex(buf[i], ==, (uint8_t)i);
+    }
+
+    /* check in ISA space too */
+    memset(buf, 0, BLOB_SIZE);
+    isa_bios_size = ISA_BIOS_MAXSZ < BLOB_SIZE ? ISA_BIOS_MAXSZ : BLOB_SIZE;
+    memread(0x100000 - isa_bios_size, buf, isa_bios_size);
+    for (i = 0; i < isa_bios_size; ++i) {
+        g_assert_cmphex(buf[i], ==,
+                        (uint8_t)((BLOB_SIZE - isa_bios_size) + i));
+    }
+
+    g_free(buf);
+    qtest_end();
+}
+
+static void add_firmware_test(const char *testpath,
+                              void (*setup_fixture)(FirmwareTestFixture *f,
+                                                    gconstpointer test_data))
+{
+    g_test_add(testpath, FirmwareTestFixture, NULL, setup_fixture,
+               test_i440fx_firmware, NULL);
+}
+
+static void request_bios(FirmwareTestFixture *fixture,
+                         gconstpointer user_data)
+{
+    fixture->is_bios = true;
+}
+
+static void request_pflash(FirmwareTestFixture *fixture,
+                           gconstpointer user_data)
+{
+    fixture->is_bios = false;
+}
+
 int main(int argc, char **argv)
 {
-    char *fw_pathname;
     TestData data;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
-    fw_pathname = create_blob_file();
-    g_assert(fw_pathname != NULL);
-    unlink(fw_pathname);
-    g_free(fw_pathname);
-
     data.num_cpus = 1;
 
     g_test_add_data_func("/i440fx/defaults", &data, test_i440fx_defaults);
     g_test_add_data_func("/i440fx/pam", &data, test_i440fx_pam);
+    add_firmware_test("/i440fx/firmware/bios", request_bios);
+    add_firmware_test("/i440fx/firmware/pflash", request_pflash);
 
     ret = g_test_run();
     return ret;
