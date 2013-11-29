@@ -168,6 +168,11 @@ struct target_itimerval {
     struct target_timeval it_value;
 };
 
+struct target_itimerspec {
+    struct target_timespec it_interval;
+    struct target_timespec it_value;
+};
+
 typedef abi_long target_clock_t;
 
 #define TARGET_HZ 100
@@ -2527,3 +2532,23 @@ struct target_ucred {
 };
 
 #endif
+
+
+struct target_timer_t {
+    abi_ulong ptr;
+};
+
+struct target_sigevent {
+    target_sigval_t sigev_value;
+    int32_t sigev_signo;
+    int32_t sigev_notify;
+    union {
+        int32_t _pad[ARRAY_SIZE(((struct sigevent *)0)->_sigev_un._pad)];
+        int32_t _tid;
+
+        struct {
+            void (*_function)(sigval_t);
+            void *_attribute;
+        } _sigev_thread;
+    } _sigev_un;
+};
