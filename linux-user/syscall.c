@@ -428,6 +428,25 @@ _syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
           struct host_rlimit64 *, old_limit)
 #endif
 
+
+#if defined(TARGET_NR_timer_create)
+/* Maxiumum of 32 active POSIX timers allowed at any one time. */
+static timer_t g_posix_timers[32] = { 0, } ;
+
+static inline int next_free_host_timer(void)
+{
+    int k ;
+    /* FIXME: Does finding the next free slot require a lock? */
+    for (k = 0; k < ARRAY_SIZE(g_posix_timers); k++) {
+        if (g_posix_timers[k] == 0) {
+            g_posix_timers[k] = (timer_t) 1;
+            return k;
+        }
+    }
+    return -1;
+}
+#endif
+
 /* ARM EABI and MIPS expect 64bit types aligned even on pairs or registers */
 #ifdef TARGET_ARM
 static inline int regpairs_aligned(void *cpu_env) {
@@ -4838,6 +4857,45 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     return 0;
 }
 
+static inline abi_long target_to_host_itimerspec(struct itimerspec *host_itspec,
+                                                 abi_ulong target_addr)
+{
+    struct target_itimerspec *target_itspec;
+
+    if (!lock_user_struct(VERIFY_READ, target_itspec, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    host_itspec->it_interval.tv_sec =
+                            tswapal(target_itspec->it_interval.tv_sec);
+    host_itspec->it_interval.tv_nsec =
+                            tswapal(target_itspec->it_interval.tv_nsec);
+    host_itspec->it_value.tv_sec = tswapal(target_itspec->it_value.tv_sec);
+    host_itspec->it_value.tv_nsec = tswapal(target_itspec->it_value.tv_nsec);
+
+    unlock_user_struct(target_itspec, target_addr, 1);
+    return 0;
+}
+
+static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
+                                               struct itimerspec *host_its)
+{
+    struct target_itimerspec *target_itspec;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_itspec, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    target_itspec->it_interval.tv_sec = tswapal(host_its->it_interval.tv_sec);
+    target_itspec->it_interval.tv_nsec = tswapal(host_its->it_interval.tv_nsec);
+
+    target_itspec->it_value.tv_sec = tswapal(host_its->it_value.tv_sec);
+    target_itspec->it_value.tv_nsec = tswapal(host_its->it_value.tv_nsec);
+
+    unlock_user_struct(target_itspec, target_addr, 0);
+    return 0;
+}
+
 #if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
@@ -9195,6 +9253,124 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+
+#ifdef TARGET_NR_timer_create
+    case TARGET_NR_timer_create:
+    {
+        /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
+
+        struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
+        struct target_sigevent *ptarget_sevp;
+        struct target_timer_t *ptarget_timer;
+
+        int clkid = arg1;
+        int timer_index = next_free_host_timer();
+
+        if (timer_index < 0) {
+            ret = -TARGET_EAGAIN;
+        } else {
+            timer_t *phtimer = g_posix_timers  + timer_index;
+
+            if (arg2) {
+                if (!lock_user_struct(VERIFY_READ, ptarget_sevp, arg2, 1)) {
+                    goto efault;
+                }
+
+                host_sevp.sigev_signo = tswap32(ptarget_sevp->sigev_signo);
+                host_sevp.sigev_notify = tswap32(ptarget_sevp->sigev_notify);
+
+                phost_sevp = &host_sevp;
+            }
+
+            ret = get_errno(timer_create(clkid, phost_sevp, phtimer));
+            if (ret) {
+                phtimer = NULL;
+            } else {
+                if (!lock_user_struct(VERIFY_WRITE, ptarget_timer, arg3, 1)) {
+                    goto efault;
+                }
+                ptarget_timer->ptr = tswap32(0xcafe0000 | timer_index);
+                unlock_user_struct(ptarget_timer, arg3, 1);
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_settime
+    case TARGET_NR_timer_settime:
+    {
+        /* args: timer_t timerid, int flags, const struct itimerspec *new_value,
+         * struct itimerspec * old_value */
+        arg1 &= 0xffff;
+        if (arg3 == 0 || arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
+
+            target_to_host_itimerspec(&hspec_new, arg3);
+            ret = get_errno(
+                          timer_settime(htimer, arg2, &hspec_new, &hspec_old));
+            host_to_target_itimerspec(arg2, &hspec_old);
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_gettime
+    case TARGET_NR_timer_gettime:
+    {
+        /* args: timer_t timerid, struct itimerspec *curr_value */
+        arg1 &= 0xffff;
+        if (!arg2) {
+            return -TARGET_EFAULT;
+        } else if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            struct itimerspec hspec;
+            ret = get_errno(timer_gettime(htimer, &hspec));
+
+            if (host_to_target_itimerspec(arg2, &hspec)) {
+                ret = -TARGET_EFAULT;
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_getoverrun
+    case TARGET_NR_timer_getoverrun:
+    {
+        /* args: timer_t timerid */
+        arg1 &= 0xffff;
+        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            ret = get_errno(timer_getoverrun(htimer));
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_delete
+    case TARGET_NR_timer_delete:
+    {
+        /* args: timer_t timerid */
+        arg1 &= 0xffff;
+        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            ret = get_errno(timer_delete(htimer));
+            g_posix_timers[arg1] = 0;
+        }
+        break;
+    }
+#endif
+
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
