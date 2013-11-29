@@ -28,16 +28,27 @@
 typedef struct TestData
 {
     int num_cpus;
-    QPCIBus *bus;
 } TestData;
+
+static QPCIBus *test_start_get_bus(const TestData *s)
+{
+    char *cmdline;
+
+    cmdline = g_strdup_printf("-smp %d", s->num_cpus);
+    qtest_start(cmdline);
+    g_free(cmdline);
+    return qpci_init_pc();
+}
 
 static void test_i440fx_defaults(gconstpointer opaque)
 {
     const TestData *s = opaque;
+    QPCIBus *bus;
     QPCIDevice *dev;
     uint32_t value;
 
-    dev = qpci_device_find(s->bus, QPCI_DEVFN(0, 0));
+    bus = test_start_get_bus(s);
+    dev = qpci_device_find(bus, QPCI_DEVFN(0, 0));
     g_assert(dev != NULL);
 
     /* 3.2.2 */
@@ -121,6 +132,8 @@ static void test_i440fx_defaults(gconstpointer opaque)
     g_assert_cmpint(qpci_config_readb(dev, 0x91), ==, 0x00); /* ERRSTS */
     /* 3.2.26 */
     g_assert_cmpint(qpci_config_readb(dev, 0x93), ==, 0x00); /* TRC */
+
+    qtest_end();
 }
 
 #define PAM_RE 1
@@ -179,6 +192,7 @@ static void write_area(uint32_t start, uint32_t end, uint8_t value)
 static void test_i440fx_pam(gconstpointer opaque)
 {
     const TestData *s = opaque;
+    QPCIBus *bus;
     QPCIDevice *dev;
     int i;
     static struct {
@@ -201,7 +215,8 @@ static void test_i440fx_pam(gconstpointer opaque)
         { 0xEC000, 0xEFFFF }, /* BIOS Extension */
     };
 
-    dev = qpci_device_find(s->bus, QPCI_DEVFN(0, 0));
+    bus = test_start_get_bus(s);
+    dev = qpci_device_find(bus, QPCI_DEVFN(0, 0));
     g_assert(dev != NULL);
 
     for (i = 0; i < ARRAY_SIZE(pam_area); i++) {
@@ -254,30 +269,21 @@ static void test_i440fx_pam(gconstpointer opaque)
         /* Verify the area is not our new mask */
         g_assert(!verify_area(pam_area[i].start, pam_area[i].end, 0x82));
     }
+    qtest_end();
 }
 
 int main(int argc, char **argv)
 {
     TestData data;
-    char *cmdline;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
     data.num_cpus = 1;
 
-    cmdline = g_strdup_printf("-smp %d", data.num_cpus);
-    qtest_start(cmdline);
-    g_free(cmdline);
-
-    data.bus = qpci_init_pc();
-
     g_test_add_data_func("/i440fx/defaults", &data, test_i440fx_defaults);
     g_test_add_data_func("/i440fx/pam", &data, test_i440fx_pam);
 
     ret = g_test_run();
-
-    qtest_end();
-
     return ret;
 }
