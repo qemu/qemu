@@ -20,6 +20,11 @@
 
 #include <glib.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <stdlib.h>
 
 #define BROKEN 1
 
@@ -272,12 +277,67 @@ static void test_i440fx_pam(gconstpointer opaque)
     qtest_end();
 }
 
+#define BLOB_SIZE ((size_t)65536)
+
+/* Create a blob file, and return its absolute pathname as a dynamically
+ * allocated string.
+ * The file is closed before the function returns.
+ * In case of error, NULL is returned. The function prints the error message.
+ */
+static char *create_blob_file(void)
+{
+    int ret, fd;
+    char *pathname;
+    GError *error = NULL;
+
+    ret = -1;
+    fd = g_file_open_tmp("blob_XXXXXX", &pathname, &error);
+    if (fd == -1) {
+        fprintf(stderr, "unable to create blob file: %s\n", error->message);
+        g_error_free(error);
+    } else {
+        if (ftruncate(fd, BLOB_SIZE) == -1) {
+            fprintf(stderr, "ftruncate(\"%s\", %zu): %s\n", pathname,
+                    BLOB_SIZE, strerror(errno));
+        } else {
+            void *buf;
+
+            buf = mmap(NULL, BLOB_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+            if (buf == MAP_FAILED) {
+                fprintf(stderr, "mmap(\"%s\", %zu): %s\n", pathname, BLOB_SIZE,
+                        strerror(errno));
+            } else {
+                size_t i;
+
+                for (i = 0; i < BLOB_SIZE; ++i) {
+                    ((uint8_t *)buf)[i] = i;
+                }
+                munmap(buf, BLOB_SIZE);
+                ret = 0;
+            }
+        }
+        close(fd);
+        if (ret == -1) {
+            unlink(pathname);
+            g_free(pathname);
+        }
+    }
+
+    return ret == -1 ? NULL : pathname;
+}
+
 int main(int argc, char **argv)
 {
+    char *fw_pathname;
     TestData data;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
+
+    fw_pathname = create_blob_file();
+    g_assert(fw_pathname != NULL);
+    unlink(fw_pathname);
+    g_free(fw_pathname);
 
     data.num_cpus = 1;
 
