@@ -166,7 +166,9 @@ static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 }
 
 
-/* timer */
+/* QEMUFile timer support.
+ * Not in qemu-file.c to not add qemu-timer.c as dependency to qemu-file.c
+ */
 
 void timer_put(QEMUFile *f, QEMUTimer *ts)
 {
@@ -189,7 +191,9 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
 }
 
 
-/* timers  */
+/* VMState timer support.
+ * Not in vmstate.c to not add qemu-timer.c as dependency to vmstate.c
+ */
 
 static int get_timer(QEMUFile *f, void *pv, size_t size)
 {
