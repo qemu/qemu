@@ -88,6 +88,11 @@ void *qemu_oom_check(void *ptr)
 void *qemu_memalign(size_t alignment, size_t size)
 {
     void *ptr;
+
+    if (alignment < sizeof(void*)) {
+        alignment = sizeof(void*);
+    }
+
 #if defined(_POSIX_C_SOURCE) && !defined(__sun__)
     int ret;
     ret = posix_memalign(&ptr, alignment, size);
