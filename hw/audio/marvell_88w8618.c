@@ -288,6 +288,8 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
     dc->reset = mv88w8618_audio_reset;
     dc->vmsd = &mv88w8618_audio_vmsd;
     dc->props = mv88w8618_audio_properties;
+    /* Reason: pointer property "wm8750" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo mv88w8618_audio_info = {

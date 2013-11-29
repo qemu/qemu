@@ -475,6 +475,8 @@ static void omap_i2c_class_init(ObjectClass *klass, void *data)
     k->init = omap_i2c_init;
     dc->props = omap_i2c_properties;
     dc->reset = omap_i2c_reset;
+    /* Reason: pointer properties "iclk", "fclk" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo omap_i2c_info = {

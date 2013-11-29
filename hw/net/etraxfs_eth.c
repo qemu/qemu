@@ -646,6 +646,8 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 
     k->init = fs_eth_init;
     dc->props = etraxfs_eth_properties;
+    /* Reason: pointer properties "dma_out", "dma_in" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo etraxfs_eth_info = {

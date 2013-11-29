@@ -304,6 +304,8 @@ static void sparc32_dma_class_init(ObjectClass *klass, void *data)
     dc->reset = dma_reset;
     dc->vmsd = &vmstate_dma;
     dc->props = sparc32_dma_properties;
+    /* Reason: pointer property "iommu_opaque" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sparc32_dma_info = {
