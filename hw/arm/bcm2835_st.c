@@ -5,10 +5,8 @@
 
 /* Based on several timers code found in various QEMU source files. */
 
-#include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
+#include "hw/sysbus.h"
 
 /* #define LOG_REG_ACCESS */
 
@@ -27,7 +25,7 @@ typedef struct bcm2835_st_state {
 
 static void bcm2835_st_update(bcm2835_st_state *s)
 {
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / SCALE_US;
+    int64_t now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
     uint32_t clo = (uint32_t)now;
     uint32_t delta = -1;
     int i;
@@ -66,7 +64,7 @@ static uint64_t bcm2835_st_read(void *opaque, hwaddr offset,
 {
     bcm2835_st_state *s = (bcm2835_st_state *)opaque;
     uint32_t res = 0;
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / SCALE_US;
+    int64_t now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
 
     assert(size == 4);
 
@@ -159,7 +157,7 @@ static const MemoryRegionOps bcm2835_st_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_st = {
-    .name = "bcm2835_st",
+    .name = TYPE_BCM2835_ST,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -183,12 +181,12 @@ static int bcm2835_st_init(SysBusDevice *sbd)
     }
     s->match = 0;
 
-    s->timer = timer_new(QEMU_CLOCK_VIRTUAL, SCALE_US, bcm2835_st_tick, s);
+    s->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, bcm2835_st_tick, s);
 
     bcm2835_st_update(s);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_st_ops, s,
-        "bcm2835_st", 0x1000);
+        TYPE_BCM2835_ST, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_st, s);
 
@@ -204,7 +202,7 @@ static void bcm2835_st_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_st_info = {
-    .name          = "bcm2835_st",
+    .name          = TYPE_BCM2835_ST,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_st_state),
     .class_init    = bcm2835_st_class_init,

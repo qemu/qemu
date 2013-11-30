@@ -15,12 +15,12 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-#include "hw/arm/arm.h"
+#include "hw/boards.h"
 #include "hw/devices.h"
 #include "hw/loader.h"
+#include "hw/sysbus.h"
+#include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
-#include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "bcm2835_common.h"
 
@@ -30,36 +30,37 @@
 hwaddr bcm2835_vcram_base;
 
 const uint32_t bootloader_0[] = {
-0xea000006,
-0xe1a00000,
-0xe1a00000,
-0xe1a00000,
-0xe1a00000,
-0xe1a00000,
-0xe1a00000,
-0xe1a00000,
+    0xea000006,
+    0xe1a00000,
+    0xe1a00000,
+    0xe1a00000,
+    0xe1a00000,
+    0xe1a00000,
+    0xe1a00000,
+    0xe1a00000,
 
-0xe3a00000,
-0xe3a01042,
-0xe3811c0c,
-0xe59f2000,
-0xe59ff000,
-0x00000100,
-0x00008000
+    0xe3a00000,
+    0xe3a01042,
+    0xe3811c0c,
+    0xe59f2000,
+    0xe59ff000,
+    0x00000100,
+    0x00008000
 };
 
 uint32_t bootloader_100[] = {
-0x00000005,
-0x54410001,
-0x00000001,
-0x00001000,
-0x00000000,
-0x00000004,
-0x54410002,
-0x08000000, /* It will be overwritten by dynamically calculated memory size */
-0x00000000,
-0x00000000,
-0x00000000
+    0x00000005,
+    0x54410001,
+    0x00000001,
+    0x00001000,
+    0x00000000,
+    0x00000004,
+    0x54410002,
+    /* It will be overwritten by dynamically calculated memory size */
+    0x08000000,
+    0x00000000,
+    0x00000000,
+    0x00000000
 };
 
 

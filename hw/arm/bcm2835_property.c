@@ -3,11 +3,9 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
-#include "ui/console.h"
 #include "hw/display/framebuffer.h"
+#include "hw/sysbus.h"
+#include "ui/console.h"
 #include "ui/pixel_ops.h"
 
 #include "bcm2835_common.h"
@@ -363,7 +361,7 @@ static const MemoryRegionOps bcm2835_property_ops = {
 
 
 static const VMStateDescription vmstate_bcm2835_property = {
-    .name = "bcm2835_property",
+    .name = TYPE_BCM2835_PROPERTY,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -383,7 +381,7 @@ static int bcm2835_property_init(SysBusDevice *sbd)
 
     sysbus_init_irq(sbd, &s->mbox_irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_property_ops, s,
-        "bcm2835_property", 0x10);
+        TYPE_BCM2835_PROPERTY, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_property, s);
 
@@ -399,7 +397,7 @@ static void bcm2835_property_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_property_info = {
-    .name          = "bcm2835_property",
+    .name          = TYPE_BCM2835_PROPERTY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_property_state),
     .class_init    = bcm2835_property_class_init,

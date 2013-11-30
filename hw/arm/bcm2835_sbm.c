@@ -4,8 +4,6 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 
 #include "bcm2835_common.h"
 
@@ -236,7 +234,7 @@ static const MemoryRegionOps bcm2835_sbm_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_sbm = {
-    .name = "bcm2835_sbm",
+    .name = TYPE_BCM2835_SBM,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -263,7 +261,7 @@ static int bcm2835_sbm_init(SysBusDevice *sbd)
     qdev_init_gpio_in(dev, bcm2835_sbm_set_irq, MBOX_CHAN_COUNT);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_sbm_ops, s,
-        "bcm2835_sbm", 0x400);
+        TYPE_BCM2835_SBM, 0x400);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_sbm, s);
 
@@ -279,7 +277,7 @@ static void bcm2835_sbm_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_sbm_info = {
-    .name          = "bcm2835_sbm",
+    .name          = TYPE_BCM2835_SBM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_sbm_state),
     .class_init    = bcm2835_sbm_class_init,

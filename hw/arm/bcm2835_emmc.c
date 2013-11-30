@@ -3,12 +3,10 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 #include "qemu/timer.h"
-#include "sysemu/blockdev.h"
 #include "hw/sd.h"
+#include "hw/sysbus.h"
+#include "sysemu/blockdev.h"
 
 /*
  * Controller registers
@@ -464,7 +462,7 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
                     s->status &= ~SDHCI_DATA_AVAILABLE;
 
                     if (COMPLETION_DELAY > 0) {
-                        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / SCALE_US;
+                        now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
                         timer_mod(s->delay_timer,
                             now + COMPLETION_DELAY);
                     } else {
@@ -704,7 +702,7 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                     /* s->status &= ~SDHCI_SPACE_AVAILABLE; */
 
                     if (COMPLETION_DELAY > 0) {
-                        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / SCALE_US;
+                        now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
                         timer_mod(s->delay_timer,
                             now + COMPLETION_DELAY);
                     } else {
@@ -775,7 +773,7 @@ static const MemoryRegionOps bcm2835_emmc_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_emmc = {
-    .name = "bcm2835_emmc",
+    .name = TYPE_BCM2835_EMMC,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -826,11 +824,10 @@ static int bcm2835_emmc_init(SysBusDevice *sbd)
     s->acmd = 0;
     s->write_op = 0;
 
-    s->delay_timer = timer_new(QEMU_CLOCK_VIRTUAL,
-        SCALE_US, delayed_completion, s);
+    s->delay_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, delayed_completion, s);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_emmc_ops, s,
-        "bcm2835_emmc", 0x100000);
+        TYPE_BCM2835_EMMC, 0x100000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_emmc, s);
 
@@ -847,7 +844,7 @@ static void bcm2835_emmc_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_emmc_info = {
-    .name          = "bcm2835_emmc",
+    .name          = TYPE_BCM2835_EMMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_emmc_state),
     .class_init    = bcm2835_emmc_class_init,

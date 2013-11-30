@@ -4,8 +4,6 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 
 /* DMA CS Control and Status bits */
 #define BCM2708_DMA_ACTIVE      (1 << 0)
@@ -322,7 +320,7 @@ static const MemoryRegionOps bcm2835_dma15_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_dma = {
-    .name = "bcm2835_dma",
+    .name = TYPE_BCM2835_DMA,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -366,7 +364,7 @@ static void bcm2835_dma_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_dma_info = {
-    .name          = "bcm2835_dma",
+    .name          = TYPE_BCM2835_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_dma_state),
     .class_init    = bcm2835_dma_class_init,

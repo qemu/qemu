@@ -203,7 +203,7 @@ static int bcm2835_ic_init(SysBusDevice *sbd)
     bcm2835_ic_state *s = BCM2835_IC(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_ic_ops, s,
-        "bcm2835_ic", 0x200);
+        TYPE_BCM2835_IC, 0x200);
     /* sysbus_init_mmio(dev, &s->iomem); */
     sysbus_init_mmio(sbd, &s->iomem);
 
@@ -217,7 +217,7 @@ static int bcm2835_ic_init(SysBusDevice *sbd)
 }
 
 static const VMStateDescription vmstate_bcm2835_ic = {
-    .name = "bcm2835_ic",
+    .name = TYPE_BCM2835_IC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -241,7 +241,7 @@ static void bcm2835_ic_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_ic_info = {
-    .name          = "bcm2835_ic",
+    .name          = TYPE_BCM2835_IC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_ic_state),
     .class_init    = bcm2835_ic_class_init,

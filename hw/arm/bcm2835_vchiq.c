@@ -4,8 +4,6 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 
 #include "bcm2835_common.h"
 
@@ -68,7 +66,7 @@ static const MemoryRegionOps bcm2835_vchiq_ops = {
 
 
 static const VMStateDescription vmstate_bcm2835_vchiq = {
-    .name = "bcm2835_vchiq",
+    .name = TYPE_BCM2835_VCHIQ,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -87,7 +85,7 @@ static int bcm2835_vchiq_init(SysBusDevice *sbd)
 
     sysbus_init_irq(sbd, &s->mbox_irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_vchiq_ops, s,
-        "bcm2835_vchiq", 0x10);
+        TYPE_BCM2835_VCHIQ, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_vchiq, s);
 
@@ -103,7 +101,7 @@ static void bcm2835_vchiq_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_vchiq_info = {
-    .name          = "bcm2835_vchiq",
+    .name          = TYPE_BCM2835_VCHIQ,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_vchiq_state),
     .class_init    = bcm2835_vchiq_class_init,

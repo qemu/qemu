@@ -29,13 +29,10 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
-#include "ui/console.h"
-#include "hw/display/framebuffer.h"
-#include "ui/pixel_ops.h"
-
 #include "exec/cpu-common.h"
+#include "hw/display/framebuffer.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
 
 #include "bcm2835_common.h"
 
@@ -300,7 +297,7 @@ static const MemoryRegionOps bcm2835_fb_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_fb = {
-    .name = "bcm2835_fb",
+    .name = TYPE_BCM2835_FB,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -350,7 +347,7 @@ static int bcm2835_fb_init(SysBusDevice *sbd)
     bcm2835_fb.lock = 0;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_fb_ops, s,
-        "bcm2835_fb", 0x10);
+        TYPE_BCM2835_FB, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_fb, s);
 
@@ -365,7 +362,7 @@ static void bcm2835_fb_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_fb_info = {
-    .name          = "bcm2835_fb",
+    .name          = TYPE_BCM2835_FB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_fb_state),
     .class_init    = bcm2835_fb_class_init,

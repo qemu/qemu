@@ -5,12 +5,10 @@
 
 /* This is wrong at so many levels, but well, I'm releasing it anyway */
 
-#include "hw/sysbus.h"
-#include "qemu-common.h"
 #include "qemu/timer.h"
-#include "hw/qdev.h"
-#include "sysemu/dma.h"
+#include "hw/sysbus.h"
 #include "hw/usb.h"
+#include "sysemu/dma.h"
 
 #include "bcm2835_usb_regs.h"
 
@@ -139,7 +137,7 @@ static void bcm2835_usb_sof_tick(void *opaque)
 
     bcm2835_usb_update_irq(s);
 
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / SCALE_US;
+    now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
     timer_mod(s->sof_timer, now + SOF_DELAY);
 }
 
@@ -669,7 +667,7 @@ static const MemoryRegionOps bcm2835_usb_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_usb = {
-    .name = "bcm2835_usb",
+    .name = TYPE_BCM2835_USB,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -737,7 +735,7 @@ static int bcm2835_usb_init(SysBusDevice *sbd)
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_usb_ops, s,
-        "bcm2835_usb", 0x20000);
+        TYPE_BCM2835_USB, 0x20000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_usb, s);
 
@@ -746,8 +744,7 @@ static int bcm2835_usb_init(SysBusDevice *sbd)
     s->attached = 0;
     s->reset_done = 0;
 
-    s->sof_timer = timer_new(QEMU_CLOCK_VIRTUAL, SCALE_US,
-                       bcm2835_usb_sof_tick, s);
+    s->sof_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, bcm2835_usb_sof_tick, s);
 
     usb_bus_new(&s->bus, sizeof(s->bus), &bcm2835_usb_bus_ops, dev);
     usb_register_port(&s->bus, &s->port, s, 0, &bcm2835_usb_port_ops,
@@ -763,7 +760,7 @@ static void bcm2835_usb_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_usb_info = {
-    .name          = "bcm2835_usb",
+    .name          = TYPE_BCM2835_USB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_usb_state),
     .class_init    = bcm2835_usb_class_init,

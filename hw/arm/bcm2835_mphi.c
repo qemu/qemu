@@ -4,8 +4,6 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 
 /* #define LOG_REG_ACCESS */
 
@@ -137,7 +135,7 @@ static const MemoryRegionOps bcm2835_mphi_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_mphi = {
-    .name = "bcm2835_mphi",
+    .name = TYPE_BCM2835_MPHI,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -159,7 +157,7 @@ static int bcm2835_mphi_init(SysBusDevice *sbd)
     s->mphi_intstat = 0;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_mphi_ops, s,
-        "bcm2835_mphi", 0x1000);
+        TYPE_BCM2835_MPHI, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_mphi, s);
 
@@ -176,7 +174,7 @@ static void bcm2835_mphi_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_mphi_info = {
-    .name          = "bcm2835_mphi",
+    .name          = TYPE_BCM2835_MPHI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_mphi_state),
     .class_init    = bcm2835_mphi_class_init,

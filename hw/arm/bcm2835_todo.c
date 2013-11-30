@@ -4,8 +4,6 @@
  */
 
 #include "hw/sysbus.h"
-#include "qemu-common.h"
-#include "hw/qdev.h"
 
 /* #define LOG_REG_ACCESS */
 
@@ -47,7 +45,7 @@ static const MemoryRegionOps bcm2835_todo_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_todo = {
-    .name = "bcm2835_todo",
+    .name = TYPE_BCM2835_TODO,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -63,7 +61,7 @@ static int bcm2835_todo_init(SysBusDevice *sbd)
     bcm2835_todo_state *s = BCM2835_TODO(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_todo_ops, s,
-        "bcm2835_todo", 0x1000000);
+        TYPE_BCM2835_TODO, 0x1000000);
     sysbus_init_mmio(sbd, &s->iomem);
 
     vmstate_register(dev, -1, &vmstate_bcm2835_todo, s);
@@ -79,7 +77,7 @@ static void bcm2835_todo_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_todo_info = {
-    .name          = "bcm2835_todo",
+    .name          = TYPE_BCM2835_TODO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_todo_state),
     .class_init    = bcm2835_todo_class_init,
