@@ -3,11 +3,9 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
+#include "qemu/timer.h"
 #include "hw/sd.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
-#include "qemu/timer.h"
 #include "sysemu/blockdev.h"
 
 /*
@@ -264,34 +262,38 @@
                         /* DDR mode at 1.2V */
 #define MMC_CAP_POWER_OFF_CARD  (1 << 13)   /* Can power off after boot */
 #define MMC_CAP_BUS_WIDTH_TEST  (1 << 14)   /* CMD14/CMD19 bus width ok */
-#define MMC_CAP_UHS_SDR12   (1 << 15)   /* Host supports UHS SDR12 mode */
-#define MMC_CAP_UHS_SDR25   (1 << 16)   /* Host supports UHS SDR25 mode */
-#define MMC_CAP_UHS_SDR50   (1 << 17)   /* Host supports UHS SDR50 mode */
-#define MMC_CAP_UHS_SDR104  (1 << 18)   /* Host supports UHS SDR104 mode */
-#define MMC_CAP_UHS_DDR50   (1 << 19)   /* Host supports UHS DDR50 mode */
-#define MMC_CAP_SET_XPC_330 (1 << 20)   /* Host supports >150mA current at 3.3V */
-#define MMC_CAP_SET_XPC_300 (1 << 21)   /* Host supports >150mA current at 3.0V */
-#define MMC_CAP_SET_XPC_180 (1 << 22)   /* Host supports >150mA current at 1.8V */
-#define MMC_CAP_DRIVER_TYPE_A   (1 << 23)   /* Host supports Driver Type A */
-#define MMC_CAP_DRIVER_TYPE_C   (1 << 24)   /* Host supports Driver Type C */
-#define MMC_CAP_DRIVER_TYPE_D   (1 << 25)   /* Host supports Driver Type D */
-#define MMC_CAP_MAX_CURRENT_200 (1 << 26)   /* Host max current limit is 200mA */
-#define MMC_CAP_MAX_CURRENT_400 (1 << 27)   /* Host max current limit is 400mA */
-#define MMC_CAP_MAX_CURRENT_600 (1 << 28)   /* Host max current limit is 600mA */
-#define MMC_CAP_MAX_CURRENT_800 (1 << 29)   /* Host max current limit is 800mA */
+#define MMC_CAP_UHS_SDR12   (1 << 15) /* Host supports UHS SDR12 mode */
+#define MMC_CAP_UHS_SDR25   (1 << 16) /* Host supports UHS SDR25 mode */
+#define MMC_CAP_UHS_SDR50   (1 << 17) /* Host supports UHS SDR50 mode */
+#define MMC_CAP_UHS_SDR104  (1 << 18) /* Host supports UHS SDR104 mode */
+#define MMC_CAP_UHS_DDR50   (1 << 19) /* Host supports UHS DDR50 mode */
+#define MMC_CAP_SET_XPC_330 (1 << 20) /* Host supports >150mA current at 3.3V */
+#define MMC_CAP_SET_XPC_300 (1 << 21) /* Host supports >150mA current at 3.0V */
+#define MMC_CAP_SET_XPC_180 (1 << 22) /* Host supports >150mA current at 1.8V */
+#define MMC_CAP_DRIVER_TYPE_A   (1 << 23) /* Host supports Driver Type A */
+#define MMC_CAP_DRIVER_TYPE_C   (1 << 24) /* Host supports Driver Type C */
+#define MMC_CAP_DRIVER_TYPE_D   (1 << 25) /* Host supports Driver Type D */
+#define MMC_CAP_MAX_CURRENT_200 (1 << 26) /* Host max current limit is 200mA */
+#define MMC_CAP_MAX_CURRENT_400 (1 << 27) /* Host max current limit is 400mA */
+#define MMC_CAP_MAX_CURRENT_600 (1 << 28) /* Host max current limit is 600mA */
+#define MMC_CAP_MAX_CURRENT_800 (1 << 29) /* Host max current limit is 800mA */
 #define MMC_CAP_CMD23       (1 << 30)   /* CMD23 supported. */
 #define MMC_CAP_HW_RESET    (1 << 31)   /* Hardware reset */
 
 
-#define MMC_CAP2_BOOTPART_NOACC (1 << 0)    /* Boot partition no access */
-#define MMC_CAP2_CACHE_CTRL (1 << 1)    /* Allow cache control */
-#define MMC_CAP2_POWEROFF_NOTIFY (1 << 2)   /* Notify poweroff supported */
-#define MMC_CAP2_NO_MULTI_READ  (1 << 3)    /* Multiblock reads don't work */
-#define MMC_CAP2_FORCE_MULTIBLOCK (1 << 4)  /* Always use multiblock transfers */
+#define MMC_CAP2_BOOTPART_NOACC (1 << 0)   /* Boot partition no access */
+#define MMC_CAP2_CACHE_CTRL (1 << 1)       /* Allow cache control */
+#define MMC_CAP2_POWEROFF_NOTIFY (1 << 2)  /* Notify poweroff supported */
+#define MMC_CAP2_NO_MULTI_READ  (1 << 3)   /* Multiblock reads don't work */
+#define MMC_CAP2_FORCE_MULTIBLOCK (1 << 4) /* Always use multiblock transfers */
 
 #define COMPLETION_DELAY (100000)
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
+
+#define TYPE_BCM2835_EMMC "bcm2835_emmc"
+#define BCM2835_EMMC(obj) \
+        OBJECT_CHECK(bcm2835_emmc_state, (obj), TYPE_BCM2835_EMMC)
 
 typedef struct {
     SysBusDevice busdev;
@@ -333,16 +335,14 @@ typedef struct {
 
 } bcm2835_emmc_state;
 
-#define TYPE_BCM2835EMMC "bcm2835_emmc"
-#define BCM2835EMMC(obj) \
-    OBJECT_CHECK(bcm2835_emmc_state, (obj), TYPE_BCM2835EMMC)
-
 static void bcm2835_emmc_set_irq(bcm2835_emmc_state *s)
 {
-	if (s->status & SDHCI_SPACE_AVAILABLE)
-		s->interrupt |= SDHCI_INT_SPACE_AVAIL;
-	if (s->status & SDHCI_DATA_AVAILABLE)
-		s->interrupt |= SDHCI_INT_DATA_AVAIL;
+    if (s->status & SDHCI_SPACE_AVAILABLE) {
+        s->interrupt |= SDHCI_INT_SPACE_AVAIL;
+    }
+    if (s->status & SDHCI_DATA_AVAILABLE) {
+        s->interrupt |= SDHCI_INT_DATA_AVAIL;
+    }
     if (s->irpt_en & s->irpt_mask & s->interrupt) {
         qemu_set_irq(s->irq, 1);
     } else {
@@ -350,12 +350,14 @@ static void bcm2835_emmc_set_irq(bcm2835_emmc_state *s)
     }
 }
 
-static void autocmd12(bcm2835_emmc_state *s) {
+static void autocmd12(bcm2835_emmc_state *s)
+{
     SDRequest request;
     uint8_t response[16];
 
-    if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD12))
+    if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD12)) {
         return;
+    }
 #ifdef LOG_REG_ACCESS
     printf("[QEMU] bcm2835_emmc: issuing auto-CMD12\n");
 #endif
@@ -366,12 +368,14 @@ static void autocmd12(bcm2835_emmc_state *s) {
     sd_do_command(s->card, &request, response);
 }
 
-static void autocmd23(bcm2835_emmc_state *s) {
+static void autocmd23(bcm2835_emmc_state *s)
+{
     SDRequest request;
     uint8_t response[16];
 
-    if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD23))
+    if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD23)) {
         return;
+    }
 #ifdef LOG_REG_ACCESS
     printf("[QEMU] bcm2835_emmc: issuing auto-CMD23\n");
 #endif
@@ -382,13 +386,14 @@ static void autocmd23(bcm2835_emmc_state *s) {
     sd_do_command(s->card, &request, response);
 }
 
-static void delayed_completion(void *opaque) {
-	bcm2835_emmc_state *s = (bcm2835_emmc_state *)opaque;
-	
-	s->interrupt |= SDHCI_INT_DATA_END;
-	autocmd12(s);
-	
-	bcm2835_emmc_set_irq(s);
+static void delayed_completion(void *opaque)
+{
+    bcm2835_emmc_state *s = (bcm2835_emmc_state *)opaque;
+
+    s->interrupt |= SDHCI_INT_DATA_END;
+    autocmd12(s);
+
+    bcm2835_emmc_set_irq(s);
 }
 
 
@@ -401,36 +406,36 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
     int set_irq = 0;
     uint32_t blkcnt;
     uint8_t cmd;
-	int64_t now;
+    int64_t now;
 
     assert(size == 4);
 
-    switch(offset) {
-    case SDHCI_ARGUMENT2:      // ARG2
+    switch (offset) {
+    case SDHCI_ARGUMENT2:      /* ARG2 */
         res = s->arg2;
         break;
-    case SDHCI_BLOCK_SIZE:     // BLKSIZECNT
+    case SDHCI_BLOCK_SIZE:     /* BLKSIZECNT */
         res = s->blksizecnt;
         break;
-    case SDHCI_ARGUMENT:       // ARG1
+    case SDHCI_ARGUMENT:       /* ARG1 */
         res = s->arg1;
         break;
-    case SDHCI_TRANSFER_MODE:   // CMDTM
+    case SDHCI_TRANSFER_MODE:   /* CMDTM */
         res = s->cmdtm;
         break;
-    case SDHCI_RESPONSE+0:      // RESP0
+    case SDHCI_RESPONSE+0:      /* RESP0 */
         res = s->resp0;
         break;
-    case SDHCI_RESPONSE+4:      // RESP1
+    case SDHCI_RESPONSE+4:      /* RESP1 */
         res = s->resp1;
         break;
-    case SDHCI_RESPONSE+8:      // RESP2
+    case SDHCI_RESPONSE+8:      /* RESP2 */
         res = s->resp2;
         break;
-    case SDHCI_RESPONSE+12:      // RESP3
+    case SDHCI_RESPONSE+12:      /* RESP3 */
         res = s->resp3;
         break;
-    case SDHCI_BUFFER:          // DATA
+    case SDHCI_BUFFER:          /* DATA */
         cmd = ((s->cmdtm >> (16 + 8)) & 0x3f);
 
         s->data = 0;
@@ -456,21 +461,21 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
                 if (blkcnt == 0) {
                     s->status &= ~SDHCI_DATA_AVAILABLE;
 
-					if (COMPLETION_DELAY > 0) {
-						now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
-						timer_mod(s->delay_timer,
-							now + COMPLETION_DELAY);
-					} else {
-						s->interrupt |= SDHCI_INT_DATA_END;
-						autocmd12(s);
-					}
+                    if (COMPLETION_DELAY > 0) {
+                        now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
+                        timer_mod(s->delay_timer,
+                            now + COMPLETION_DELAY);
+                    } else {
+                        s->interrupt |= SDHCI_INT_DATA_END;
+                        autocmd12(s);
+                    }
 
-                    // s->interrupt |= SDHCI_INT_DATA_END;
-                    // autocmd12(s);
+                    /* s->interrupt |= SDHCI_INT_DATA_END; */
+                    /* autocmd12(s); */
                 }
             }
-            if ( !s->acmd && (cmd == 17) ) {
-                // Single read
+            if (!s->acmd && (cmd == 17)) {
+                /* Single read */
                 s->status &= ~SDHCI_DATA_AVAILABLE;
 
                 s->interrupt |= SDHCI_INT_DATA_END;
@@ -484,22 +489,22 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
         set_irq = 1;
         res = s->data;
         break;
-    case SDHCI_PRESENT_STATE:   // STATUS
+    case SDHCI_PRESENT_STATE:   /* STATUS */
         res = s->status;
         break;
-    case SDHCI_HOST_CONTROL:    // CONTROL0
+    case SDHCI_HOST_CONTROL:    /* CONTROL0 */
         res = s->control0;
         break;
-    case SDHCI_CLOCK_CONTROL:   // CONTROL1
+    case SDHCI_CLOCK_CONTROL:   /* CONTROL1 */
         res = s->control1;
         break;
-    case SDHCI_INT_STATUS:      // INTERRUPT
+    case SDHCI_INT_STATUS:      /* INTERRUPT */
         res = s->interrupt;
         break;
-    case SDHCI_INT_ENABLE:      // IRPT_MASK
+    case SDHCI_INT_ENABLE:      /* IRPT_MASK */
         res = s->irpt_mask;
         break;
-    case SDHCI_SIGNAL_ENABLE:   // IRPT_EN
+    case SDHCI_SIGNAL_ENABLE:   /* IRPT_EN */
         res = s->irpt_en;
         break;
     case SDHCI_CAPABILITIES:
@@ -508,13 +513,13 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
     case SDHCI_CAPABILITIES_1:
         res = s->caps;
         break;
-    case SDHCI_ACMD12_ERR:      // CONTROL2
+    case SDHCI_ACMD12_ERR:      /* CONTROL2 */
         res = s->control2;
         break;
-    case SDHCI_SET_ACMD12_ERROR:    // FORCE_IRPT
+    case SDHCI_SET_ACMD12_ERROR:    /* FORCE_IRPT */
         res = s->force_irpt;
         break;
-    case SDHCI_SLOT_INT_STATUS: // SLOTISR_VERSION
+    case SDHCI_SLOT_INT_STATUS: /* SLOTISR_VERSION */
         res = s->slotisr_ver;
         break;
     case SDHCI_MAX_CURRENT:
@@ -528,12 +533,14 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
     }
 
 #ifdef LOG_REG_ACCESS
-    if (offset != SDHCI_BUFFER)
+    if (offset != SDHCI_BUFFER) {
         printf("[QEMU] bcm2835_emmc: read(%x) %08x\n", (int)offset, res);
+    }
 #endif
 
-    if (set_irq)
+    if (set_irq) {
         bcm2835_emmc_set_irq(s);
+    }
 
     return res;
 }
@@ -552,39 +559,44 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
     assert(size == 4);
 
 #ifdef LOG_REG_ACCESS
-    if (offset != SDHCI_BUFFER)
+    if (offset != SDHCI_BUFFER) {
         printf("[QEMU] bcm2835_emmc: write(%x) %08x\n", (int)offset,
             (uint32_t)value);
+    }
 #endif
 
-    switch(offset) {
-    case SDHCI_ARGUMENT2:      // ARG2
+    switch (offset) {
+    case SDHCI_ARGUMENT2:      /* ARG2 */
         s->arg2 = value;
         break;
-    case SDHCI_BLOCK_SIZE:     // BLKSIZECNT
+    case SDHCI_BLOCK_SIZE:     /* BLKSIZECNT */
         s->blksizecnt = value;
         break;
-    case SDHCI_ARGUMENT:       // ARG1
+    case SDHCI_ARGUMENT:       /* ARG1 */
         s->arg1 = value;
         break;
-    case SDHCI_TRANSFER_MODE:   // CMDTM
+    case SDHCI_TRANSFER_MODE:   /* CMDTM */
         s->cmdtm = value;
         cmd = ((value >> (16 + 8)) & 0x3f);
 
 #ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_emmc: starting %sCMD%d %08x ",
-        (s->acmd ? "A" : ""), cmd, s->arg1);
-    if (s->cmdtm & SDHCI_TRNS_BLK_CNT_EN)
-        printf("BlkCnt ");
-    if (s->cmdtm & SDHCI_TRNS_AUTO_CMD12)
-        printf("Auto-CMD12 ");
-    if (s->cmdtm & SDHCI_TRNS_AUTO_CMD23)
-        printf("Auto-CMD23 ");
-    printf("\n");
+        printf("[QEMU] bcm2835_emmc: starting %sCMD%d %08x ",
+            (s->acmd ? "A" : ""), cmd, s->arg1);
+        if (s->cmdtm & SDHCI_TRNS_BLK_CNT_EN) {
+            printf("BlkCnt ");
+        }
+        if (s->cmdtm & SDHCI_TRNS_AUTO_CMD12) {
+            printf("Auto-CMD12 ");
+        }
+        if (s->cmdtm & SDHCI_TRNS_AUTO_CMD23) {
+            printf("Auto-CMD23 ");
+        }
+        printf("\n");
 #endif
 
-        if (!s->acmd && (cmd == 18 || cmd == 25))
+        if (!s->acmd && (cmd == 18 || cmd == 25)) {
             autocmd23(s);
+        }
 
         request.cmd = cmd;
         request.arg = s->arg1;
@@ -603,7 +615,7 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                     | (response[1] << 16)
                     | (response[2] << 8)
                     | (response[3] << 0);
-                if (!s->acmd && ( (cmd == 24) || (cmd == 25) ) ) {
+                if (!s->acmd && ((cmd == 24) || (cmd == 25))) {
                     s->status |= SDHCI_SPACE_AVAILABLE;
                 }
             } else if (resplen == 16) {
@@ -631,23 +643,23 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
             s->interrupt |= SDHCI_INT_RESPONSE;
 
             if (!s->acmd && (cmd == 12)) {
-                // Stop transmission
+                /* Stop transmission */
                 s->status &= ~SDHCI_SPACE_AVAILABLE;
                 s->interrupt |= SDHCI_INT_DATA_END;
             } else {
                 if (sd_data_ready(s->card)) {
 #ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_emmc: data available\n");
+                    printf("[QEMU] bcm2835_emmc: data available\n");
 #endif
                     s->status |= SDHCI_DATA_AVAILABLE;
                 }
             }
             bcm2835_emmc_set_irq(s);
         } else {
-            // Unrecognized commands
-            if ( (!s->acmd && (cmd == 52))
+            /* Unrecognized commands */
+            if ((!s->acmd && (cmd == 52))
                 || (!s->acmd && (cmd == 5))
-            ) {
+       ) {
                 s->interrupt |= SDHCI_INT_TIMEOUT;
                 s->interrupt |= SDHCI_INT_ERROR;
             }
@@ -665,7 +677,7 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
             s->acmd = 0;
         }
         break;
-    case SDHCI_BUFFER:          // DATA
+    case SDHCI_BUFFER:          /* DATA */
         cmd = ((s->cmdtm >> (16 + 8)) & 0x3f);
 
         s->data = value;
@@ -686,24 +698,24 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                 blkcnt--;
                 s->blksizecnt = (blkcnt << 16) | (s->blksizecnt & 0xffff);
                 if (blkcnt == 0) {
-                    // s->interrupt &= ~SDHCI_INT_SPACE_AVAIL;
-                    // s->status &= ~SDHCI_SPACE_AVAILABLE;
+                    /* s->interrupt &= ~SDHCI_INT_SPACE_AVAIL; */
+                    /* s->status &= ~SDHCI_SPACE_AVAILABLE; */
 
-					if (COMPLETION_DELAY > 0) {
-						now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
-						timer_mod(s->delay_timer,
-							now + COMPLETION_DELAY);
-					} else {
-						s->interrupt |= SDHCI_INT_DATA_END;
-						autocmd12(s);
-					}
+                    if (COMPLETION_DELAY > 0) {
+                        now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
+                        timer_mod(s->delay_timer,
+                            now + COMPLETION_DELAY);
+                    } else {
+                        s->interrupt |= SDHCI_INT_DATA_END;
+                        autocmd12(s);
+                    }
 
-                    // s->interrupt |= SDHCI_INT_DATA_END;
-                    // autocmd12(s);
+                    /* s->interrupt |= SDHCI_INT_DATA_END; */
+                    /* autocmd12(s); */
                 }
             }
-            if ( !s->acmd && (cmd == 24) ) {
-                // Single write
+            if (!s->acmd && (cmd == 24)) {
+                /* Single write */
                 s->status &= ~SDHCI_SPACE_AVAILABLE;
 
                 s->interrupt |= SDHCI_INT_DATA_END;
@@ -711,41 +723,41 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
         }
         bcm2835_emmc_set_irq(s);
         break;
-    case SDHCI_HOST_CONTROL:    // CONTROL0
+    case SDHCI_HOST_CONTROL:    /* CONTROL0 */
         s->control0 &= ~0x007f0026;
         value &= 0x007f0026;
         s->control0 |= value;
         break;
-    case SDHCI_CLOCK_CONTROL:  // CONTROL1
+    case SDHCI_CLOCK_CONTROL:  /* CONTROL1 */
         s->control0 &= ~0x070fffe7;
         value &= 0x070fffe7;
-        if ( value & ((SDHCI_RESET_ALL
+        if (value & ((SDHCI_RESET_ALL
             | SDHCI_RESET_CMD
-            | SDHCI_RESET_DATA) << 24) ) {
-            // Reset
+            | SDHCI_RESET_DATA) << 24)) {
+            /* Reset */
             value &= ~((SDHCI_RESET_ALL
                 | SDHCI_RESET_CMD
                 | SDHCI_RESET_DATA) << 24);
         }
         s->control1 |= value;
         break;
-    case SDHCI_INT_STATUS:      // INTERRUPT
+    case SDHCI_INT_STATUS:      /* INTERRUPT */
         s->interrupt &= ~value;
         bcm2835_emmc_set_irq(s);
         break;
 
-    case SDHCI_INT_ENABLE:      // IRPT_MASK
+    case SDHCI_INT_ENABLE:      /* IRPT_MASK */
         s->irpt_mask = value;
         break;
-    case SDHCI_SIGNAL_ENABLE:   // IRPT_EN
+    case SDHCI_SIGNAL_ENABLE:   /* IRPT_EN */
         s->irpt_en = value;
         break;
-    case SDHCI_ACMD12_ERR:      // CONTROL2
+    case SDHCI_ACMD12_ERR:      /* CONTROL2 */
         s->control2 &= ~0x00e7009f;
         value &= 0x00e7009f;
         s->control2 |= value;
         break;
-    case SDHCI_SET_ACMD12_ERROR:    // FORCE_IRPT
+    case SDHCI_SET_ACMD12_ERROR:    /* FORCE_IRPT */
         s->force_irpt = value;
         break;
 
@@ -761,7 +773,7 @@ static const MemoryRegionOps bcm2835_emmc_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_emmc = {
-    .name = TYPE_BCM2835EMMC,
+    .name = TYPE_BCM2835_EMMC,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -772,10 +784,11 @@ static const VMStateDescription vmstate_bcm2835_emmc = {
 
 static int bcm2835_emmc_init(SysBusDevice *sbd)
 {
-    DeviceState *dev = DEVICE(sbd);
-    bcm2835_emmc_state *s = BCM2835EMMC(dev);
-
+    /* bcm2835_emmc_state *s = FROM_SYSBUS(bcm2835_emmc_state, dev); */
     DriveInfo *di;
+
+    DeviceState *dev = DEVICE(sbd);
+    bcm2835_emmc_state *s = BCM2835_EMMC(dev);
 
     di = drive_get(IF_SD, 0, 0);
     if (!di) {
@@ -813,8 +826,8 @@ static int bcm2835_emmc_init(SysBusDevice *sbd)
 
     s->delay_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, delayed_completion, s);
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_emmc_ops, s,
-        TYPE_BCM2835EMMC, 0x100000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_emmc_ops, s,
+        TYPE_BCM2835_EMMC, 0x100000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_emmc, s);
 
@@ -831,7 +844,7 @@ static void bcm2835_emmc_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_emmc_info = {
-    .name          = TYPE_BCM2835EMMC,
+    .name          = TYPE_BCM2835_EMMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_emmc_state),
     .class_init    = bcm2835_emmc_class_init,

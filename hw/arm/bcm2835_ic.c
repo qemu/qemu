@@ -3,7 +3,7 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-// Heavily based on pl190.c, copyright terms below.
+/* Heavily based on pl190.c, copyright terms below. */
 
 /*
  * Arm PrimeCell PL190 Vector Interrupt Controller
@@ -20,7 +20,11 @@
 #define IR_1 0
 #define IR_2 1
 
-typedef struct {
+#define TYPE_BCM2835_IC "bcm2835_ic"
+#define BCM2835_IC(obj) OBJECT_CHECK(bcm2835_ic_state, (obj), TYPE_BCM2835_IC)
+
+
+typedef struct bcm2835_ic_state {
     SysBusDevice busdev;
     MemoryRegion iomem;
 
@@ -31,9 +35,6 @@ typedef struct {
     qemu_irq irq;
     qemu_irq fiq;
 } bcm2835_ic_state;
-
-#define TYPE_BCM2835IC "bcm2835_ic"
-#define BCM2835IC(obj) OBJECT_CHECK(bcm2835_ic_state, (obj), TYPE_BCM2835IC)
 
 /* Update interrupts.  */
 static void bcm2835_ic_update(bcm2835_ic_state *s)
@@ -48,7 +49,7 @@ static void bcm2835_ic_update(bcm2835_ic_state *s)
     qemu_set_irq(s->fiq, set);
 
     set = 0;
-    for(i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++) {
         set |= (s->level[i] & s->irq_enable[i]);
     }
     qemu_set_irq(s->irq, set);
@@ -84,19 +85,19 @@ static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset,
     uint32_t res = 0;
 
     switch (offset) {
-    case 0x00:  // IRQ basic pending
-        // bits 0-7 - ARM irqs
+    case 0x00:  /* IRQ basic pending */
+        /* bits 0-7 - ARM irqs */
         res = (s->level[IR_B] & s->irq_enable[IR_B]) & 0xff;
-        for(i = 0; i < 64; i++) {
+        for (i = 0; i < 64; i++) {
             if (i == irq_dups[p]) {
-                // bits 10-20 - selected GPU irqs
+                /* bits 10-20 - selected GPU irqs */
                 if (s->level[i >> 5] & s->irq_enable[i >> 5]
                     & (1u << (i & 0x1f))) {
                     res |= (1u << (10 + p));
                 }
                 p++;
             } else {
-                // bits 8-9 - one or more bits set in pending registers 1-2
+                /* bits 8-9 - one or more bits set in pending registers 1-2 */
                 if (s->level[i >> 5] & s->irq_enable[i >> 5]
                     & (1u << (i & 0x1f))) {
                     res |= (1u << (8 + (i >> 5)));
@@ -104,31 +105,31 @@ static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset,
             }
         }
         break;
-    case 0x04:  // IRQ pending 1
+    case 0x04:  /* IRQ pending 1 */
         res = s->level[IR_1] & s->irq_enable[IR_1];
         break;
-    case 0x08:  // IRQ pending 2
+    case 0x08:  /* IRQ pending 2 */
         res = s->level[IR_2] & s->irq_enable[IR_2];
         break;
-    case 0x0C:  // FIQ register
+    case 0x0C:  /* FIQ register */
         res = (s->fiq_enable << 7) | s->fiq_select;
         break;
-    case 0x10:  // Interrupt enable register 1
+    case 0x10:  /* Interrupt enable register 1 */
         res = s->irq_enable[IR_1];
         break;
-    case 0x14:  // Interrupt enable register 2
+    case 0x14:  /* Interrupt enable register 2 */
         res = s->irq_enable[IR_2];
         break;
-    case 0x18:  // Base interrupt enable register
+    case 0x18:  /* Base interrupt enable register */
         res = s->irq_enable[IR_B];
         break;
-    case 0x1C:  // Interrupt disable register 1
+    case 0x1C:  /* Interrupt disable register 1 */
         res = ~s->irq_enable[IR_1];
         break;
-    case 0x20:  // Interrupt disable register 2
+    case 0x20:  /* Interrupt disable register 2 */
         res = ~s->irq_enable[IR_2];
         break;
-    case 0x24:  // Base interrupt disable register
+    case 0x24:  /* Base interrupt disable register */
         res = ~s->irq_enable[IR_B];
         break;
     default:
@@ -146,26 +147,26 @@ static void bcm2835_ic_write(void *opaque, hwaddr offset,
     bcm2835_ic_state *s = (bcm2835_ic_state *)opaque;
 
     switch (offset) {
-    case 0x0C:  // FIQ register
+    case 0x0C:  /* FIQ register */
         s->fiq_select = (val & 0x7f);
         s->fiq_enable = (val >> 7) & 0x1;
         break;
-    case 0x10:  // Interrupt enable register 1
+    case 0x10:  /* Interrupt enable register 1 */
         s->irq_enable[IR_1] |= val;
         break;
-    case 0x14:  // Interrupt enable register 2
+    case 0x14:  /* Interrupt enable register 2 */
         s->irq_enable[IR_2] |= val;
         break;
-    case 0x18:  // Base interrupt enable register
+    case 0x18:  /* Base interrupt enable register */
         s->irq_enable[IR_B] |= (val & 0xff);
         break;
-    case 0x1C:  // Interrupt disable register 1
+    case 0x1C:  /* Interrupt disable register 1 */
         s->irq_enable[IR_1] &= ~val;
         break;
-    case 0x20:  // Interrupt disable register 2
+    case 0x20:  /* Interrupt disable register 2 */
         s->irq_enable[IR_2] &= ~val;
         break;
-    case 0x24:  // Base interrupt disable register
+    case 0x24:  /* Base interrupt disable register */
         s->irq_enable[IR_B] &= (~val & 0xff);
         break;
     default:
@@ -184,7 +185,8 @@ static const MemoryRegionOps bcm2835_ic_ops = {
 
 static void bcm2835_ic_reset(DeviceState *d)
 {
-    bcm2835_ic_state *s = BCM2835IC(d);
+    /* bcm2835_ic_state *s = DO_UPCAST(bcm2835_ic_state, busdev.qdev, d); */
+    bcm2835_ic_state *s = BCM2835_IC(d);
     int i;
 
     for (i = 0; i < 3; i++) {
@@ -196,20 +198,26 @@ static void bcm2835_ic_reset(DeviceState *d)
 
 static int bcm2835_ic_init(SysBusDevice *sbd)
 {
+    /* bcm2835_ic_state *s = FROM_SYSBUS(bcm2835_ic_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_ic_state *s = BCM2835IC(dev);
+    bcm2835_ic_state *s = BCM2835_IC(dev);
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_ic_ops, s, TYPE_BCM2835IC, 0x200);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_ic_ops, s,
+        TYPE_BCM2835_IC, 0x200);
+    /* sysbus_init_mmio(dev, &s->iomem); */
     sysbus_init_mmio(sbd, &s->iomem);
 
+    /* qdev_init_gpio_in(&dev->qdev, bcm2835_ic_set_irq, 72); */
     qdev_init_gpio_in(dev, bcm2835_ic_set_irq, 72);
+    /* sysbus_init_irq(dev, &s->irq); */
+    /* sysbus_init_irq(dev, &s->fiq); */
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
     return 0;
 }
 
 static const VMStateDescription vmstate_bcm2835_ic = {
-    .name = TYPE_BCM2835IC,
+    .name = TYPE_BCM2835_IC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -233,7 +241,7 @@ static void bcm2835_ic_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_ic_info = {
-    .name          = TYPE_BCM2835IC,
+    .name          = TYPE_BCM2835_IC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_ic_state),
     .class_init    = bcm2835_ic_class_init,

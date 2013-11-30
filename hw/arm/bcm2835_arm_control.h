@@ -184,25 +184,41 @@
 #define ARM_0_BELL3      HW_REGISTER_RW(ARM_SBM_OWN0+0x4C)
 /* MAILBOX 0 access in Owner 0 area */
 /* Some addresses should ONLY be used by owner 0 */
-#define ARM_0_MAIL0_WRT  HW_REGISTER_RW(ARM_SBM_OWN0+0x80)  /* .. 0x8C (4 locations) */
-#define ARM_0_MAIL0_RD   HW_REGISTER_RW(ARM_SBM_OWN0+0x80)  /* .. 0x8C (4 locations) Normal read */
-#define ARM_0_MAIL0_POL  HW_REGISTER_RW(ARM_SBM_OWN0+0x90)  /* none-pop read */
-#define ARM_0_MAIL0_SND  HW_REGISTER_RW(ARM_SBM_OWN0+0x94)  /* Sender read (only LS 2 bits) */
-#define ARM_0_MAIL0_STA  HW_REGISTER_RW(ARM_SBM_OWN0+0x98)  /* Status read */
-#define ARM_0_MAIL0_CNF  HW_REGISTER_RW(ARM_SBM_OWN0+0x9C)  /* Config read/write */
+#define ARM_0_MAIL0_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x80)  /* .. 0x8C (4 locations) */
+#define ARM_0_MAIL0_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x80)  /* .. 0x8C (4 locs) Normal read */
+#define ARM_0_MAIL0_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x90)  /* none-pop read */
+#define ARM_0_MAIL0_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x94)  /* Sender read (only LS 2 bits) */
+#define ARM_0_MAIL0_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x98)  /* Status read */
+#define ARM_0_MAIL0_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0x9C)  /* Config read/write */
 /* MAILBOX 1 access in Owner 0 area */
 /* Owner 0 should only WRITE to this mailbox */
-#define ARM_0_MAIL1_WRT  HW_REGISTER_RW(ARM_SBM_OWN0+0xA0)   /* .. 0xAC (4 locations) */
-/*#define ARM_0_MAIL1_RD   HW_REGISTER_RW(ARM_SBM_OWN0+0xA0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_0_MAIL1_POL  HW_REGISTER_RW(ARM_SBM_OWN0+0xB0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_0_MAIL1_SND  HW_REGISTER_RW(ARM_SBM_OWN0+0xB4) */ /* DO NOT USE THIS !!!!! */
-#define ARM_0_MAIL1_STA  HW_REGISTER_RW(ARM_SBM_OWN0+0xB8)   /* Status read */
-/*#define ARM_0_MAIL1_CNF  HW_REGISTER_RW(ARM_SBM_OWN0+0xBC) */ /* DO NOT USE THIS !!!!! */
+#define ARM_0_MAIL1_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xA0)   /* .. 0xAC (4 locations) */
+/*#define ARM_0_MAIL1_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xA0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_0_MAIL1_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xB0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_0_MAIL1_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xB4) */ /* DO NOT USE THIS !!!!! */
+#define ARM_0_MAIL1_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xB8)   /* Status read */
+/*#define ARM_0_MAIL1_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xBC) */ /* DO NOT USE THIS !!!!! */
 /* General SEM, BELL, MAIL config/status */
-#define ARM_0_SEMCLRDBG   HW_REGISTER_RW(ARM_SBM_OWN0+0xE0)  /* semaphore clear/debug register */
-#define ARM_0_BELLCLRDBG  HW_REGISTER_RW(ARM_SBM_OWN0+0xE4)  /* Doorbells clear/debug register */
-#define ARM_0_ALL_IRQS    HW_REGISTER_RW(ARM_SBM_OWN0+0xF8)  /* ALL interrupts */
-#define ARM_0_MY_IRQS     HW_REGISTER_RW(ARM_SBM_OWN0+0xFC)  /* IRQS pending for owner 0 */
+#define ARM_0_SEMCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xE0)  /* semaphore clear/debug register */
+#define ARM_0_BELLCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xE4)  /* Doorbells clear/debug register */
+#define ARM_0_ALL_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xF8)  /* ALL interrupts */
+#define ARM_0_MY_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN0+0xFC)  /* IRQS pending for owner 0 */
 
 /* Semaphores, Doorbells, Mailboxes Owner 1 */
 #define ARM_1_SEMS       HW_REGISTER_RW(ARM_SBM_OWN1+0x00)
@@ -220,24 +236,40 @@
 #define ARM_1_BELL3      HW_REGISTER_RW(ARM_SBM_OWN1+0x4C)
 /* MAILBOX 0 access in Owner 0 area */
 /* Owner 1 should only WRITE to this mailbox */
-#define ARM_1_MAIL0_WRT  HW_REGISTER_RW(ARM_SBM_OWN1+0x80)  /* .. 0x8C (4 locations) */
-/*#define ARM_1_MAIL0_RD  HW_REGISTER_RW(ARM_SBM_OWN1+0x80) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_1_MAIL0_POL HW_REGISTER_RW(ARM_SBM_OWN1+0x90) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_1_MAIL0_SND HW_REGISTER_RW(ARM_SBM_OWN1+0x94) */ /* DO NOT USE THIS !!!!! */
-#define ARM_1_MAIL0_STA  HW_REGISTER_RW(ARM_SBM_OWN1+0x98)  /* Status read */
-/*#define ARM_1_MAIL0_CNF HW_REGISTER_RW(ARM_SBM_OWN1+0x9C) */ /* DO NOT USE THIS !!!!! */
+#define ARM_1_MAIL0_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x80)  /* .. 0x8C (4 locations) */
+/*#define ARM_1_MAIL0_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x80) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_1_MAIL0_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x90) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_1_MAIL0_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x94) */ /* DO NOT USE THIS !!!!! */
+#define ARM_1_MAIL0_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x98)  /* Status read */
+/*#define ARM_1_MAIL0_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0x9C) */ /* DO NOT USE THIS !!!!! */
 /* MAILBOX 1 access in Owner 0 area */
-#define ARM_1_MAIL1_WRT  HW_REGISTER_RW(ARM_SBM_OWN1+0xA0)  /* .. 0xAC (4 locations) */
-#define ARM_1_MAIL1_RD   HW_REGISTER_RW(ARM_SBM_OWN1+0xA0)  /* .. 0xAC (4 locations) Normal read */
-#define ARM_1_MAIL1_POL  HW_REGISTER_RW(ARM_SBM_OWN1+0xB0)  /* none-pop read */
-#define ARM_1_MAIL1_SND  HW_REGISTER_RW(ARM_SBM_OWN1+0xB4)  /* Sender read (only LS 2 bits) */
-#define ARM_1_MAIL1_STA  HW_REGISTER_RW(ARM_SBM_OWN1+0xB8)  /* Status read */
-#define ARM_1_MAIL1_CNF  HW_REGISTER_RW(ARM_SBM_OWN1+0xBC)
+#define ARM_1_MAIL1_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xA0)  /* .. 0xAC (4 locations) */
+#define ARM_1_MAIL1_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xA0)  /* .. 0xAC (4 locs) Normal read */
+#define ARM_1_MAIL1_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xB0)  /* none-pop read */
+#define ARM_1_MAIL1_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xB4)  /* Sender read (only LS 2 bits) */
+#define ARM_1_MAIL1_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xB8)  /* Status read */
+#define ARM_1_MAIL1_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xBC)
 /* General SEM, BELL, MAIL config/status */
-#define ARM_1_SEMCLRDBG   HW_REGISTER_RW(ARM_SBM_OWN1+0xE0)  /* semaphore clear/debug register */
-#define ARM_1_BELLCLRDBG  HW_REGISTER_RW(ARM_SBM_OWN1+0xE4)  /* Doorbells clear/debug register */
-#define ARM_1_MY_IRQS     HW_REGISTER_RW(ARM_SBM_OWN1+0xFC)  /* IRQS pending for owner 1 */
-#define ARM_1_ALL_IRQS    HW_REGISTER_RW(ARM_SBM_OWN1+0xF8)  /* ALL interrupts */
+#define ARM_1_SEMCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xE0)  /* semaphore clear/debug register */
+#define ARM_1_BELLCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xE4)  /* Doorbells clear/debug register */
+#define ARM_1_MY_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xFC)  /* IRQS pending for owner 1 */
+#define ARM_1_ALL_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN1+0xF8)  /* ALL interrupts */
 
 /* Semaphores, Doorbells, Mailboxes Owner 2 */
 #define ARM_2_SEMS       HW_REGISTER_RW(ARM_SBM_OWN2+0x00)
@@ -255,25 +287,41 @@
 #define ARM_2_BELL3      HW_REGISTER_RW(ARM_SBM_OWN2+0x4C)
 /* MAILBOX 0 access in Owner 2 area */
 /* Owner 2 should only WRITE to this mailbox */
-#define ARM_2_MAIL0_WRT  HW_REGISTER_RW(ARM_SBM_OWN2+0x80)   /* .. 0x8C (4 locations) */
-/*#define ARM_2_MAIL0_RD  HW_REGISTER_RW(ARM_SBM_OWN2+0x80)  */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_2_MAIL0_POL HW_REGISTER_RW(ARM_SBM_OWN2+0x90)  */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_2_MAIL0_SND HW_REGISTER_RW(ARM_SBM_OWN2+0x94)  */ /* DO NOT USE THIS !!!!! */
-#define ARM_2_MAIL0_STA  HW_REGISTER_RW(ARM_SBM_OWN2+0x98)   /* Status read */
-/*#define ARM_2_MAIL0_CNF HW_REGISTER_RW(ARM_SBM_OWN2+0x9C)  */ /* DO NOT USE THIS !!!!! */
+#define ARM_2_MAIL0_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x80)   /* .. 0x8C (4 locations) */
+/*#define ARM_2_MAIL0_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x80)  */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_2_MAIL0_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x90)  */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_2_MAIL0_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x94)  */ /* DO NOT USE THIS !!!!! */
+#define ARM_2_MAIL0_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x98)   /* Status read */
+/*#define ARM_2_MAIL0_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0x9C)  */ /* DO NOT USE THIS !!!!! */
 /* MAILBOX 1 access in Owner 2 area */
 /* Owner 2 should only WRITE to this mailbox */
-#define ARM_2_MAIL1_WRT  HW_REGISTER_RW(ARM_SBM_OWN2+0xA0)   /* .. 0xAC (4 locations) */
-/*#define ARM_2_MAIL1_RD   HW_REGISTER_RW(ARM_SBM_OWN2+0xA0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_2_MAIL1_POL  HW_REGISTER_RW(ARM_SBM_OWN2+0xB0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_2_MAIL1_SND  HW_REGISTER_RW(ARM_SBM_OWN2+0xB4) */ /* DO NOT USE THIS !!!!! */
-#define ARM_2_MAIL1_STA  HW_REGISTER_RW(ARM_SBM_OWN2+0xB8)   /* Status read */
-/*#define ARM_2_MAIL1_CNF  HW_REGISTER_RW(ARM_SBM_OWN2+0xBC) */ /* DO NOT USE THIS !!!!! */
+#define ARM_2_MAIL1_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xA0)   /* .. 0xAC (4 locations) */
+/*#define ARM_2_MAIL1_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xA0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_2_MAIL1_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xB0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_2_MAIL1_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xB4) */ /* DO NOT USE THIS !!!!! */
+#define ARM_2_MAIL1_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xB8)   /* Status read */
+/*#define ARM_2_MAIL1_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xBC) */ /* DO NOT USE THIS !!!!! */
 /* General SEM, BELL, MAIL config/status */
-#define ARM_2_SEMCLRDBG   HW_REGISTER_RW(ARM_SBM_OWN2+0xE0)  /* semaphore clear/debug register */
-#define ARM_2_BELLCLRDBG  HW_REGISTER_RW(ARM_SBM_OWN2+0xE4)  /* Doorbells clear/debug register */
-#define ARM_2_MY_IRQS     HW_REGISTER_RW(ARM_SBM_OWN2+0xFC)  /* IRQS pending for owner 2 */
-#define ARM_2_ALL_IRQS    HW_REGISTER_RW(ARM_SBM_OWN2+0xF8)  /* ALL interrupts */
+#define ARM_2_SEMCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xE0)  /* semaphore clear/debug register */
+#define ARM_2_BELLCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xE4)  /* Doorbells clear/debug register */
+#define ARM_2_MY_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xFC)  /* IRQS pending for owner 2 */
+#define ARM_2_ALL_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN2+0xF8)  /* ALL interrupts */
 
 /* Semaphores, Doorbells, Mailboxes Owner 3 */
 #define ARM_3_SEMS       HW_REGISTER_RW(ARM_SBM_OWN3+0x00)
@@ -291,44 +339,58 @@
 #define ARM_3_BELL3      HW_REGISTER_RW(ARM_SBM_OWN3+0x4C)
 /* MAILBOX 0 access in Owner 3 area */
 /* Owner 3 should only WRITE to this mailbox */
-#define ARM_3_MAIL0_WRT  HW_REGISTER_RW(ARM_SBM_OWN3+0x80)   /* .. 0x8C (4 locations) */
-/*#define ARM_3_MAIL0_RD  HW_REGISTER_RW(ARM_SBM_OWN3+0x80)  */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_3_MAIL0_POL HW_REGISTER_RW(ARM_SBM_OWN3+0x90)  */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_3_MAIL0_SND HW_REGISTER_RW(ARM_SBM_OWN3+0x94)  */ /* DO NOT USE THIS !!!!! */
-#define ARM_3_MAIL0_STA HW_REGISTER_RW(ARM_SBM_OWN3+0x98)    /* Status read */
-/*#define ARM_3_MAIL0_CNF HW_REGISTER_RW(ARM_SBM_OWN3+0x9C)  */ /* DO NOT USE THIS !!!!! */
+#define ARM_3_MAIL0_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x80)   /* .. 0x8C (4 locations) */
+/*#define ARM_3_MAIL0_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x80)  */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_3_MAIL0_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x90)  */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_3_MAIL0_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x94)  */ /* DO NOT USE THIS !!!!! */
+#define ARM_3_MAIL0_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x98)    /* Status read */
+/*#define ARM_3_MAIL0_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0x9C)  */ /* DO NOT USE THIS !!!!! */
 /* MAILBOX 1 access in Owner 3 area */
 /* Owner 3 should only WRITE to this mailbox */
-#define ARM_3_MAIL1_WRT  HW_REGISTER_RW(ARM_SBM_OWN3+0xA0)   /* .. 0xAC (4 locations) */
-/*#define ARM_3_MAIL1_RD   HW_REGISTER_RW(ARM_SBM_OWN3+0xA0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_3_MAIL1_POL  HW_REGISTER_RW(ARM_SBM_OWN3+0xB0) */ /* DO NOT USE THIS !!!!! */
-/*#define ARM_3_MAIL1_SND  HW_REGISTER_RW(ARM_SBM_OWN3+0xB4) */ /* DO NOT USE THIS !!!!! */
-#define ARM_3_MAIL1_STA  HW_REGISTER_RW(ARM_SBM_OWN3+0xB8)   /* Status read */
-/*#define ARM_3_MAIL1_CNF  HW_REGISTER_RW(ARM_SBM_OWN3+0xBC) */ /* DO NOT USE THIS !!!!! */
+#define ARM_3_MAIL1_WRT \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xA0)   /* .. 0xAC (4 locations) */
+/*#define ARM_3_MAIL1_RD \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xA0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_3_MAIL1_POL \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xB0) */ /* DO NOT USE THIS !!!!! */
+/*#define ARM_3_MAIL1_SND \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xB4) */ /* DO NOT USE THIS !!!!! */
+#define ARM_3_MAIL1_STA \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xB8)   /* Status read */
+/*#define ARM_3_MAIL1_CNF \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xBC) */ /* DO NOT USE THIS !!!!! */
 /* General SEM, BELL, MAIL config/status */
-#define ARM_3_SEMCLRDBG   HW_REGISTER_RW(ARM_SBM_OWN3+0xE0)  /* semaphore clear/debug register */
-#define ARM_3_BELLCLRDBG  HW_REGISTER_RW(ARM_SBM_OWN3+0xE4)  /* Doorbells clear/debug register */
-#define ARM_3_MY_IRQS     HW_REGISTER_RW(ARM_SBM_OWN3+0xFC)  /* IRQS pending for owner 3 */
-#define ARM_3_ALL_IRQS    HW_REGISTER_RW(ARM_SBM_OWN3+0xF8)  /* ALL interrupts */
-
-
+#define ARM_3_SEMCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xE0)  /* semaphore clear/debug register */
+#define ARM_3_BELLCLRDBG \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xE4)  /* Doorbells clear/debug register */
+#define ARM_3_MY_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xFC)  /* IRQS pending for owner 3 */
+#define ARM_3_ALL_IRQS \
+        HW_REGISTER_RW(ARM_SBM_OWN3+0xF8)  /* ALL interrupts */
 
 /*  Mailbox flags. Valid for all owners */
 
 /* Mailbox status register (...0x98) */
 #define ARM_MS_FULL       0x80000000
 #define ARM_MS_EMPTY      0x40000000
-#define ARM_MS_LEVEL      0x400000FF /* Max. value depdnds on mailbox depth parameter */
+#define ARM_MS_LEVEL      0x400000FF /* Max. value depends on mailbox depth */
 
 /* MAILBOX config/status register (...0x9C) */
 /* ANY write to this register clears the error bits! */
-#define ARM_MC_IHAVEDATAIRQEN    0x00000001 /* mailbox irq enable:  has data */
-#define ARM_MC_IHAVESPACEIRQEN   0x00000002 /* mailbox irq enable:  has space */
-#define ARM_MC_OPPISEMPTYIRQEN   0x00000004 /* mailbox irq enable: Opp. is empty */
-#define ARM_MC_MAIL_CLEAR        0x00000008 /* mailbox clear write 1, then  0 */
-#define ARM_MC_IHAVEDATAIRQPEND  0x00000010 /* mailbox irq pending:  has space */
-#define ARM_MC_IHAVESPACEIRQPEND 0x00000020 /* mailbox irq pending: Opp. is empty */
-#define ARM_MC_OPPISEMPTYIRQPEND 0x00000040 /* mailbox irq pending */
+#define ARM_MC_IHAVEDATAIRQEN    0x00000001 /* mbox irq enable:  has data */
+#define ARM_MC_IHAVESPACEIRQEN   0x00000002 /* mbox irq enable:  has space */
+#define ARM_MC_OPPISEMPTYIRQEN   0x00000004 /* mbox irq enable: Opp is empty */
+#define ARM_MC_MAIL_CLEAR        0x00000008 /* mbox clear write 1, then  0 */
+#define ARM_MC_IHAVEDATAIRQPEND  0x00000010 /* mbox irq pending:  has space */
+#define ARM_MC_IHAVESPACEIRQPEND 0x00000020 /* mbox irq pending: Opp is empty */
+#define ARM_MC_OPPISEMPTYIRQPEND 0x00000040 /* mbox irq pending */
 /* Bit 7 is unused */
 #define ARM_MC_ERRNOOWN   0x00000100 /* error : none owner read from mailbox */
 #define ARM_MC_ERROVERFLW 0x00000200 /* error : write to fill mailbox */

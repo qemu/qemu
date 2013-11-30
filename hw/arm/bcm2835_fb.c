@@ -3,7 +3,7 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-// Heavily based on milkymist-vgafb.c, copyright terms below.
+/* Heavily based on milkymist-vgafb.c, copyright terms below. */
 
 /*
  *  QEMU model of the Milkymist VGA framebuffer.
@@ -28,33 +28,22 @@
  *   http://www.milkymist.org/socdoc/vgafb.pdf
  */
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
+#include "exec/cpu-common.h"
 #include "hw/display/framebuffer.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 
-#include "exec/cpu-common.h"
-
 #include "bcm2835_common.h"
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
 
 #define FRAMESKIP 1
 
-//#define BITS 8
-//#include "milkymist-vgafb_template.h"
-//#define BITS 15
-//#include "milkymist-vgafb_template.h"
-//#define BITS 16
-//#include "milkymist-vgafb_template.h"
-//#define BITS 24
-//#include "milkymist-vgafb_template.h"
-//#define BITS 32
-//#include "milkymist-vgafb_template.h"
-
 bcm2835_fb_type bcm2835_fb;
+
+#define TYPE_BCM2835_FB "bcm2835_fb"
+#define BCM2835_FB(obj) OBJECT_CHECK(bcm2835_fb_state, (obj), TYPE_BCM2835_FB)
 
 typedef struct {
     SysBusDevice busdev;
@@ -64,13 +53,9 @@ typedef struct {
     qemu_irq mbox_irq;
 } bcm2835_fb_state;
 
-#define TYPE_BCM2835FB "bcm2835_fb"
-#define BCM2835FB(obj) \
-    OBJECT_CHECK(bcm2835_fb_state, (obj), TYPE_BCM2835FB)
-
 static void fb_invalidate_display(void *opaque)
 {
-    // bcm2835_fb_state *s = (bcm2835_fb_state *)opaque;
+    /* bcm2835_fb_state *s = (bcm2835_fb_state *)opaque; */
     bcm2835_fb.invalidate = 1;
 }
 
@@ -80,14 +65,14 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
     uint16_t rgb565;
     uint32_t rgb888;
     uint8_t r, g, b;
-
     DisplaySurface *surface = qemu_console_surface(bcm2835_fb.con);
+
     int bpp = surface_bits_per_pixel(surface);
 
     while (width--) {
-        switch(bcm2835_fb.bpp) {
+        switch (bcm2835_fb.bpp) {
         case 8:
-            rgb888 = ldl_phys( bcm2835_vcram_base + (*s << 2) );
+            rgb888 = ldl_phys(bcm2835_vcram_base + (*s << 2));
             r = (rgb888 >> 0) & 0xff;
             g = (rgb888 >> 8) & 0xff;
             b = (rgb888 >> 16) & 0xff;
@@ -121,7 +106,7 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
             break;
         }
 
-        switch(bpp) {
+        switch (bpp) {
         case 8:
             *d++ = rgb_to_pixel8(r, g, b);
             break;
@@ -152,15 +137,15 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
 static void fb_update_display(void *opaque)
 {
     bcm2835_fb_state *s = (bcm2835_fb_state *)opaque;
-    DisplaySurface *surface = qemu_console_surface(bcm2835_fb.con);
     int first = 0;
     int last = 0;
     drawfn fn;
+    DisplaySurface *surface = qemu_console_surface(bcm2835_fb.con);
 
     int src_width = 0;
     int dest_width = 0;
 
-    static uint32_t frame = 0;
+    static uint32_t frame; /* 0 */
 
     if (++frame < FRAMESKIP) {
         return;
@@ -168,11 +153,13 @@ static void fb_update_display(void *opaque)
         frame = 0;
     }
 
-    if (bcm2835_fb.lock)
+    if (bcm2835_fb.lock) {
         return;
+    }
 
-    if (!bcm2835_fb.xres)
+    if (!bcm2835_fb.xres) {
         return;
+    }
 
     src_width = bcm2835_fb.xres * (bcm2835_fb.bpp >> 3);
 
@@ -199,9 +186,12 @@ static void fb_update_display(void *opaque)
         break;
     }
 
+
+
     fn = draw_line_src16;
 
-    framebuffer_update_display(surface, sysbus_address_space(&s->busdev),
+    framebuffer_update_display(surface,
+        sysbus_address_space(&s->busdev),
         bcm2835_fb.base,
         bcm2835_fb.xres,
         bcm2835_fb.yres,
@@ -239,7 +229,7 @@ static void bcm2835_fb_mbox_push(bcm2835_fb_state *s, uint32_t value)
     bcm2835_fb.base = bcm2835_vcram_base | (value & 0xc0000000);
     bcm2835_fb.base += BCM2835_FB_OFFSET;
 
-    // TODO - Manage properly virtual resolution
+    /* TODO - Manage properly virtual resolution */
 
     bcm2835_fb.pitch = bcm2835_fb.xres * (bcm2835_fb.bpp >> 3);
     bcm2835_fb.size = bcm2835_fb.yres * bcm2835_fb.pitch;
@@ -264,7 +254,7 @@ static uint64_t bcm2835_fb_read(void *opaque, hwaddr offset,
     bcm2835_fb_state *s = (bcm2835_fb_state *)opaque;
     uint32_t res = 0;
 
-    switch(offset) {
+    switch (offset) {
     case 0:
         res = MBOX_CHAN_FB;
         s->pending = 0;
@@ -284,7 +274,7 @@ static void bcm2835_fb_write(void *opaque, hwaddr offset,
     uint64_t value, unsigned size)
 {
     bcm2835_fb_state *s = (bcm2835_fb_state *)opaque;
-    switch(offset) {
+    switch (offset) {
     case 0:
         if (!s->pending) {
             s->pending = 1;
@@ -307,7 +297,7 @@ static const MemoryRegionOps bcm2835_fb_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_fb = {
-    .name = TYPE_BCM2835FB,
+    .name = TYPE_BCM2835_FB,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -315,7 +305,6 @@ static const VMStateDescription vmstate_bcm2835_fb = {
         VMSTATE_END_OF_LIST()
     }
 };
-
 static const GraphicHwOps vgafb_ops = {
     .invalidate  = fb_invalidate_display,
     .gfx_update  = fb_update_display,
@@ -323,20 +312,21 @@ static const GraphicHwOps vgafb_ops = {
 
 static int bcm2835_fb_init(SysBusDevice *sbd)
 {
+    /* bcm2835_fb_state *s = FROM_SYSBUS(bcm2835_fb_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_fb_state *s = BCM2835FB(dev);
+    bcm2835_fb_state *s = BCM2835_FB(dev);
 
     s->pending = 0;
 
-    // bcm2835_fb.invalidate = 0;
+    /* bcm2835_fb.invalidate = 0; */
     bcm2835_fb.xres = 640;
     bcm2835_fb.yres = 480;
     bcm2835_fb.xres_virtual = 640;
     bcm2835_fb.yres_virtual = 480;
-    // bcm2835_fb.xres = 1024;
-    // bcm2835_fb.yres = 768;
-    // bcm2835_fb.xres_virtual = 1024;
-    // bcm2835_fb.yres_virtual = 768;
+    /* bcm2835_fb.xres = 1024; */
+    /* bcm2835_fb.yres = 768; */
+    /* bcm2835_fb.xres_virtual = 1024; */
+    /* bcm2835_fb.yres_virtual = 768; */
 
     bcm2835_fb.bpp = 16;
     bcm2835_fb.xoffset = 0;
@@ -353,10 +343,11 @@ static int bcm2835_fb_init(SysBusDevice *sbd)
 
     sysbus_init_irq(sbd, &s->mbox_irq);
 
-    bcm2835_fb.con = graphic_console_init(DEVICE(dev), &vgafb_ops, s);
+    bcm2835_fb.con = graphic_console_init(dev, &vgafb_ops, s);
     bcm2835_fb.lock = 0;
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_fb_ops, s, TYPE_BCM2835FB, 0x10);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_fb_ops, s,
+        TYPE_BCM2835_FB, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_fb, s);
 
@@ -371,7 +362,7 @@ static void bcm2835_fb_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_fb_info = {
-    .name          = TYPE_BCM2835FB,
+    .name          = TYPE_BCM2835_FB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_fb_state),
     .class_init    = bcm2835_fb_class_init,

@@ -3,16 +3,17 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-// Based on several timers code found in various QEMU source files.
+/* Based on several timers code found in various QEMU source files. */
 
-#include "qemu-common.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
 
-typedef struct {
+#define TYPE_BCM2835_ST "bcm2835_st"
+#define BCM2835_ST(obj) OBJECT_CHECK(bcm2835_st_state, (obj), TYPE_BCM2835_ST)
+
+typedef struct bcm2835_st_state {
     SysBusDevice busdev;
     MemoryRegion iomem;
     QEMUTimer *timer;
@@ -22,10 +23,6 @@ typedef struct {
     qemu_irq irq[4];
 } bcm2835_st_state;
 
-#define TYPE_BCM2835ST "bcm2835_st"
-#define BCM2835ST(obj) \
-    OBJECT_CHECK(bcm2835_st_state, (obj), TYPE_BCM2835ST)
-
 static void bcm2835_st_update(bcm2835_st_state *s)
 {
     int64_t now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
@@ -33,9 +30,9 @@ static void bcm2835_st_update(bcm2835_st_state *s)
     uint32_t delta = -1;
     int i;
 
-    // Calculate new "next" value and reschedule
-    for(i = 0; i < 4; i++) {
-        if ( !(s->match & (1 << i)) ) {
+    /* Calculate new "next" value and reschedule */
+    for (i = 0; i < 4; i++) {
+        if (!(s->match & (1 << i))) {
             if (s->compare[i] - clo < delta) {
                 s->next = s->compare[i];
                 delta = s->next - clo;
@@ -50,11 +47,11 @@ static void bcm2835_st_tick(void *opaque)
     bcm2835_st_state *s = (bcm2835_st_state *)opaque;
     int i;
 
-    // Trigger irqs for current "next" value
-    for(i = 0; i < 4; i++) {
-        if ( !(s->match & (1 << i)) && (s->next == s->compare[i]) ) {
+    /* Trigger irqs for current "next" value */
+    for (i = 0; i < 4; i++) {
+        if (!(s->match & (1 << i)) && (s->next == s->compare[i])) {
             s->match |= (1 << i);
-            // printf("irq %d\n", i);
+            /* printf("irq %d\n", i); */
             qemu_set_irq(s->irq[i], 1);
         }
     }
@@ -71,15 +68,16 @@ static uint64_t bcm2835_st_read(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-    switch(offset) {
+    switch (offset) {
     case 0x00:
         res = s->match;
         break;
     case 0x04:
         res = (uint32_t)now;
-        // Ugly temporary hack to get Plan9 to boot...
-        // see http://plan9.bell-labs.com/sources/contrib/miller/rpi/sys/src/9/bcm/clock.c
-        // res = (now / 10000) * 10000;
+        /* Ugly temporary hack to get Plan9 to boot... */
+        /* see http://plan9.bell-labs.com/sources/contrib/ \
+         * miller/rpi/sys/src/9/bcm/clock.c */
+        /* res = (now / 10000) * 10000; */
         break;
     case 0x08:
         res = (now >> 32);
@@ -123,11 +121,11 @@ static void bcm2835_st_write(void *opaque, hwaddr offset,
 #endif
 
 
-    switch(offset) {
+    switch (offset) {
     case 0x00:
         s->match &= ~value & 0x0f;
-        for(i = 0; i < 4; i++) {
-            if ( !(s->match & (1 << i)) ) {
+        for (i = 0; i < 4; i++) {
+            if (!(s->match & (1 << i))) {
                 qemu_set_irq(s->irq[i], 0);
             }
         }
@@ -159,7 +157,7 @@ static const MemoryRegionOps bcm2835_st_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_st = {
-    .name = TYPE_BCM2835ST,
+    .name = TYPE_BCM2835_ST,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -172,11 +170,12 @@ static const VMStateDescription vmstate_bcm2835_st = {
 
 static int bcm2835_st_init(SysBusDevice *sbd)
 {
-    DeviceState *dev = DEVICE(sbd);
-    bcm2835_st_state *s = BCM2835ST(dev);
+    /* bcm2835_st_state *s = FROM_SYSBUS(bcm2835_st_state, dev); */
     int i;
+    DeviceState *dev = DEVICE(sbd);
+    bcm2835_st_state *s = BCM2835_ST(dev);
 
-    for(i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         s->compare[i] = 0;
         sysbus_init_irq(sbd, &s->irq[i]);
     }
@@ -186,8 +185,8 @@ static int bcm2835_st_init(SysBusDevice *sbd)
 
     bcm2835_st_update(s);
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_st_ops, s,
-        TYPE_BCM2835ST, 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_st_ops, s,
+        TYPE_BCM2835_ST, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_st, s);
 
@@ -197,13 +196,13 @@ static int bcm2835_st_init(SysBusDevice *sbd)
 static void bcm2835_st_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    // DeviceClass *k = DEVICE_CLASS(klass);
+    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_st_init;
 }
 
 static TypeInfo bcm2835_st_info = {
-    .name          = TYPE_BCM2835ST,
+    .name          = TYPE_BCM2835_ST,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_st_state),
     .class_init    = bcm2835_st_class_init,

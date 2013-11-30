@@ -23,10 +23,10 @@
 
 
 /* macros to get at IO space when running virtually */
-#define IO_ADDRESS(x)	(((x) & 0x0fffffff) + (((x) >> 4) & 0x0f000000) + 0xf0000000)
+#define IO_ADDRESS(x) \
+        (((x) & 0x0fffffff) + (((x) >> 4) & 0x0f000000) + 0xf0000000)
 
 #define __io_address(a)     __io(IO_ADDRESS(a))
-
 
 /*
  *  SDRAM
@@ -37,7 +37,6 @@
  *  Logic expansion modules
  *
  */
-
 
 /* ------------------------------------------------------------------------
  *  BCM2708 ARMCTRL Registers
@@ -55,29 +54,35 @@
  * This file is manually generated.
  */
 
-#define BCM2708_PERI_BASE        0x20000000
-#define IC0_BASE                 (BCM2708_PERI_BASE + 0x2000)
-#define ST_BASE                  (BCM2708_PERI_BASE + 0x3000)   /* System Timer */
-#define MPHI_BASE		 (BCM2708_PERI_BASE + 0x6000)	/* Message -based Parallel Host Interface */
-#define DMA_BASE		 (BCM2708_PERI_BASE + 0x7000)	/* DMA controller */
-#define ARM_BASE                 (BCM2708_PERI_BASE + 0xB000)	 /* BCM2708 ARM control block */
-#define PM_BASE			 (BCM2708_PERI_BASE + 0x100000) /* Power Management, Reset controller and Watchdog registers */
-#define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO */
-#define UART0_BASE               (BCM2708_PERI_BASE + 0x201000)	/* Uart 0 */
-#define MMCI0_BASE               (BCM2708_PERI_BASE + 0x202000) /* MMC interface */
-#define SPI0_BASE		 (BCM2708_PERI_BASE + 0x204000) /* SPI0 */
-#define BSC0_BASE		 (BCM2708_PERI_BASE + 0x205000) /* BSC0 I2C/TWI */
-#define UART1_BASE               (BCM2708_PERI_BASE + 0x215000) /* Uart 1 */
-#define EMMC_BASE                (BCM2708_PERI_BASE + 0x300000) /* eMMC interface */
-#define SMI_BASE		 (BCM2708_PERI_BASE + 0x600000) /* SMI */
-#define BSC1_BASE		 (BCM2708_PERI_BASE + 0x804000) /* BSC1 I2C/TWI */
-#define USB_BASE                 (BCM2708_PERI_BASE + 0x980000) /* DTC_OTG USB controller */
-#define MCORE_BASE               (BCM2708_PERI_BASE + 0x0000)   /* Fake frame buffer device (actually the multicore sync block*/
+#define BCM2708_PERI_BASE              0x20000000
+#define IC0_BASE   (BCM2708_PERI_BASE + 0x2000)
+#define ST_BASE    (BCM2708_PERI_BASE + 0x3000)   /* System Timer */
+#define MPHI_BASE  (BCM2708_PERI_BASE + 0x6000)   /* Message -based Parallel
+                                                   * Host Interface */
+#define DMA_BASE   (BCM2708_PERI_BASE + 0x7000)   /* DMA controller */
+#define ARM_BASE   (BCM2708_PERI_BASE + 0xB000)   /* BCM2708 ARM ctrl block */
+#define PM_BASE    (BCM2708_PERI_BASE + 0x100000) /* Power Management, Reset
+                                                   * controller and Watchdog
+                                                   * registers */
+#define GPIO_BASE  (BCM2708_PERI_BASE + 0x200000) /* GPIO */
+#define UART0_BASE (BCM2708_PERI_BASE + 0x201000) /* Uart 0 */
+#define MMCI0_BASE (BCM2708_PERI_BASE + 0x202000) /* MMC interface */
+#define SPI0_BASE  (BCM2708_PERI_BASE + 0x204000) /* SPI0 */
+#define BSC0_BASE  (BCM2708_PERI_BASE + 0x205000) /* BSC0 I2C/TWI */
+#define UART1_BASE (BCM2708_PERI_BASE + 0x215000) /* Uart 1 */
+#define EMMC_BASE  (BCM2708_PERI_BASE + 0x300000) /* eMMC interface */
+#define SMI_BASE   (BCM2708_PERI_BASE + 0x600000) /* SMI */
+#define BSC1_BASE  (BCM2708_PERI_BASE + 0x804000) /* BSC1 I2C/TWI */
+#define USB_BASE   (BCM2708_PERI_BASE + 0x980000) /* DTC_OTG USB controller */
+#define MCORE_BASE (BCM2708_PERI_BASE + 0x0000)   /* Fake frame buffer device
+                                                   * (actually the multicore
+                                                   * sync block */
 
-#define ARMCTRL_BASE             (ARM_BASE + 0x000)
-#define ARMCTRL_IC_BASE          (ARM_BASE + 0x200)           /* ARM interrupt controller */
-#define ARMCTRL_TIMER0_1_BASE    (ARM_BASE + 0x400)           /* Timer 0 and 1 */
-#define ARMCTRL_0_SBM_BASE       (ARM_BASE + 0x800)           /* User 0 (ARM)'s Semaphores Doorbells and Mailboxes */
+#define ARMCTRL_BASE          (ARM_BASE + 0x000)
+#define ARMCTRL_IC_BASE       (ARM_BASE + 0x200) /* ARM interrupt controller */
+#define ARMCTRL_TIMER0_1_BASE (ARM_BASE + 0x400) /* Timer 0 and 1 */
+#define ARMCTRL_0_SBM_BASE    (ARM_BASE + 0x800) /* User 0 (ARM)'s Semaphores,
+                                                  * Doorbells and Mailboxes */
 
 
 /*
@@ -114,7 +119,7 @@
 #define INTERRUPT_DMA10                (ARM_IRQ1_BASE + 26)
 #define INTERRUPT_DMA11                (ARM_IRQ1_BASE + 27)
 #define INTERRUPT_DMA12                (ARM_IRQ1_BASE + 28)
-#define INTERRUPT_AUX                (ARM_IRQ1_BASE + 29)
+#define INTERRUPT_AUX                  (ARM_IRQ1_BASE + 29)
 #define INTERRUPT_ARM                  (ARM_IRQ1_BASE + 30)
 #define INTERRUPT_VPUDMA               (ARM_IRQ1_BASE + 31)
 
@@ -178,47 +183,47 @@
 #define MAXIRQNUM                      (32 + 32 + 20)
 #define MAXFIQNUM                      (32 + 32 + 20)
 
-#define MAX_TIMER                       2
-#define MAX_PERIOD                      699050
-#define TICKS_PER_uSEC                  1
+#define MAX_TIMER                      2
+#define MAX_PERIOD                     699050
+#define TICKS_PER_uSEC                 1
 
 /*
  *  These are useconds NOT ticks.
  *
  */
-#define mSEC_1                          1000
-#define mSEC_5                          (mSEC_1 * 5)
-#define mSEC_10                         (mSEC_1 * 10)
-#define mSEC_25                         (mSEC_1 * 25)
-#define SEC_1                           (mSEC_1 * 1000)
+#define mSEC_1                         1000
+#define mSEC_5                         (mSEC_1 * 5)
+#define mSEC_10                        (mSEC_1 * 10)
+#define mSEC_25                        (mSEC_1 * 25)
+#define SEC_1                          (mSEC_1 * 1000)
 
 /*
  * Watchdog
  */
-#define PM_RSTC			       (PM_BASE+0x1c)
-#define PM_RSTS			       (PM_BASE+0x20)
-#define PM_WDOG			       (PM_BASE+0x24)
+#define PM_RSTC                        (PM_BASE+0x1c)
+#define PM_RSTS                        (PM_BASE+0x20)
+#define PM_WDOG                        (PM_BASE+0x24)
 
-#define PM_WDOG_RESET                                         0000000000
-#define PM_PASSWORD		       0x5a000000
-#define PM_WDOG_TIME_SET	       0x000fffff
+#define PM_WDOG_RESET                  0x00000000
+#define PM_PASSWORD                    0x5a000000
+#define PM_WDOG_TIME_SET               0x000fffff
 #define PM_RSTC_WRCFG_CLR              0xffffffcf
 #define PM_RSTC_WRCFG_SET              0x00000030
 #define PM_RSTC_WRCFG_FULL_RESET       0x00000020
 #define PM_RSTC_RESET                  0x00000102
 
-#define PM_RSTS_HADPOR_SET                                 0x00001000
-#define PM_RSTS_HADSRH_SET                                 0x00000400
-#define PM_RSTS_HADSRF_SET                                 0x00000200
-#define PM_RSTS_HADSRQ_SET                                 0x00000100
-#define PM_RSTS_HADWRH_SET                                 0x00000040
-#define PM_RSTS_HADWRF_SET                                 0x00000020
-#define PM_RSTS_HADWRQ_SET                                 0x00000010
-#define PM_RSTS_HADDRH_SET                                 0x00000004
-#define PM_RSTS_HADDRF_SET                                 0x00000002
-#define PM_RSTS_HADDRQ_SET                                 0x00000001
+#define PM_RSTS_HADPOR_SET             0x00001000
+#define PM_RSTS_HADSRH_SET             0x00000400
+#define PM_RSTS_HADSRF_SET             0x00000200
+#define PM_RSTS_HADSRQ_SET             0x00000100
+#define PM_RSTS_HADWRH_SET             0x00000040
+#define PM_RSTS_HADWRF_SET             0x00000020
+#define PM_RSTS_HADWRQ_SET             0x00000010
+#define PM_RSTS_HADDRH_SET             0x00000004
+#define PM_RSTS_HADDRF_SET             0x00000002
+#define PM_RSTS_HADDRQ_SET             0x00000001
 
-#define UART0_CLOCK      3000000
+#define UART0_CLOCK                    3000000
 
 #endif
 

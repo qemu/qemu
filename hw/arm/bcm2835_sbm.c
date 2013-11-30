@@ -3,11 +3,13 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 
 #include "bcm2835_common.h"
+
+#define TYPE_BCM2835_SBM "bcm2835_sbm"
+#define BCM2835_SBM(obj) \
+        OBJECT_CHECK(bcm2835_sbm_state, (obj), TYPE_BCM2835_SBM)
 
 typedef struct {
     uint32_t reg[MBOX_SIZE];
@@ -17,7 +19,8 @@ typedef struct {
 } bcm2835_mbox;
 
 
-static void mbox_update_status(bcm2835_mbox *mb) {
+static void mbox_update_status(bcm2835_mbox *mb)
+{
     if (mb->count == 0) {
         mb->status |= ARM_MS_EMPTY;
     } else {
@@ -30,17 +33,19 @@ static void mbox_update_status(bcm2835_mbox *mb) {
     }
 }
 
-static void mbox_init(bcm2835_mbox *mb) {
+static void mbox_init(bcm2835_mbox *mb)
+{
     int n;
     mb->count = 0;
     mb->config = 0;
-    for(n = 0; n < MBOX_SIZE; n++) {
+    for (n = 0; n < MBOX_SIZE; n++) {
         mb->reg[n] = MBOX_INVALID_DATA;
     }
     mbox_update_status(mb);
 }
 
-static uint32_t mbox_pull(bcm2835_mbox *mb, int index) {
+static uint32_t mbox_pull(bcm2835_mbox *mb, int index)
+{
     int n;
     uint32_t val;
 
@@ -48,7 +53,7 @@ static uint32_t mbox_pull(bcm2835_mbox *mb, int index) {
     assert(index < mb->count);
 
     val = mb->reg[index];
-    for(n = index + 1; n < mb->count; n++) {
+    for (n = index + 1; n < mb->count; n++) {
         mb->reg[n - 1] = mb->reg[n];
     }
     mb->count--;
@@ -59,7 +64,8 @@ static uint32_t mbox_pull(bcm2835_mbox *mb, int index) {
     return val;
 }
 
-static void mbox_push(bcm2835_mbox *mb, uint32_t val) {
+static void mbox_push(bcm2835_mbox *mb, uint32_t val)
+{
 
     assert(mb->count < MBOX_SIZE);
 
@@ -78,34 +84,30 @@ typedef struct {
 
 } bcm2835_sbm_state;
 
-#define TYPE_BCM2835SBM "bcm2835_sbm"
-#define BCM2835SBM(obj) \
-    OBJECT_CHECK(bcm2835_sbm_state, (obj), TYPE_BCM2835SBM)
-
 static void bcm2835_sbm_update(bcm2835_sbm_state *s)
 {
     int set;
     int done, n;
     uint32_t value;
 
-    // Avoid unwanted recursive calls
+    /* Avoid unwanted recursive calls */
     s->mbox_irq_disabled = 1;
 
-    // Get pending responses and put them in the vc->arm mbox
+    /* Get pending responses and put them in the vc->arm mbox */
     done = 0;
-    while(!done) {
+    while (!done) {
         done = 1;
         if (s->mbox[0].status & ARM_MS_FULL) {
-            // vc->arm mbox full, exit
+            /* vc->arm mbox full, exit */
         } else {
-            for(n = 0; n < MBOX_CHAN_COUNT; n++) {
+            for (n = 0; n < MBOX_CHAN_COUNT; n++) {
                 if (s->available[n]) {
                     value = ldl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (n<<4));
                     if (value != MBOX_INVALID_DATA) {
-                        // printf("AVAIL MBOX PUSH\n");
+                        /* printf("AVAIL MBOX PUSH\n"); */
                         mbox_push(&s->mbox[0], value);
                     } else {
-                        // Hmmm...
+                        /* Hmmm... */
                     }
                     done = 0;
                     break;
@@ -114,16 +116,16 @@ static void bcm2835_sbm_update(bcm2835_sbm_state *s)
         }
     }
 
-    // Try to push pending requests from the arm->vc mbox
-    // TODO (?)
+    /* Try to push pending requests from the arm->vc mbox */
+    /* TODO (?) */
 
-    // Re-enable calls from the IRQ routine
+    /* Re-enable calls from the IRQ routine */
     s->mbox_irq_disabled = 0;
 
-    // Update ARM IRQ status
+    /* Update ARM IRQ status */
     set = 0;
     if (s->mbox[0].config & ARM_MC_IHAVEDATAIRQEN) {
-        if ( !(s->mbox[0].status & ARM_MS_EMPTY) ) {
+        if (!(s->mbox[0].status & ARM_MS_EMPTY)) {
             set = 1;
         }
     }
@@ -133,10 +135,11 @@ static void bcm2835_sbm_update(bcm2835_sbm_state *s)
 static void bcm2835_sbm_set_irq(void *opaque, int irq, int level)
 {
     bcm2835_sbm_state *s = (bcm2835_sbm_state *)opaque;
-    // printf("SBM MBOX IRQ %d = %d\n", irq, level);
+    /* printf("SBM MBOX IRQ %d = %d\n", irq, level); */
     s->available[irq] = level;
-    if (!s->mbox_irq_disabled)
+    if (!s->mbox_irq_disabled) {
         bcm2835_sbm_update(s);
+    }
 }
 
 static uint64_t bcm2835_sbm_read(void *opaque, hwaddr offset,
@@ -147,8 +150,8 @@ static uint64_t bcm2835_sbm_read(void *opaque, hwaddr offset,
 
     offset &= 0xff;
 
-    switch(offset) {
-    case 0x80:  // MAIL0_READ
+    switch (offset) {
+    case 0x80:  /* MAIL0_READ */
     case 0x84:
     case 0x88:
     case 0x8c:
@@ -158,15 +161,15 @@ static uint64_t bcm2835_sbm_read(void *opaque, hwaddr offset,
             res = mbox_pull(&s->mbox[0], 0);
         }
         break;
-    case 0x90:  // MAIL0_PEEK
+    case 0x90:  /* MAIL0_PEEK */
         res = s->mbox[0].reg[0];
         break;
-    case 0x94:  // MAIL0_SENDER
+    case 0x94:  /* MAIL0_SENDER */
         break;
-    case 0x98:  // MAIL0_STATUS
+    case 0x98:  /* MAIL0_STATUS */
         res = s->mbox[0].status;
         break;
-    case 0x9c:  // MAIL0_CONFIG
+    case 0x9c:  /* MAIL0_CONFIG */
         res = s->mbox[0].config;
         break;
     default:
@@ -189,10 +192,10 @@ static void bcm2835_sbm_write(void *opaque, hwaddr offset,
 
     offset &= 0xff;
 
-    switch(offset) {
-    case 0x94:  // MAIL0_SENDER
+    switch (offset) {
+    case 0x94:  /* MAIL0_SENDER */
         break;
-    case 0x9c:  // MAIL0_CONFIG
+    case 0x9c:  /* MAIL0_CONFIG */
         s->mbox[0].config = value & ARM_MC_IHAVEDATAIRQEN;
         break;
     case 0xa0:
@@ -200,18 +203,18 @@ static void bcm2835_sbm_write(void *opaque, hwaddr offset,
     case 0xa8:
     case 0xac:
         if (s->mbox[1].status & ARM_MS_FULL) {
-            // Guest error
+            /* Guest error */
         } else {
             ch = value & 0xf;
             if (ch < MBOX_CHAN_COUNT) {
                 if (ldl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4) + 4)) {
-                    // Push delayed, push it in the arm->vc mbox
+                    /* Push delayed, push it in the arm->vc mbox */
                     mbox_push(&s->mbox[1], value);
                 } else {
                     stl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4), value);
                 }
             } else {
-                // Invalid channel number
+                /* Invalid channel number */
             }
         }
         break;
@@ -231,7 +234,7 @@ static const MemoryRegionOps bcm2835_sbm_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_sbm = {
-    .name = TYPE_BCM2835SBM,
+    .name = TYPE_BCM2835_SBM,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -242,22 +245,23 @@ static const VMStateDescription vmstate_bcm2835_sbm = {
 
 static int bcm2835_sbm_init(SysBusDevice *sbd)
 {
-    DeviceState *dev = DEVICE(sbd);
-    bcm2835_sbm_state *s = BCM2835SBM(dev);
+    /* bcm2835_sbm_state *s = FROM_SYSBUS(bcm2835_sbm_state, dev); */
     int n;
+    DeviceState *dev = DEVICE(sbd);
+    bcm2835_sbm_state *s = BCM2835_SBM(dev);
 
     mbox_init(&s->mbox[0]);
     mbox_init(&s->mbox[1]);
     s->mbox_irq_disabled = 0;
-    for(n = 0; n < MBOX_CHAN_COUNT; n++) {
+    for (n = 0; n < MBOX_CHAN_COUNT; n++) {
         s->available[n] = 0;
     }
 
     sysbus_init_irq(sbd, &s->arm_irq);
     qdev_init_gpio_in(dev, bcm2835_sbm_set_irq, MBOX_CHAN_COUNT);
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_sbm_ops, s,
-        TYPE_BCM2835SBM, 0x400);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_sbm_ops, s,
+        TYPE_BCM2835_SBM, 0x400);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_sbm, s);
 
@@ -267,13 +271,13 @@ static int bcm2835_sbm_init(SysBusDevice *sbd)
 static void bcm2835_sbm_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    // DeviceClass *k = DEVICE_CLASS(klass);
+    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_sbm_init;
 }
 
 static TypeInfo bcm2835_sbm_info = {
-    .name          = TYPE_BCM2835SBM,
+    .name          = TYPE_BCM2835_SBM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_sbm_state),
     .class_init    = bcm2835_sbm_class_init,

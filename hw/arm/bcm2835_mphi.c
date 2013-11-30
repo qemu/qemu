@@ -3,11 +3,13 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
+
+#define TYPE_BCM2835_MPHI "bcm2835_mphi"
+#define BCM2835_MPHI(obj) \
+        OBJECT_CHECK(bcm2835_mphi_state, (obj), TYPE_BCM2835_MPHI)
 
 typedef struct {
     SysBusDevice busdev;
@@ -23,11 +25,9 @@ typedef struct {
 
 } bcm2835_mphi_state;
 
-#define TYPE_BCM2835MPHI "bcm2835_mphi"
-#define BCM2835MPHI(obj) \
-    OBJECT_CHECK(bcm2835_mphi_state, (obj), TYPE_BCM2835MPHI)
 
-static void bcm2835_mphi_update_irq(bcm2835_mphi_state *s) {
+static void bcm2835_mphi_update_irq(bcm2835_mphi_state *s)
+{
     if (s->mphi_intstat) {
         qemu_set_irq(s->irq, 1);
     } else {
@@ -43,20 +43,20 @@ static uint64_t bcm2835_mphi_read(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-    switch(offset) {
-    case 0x00:    // mphi_base
+    switch (offset) {
+    case 0x00:    /* mphi_base */
         res = s->mphi_base;
         break;
-    case 0x28:    // mphi_outdda
+    case 0x28:    /* mphi_outdda */
         res = s->mphi_outdda;
         break;
-    case 0x2c:    // mphi_outddb
+    case 0x2c:    /* mphi_outddb */
         res = s->mphi_outddb;
         break;
-    case 0x4c:    // mphi_ctrl
+    case 0x4c:    /* mphi_ctrl */
         res = s->mphi_ctrl;
         break;
-    case 0x50:    // mphi_intstat
+    case 0x50:    /* mphi_intstat */
         res = s->mphi_intstat;
         break;
 
@@ -82,22 +82,22 @@ static void bcm2835_mphi_write(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-    switch(offset) {
-    case 0x00:    // mphi_base
+    switch (offset) {
+    case 0x00:    /* mphi_base */
         s->mphi_base = value;
         break;
-    case 0x28:    // mphi_outdda
+    case 0x28:    /* mphi_outdda */
         s->mphi_outdda = value;
         break;
-    case 0x2c:    // mphi_outddb
+    case 0x2c:    /* mphi_outddb */
         s->mphi_outddb = value;
         if (value & (1 << 29)) {
-            // Enable MPHI interrupt
+            /* Enable MPHI interrupt */
             s->mphi_intstat |= (1 << 16);
             set_irq = 1;
         }
         break;
-    case 0x4c:    // mphi_ctrl
+    case 0x4c:    /* mphi_ctrl */
         s->mphi_ctrl &= ~(1 << 31);
         s->mphi_ctrl |= value & (1 << 31);
 
@@ -107,7 +107,7 @@ static void bcm2835_mphi_write(void *opaque, hwaddr offset,
         }
 
         break;
-    case 0x50:    // mphi_intstat
+    case 0x50:    /* mphi_intstat */
         s->mphi_intstat &= ~value;
         set_irq = 1;
         break;
@@ -123,8 +123,9 @@ static void bcm2835_mphi_write(void *opaque, hwaddr offset,
         (uint32_t)value);
 #endif
 
-    if (set_irq)
+    if (set_irq) {
         bcm2835_mphi_update_irq(s);
+    }
 }
 
 static const MemoryRegionOps bcm2835_mphi_ops = {
@@ -134,7 +135,7 @@ static const MemoryRegionOps bcm2835_mphi_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_mphi = {
-    .name = TYPE_BCM2835MPHI,
+    .name = TYPE_BCM2835_MPHI,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -145,8 +146,9 @@ static const VMStateDescription vmstate_bcm2835_mphi = {
 
 static int bcm2835_mphi_init(SysBusDevice *sbd)
 {
+    /* bcm2835_mphi_state *s = FROM_SYSBUS(bcm2835_mphi_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_mphi_state *s = BCM2835MPHI(dev);
+    bcm2835_mphi_state *s = BCM2835_MPHI(dev);
 
     s->mphi_base = 0;
     s->mphi_ctrl = 0;
@@ -154,8 +156,8 @@ static int bcm2835_mphi_init(SysBusDevice *sbd)
     s->mphi_outddb = 0;
     s->mphi_intstat = 0;
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_mphi_ops, s,
-        TYPE_BCM2835MPHI, 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_mphi_ops, s,
+        TYPE_BCM2835_MPHI, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_mphi, s);
 
@@ -172,7 +174,7 @@ static void bcm2835_mphi_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_mphi_info = {
-    .name          = TYPE_BCM2835MPHI,
+    .name          = TYPE_BCM2835_MPHI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_mphi_state),
     .class_init    = bcm2835_mphi_class_init,

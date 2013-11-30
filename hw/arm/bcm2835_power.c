@@ -3,11 +3,13 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 
 #include "bcm2835_common.h"
+
+#define TYPE_BCM2835_POWER "bcm2835_power"
+#define BCM2835_POWER(obj) \
+        OBJECT_CHECK(bcm2835_power_state, (obj), TYPE_BCM2835_POWER)
 
 typedef struct {
     SysBusDevice busdev;
@@ -16,17 +18,13 @@ typedef struct {
     qemu_irq mbox_irq;
 } bcm2835_power_state;
 
-#define TYPE_BCM2835POWER "bcm2835_power"
-#define BCM2835POWER(obj) \
-    OBJECT_CHECK(bcm2835_power_state, (obj), TYPE_BCM2835POWER)
-
 static uint64_t bcm2835_power_read(void *opaque, hwaddr offset,
     unsigned size)
 {
     bcm2835_power_state *s = (bcm2835_power_state *)opaque;
     uint32_t res = 0;
 
-    switch(offset) {
+    switch (offset) {
     case 0:
         res = MBOX_CHAN_POWER;
         s->pending = 0;
@@ -46,7 +44,7 @@ static void bcm2835_power_write(void *opaque, hwaddr offset,
     uint64_t value, unsigned size)
 {
     bcm2835_power_state *s = (bcm2835_power_state *)opaque;
-    switch(offset) {
+    switch (offset) {
     case 0:
         s->pending = 1;
         qemu_set_irq(s->mbox_irq, 1);
@@ -68,7 +66,7 @@ static const MemoryRegionOps bcm2835_power_ops = {
 
 
 static const VMStateDescription vmstate_bcm2835_power = {
-    .name = TYPE_BCM2835POWER,
+    .name = TYPE_BCM2835_POWER,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -79,14 +77,15 @@ static const VMStateDescription vmstate_bcm2835_power = {
 
 static int bcm2835_power_init(SysBusDevice *sbd)
 {
+    /* bcm2835_power_state *s = FROM_SYSBUS(bcm2835_power_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_power_state *s = BCM2835POWER(dev);
+    bcm2835_power_state *s = BCM2835_POWER(dev);
 
     s->pending = 0;
 
     sysbus_init_irq(sbd, &s->mbox_irq);
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_power_ops, s,
-        TYPE_BCM2835POWER, 0x10);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_power_ops, s,
+        TYPE_BCM2835_POWER, 0x10);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_power, s);
 
@@ -96,13 +95,13 @@ static int bcm2835_power_init(SysBusDevice *sbd)
 static void bcm2835_power_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    // DeviceClass *k = DEVICE_CLASS(klass);
+    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_power_init;
 }
 
 static TypeInfo bcm2835_power_info = {
-    .name          = TYPE_BCM2835POWER,
+    .name          = TYPE_BCM2835_POWER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_power_state),
     .class_init    = bcm2835_power_class_init,

@@ -2,24 +2,24 @@
 #define BCM2835_USB_REGS_H
 
 #define __DWC_OTG_REGS_H__
-#define DWC_GLBINTRMASK		0x0001
-#define DWC_DMAENABLE		0x0020
-#define DWC_NPTXEMPTYLVL_EMPTY	0x0080
-#define DWC_NPTXEMPTYLVL_HALFEMPTY	0x0000
-#define DWC_PTXEMPTYLVL_EMPTY	0x0100
-#define DWC_PTXEMPTYLVL_HALFEMPTY	0x0000
+#define DWC_GLBINTRMASK        0x0001
+#define DWC_DMAENABLE        0x0020
+#define DWC_NPTXEMPTYLVL_EMPTY    0x0080
+#define DWC_NPTXEMPTYLVL_HALFEMPTY    0x0000
+#define DWC_PTXEMPTYLVL_EMPTY    0x0100
+#define DWC_PTXEMPTYLVL_HALFEMPTY    0x0000
 #define DWC_SLAVE_ONLY_ARCH 0
 #define DWC_EXT_DMA_ARCH 1
 #define DWC_INT_DMA_ARCH 2
-#define DWC_MODE_HNP_SRP_CAPABLE	0
-#define DWC_MODE_SRP_ONLY_CAPABLE	1
-#define DWC_MODE_NO_HNP_SRP_CAPABLE		2
-#define DWC_MODE_SRP_CAPABLE_DEVICE		3
-#define DWC_MODE_NO_SRP_CAPABLE_DEVICE	4
-#define DWC_MODE_SRP_CAPABLE_HOST	5
-#define DWC_MODE_NO_SRP_CAPABLE_HOST	6
+#define DWC_MODE_HNP_SRP_CAPABLE    0
+#define DWC_MODE_SRP_ONLY_CAPABLE    1
+#define DWC_MODE_NO_HNP_SRP_CAPABLE        2
+#define DWC_MODE_SRP_CAPABLE_DEVICE        3
+#define DWC_MODE_NO_SRP_CAPABLE_DEVICE    4
+#define DWC_MODE_SRP_CAPABLE_HOST    5
+#define DWC_MODE_NO_SRP_CAPABLE_HOST    6
 
-// union gotgctl_data
+/* union gotgctl_data */
 #define gotgctl_sesreqscs (1 << 0)
 #define gotgctl_sesreq (1 << 1)
 #define gotgctl_vbvalidoven (1 << 2)
@@ -46,7 +46,7 @@
 #define gotgctl_reserved28_31_shift (28)
 #define gotgctl_reserved28_31_mask (0xf)
 
-// union gotgint_data
+/* union gotgint_data */
 #define gotgint_reserved0_1_shift (0)
 #define gotgint_reserved0_1_mask (0x3)
 #define gotgint_sesenddet (1 << 2)
@@ -63,23 +63,23 @@
 #define gotgint_reserved31_21_shift (21)
 #define gotgint_reserved31_21_mask (0x7ff)
 
-// union gahbcfg_data
+/* union gahbcfg_data */
 #define gahbcfg_glblintrmsk (1 << 0)
-#define DWC_GAHBCFG_GLBINT_ENABLE		1
+#define DWC_GAHBCFG_GLBINT_ENABLE        1
 #define gahbcfg_hburstlen_shift (1)
 #define gahbcfg_hburstlen_mask (0xf)
-#define DWC_GAHBCFG_INT_DMA_BURST_SINGLE	0
-#define DWC_GAHBCFG_INT_DMA_BURST_INCR		1
-#define DWC_GAHBCFG_INT_DMA_BURST_INCR4		3
-#define DWC_GAHBCFG_INT_DMA_BURST_INCR8		5
-#define DWC_GAHBCFG_INT_DMA_BURST_INCR16	7
+#define DWC_GAHBCFG_INT_DMA_BURST_SINGLE    0
+#define DWC_GAHBCFG_INT_DMA_BURST_INCR        1
+#define DWC_GAHBCFG_INT_DMA_BURST_INCR4        3
+#define DWC_GAHBCFG_INT_DMA_BURST_INCR8        5
+#define DWC_GAHBCFG_INT_DMA_BURST_INCR16    7
 #define gahbcfg_dmaenable (1 << 5)
-#define DWC_GAHBCFG_DMAENABLE			1
+#define DWC_GAHBCFG_DMAENABLE            1
 #define gahbcfg_reserved (1 << 6)
 #define gahbcfg_nptxfemplvl_txfemplvl (1 << 7)
 #define gahbcfg_ptxfemplvl (1 << 8)
-#define DWC_GAHBCFG_TXFEMPTYLVL_EMPTY		1
-#define DWC_GAHBCFG_TXFEMPTYLVL_HALFEMPTY	0
+#define DWC_GAHBCFG_TXFEMPTYLVL_EMPTY        1
+#define DWC_GAHBCFG_TXFEMPTYLVL_HALFEMPTY    0
 #define gahbcfg_reserved9_20_shift (9)
 #define gahbcfg_reserved9_20_mask (0xfff)
 #define gahbcfg_remmemsupp (1 << 21)
@@ -88,7 +88,7 @@
 #define gahbcfg_reserved24_31_shift (24)
 #define gahbcfg_reserved24_31_mask (0xff)
 
-// union gusbcfg_data
+/* union gusbcfg_data */
 #define gusbcfg_toutcal_shift (0)
 #define gusbcfg_toutcal_mask (0x7)
 #define gusbcfg_phyif (1 << 3)
@@ -119,7 +119,7 @@
 #define gusbcfg_force_dev_mode (1 << 30)
 #define gusbcfg_reserved31 (1 << 31)
 
-// union grstctl_data
+/* union grstctl_data */
 #define grstctl_csftrst (1 << 0)
 #define grstctl_hsftrst (1 << 1)
 #define grstctl_hstfrm (1 << 2)
@@ -133,7 +133,7 @@
 #define grstctl_dmareq (1 << 30)
 #define grstctl_ahbidle (1 << 31)
 
-// union gintmsk_data
+/* union gintmsk_data */
 #define gintmsk_reserved0 (1 << 0)
 #define gintmsk_modemismatch (1 << 1)
 #define gintmsk_otgintr (1 << 2)
@@ -167,7 +167,7 @@
 #define gintmsk_sessreqintr (1 << 30)
 #define gintmsk_wkupintr (1 << 31)
 
-// union gintsts_data
+/* union gintsts_data */
 #define DWC_SOF_INTR_MASK 0x0008
 #define DWC_HOST_MODE 1
 #define gintsts_curmode (1 << 0)
@@ -203,18 +203,18 @@
 #define gintsts_sessreqintr (1 << 30)
 #define gintsts_wkupintr (1 << 31)
 
-// union device_grxsts_data
+/* union device_grxsts_data */
 #define device_grxsts_epnum_shift (0)
 #define device_grxsts_epnum_mask (0xf)
 #define device_grxsts_bcnt_shift (4)
 #define device_grxsts_bcnt_mask (0x7ff)
 #define device_grxsts_dpid_shift (15)
 #define device_grxsts_dpid_mask (0x3)
-#define DWC_STS_DATA_UPDT		0x2	// OUT Data Packet
-#define DWC_STS_XFER_COMP		0x3	// OUT Data Transfer Complete
-#define DWC_DSTS_GOUT_NAK		0x1	// Global OUT NAK
-#define DWC_DSTS_SETUP_COMP		0x4	// Setup Phase Complete
-#define DWC_DSTS_SETUP_UPDT 0x6	// SETUP Packet
+#define DWC_STS_DATA_UPDT        0x2    /* OUT Data Packet */
+#define DWC_STS_XFER_COMP        0x3    /* OUT Data Transfer Complete */
+#define DWC_DSTS_GOUT_NAK        0x1    /* Global OUT NAK */
+#define DWC_DSTS_SETUP_COMP        0x4    /* Setup Phase Complete */
+#define DWC_DSTS_SETUP_UPDT 0x6    /* SETUP Packet */
 #define device_grxsts_pktsts_shift (17)
 #define device_grxsts_pktsts_mask (0xf)
 #define device_grxsts_fn_shift (21)
@@ -222,7 +222,7 @@
 #define device_grxsts_reserved25_31_shift (25)
 #define device_grxsts_reserved25_31_mask (0x7f)
 
-// union host_grxsts_data
+/* union host_grxsts_data */
 #define host_grxsts_chnum_shift (0)
 #define host_grxsts_chnum_mask (0xf)
 #define host_grxsts_bcnt_shift (4)
@@ -232,19 +232,19 @@
 #define host_grxsts_pktsts_shift (17)
 #define host_grxsts_pktsts_mask (0xf)
 #define DWC_GRXSTS_PKTSTS_IN              0x2
-#define DWC_GRXSTS_PKTSTS_IN_XFER_COMP    0x3
+#define DWC_GRXSTS_PKTSTS_IN_XFER_COMP      0x3
 #define DWC_GRXSTS_PKTSTS_DATA_TOGGLE_ERR 0x5
-#define DWC_GRXSTS_PKTSTS_CH_HALTED       0x7
+#define DWC_GRXSTS_PKTSTS_CH_HALTED          0x7
 #define host_grxsts_reserved21_31_shift (21)
 #define host_grxsts_reserved21_31_mask (0x7ff)
 
-// union fifosize_data
+/* union fifosize_data */
 #define fifosize_startaddr_shift (0)
 #define fifosize_startaddr_mask (0xffff)
 #define fifosize_depth_shift (16)
 #define fifosize_depth_mask (0xffff)
 
-// union gnptxsts_data
+/* union gnptxsts_data */
 #define gnptxsts_nptxfspcavail_shift (0)
 #define gnptxsts_nptxfspcavail_mask (0xffff)
 #define gnptxsts_nptxqspcavail_shift (16)
@@ -256,13 +256,13 @@
 #define gnptxsts_nptxqtop_chnep_mask (0xf)
 #define gnptxsts_reserved (1 << 31)
 
-// union dtxfsts_data
+/* union dtxfsts_data */
 #define dtxfsts_txfspcavail_shift (0)
 #define dtxfsts_txfspcavail_mask (0xffff)
 #define dtxfsts_reserved_shift (16)
 #define dtxfsts_reserved_mask (0xffff)
 
-// union gi2cctl_data
+/* union gi2cctl_data */
 #define gi2cctl_rwdata_shift (0)
 #define gi2cctl_rwdata_mask (0xff)
 #define gi2cctl_regaddr_shift (8)
@@ -279,7 +279,7 @@
 #define gi2cctl_rw (1 << 30)
 #define gi2cctl_bsydne (1 << 31)
 
-// union gpvndctl_data
+/* union gpvndctl_data */
 #define gpvndctl_regdata_shift (0)
 #define gpvndctl_regdata_mask (0xff)
 #define gpvndctl_vctrl_shift (8)
@@ -296,21 +296,21 @@
 #define gpvndctl_reserved28_30_mask (0x7)
 #define gpvndctl_disulpidrvr (1 << 31)
 
-// union ggpio_data
+/* union ggpio_data */
 #define ggpio_gpi_shift (0)
 #define ggpio_gpi_mask (0xffff)
 #define ggpio_gpo_shift (16)
 #define ggpio_gpo_mask (0xffff)
 
-// union guid_data
+/* union guid_data */
 #define guid_rwdata_shift (0)
 #define guid_rwdata_mask (0xffffffff)
 
-// union gsnpsid_data
+/* union gsnpsid_data */
 #define gsnpsid_rwdata_shift (0)
 #define gsnpsid_rwdata_mask (0xffffffff)
 
-// union hwcfg1_data
+/* union hwcfg1_data */
 #define hwcfg1_ep_dir0_shift (0)
 #define hwcfg1_ep_dir0_mask (0x3)
 #define hwcfg1_ep_dir1_shift (2)
@@ -344,7 +344,7 @@
 #define hwcfg1_ep_dir15_shift (30)
 #define hwcfg1_ep_dir15_mask (0x3)
 
-// union hwcfg2_data
+/* union hwcfg2_data */
 #define hwcfg2_op_mode_shift (0)
 #define hwcfg2_op_mode_mask (0x7)
 #define DWC_HWCFG2_OP_MODE_HNP_SRP_CAPABLE_OTG 0
@@ -381,7 +381,7 @@
 #define hwcfg2_dev_token_q_depth_mask (0x1f)
 #define hwcfg2_otg_enable_ic_usb (1 << 31)
 
-// union hwcfg3_data
+/* union hwcfg3_data */
 #define hwcfg3_xfer_size_cntr_width_shift (0)
 #define hwcfg3_xfer_size_cntr_width_mask (0xf)
 #define hwcfg3_packet_size_cntr_width_shift (4)
@@ -398,7 +398,7 @@
 #define hwcfg3_dfifo_depth_shift (16)
 #define hwcfg3_dfifo_depth_mask (0xffff)
 
-// union hwcfg4_data
+/* union hwcfg4_data */
 #define hwcfg4_num_dev_perio_in_ep_shift (0)
 #define hwcfg4_num_dev_perio_in_ep_mask (0xf)
 #define hwcfg4_power_optimiz (1 << 4)
@@ -422,7 +422,7 @@
 #define hwcfg4_desc_dma (1 << 30)
 #define hwcfg4_desc_dma_dyn (1 << 31)
 
-// union glpmctl_data
+/* union glpmctl_data */
 #define glpmctl_lpm_cap_en (1 << 0)
 #define glpmctl_appl_resp (1 << 1)
 #define glpmctl_hird_shift (2)
@@ -447,7 +447,7 @@
 #define glpmctl_hsic_connect (1 << 30)
 #define glpmctl_inv_sel_hsic (1 << 31)
 
-// union adpctl_data
+/* union adpctl_data */
 #define adpctl_prb_dschg_shift (0)
 #define adpctl_prb_dschg_mask (0x3)
 #define adpctl_prb_delta_shift (2)
@@ -471,7 +471,7 @@
 #define adpctl_reserved29_31_shift (29)
 #define adpctl_reserved29_31_mask (0x7)
 
-// union dcfg_data
+/* union dcfg_data */
 #define dcfg_devspd_shift (0)
 #define dcfg_devspd_mask (0x3)
 #define dcfg_nzstsouthshk (1 << 2)
@@ -496,7 +496,7 @@
 #define dcfg_resvalid_shift (26)
 #define dcfg_resvalid_mask (0x3f)
 
-// union dctl_data
+/* union dctl_data */
 #define dctl_rmtwkupsig (1 << 0)
 #define dctl_sftdiscon (1 << 1)
 #define dctl_gnpinnaksts (1 << 2)
@@ -517,14 +517,14 @@
 #define dctl_reserved18_31_shift (18)
 #define dctl_reserved18_31_mask (0x3fff)
 
-// union dsts_data
+/* union dsts_data */
 #define dsts_suspsts (1 << 0)
 #define dsts_enumspd_shift (1)
 #define dsts_enumspd_mask (0x3)
 #define DWC_DSTS_ENUMSPD_HS_PHY_30MHZ_OR_60MHZ 0
 #define DWC_DSTS_ENUMSPD_FS_PHY_30MHZ_OR_60MHZ 1
 #define DWC_DSTS_ENUMSPD_LS_PHY_6MHZ           2
-#define DWC_DSTS_ENUMSPD_FS_PHY_48MHZ          3
+#define DWC_DSTS_ENUMSPD_FS_PHY_48MHZ           3
 #define dsts_errticerr (1 << 3)
 #define dsts_reserved4_7_shift (4)
 #define dsts_reserved4_7_mask (0xf)
@@ -533,7 +533,7 @@
 #define dsts_reserved22_31_shift (22)
 #define dsts_reserved22_31_mask (0x3ff)
 
-// union diepint_data
+/* union diepint_data */
 #define diepint_xfercompl (1 << 0)
 #define diepint_epdisabled (1 << 1)
 #define diepint_ahberr (1 << 2)
@@ -550,7 +550,7 @@
 #define diepint_reserved14_31_shift (14)
 #define diepint_reserved14_31_mask (0x3ffff)
 
-// union doepint_data
+/* union doepint_data */
 #define doepint_xfercompl (1 << 0)
 #define doepint_epdisabled (1 << 1)
 #define doepint_ahberr (1 << 2)
@@ -570,7 +570,7 @@
 #define doepint_reserved16_31_shift (16)
 #define doepint_reserved16_31_mask (0xffff)
 
-// union daint_data
+/* union daint_data */
 #define daint_in_shift (0)
 #define daint_in_mask (0xffff)
 #define daint_out_shift (16)
@@ -608,7 +608,7 @@
 #define daint_b_outep14 (1 << 30)
 #define daint_b_outep15 (1 << 31)
 
-// union dtknq1_data
+/* union dtknq1_data */
 #define dtknq1_intknwptr_shift (0)
 #define dtknq1_intknwptr_mask (0x1f)
 #define dtknq1_reserved05_06_shift (5)
@@ -617,7 +617,7 @@
 #define dtknq1_epnums0_5_shift (8)
 #define dtknq1_epnums0_5_mask (0xffffff)
 
-// union dthrctl_data
+/* union dthrctl_data */
 #define dthrctl_non_iso_thr_en (1 << 0)
 #define dthrctl_iso_thr_en (1 << 1)
 #define dthrctl_tx_thr_len_shift (2)
@@ -634,13 +634,13 @@
 #define dthrctl_reserved28_31_shift (28)
 #define dthrctl_reserved28_31_mask (0xf)
 
-// union depctl_data
+/* union depctl_data */
 #define depctl_mps_shift (0)
 #define depctl_mps_mask (0x7ff)
-#define DWC_DEP0CTL_MPS_64	 0
-#define DWC_DEP0CTL_MPS_32	 1
-#define DWC_DEP0CTL_MPS_16	 2
-#define DWC_DEP0CTL_MPS_8	 3
+#define DWC_DEP0CTL_MPS_64     0
+#define DWC_DEP0CTL_MPS_32     1
+#define DWC_DEP0CTL_MPS_16     2
+#define DWC_DEP0CTL_MPS_8     3
 #define depctl_nextep_shift (11)
 #define depctl_nextep_mask (0xf)
 #define depctl_usbactep (1 << 15)
@@ -659,7 +659,7 @@
 #define depctl_epdis (1 << 30)
 #define depctl_epena (1 << 31)
 
-// union deptsiz_data
+/* union deptsiz_data */
 #define deptsiz_xfersize_shift (0)
 #define deptsiz_xfersize_mask (0x7ffff)
 #define MAX_PKT_CNT 1023
@@ -669,7 +669,7 @@
 #define deptsiz_mc_mask (0x3)
 #define deptsiz_reserved (1 << 31)
 
-// union deptsiz0_data
+/* union deptsiz0_data */
 #define deptsiz0_xfersize_shift (0)
 #define deptsiz0_xfersize_mask (0x7f)
 #define deptsiz0_reserved7_18_shift (7)
@@ -681,16 +681,16 @@
 #define deptsiz0_supcnt_shift (29)
 #define deptsiz0_supcnt_mask (0x3)
 #define deptsiz0_reserved31 (1 << 31)
-#define BS_HOST_READY	0x0
-#define BS_DMA_BUSY		0x1
-#define BS_DMA_DONE		0x2
-#define BS_HOST_BUSY	0x3
-#define RTS_SUCCESS		0x0
-#define RTS_BUFFLUSH	0x1
-#define RTS_RESERVED	0x2
-#define RTS_BUFERR		0x3
+#define BS_HOST_READY    0x0
+#define BS_DMA_BUSY        0x1
+#define BS_DMA_DONE        0x2
+#define BS_HOST_BUSY    0x3
+#define RTS_SUCCESS        0x0
+#define RTS_BUFFLUSH    0x1
+#define RTS_RESERVED    0x2
+#define RTS_BUFERR        0x3
 
-// union dev_dma_desc_sts
+/* union dev_dma_desc_sts */
 #define dev_dma_desc_sts_bytes_shift (0)
 #define dev_dma_desc_sts_bytes_mask (0xffff)
 #define dev_dma_desc_sts_nak (1 << 16)
@@ -737,12 +737,12 @@
 #define DWC_EP_REG_OFFSET 0x20
 #define DWC_DEV_OUT_EP_REG_OFFSET 0xB00
 
-// union hcfg_data
+/* union hcfg_data */
 #define hcfg_fslspclksel_shift (0)
 #define hcfg_fslspclksel_mask (0x3)
 #define DWC_HCFG_30_60_MHZ 0
-#define DWC_HCFG_48_MHZ    1
-#define DWC_HCFG_6_MHZ     2
+#define DWC_HCFG_48_MHZ       1
+#define DWC_HCFG_6_MHZ       2
 #define hcfg_fslssupp (1 << 2)
 #define hcfg_reserved3_6_shift (3)
 #define hcfg_reserved3_6_mask (0xf)
@@ -759,21 +759,21 @@
 #define hcfg_reserved27_30_mask (0xf)
 #define hcfg_modechtimen (1 << 31)
 
-// union hfir_data
+/* union hfir_data */
 #define hfir_frint_shift (0)
 #define hfir_frint_mask (0xffff)
 #define hfir_hfirrldctrl (1 << 16)
 #define hfir_reserved_shift (17)
 #define hfir_reserved_mask (0x7fff)
 
-// union hfnum_data
+/* union hfnum_data */
 #define hfnum_frnum_shift (0)
 #define hfnum_frnum_mask (0xffff)
 #define DWC_HFNUM_MAX_FRNUM 0x3FFF
 #define hfnum_frrem_shift (16)
 #define hfnum_frrem_mask (0xffff)
 
-// union hptxsts_data
+/* union hptxsts_data */
 #define hptxsts_ptxfspcavail_shift (0)
 #define hptxsts_ptxfspcavail_mask (0xffff)
 #define hptxsts_ptxqspcavail_shift (16)
@@ -785,7 +785,7 @@
 #define hptxsts_ptxqtop_chnum_mask (0xf)
 #define hptxsts_ptxqtop_odd (1 << 31)
 
-// union hprt0_data
+/* union hprt0_data */
 #define hprt0_prtconnsts (1 << 0)
 #define hprt0_prtconndet (1 << 1)
 #define hprt0_prtena (1 << 2)
@@ -805,11 +805,11 @@
 #define hprt0_prtspd_mask (0x3)
 #define DWC_HPRT0_PRTSPD_HIGH_SPEED 0
 #define DWC_HPRT0_PRTSPD_FULL_SPEED 1
-#define DWC_HPRT0_PRTSPD_LOW_SPEED	2
+#define DWC_HPRT0_PRTSPD_LOW_SPEED    2
 #define hprt0_reserved19_31_shift (19)
 #define hprt0_reserved19_31_mask (0x1fff)
 
-// union haint_data
+/* union haint_data */
 #define haint_ch0 (1 << 0)
 #define haint_ch1 (1 << 1)
 #define haint_ch2 (1 << 2)
@@ -833,7 +833,7 @@
 #define haint_b_reserved_shift (16)
 #define haint_b_reserved_mask (0xffff)
 
-// union haintmsk_data
+/* union haintmsk_data */
 #define haintmsk_ch0 (1 << 0)
 #define haintmsk_ch1 (1 << 1)
 #define haintmsk_ch2 (1 << 2)
@@ -857,7 +857,7 @@
 #define haintmsk_b_reserved_shift (16)
 #define haintmsk_b_reserved_mask (0xffff)
 
-// union hcchar_data
+/* union hcchar_data */
 #define hcchar_mps_shift (0)
 #define hcchar_mps_mask (0x7ff)
 #define hcchar_epnum_shift (11)
@@ -875,7 +875,7 @@
 #define hcchar_chdis (1 << 30)
 #define hcchar_chen (1 << 31)
 
-// union hcsplt_data
+/* union hcsplt_data */
 #define hcsplt_prtaddr_shift (0)
 #define hcsplt_prtaddr_mask (0x7f)
 #define hcsplt_hubaddr_shift (7)
@@ -891,7 +891,7 @@
 #define hcsplt_reserved_mask (0x3fff)
 #define hcsplt_spltena (1 << 31)
 
-// union hcint_data
+/* union hcint_data */
 #define hcint_xfercomp (1 << 0)
 #define hcint_chhltd (1 << 1)
 #define hcint_ahberr (1 << 2)
@@ -909,7 +909,7 @@
 #define hcint_reserved14_31_shift (14)
 #define hcint_reserved14_31_mask (0x3ffff)
 
-// union hcintmsk_data
+/* union hcintmsk_data */
 #define hcintmsk_xfercompl (1 << 0)
 #define hcintmsk_chhltd (1 << 1)
 #define hcintmsk_ahberr (1 << 2)
@@ -927,7 +927,7 @@
 #define hcintmsk_reserved14_31_shift (14)
 #define hcintmsk_reserved14_31_mask (0x3ffff)
 
-// union hctsiz_data
+/* union hctsiz_data */
 #define hctsiz_xfersize_shift (0)
 #define hctsiz_xfersize_mask (0x7ffff)
 #define hctsiz_pktcnt_shift (19)
@@ -950,7 +950,7 @@
 #define hctsiz_b_pid_mask (0x3)
 #define hctsiz_b_dopng (1 << 31)
 
-// union hcdma_data
+/* union hcdma_data */
 #define hcdma_reserved0_2_shift (0)
 #define hcdma_reserved0_2_mask (0x7)
 #define hcdma_ctd_shift (3)
@@ -958,7 +958,7 @@
 #define hcdma_dma_addr_shift (11)
 #define hcdma_dma_addr_mask (0x1fffff)
 
-// union host_dma_desc_sts
+/* union host_dma_desc_sts */
 #define host_dma_desc_sts_n_bytes_shift (0)
 #define host_dma_desc_sts_n_bytes_mask (0x1ffff)
 #define host_dma_desc_sts_qtd_offset_shift (17)
@@ -970,7 +970,7 @@
 #define host_dma_desc_sts_reserved27 (1 << 27)
 #define host_dma_desc_sts_sts_shift (28)
 #define host_dma_desc_sts_sts_mask (0x3)
-#define DMA_DESC_STS_PKTERR	1
+#define DMA_DESC_STS_PKTERR    1
 #define host_dma_desc_sts_reserved30 (1 << 30)
 #define host_dma_desc_sts_a (1 << 31)
 #define host_dma_desc_sts_b_n_bytes_shift (0)
@@ -984,16 +984,16 @@
 #define host_dma_desc_sts_b_sts_mask (0x3)
 #define host_dma_desc_sts_b_reserved30 (1 << 30)
 #define host_dma_desc_sts_b_a (1 << 31)
-#define MAX_DMA_DESC_SIZE		131071
-#define MAX_DMA_DESC_NUM_GENERIC	64
-#define MAX_DMA_DESC_NUM_HS_ISOC	256
-#define MAX_FRLIST_EN_NUM		64
+#define    MAX_DMA_DESC_SIZE        131071
+#define MAX_DMA_DESC_NUM_GENERIC    64
+#define MAX_DMA_DESC_NUM_HS_ISOC    256
+#define MAX_FRLIST_EN_NUM        64
 #define DWC_OTG_HOST_GLOBAL_REG_OFFSET 0x400
 #define DWC_OTG_HOST_PORT_REGS_OFFSET 0x440
 #define DWC_OTG_HOST_CHAN_REGS_OFFSET 0x500
 #define DWC_OTG_CHAN_REGS_OFFSET 0x20
 
-// union pcgcctl_data
+/* union pcgcctl_data */
 #define pcgcctl_stoppclk (1 << 0)
 #define pcgcctl_gatehclk (1 << 1)
 #define pcgcctl_pwrclmp (1 << 2)
@@ -1022,13 +1022,13 @@
 #define pcgcctl_p2hd_prt_spd_mask (0x3)
 #define pcgcctl_if_dev_mode (1 << 31)
 
-// union gdfifocfg_data
+/* union gdfifocfg_data */
 #define gdfifocfg_gdfifocfg_shift (0)
 #define gdfifocfg_gdfifocfg_mask (0xffff)
 #define gdfifocfg_epinfobase_shift (16)
 #define gdfifocfg_epinfobase_mask (0xffff)
 
-// union gpwrdn_data
+/* union gpwrdn_data */
 #define gpwrdn_pmuintsel (1 << 0)
 #define gpwrdn_pmuactv (1 << 1)
 #define gpwrdn_restore (1 << 2)
@@ -1058,4 +1058,4 @@
 #define gpwrdn_reserved29_31_shift (29)
 #define gpwrdn_reserved29_31_mask (0x7)
 
-#endif // BCM2835_USB_REGS_H
+#endif /* BCM2835_USB_REGS_H */

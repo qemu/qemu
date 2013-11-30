@@ -3,9 +3,7 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 
 /* DMA CS Control and Status bits */
 #define BCM2708_DMA_ACTIVE      (1 << 0)
@@ -49,7 +47,7 @@
 #define BCM2708_DMA_TDMODE_LEN(w, h) ((h) << 16 | (w))
 
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
 
 typedef struct {
     uint32_t cs;
@@ -65,6 +63,10 @@ typedef struct {
     qemu_irq irq;
 } dmachan;
 
+#define TYPE_BCM2835_DMA "bcm2835_dma"
+#define BCM2835_DMA(obj) \
+        OBJECT_CHECK(bcm2835_dma_state, (obj), TYPE_BCM2835_DMA)
+
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem0_14;
@@ -76,19 +78,18 @@ typedef struct {
 
 } bcm2835_dma_state;
 
-#define TYPE_BCM2835DMA "bcm2835_dma"
-#define BCM2835DMA(obj) OBJECT_CHECK(bcm2835_dma_state, (obj), TYPE_BCM2835DMA)
 
 static void bcm2835_dma_update(bcm2835_dma_state *s, int c)
 {
     dmachan *ch = &s->chan[c];
     uint32_t data;
 
-    if (!(s->enable & (1 << c)))
+    if (!(s->enable & (1 << c))) {
         return;
+    }
 
     while ((s->enable & (1 << c)) && (ch->conblk_ad != 0)) {
-        // CB fetch
+        /* CB fetch */
         ch->ti = ldl_phys(ch->conblk_ad);
         ch->source_ad = ldl_phys(ch->conblk_ad + 4);
         ch->dest_ad = ldl_phys(ch->conblk_ad + 8);
@@ -103,10 +104,10 @@ static void bcm2835_dma_update(bcm2835_dma_state *s, int c)
         ch->source_ad, ch->dest_ad, ch->txfr_len);
 #endif
 
-        while(ch->txfr_len != 0) {
+        while (ch->txfr_len != 0) {
             data = 0;
             if (ch->ti & (1 << 11)) {
-                // Ignore reads
+                /* Ignore reads */
             } else {
                 data = ldl_phys(ch->source_ad);
             }
@@ -115,7 +116,7 @@ static void bcm2835_dma_update(bcm2835_dma_state *s, int c)
             }
 
             if (ch->ti & (1 << 7)) {
-                // Ignore writes
+                /* Ignore writes */
             } else {
                 stl_phys(ch->dest_ad, data);
             }
@@ -139,7 +140,7 @@ static void bcm2835_dma_update(bcm2835_dma_state *s, int c)
             qemu_set_irq(ch->irq, 1);
         }
 
-        // Process next CB
+        /* Process next CB */
         ch->conblk_ad = ch->nextconbk;
     }
     ch->cs &= ~BCM2708_DMA_ACTIVE;
@@ -153,7 +154,7 @@ static uint64_t bcm2835_dma_read(bcm2835_dma_state *s, hwaddr offset,
 
     assert(size == 4);
 
-    switch(offset) {
+    switch (offset) {
     case 0x0:
         res = ch->cs;
         break;
@@ -207,7 +208,7 @@ static void bcm2835_dma_write(bcm2835_dma_state *s, hwaddr offset,
         (int)offset, (uint32_t)value);
 #endif
 
-    switch(offset) {
+    switch (offset) {
     case 0x0:
         if (value & BCM2708_DMA_RESET) {
             ch->cs |= BCM2708_DMA_RESET;
@@ -260,7 +261,7 @@ static void bcm2835_dma_write(bcm2835_dma_state *s, hwaddr offset,
     }
 }
 
-// ====================================================================
+/* ==================================================================== */
 
 static uint64_t bcm2835_dma0_14_read(void *opaque, hwaddr offset,
     unsigned size)
@@ -272,14 +273,14 @@ static uint64_t bcm2835_dma0_14_read(void *opaque, hwaddr offset,
     if (offset == 0xff0) {
         return s->enable;
     }
-    return bcm2835_dma_read( s, (offset & 0xff),
+    return bcm2835_dma_read(s, (offset & 0xff),
         size, (offset >> 8) & 0xf);
 }
 
 static uint64_t bcm2835_dma15_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    return bcm2835_dma_read( (bcm2835_dma_state *)opaque, (offset & 0xff),
+    return bcm2835_dma_read((bcm2835_dma_state *)opaque, (offset & 0xff),
         size, 15);
 }
 
@@ -294,14 +295,14 @@ static void bcm2835_dma0_14_write(void *opaque, hwaddr offset,
         s->enable = (value & 0xffff);
         return;
     }
-    bcm2835_dma_write( s, (offset & 0xff),
+    bcm2835_dma_write(s, (offset & 0xff),
         value, size, (offset >> 8) & 0xf);
 }
 
 static void bcm2835_dma15_write(void *opaque, hwaddr offset,
     uint64_t value, unsigned size)
 {
-    bcm2835_dma_write( (bcm2835_dma_state *)opaque, (offset & 0xff),
+    bcm2835_dma_write((bcm2835_dma_state *)opaque, (offset & 0xff),
         value, size, 15);
 }
 
@@ -319,7 +320,7 @@ static const MemoryRegionOps bcm2835_dma15_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_dma = {
-    .name = TYPE_BCM2835DMA,
+    .name = TYPE_BCM2835_DMA,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -331,21 +332,22 @@ static const VMStateDescription vmstate_bcm2835_dma = {
 static int bcm2835_dma_init(SysBusDevice *sbd)
 {
     int n;
+    /* bcm2835_dma_state *s = FROM_SYSBUS(bcm2835_dma_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_dma_state *s = BCM2835DMA(dev);
+    bcm2835_dma_state *s = BCM2835_DMA(dev);
 
     s->enable = 0xffff;
     s->int_status = 0;
-    for(n = 0; n < 16; n++) {
+    for (n = 0; n < 16; n++) {
         s->chan[n].cs = 0;
         s->chan[n].conblk_ad = 0;
         sysbus_init_irq(sbd, &s->chan[n].irq);
     }
 
-    memory_region_init_io(&s->iomem0_14, NULL, &bcm2835_dma0_14_ops, s,
+    memory_region_init_io(&s->iomem0_14, OBJECT(s), &bcm2835_dma0_14_ops, s,
         "bcm2835_dma0_14", 0xf00);
     sysbus_init_mmio(sbd, &s->iomem0_14);
-    memory_region_init_io(&s->iomem15, NULL, &bcm2835_dma15_ops, s,
+    memory_region_init_io(&s->iomem15, OBJECT(s), &bcm2835_dma15_ops, s,
         "bcm2835_dma15", 0x100);
     sysbus_init_mmio(sbd, &s->iomem15);
 
@@ -362,7 +364,7 @@ static void bcm2835_dma_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_dma_info = {
-    .name          = TYPE_BCM2835DMA,
+    .name          = TYPE_BCM2835_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_dma_state),
     .class_init    = bcm2835_dma_class_init,

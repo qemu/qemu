@@ -3,13 +3,11 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-#include "qemu-common.h"
-#include "hw/sysbus.h"
-#include "hw/qdev.h"
+#include "qemu/main-loop.h"
 #include "hw/ptimer.h"
-#include "qemu/main-loop.h"     /* qemu_bh_new */
+#include "hw/sysbus.h"
 
-// #define LOG_REG_ACCESS
+/* #define LOG_REG_ACCESS */
 
 #define SYSCLOCK_FREQ (252000000)
 #define APBCLOCK_FREQ (126000000)
@@ -23,6 +21,9 @@
 #define CTRL_FRC_PS_MASK (0xff << 16)
 #define CTRL_FRC_PS_SHIFT 16
 
+#define TYPE_BCM2835_TIMER "bcm2835_timer"
+#define BCM2835_TIMER(obj) \
+        OBJECT_CHECK(bcm2835_timer_state, (obj), TYPE_BCM2835_TIMER)
 
 typedef struct {
     SysBusDevice busdev;
@@ -40,22 +41,20 @@ typedef struct {
     ptimer_state *frc_timer;
 } bcm2835_timer_state;
 
-#define TYPE_BCM2835TIMER "bcm2835_timer"
-#define BCM2835TIMER(obj) \
-    OBJECT_CHECK(bcm2835_timer_state, (obj), TYPE_BCM2835TIMER)
-
-static void timer_tick(void *opaque) {
+static void timer_tick(void *opaque)
+{
     bcm2835_timer_state *s = (bcm2835_timer_state *)opaque;
     s->raw_irq = 1;
     if (s->control & CTRL_IRQ_EN) {
         qemu_set_irq(s->irq, 1);
     }
 }
-static void frc_timer_tick(void *opaque) {
+static void frc_timer_tick(void *opaque)
+{
     bcm2835_timer_state *s = (bcm2835_timer_state *)opaque;
     s->frc_value++;
 #ifdef LOG_REG_ACCESS
-    // printf("[QEMU] bcm2835_timer: FRC tick %08x\n", s->frc_value);
+    /* printf("[QEMU] bcm2835_timer: FRC tick %08x\n", s->frc_value); */
 #endif
 }
 
@@ -67,7 +66,7 @@ static uint64_t bcm2835_timer_read(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-    switch(offset) {
+    switch (offset) {
     case 0x0:
         res = s->load;
         break;
@@ -123,7 +122,7 @@ static void bcm2835_timer_write(void *opaque, hwaddr offset,
         (uint32_t)value);
 #endif
 
-    switch(offset) {
+    switch (offset) {
     case 0x0:
         s->load = value;
         ptimer_set_limit(s->timer, s->load, 1);
@@ -137,10 +136,10 @@ static void bcm2835_timer_write(void *opaque, hwaddr offset,
         if (s->control & CTRL_TIMER_EN) {
             ptimer_stop(s->timer);
         }
-        s->control = value & 0x00ff03ce;
+        s->control = value & 0x00ff03ae;
 
         freq = SYSCLOCK_FREQ;
-        // freq /= ((s->control & CTRL_FRC_PS_MASK) >> CTRL_FRC_PS_SHIFT) + 1;
+        /* freq /= ((s->control & CTRL_FRC_PS_MASK) >> CTRL_FRC_PS_SHIFT) + 1;*/
         ptimer_set_freq(s->frc_timer, freq);
         ptimer_set_limit(s->frc_timer,
             ((s->control & CTRL_FRC_PS_MASK) >> CTRL_FRC_PS_SHIFT) + 1,
@@ -148,7 +147,7 @@ static void bcm2835_timer_write(void *opaque, hwaddr offset,
 
         freq = APBCLOCK_FREQ;
         freq /= s->prediv + 1;
-        switch( (s->control & CTRL_PS_MASK) >> CTRL_PS_SHIFT ) {
+        switch ((s->control & CTRL_PS_MASK) >> CTRL_PS_SHIFT) {
         case 1:
             freq >>= 4;
             break;
@@ -199,7 +198,7 @@ static const MemoryRegionOps bcm2835_timer_ops = {
 };
 
 static const VMStateDescription vmstate_bcm2835_timer = {
-    .name = TYPE_BCM2835TIMER,
+    .name = TYPE_BCM2835_TIMER,
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
@@ -212,8 +211,9 @@ static int bcm2835_timer_init(SysBusDevice *sbd)
 {
     QEMUBH *bh;
 
+    /* bcm2835_timer_state *s = FROM_SYSBUS(bcm2835_timer_state, dev); */
     DeviceState *dev = DEVICE(sbd);
-    bcm2835_timer_state *s = BCM2835TIMER(dev);
+    bcm2835_timer_state *s = BCM2835_TIMER(dev);
 
     s->load = 0;
     s->control = 0x3e << 16;
@@ -226,8 +226,8 @@ static int bcm2835_timer_init(SysBusDevice *sbd)
     bh = qemu_bh_new(frc_timer_tick, s);
     s->frc_timer = ptimer_init(bh);
 
-    memory_region_init_io(&s->iomem, NULL, &bcm2835_timer_ops, s,
-        TYPE_BCM2835TIMER, 0x100);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_timer_ops, s,
+        TYPE_BCM2835_TIMER, 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
     vmstate_register(dev, -1, &vmstate_bcm2835_timer, s);
 
@@ -244,7 +244,7 @@ static void bcm2835_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo bcm2835_timer_info = {
-    .name          = TYPE_BCM2835TIMER,
+    .name          = TYPE_BCM2835_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(bcm2835_timer_state),
     .class_init    = bcm2835_timer_class_init,
