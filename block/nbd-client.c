@@ -337,7 +337,12 @@ static void nbd_teardown_connection(NbdClientSession *client)
 
 void nbd_client_session_close(NbdClientSession *client)
 {
+    if (!client->bs) {
+        return;
+    }
+
     nbd_teardown_connection(client);
+    client->bs = NULL;
 }
 
 int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
