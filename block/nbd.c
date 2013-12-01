@@ -188,7 +188,7 @@ out:
     g_free(file);
 }
 
-static int nbd_config(BDRVNBDState *s, QDict *options)
+static int nbd_config(BDRVNBDState *s, QDict *options, char **export)
 {
     Error *local_err = NULL;
 
@@ -218,8 +218,8 @@ static int nbd_config(BDRVNBDState *s, QDict *options)
         qemu_opt_set_number(s->socket_opts, "port", NBD_DEFAULT_PORT);
     }
 
-    s->client.export_name = g_strdup(qdict_get_try_str(options, "export"));
-    if (s->client.export_name) {
+    *export = g_strdup(qdict_get_try_str(options, "export"));
+    if (*export) {
         qdict_del(options, "export");
     }
 
@@ -253,10 +253,11 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
+    char *export = NULL;
     int result, sock;
 
     /* Pop the config into our state object. Exit if invalid. */
-    result = nbd_config(s, options);
+    result = nbd_config(s, options, &export);
     if (result != 0) {
         return result;
     }
@@ -270,7 +271,9 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    return nbd_client_session_init(&s->client, bs, sock);
+    result = nbd_client_session_init(&s->client, bs, sock, export);
+    g_free(export);
+    return result;
 }
 
 static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,

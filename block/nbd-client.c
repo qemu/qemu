@@ -338,18 +338,17 @@ static void nbd_teardown_connection(NbdClientSession *client)
 void nbd_client_session_close(NbdClientSession *client)
 {
     nbd_teardown_connection(client);
-    g_free(client->export_name);
-    client->export_name = NULL;
 }
 
-int nbd_client_session_init(NbdClientSession *client,
-    BlockDriverState *bs, int sock)
+int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
+    int sock, const char *export)
 {
     int ret;
 
     /* NBD handshake */
+    logout("session init %s\n", export);
     qemu_set_block(sock);
-    ret = nbd_receive_negotiate(sock, client->export_name,
+    ret = nbd_receive_negotiate(sock, export,
                                 &client->nbdflags, &client->size,
                                 &client->blocksize);
     if (ret < 0) {

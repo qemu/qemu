@@ -30,14 +30,13 @@ typedef struct NbdClientSession {
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
     struct nbd_reply reply;
 
-    char *export_name; /* An NBD server may export several devices */
     bool is_unix;
 
     BlockDriverState *bs;
 } NbdClientSession;
 
-int nbd_client_session_init(NbdClientSession *client,
-                            BlockDriverState *bs, int sock);
+int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
+                            int sock, const char *export_name);
 void nbd_client_session_close(NbdClientSession *client);
 
 int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
