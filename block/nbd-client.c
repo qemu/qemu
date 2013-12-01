@@ -32,6 +32,17 @@
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ ((uint64_t)(intptr_t)bs))
 
+static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
+{
+    int i;
+
+    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
+        if (s->recv_coroutine[i]) {
+            qemu_coroutine_enter(s->recv_coroutine[i], NULL);
+        }
+    }
+}
+
 static void nbd_reply_ready(void *opaque)
 {
     NbdClientSession *s = opaque;
@@ -67,11 +78,7 @@ static void nbd_reply_ready(void *opaque)
     }
 
 fail:
-    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        if (s->recv_coroutine[i]) {
-            qemu_coroutine_enter(s->recv_coroutine[i], NULL);
-        }
-    }
+    nbd_recv_coroutines_enter_all(s);
 }
 
 static void nbd_restart_write(void *opaque)
@@ -329,6 +336,10 @@ static void nbd_teardown_connection(NbdClientSession *client)
     request.from = 0;
     request.len = 0;
     nbd_send_request(client->sock, &request);
+
+    /* finish any pending coroutines */
+    shutdown(client->sock, 2);
+    nbd_recv_coroutines_enter_all(client);
 
     qemu_aio_set_fd_handler(client->sock, NULL, NULL, NULL);
     closesocket(client->sock);
