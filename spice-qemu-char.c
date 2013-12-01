@@ -222,6 +222,15 @@ static void spice_chr_set_fe_open(struct CharDriverState *chr, int fe_open)
     }
 }
 
+static void spice_chr_fe_event(struct CharDriverState *chr, int event)
+{
+#if SPICE_SERVER_VERSION >= 0x000c02
+    SpiceCharDriver *s = chr->opaque;
+
+    spice_server_port_event(&s->sin, event);
+#endif
+}
+
 static void print_allowed_subtypes(void)
 {
     const char** psubtype;
@@ -255,6 +264,7 @@ static CharDriverState *chr_open(const char *subtype)
     chr->chr_close = spice_chr_close;
     chr->chr_set_fe_open = spice_chr_set_fe_open;
     chr->explicit_be_open = true;
+    chr->chr_fe_event = spice_chr_fe_event;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
 
