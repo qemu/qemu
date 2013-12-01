@@ -58,7 +58,7 @@ static QemuMutex socket_to_send_lock;
 static guint socket_tag;
 
 static void
-update_socket_watch(gboolean out);
+update_socket_watch(void);
 
 static gboolean
 do_socket_send(GIOChannel *source,
@@ -80,7 +80,7 @@ do_socket_send(GIOChannel *source,
     g_byte_array_remove_range(socket_to_send, 0, bw);
 
     if (socket_to_send->len == 0) {
-        update_socket_watch(FALSE);
+        update_socket_watch();
         return FALSE;
     }
     return TRUE;
@@ -89,7 +89,7 @@ do_socket_send(GIOChannel *source,
 static gboolean
 socket_prepare_sending(gpointer user_data)
 {
-    update_socket_watch(TRUE);
+    update_socket_watch();
 
     return FALSE;
 }
@@ -440,8 +440,10 @@ do_socket(GIOChannel *source,
 }
 
 static void
-update_socket_watch(gboolean out)
+update_socket_watch(void)
 {
+    gboolean out = socket_to_send->len > 0;
+
     if (socket_tag != 0) {
         g_source_remove(socket_tag);
     }
