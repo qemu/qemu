@@ -348,6 +348,7 @@ int nbd_client_session_init(NbdClientSession *client,
     int ret;
 
     /* NBD handshake */
+    qemu_set_block(sock);
     ret = nbd_receive_negotiate(sock, client->export_name,
                                 &client->nbdflags, &client->size,
                                 &client->blocksize);
