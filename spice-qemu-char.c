@@ -11,7 +11,6 @@
 typedef struct SpiceCharDriver {
     CharDriverState*      chr;
     SpiceCharDeviceInstance     sin;
-    char                  *subtype;
     bool                  active;
     bool                  blocked;
     const uint8_t         *datapos;
