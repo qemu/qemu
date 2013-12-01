@@ -185,11 +185,10 @@ static int nbd_co_readv_1(NbdClientSession *client, int64_t sector_num,
                           int nb_sectors, QEMUIOVector *qiov,
                           int offset)
 {
-    struct nbd_request request;
+    struct nbd_request request = { .type = NBD_CMD_READ };
     struct nbd_reply reply;
     ssize_t ret;
 
-    request.type = NBD_CMD_READ;
     request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
@@ -209,11 +208,10 @@ static int nbd_co_writev_1(NbdClientSession *client, int64_t sector_num,
                            int nb_sectors, QEMUIOVector *qiov,
                            int offset)
 {
-    struct nbd_request request;
+    struct nbd_request request = { .type = NBD_CMD_WRITE };
     struct nbd_reply reply;
     ssize_t ret;
 
-    request.type = NBD_CMD_WRITE;
     if (!bdrv_enable_write_cache(client->bs) &&
         (client->nbdflags & NBD_FLAG_SEND_FUA)) {
         request.type |= NBD_CMD_FLAG_FUA;
@@ -275,7 +273,7 @@ int nbd_client_session_co_writev(NbdClientSession *client, int64_t sector_num,
 
 int nbd_client_session_co_flush(NbdClientSession *client)
 {
-    struct nbd_request request;
+    struct nbd_request request = { .type = NBD_CMD_FLUSH };
     struct nbd_reply reply;
     ssize_t ret;
 
@@ -283,7 +281,6 @@ int nbd_client_session_co_flush(NbdClientSession *client)
         return 0;
     }
 
-    request.type = NBD_CMD_FLUSH;
     if (client->nbdflags & NBD_FLAG_SEND_FUA) {
         request.type |= NBD_CMD_FLAG_FUA;
     }
@@ -305,14 +302,13 @@ int nbd_client_session_co_flush(NbdClientSession *client)
 int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
     int nb_sectors)
 {
-    struct nbd_request request;
+    struct nbd_request request = { .type = NBD_CMD_TRIM };
     struct nbd_reply reply;
     ssize_t ret;
 
     if (!(client->nbdflags & NBD_FLAG_SEND_TRIM)) {
         return 0;
     }
-    request.type = NBD_CMD_TRIM;
     request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
@@ -330,11 +326,12 @@ int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
 
 static void nbd_teardown_connection(NbdClientSession *client)
 {
-    struct nbd_request request;
+    struct nbd_request request = {
+        .type = NBD_CMD_DISC,
+        .from = 0,
+        .len = 0
+    };
 
-    request.type = NBD_CMD_DISC;
-    request.from = 0;
-    request.len = 0;
     nbd_send_request(client->sock, &request);
 
     /* finish any pending coroutines */
