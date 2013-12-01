@@ -146,7 +146,6 @@ static const VMStateDescription vmstate_bcm2835_mphi = {
 
 static int bcm2835_mphi_init(SysBusDevice *sbd)
 {
-    /* bcm2835_mphi_state *s = FROM_SYSBUS(bcm2835_mphi_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_mphi_state *s = BCM2835_MPHI(dev);
 

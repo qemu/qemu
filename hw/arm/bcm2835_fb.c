@@ -55,7 +55,6 @@ typedef struct {
 
 static void fb_invalidate_display(void *opaque)
 {
-    /* bcm2835_fb_state *s = (bcm2835_fb_state *)opaque; */
     bcm2835_fb.invalidate = 1;
 }
 
@@ -312,21 +311,15 @@ static const GraphicHwOps vgafb_ops = {
 
 static int bcm2835_fb_init(SysBusDevice *sbd)
 {
-    /* bcm2835_fb_state *s = FROM_SYSBUS(bcm2835_fb_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_fb_state *s = BCM2835_FB(dev);
 
     s->pending = 0;
 
-    /* bcm2835_fb.invalidate = 0; */
     bcm2835_fb.xres = 640;
     bcm2835_fb.yres = 480;
     bcm2835_fb.xres_virtual = 640;
     bcm2835_fb.yres_virtual = 480;
-    /* bcm2835_fb.xres = 1024; */
-    /* bcm2835_fb.yres = 768; */
-    /* bcm2835_fb.xres_virtual = 1024; */
-    /* bcm2835_fb.yres_virtual = 768; */
 
     bcm2835_fb.bpp = 16;
     bcm2835_fb.xoffset = 0;

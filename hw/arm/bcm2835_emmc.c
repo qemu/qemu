@@ -469,9 +469,6 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
                         s->interrupt |= SDHCI_INT_DATA_END;
                         autocmd12(s);
                     }
-
-                    /* s->interrupt |= SDHCI_INT_DATA_END; */
-                    /* autocmd12(s); */
                 }
             }
             if (!s->acmd && (cmd == 17)) {
@@ -698,9 +695,6 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                 blkcnt--;
                 s->blksizecnt = (blkcnt << 16) | (s->blksizecnt & 0xffff);
                 if (blkcnt == 0) {
-                    /* s->interrupt &= ~SDHCI_INT_SPACE_AVAIL; */
-                    /* s->status &= ~SDHCI_SPACE_AVAILABLE; */
-
                     if (COMPLETION_DELAY > 0) {
                         now = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
                         timer_mod(s->delay_timer,
@@ -709,9 +703,6 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                         s->interrupt |= SDHCI_INT_DATA_END;
                         autocmd12(s);
                     }
-
-                    /* s->interrupt |= SDHCI_INT_DATA_END; */
-                    /* autocmd12(s); */
                 }
             }
             if (!s->acmd && (cmd == 24)) {
@@ -784,9 +775,7 @@ static const VMStateDescription vmstate_bcm2835_emmc = {
 
 static int bcm2835_emmc_init(SysBusDevice *sbd)
 {
-    /* bcm2835_emmc_state *s = FROM_SYSBUS(bcm2835_emmc_state, dev); */
     DriveInfo *di;
-
     DeviceState *dev = DEVICE(sbd);
     bcm2835_emmc_state *s = BCM2835_EMMC(dev);
 

@@ -50,7 +50,6 @@ typedef struct {
 struct bcm2835_usb_state_struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    /* DMAContext *dma; */
     AddressSpace *dma;
 
     USBBus bus;
@@ -115,8 +114,6 @@ static void bcm2835_usb_update_irq(bcm2835_usb_state *s)
     if (!(s->gahbcfg & gahbcfg_glblintrmsk)) {
         qemu_set_irq(s->irq, 0);
     } else {
-        /*printf("[QEMU] bcm2835_usb_update_irq gintsts=%08x gintmsk=%08x\n",
-            s->gintsts, s->gintmsk);*/
         if (s->gintsts & s->gintmsk) {
             qemu_set_irq(s->irq, 1);
         } else {
@@ -143,7 +140,6 @@ static void bcm2835_usb_sof_tick(void *opaque)
 
 static void channel_enable(bcm2835_usb_hc_state *c)
 {
-    /* int n; */
     USBEndpoint *ep;
     USBDevice *dev;
 
@@ -152,21 +148,14 @@ static void channel_enable(bcm2835_usb_hc_state *c)
                        & hcchar_devaddr_mask;
     uint32_t xfersize = (c->hctsiz >> hctsiz_xfersize_shift)
                         & hctsiz_xfersize_mask;
-    /* uint32_t pktcnt = (c->hctsiz >> hctsiz_pktcnt_shift)
-                      & hctsiz_pktcnt_mask; */
     uint32_t pid = (c->hctsiz >> hctsiz_pid_shift) & hctsiz_pid_mask;
     uint32_t dma_addr = c->hcdma; /* ??? */
-    /* uint32_t dma_addr_b = c->hcdmab; / * ??? */
     int actual_length;
     int qpid;
 
     if (!c->parent->reset_done) {
         return;
     }
-
-    /*printf("DEV = %d EPNUM = %d EPDIR = %s PKTCNT = %d XFERSIZE = %d\n",
-        devaddr, epnum, (c->hcchar & hcchar_epdir ? "IN" : "OUT"),
-        pktcnt, xfersize);*/
 
     if (c->hcchar & hcchar_epdir) {
         /* IN */
@@ -179,9 +168,8 @@ static void channel_enable(bcm2835_usb_hc_state *c)
             qpid = USB_TOKEN_OUT;
         }
     }
-    /* printf("QPID = %02x\n", qpid); */
-    dev = usb_find_device(&c->parent->port, devaddr);
 
+    dev = usb_find_device(&c->parent->port, devaddr);
     assert(dev != NULL);
 
     ep = usb_ep_get(dev, qpid, epnum);
@@ -190,16 +178,9 @@ static void channel_enable(bcm2835_usb_hc_state *c)
     if (xfersize > 0) {
         dma_memory_read(c->parent->dma, dma_addr, c->buffer, xfersize);
 
-        /*for (n = 0; n < xfersize; n++) {
-            printf("%02x", c->buffer[n]);
-        }
-        printf("\n\n");*/
-
         usb_packet_addbuf(&c->packet, c->buffer, xfersize);
     }
     usb_handle_packet(dev, &c->packet);
-    /*printf("PACKET STATUS = %d actual_length=%d\n",
-        c->packet.status, c->packet.actual_length);*/
 
     if (c->packet.status == USB_RET_SUCCESS) {
         if (qpid == USB_TOKEN_IN) {
@@ -211,11 +192,6 @@ static void channel_enable(bcm2835_usb_hc_state *c)
 
             dma_memory_write(c->parent->dma, dma_addr, c->buffer,
                 actual_length);
-
-            /*for (n = 0; n < actual_length; n++) {
-                printf("%02x", c->buffer[n]);
-            }
-            printf("\n\n");*/
         }
 
         c->hcint |= hcint_xfercomp | hcint_chhltd;
@@ -523,8 +499,6 @@ static void bcm2835_usb_write(void *opaque, hwaddr offset,
         break;
     case 0x14:
         reg = "gintsts";
-        /*if (value & gintsts_sofintr)
-            s->gintsts &= ~gintsts_sofintr;*/
         s->gintsts &= ~value;
         /* Enforce Host mode */
         s->gintsts |= gintsts_curmode;
@@ -656,7 +630,6 @@ static void bcm2835_usb_wakeup(USBPort *port1)
 }
 static void bcm2835_usb_async_complete(USBPort *port, USBPacket *packet)
 {
-    printf("******************* ASYNC COMPLETE\n");
 }
 
 
@@ -689,12 +662,10 @@ static USBBusOps bcm2835_usb_bus_ops = {
 
 static int bcm2835_usb_init(SysBusDevice *sbd)
 {
-    /* bcm2835_usb_state *s = FROM_SYSBUS(bcm2835_usb_state, dev); */
     int n;
     DeviceState *dev = DEVICE(sbd);
     bcm2835_usb_state *s = BCM2835_USB(dev);
 
-    /* s->dma = &dma_context_memory; */
     s->dma = &address_space_memory;
 
     s->gusbcfg = 0x20402700;
@@ -713,7 +684,6 @@ static int bcm2835_usb_init(SysBusDevice *sbd)
     s->gintsts = 0;
     s->gintmsk = 0;
     s->gdfifocfg = 0x00000000;
-    /* s->hprt0 = 0x00000400; */
     s->hprt0 = DWC_HPRT0_PRTSPD_FULL_SPEED << hprt0_prtspd_shift;
     s->gnptxsts = 0x080100;
     s->hfnum = 0;

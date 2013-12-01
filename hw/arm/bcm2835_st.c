@@ -51,7 +51,6 @@ static void bcm2835_st_tick(void *opaque)
     for (i = 0; i < 4; i++) {
         if (!(s->match & (1 << i)) && (s->next == s->compare[i])) {
             s->match |= (1 << i);
-            /* printf("irq %d\n", i); */
             qemu_set_irq(s->irq[i], 1);
         }
     }
@@ -170,7 +169,6 @@ static const VMStateDescription vmstate_bcm2835_st = {
 
 static int bcm2835_st_init(SysBusDevice *sbd)
 {
-    /* bcm2835_st_state *s = FROM_SYSBUS(bcm2835_st_state, dev); */
     int i;
     DeviceState *dev = DEVICE(sbd);
     bcm2835_st_state *s = BCM2835_ST(dev);
@@ -196,7 +194,6 @@ static int bcm2835_st_init(SysBusDevice *sbd)
 static void bcm2835_st_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_st_init;
 }

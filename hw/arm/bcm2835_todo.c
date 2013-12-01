@@ -56,7 +56,6 @@ static const VMStateDescription vmstate_bcm2835_todo = {
 
 static int bcm2835_todo_init(SysBusDevice *sbd)
 {
-    /* bcm2835_todo_state *s = FROM_SYSBUS(bcm2835_todo_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_todo_state *s = BCM2835_TODO(dev);
 
