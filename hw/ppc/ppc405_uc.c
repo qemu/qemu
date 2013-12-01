@@ -1234,7 +1234,7 @@ struct ppc4xx_gpt_t {
     MemoryRegion iomem;
     int64_t tb_offset;
     uint32_t tb_freq;
-    struct QEMUTimer *timer;
+    QEMUTimer *timer;
     qemu_irq irqs[5];
     uint32_t oe;
     uint32_t ol;

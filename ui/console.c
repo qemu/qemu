@@ -161,7 +161,7 @@ struct QemuConsole {
 };
 
 struct DisplayState {
-    struct QEMUTimer *gui_timer;
+    QEMUTimer *gui_timer;
     uint64_t last_update;
     uint64_t update_interval;
     bool refreshing;

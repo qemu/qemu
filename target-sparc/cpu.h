@@ -370,7 +370,7 @@ struct CPUTimer
     uint32_t    disabled;
     uint64_t    disabled_mask;
     int64_t     clock_offset;
-    struct QEMUTimer  *qtimer;
+    QEMUTimer  *qtimer;
 };
 
 typedef struct CPUTimer CPUTimer;
