@@ -33,6 +33,7 @@
 #include "qapi/qmp/types.h"
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
+#include "ui/input.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -1542,9 +1543,7 @@ static void reset_keys(VncState *vs)
     int i;
     for(i = 0; i < 256; i++) {
         if (vs->modifiers_state[i]) {
-            if (i & SCANCODE_GREY)
-                kbd_put_keycode(SCANCODE_EMUL0);
-            kbd_put_keycode(i | SCANCODE_UP);
+            qemu_input_event_send_key_number(vs->vd->dcl.con, i, false);
             vs->modifiers_state[i] = 0;
         }
     }
@@ -1553,12 +1552,8 @@ static void reset_keys(VncState *vs)
 static void press_key(VncState *vs, int keysym)
 {
     int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
-    if (keycode & SCANCODE_GREY)
-        kbd_put_keycode(SCANCODE_EMUL0);
-    kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
-    if (keycode & SCANCODE_GREY)
-        kbd_put_keycode(SCANCODE_EMUL0);
-    kbd_put_keycode(keycode | SCANCODE_UP);
+    qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, true);
+    qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
 }
 
 static int current_led_state(VncState *vs)
@@ -1700,12 +1695,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     if (qemu_console_is_graphic(NULL)) {
-        if (keycode & SCANCODE_GREY)
-            kbd_put_keycode(SCANCODE_EMUL0);
-        if (down)
-            kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
-        else
-            kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, down);
     } else {
         bool numlock = vs->modifiers_state[0x45];
         bool control = (vs->modifiers_state[0x1d] ||
@@ -1826,10 +1816,7 @@ static void vnc_release_modifiers(VncState *vs)
         if (!vs->modifiers_state[keycode]) {
             continue;
         }
-        if (keycode & SCANCODE_GREY) {
-            kbd_put_keycode(SCANCODE_EMUL0);
-        }
-        kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
     }
 }
 
