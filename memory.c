@@ -1596,6 +1596,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     view = address_space_get_flatview(as);
     fr = flatview_lookup(view, range);
     if (!fr) {
+        flatview_unref(view);
         return ret;
     }
 
