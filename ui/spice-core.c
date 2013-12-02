@@ -776,6 +776,8 @@ void qemu_spice_init(void)
     if (str) {
         int streaming_video = parse_stream_video(str);
         spice_server_set_streaming_video(spice_server, streaming_video);
+    } else {
+        spice_server_set_streaming_video(spice_server, SPICE_STREAM_VIDEO_OFF);
     }
 
     spice_server_set_agent_mouse
