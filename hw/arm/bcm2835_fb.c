@@ -23,9 +23,6 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  *
- *
- * Specification available at:
- *   http://www.milkymist.org/socdoc/vgafb.pdf
  */
 
 #include "hw/sysbus.h"
@@ -35,8 +32,6 @@
 #include "ui/pixel_ops.h"
 
 #include "bcm2835_common.h"
-
-/* #define LOG_REG_ACCESS */
 
 #define FRAMESKIP 1
 
@@ -236,11 +231,6 @@ static void bcm2835_fb_mbox_push(bcm2835_fb_state *s, uint32_t value)
     stl_phys(value + 16, bcm2835_fb.pitch);
     stl_phys(value + 32, bcm2835_fb.base);
     stl_phys(value + 36, bcm2835_fb.size);
-
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_fb: mbox_push res=(%d %d)\n",
-        bcm2835_fb.xres, bcm2835_fb.yres);
-#endif
 
     bcm2835_fb.invalidate = 1;
     qemu_console_resize(bcm2835_fb.con, bcm2835_fb.xres, bcm2835_fb.yres);

@@ -7,8 +7,6 @@
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
 
-/* #define LOG_REG_ACCESS */
-
 #define SYSCLOCK_FREQ (252000000)
 #define APBCLOCK_FREQ (126000000)
 
@@ -53,9 +51,6 @@ static void frc_timer_tick(void *opaque)
 {
     bcm2835_timer_state *s = (bcm2835_timer_state *)opaque;
     s->frc_value++;
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_timer: FRC tick %08x\n", s->frc_value);
-#endif
 }
 
 static uint64_t bcm2835_timer_read(void *opaque, hwaddr offset,
@@ -102,10 +97,6 @@ static uint64_t bcm2835_timer_read(void *opaque, hwaddr offset,
         return 0;
     }
 
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_timer: read(%x) %08x\n", (int)offset, res);
-#endif
-
     return res;
 }
 
@@ -116,11 +107,6 @@ static void bcm2835_timer_write(void *opaque, hwaddr offset,
     uint32_t freq;
 
     assert(size == 4);
-
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_timer: write(%x) %08x\n", (int)offset,
-        (uint32_t)value);
-#endif
 
     switch (offset) {
     case 0x0:

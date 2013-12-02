@@ -5,8 +5,6 @@
 
 #include "hw/sysbus.h"
 
-/* #define LOG_REG_ACCESS */
-
 #define TYPE_BCM2835_TODO "bcm2835_todo"
 #define BCM2835_TODO(obj) \
         OBJECT_CHECK(bcm2835_todo_state, (obj), TYPE_BCM2835_TODO)
@@ -19,9 +17,6 @@ typedef struct {
 static uint64_t bcm2835_todo_read(void *opaque, hwaddr offset,
     unsigned size)
 {
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835: unmapped read(%x)\n", (int)offset);
-#endif
     /* "Unlocks" RiscOS boot */
     if (offset == 0x980010) {
         return 0xffffffff;
@@ -33,9 +28,6 @@ static uint64_t bcm2835_todo_read(void *opaque, hwaddr offset,
 static void bcm2835_todo_write(void *opaque, hwaddr offset,
     uint64_t value, unsigned size)
 {
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835: unmapped write(%x) %llx\n", (int)offset, value);
-#endif
 }
 
 static const MemoryRegionOps bcm2835_todo_ops = {

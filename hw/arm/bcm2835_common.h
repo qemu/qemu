@@ -1,5 +1,5 @@
-#ifndef __BCM2835_COMMON_H
-#define __BCM2835_COMMON_H
+#ifndef BCM2835_COMMON_H
+#define BCM2835_COMMON_H
 
 #include "bcm2835_platform.h"
 
@@ -34,4 +34,4 @@ typedef struct {
 
 extern bcm2835_fb_type bcm2835_fb;
 
-#endif
+#endif /* BCM2835_COMMON_H */

@@ -5,8 +5,6 @@
 
 #include "hw/sysbus.h"
 
-/* #define LOG_REG_ACCESS */
-
 #define TYPE_BCM2835_MPHI "bcm2835_mphi"
 #define BCM2835_MPHI(obj) \
         OBJECT_CHECK(bcm2835_mphi_state, (obj), TYPE_BCM2835_MPHI)
@@ -67,10 +65,6 @@ static uint64_t bcm2835_mphi_read(void *opaque, hwaddr offset,
         break;
     }
 
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_mphi: read(%x) %08x\n", (int)offset, res);
-#endif
-
     return res;
 }
 
@@ -117,11 +111,6 @@ static void bcm2835_mphi_write(void *opaque, hwaddr offset,
             "bcm2835_mphi_write: Bad offset %x\n", (int)offset);
         break;
     }
-
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_mphi: write(%x) %08x\n", (int)offset,
-        (uint32_t)value);
-#endif
 
     if (set_irq) {
         bcm2835_mphi_update_irq(s);
