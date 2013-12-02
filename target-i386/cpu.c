@@ -335,7 +335,7 @@ typedef struct ExtSaveArea {
 
 static const ExtSaveArea ext_save_areas[] = {
     [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
-            .offset = 0x100, .size = 0x240 },
+            .offset = 0x240, .size = 0x100 },
 };
 
 const char *get_register_name_32(unsigned int reg)
@@ -2227,8 +2227,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             const ExtSaveArea *esa = &ext_save_areas[count];
             if ((env->features[esa->feature] & esa->bits) == esa->bits &&
                 (kvm_mask & (1 << count)) != 0) {
-                *eax = esa->offset;
-                *ebx = esa->size;
+                *eax = esa->size;
+                *ebx = esa->offset;
             }
         }
         break;
