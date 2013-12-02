@@ -2971,17 +2971,23 @@ out:
 /*
  * Handle a read request in coroutine context
  */
-static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
+    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
+    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
+    uint8_t *head_buf = NULL;
+    uint8_t *tail_buf = NULL;
+    QEMUIOVector local_qiov;
+    bool use_local_qiov = false;
     int ret;
 
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (bdrv_check_request(bs, sector_num, nb_sectors)) {
+    if (bdrv_check_byte_request(bs, offset, bytes)) {
         return -EIO;
     }
 
@@ -2991,12 +2997,58 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
 
     /* throttling disk I/O */
     if (bs->io_limits_enabled) {
-        bdrv_io_limits_intercept(bs, nb_sectors, false);
+        /* TODO Switch to byte granularity */
+        bdrv_io_limits_intercept(bs, bytes >> BDRV_SECTOR_BITS, false);
     }
 
-    ret = bdrv_aligned_preadv(bs, sector_num << BDRV_SECTOR_BITS,
-                             nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
+    /* Align read if necessary by padding qiov */
+    if (offset & (align - 1)) {
+        head_buf = qemu_blockalign(bs, align);
+        qemu_iovec_init(&local_qiov, qiov->niov + 2);
+        qemu_iovec_add(&local_qiov, head_buf, offset & (align - 1));
+        qemu_iovec_concat(&local_qiov, qiov, 0, qiov->size);
+        use_local_qiov = true;
+
+        bytes += offset & (align - 1);
+        offset = offset & ~(align - 1);
+    }
+
+    if ((offset + bytes) & (align - 1)) {
+        if (!use_local_qiov) {
+            qemu_iovec_init(&local_qiov, qiov->niov + 1);
+            qemu_iovec_concat(&local_qiov, qiov, 0, qiov->size);
+            use_local_qiov = true;
+        }
+        tail_buf = qemu_blockalign(bs, align);
+        qemu_iovec_add(&local_qiov, tail_buf,
+                       align - ((offset + bytes) & (align - 1)));
+
+        bytes = ROUND_UP(bytes, align);
+    }
+
+    ret = bdrv_aligned_preadv(bs, offset, bytes,
+                              use_local_qiov ? &local_qiov : qiov,
+                              flags);
+
+    if (use_local_qiov) {
+        qemu_iovec_destroy(&local_qiov);
+        qemu_vfree(head_buf);
+        qemu_vfree(tail_buf);
+    }
+
     return ret;
+}
+
+static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
+{
+    if (nb_sectors < 0 || nb_sectors > (UINT_MAX >> BDRV_SECTOR_BITS)) {
+        return -EINVAL;
+    }
+
+    return bdrv_co_do_preadv(bs, sector_num << BDRV_SECTOR_BITS,
+                             nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
 int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
