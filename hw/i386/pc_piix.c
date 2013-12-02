@@ -339,7 +339,9 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_0_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
+#define PC_I440FX_2_0_MACHINE_OPTIONS                           \
+    PC_I440FX_MACHINE_OPTIONS,                                  \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_i440fx_machine_v2_0 = {
     PC_I440FX_2_0_MACHINE_OPTIONS,

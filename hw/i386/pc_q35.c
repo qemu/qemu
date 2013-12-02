@@ -259,7 +259,9 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_Q35_2_0_MACHINE_OPTIONS PC_Q35_MACHINE_OPTIONS
+#define PC_Q35_2_0_MACHINE_OPTIONS                      \
+    PC_Q35_MACHINE_OPTIONS,                             \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_q35_machine_v2_0 = {
     PC_Q35_2_0_MACHINE_OPTIONS,
