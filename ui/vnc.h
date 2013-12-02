@@ -257,6 +257,7 @@ struct VncState
     int absolute;
     int last_x;
     int last_y;
+    uint32_t last_bmask;
     int client_width;
     int client_height;
     VncShareMode share_mode;
