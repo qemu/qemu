@@ -185,7 +185,6 @@ static const MemoryRegionOps bcm2835_ic_ops = {
 
 static void bcm2835_ic_reset(DeviceState *d)
 {
-    /* bcm2835_ic_state *s = DO_UPCAST(bcm2835_ic_state, busdev.qdev, d); */
     bcm2835_ic_state *s = BCM2835_IC(d);
     int i;
 
@@ -198,19 +197,14 @@ static void bcm2835_ic_reset(DeviceState *d)
 
 static int bcm2835_ic_init(SysBusDevice *sbd)
 {
-    /* bcm2835_ic_state *s = FROM_SYSBUS(bcm2835_ic_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_ic_state *s = BCM2835_IC(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_ic_ops, s,
         TYPE_BCM2835_IC, 0x200);
-    /* sysbus_init_mmio(dev, &s->iomem); */
     sysbus_init_mmio(sbd, &s->iomem);
 
-    /* qdev_init_gpio_in(&dev->qdev, bcm2835_ic_set_irq, 72); */
     qdev_init_gpio_in(dev, bcm2835_ic_set_irq, 72);
-    /* sysbus_init_irq(dev, &s->irq); */
-    /* sysbus_init_irq(dev, &s->fiq); */
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
     return 0;

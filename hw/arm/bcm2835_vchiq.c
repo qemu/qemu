@@ -77,7 +77,6 @@ static const VMStateDescription vmstate_bcm2835_vchiq = {
 
 static int bcm2835_vchiq_init(SysBusDevice *sbd)
 {
-    /* bcm2835_vchiq_state *s = FROM_SYSBUS(bcm2835_vchiq_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_vchiq_state *s = BCM2835_VCHIQ(dev);
 
@@ -95,7 +94,6 @@ static int bcm2835_vchiq_init(SysBusDevice *sbd)
 static void bcm2835_vchiq_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_vchiq_init;
 }

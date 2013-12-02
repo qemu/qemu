@@ -372,7 +372,6 @@ static const VMStateDescription vmstate_bcm2835_property = {
 
 static int bcm2835_property_init(SysBusDevice *sbd)
 {
-    /* bcm2835_property_state *s = FROM_SYSBUS(bcm2835_property_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_property_state *s = BCM2835_PROPERTY(dev);
 
@@ -391,7 +390,6 @@ static int bcm2835_property_init(SysBusDevice *sbd)
 static void bcm2835_property_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_property_init;
 }

@@ -135,7 +135,6 @@ static void bcm2835_sbm_update(bcm2835_sbm_state *s)
 static void bcm2835_sbm_set_irq(void *opaque, int irq, int level)
 {
     bcm2835_sbm_state *s = (bcm2835_sbm_state *)opaque;
-    /* printf("SBM MBOX IRQ %d = %d\n", irq, level); */
     s->available[irq] = level;
     if (!s->mbox_irq_disabled) {
         bcm2835_sbm_update(s);
@@ -245,7 +244,6 @@ static const VMStateDescription vmstate_bcm2835_sbm = {
 
 static int bcm2835_sbm_init(SysBusDevice *sbd)
 {
-    /* bcm2835_sbm_state *s = FROM_SYSBUS(bcm2835_sbm_state, dev); */
     int n;
     DeviceState *dev = DEVICE(sbd);
     bcm2835_sbm_state *s = BCM2835_SBM(dev);
@@ -271,7 +269,6 @@ static int bcm2835_sbm_init(SysBusDevice *sbd)
 static void bcm2835_sbm_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-    /* DeviceClass *k = DEVICE_CLASS(klass); */
 
     sdc->init = bcm2835_sbm_init;
 }

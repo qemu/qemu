@@ -54,7 +54,7 @@ static void frc_timer_tick(void *opaque)
     bcm2835_timer_state *s = (bcm2835_timer_state *)opaque;
     s->frc_value++;
 #ifdef LOG_REG_ACCESS
-    /* printf("[QEMU] bcm2835_timer: FRC tick %08x\n", s->frc_value); */
+    printf("[QEMU] bcm2835_timer: FRC tick %08x\n", s->frc_value);
 #endif
 }
 
@@ -139,7 +139,6 @@ static void bcm2835_timer_write(void *opaque, hwaddr offset,
         s->control = value & 0x00ff03ae;
 
         freq = SYSCLOCK_FREQ;
-        /* freq /= ((s->control & CTRL_FRC_PS_MASK) >> CTRL_FRC_PS_SHIFT) + 1;*/
         ptimer_set_freq(s->frc_timer, freq);
         ptimer_set_limit(s->frc_timer,
             ((s->control & CTRL_FRC_PS_MASK) >> CTRL_FRC_PS_SHIFT) + 1,
@@ -211,7 +210,6 @@ static int bcm2835_timer_init(SysBusDevice *sbd)
 {
     QEMUBH *bh;
 
-    /* bcm2835_timer_state *s = FROM_SYSBUS(bcm2835_timer_state, dev); */
     DeviceState *dev = DEVICE(sbd);
     bcm2835_timer_state *s = BCM2835_TIMER(dev);
 
