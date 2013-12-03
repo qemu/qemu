@@ -4713,7 +4713,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     QEMUOptionParameter *backing_fmt, *backing_file, *size;
-    BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
     Error *local_err = NULL;
@@ -4792,6 +4791,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
     size = get_option_parameter(param, BLOCK_OPT_SIZE);
     if (size && size->value.n == -1) {
         if (backing_file && backing_file->value.s) {
+            BlockDriverState *bs;
             uint64_t size;
             char buf[32];
             int back_flags;
@@ -4810,6 +4810,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
                                  error_get_pretty(local_err));
                 error_free(local_err);
                 local_err = NULL;
+                bdrv_unref(bs);
                 goto out;
             }
             bdrv_get_geometry(bs, &size);
@@ -4817,6 +4818,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
             snprintf(buf, sizeof(buf), "%" PRId64, size);
             set_option_parameter(param, BLOCK_OPT_SIZE, buf);
+
+            bdrv_unref(bs);
         } else {
             error_setg(errp, "Image creation needs a size parameter");
             goto out;
@@ -4847,9 +4850,6 @@ out:
     free_option_parameters(create_options);
     free_option_parameters(param);
 
-    if (bs) {
-        bdrv_unref(bs);
-    }
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
     }
