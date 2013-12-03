@@ -66,6 +66,11 @@ poke_file "$TEST_IMG" "$capacity_offset" "\xff\xff\xff\xff"
 poke_file "$TEST_IMG" "$grain_table_size_offset" "\x01\x00\x00\x00"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
+echo
+echo "=== Testing big twoGbMaxExtentFlat ==="
+IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
+$QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
