@@ -3159,6 +3159,10 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
+    if (bs->copy_on_read_in_flight) {
+        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
+    }
+
     tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
@@ -3206,10 +3210,6 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     }
     if (bdrv_check_request(bs, sector_num, nb_sectors)) {
         return -EIO;
-    }
-
-    if (bs->copy_on_read_in_flight) {
-        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
     }
 
     /* throttling disk I/O */
