@@ -3196,8 +3196,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 /*
  * Handle a write request in coroutine context
  */
-static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
     int ret;
@@ -3208,19 +3208,31 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     if (bs->read_only) {
         return -EACCES;
     }
-    if (bdrv_check_request(bs, sector_num, nb_sectors)) {
+    if (bdrv_check_byte_request(bs, offset, bytes)) {
         return -EIO;
     }
 
     /* throttling disk I/O */
     if (bs->io_limits_enabled) {
-        bdrv_io_limits_intercept(bs, nb_sectors, true);
+        /* TODO Switch to byte granularity */
+        bdrv_io_limits_intercept(bs, bytes >> BDRV_SECTOR_BITS, true);
     }
 
-    ret = bdrv_aligned_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
-                               nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
+    ret = bdrv_aligned_pwritev(bs, offset, bytes, qiov, flags);
 
     return ret;
+}
+
+static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
+{
+    if (nb_sectors < 0 || nb_sectors > (INT_MAX >> BDRV_SECTOR_BITS)) {
+        return -EINVAL;
+    }
+
+    return bdrv_co_do_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
+                              nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
