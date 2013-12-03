@@ -3144,34 +3144,20 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 }
 
 /*
- * Handle a write request in coroutine context
+ * Forwards an already correctly aligned write request to the BlockDriver.
  */
-static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
-    BdrvRequestFlags flags)
+static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, int flags)
 {
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
     int ret;
 
-    if (!bs->drv) {
-        return -ENOMEDIUM;
-    }
-    if (bs->read_only) {
-        return -EACCES;
-    }
-    if (bdrv_check_request(bs, sector_num, nb_sectors)) {
-        return -EIO;
-    }
+    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    unsigned int nb_sectors = bytes >> BDRV_SECTOR_BITS;
 
-    if (bs->copy_on_read_in_flight) {
-        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
-    }
-
-    /* throttling disk I/O */
-    if (bs->io_limits_enabled) {
-        bdrv_io_limits_intercept(bs, nb_sectors, true);
-    }
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
     tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
 
@@ -3199,6 +3185,40 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     }
 
     tracked_request_end(&req);
+
+    return ret;
+}
+
+/*
+ * Handle a write request in coroutine context
+ */
+static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
+{
+    int ret;
+
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
+    if (bs->read_only) {
+        return -EACCES;
+    }
+    if (bdrv_check_request(bs, sector_num, nb_sectors)) {
+        return -EIO;
+    }
+
+    if (bs->copy_on_read_in_flight) {
+        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
+    }
+
+    /* throttling disk I/O */
+    if (bs->io_limits_enabled) {
+        bdrv_io_limits_intercept(bs, nb_sectors, true);
+    }
+
+    ret = bdrv_aligned_pwritev(bs, sector_num << BDRV_SECTOR_BITS,
+                               nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 
     return ret;
 }
