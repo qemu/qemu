@@ -88,7 +88,7 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table_get(), name);
 }
 
-static TypeImpl *type_register_internal(const TypeInfo *info)
+static TypeImpl *type_new(const TypeInfo *info)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
     int i;
@@ -122,8 +122,15 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
     }
     ti->num_interfaces = i;
 
-    type_table_add(ti);
+    return ti;
+}
 
+static TypeImpl *type_register_internal(const TypeInfo *info)
+{
+    TypeImpl *ti;
+    ti = type_new(info);
+
+    type_table_add(ti);
     return ti;
 }
 
@@ -206,22 +213,25 @@ static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
 
 static void type_initialize(TypeImpl *ti);
 
-static void type_initialize_interface(TypeImpl *ti, const char *parent)
+static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
+                                      TypeImpl *parent_type)
 {
     InterfaceClass *new_iface;
     TypeInfo info = { };
     TypeImpl *iface_impl;
 
-    info.parent = parent;
-    info.name = g_strdup_printf("%s::%s", ti->name, info.parent);
+    info.parent = parent_type->name;
+    info.name = g_strdup_printf("%s::%s", ti->name, interface_type->name);
     info.abstract = true;
 
-    iface_impl = type_register(&info);
+    iface_impl = type_new(&info);
+    iface_impl->parent_type = parent_type;
     type_initialize(iface_impl);
     g_free((char *)info.name);
 
     new_iface = (InterfaceClass *)iface_impl->class;
     new_iface->concrete_class = ti->class;
+    new_iface->interface_type = interface_type;
 
     ti->class->interfaces = g_slist_append(ti->class->interfaces,
                                            iface_impl->class);
@@ -251,8 +261,10 @@ static void type_initialize(TypeImpl *ti)
         ti->class->interfaces = NULL;
 
         for (e = parent->class->interfaces; e; e = e->next) {
-            ObjectClass *iface = e->data;
-            type_initialize_interface(ti, object_class_get_name(iface));
+            InterfaceClass *iface = e->data;
+            ObjectClass *klass = OBJECT_CLASS(iface);
+
+            type_initialize_interface(ti, iface->interface_type, klass->type);
         }
 
         for (i = 0; i < ti->num_interfaces; i++) {
@@ -269,7 +281,7 @@ static void type_initialize(TypeImpl *ti)
                 continue;
             }
 
-            type_initialize_interface(ti, ti->interfaces[i].typename);
+            type_initialize_interface(ti, t, t);
         }
     }
 
@@ -285,8 +297,6 @@ static void type_initialize(TypeImpl *ti)
     if (ti->class_init) {
         ti->class_init(ti->class, ti->class_data);
     }
-
-
 }
 
 static void object_init_with_type(Object *obj, TypeImpl *ti)

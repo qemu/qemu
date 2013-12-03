@@ -536,6 +536,7 @@ struct InterfaceClass
     ObjectClass parent_class;
     /*< private >*/
     ObjectClass *concrete_class;
+    Type interface_type;
 };
 
 #define TYPE_INTERFACE "interface"
