@@ -181,8 +181,13 @@ static int coroutine_fn backup_before_write_notify(
         void *opaque)
 {
     BdrvTrackedRequest *req = opaque;
+    int64_t sector_num = req->offset >> BDRV_SECTOR_BITS;
+    int nb_sectors = req->bytes >> BDRV_SECTOR_BITS;
 
-    return backup_do_cow(req->bs, req->sector_num, req->nb_sectors, NULL);
+    assert((req->offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((req->bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+
+    return backup_do_cow(req->bs, sector_num, nb_sectors, NULL);
 }
 
 static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)

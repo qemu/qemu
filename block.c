@@ -2217,13 +2217,13 @@ static void tracked_request_end(BdrvTrackedRequest *req)
  */
 static void tracked_request_begin(BdrvTrackedRequest *req,
                                   BlockDriverState *bs,
-                                  int64_t sector_num,
-                                  int nb_sectors, bool is_write)
+                                  int64_t offset,
+                                  unsigned int bytes, bool is_write)
 {
     *req = (BdrvTrackedRequest){
         .bs = bs,
-        .sector_num = sector_num,
-        .nb_sectors = nb_sectors,
+        .offset = offset,
+        .bytes = bytes,
         .is_write = is_write,
         .co = qemu_coroutine_self(),
     };
@@ -2254,25 +2254,43 @@ void bdrv_round_to_clusters(BlockDriverState *bs,
     }
 }
 
+static void round_bytes_to_clusters(BlockDriverState *bs,
+                                    int64_t offset, unsigned int bytes,
+                                    int64_t *cluster_offset,
+                                    unsigned int *cluster_bytes)
+{
+    BlockDriverInfo bdi;
+
+    if (bdrv_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
+        *cluster_offset = offset;
+        *cluster_bytes = bytes;
+    } else {
+        *cluster_offset = QEMU_ALIGN_DOWN(offset, bdi.cluster_size);
+        *cluster_bytes = QEMU_ALIGN_UP(offset - *cluster_offset + bytes,
+                                       bdi.cluster_size);
+    }
+}
+
 static bool tracked_request_overlaps(BdrvTrackedRequest *req,
-                                     int64_t sector_num, int nb_sectors) {
+                                     int64_t offset, unsigned int bytes)
+{
     /*        aaaa   bbbb */
-    if (sector_num >= req->sector_num + req->nb_sectors) {
+    if (offset >= req->offset + req->bytes) {
         return false;
     }
     /* bbbb   aaaa        */
-    if (req->sector_num >= sector_num + nb_sectors) {
+    if (req->offset >= offset + bytes) {
         return false;
     }
     return true;
 }
 
 static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors)
+        int64_t offset, unsigned int bytes)
 {
     BdrvTrackedRequest *req;
-    int64_t cluster_sector_num;
-    int cluster_nb_sectors;
+    int64_t cluster_offset;
+    unsigned int cluster_bytes;
     bool retry;
 
     /* If we touch the same cluster it counts as an overlap.  This guarantees
@@ -2281,14 +2299,12 @@ static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
      * CoR read and write operations are atomic and guest writes cannot
      * interleave between them.
      */
-    bdrv_round_to_clusters(bs, sector_num, nb_sectors,
-                           &cluster_sector_num, &cluster_nb_sectors);
+    round_bytes_to_clusters(bs, offset, bytes, &cluster_offset, &cluster_bytes);
 
     do {
         retry = false;
         QLIST_FOREACH(req, &bs->tracked_requests, list) {
-            if (tracked_request_overlaps(req, cluster_sector_num,
-                                         cluster_nb_sectors)) {
+            if (tracked_request_overlaps(req, cluster_offset, cluster_bytes)) {
                 /* Hitting this means there was a reentrant request, for
                  * example, a block driver issuing nested requests.  This must
                  * never happen since it means deadlock.
@@ -2908,10 +2924,10 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     }
 
     if (bs->copy_on_read_in_flight) {
-        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
+        wait_for_overlapping_requests(bs, offset, bytes);
     }
 
-    tracked_request_begin(&req, bs, sector_num, nb_sectors, false);
+    tracked_request_begin(&req, bs, offset, bytes, false);
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
         int pnum;
@@ -3160,10 +3176,10 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
     if (bs->copy_on_read_in_flight) {
-        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
+        wait_for_overlapping_requests(bs, offset, bytes);
     }
 
-    tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
+    tracked_request_begin(&req, bs, offset, bytes, true);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
 

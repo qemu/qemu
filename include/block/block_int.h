@@ -57,8 +57,8 @@
 
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
-    int64_t sector_num;
-    int nb_sectors;
+    int64_t offset;
+    unsigned int bytes;
     bool is_write;
     QLIST_ENTRY(BdrvTrackedRequest) list;
     Coroutine *co; /* owner, used for deadlock detection */
