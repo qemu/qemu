@@ -50,6 +50,9 @@
 /* Protected by BQL */
 static KVMRouteChange vfio_route_change;
 
+/* RHEL only: Set once for the first assigned dev */
+static uint16_t device_limit;
+
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 static void vfio_msi_disable_common(VFIOPCIDevice *vdev);
@@ -2963,9 +2966,32 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ERRP_GUARD();
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    int i, ret;
+    int ret, i = 0;
+    VFIODevice *vbasedev_iter;
+    VFIOGroup *group;
     char uuid[UUID_STR_LEN];
     g_autofree char *name = NULL;
+
+    if (device_limit && device_limit != vdev->assigned_device_limit) {
+            error_setg(errp, "Assigned device limit has been redefined. "
+                       "Old:%d, New:%d",
+                       device_limit, vdev->assigned_device_limit);
+            return;
+    } else {
+        device_limit = vdev->assigned_device_limit;
+    }
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
+            i++;
+        }
+    }
+
+    if (i >= vdev->assigned_device_limit) {
+        error_setg(errp, "Maximum supported vfio devices (%d) "
+                     "already attached", vdev->assigned_device_limit);
+        return;
+    }
 
     if (vbasedev->fd < 0 && !vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -3388,6 +3414,9 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_BOOL("x-no-kvm-msix", VFIOPCIDevice, no_kvm_msix, false),
     DEFINE_PROP_BOOL("x-no-geforce-quirks", VFIOPCIDevice,
                      no_geforce_quirks, false),
+    /* RHEL only */
+    DEFINE_PROP_UINT16("x-assigned-device-limit", VFIOPCIDevice,
+                       assigned_device_limit, 64),
     DEFINE_PROP_BOOL("x-no-kvm-ioeventfd", VFIOPCIDevice, no_kvm_ioeventfd,
                      false),
     DEFINE_PROP_BOOL("x-no-vfio-ioeventfd", VFIOPCIDevice, no_vfio_ioeventfd,
