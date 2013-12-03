@@ -78,8 +78,11 @@ static GHashTable *type_table_get(void)
     return type_table;
 }
 
+static bool enumerating_types;
+
 static void type_table_add(TypeImpl *ti)
 {
+    assert(!enumerating_types);
     g_hash_table_insert(type_table_get(), (void *)ti->name, ti);
 }
 
@@ -670,7 +673,9 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
 {
     OCFData data = { fn, implements_type, include_abstract, opaque };
 
+    enumerating_types = true;
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
+    enumerating_types = false;
 }
 
 int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
