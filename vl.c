@@ -591,6 +591,7 @@ typedef struct {
 static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
+    { RUN_STATE_DEBUG, RUN_STATE_FINISH_MIGRATE },
 
     { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_INMIGRATE, RUN_STATE_PAUSED },
