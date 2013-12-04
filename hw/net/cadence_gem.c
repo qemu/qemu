@@ -687,6 +687,14 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
                  GEM_DMACFG_RBUFSZ_S) * GEM_DMACFG_RBUFSZ_MUL;
     bytes_to_copy = size;
 
+    /* Pad to minimum length. Assume FCS field is stripped, logic
+     * below will increment it to the real minimum of 64 when
+     * not FCS stripping
+     */
+    if (size < 60) {
+        size = 60;
+    }
+
     /* Strip of FCS field ? (usually yes) */
     if (s->regs[GEM_NWCFG] & GEM_NWCFG_STRIP_FCS) {
         rxbuf_ptr = (void *)buf;
@@ -711,11 +719,6 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
         bytes_to_copy += 4;
         size += 4;
-    }
-
-    /* Pad to minimum length */
-    if (size < 64) {
-        size = 64;
     }
 
     DB_PRINT("config bufsize: %d packet size: %ld\n", rxbufsize, size);
