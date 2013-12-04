@@ -1246,6 +1246,7 @@ static const VMStateDescription vmstate_cadence_gem = {
         VMSTATE_UINT32(rx_desc_addr, GemState),
         VMSTATE_UINT32(tx_desc_addr, GemState),
         VMSTATE_BOOL_ARRAY(sar_active, GemState, 4),
+        VMSTATE_END_OF_LIST(),
     }
 };
 
