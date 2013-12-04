@@ -98,41 +98,52 @@ static void kbd_leds(void *opaque, int ledstate)
 typedef struct QemuSpicePointer {
     SpiceMouseInstance  mouse;
     SpiceTabletInstance tablet;
-    int width, height, x, y;
+    int width, height;
+    uint32_t last_bmask;
     Notifier mouse_mode;
     bool absolute;
 } QemuSpicePointer;
 
-static int map_buttons(int spice_buttons)
+static void spice_update_buttons(QemuSpicePointer *pointer,
+                                 int wheel, uint32_t button_mask)
 {
-    int qemu_buttons = 0;
+    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]        = 0x01,
+        [INPUT_BUTTON_MIDDLE]      = 0x04,
+        [INPUT_BUTTON_RIGHT]       = 0x02,
+        [INPUT_BUTTON_WHEEL_UP]    = 0x10,
+        [INPUT_BUTTON_WHEEL_DOWN]  = 0x20,
+    };
 
-    /*
-     * Note: SPICE_MOUSE_BUTTON_* specifies the wire protocol but this
-     * isn't what we get passed in via interface callbacks for the
-     * middle and right button ...
-     */
-    if (spice_buttons & SPICE_MOUSE_BUTTON_MASK_LEFT) {
-        qemu_buttons |= MOUSE_EVENT_LBUTTON;
+    if (wheel < 0) {
+        button_mask |= 0x10;
     }
-    if (spice_buttons & 0x04 /* SPICE_MOUSE_BUTTON_MASK_MIDDLE */) {
-        qemu_buttons |= MOUSE_EVENT_MBUTTON;
+    if (wheel > 0) {
+        button_mask |= 0x20;
     }
-    if (spice_buttons & 0x02 /* SPICE_MOUSE_BUTTON_MASK_RIGHT */) {
-        qemu_buttons |= MOUSE_EVENT_RBUTTON;
+
+    if (pointer->last_bmask == button_mask) {
+        return;
     }
-    return qemu_buttons;
+    qemu_input_update_buttons(NULL, bmap, pointer->last_bmask, button_mask);
+    pointer->last_bmask = button_mask;
 }
 
 static void mouse_motion(SpiceMouseInstance *sin, int dx, int dy, int dz,
                          uint32_t buttons_state)
 {
-    kbd_mouse_event(dx, dy, dz, map_buttons(buttons_state));
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, mouse);
+    spice_update_buttons(pointer, dz, buttons_state);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_X, dx);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_Y, dy);
+    qemu_input_event_sync();
 }
 
 static void mouse_buttons(SpiceMouseInstance *sin, uint32_t buttons_state)
 {
-    kbd_mouse_event(0, 0, 0, map_buttons(buttons_state));
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, mouse);
+    spice_update_buttons(pointer, 0, buttons_state);
+    qemu_input_event_sync();
 }
 
 static const SpiceMouseInterface mouse_interface = {
@@ -163,9 +174,10 @@ static void tablet_position(SpiceTabletInstance* sin, int x, int y,
 {
     QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
 
-    pointer->x = x * 0x7FFF / (pointer->width - 1);
-    pointer->y = y * 0x7FFF / (pointer->height - 1);
-    kbd_mouse_event(pointer->x, pointer->y, 0, map_buttons(buttons_state));
+    spice_update_buttons(pointer, 0, buttons_state);
+    qemu_input_queue_abs(NULL, INPUT_AXIS_X, x, pointer->width);
+    qemu_input_queue_abs(NULL, INPUT_AXIS_Y, y, pointer->width);
+    qemu_input_event_sync();
 }
 
 
@@ -174,7 +186,8 @@ static void tablet_wheel(SpiceTabletInstance* sin, int wheel,
 {
     QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
 
-    kbd_mouse_event(pointer->x, pointer->y, wheel, map_buttons(buttons_state));
+    spice_update_buttons(pointer, wheel, buttons_state);
+    qemu_input_event_sync();
 }
 
 static void tablet_buttons(SpiceTabletInstance *sin,
@@ -182,7 +195,8 @@ static void tablet_buttons(SpiceTabletInstance *sin,
 {
     QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
 
-    kbd_mouse_event(pointer->x, pointer->y, 0, map_buttons(buttons_state));
+    spice_update_buttons(pointer, 0, buttons_state);
+    qemu_input_event_sync();
 }
 
 static const SpiceTabletInterface tablet_interface = {
@@ -199,7 +213,7 @@ static const SpiceTabletInterface tablet_interface = {
 static void mouse_mode_notifier(Notifier *notifier, void *data)
 {
     QemuSpicePointer *pointer = container_of(notifier, QemuSpicePointer, mouse_mode);
-    bool is_absolute  = kbd_mouse_is_absolute();
+    bool is_absolute  = qemu_input_is_absolute();
 
     if (pointer->absolute == is_absolute) {
         return;
