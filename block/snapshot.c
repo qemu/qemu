@@ -194,7 +194,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
  * If only @snapshot_id is specified, delete the first one with id
  * @snapshot_id.
  * If only @name is specified, delete the first one with name @name.
- * if none is specified, return -ENINVAL.
+ * if none is specified, return -EINVAL.
  *
  * Returns: 0 on success, -errno on failure. If @bs is not inserted, return
  * -ENOMEDIUM. If @snapshot_id and @name are both NULL, return -EINVAL. If @bs
@@ -265,18 +265,71 @@ int bdrv_snapshot_list(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
+/**
+ * Temporarily load an internal snapshot by @snapshot_id and @name.
+ * @bs: block device used in the operation
+ * @snapshot_id: unique snapshot ID, or NULL
+ * @name: snapshot name, or NULL
+ * @errp: location to store error
+ *
+ * If both @snapshot_id and @name are specified, load the first one with
+ * id @snapshot_id and name @name.
+ * If only @snapshot_id is specified, load the first one with id
+ * @snapshot_id.
+ * If only @name is specified, load the first one with name @name.
+ * if none is specified, return -EINVAL.
+ *
+ * Returns: 0 on success, -errno on fail. If @bs is not inserted, return
+ * -ENOMEDIUM. If @bs is not readonly, return -EINVAL. If @bs did not support
+ * internal snapshot, return -ENOTSUP. If qemu can't find a matching @id and
+ * @name, return -ENOENT. If @errp != NULL, it will always be filled on
+ * failure.
+ */
 int bdrv_snapshot_load_tmp(BlockDriverState *bs,
-        const char *snapshot_name)
+                           const char *snapshot_id,
+                           const char *name,
+                           Error **errp)
 {
     BlockDriver *drv = bs->drv;
+
     if (!drv) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
         return -ENOMEDIUM;
     }
+    if (!snapshot_id && !name) {
+        error_setg(errp, "snapshot_id and name are both NULL");
+        return -EINVAL;
+    }
     if (!bs->read_only) {
+        error_setg(errp, "Device is not readonly");
         return -EINVAL;
     }
     if (drv->bdrv_snapshot_load_tmp) {
-        return drv->bdrv_snapshot_load_tmp(bs, snapshot_name);
+        return drv->bdrv_snapshot_load_tmp(bs, snapshot_id, name, errp);
     }
+    error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+              drv->format_name, bdrv_get_device_name(bs),
+              "temporarily load internal snapshot");
     return -ENOTSUP;
+}
+
+int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
+                                         const char *id_or_name,
+                                         Error **errp)
+{
+    int ret;
+    Error *local_err = NULL;
+
+    ret = bdrv_snapshot_load_tmp(bs, id_or_name, NULL, &local_err);
+    if (ret == -ENOENT || ret == -EINVAL) {
+        error_free(local_err);
+        local_err = NULL;
+        ret = bdrv_snapshot_load_tmp(bs, NULL, id_or_name, &local_err);
+    }
+
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+    }
+
+    return ret;
 }

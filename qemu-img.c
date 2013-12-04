@@ -1264,8 +1264,12 @@ static int img_convert(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        if (bdrv_snapshot_load_tmp(bs[0], snapshot_name) < 0) {
-            error_report("Failed to load snapshot");
+
+        bdrv_snapshot_load_tmp_by_id_or_name(bs[0], snapshot_name, &local_err);
+        if (error_is_set(&local_err)) {
+            error_report("Failed to load snapshot: %s",
+                         error_get_pretty(local_err));
+            error_free(local_err);
             ret = -1;
             goto out;
         }

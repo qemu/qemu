@@ -675,7 +675,10 @@ int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     return s->nb_snapshots;
 }
 
-int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name)
+int qcow2_snapshot_load_tmp(BlockDriverState *bs,
+                            const char *snapshot_id,
+                            const char *name,
+                            Error **errp)
 {
     int i, snapshot_index;
     BDRVQcowState *s = bs->opaque;
@@ -687,8 +690,10 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name)
     assert(bs->read_only);
 
     /* Search the snapshot */
-    snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_name);
+    snapshot_index = find_snapshot_by_id_and_name(bs, snapshot_id, name);
     if (snapshot_index < 0) {
+        error_setg(errp,
+                   "Can't find snapshot");
         return -ENOENT;
     }
     sn = &s->snapshots[snapshot_index];
@@ -699,6 +704,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name)
 
     ret = bdrv_pread(bs->file, sn->l1_table_offset, new_l1_table, new_l1_bytes);
     if (ret < 0) {
+        error_setg(errp, "Failed to read l1 table for snapshot");
         g_free(new_l1_table);
         return ret;
     }
