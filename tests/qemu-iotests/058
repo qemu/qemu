@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test export internal snapshot by qemu-nbd.
+# Test export internal snapshot by qemu-nbd, convert it by qemu-img.
 #
 # Copyright (C) 2013 IBM, Inc.
 #
@@ -54,6 +54,8 @@ _wait_for_nbd()
     exit 1
 }
 
+converted_image=$TEST_IMG.converted
+
 _export_nbd_snapshot()
 {
     _cleanup_nbd
@@ -74,6 +76,7 @@ _cleanup()
 {
     _cleanup_nbd
     _cleanup_test_img
+    rm -f "$converted_image"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -114,6 +117,20 @@ echo
 echo "== verifying the exported snapshot with patterns, method 2 =="
 $QEMU_IO -c 'read -P 0xa 0x1000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
 $QEMU_IO -c 'read -P 0xb 0x2000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
+
+$QEMU_IMG convert "$TEST_IMG" -l sn1 -O qcow2 "$converted_image"
+
+echo
+echo "== verifying the converted snapshot with patterns, method 1 =="
+$QEMU_IO -c 'read -P 0xa 0x1000 0x1000' "$converted_image" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0xb 0x2000 0x1000' "$converted_image" | _filter_qemu_io
+
+$QEMU_IMG convert "$TEST_IMG" -l snapshot.name=sn1 -O qcow2 "$converted_image"
+
+echo
+echo "== verifying the converted snapshot with patterns, method 2 =="
+$QEMU_IO -c 'read -P 0xa 0x1000 0x1000' "$converted_image" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0xb 0x2000 0x1000' "$converted_image" | _filter_qemu_io
 
 # success, all done
 echo "*** done"
