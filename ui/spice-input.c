@@ -26,12 +26,15 @@
 #include "qemu-common.h"
 #include "ui/qemu-spice.h"
 #include "ui/console.h"
+#include "ui/keymaps.h"
+#include "ui/input.h"
 
 /* keyboard bits */
 
 typedef struct QemuSpiceKbd {
     SpiceKbdInstance sin;
     int ledstate;
+    bool emul0;
 } QemuSpiceKbd;
 
 static void kbd_push_key(SpiceKbdInstance *sin, uint8_t frag);
@@ -47,9 +50,24 @@ static const SpiceKbdInterface kbd_interface = {
     .get_leds           = kbd_get_leds,
 };
 
-static void kbd_push_key(SpiceKbdInstance *sin, uint8_t frag)
+static void kbd_push_key(SpiceKbdInstance *sin, uint8_t scancode)
 {
-    kbd_put_keycode(frag);
+    QemuSpiceKbd *kbd = container_of(sin, QemuSpiceKbd, sin);
+    int keycode;
+    bool up;
+
+    if (scancode == SCANCODE_EMUL0) {
+        kbd->emul0 = true;
+        return;
+    }
+    keycode = scancode & ~SCANCODE_UP;
+    up = scancode & SCANCODE_UP;
+    if (kbd->emul0) {
+        kbd->emul0 = false;
+        keycode |= SCANCODE_GREY;
+    }
+
+    qemu_input_event_send_key_number(NULL, keycode, !up);
 }
 
 static uint8_t kbd_get_leds(SpiceKbdInstance *sin)
