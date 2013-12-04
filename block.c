@@ -2910,7 +2910,7 @@ err:
  */
 static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
-    QEMUIOVector *qiov, int flags)
+    int64_t align, QEMUIOVector *qiov, int flags)
 {
     BlockDriver *drv = bs->drv;
     int ret;
@@ -2958,7 +2958,8 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         }
 
         total_sectors = DIV_ROUND_UP(len, BDRV_SECTOR_SIZE);
-        max_nb_sectors = MAX(0, total_sectors - sector_num);
+        max_nb_sectors = MAX(0, ROUND_UP(total_sectors - sector_num,
+                                         align >> BDRV_SECTOR_BITS));
         if (max_nb_sectors > 0) {
             ret = drv->bdrv_co_readv(bs, sector_num,
                                      MIN(nb_sectors, max_nb_sectors), qiov);
@@ -3044,7 +3045,7 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     }
 
     tracked_request_begin(&req, bs, offset, bytes, false);
-    ret = bdrv_aligned_preadv(bs, &req, offset, bytes,
+    ret = bdrv_aligned_preadv(bs, &req, offset, bytes, align,
                               use_local_qiov ? &local_qiov : qiov,
                               flags);
     tracked_request_end(&req);
