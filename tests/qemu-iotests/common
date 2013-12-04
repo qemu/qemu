@@ -49,7 +49,7 @@ export IMGFMT=raw
 export IMGFMT_GENERIC=true
 export IMGPROTO=file
 export IMGOPTS=""
-export CACHEMODE="writethrough"
+export CACHEMODE="writeback"
 export QEMU_IO_OPTIONS=""
 export CACHEMODE_IS_DEFAULT=true
 
