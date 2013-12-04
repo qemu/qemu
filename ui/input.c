@@ -1,6 +1,8 @@
 #include "sysemu/sysemu.h"
 #include "qapi-types.h"
+#include "trace.h"
 #include "ui/input.h"
+#include "ui/console.h"
 
 struct QemuInputHandlerState {
     DeviceState       *dev;
@@ -75,6 +77,48 @@ static void qemu_input_transform_abs_rotate(InputEvent *evt)
     }
 }
 
+static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
+{
+    const char *name;
+    int idx = -1;
+
+    if (src) {
+        idx = qemu_console_get_index(src);
+    }
+    switch (evt->kind) {
+    case INPUT_EVENT_KIND_KEY:
+        switch (evt->key->key->kind) {
+        case KEY_VALUE_KIND_NUMBER:
+            trace_input_event_key_number(idx, evt->key->key->number,
+                                         evt->key->down);
+            break;
+        case KEY_VALUE_KIND_QCODE:
+            name = QKeyCode_lookup[evt->key->key->qcode];
+            trace_input_event_key_qcode(idx, name, evt->key->down);
+            break;
+        case KEY_VALUE_KIND_MAX:
+            /* keep gcc happy */
+            break;
+        }
+        break;
+    case INPUT_EVENT_KIND_BTN:
+        name = InputButton_lookup[evt->btn->button];
+        trace_input_event_btn(idx, name, evt->btn->down);
+        break;
+    case INPUT_EVENT_KIND_REL:
+        name = InputAxis_lookup[evt->rel->axis];
+        trace_input_event_rel(idx, name, evt->rel->value);
+        break;
+    case INPUT_EVENT_KIND_ABS:
+        name = InputAxis_lookup[evt->abs->axis];
+        trace_input_event_abs(idx, name, evt->abs->value);
+        break;
+    case INPUT_EVENT_KIND_MAX:
+        /* keep gcc happy */
+        break;
+    }
+}
+
 void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
 {
     QemuInputHandlerState *s;
@@ -82,6 +126,8 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
+
+    qemu_input_event_trace(src, evt);
 
     /* pre processing */
     if (graphic_rotate && (evt->kind == INPUT_EVENT_KIND_ABS)) {
@@ -101,6 +147,8 @@ void qemu_input_event_sync(void)
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
+
+    trace_input_event_sync();
 
     QTAILQ_FOREACH(s, &handlers, node) {
         if (!s->events) {
