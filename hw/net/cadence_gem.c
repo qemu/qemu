@@ -688,15 +688,6 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         DB_PRINT("copy %d bytes to 0x%x\n", MIN(bytes_to_copy, rxbufsize),
                 rx_desc_get_buffer(desc));
 
-        /*
-         * Let's have QEMU lend a helping hand.
-         */
-        if (rx_desc_get_buffer(desc) == 0) {
-            DB_PRINT("Invalid RX buffer (NULL) for descriptor 0x%x\n",
-                     (unsigned)packet_desc_addr);
-            break;
-        }
-
         /* Copy packet data to emulated DMA buffer */
         cpu_physical_memory_write(rx_desc_get_buffer(desc) + rxbuf_offset,
                                   rxbuf_ptr, MIN(bytes_to_copy, rxbufsize));
