@@ -93,6 +93,11 @@ static void help(void)
            "  'options' is a comma separated list of format specific options in a\n"
            "    name=value format. Use -o ? for an overview of the options supported by the\n"
            "    used format\n"
+           "  'snapshot_param' is param used for internal snapshot, format\n"
+           "    is 'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
+           "    '[ID_OR_NAME]'\n"
+           "  'snapshot_id_or_name' is deprecated, use 'snapshot_param'\n"
+           "    instead\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
            "  '-u' enables unsafe rebasing. It is assumed that old and new backing file\n"
            "       match exactly. The image doesn't need a working backing file before\n"
@@ -1144,6 +1149,7 @@ static int img_convert(int argc, char **argv)
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
     bool quiet = false;
     Error *local_err = NULL;
+    QemuOpts *sn_opts = NULL;
 
     fmt = NULL;
     out_fmt = "raw";
@@ -1152,7 +1158,7 @@ static int img_convert(int argc, char **argv)
     compress = 0;
     skip_create = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:qn");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:qnl:");
         if (c == -1) {
             break;
         }
@@ -1186,6 +1192,18 @@ static int img_convert(int argc, char **argv)
             break;
         case 's':
             snapshot_name = optarg;
+            break;
+        case 'l':
+            if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
+                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                if (!sn_opts) {
+                    error_report("Failed in parsing snapshot param '%s'",
+                                 optarg);
+                    return 1;
+                }
+            } else {
+                snapshot_name = optarg;
+            }
             break;
         case 'S':
         {
@@ -1258,7 +1276,12 @@ static int img_convert(int argc, char **argv)
         total_sectors += bs_sectors;
     }
 
-    if (snapshot_name != NULL) {
+    if (sn_opts) {
+        ret = bdrv_snapshot_load_tmp(bs[0],
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
+                                     &local_err);
+    } else if (snapshot_name != NULL) {
         if (bs_n > 1) {
             error_report("No support for concatenating multiple snapshot");
             ret = -1;
@@ -1266,13 +1289,13 @@ static int img_convert(int argc, char **argv)
         }
 
         bdrv_snapshot_load_tmp_by_id_or_name(bs[0], snapshot_name, &local_err);
-        if (error_is_set(&local_err)) {
-            error_report("Failed to load snapshot: %s",
-                         error_get_pretty(local_err));
-            error_free(local_err);
-            ret = -1;
-            goto out;
-        }
+    }
+    if (error_is_set(&local_err)) {
+        error_report("Failed to load snapshot: %s",
+                     error_get_pretty(local_err));
+        error_free(local_err);
+        ret = -1;
+        goto out;
     }
 
     /* Find driver and parse its options */
@@ -1571,6 +1594,9 @@ out:
     free_option_parameters(create_options);
     free_option_parameters(param);
     qemu_vfree(buf);
+    if (sn_opts) {
+        qemu_opts_del(sn_opts);
+    }
     if (out_bs) {
         bdrv_unref(out_bs);
     }
