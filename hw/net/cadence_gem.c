@@ -586,7 +586,6 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
 static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned    desc[2];
-    hwaddr packet_desc_addr, last_desc_addr;
     GemState *s;
     unsigned   rxbufsize, bytes_to_copy;
     unsigned   rxbuf_offset;
@@ -667,17 +666,16 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     DB_PRINT("config bufsize: %d packet size: %ld\n", rxbufsize, size);
 
-    packet_desc_addr = s->rx_desc_addr;
-    while (1) {
-        DB_PRINT("read descriptor 0x%x\n", (unsigned)packet_desc_addr);
+    while (bytes_to_copy) {
+        DB_PRINT("read descriptor 0x%x\n", (unsigned)s->rx_desc_addr);
         /* read current descriptor */
-        cpu_physical_memory_read(packet_desc_addr,
+        cpu_physical_memory_read(s->rx_desc_addr,
                                  (uint8_t *)&desc[0], sizeof(desc));
 
         /* Descriptor owned by software ? */
         if (rx_desc_get_ownership(desc) == 1) {
             DB_PRINT("descriptor 0x%x owned by sw.\n",
-                     (unsigned)packet_desc_addr);
+                     (unsigned)s->rx_desc_addr);
             s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_NOBUF;
             s->regs[GEM_ISR] |= GEM_INT_RXUSED & ~(s->regs[GEM_IMR]);
             /* Handle interrupt consequences */
@@ -705,34 +703,17 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         }
         rx_desc_set_ownership(desc);
         /* Descriptor write-back.  */
-        cpu_physical_memory_write(packet_desc_addr,
+        cpu_physical_memory_write(s->rx_desc_addr,
                                   (uint8_t *)&desc[0], sizeof(desc));
-
-        if (bytes_to_copy == 0) {
-            break;
-        }
 
         /* Next descriptor */
         if (rx_desc_get_wrap(desc)) {
-            packet_desc_addr = s->regs[GEM_RXQBASE];
+            DB_PRINT("wrapping RX descriptor list\n");
+            s->rx_desc_addr = s->regs[GEM_RXQBASE];
         } else {
-            packet_desc_addr += 8;
+            DB_PRINT("incrementing RX descriptor list\n");
+            s->rx_desc_addr += 8;
         }
-    }
-
-    DB_PRINT("set length: %ld, EOF on descriptor 0x%x\n", size,
-            (unsigned)packet_desc_addr);
-
-    /* Advance RX packet descriptor Q */
-    last_desc_addr = packet_desc_addr;
-    packet_desc_addr = s->rx_desc_addr;
-    s->rx_desc_addr = last_desc_addr;
-    if (rx_desc_get_wrap(desc)) {
-        s->rx_desc_addr = s->regs[GEM_RXQBASE];
-        DB_PRINT("wrapping RX descriptor list\n");
-    } else {
-        DB_PRINT("incrementing RX descriptor list\n");
-        s->rx_desc_addr += 8;
     }
 
     /* Count it */
