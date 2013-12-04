@@ -514,16 +514,14 @@ QemuCocoaView *cocoaView;
 
             if (keycode) {
                 if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
-                    kbd_put_keycode(keycode);
-                    kbd_put_keycode(keycode | 0x80);
+                    qemu_input_event_send_key_number(dcl->con, keycode, true);
+                    qemu_input_event_send_key_number(dcl->con, keycode, false);
                 } else if (qemu_console_is_graphic(NULL)) {
-                    if (keycode & 0x80)
-                        kbd_put_keycode(0xe0);
                     if (modifiers_state[keycode] == 0) { // keydown
-                        kbd_put_keycode(keycode & 0x7f);
+                        qemu_input_event_send_key_number(dcl->con, keycode, true);
                         modifiers_state[keycode] = 1;
                     } else { // keyup
-                        kbd_put_keycode(keycode | 0x80);
+                        qemu_input_event_send_key_number(dcl->con, keycode, false);
                         modifiers_state[keycode] = 0;
                     }
                 }
@@ -557,9 +555,7 @@ QemuCocoaView *cocoaView;
 
             // handle keys for graphic console
             } else if (qemu_console_is_graphic(NULL)) {
-                if (keycode & 0x80) //check bit for e0 in front
-                    kbd_put_keycode(0xe0);
-                kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
+                qemu_input_event_send_key_number(dcl->con, keycode, true);
 
             // handlekeys for Monitor
             } else {
@@ -607,9 +603,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                if (keycode & 0x80)
-                    kbd_put_keycode(0xe0);
-                kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key
+                qemu_input_event_send_key_number(dcl->con, keycode, false);
             }
             break;
         case NSMouseMoved:
