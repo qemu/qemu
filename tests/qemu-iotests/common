@@ -42,13 +42,16 @@ expunge=true
 have_test_arg=false
 randomize=false
 valgrind=false
+cachemode=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
 export IMGFMT_GENERIC=true
 export IMGPROTO=file
 export IMGOPTS=""
+export CACHEMODE="writethrough"
 export QEMU_IO_OPTIONS=""
+export CACHEMODE_IS_DEFAULT=true
 
 for r
 do
@@ -113,7 +116,12 @@ s/ .*//p
         IMGOPTS="$r"
         imgopts=false
         continue
-
+    elif $cachemode
+    then
+        CACHEMODE="$r"
+        CACHEMODE_IS_DEFAULT=false
+        cachemode=false
+        continue
     fi
 
     xpand=true
@@ -147,6 +155,7 @@ check options
     -o options          -o options to pass to qemu-img create/convert
     -T                        output timestamps
     -r                         randomize test order
+    -c mode             cache mode
 
 testlist options
     -g group[,group...]        include tests from these groups
@@ -219,7 +228,8 @@ testlist options
             xpand=false
             ;;
         -nocache)
-            QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --nocache"
+            CACHEMODE="none"
+            CACHEMODE_IS_DEFAULT=false
             xpand=false
             ;;
 
@@ -256,6 +266,10 @@ testlist options
             ;;
         -o)
             imgopts=true
+            xpand=false
+            ;;
+        -c)
+            cachemode=true
             xpand=false
             ;;
         -r)        # randomize test order
@@ -333,6 +347,9 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
     fi
 
 done
+
+# Set qemu-io cache mode with $CACHEMODE we have
+QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
 
 # Set default options for qemu-img create -o if they were not specified
 _set_default_imgopts

@@ -242,7 +242,7 @@ do
             fi
 
             reference=$seq.out
-            if (echo $QEMU_IO_OPTIONS | grep -s -- '--nocache' > /dev/null); then
+            if [ "$CACHEMODE" = "none" ]; then
                 [ -f $seq.out.nocache ] && reference=$seq.out.nocache
             fi
 
