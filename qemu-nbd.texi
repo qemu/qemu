@@ -22,6 +22,8 @@ Export QEMU disk image using NBD protocol.
   interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
   Use a unix socket with path @var{path}
+@item -f, --format=@var{format}
+  Set image format as @var{format}
 @item -r, --read-only
   export read-only
 @item -P, --partition=@var{num}

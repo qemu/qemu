@@ -79,6 +79,7 @@ static void usage(const char *name)
 #endif
 "\n"
 "Block device options:\n"
+"  -f, --format=FORMAT  set image format (raw, qcow2, ...)\n"
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use FILE as an external snapshot, create a temporary\n"
 "                       file with backing_file=FILE, redirect the write to\n"
