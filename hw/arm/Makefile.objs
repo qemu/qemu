@@ -23,8 +23,4 @@ obj-y += s3c24xx_serial.o
 obj-y += s3c24xx_timers.o
 
 obj-$(CONFIG_RASPI) += raspi.o
-obj-$(CONFIG_RASPI) += \
-    bcm2835_ic.o bcm2835_st.o bcm2835_sbm.o bcm2835_power.o \
-    bcm2835_fb.o bcm2835_property.o bcm2835_vchiq.o \
-    bcm2835_emmc.o bcm2835_dma.o bcm2835_timer.o \
-    bcm2835_usb.o bcm2835_mphi.o bcm2835_todo.o
+obj-$(CONFIG_RASPI) += bcm2835_todo.o

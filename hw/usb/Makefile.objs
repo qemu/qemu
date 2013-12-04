@@ -31,3 +31,5 @@ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 
 # usb pass-through
 common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
+
+obj-$(CONFIG_RASPI) += bcm2835_usb.o

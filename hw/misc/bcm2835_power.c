@@ -5,7 +5,7 @@
 
 #include "hw/sysbus.h"
 
-#include "bcm2835_common.h"
+#include "hw/arm/bcm2835_common.h"
 
 #define TYPE_BCM2835_POWER "bcm2835_power"
 #define BCM2835_POWER(obj) \
