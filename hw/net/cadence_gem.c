@@ -222,8 +222,13 @@
 #define PHY_REG_INT_ST_ENERGY   0x0010
 
 /***********************************************************************/
-#define GEM_RX_REJECT  1
-#define GEM_RX_ACCEPT  0
+#define GEM_RX_REJECT                   (-1)
+#define GEM_RX_PROMISCUOUS_ACCEPT       (-2)
+#define GEM_RX_BROADCAST_ACCEPT         (-3)
+#define GEM_RX_MULTICAST_HASH_ACCEPT    (-4)
+#define GEM_RX_UNICAST_HASH_ACCEPT      (-5)
+
+#define GEM_RX_SAR_ACCEPT               0
 
 /***********************************************************************/
 
@@ -235,6 +240,12 @@
 
 #define DESC_0_RX_WRAP 0x00000002
 #define DESC_0_RX_OWNERSHIP 0x00000001
+
+#define R_DESC_1_RX_SAR_SHIFT           25
+#define R_DESC_1_RX_SAR_LENGTH          2
+#define R_DESC_1_RX_UNICAST_HASH        (1 << 29)
+#define R_DESC_1_RX_MULTICAST_HASH      (1 << 30)
+#define R_DESC_1_RX_BROADCAST           (1 << 31)
 
 #define DESC_1_RX_SOF 0x00004000
 #define DESC_1_RX_EOF 0x00008000
@@ -313,6 +324,27 @@ static inline void rx_desc_set_length(unsigned *desc, unsigned len)
 {
     desc[1] &= ~DESC_1_LENGTH;
     desc[1] |= len;
+}
+
+static inline void rx_desc_set_broadcast(unsigned *desc)
+{
+    desc[1] |= R_DESC_1_RX_BROADCAST;
+}
+
+static inline void rx_desc_set_unicast_hash(unsigned *desc)
+{
+    desc[1] |= R_DESC_1_RX_UNICAST_HASH;
+}
+
+static inline void rx_desc_set_multicast_hash(unsigned *desc)
+{
+    desc[1] |= R_DESC_1_RX_MULTICAST_HASH;
+}
+
+static inline void rx_desc_set_sar(unsigned *desc, int sar_idx)
+{
+    desc[1] = deposit32(desc[1], R_DESC_1_RX_SAR_SHIFT, R_DESC_1_RX_SAR_LENGTH,
+                        sar_idx);
 }
 
 #define TYPE_CADENCE_GEM "cadence_gem"
@@ -529,7 +561,10 @@ static unsigned calc_mac_hash(const uint8_t *mac)
  * Accept or reject this destination address?
  * Returns:
  * GEM_RX_REJECT: reject
- * GEM_RX_ACCEPT: accept
+ * >= 0: Specific address accept (which matched SAR is returned)
+ * others for various other modes of accept:
+ * GEM_RM_PROMISCUOUS_ACCEPT, GEM_RX_BROADCAST_ACCEPT,
+ * GEM_RX_MULTICAST_HASH_ACCEPT or GEM_RX_UNICAST_HASH_ACCEPT
  */
 static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
 {
@@ -538,7 +573,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
 
     /* Promiscuous mode? */
     if (s->regs[GEM_NWCFG] & GEM_NWCFG_PROMISC) {
-        return GEM_RX_ACCEPT;
+        return GEM_RX_PROMISCUOUS_ACCEPT;
     }
 
     if (!memcmp(packet, broadcast_addr, 6)) {
@@ -546,7 +581,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
         if (s->regs[GEM_NWCFG] & GEM_NWCFG_BCAST_REJ) {
             return GEM_RX_REJECT;
         }
-        return GEM_RX_ACCEPT;
+        return GEM_RX_BROADCAST_ACCEPT;
     }
 
     /* Accept packets -w- hash match? */
@@ -557,24 +592,24 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
         hash_index = calc_mac_hash(packet);
         if (hash_index < 32) {
             if (s->regs[GEM_HASHLO] & (1<<hash_index)) {
-                return GEM_RX_ACCEPT;
+                return packet[0] == 0x01 ? GEM_RX_MULTICAST_HASH_ACCEPT :
+                                           GEM_RX_UNICAST_HASH_ACCEPT;
             }
         } else {
             hash_index -= 32;
             if (s->regs[GEM_HASHHI] & (1<<hash_index)) {
-                return GEM_RX_ACCEPT;
+                return packet[0] == 0x01 ? GEM_RX_MULTICAST_HASH_ACCEPT :
+                                           GEM_RX_UNICAST_HASH_ACCEPT;
             }
         }
     }
 
     /* Check all 4 specific addresses */
     gem_spaddr = (uint8_t *)&(s->regs[GEM_SPADDR1LO]);
-    for (i = 0; i < 4; i++) {
-        if (!memcmp(packet, gem_spaddr, 6)) {
-            return GEM_RX_ACCEPT;
+    for (i = 3; i >= 0; i--) {
+        if (!memcmp(packet, gem_spaddr + 8 * i, 6)) {
+            return GEM_RX_SAR_ACCEPT + i;
         }
-
-        gem_spaddr += 8;
     }
 
     /* No address match; reject the packet */
@@ -611,11 +646,13 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     uint8_t    rxbuf[2048];
     uint8_t   *rxbuf_ptr;
     bool first_desc = true;
+    int maf;
 
     s = qemu_get_nic_opaque(nc);
 
     /* Is this destination MAC address "for us" ? */
-    if (gem_mac_address_filter(s, buf) == GEM_RX_REJECT) {
+    maf = gem_mac_address_filter(s, buf);
+    if (maf == GEM_RX_REJECT) {
         return -1;
     }
 
@@ -706,6 +743,25 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
             rx_desc_set_length(s->rx_desc, size);
         }
         rx_desc_set_ownership(s->rx_desc);
+
+        switch (maf) {
+        case GEM_RX_PROMISCUOUS_ACCEPT:
+            break;
+        case GEM_RX_BROADCAST_ACCEPT:
+            rx_desc_set_broadcast(s->rx_desc);
+            break;
+        case GEM_RX_UNICAST_HASH_ACCEPT:
+            rx_desc_set_unicast_hash(s->rx_desc);
+            break;
+        case GEM_RX_MULTICAST_HASH_ACCEPT:
+            rx_desc_set_multicast_hash(s->rx_desc);
+            break;
+        case GEM_RX_REJECT:
+            abort();
+        default: /* SAR */
+            rx_desc_set_sar(s->rx_desc, maf);
+        }
+
         /* Descriptor write-back.  */
         cpu_physical_memory_write(s->rx_desc_addr,
                                   (uint8_t *)s->rx_desc, sizeof(s->rx_desc));
