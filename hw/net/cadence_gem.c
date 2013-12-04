@@ -733,8 +733,8 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Copy packet data to emulated DMA buffer */
         cpu_physical_memory_write(rx_desc_get_buffer(s->rx_desc) + rxbuf_offset,
                                   rxbuf_ptr, MIN(bytes_to_copy, rxbufsize));
-        bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
         rxbuf_ptr += MIN(bytes_to_copy, rxbufsize);
+        bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
 
         /* Update the descriptor.  */
         if (first_desc) {
