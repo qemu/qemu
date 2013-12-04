@@ -10,8 +10,6 @@
 
 #include "bcm2835_common.h"
 
-/* #define LOG_REG_ACCESS */
-
 #define TYPE_BCM2835_PROPERTY "bcm2835_property"
 #define BCM2835_PROPERTY(obj) \
         OBJECT_CHECK(bcm2835_property_state, (obj), TYPE_BCM2835_PROPERTY)
@@ -43,9 +41,6 @@ static void update_fb(void)
 static void bcm2835_property_mbox_push(bcm2835_property_state *s,
     uint32_t value)
 {
-#ifdef LOG_REG_ACCESS
-    uint32_t size;
-#endif
     uint32_t tag;
     uint32_t bufsize;
     int n;
@@ -55,28 +50,12 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
     value &= ~0xf;
     s->addr = value;
 
-#ifdef LOG_REG_ACCESS
-    size = ldl_phys(s->addr);
-    printf("=== PROPERTY MBOX PUSH BEGIN addr=%08x\n", s->addr);
-    printf("Request:\n");
-    for (n = 0; n < size; n += 4) {
-        printf("[%08x] ", ldl_phys(s->addr + n));
-        if (((n >> 2) & 7) == 7) {
-            printf("\n");
-        }
-    }
-    printf("\n");
-#endif
-
     /* @(s->addr + 4) : Buffer response code */
     value = s->addr + 8;
     do {
         tag = ldl_phys(value);
         bufsize = ldl_phys(value + 4);
         /* @(value + 8) : Request/response indicator */
-#ifdef LOG_REG_ACCESS
-        printf("TAG [%08x]\n", tag);
-#endif
         resplen = 0;
         switch (tag) {
         case 0x00000000: /* End tag */
@@ -290,18 +269,6 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
 
     /* Buffer response code */
     stl_phys(s->addr + 4, (1 << 31));
-
-#ifdef LOG_REG_ACCESS
-    printf("Response:\n");
-    for (n = 0; n < size; n += 4) {
-        printf("[%08x] ", ldl_phys(s->addr + n));
-        if (((n >> 2) & 7) == 7) {
-            printf("\n");
-        }
-    }
-    printf("\n");
-    printf("=== PROPERTY MBOX PUSH END\n");
-#endif
 
     if (bcm2835_fb.lock) {
         bcm2835_fb.invalidate = 1;

@@ -8,8 +8,6 @@
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 
-/* #define LOG_REG_ACCESS */
-
 #define TYPE_BCM2835_ST "bcm2835_st"
 #define BCM2835_ST(obj) OBJECT_CHECK(bcm2835_st_state, (obj), TYPE_BCM2835_ST)
 
@@ -99,10 +97,6 @@ static uint64_t bcm2835_st_read(void *opaque, hwaddr offset,
         return 0;
     }
 
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_st: read(%x) %08x\n", (int)offset, res);
-#endif
-
     return res;
 }
 
@@ -113,12 +107,6 @@ static void bcm2835_st_write(void *opaque, hwaddr offset,
     int i;
 
     assert(size == 4);
-
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_st: write(%x) %08x\n", (int)offset,
-        (uint32_t)value);
-#endif
-
 
     switch (offset) {
     case 0x00:

@@ -74,7 +74,7 @@ static void bcm2835_ic_set_irq(void *opaque, int irq, int level)
     bcm2835_ic_update(s);
 }
 
-static int irq_dups[] = { 7, 9, 10, 18, 19, 53, 54, 55, 56, 57, 62, -1 };
+static const int irq_dups[] = { 7, 9, 10, 18, 19, 53, 54, 55, 56, 57, 62, -1 };
 
 static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset,
     unsigned size)

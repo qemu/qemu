@@ -289,8 +289,6 @@
 
 #define COMPLETION_DELAY (100000)
 
-/* #define LOG_REG_ACCESS */
-
 #define TYPE_BCM2835_EMMC "bcm2835_emmc"
 #define BCM2835_EMMC(obj) \
         OBJECT_CHECK(bcm2835_emmc_state, (obj), TYPE_BCM2835_EMMC)
@@ -358,9 +356,6 @@ static void autocmd12(bcm2835_emmc_state *s)
     if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD12)) {
         return;
     }
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_emmc: issuing auto-CMD12\n");
-#endif
 
     request.cmd = 12;
     request.arg = 0;
@@ -376,9 +371,6 @@ static void autocmd23(bcm2835_emmc_state *s)
     if (!(s->cmdtm & SDHCI_TRNS_AUTO_CMD23)) {
         return;
     }
-#ifdef LOG_REG_ACCESS
-    printf("[QEMU] bcm2835_emmc: issuing auto-CMD23\n");
-#endif
 
     request.cmd = 23;
     request.arg = (s->blksizecnt >> 16) & 0xffff;
@@ -529,12 +521,6 @@ static uint64_t bcm2835_emmc_read(void *opaque, hwaddr offset,
         break;
     }
 
-#ifdef LOG_REG_ACCESS
-    if (offset != SDHCI_BUFFER) {
-        printf("[QEMU] bcm2835_emmc: read(%x) %08x\n", (int)offset, res);
-    }
-#endif
-
     if (set_irq) {
         bcm2835_emmc_set_irq(s);
     }
@@ -555,13 +541,6 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-#ifdef LOG_REG_ACCESS
-    if (offset != SDHCI_BUFFER) {
-        printf("[QEMU] bcm2835_emmc: write(%x) %08x\n", (int)offset,
-            (uint32_t)value);
-    }
-#endif
-
     switch (offset) {
     case SDHCI_ARGUMENT2:      /* ARG2 */
         s->arg2 = value;
@@ -575,21 +554,6 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
     case SDHCI_TRANSFER_MODE:   /* CMDTM */
         s->cmdtm = value;
         cmd = ((value >> (16 + 8)) & 0x3f);
-
-#ifdef LOG_REG_ACCESS
-        printf("[QEMU] bcm2835_emmc: starting %sCMD%d %08x ",
-            (s->acmd ? "A" : ""), cmd, s->arg1);
-        if (s->cmdtm & SDHCI_TRNS_BLK_CNT_EN) {
-            printf("BlkCnt ");
-        }
-        if (s->cmdtm & SDHCI_TRNS_AUTO_CMD12) {
-            printf("Auto-CMD12 ");
-        }
-        if (s->cmdtm & SDHCI_TRNS_AUTO_CMD23) {
-            printf("Auto-CMD23 ");
-        }
-        printf("\n");
-#endif
 
         if (!s->acmd && (cmd == 18 || cmd == 25)) {
             autocmd23(s);
@@ -645,9 +609,6 @@ static void bcm2835_emmc_write(void *opaque, hwaddr offset,
                 s->interrupt |= SDHCI_INT_DATA_END;
             } else {
                 if (sd_data_ready(s->card)) {
-#ifdef LOG_REG_ACCESS
-                    printf("[QEMU] bcm2835_emmc: data available\n");
-#endif
                     s->status |= SDHCI_DATA_AVAILABLE;
                 }
             }

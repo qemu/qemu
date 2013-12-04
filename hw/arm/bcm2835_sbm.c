@@ -104,7 +104,6 @@ static void bcm2835_sbm_update(bcm2835_sbm_state *s)
                 if (s->available[n]) {
                     value = ldl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (n<<4));
                     if (value != MBOX_INVALID_DATA) {
-                        /* printf("AVAIL MBOX PUSH\n"); */
                         mbox_push(&s->mbox[0], value);
                     } else {
                         /* Hmmm... */
