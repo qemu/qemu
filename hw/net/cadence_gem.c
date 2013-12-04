@@ -243,6 +243,7 @@
 
 #define R_DESC_1_RX_SAR_SHIFT           25
 #define R_DESC_1_RX_SAR_LENGTH          2
+#define R_DESC_1_RX_SAR_MATCH           (1 << 27)
 #define R_DESC_1_RX_UNICAST_HASH        (1 << 29)
 #define R_DESC_1_RX_MULTICAST_HASH      (1 << 30)
 #define R_DESC_1_RX_BROADCAST           (1 << 31)
@@ -345,6 +346,7 @@ static inline void rx_desc_set_sar(unsigned *desc, int sar_idx)
 {
     desc[1] = deposit32(desc[1], R_DESC_1_RX_SAR_SHIFT, R_DESC_1_RX_SAR_LENGTH,
                         sar_idx);
+    desc[1] |= R_DESC_1_RX_SAR_MATCH;
 }
 
 #define TYPE_CADENCE_GEM "cadence_gem"
