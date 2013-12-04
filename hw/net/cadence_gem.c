@@ -1112,15 +1112,14 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
 
     /* Squash bits which are read only in write value */
     val &= ~(s->regs_ro[offset]);
-    /* Preserve (only) bits which are read only in register */
-    readonly = s->regs[offset];
-    readonly &= s->regs_ro[offset];
-
-    /* Squash bits which are write 1 to clear */
-    val &= ~(s->regs_w1c[offset] & val);
+    /* Preserve (only) bits which are read only and wtc in register */
+    readonly = s->regs[offset] & (s->regs_ro[offset] | s->regs_w1c[offset]);
 
     /* Copy register write to backing store */
-    s->regs[offset] = val | readonly;
+    s->regs[offset] = (val & ~s->regs_w1c[offset]) | readonly;
+
+    /* do w1c */
+    s->regs[offset] &= ~(s->regs_w1c[offset] & val);
 
     /* Handle register write side effects */
     switch (offset) {
