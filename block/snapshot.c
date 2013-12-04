@@ -25,6 +25,24 @@
 #include "block/snapshot.h"
 #include "block/block_int.h"
 
+QemuOptsList internal_snapshot_opts = {
+    .name = "snapshot",
+    .head = QTAILQ_HEAD_INITIALIZER(internal_snapshot_opts.head),
+    .desc = {
+        {
+            .name = SNAPSHOT_OPT_ID,
+            .type = QEMU_OPT_STRING,
+            .help = "snapshot id"
+        },{
+            .name = SNAPSHOT_OPT_NAME,
+            .type = QEMU_OPT_STRING,
+            .help = "snapshot name"
+        },{
+            /* end of list */
+        }
+    },
+};
+
 int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
                        const char *name)
 {

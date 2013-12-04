@@ -20,6 +20,7 @@
 #include "block/block.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
+#include "block/snapshot.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -79,7 +80,14 @@ static void usage(const char *name)
 "\n"
 "Block device options:\n"
 "  -r, --read-only      export read-only\n"
-"  -s, --snapshot       use snapshot file\n"
+"  -s, --snapshot       use FILE as an external snapshot, create a temporary\n"
+"                       file with backing_file=FILE, redirect the write to\n"
+"                       the temporary one\n"
+"  -l, --load-snapshot=SNAPSHOT_PARAM\n"
+"                       load an internal snapshot inside FILE and export it\n"
+"                       as an read-only device, SNAPSHOT_PARAM format is\n"
+"                       'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
+"                       '[ID_OR_NAME]'\n"
 "  -n, --nocache        disable host cache\n"
 "      --cache=MODE     set cache mode (none, writeback, ...)\n"
 #ifdef CONFIG_LINUX_AIO
@@ -315,7 +323,9 @@ int main(int argc, char **argv)
     char *device = NULL;
     int port = NBD_DEFAULT_PORT;
     off_t fd_size;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:t";
+    QemuOpts *sn_opts = NULL;
+    const char *sn_id_or_name = NULL;
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -328,6 +338,7 @@ int main(int argc, char **argv)
         { "connect", 1, NULL, 'c' },
         { "disconnect", 0, NULL, 'd' },
         { "snapshot", 0, NULL, 's' },
+        { "load-snapshot", 1, NULL, 'l' },
         { "nocache", 0, NULL, 'n' },
         { "cache", 1, NULL, QEMU_NBD_OPT_CACHE },
 #ifdef CONFIG_LINUX_AIO
@@ -428,6 +439,17 @@ int main(int argc, char **argv)
                 errx(EXIT_FAILURE, "Offset must be positive `%s'", optarg);
             }
             break;
+        case 'l':
+            if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
+                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                if (!sn_opts) {
+                    errx(EXIT_FAILURE, "Failed in parsing snapshot param `%s'",
+                         optarg);
+                }
+            } else {
+                sn_id_or_name = optarg;
+            }
+            /* fall through */
         case 'r':
             nbdflags |= NBD_FLAG_READ_ONLY;
             flags &= ~BDRV_O_RDWR;
@@ -581,6 +603,22 @@ int main(int argc, char **argv)
             error_get_pretty(local_err));
     }
 
+    if (sn_opts) {
+        ret = bdrv_snapshot_load_tmp(bs,
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
+                                     &local_err);
+    } else if (sn_id_or_name) {
+        ret = bdrv_snapshot_load_tmp_by_id_or_name(bs, sn_id_or_name,
+                                                   &local_err);
+    }
+    if (ret < 0) {
+        errno = -ret;
+        err(EXIT_FAILURE,
+            "Failed to load snapshot: %s",
+            error_get_pretty(local_err));
+    }
+
     fd_size = bdrv_getlength(bs);
 
     if (partition != -1) {
@@ -639,6 +677,10 @@ int main(int argc, char **argv)
     bdrv_close(bs);
     if (sockpath) {
         unlink(sockpath);
+    }
+
+    if (sn_opts) {
+        qemu_opts_del(sn_opts);
     }
 
     if (device) {

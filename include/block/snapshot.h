@@ -27,6 +27,14 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "qemu/option.h"
+
+
+#define SNAPSHOT_OPT_BASE       "snapshot."
+#define SNAPSHOT_OPT_ID         "snapshot.id"
+#define SNAPSHOT_OPT_NAME       "snapshot.name"
+
+extern QemuOptsList internal_snapshot_opts;
 
 typedef struct QEMUSnapshotInfo {
     char id_str[128]; /* unique snapshot id */
