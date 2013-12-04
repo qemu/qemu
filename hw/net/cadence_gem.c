@@ -463,6 +463,15 @@ static int gem_can_receive(NetClientState *nc)
         return 0;
     }
 
+    if (rx_desc_get_ownership(s->rx_desc) == 1) {
+        if (s->can_rx_state != 2) {
+            s->can_rx_state = 2;
+            DB_PRINT("can't receive - busy buffer descriptor 0x%x\n",
+                     s->rx_desc_addr);
+        }
+        return 0;
+    }
+
     if (s->can_rx_state != 0) {
         s->can_rx_state = 0;
         DB_PRINT("can receive 0x%x\n", s->rx_desc_addr);
@@ -1142,7 +1151,7 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
             /* Reset to start of Q when transmit disabled. */
             s->tx_desc_addr = s->regs[GEM_TXQBASE];
         }
-        if (val & GEM_NWCTRL_RXENA) {
+        if (gem_can_receive(qemu_get_queue(s->nic))) {
             qemu_flush_queued_packets(qemu_get_queue(s->nic));
         }
         break;
