@@ -382,6 +382,7 @@ typedef struct GemState {
 
     unsigned rx_desc[2];
 
+    bool sar_active[4];
 } GemState;
 
 /* The broadcast MAC address: 0xFFFFFFFFFFFF */
@@ -609,7 +610,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
     /* Check all 4 specific addresses */
     gem_spaddr = (uint8_t *)&(s->regs[GEM_SPADDR1LO]);
     for (i = 3; i >= 0; i--) {
-        if (!memcmp(packet, gem_spaddr + 8 * i, 6)) {
+        if (s->sar_active[i] && !memcmp(packet, gem_spaddr + 8 * i, 6)) {
             return GEM_RX_SAR_ACCEPT + i;
         }
     }
@@ -983,6 +984,7 @@ static void gem_phy_reset(GemState *s)
 
 static void gem_reset(DeviceState *d)
 {
+    int i;
     GemState *s = GEM(d);
 
     DB_PRINT("\n");
@@ -1001,6 +1003,10 @@ static void gem_reset(DeviceState *d)
     s->regs[GEM_DESCONF2] = 0x2ab13fff;
     s->regs[GEM_DESCONF5] = 0x002f2145;
     s->regs[GEM_DESCONF6] = 0x00000200;
+
+    for (i = 0; i < 4; i++) {
+        s->sar_active[i] = false;
+    }
 
     gem_phy_reset(s);
 
@@ -1151,6 +1157,18 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->regs[GEM_IMR] |= val;
         gem_update_int_status(s);
         break;
+    case GEM_SPADDR1LO:
+    case GEM_SPADDR2LO:
+    case GEM_SPADDR3LO:
+    case GEM_SPADDR4LO:
+        s->sar_active[(offset - GEM_SPADDR1LO) / 2] = false;
+        break;
+    case GEM_SPADDR1HI:
+    case GEM_SPADDR2HI:
+    case GEM_SPADDR3HI:
+    case GEM_SPADDR4HI:
+        s->sar_active[(offset - GEM_SPADDR1HI) / 2] = true;
+        break;
     case GEM_PHYMNTNC:
         if (val & GEM_PHYMNTNC_OP_W) {
             uint32_t phy_addr, reg_num;
@@ -1218,15 +1236,16 @@ static int gem_init(SysBusDevice *sbd)
 
 static const VMStateDescription vmstate_cadence_gem = {
     .name = "cadence_gem",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, GemState, GEM_MAXREG),
         VMSTATE_UINT16_ARRAY(phy_regs, GemState, 32),
         VMSTATE_UINT8(phy_loop, GemState),
         VMSTATE_UINT32(rx_desc_addr, GemState),
         VMSTATE_UINT32(tx_desc_addr, GemState),
+        VMSTATE_BOOL_ARRAY(sar_active, GemState, 4),
     }
 };
 
