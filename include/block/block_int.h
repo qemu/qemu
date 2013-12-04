@@ -60,6 +60,7 @@ typedef struct BdrvTrackedRequest {
     int64_t offset;
     unsigned int bytes;
     bool is_write;
+    bool serialising;
     QLIST_ENTRY(BdrvTrackedRequest) list;
     Coroutine *co; /* owner, used for deadlock detection */
     CoQueue wait_queue; /* coroutines blocked on this request */
@@ -302,8 +303,8 @@ struct BlockDriverState {
     /* Callback before write request is processed */
     NotifierWithReturnList before_write_notifiers;
 
-    /* number of in-flight copy-on-read requests */
-    unsigned int copy_on_read_in_flight;
+    /* number of in-flight serialising requests */
+    unsigned int serialising_in_flight;
 
     /* I/O throttling */
     ThrottleState throttle_state;
