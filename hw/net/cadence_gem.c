@@ -592,6 +592,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     unsigned   rxbuf_offset;
     uint8_t    rxbuf[2048];
     uint8_t   *rxbuf_ptr;
+    bool first_desc = true;
 
     s = qemu_get_nic_opaque(nc);
 
@@ -701,6 +702,21 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
                                   rxbuf_ptr, MIN(bytes_to_copy, rxbufsize));
         bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
         rxbuf_ptr += MIN(bytes_to_copy, rxbufsize);
+
+        /* Update the descriptor.  */
+        if (first_desc) {
+            rx_desc_set_sof(desc);
+            first_desc = false;
+        }
+        if (bytes_to_copy == 0) {
+            rx_desc_set_eof(desc);
+            rx_desc_set_length(desc, size);
+        }
+        rx_desc_set_ownership(desc);
+        /* Descriptor write-back.  */
+        cpu_physical_memory_write(packet_desc_addr,
+                                  (uint8_t *)&desc[0], sizeof(desc));
+
         if (bytes_to_copy == 0) {
             break;
         }
@@ -716,12 +732,6 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     DB_PRINT("set length: %ld, EOF on descriptor 0x%x\n", size,
             (unsigned)packet_desc_addr);
 
-    /* Update last descriptor with EOF and total length */
-    rx_desc_set_eof(desc);
-    rx_desc_set_length(desc, size);
-    cpu_physical_memory_write(packet_desc_addr,
-                              (uint8_t *)&desc[0], sizeof(desc));
-
     /* Advance RX packet descriptor Q */
     last_desc_addr = packet_desc_addr;
     packet_desc_addr = s->rx_desc_addr;
@@ -734,19 +744,8 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         s->rx_desc_addr += 8;
     }
 
-    DB_PRINT("set SOF, OWN on descriptor 0x%08x\n", (unsigned)packet_desc_addr);
-
     /* Count it */
     gem_receive_updatestats(s, buf, size);
-
-    /* Update first descriptor (which could also be the last) */
-    /* read descriptor */
-    cpu_physical_memory_read(packet_desc_addr,
-                             (uint8_t *)&desc[0], sizeof(desc));
-    rx_desc_set_sof(desc);
-    rx_desc_set_ownership(desc);
-    cpu_physical_memory_write(packet_desc_addr,
-                              (uint8_t *)&desc[0], sizeof(desc));
 
     s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_FRMRCVD;
     s->regs[GEM_ISR] |= GEM_INT_RXCMPL & ~(s->regs[GEM_IMR]);
