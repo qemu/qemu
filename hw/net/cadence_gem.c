@@ -380,6 +380,8 @@ typedef struct GemState {
     uint32_t rx_desc_addr;
     uint32_t tx_desc_addr;
 
+    uint8_t can_rx_state; /* Debug only */
+
     unsigned rx_desc[2];
 
     bool sar_active[4];
@@ -452,13 +454,19 @@ static int gem_can_receive(NetClientState *nc)
 
     s = qemu_get_nic_opaque(nc);
 
-    DB_PRINT("\n");
-
     /* Do nothing if receive is not enabled. */
     if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
+        if (s->can_rx_state != 1) {
+            s->can_rx_state = 1;
+            DB_PRINT("can't receive - no enable\n");
+        }
         return 0;
     }
 
+    if (s->can_rx_state != 0) {
+        s->can_rx_state = 0;
+        DB_PRINT("can receive 0x%x\n", s->rx_desc_addr);
+    }
     return 1;
 }
 
