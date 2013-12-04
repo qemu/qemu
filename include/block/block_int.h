@@ -60,7 +60,11 @@ typedef struct BdrvTrackedRequest {
     int64_t offset;
     unsigned int bytes;
     bool is_write;
+
     bool serialising;
+    int64_t overlap_offset;
+    unsigned int overlap_bytes;
+
     QLIST_ENTRY(BdrvTrackedRequest) list;
     Coroutine *co; /* owner, used for deadlock detection */
     CoQueue wait_queue; /* coroutines blocked on this request */
