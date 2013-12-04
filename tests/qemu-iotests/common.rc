@@ -410,7 +410,8 @@ _default_cache_mode()
 #
 _require_command()
 {
-    [ -x "$1" ] || _notrun "$1 utility required, skipped this test"
+    eval c=\$$1
+    [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 
 _full_imgfmt_details()
