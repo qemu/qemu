@@ -132,7 +132,7 @@ s/ .*//p
             echo "Usage: $0 [options] [testlist]"'
 
 common options
-    -v                        verbose
+    -v                  verbose
 
 check options
     -raw                test raw (default)
@@ -148,20 +148,20 @@ check options
     -sheepdog           test sheepdog
     -nbd                test nbd
     -ssh                test ssh
-    -xdiff                graphical mode diff
-    -nocache                use O_DIRECT on backing file
-    -misalign                misalign memory allocations
-    -n                        show me, do not run tests
+    -xdiff              graphical mode diff
+    -nocache            use O_DIRECT on backing file
+    -misalign           misalign memory allocations
+    -n                  show me, do not run tests
     -o options          -o options to pass to qemu-img create/convert
-    -T                        output timestamps
-    -r                         randomize test order
+    -T                  output timestamps
+    -r                  randomize test order
     -c mode             cache mode
 
 testlist options
     -g group[,group...]        include tests from these groups
     -x group[,group...]        exclude tests from these groups
     NNN                        include test NNN
-    NNN-NNN                include test range (eg. 012-021)
+    NNN-NNN                    include test range (eg. 012-021)
 '
             exit 0
             ;;
