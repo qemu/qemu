@@ -5,7 +5,7 @@
 
 #include "hw/sysbus.h"
 
-#include "bcm2835_common.h"
+#include "hw/arm/bcm2835_common.h"
 
 #define TYPE_BCM2835_SBM "bcm2835_sbm"
 #define BCM2835_SBM(obj) \

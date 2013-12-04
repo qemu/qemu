@@ -8,7 +8,7 @@
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 
-#include "bcm2835_common.h"
+#include "hw/arm/bcm2835_common.h"
 
 #define TYPE_BCM2835_PROPERTY "bcm2835_property"
 #define BCM2835_PROPERTY(obj) \

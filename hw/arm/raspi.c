@@ -22,7 +22,7 @@
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
-#include "bcm2835_common.h"
+#include "hw/arm/bcm2835_common.h"
 
 #define BUS_ADDR(x) (((x) - BCM2708_PERI_BASE) + 0x7e000000)
 
