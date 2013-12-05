@@ -336,6 +336,10 @@ typedef struct ExtSaveArea {
 static const ExtSaveArea ext_save_areas[] = {
     [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = 0x240, .size = 0x100 },
+    [3] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+            .offset = 0x3c0, .size = 0x40  },
+    [4] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+            .offset = 0x400, .size = 0x10  },
 };
 
 const char *get_register_name_32(unsigned int reg)

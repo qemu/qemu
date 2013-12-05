@@ -63,6 +63,21 @@ static const VMStateDescription vmstate_ymmh_reg = {
 #define VMSTATE_YMMH_REGS_VARS(_field, _state, _n, _v)                         \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_ymmh_reg, XMMReg)
 
+static const VMStateDescription vmstate_bnd_regs = {
+    .name = "bnd_regs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT64(lb, BNDReg),
+        VMSTATE_UINT64(ub, BNDReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_BND_REGS(_field, _state, _n)          \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_bnd_regs, BNDReg)
+
 static const VMStateDescription vmstate_mtrr_var = {
     .name = "mtrr_var",
     .version_id = 1,
@@ -506,6 +521,39 @@ static const VMStateDescription vmstate_msr_architectural_pmu = {
     }
 };
 
+static bool mpx_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    unsigned int i;
+
+    for (i = 0; i < 4; i++) {
+        if (env->bnd_regs[i].lb || env->bnd_regs[i].ub) {
+            return true;
+        }
+    }
+
+    if (env->bndcs_regs.cfgu || env->bndcs_regs.sts) {
+        return true;
+    }
+
+    return !!env->msr_bndcfgs;
+}
+
+static const VMStateDescription vmstate_mpx = {
+    .name = "cpu/mpx",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BND_REGS(env.bnd_regs, X86CPU, 4),
+        VMSTATE_UINT64(env.bndcs_regs.cfgu, X86CPU),
+        VMSTATE_UINT64(env.bndcs_regs.sts, X86CPU),
+        VMSTATE_UINT64(env.msr_bndcfgs, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -637,6 +685,9 @@ const VMStateDescription vmstate_x86_cpu = {
         }, {
             .vmsd = &vmstate_msr_architectural_pmu,
             .needed = pmu_enable_needed,
+        } , {
+            .vmsd = &vmstate_mpx,
+            .needed = mpx_needed,
         } , {
             /* empty */
         }
