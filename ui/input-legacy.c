@@ -369,7 +369,7 @@ static void check_mode_change(void)
     static int current_is_absolute;
     int is_absolute;
 
-    is_absolute = kbd_mouse_is_absolute();
+    is_absolute = qemu_input_is_absolute();
 
     if (is_absolute != current_is_absolute) {
         notifier_list_notify(&mouse_mode_notifiers, NULL);
@@ -552,15 +552,6 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
             break;
         }
     }
-}
-
-int kbd_mouse_is_absolute(void)
-{
-    if (QTAILQ_EMPTY(&mouse_handlers)) {
-        return 0;
-    }
-
-    return QTAILQ_FIRST(&mouse_handlers)->qemu_put_mouse_event_absolute;
 }
 
 MouseInfoList *qmp_query_mice(Error **errp)
