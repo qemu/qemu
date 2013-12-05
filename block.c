@@ -70,11 +70,11 @@ static int coroutine_fn bdrv_co_readv_em(BlockDriverState *bs,
 static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
-static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
-static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
 static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                                int64_t sector_num,
@@ -2554,8 +2554,7 @@ static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
 
 typedef struct RwCo {
     BlockDriverState *bs;
-    int64_t sector_num;
-    int nb_sectors;
+    int64_t offset;
     QEMUIOVector *qiov;
     bool is_write;
     int ret;
@@ -2567,34 +2566,32 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
     RwCo *rwco = opaque;
 
     if (!rwco->is_write) {
-        rwco->ret = bdrv_co_do_readv(rwco->bs, rwco->sector_num,
-                                     rwco->nb_sectors, rwco->qiov,
-                                     rwco->flags);
-    } else {
-        rwco->ret = bdrv_co_do_writev(rwco->bs, rwco->sector_num,
-                                      rwco->nb_sectors, rwco->qiov,
+        rwco->ret = bdrv_co_do_preadv(rwco->bs, rwco->offset,
+                                      rwco->qiov->size, rwco->qiov,
                                       rwco->flags);
+    } else {
+        rwco->ret = bdrv_co_do_pwritev(rwco->bs, rwco->offset,
+                                       rwco->qiov->size, rwco->qiov,
+                                       rwco->flags);
     }
 }
 
 /*
  * Process a vectored synchronous request using coroutines
  */
-static int bdrv_rwv_co(BlockDriverState *bs, int64_t sector_num,
-                       QEMUIOVector *qiov, bool is_write,
-                       BdrvRequestFlags flags)
+static int bdrv_prwv_co(BlockDriverState *bs, int64_t offset,
+                        QEMUIOVector *qiov, bool is_write,
+                        BdrvRequestFlags flags)
 {
     Coroutine *co;
     RwCo rwco = {
         .bs = bs,
-        .sector_num = sector_num,
-        .nb_sectors = qiov->size >> BDRV_SECTOR_BITS,
+        .offset = offset,
         .qiov = qiov,
         .is_write = is_write,
         .ret = NOT_DONE,
         .flags = flags,
     };
-    assert((qiov->size & (BDRV_SECTOR_SIZE - 1)) == 0);
 
     /**
      * In sync call context, when the vcpu is blocked, this throttling timer
@@ -2633,7 +2630,8 @@ static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
     };
 
     qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_rwv_co(bs, sector_num, &qiov, is_write, flags);
+    return bdrv_prwv_co(bs, sector_num << BDRV_SECTOR_BITS,
+                        &qiov, is_write, flags);
 }
 
 /* return < 0 if error. See bdrv_write() for the return codes */
@@ -2671,7 +2669,7 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
 
 int bdrv_writev(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov)
 {
-    return bdrv_rwv_co(bs, sector_num, qiov, true, 0);
+    return bdrv_prwv_co(bs, sector_num << BDRV_SECTOR_BITS, qiov, true, 0);
 }
 
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
@@ -4856,9 +4854,15 @@ int bdrv_flush(BlockDriverState *bs)
     return rwco.ret;
 }
 
+typedef struct DiscardCo {
+    BlockDriverState *bs;
+    int64_t sector_num;
+    int nb_sectors;
+    int ret;
+} DiscardCo;
 static void coroutine_fn bdrv_discard_co_entry(void *opaque)
 {
-    RwCo *rwco = opaque;
+    DiscardCo *rwco = opaque;
 
     rwco->ret = bdrv_co_discard(rwco->bs, rwco->sector_num, rwco->nb_sectors);
 }
@@ -4942,7 +4946,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
 int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
 {
     Coroutine *co;
-    RwCo rwco = {
+    DiscardCo rwco = {
         .bs = bs,
         .sector_num = sector_num,
         .nb_sectors = nb_sectors,
