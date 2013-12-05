@@ -1401,7 +1401,7 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     /* Round start up and end down */
     offset = align_offset(offset, s->cluster_size);
-    end_offset &= ~(s->cluster_size - 1);
+    end_offset = start_of_cluster(s, end_offset);
 
     if (offset > end_offset) {
         return 0;
