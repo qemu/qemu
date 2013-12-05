@@ -13,6 +13,8 @@ struct QemuInputHandlerState {
 };
 static QTAILQ_HEAD(, QemuInputHandlerState) handlers =
     QTAILQ_HEAD_INITIALIZER(handlers);
+static NotifierList mouse_mode_notifiers =
+    NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
 
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                                    QemuInputHandler *handler)
@@ -24,6 +26,8 @@ QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
     s->handler = handler;
     s->id = id++;
     QTAILQ_INSERT_TAIL(&handlers, s, node);
+
+    qemu_input_check_mode_change();
     return s;
 }
 
@@ -31,12 +35,14 @@ void qemu_input_handler_activate(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     QTAILQ_INSERT_HEAD(&handlers, s, node);
+    qemu_input_check_mode_change();
 }
 
 void qemu_input_handler_unregister(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     g_free(s);
+    qemu_input_check_mode_change();
 }
 
 static QemuInputHandlerState*
@@ -273,4 +279,28 @@ void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value, int size)
     evt = qemu_input_event_new_move(INPUT_EVENT_KIND_ABS, axis, scaled);
     qemu_input_event_send(src, evt);
     qapi_free_InputEvent(evt);
+}
+
+void qemu_input_check_mode_change(void)
+{
+    static int current_is_absolute;
+    int is_absolute;
+
+    is_absolute = qemu_input_is_absolute();
+
+    if (is_absolute != current_is_absolute) {
+        notifier_list_notify(&mouse_mode_notifiers, NULL);
+    }
+
+    current_is_absolute = is_absolute;
+}
+
+void qemu_add_mouse_mode_change_notifier(Notifier *notify)
+{
+    notifier_list_add(&mouse_mode_notifiers, notify);
+}
+
+void qemu_remove_mouse_mode_change_notifier(Notifier *notify)
+{
+    notifier_remove(notify);
 }

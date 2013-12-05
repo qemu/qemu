@@ -49,4 +49,8 @@ void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value);
 void qemu_input_queue_abs(QemuConsole *src, InputAxis axis,
                           int value, int size);
 
+void qemu_input_check_mode_change(void);
+void qemu_add_mouse_mode_change_notifier(Notifier *notify);
+void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
+
 #endif /* INPUT_H */

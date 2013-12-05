@@ -65,8 +65,6 @@ static QTAILQ_HEAD(, QEMUPutLEDEntry) led_handlers =
     QTAILQ_HEAD_INITIALIZER(led_handlers);
 static QTAILQ_HEAD(, QEMUPutMouseEntry) mouse_handlers =
     QTAILQ_HEAD_INITIALIZER(mouse_handlers);
-static NotifierList mouse_mode_notifiers =
-    NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
 
 static const int key_defs[] = {
     [Q_KEY_CODE_SHIFT] = 0x2a,
@@ -364,20 +362,6 @@ void qemu_remove_kbd_event_handler(QEMUPutKbdEntry *entry)
     g_free(entry);
 }
 
-static void check_mode_change(void)
-{
-    static int current_is_absolute;
-    int is_absolute;
-
-    is_absolute = qemu_input_is_absolute();
-
-    if (is_absolute != current_is_absolute) {
-        notifier_list_notify(&mouse_mode_notifiers, NULL);
-    }
-
-    current_is_absolute = is_absolute;
-}
-
 static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
 {
@@ -448,8 +432,6 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
     s->s = qemu_input_handler_register((DeviceState *)s,
                                        &s->h);
 
-    check_mode_change();
-
     return s;
 }
 
@@ -459,8 +441,6 @@ void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry)
     QTAILQ_INSERT_HEAD(&mouse_handlers, entry, node);
 
     qemu_input_handler_activate(entry->s);
-
-    check_mode_change();
 }
 
 void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
@@ -471,8 +451,6 @@ void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
 
     g_free(entry->qemu_put_mouse_event_name);
     g_free(entry);
-
-    check_mode_change();
 }
 
 QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func,
@@ -551,15 +529,5 @@ void do_mouse_set(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Mouse at given index not found\n");
     }
 
-    check_mode_change();
-}
-
-void qemu_add_mouse_mode_change_notifier(Notifier *notify)
-{
-    notifier_list_add(&mouse_mode_notifiers, notify);
-}
-
-void qemu_remove_mouse_mode_change_notifier(Notifier *notify)
-{
-    notifier_remove(notify);
+    qemu_input_check_mode_change();
 }

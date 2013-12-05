@@ -48,10 +48,6 @@ void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
 
 void kbd_put_ledstate(int ledstate);
 
-/* Does the current mouse generate absolute events */
-void qemu_add_mouse_mode_change_notifier(Notifier *notify);
-void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
-
 struct MouseTransformInfo {
     /* Touchscreen resolution */
     int x;
