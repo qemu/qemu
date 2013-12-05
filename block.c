@@ -2721,49 +2721,26 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
     }
 }
 
-int bdrv_pread(BlockDriverState *bs, int64_t offset,
-               void *buf, int count1)
+int bdrv_pread(BlockDriverState *bs, int64_t offset, void *buf, int bytes)
 {
-    uint8_t tmp_buf[BDRV_SECTOR_SIZE];
-    int len, nb_sectors, count;
-    int64_t sector_num;
+    QEMUIOVector qiov;
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = bytes,
+    };
     int ret;
 
-    count = count1;
-    /* first read to align to sector start */
-    len = (BDRV_SECTOR_SIZE - offset) & (BDRV_SECTOR_SIZE - 1);
-    if (len > count)
-        len = count;
-    sector_num = offset >> BDRV_SECTOR_BITS;
-    if (len > 0) {
-        if ((ret = bdrv_read(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-        memcpy(buf, tmp_buf + (offset & (BDRV_SECTOR_SIZE - 1)), len);
-        count -= len;
-        if (count == 0)
-            return count1;
-        sector_num++;
-        buf += len;
+    if (bytes < 0) {
+        return -EINVAL;
     }
 
-    /* read the sectors "in place" */
-    nb_sectors = count >> BDRV_SECTOR_BITS;
-    if (nb_sectors > 0) {
-        if ((ret = bdrv_read(bs, sector_num, buf, nb_sectors)) < 0)
-            return ret;
-        sector_num += nb_sectors;
-        len = nb_sectors << BDRV_SECTOR_BITS;
-        buf += len;
-        count -= len;
+    qemu_iovec_init_external(&qiov, &iov, 1);
+    ret = bdrv_prwv_co(bs, offset, &qiov, false, 0);
+    if (ret < 0) {
+        return ret;
     }
 
-    /* add data from the last sector */
-    if (count > 0) {
-        if ((ret = bdrv_read(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-        memcpy(buf, tmp_buf, count);
-    }
-    return count1;
+    return bytes;
 }
 
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)
