@@ -500,29 +500,6 @@ void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry)
     g_free(entry);
 }
 
-void kbd_put_keycode(int keycode)
-{
-    static bool emul0;
-    bool up;
-
-    if (keycode == SCANCODE_EMUL0) {
-        emul0 = true;
-        return;
-    }
-    if (keycode & SCANCODE_UP) {
-        keycode &= ~SCANCODE_UP;
-        up = true;
-    } else {
-        up = false;
-    }
-    if (emul0) {
-        keycode |= SCANCODE_GREY;
-        emul0 = false;
-    }
-
-    qemu_input_event_send_key_number(NULL, keycode, !up);
-}
-
 void kbd_put_ledstate(int ledstate)
 {
     QEMUPutLEDEntry *cursor;
