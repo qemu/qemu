@@ -4811,6 +4811,9 @@ bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
         if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
             return false;
         }
+        if (qiov->iov[i].iov_len % bs->buffer_alignment) {
+            return false;
+        }
     }
 
     return true;
