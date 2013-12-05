@@ -3025,13 +3025,13 @@ fi
 
 ##########################################
 # Do we have libiscsi
-# We check for iscsi_unmap_sync() to make sure we have a
-# recent enough version of libiscsi.
+# We check for iscsi_write16_sync() to make sure we have a
+# at least version 1.4.0 of libiscsi.
 if test "$libiscsi" != "no" ; then
   cat > $TMPC << EOF
 #include <stdio.h>
 #include <iscsi/iscsi.h>
-int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
+int main(void) { iscsi_write16_sync(NULL,0,0,NULL,0,0,0,0,0,0,0); return 0; }
 EOF
   if $pkg_config --atleast-version=1.7.0 libiscsi; then
     libiscsi="yes"
