@@ -2667,11 +2667,6 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, (uint8_t *)buf, nb_sectors, true, 0);
 }
 
-int bdrv_writev(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov)
-{
-    return bdrv_prwv_co(bs, sector_num << BDRV_SECTOR_BITS, qiov, true, 0);
-}
-
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                       int nb_sectors, BdrvRequestFlags flags)
 {
@@ -2745,69 +2740,28 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset, void *buf, int bytes)
 
 int bdrv_pwritev(BlockDriverState *bs, int64_t offset, QEMUIOVector *qiov)
 {
-    uint8_t tmp_buf[BDRV_SECTOR_SIZE];
-    int len, nb_sectors, count;
-    int64_t sector_num;
     int ret;
 
-    count = qiov->size;
-
-    /* first write to align to sector start */
-    len = (BDRV_SECTOR_SIZE - offset) & (BDRV_SECTOR_SIZE - 1);
-    if (len > count)
-        len = count;
-    sector_num = offset >> BDRV_SECTOR_BITS;
-    if (len > 0) {
-        if ((ret = bdrv_read(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-        qemu_iovec_to_buf(qiov, 0, tmp_buf + (offset & (BDRV_SECTOR_SIZE - 1)),
-                          len);
-        if ((ret = bdrv_write(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-        count -= len;
-        if (count == 0)
-            return qiov->size;
-        sector_num++;
+    ret = bdrv_prwv_co(bs, offset, qiov, true, 0);
+    if (ret < 0) {
+        return ret;
     }
 
-    /* write the sectors "in place" */
-    nb_sectors = count >> BDRV_SECTOR_BITS;
-    if (nb_sectors > 0) {
-        QEMUIOVector qiov_inplace;
-
-        qemu_iovec_init(&qiov_inplace, qiov->niov);
-        qemu_iovec_concat(&qiov_inplace, qiov, len,
-                          nb_sectors << BDRV_SECTOR_BITS);
-        ret = bdrv_writev(bs, sector_num, &qiov_inplace);
-        qemu_iovec_destroy(&qiov_inplace);
-        if (ret < 0) {
-            return ret;
-        }
-
-        sector_num += nb_sectors;
-        len = nb_sectors << BDRV_SECTOR_BITS;
-        count -= len;
-    }
-
-    /* add data from the last sector */
-    if (count > 0) {
-        if ((ret = bdrv_read(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-        qemu_iovec_to_buf(qiov, qiov->size - count, tmp_buf, count);
-        if ((ret = bdrv_write(bs, sector_num, tmp_buf, 1)) < 0)
-            return ret;
-    }
     return qiov->size;
 }
 
 int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
-                const void *buf, int count1)
+                const void *buf, int bytes)
 {
     QEMUIOVector qiov;
     struct iovec iov = {
         .iov_base   = (void *) buf,
-        .iov_len    = count1,
+        .iov_len    = bytes,
     };
+
+    if (bytes < 0) {
+        return -EINVAL;
+    }
 
     qemu_iovec_init_external(&qiov, &iov, 1);
     return bdrv_pwritev(bs, offset, &qiov);
