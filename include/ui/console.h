@@ -54,9 +54,6 @@ int kbd_mouse_is_absolute(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 
-/* Of all the mice, is there one that generates absolute events */
-int kbd_mouse_has_absolute(void);
-
 struct MouseTransformInfo {
     /* Touchscreen resolution */
     int x;

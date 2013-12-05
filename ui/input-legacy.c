@@ -366,20 +366,16 @@ void qemu_remove_kbd_event_handler(QEMUPutKbdEntry *entry)
 
 static void check_mode_change(void)
 {
-    static int current_is_absolute, current_has_absolute;
+    static int current_is_absolute;
     int is_absolute;
-    int has_absolute;
 
     is_absolute = kbd_mouse_is_absolute();
-    has_absolute = kbd_mouse_has_absolute();
 
-    if (is_absolute != current_is_absolute ||
-        has_absolute != current_has_absolute) {
+    if (is_absolute != current_is_absolute) {
         notifier_list_notify(&mouse_mode_notifiers, NULL);
     }
 
     current_is_absolute = is_absolute;
-    current_has_absolute = has_absolute;
 }
 
 static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
@@ -565,19 +561,6 @@ int kbd_mouse_is_absolute(void)
     }
 
     return QTAILQ_FIRST(&mouse_handlers)->qemu_put_mouse_event_absolute;
-}
-
-int kbd_mouse_has_absolute(void)
-{
-    QEMUPutMouseEntry *entry;
-
-    QTAILQ_FOREACH(entry, &mouse_handlers, node) {
-        if (entry->qemu_put_mouse_event_absolute) {
-            return 1;
-        }
-    }
-
-    return 0;
 }
 
 MouseInfoList *qmp_query_mice(Error **errp)
