@@ -61,8 +61,8 @@ struct M48t59State {
     time_t   stop_time;
     /* Alarm & watchdog */
     struct tm alarm;
-    struct QEMUTimer *alrm_timer;
-    struct QEMUTimer *wd_timer;
+    QEMUTimer *alrm_timer;
+    QEMUTimer *wd_timer;
     /* NVRAM storage */
     uint8_t *buffer;
     /* Model parameters */

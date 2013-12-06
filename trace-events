@@ -1010,6 +1010,8 @@ dma_map_wait(void *dbs) "dbs=%p"
 
 # ui/console.c
 console_gfx_new(void) ""
+console_putchar_csi(int esc_param0, int esc_param1, int ch, int nb_esc_params) "escape sequence CSI%d;%d%c, %d parameters"
+console_putchar_unhandled(int ch) "unhandled escape character '%c'"
 console_txt_new(int w, int h) "%dx%d"
 console_select(int nr) "%d"
 console_refresh(int interval) "interval %d ms"
@@ -1019,6 +1021,11 @@ displaysurface_free(void *display_surface) "surface=%p"
 displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
 displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
+
+# ui/gtk.c
+gd_switch(int width, int height) "width=%d, height=%d"
+gd_update(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
+gd_key_event(int gdk_keycode, int qemu_keycode, const char *action) "translated GDK keycode %d to QEMU keycode %d (%s)"
 
 # hw/display/vmware_vga.c
 vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"

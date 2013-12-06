@@ -64,10 +64,10 @@ typedef struct booke_timer_t booke_timer_t;
 struct booke_timer_t {
 
     uint64_t fit_next;
-    struct QEMUTimer *fit_timer;
+    QEMUTimer *fit_timer;
 
     uint64_t wdt_next;
-    struct QEMUTimer *wdt_timer;
+    QEMUTimer *wdt_timer;
 
     uint32_t flags;
 };

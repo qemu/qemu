@@ -65,13 +65,13 @@ struct SerialState {
     /* Interrupt trigger level for recv_fifo */
     uint8_t recv_fifo_itl;
 
-    struct QEMUTimer *fifo_timeout_timer;
+    QEMUTimer *fifo_timeout_timer;
     int timeout_ipending;           /* timeout interrupt pending state */
 
     uint64_t char_transmit_time;    /* time to transmit a char in ticks */
     int poll_msl;
 
-    struct QEMUTimer *modem_status_poll;
+    QEMUTimer *modem_status_poll;
     MemoryRegion io;
 };
 

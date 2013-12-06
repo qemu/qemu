@@ -42,8 +42,8 @@ static QError *qerror_new(void)
  *
  * Return strong reference.
  */
-static QError *qerror_from_info(ErrorClass err_class, const char *fmt,
-                                va_list *va)
+static QError * GCC_FMT_ATTR(2, 0)
+qerror_from_info(ErrorClass err_class, const char *fmt, va_list *va)
 {
     QError *qerr;
 

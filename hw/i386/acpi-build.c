@@ -285,7 +285,8 @@ static inline void build_append_array(GArray *array, GArray *val)
     g_array_append_vals(array, val->data, val->len);
 }
 
-static void build_append_nameseg(GArray *array, const char *format, ...)
+static void GCC_FMT_ATTR(2, 3)
+build_append_nameseg(GArray *array, const char *format, ...)
 {
     /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
     char s[] = "XXXX";
@@ -630,7 +631,7 @@ build_append_notify(GArray *device, const char *name,
     GArray *method = build_alloc_array();
     uint8_t op = 0x14; /* MethodOp */
 
-    build_append_nameseg(method, name);
+    build_append_nameseg(method, "%s", name);
     build_append_byte(method, 0x02); /* MethodFlags: ArgCount */
     for (i = skip; i < count; i++) {
         GArray *target = build_alloc_array();
