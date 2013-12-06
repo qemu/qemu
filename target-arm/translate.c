@@ -4553,7 +4553,7 @@ static void gen_neon_narrow_op(int op, int u, int size,
 #define NEON_3R_FLOAT_CMP 28 /* float VCEQ, VCGE, VCGT */
 #define NEON_3R_FLOAT_ACMP 29 /* float VACGE, VACGT, VACLE, VACLT */
 #define NEON_3R_FLOAT_MINMAX 30 /* float VMIN, VMAX */
-#define NEON_3R_VRECPS_VRSQRTS 31 /* float VRECPS, VRSQRTS */
+#define NEON_3R_FLOAT_MISC 31 /* float VRECPS, VRSQRTS, VMAXNM/MINNM */
 
 static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_VHADD] = 0x7,
@@ -4586,7 +4586,7 @@ static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_FLOAT_CMP] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_ACMP] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MINMAX] = 0x5, /* size bit 1 encodes op */
-    [NEON_3R_VRECPS_VRSQRTS] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_MISC] = 0x5, /* size bit 1 encodes op */
 };
 
 /* Symbolic constants for op fields for Neon 2-register miscellaneous.
@@ -4847,8 +4847,9 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 return 1;
             }
             break;
-        case NEON_3R_VRECPS_VRSQRTS:
-            if (u) {
+        case NEON_3R_FLOAT_MISC:
+            /* VMAXNM/VMINNM in ARMv8 */
+            if (u && !arm_feature(env, ARM_FEATURE_V8)) {
                 return 1;
             }
             break;
@@ -5137,11 +5138,23 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
             tcg_temp_free_ptr(fpstatus);
             break;
         }
-        case NEON_3R_VRECPS_VRSQRTS:
-            if (size == 0)
-                gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
-            else
-                gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
+        case NEON_3R_FLOAT_MISC:
+            if (u) {
+                /* VMAXNM/VMINNM */
+                TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                if (size == 0) {
+                    gen_helper_vfp_maxnms(tmp, tmp, tmp2, fpstatus);
+                } else {
+                    gen_helper_vfp_minnms(tmp, tmp, tmp2, fpstatus);
+                }
+                tcg_temp_free_ptr(fpstatus);
+            } else {
+                if (size == 0) {
+                    gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
+                } else {
+                    gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
+              }
+            }
             break;
         case NEON_3R_VFM:
         {
