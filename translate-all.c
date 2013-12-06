@@ -703,11 +703,10 @@ void tb_flush(CPUArchState *env1)
     CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
-        memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
+        memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
     }
 
-    memset(tcg_ctx.tb_ctx.tb_phys_hash, 0,
-            CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
+    memset(tcg_ctx.tb_ctx.tb_phys_hash, 0, sizeof(tcg_ctx.tb_ctx.tb_phys_hash));
     page_flush_tb();
 
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
