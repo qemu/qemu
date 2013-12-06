@@ -39,21 +39,6 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
-    def cancel_and_wait(self, drive='drive0'):
-        '''Cancel a block job and wait for it to finish'''
-        result = self.vm.qmp('block-job-cancel', device=drive)
-        self.assert_qmp(result, 'return', {})
-
-        cancelled = False
-        while not cancelled:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_CANCELLED':
-                    self.assert_qmp(event, 'data/type', 'commit')
-                    self.assert_qmp(event, 'data/device', drive)
-                    cancelled = True
-
-        self.assert_no_active_commit()
-
 class TestSingleDrive(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024
     test_len = 1 * 1024 * 256
@@ -243,6 +228,7 @@ class TestSetSpeed(ImageCommitTestCase):
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_io('-c', 'write -P 0x1 0 512', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -255,6 +241,7 @@ class TestSetSpeed(ImageCommitTestCase):
     def test_set_speed(self):
         self.assert_no_active_commit()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('block-commit', device='drive0', top=mid_img, speed=1024 * 1024)
         self.assert_qmp(result, 'return', {})
 
@@ -263,7 +250,7 @@ class TestSetSpeed(ImageCommitTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 1024 * 1024)
 
-        self.cancel_and_wait()
+        self.cancel_and_wait(resume=True)
 
 
 if __name__ == '__main__':

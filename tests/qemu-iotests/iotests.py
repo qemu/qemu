@@ -107,6 +107,19 @@ class VM(object):
         self._num_drives += 1
         return self
 
+    def pause_drive(self, drive, event=None):
+        '''Pause drive r/w operations'''
+        if not event:
+            self.pause_drive(drive, "read_aio")
+            self.pause_drive(drive, "write_aio")
+            return
+        self.qmp('human-monitor-command',
+                    command_line='qemu-io %s "break %s bp_%s"' % (drive, event, drive))
+
+    def resume_drive(self, drive):
+        self.qmp('human-monitor-command',
+                    command_line='qemu-io %s "remove_break bp_%s"' % (drive, drive))
+
     def hmp_qemu_io(self, drive, cmd):
         '''Write to a given drive using an HMP command'''
         return self.qmp('human-monitor-command',
@@ -222,10 +235,13 @@ class QMPTestCase(unittest.TestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
-    def cancel_and_wait(self, drive='drive0', force=False):
+    def cancel_and_wait(self, drive='drive0', force=False, resume=False):
         '''Cancel a block job and wait for it to finish, returning the event'''
         result = self.vm.qmp('block-job-cancel', device=drive, force=force)
         self.assert_qmp(result, 'return', {})
+
+        if resume:
+            self.vm.resume_drive(drive)
 
         cancelled = False
         result = None

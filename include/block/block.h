@@ -18,6 +18,22 @@ typedef struct BlockDriverInfo {
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
     bool is_dirty;
+    /*
+     * True if unallocated blocks read back as zeroes. This is equivalent
+     * to the the LBPRZ flag in the SCSI logical block provisioning page.
+     */
+    bool unallocated_blocks_are_zero;
+    /*
+     * True if the driver can optimize writing zeroes by unmapping
+     * sectors. This is equivalent to the BLKDISCARDZEROES ioctl in Linux
+     * with the difference that in qemu a discard is allowed to silently
+     * fail. Therefore we have to use bdrv_write_zeroes with the
+     * BDRV_REQ_MAY_UNMAP flag for an optimized zero write with unmapping.
+     * After this call the driver has to guarantee that the contents read
+     * back as zero. It is additionally required that the block device is
+     * opened with BDRV_O_UNMAP flag for this to work.
+     */
+    bool can_write_zeroes_with_unmap;
 } BlockDriverInfo;
 
 typedef struct BlockFragInfo {
@@ -61,6 +77,18 @@ typedef struct BlockDevOps {
      */
     void (*resize_cb)(void *opaque);
 } BlockDevOps;
+
+typedef enum {
+    BDRV_REQ_COPY_ON_READ = 0x1,
+    BDRV_REQ_ZERO_WRITE   = 0x2,
+    /* The BDRV_REQ_MAY_UNMAP flag is used to indicate that the block driver
+     * is allowed to optimize a write zeroes request by unmapping (discarding)
+     * blocks if it is guaranteed that the result will read back as
+     * zeroes. The flag is only passed to the driver if the block device is
+     * opened with BDRV_O_UNMAP.
+     */
+    BDRV_REQ_MAY_UNMAP    = 0x4,
+} BdrvRequestFlags;
 
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
@@ -187,7 +215,8 @@ int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-               int nb_sectors);
+               int nb_sectors, BdrvRequestFlags flags);
+int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_writev(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -209,7 +238,7 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
  * because it may allocate memory for the entire region.
  */
 int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors);
+    int nb_sectors, BdrvRequestFlags flags);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);
@@ -316,6 +345,8 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_co_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
+bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);
+bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);
 int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors, int *pnum);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
@@ -388,12 +419,16 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
 struct HBitmapIter;
-void bdrv_set_dirty_tracking(BlockDriverState *bs, int granularity);
-int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
+typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
+BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity);
+void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
+BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
+int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
-void bdrv_dirty_iter_init(BlockDriverState *bs, struct HBitmapIter *hbi);
-int64_t bdrv_get_dirty_count(BlockDriverState *bs);
+void bdrv_dirty_iter_init(BlockDriverState *bs,
+                          BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
+int64_t bdrv_get_dirty_count(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
 
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);
@@ -484,6 +519,7 @@ void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
 int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
                            const char *tag);
+int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 

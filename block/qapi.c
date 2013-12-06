@@ -204,12 +204,9 @@ void bdrv_query_info(BlockDriverState *bs,
         info->io_status = bs->iostatus;
     }
 
-    if (bs->dirty_bitmap) {
-        info->has_dirty = true;
-        info->dirty = g_malloc0(sizeof(*info->dirty));
-        info->dirty->count = bdrv_get_dirty_count(bs) * BDRV_SECTOR_SIZE;
-        info->dirty->granularity =
-         ((int64_t) BDRV_SECTOR_SIZE << hbitmap_granularity(bs->dirty_bitmap));
+    if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {
+        info->has_dirty_bitmaps = true;
+        info->dirty_bitmaps = bdrv_query_dirty_bitmaps(bs);
     }
 
     if (bs->drv) {

@@ -56,6 +56,7 @@ typedef struct IscsiLun {
     uint8_t lbprz;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
+    unsigned char *zeroblock;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -87,7 +88,6 @@ typedef struct IscsiAIOCB {
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES 5
-#define ISCSI_MAX_UNMAP 131072
 
 static void
 iscsi_bh_cb(void *p)
@@ -912,8 +912,6 @@ coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
     struct unmap_list list;
-    uint32_t nb_blocks;
-    uint32_t max_unmap;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
@@ -925,56 +923,101 @@ coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
     }
 
     list.lba = sector_qemu2lun(sector_num, iscsilun);
-    nb_blocks = sector_qemu2lun(nb_sectors, iscsilun);
+    list.num = sector_qemu2lun(nb_sectors, iscsilun);
 
-    max_unmap = iscsilun->bl.max_unmap;
-    if (max_unmap == 0xffffffff) {
-        max_unmap = ISCSI_MAX_UNMAP;
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
+retry:
+    if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
+                     iscsi_co_generic_cb, &iTask) == NULL) {
+        return -EIO;
     }
 
-    while (nb_blocks > 0) {
-        iscsi_co_init_iscsitask(iscsilun, &iTask);
-        list.num = nb_blocks;
-        if (list.num > max_unmap) {
-            list.num = max_unmap;
-        }
-retry:
-        if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
-                         iscsi_co_generic_cb, &iTask) == NULL) {
-            return -EIO;
-        }
+    while (!iTask.complete) {
+        iscsi_set_events(iscsilun);
+        qemu_coroutine_yield();
+    }
 
-        while (!iTask.complete) {
-            iscsi_set_events(iscsilun);
-            qemu_coroutine_yield();
-        }
+    if (iTask.task != NULL) {
+        scsi_free_scsi_task(iTask.task);
+        iTask.task = NULL;
+    }
 
-        if (iTask.task != NULL) {
-            scsi_free_scsi_task(iTask.task);
-            iTask.task = NULL;
-        }
+    if (iTask.do_retry) {
+        goto retry;
+    }
 
-        if (iTask.do_retry) {
-            goto retry;
-        }
+    if (iTask.status == SCSI_STATUS_CHECK_CONDITION) {
+        /* the target might fail with a check condition if it
+           is not happy with the alignment of the UNMAP request
+           we silently fail in this case */
+        return 0;
+    }
 
-        if (iTask.status == SCSI_STATUS_CHECK_CONDITION) {
-            /* the target might fail with a check condition if it
-               is not happy with the alignment of the UNMAP request
-               we silently fail in this case */
-            return 0;
-        }
-
-        if (iTask.status != SCSI_STATUS_GOOD) {
-            return -EIO;
-        }
-
-        list.lba += list.num;
-        nb_blocks -= list.num;
+    if (iTask.status != SCSI_STATUS_GOOD) {
+        return -EIO;
     }
 
     return 0;
 }
+
+#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
+
+static int
+coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
+                                   int nb_sectors, BdrvRequestFlags flags)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct IscsiTask iTask;
+    uint64_t lba;
+    uint32_t nb_blocks;
+
+    if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return -EINVAL;
+    }
+
+    if (!iscsilun->lbp.lbpws) {
+        /* WRITE SAME is not supported by the target */
+        return -ENOTSUP;
+    }
+
+    lba = sector_qemu2lun(sector_num, iscsilun);
+    nb_blocks = sector_qemu2lun(nb_sectors, iscsilun);
+
+    if (iscsilun->zeroblock == NULL) {
+        iscsilun->zeroblock = g_malloc0(iscsilun->block_size);
+    }
+
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
+retry:
+    if (iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
+                               iscsilun->zeroblock, iscsilun->block_size,
+                               nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
+                               0, 0, iscsi_co_generic_cb, &iTask) == NULL) {
+        return -EIO;
+    }
+
+    while (!iTask.complete) {
+        iscsi_set_events(iscsilun);
+        qemu_coroutine_yield();
+    }
+
+    if (iTask.task != NULL) {
+        scsi_free_scsi_task(iTask.task);
+        iTask.task = NULL;
+    }
+
+    if (iTask.do_retry) {
+        goto retry;
+    }
+
+    if (iTask.status != SCSI_STATUS_GOOD) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+#endif /* SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED */
 
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
 {
@@ -1384,6 +1427,20 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                sizeof(struct scsi_inquiry_block_limits));
         scsi_free_scsi_task(task);
         task = NULL;
+
+        if (iscsilun->bl.max_unmap < 0xffffffff) {
+            bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
+                                                 iscsilun);
+        }
+        bs->bl.discard_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
+                                                   iscsilun);
+
+        if (iscsilun->bl.max_ws_len < 0xffffffff) {
+            bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
+                                                      iscsilun);
+        }
+        bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
+                                                        iscsilun);
     }
 
 #if defined(LIBISCSI_FEATURE_NOP_COUNTER)
@@ -1424,6 +1481,7 @@ static void iscsi_close(BlockDriverState *bs)
     }
     qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
+    g_free(iscsilun->zeroblock);
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
@@ -1506,6 +1564,14 @@ out:
     return ret;
 }
 
+static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    bdi->unallocated_blocks_are_zero = !!iscsilun->lbprz;
+    bdi->can_write_zeroes_with_unmap = iscsilun->lbprz && iscsilun->lbp.lbpws;
+    return 0;
+}
+
 static QEMUOptionParameter iscsi_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -1527,12 +1593,16 @@ static BlockDriver bdrv_iscsi = {
     .create_options  = iscsi_create_options,
 
     .bdrv_getlength  = iscsi_getlength,
+    .bdrv_get_info   = iscsi_get_info,
     .bdrv_truncate   = iscsi_truncate,
 
 #if defined(LIBISCSI_FEATURE_IOVECTOR)
     .bdrv_co_get_block_status = iscsi_co_get_block_status,
 #endif
     .bdrv_co_discard      = iscsi_co_discard,
+#if defined(SCSI_SENSE_ASCQ_CAPACITY_DATA_HAS_CHANGED)
+    .bdrv_co_write_zeroes = iscsi_co_write_zeroes,
+#endif
 
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,

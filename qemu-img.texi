@@ -193,6 +193,12 @@ Image conversion is also useful to get smaller image when using a
 growable format such as @code{qcow} or @code{cow}: the empty sectors
 are detected and suppressed from the destination image.
 
+@var{sparse_size} indicates the consecutive number of bytes (defaults to 4k)
+that must contain only zeros for qemu-img to create a sparse image during
+conversion. If @var{sparse_size} is 0, the source will not be scanned for
+unallocated or zero sectors, and the destination image will always be
+fully allocated.
+
 You can use the @var{backing_file} option to force the output image to be
 created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,

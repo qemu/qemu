@@ -58,6 +58,7 @@ typedef struct BlkMigDevState {
     /* Protected by block migration lock.  */
     unsigned long *aio_bitmap;
     int64_t completed_sectors;
+    BdrvDirtyBitmap *dirty_bitmap;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
@@ -309,12 +310,21 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 
 /* Called with iothread lock taken.  */
 
-static void set_dirty_tracking(int enable)
+static void set_dirty_tracking(void)
 {
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bdrv_set_dirty_tracking(bmds->bs, enable ? BLOCK_SIZE : 0);
+        bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE);
+    }
+}
+
+static void unset_dirty_tracking(void)
+{
+    BlkMigDevState *bmds;
+
+    QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
+        bdrv_release_dirty_bitmap(bmds->bs, bmds->dirty_bitmap);
     }
 }
 
@@ -432,7 +442,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
         } else {
             blk_mig_unlock();
         }
-        if (bdrv_get_dirty(bmds->bs, sector)) {
+        if (bdrv_get_dirty(bmds->bs, bmds->dirty_bitmap, sector)) {
 
             if (total_sectors - sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
                 nr_sectors = total_sectors - sector;
@@ -554,7 +564,7 @@ static int64_t get_remaining_dirty(void)
     int64_t dirty = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        dirty += bdrv_get_dirty_count(bmds->bs);
+        dirty += bdrv_get_dirty_count(bmds->bs, bmds->dirty_bitmap);
     }
 
     return dirty << BDRV_SECTOR_BITS;
@@ -569,7 +579,7 @@ static void blk_mig_cleanup(void)
 
     bdrv_drain_all();
 
-    set_dirty_tracking(0);
+    unset_dirty_tracking();
 
     blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
@@ -604,7 +614,7 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     init_blk_migration(f);
 
     /* start track dirty blocks */
-    set_dirty_tracking(1);
+    set_dirty_tracking();
     qemu_mutex_unlock_iothread();
 
     ret = flush_blks(f);
@@ -780,7 +790,8 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             }
 
             if (flags & BLK_MIG_FLAG_ZERO_BLOCK) {
-                ret = bdrv_write_zeroes(bs, addr, nr_sectors);
+                ret = bdrv_write_zeroes(bs, addr, nr_sectors,
+                                        BDRV_REQ_MAY_UNMAP);
             } else {
                 buf = g_malloc(BLOCK_SIZE);
                 qemu_get_buffer(f, buf, BLOCK_SIZE);

@@ -1397,7 +1397,8 @@ static void coroutine_fn qed_co_write_zeroes_cb(void *opaque, int ret)
 
 static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
                                                  int64_t sector_num,
-                                                 int nb_sectors)
+                                                 int nb_sectors,
+                                                 BdrvRequestFlags flags)
 {
     BlockDriverAIOCB *blockacb;
     BDRVQEDState *s = bs->opaque;
