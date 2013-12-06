@@ -428,6 +428,25 @@ _syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
           struct host_rlimit64 *, old_limit)
 #endif
 
+
+#if defined(TARGET_NR_timer_create)
+/* Maxiumum of 32 active POSIX timers allowed at any one time. */
+static timer_t g_posix_timers[32] = { 0, } ;
+
+static inline int next_free_host_timer(void)
+{
+    int k ;
+    /* FIXME: Does finding the next free slot require a lock? */
+    for (k = 0; k < ARRAY_SIZE(g_posix_timers); k++) {
+        if (g_posix_timers[k] == 0) {
+            g_posix_timers[k] = (timer_t) 1;
+            return k;
+        }
+    }
+    return -1;
+}
+#endif
+
 /* ARM EABI and MIPS expect 64bit types aligned even on pairs or registers */
 #ifdef TARGET_ARM
 static inline int regpairs_aligned(void *cpu_env) {
@@ -2417,21 +2436,6 @@ static struct shm_region {
     abi_ulong	size;
 } shm_regions[N_SHM_REGIONS];
 
-struct target_ipc_perm
-{
-    abi_long __key;
-    abi_ulong uid;
-    abi_ulong gid;
-    abi_ulong cuid;
-    abi_ulong cgid;
-    unsigned short int mode;
-    unsigned short int __pad1;
-    unsigned short int __seq;
-    unsigned short int __pad2;
-    abi_ulong __unused1;
-    abi_ulong __unused2;
-};
-
 struct target_semid_ds
 {
   struct target_ipc_perm sem_perm;
@@ -2453,12 +2457,21 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    host_ip->__key = tswapal(target_ip->__key);
-    host_ip->uid = tswapal(target_ip->uid);
-    host_ip->gid = tswapal(target_ip->gid);
-    host_ip->cuid = tswapal(target_ip->cuid);
-    host_ip->cgid = tswapal(target_ip->cgid);
+    host_ip->__key = tswap32(target_ip->__key);
+    host_ip->uid = tswap32(target_ip->uid);
+    host_ip->gid = tswap32(target_ip->gid);
+    host_ip->cuid = tswap32(target_ip->cuid);
+    host_ip->cgid = tswap32(target_ip->cgid);
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+    host_ip->mode = tswap32(target_ip->mode);
+#else
     host_ip->mode = tswap16(target_ip->mode);
+#endif
+#if defined(TARGET_PPC)
+    host_ip->__seq = tswap32(target_ip->__seq);
+#else
+    host_ip->__seq = tswap16(target_ip->__seq);
+#endif
     unlock_user_struct(target_sd, target_addr, 0);
     return 0;
 }
@@ -2472,12 +2485,21 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    target_ip->__key = tswapal(host_ip->__key);
-    target_ip->uid = tswapal(host_ip->uid);
-    target_ip->gid = tswapal(host_ip->gid);
-    target_ip->cuid = tswapal(host_ip->cuid);
-    target_ip->cgid = tswapal(host_ip->cgid);
+    target_ip->__key = tswap32(host_ip->__key);
+    target_ip->uid = tswap32(host_ip->uid);
+    target_ip->gid = tswap32(host_ip->gid);
+    target_ip->cuid = tswap32(host_ip->cuid);
+    target_ip->cgid = tswap32(host_ip->cgid);
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+    target_ip->mode = tswap32(host_ip->mode);
+#else
     target_ip->mode = tswap16(host_ip->mode);
+#endif
+#if defined(TARGET_PPC)
+    target_ip->__seq = tswap32(host_ip->__seq);
+#else
+    target_ip->__seq = tswap16(host_ip->__seq);
+#endif
     unlock_user_struct(target_sd, target_addr, 1);
     return 0;
 }
@@ -2908,29 +2930,6 @@ end:
     return ret;
 }
 
-struct target_shmid_ds
-{
-    struct target_ipc_perm shm_perm;
-    abi_ulong shm_segsz;
-    abi_ulong shm_atime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused1;
-#endif
-    abi_ulong shm_dtime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused2;
-#endif
-    abi_ulong shm_ctime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused3;
-#endif
-    int shm_cpid;
-    int shm_lpid;
-    abi_ulong shm_nattch;
-    unsigned long int __unused4;
-    unsigned long int __unused5;
-};
-
 static inline abi_long target_to_host_shmid_ds(struct shmid_ds *host_sd,
                                                abi_ulong target_addr)
 {
@@ -3216,7 +3215,7 @@ static abi_long do_ipc(unsigned int call, int first,
 
 	/* IPC_* and SHM_* command values are the same on all linux platforms */
     case IPCOP_shmctl:
-        ret = do_shmctl(first, second, third);
+        ret = do_shmctl(first, second, ptr);
         break;
     default:
 	gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
@@ -4835,6 +4834,45 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     target_ts->tv_sec = tswapal(host_ts->tv_sec);
     target_ts->tv_nsec = tswapal(host_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 1);
+    return 0;
+}
+
+static inline abi_long target_to_host_itimerspec(struct itimerspec *host_itspec,
+                                                 abi_ulong target_addr)
+{
+    struct target_itimerspec *target_itspec;
+
+    if (!lock_user_struct(VERIFY_READ, target_itspec, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    host_itspec->it_interval.tv_sec =
+                            tswapal(target_itspec->it_interval.tv_sec);
+    host_itspec->it_interval.tv_nsec =
+                            tswapal(target_itspec->it_interval.tv_nsec);
+    host_itspec->it_value.tv_sec = tswapal(target_itspec->it_value.tv_sec);
+    host_itspec->it_value.tv_nsec = tswapal(target_itspec->it_value.tv_nsec);
+
+    unlock_user_struct(target_itspec, target_addr, 1);
+    return 0;
+}
+
+static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
+                                               struct itimerspec *host_its)
+{
+    struct target_itimerspec *target_itspec;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_itspec, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    target_itspec->it_interval.tv_sec = tswapal(host_its->it_interval.tv_sec);
+    target_itspec->it_interval.tv_nsec = tswapal(host_its->it_interval.tv_nsec);
+
+    target_itspec->it_value.tv_sec = tswapal(host_its->it_value.tv_sec);
+    target_itspec->it_value.tv_nsec = tswapal(host_its->it_value.tv_nsec);
+
+    unlock_user_struct(target_itspec, target_addr, 0);
     return 0;
 }
 
@@ -9195,6 +9233,124 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+
+#ifdef TARGET_NR_timer_create
+    case TARGET_NR_timer_create:
+    {
+        /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
+
+        struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
+        struct target_sigevent *ptarget_sevp;
+        struct target_timer_t *ptarget_timer;
+
+        int clkid = arg1;
+        int timer_index = next_free_host_timer();
+
+        if (timer_index < 0) {
+            ret = -TARGET_EAGAIN;
+        } else {
+            timer_t *phtimer = g_posix_timers  + timer_index;
+
+            if (arg2) {
+                if (!lock_user_struct(VERIFY_READ, ptarget_sevp, arg2, 1)) {
+                    goto efault;
+                }
+
+                host_sevp.sigev_signo = tswap32(ptarget_sevp->sigev_signo);
+                host_sevp.sigev_notify = tswap32(ptarget_sevp->sigev_notify);
+
+                phost_sevp = &host_sevp;
+            }
+
+            ret = get_errno(timer_create(clkid, phost_sevp, phtimer));
+            if (ret) {
+                phtimer = NULL;
+            } else {
+                if (!lock_user_struct(VERIFY_WRITE, ptarget_timer, arg3, 1)) {
+                    goto efault;
+                }
+                ptarget_timer->ptr = tswap32(0xcafe0000 | timer_index);
+                unlock_user_struct(ptarget_timer, arg3, 1);
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_settime
+    case TARGET_NR_timer_settime:
+    {
+        /* args: timer_t timerid, int flags, const struct itimerspec *new_value,
+         * struct itimerspec * old_value */
+        arg1 &= 0xffff;
+        if (arg3 == 0 || arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
+
+            target_to_host_itimerspec(&hspec_new, arg3);
+            ret = get_errno(
+                          timer_settime(htimer, arg2, &hspec_new, &hspec_old));
+            host_to_target_itimerspec(arg2, &hspec_old);
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_gettime
+    case TARGET_NR_timer_gettime:
+    {
+        /* args: timer_t timerid, struct itimerspec *curr_value */
+        arg1 &= 0xffff;
+        if (!arg2) {
+            return -TARGET_EFAULT;
+        } else if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            struct itimerspec hspec;
+            ret = get_errno(timer_gettime(htimer, &hspec));
+
+            if (host_to_target_itimerspec(arg2, &hspec)) {
+                ret = -TARGET_EFAULT;
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_getoverrun
+    case TARGET_NR_timer_getoverrun:
+    {
+        /* args: timer_t timerid */
+        arg1 &= 0xffff;
+        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            ret = get_errno(timer_getoverrun(htimer));
+        }
+        break;
+    }
+#endif
+
+#ifdef TARGET_NR_timer_delete
+    case TARGET_NR_timer_delete:
+    {
+        /* args: timer_t timerid */
+        arg1 &= 0xffff;
+        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+            ret = -TARGET_EINVAL;
+        } else {
+            timer_t htimer = g_posix_timers[arg1];
+            ret = get_errno(timer_delete(htimer));
+            g_posix_timers[arg1] = 0;
+        }
+        break;
+    }
+#endif
+
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
