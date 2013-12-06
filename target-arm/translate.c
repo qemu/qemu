@@ -2636,6 +2636,14 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             && rn != ARM_VFP_MVFR1 && rn != ARM_VFP_MVFR0)
             return 1;
     }
+
+    if (extract32(insn, 28, 4) == 0xf) {
+        /* Encodings with T=1 (Thumb) or unconditional (ARM):
+         * only used in v8 and above.
+         */
+        return 1;
+    }
+
     dp = ((insn & 0xf00) == 0xb00);
     switch ((insn >> 24) & 0xf) {
     case 0xe:
@@ -6296,9 +6304,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 	    return disas_dsp_insn(env, s, insn);
 	}
 	return 1;
-    case 10:
-    case 11:
-	return disas_vfp_insn (env, s, insn);
     default:
         break;
     }
@@ -6751,6 +6756,13 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
 
             if (disas_neon_ls_insn(env, s, insn))
                 goto illegal_op;
+            return;
+        }
+        if ((insn & 0x0f000e10) == 0x0e000a00) {
+            /* VFP.  */
+            if (disas_vfp_insn(env, s, insn)) {
+                goto illegal_op;
+            }
             return;
         }
         if (((insn & 0x0f30f000) == 0x0510f000) ||
@@ -8033,9 +8045,15 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         case 0xc:
         case 0xd:
         case 0xe:
-            /* Coprocessor.  */
-            if (disas_coproc_insn(env, s, insn))
+            if (((insn >> 8) & 0xe) == 10) {
+                /* VFP.  */
+                if (disas_vfp_insn(env, s, insn)) {
+                    goto illegal_op;
+                }
+            } else if (disas_coproc_insn(env, s, insn)) {
+                /* Coprocessor.  */
                 goto illegal_op;
+            }
             break;
         case 0xf:
             /* swi */
@@ -8765,6 +8783,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             insn = (insn & 0xe2ffffff) | ((insn & (1 << 28)) >> 4) | (1 << 28);
             if (disas_neon_data_insn(env, s, insn))
                 goto illegal_op;
+        } else if (((insn >> 8) & 0xe) == 10) {
+            if (disas_vfp_insn(env, s, insn)) {
+                goto illegal_op;
+            }
         } else {
             if (insn & (1 << 28))
                 goto illegal_op;
