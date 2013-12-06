@@ -52,6 +52,8 @@
 /* Extra debugging, trap acceleration paths for more logging */
 #define VFIO_ALLOW_MMAP 1
 #define VFIO_ALLOW_KVM_INTX 1
+#define VFIO_ALLOW_KVM_MSI 1
+#define VFIO_ALLOW_KVM_MSIX 1
 
 struct VFIODevice;
 
@@ -590,9 +592,21 @@ static void vfio_msi_interrupt(void *opaque)
         return;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) vector %d\n", __func__,
+#ifdef VFIO_DEBUG
+    MSIMessage msg;
+
+    if (vdev->interrupt == VFIO_INT_MSIX) {
+        msg = msi_get_message(&vdev->pdev, nr);
+    } else if (vdev->interrupt == VFIO_INT_MSI) {
+        msg = msix_get_message(&vdev->pdev, nr);
+    } else {
+        abort();
+    }
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) vector %d 0x%"PRIx64"/0x%x\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, nr);
+            vdev->host.function, nr, msg.address, msg.data);
+#endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
         msix_notify(&vdev->pdev, nr);
@@ -660,7 +674,8 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
      * Attempt to enable route through KVM irqchip,
      * default to userspace handling if unavailable.
      */
-    vector->virq = msg ? kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
+    vector->virq = msg && VFIO_ALLOW_KVM_MSIX ?
+                   kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
     if (vector->virq < 0 ||
         kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
                                        NULL, vector->virq) < 0) {
@@ -827,7 +842,8 @@ retry:
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vector->virq = kvm_irqchip_add_msi_route(kvm_state, vector->msg);
+        vector->virq = VFIO_ALLOW_KVM_MSI ?
+                       kvm_irqchip_add_msi_route(kvm_state, vector->msg) : -1;
         if (vector->virq < 0 ||
             kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
                                            NULL, vector->virq) < 0) {
