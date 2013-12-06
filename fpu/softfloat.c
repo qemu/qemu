@@ -6706,7 +6706,7 @@ int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
  * 'compare and pick one input' because that would mishandle
  * NaNs and +0 vs -0.
  */
-#define MINMAX(s, nan_exp)                                              \
+#define MINMAX(s)                                                       \
 INLINE float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
                                         int ismin STATUS_PARAM )        \
 {                                                                       \
@@ -6747,8 +6747,8 @@ float ## s float ## s ## _max(float ## s a, float ## s b STATUS_PARAM)  \
     return float ## s ## _minmax(a, b, 0 STATUS_VAR);                   \
 }
 
-MINMAX(32, 0xff)
-MINMAX(64, 0x7ff)
+MINMAX(32)
+MINMAX(64)
 
 
 /* Multiply A by 2 raised to the power N.  */
