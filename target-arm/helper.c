@@ -4085,3 +4085,28 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
     float_status *fpst = fpstp;
     return float64_muladd(a, b, c, 0, fpst);
 }
+
+/* ARMv8 VMAXNM/VMINNM */
+float32 VFP_HELPER(maxnm, s)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float32_maxnum(a, b, fpst);
+}
+
+float64 VFP_HELPER(maxnm, d)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float64_maxnum(a, b, fpst);
+}
+
+float32 VFP_HELPER(minnm, s)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float32_minnum(a, b, fpst);
+}
+
+float64 VFP_HELPER(minnm, d)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float64_minnum(a, b, fpst);
+}

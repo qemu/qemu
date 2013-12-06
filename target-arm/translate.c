@@ -2723,6 +2723,54 @@ static int handle_vsel(uint32_t insn, uint32_t rd, uint32_t rn, uint32_t rm,
     return 0;
 }
 
+static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
+                            uint32_t rm, uint32_t dp)
+{
+    uint32_t vmin = extract32(insn, 6, 1);
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+
+    if (dp) {
+        TCGv_i64 frn, frm, dest;
+
+        frn = tcg_temp_new_i64();
+        frm = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        tcg_gen_ld_f64(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f64(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnmd(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnmd(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f64(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(frn);
+        tcg_temp_free_i64(frm);
+        tcg_temp_free_i64(dest);
+    } else {
+        TCGv_i32 frn, frm, dest;
+
+        frn = tcg_temp_new_i32();
+        frm = tcg_temp_new_i32();
+        dest = tcg_temp_new_i32();
+
+        tcg_gen_ld_f32(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f32(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnms(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnms(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f32(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(frn);
+        tcg_temp_free_i32(frm);
+        tcg_temp_free_i32(dest);
+    }
+
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
 static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
@@ -2743,6 +2791,8 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 
     if ((insn & 0x0f800e50) == 0x0e000a00) {
         return handle_vsel(insn, rd, rn, rm, dp);
+    } else if ((insn & 0x0fb00e10) == 0x0e800a00) {
+        return handle_vminmaxnm(insn, rd, rn, rm, dp);
     }
     return 1;
 }
