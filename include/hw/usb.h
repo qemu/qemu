@@ -102,17 +102,26 @@
 
 #define DeviceRequest ((USB_DIR_IN|USB_TYPE_STANDARD|USB_RECIP_DEVICE)<<8)
 #define DeviceOutRequest ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_DEVICE)<<8)
-#define InterfaceRequest \
+#define VendorDeviceRequest ((USB_DIR_IN|USB_TYPE_VENDOR|USB_RECIP_DEVICE)<<8)
+#define VendorDeviceOutRequest \
+        ((USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_DEVICE)<<8)
+
+#define InterfaceRequest                                        \
         ((USB_DIR_IN|USB_TYPE_STANDARD|USB_RECIP_INTERFACE)<<8)
 #define InterfaceOutRequest \
         ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_INTERFACE)<<8)
-#define EndpointRequest ((USB_DIR_IN|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
-#define EndpointOutRequest \
-        ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
 #define ClassInterfaceRequest \
         ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_INTERFACE)<<8)
 #define ClassInterfaceOutRequest \
         ((USB_DIR_OUT|USB_TYPE_CLASS|USB_RECIP_INTERFACE)<<8)
+#define VendorInterfaceRequest \
+        ((USB_DIR_IN|USB_TYPE_VENDOR|USB_RECIP_INTERFACE)<<8)
+#define VendorInterfaceOutRequest \
+        ((USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE)<<8)
+
+#define EndpointRequest ((USB_DIR_IN|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
+#define EndpointOutRequest \
+        ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
 
 #define USB_REQ_GET_STATUS		0x00
 #define USB_REQ_CLEAR_FEATURE		0x01
@@ -189,6 +198,7 @@ struct USBEndpoint {
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
+    int max_streams;
     bool pipeline;
     bool halted;
     USBDevice *dev;
@@ -314,6 +324,14 @@ typedef struct USBDeviceClass {
      */
     void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
 
+    /*
+     * Called by the hcd to alloc / free streams on a bulk endpoint.
+     * Optional may be NULL.
+     */
+    int (*alloc_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                         int streams);
+    void (*free_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps);
+
     const char *product_desc;
     const USBDesc *usb_desc;
 } USBDeviceClass;
@@ -421,6 +439,8 @@ void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum);
 void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
+void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw);
+int usb_ep_get_max_streams(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
 void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted);
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
@@ -549,6 +569,10 @@ void usb_device_set_interface(USBDevice *dev, int interface,
 void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
 
 void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep);
+
+int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                             int streams);
+void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps);
 
 const char *usb_device_get_product_desc(USBDevice *dev);
 

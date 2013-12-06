@@ -6,16 +6,6 @@
 
 /* ------------------------------------------------------------------ */
 
-static uint8_t usb_lo(uint16_t val)
-{
-    return val & 0xff;
-}
-
-static uint8_t usb_hi(uint16_t val)
-{
-    return (val >> 8) & 0xff;
-}
-
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len)
 {
@@ -385,6 +375,8 @@ static void usb_desc_ep_init(USBDevice *dev)
             usb_ep_set_ifnum(dev, pid, ep, iface->bInterfaceNumber);
             usb_ep_set_max_packet_size(dev, pid, ep,
                                        iface->eps[e].wMaxPacketSize);
+            usb_ep_set_max_streams(dev, pid, ep,
+                                   iface->eps[e].bmAttributes_super);
         }
     }
 }

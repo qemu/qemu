@@ -194,6 +194,17 @@ struct USBDesc {
 
 #define USB_DESC_FLAG_SUPER (1 << 1)
 
+/* little helpers */
+static inline uint8_t usb_lo(uint16_t val)
+{
+    return val & 0xff;
+}
+
+static inline uint8_t usb_hi(uint16_t val)
+{
+    return (val >> 8) & 0xff;
+}
+
 /* generate usb packages from structs */
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len);
