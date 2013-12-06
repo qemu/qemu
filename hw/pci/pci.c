@@ -212,8 +212,9 @@ void pci_device_reset(PCIDevice *dev)
  * Trigger pci bus reset under a given bus.
  * To be called on RST# assert.
  */
-void pci_bus_reset(PCIBus *bus)
+static int pcibus_reset(BusState *qbus)
 {
+    PCIBus *bus = DO_UPCAST(PCIBus, qbus, qbus);
     int i;
 
     for (i = 0; i < bus->nirq; i++) {
@@ -224,11 +225,6 @@ void pci_bus_reset(PCIBus *bus)
             pci_device_reset(bus->devices[i]);
         }
     }
-}
-
-static int pcibus_reset(BusState *qbus)
-{
-    pci_bus_reset(DO_UPCAST(PCIBus, qbus, qbus));
 
     /* topology traverse is done by pci_bus_reset().
        Tell qbus/qdev walker not to traverse the tree */
