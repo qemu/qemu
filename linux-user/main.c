@@ -3663,26 +3663,6 @@ static int parse_args(int argc, char **argv)
     return optind;
 }
 
-static int get_execfd(char **envp)
-{
-    typedef struct {
-        long a_type;
-        long a_val;
-    } auxv_t;
-    auxv_t *auxv;
-
-    while (*envp++ != NULL) {
-        ;
-    }
-
-    for (auxv = (auxv_t *)envp; auxv->a_type != AT_NULL; auxv++) {
-        if (auxv->a_type == AT_EXECFD) {
-            return auxv->a_val;
-        }
-    }
-    return -1;
-}
-
 int main(int argc, char **argv, char **envp)
 {
     struct target_pt_regs regs1, *regs = &regs1;
@@ -3701,7 +3681,8 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qemu_cache_utils_init(envp);
+    qemu_init_auxval(envp);
+    qemu_cache_utils_init();
 
     if ((envlist = envlist_create()) == NULL) {
         (void) fprintf(stderr, "Unable to allocate envlist\n");
@@ -3875,13 +3856,13 @@ int main(int argc, char **argv, char **envp)
     env->opaque = ts;
     task_settid(ts);
 
-    execfd = get_execfd(envp);
-    if (execfd < 0) {
+    execfd = qemu_getauxval(AT_EXECFD);
+    if (execfd == 0) {
         execfd = open(filename, O_RDONLY);
-    }
-    if (execfd < 0) {
-        printf("Error while loading %s: %s\n", filename, strerror(-execfd));
-        _exit(1);
+        if (execfd < 0) {
+            printf("Error while loading %s: %s\n", filename, strerror(errno));
+            _exit(1);
+        }
     }
 
     ret = loader_exec(execfd, filename, target_argv, target_environ, regs,
