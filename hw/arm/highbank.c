@@ -126,7 +126,7 @@ typedef struct {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion *iomem;
+    MemoryRegion iomem;
     uint32_t regs[NUM_REGS];
 } HighbankRegsState;
 
@@ -155,10 +155,9 @@ static int highbank_regs_init(SysBusDevice *dev)
 {
     HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
 
-    s->iomem = g_new(MemoryRegion, 1);
-    memory_region_init_io(s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
+    memory_region_init_io(&s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
                           "highbank_regs", 0x1000);
-    sysbus_init_mmio(dev, s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
