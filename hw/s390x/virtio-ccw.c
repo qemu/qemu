@@ -30,13 +30,10 @@
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
-static int virtual_css_bus_reset(BusState *qbus)
+static void virtual_css_bus_reset(BusState *qbus)
 {
     /* This should actually be modelled via the generic css */
     css_reset();
-
-    /* we dont traverse ourself, return 0 */
-    return 0;
 }
 
 
