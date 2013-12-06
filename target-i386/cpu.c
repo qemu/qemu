@@ -2450,6 +2450,9 @@ static void x86_cpu_reset(CPUState *s)
     cpu_breakpoint_remove_all(env, BP_CPU);
     cpu_watchpoint_remove_all(env, BP_CPU);
 
+    env->tsc_adjust = 0;
+    env->tsc = 0;
+
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     if (s->cpu_index == 0) {
