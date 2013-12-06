@@ -1811,6 +1811,34 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIODevice *vdev, int nr)
             vdev->host.function);
 }
 
+static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
+                                          uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+    hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
+
+    vfio_generic_quirk_write(opaque, addr, data, size);
+
+    /*
+     * Nvidia seems to acknowledge MSI interrupts by writing 0xff to the
+     * MSI capability ID register.  Both the ID and next register are
+     * read-only, so we allow writes covering either of those to real hw.
+     * NB - only fixed for the 0x88000 MMIO window.
+     */
+    if ((pdev->cap_present & QEMU_PCI_CAP_MSI) &&
+        vfio_range_contained(addr, size, pdev->msi_cap, PCI_MSI_FLAGS)) {
+        vfio_bar_write(&vdev->bars[quirk->data.bar], addr + base, data, size);
+    }
+}
+
+static const MemoryRegionOps vfio_nvidia_88000_quirk = {
+    .read = vfio_generic_quirk_read,
+    .write = vfio_nvidia_88000_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 /*
  * Finally, BAR0 itself.  We want to redirect any accesses to either
  * 0x1800 or 0x88000 through the PCI config space access functions.
@@ -1837,7 +1865,7 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
     quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
     quirk->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_generic_quirk,
+    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_nvidia_88000_quirk,
                           quirk, "vfio-nvidia-bar0-88000-quirk",
                           TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
