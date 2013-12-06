@@ -1151,15 +1151,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
 #endif
     if (level == KVM_PUT_FULL_STATE) {
-        /*
-         * KVM is yet unable to synchronize TSC values of multiple VCPUs on
-         * writeback. Until this is fixed, we only write the offset to SMP
-         * guests after migration, desynchronizing the VCPUs, but avoiding
-         * huge jump-backs that would occur without any writeback at all.
-         */
-        if (smp_cpus == 1 || env->tsc != 0) {
-            kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
-        }
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
     }
     /*
      * The following MSRs have side effects on the guest or are too heavy
