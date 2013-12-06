@@ -905,7 +905,19 @@ static void vfio_disable_msi_common(VFIODevice *vdev)
 
 static void vfio_disable_msix(VFIODevice *vdev)
 {
+    int i;
+
     msix_unset_vector_notifiers(&vdev->pdev);
+
+    /*
+     * MSI-X will only release vectors if MSI-X is still enabled on the
+     * device, check through the rest and release it ourselves if necessary.
+     */
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        if (vdev->msi_vectors[i].use) {
+            vfio_msix_vector_release(&vdev->pdev, i);
+        }
+    }
 
     if (vdev->nr_vectors) {
         vfio_disable_irqindex(vdev, VFIO_PCI_MSIX_IRQ_INDEX);
