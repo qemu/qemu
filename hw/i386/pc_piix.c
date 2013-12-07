@@ -339,13 +339,24 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_1_7_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
-static QEMUMachine pc_i440fx_machine_v1_7 = {
-    PC_I440FX_1_7_MACHINE_OPTIONS,
-    .name = "pc-i440fx-1.7",
+#define PC_I440FX_2_0_MACHINE_OPTIONS                           \
+    PC_I440FX_MACHINE_OPTIONS,                                  \
+    .default_machine_opts = "firmware=bios-256k.bin"
+
+static QEMUMachine pc_i440fx_machine_v2_0 = {
+    PC_I440FX_2_0_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.0",
     .alias = "pc",
     .init = pc_init_pci,
     .is_default = 1,
+};
+
+#define PC_I440FX_1_7_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v1_7 = {
+    PC_I440FX_1_7_MACHINE_OPTIONS,
+    .name = "pc-i440fx-1.7",
+    .init = pc_init_pci,
 };
 
 #define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS
@@ -747,6 +758,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_machine(&pc_i440fx_machine_v2_0);
     qemu_register_machine(&pc_i440fx_machine_v1_7);
     qemu_register_machine(&pc_i440fx_machine_v1_6);
     qemu_register_machine(&pc_i440fx_machine_v1_5);
