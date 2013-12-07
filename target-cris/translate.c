@@ -1133,7 +1133,7 @@ static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
         cris_store_direct_jmp(dc);
     }
 
-    tcg_gen_qemu_ld64(dst, addr, mem_index);
+    tcg_gen_qemu_ld_i64(dst, addr, mem_index, MO_TEQ);
 }
 
 static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
@@ -1147,23 +1147,8 @@ static void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
         cris_store_direct_jmp(dc);
     }
 
-    if (size == 1) {
-        if (sign) {
-            tcg_gen_qemu_ld8s(dst, addr, mem_index);
-        } else {
-            tcg_gen_qemu_ld8u(dst, addr, mem_index);
-        }
-    } else if (size == 2) {
-        if (sign) {
-            tcg_gen_qemu_ld16s(dst, addr, mem_index);
-        } else {
-            tcg_gen_qemu_ld16u(dst, addr, mem_index);
-        }
-    } else if (size == 4) {
-        tcg_gen_qemu_ld32u(dst, addr, mem_index);
-    } else {
-        abort();
-    }
+    tcg_gen_qemu_ld_tl(dst, addr, mem_index,
+                       MO_TE + ctz32(size) + (sign ? MO_SIGN : 0));
 }
 
 static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
@@ -1187,13 +1172,7 @@ static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
         return;
     }
 
-    if (size == 1) {
-        tcg_gen_qemu_st8(val, addr, mem_index);
-    } else if (size == 2) {
-        tcg_gen_qemu_st16(val, addr, mem_index);
-    } else {
-        tcg_gen_qemu_st32(val, addr, mem_index);
-    }
+    tcg_gen_qemu_st_tl(val, addr, mem_index, MO_TE + ctz32(size));
 
     if (dc->flagx_known && dc->flags_x) {
         cris_evaluate_flags(dc);
