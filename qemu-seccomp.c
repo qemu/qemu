@@ -114,6 +114,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(write), 244 },
     { SCMP_SYS(fcntl), 243 },
     { SCMP_SYS(tgkill), 242 },
+    { SCMP_SYS(kill), 242 },
     { SCMP_SYS(rt_sigaction), 242 },
     { SCMP_SYS(pipe2), 242 },
     { SCMP_SYS(munmap), 242 },

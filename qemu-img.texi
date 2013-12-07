@@ -46,7 +46,11 @@ is the destination disk image filename
 is a comma separated list of format specific options in a
 name=value format. Use @code{-o ?} for an overview of the options supported
 by the used format or see the format descriptions below for details.
-
+@item snapshot_param
+is param used for internal snapshot, format is
+'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
+@item snapshot_id_or_name
+is deprecated, use snapshot_param instead
 
 @item -c
 indicates that target image must be compressed (qcow format only)
@@ -179,10 +183,10 @@ Error on reading data
 
 @end table
 
-@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-n] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_id_or_name}] [-l @var{snapshot_param}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
-Convert the disk image @var{filename} or a snapshot @var{snapshot_name} to disk image @var{output_filename}
-using format @var{output_fmt}. It can be optionally compressed (@code{-c}
+Convert the disk image @var{filename} or a snapshot @var{snapshot_param}(@var{snapshot_id_or_name} is deprecated)
+to disk image @var{output_filename} using format @var{output_fmt}. It can be optionally compressed (@code{-c}
 option) or use any format specific options like encryption (@code{-o} option).
 
 Only the formats @code{qcow} and @code{qcow2} support compression. The

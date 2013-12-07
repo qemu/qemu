@@ -495,6 +495,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    bs->bl.write_zeroes_alignment = s->header.cluster_size >> BDRV_SECTOR_BITS;
     s->need_check_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                             qed_need_check_timer_cb, s);
 
@@ -1475,6 +1476,8 @@ static int bdrv_qed_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     memset(bdi, 0, sizeof(*bdi));
     bdi->cluster_size = s->header.cluster_size;
     bdi->is_dirty = s->header.features & QED_F_NEED_CHECK;
+    bdi->unallocated_blocks_are_zero = true;
+    bdi->can_write_zeroes_with_unmap = true;
     return 0;
 }
 

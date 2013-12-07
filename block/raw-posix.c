@@ -139,9 +139,11 @@ typedef struct BDRVRawState {
     void *aio_ctx;
 #endif
 #ifdef CONFIG_XFS
-    bool is_xfs : 1;
+    bool is_xfs:1;
 #endif
-    bool has_discard : 1;
+    bool has_discard:1;
+    bool has_write_zeroes:1;
+    bool discard_zeroes:1;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -283,6 +285,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     Error *local_err = NULL;
     const char *filename;
     int fd, ret;
+    struct stat st;
 
     opts = qemu_opts_create_nofail(&raw_runtime_opts);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -323,10 +326,38 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    s->has_discard = 1;
+    s->has_discard = true;
+    s->has_write_zeroes = true;
+
+    if (fstat(s->fd, &st) < 0) {
+        error_setg_errno(errp, errno, "Could not stat file");
+        goto fail;
+    }
+    if (S_ISREG(st.st_mode)) {
+        s->discard_zeroes = true;
+    }
+    if (S_ISBLK(st.st_mode)) {
+#ifdef BLKDISCARDZEROES
+        unsigned int arg;
+        if (ioctl(s->fd, BLKDISCARDZEROES, &arg) == 0 && arg) {
+            s->discard_zeroes = true;
+        }
+#endif
+#ifdef __linux__
+        /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
+         * not rely on the contents of discarded blocks unless using O_DIRECT.
+         * Same for BLKZEROOUT.
+         */
+        if (!(bs->open_flags & BDRV_O_NOCACHE)) {
+            s->discard_zeroes = false;
+            s->has_write_zeroes = false;
+        }
+#endif
+    }
+
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
-        s->is_xfs = 1;
+        s->is_xfs = true;
     }
 #endif
 
@@ -675,6 +706,23 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
 }
 
 #ifdef CONFIG_XFS
+static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
+{
+    struct xfs_flock64 fl;
+
+    memset(&fl, 0, sizeof(fl));
+    fl.l_whence = SEEK_SET;
+    fl.l_start = offset;
+    fl.l_len = bytes;
+
+    if (xfsctl(NULL, s->fd, XFS_IOC_ZERO_RANGE, &fl) < 0) {
+        DEBUG_BLOCK_PRINT("cannot write zero range (%s)\n", strerror(errno));
+        return -errno;
+    }
+
+    return 0;
+}
+
 static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
@@ -693,13 +741,49 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 }
 #endif
 
+static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+{
+    int ret = -EOPNOTSUPP;
+    BDRVRawState *s = aiocb->bs->opaque;
+
+    if (s->has_write_zeroes == 0) {
+        return -ENOTSUP;
+    }
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+#ifdef BLKZEROOUT
+        do {
+            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+            if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
+
+        ret = -errno;
+#endif
+    } else {
+#ifdef CONFIG_XFS
+        if (s->is_xfs) {
+            return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+        }
+#endif
+    }
+
+    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
+        ret == -ENOTTY) {
+        s->has_write_zeroes = false;
+        ret = -ENOTSUP;
+    }
+    return ret;
+}
+
 static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 {
     int ret = -EOPNOTSUPP;
     BDRVRawState *s = aiocb->bs->opaque;
 
-    if (s->has_discard == 0) {
-        return 0;
+    if (!s->has_discard) {
+        return -ENOTSUP;
     }
 
     if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
@@ -734,8 +818,8 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 
     if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
         ret == -ENOTTY) {
-        s->has_discard = 0;
-        ret = 0;
+        s->has_discard = false;
+        ret = -ENOTSUP;
     }
     return ret;
 }
@@ -777,6 +861,9 @@ static int aio_worker(void *arg)
     case QEMU_AIO_DISCARD:
         ret = handle_aiocb_discard(aiocb);
         break;
+    case QEMU_AIO_WRITE_ZEROES:
+        ret = handle_aiocb_write_zeroes(aiocb);
+        break;
     default:
         fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
         ret = -EINVAL;
@@ -785,6 +872,29 @@ static int aio_worker(void *arg)
 
     g_slice_free(RawPosixAIOData, aiocb);
     return ret;
+}
+
+static int paio_submit_co(BlockDriverState *bs, int fd,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        int type)
+{
+    RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    ThreadPool *pool;
+
+    acb->bs = bs;
+    acb->aio_type = type;
+    acb->aio_fildes = fd;
+
+    if (qiov) {
+        acb->aio_iov = qiov->iov;
+        acb->aio_niov = qiov->niov;
+    }
+    acb->aio_nbytes = nb_sectors * 512;
+    acb->aio_offset = sector_num * 512;
+
+    trace_paio_submit_co(sector_num, nb_sectors, type);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_co(pool, aio_worker, acb);
 }
 
 static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
@@ -1199,6 +1309,31 @@ static coroutine_fn BlockDriverAIOCB *raw_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD);
 }
 
+static int coroutine_fn raw_co_write_zeroes(
+    BlockDriverState *bs, int64_t sector_num,
+    int nb_sectors, BdrvRequestFlags flags)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_WRITE_ZEROES);
+    } else if (s->discard_zeroes) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_DISCARD);
+    }
+    return -ENOTSUP;
+}
+
+static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BDRVRawState *s = bs->opaque;
+
+    bdi->unallocated_blocks_are_zero = s->discard_zeroes;
+    bdi->can_write_zeroes_with_unmap = s->discard_zeroes;
+    return 0;
+}
+
 static QEMUOptionParameter raw_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -1222,6 +1357,7 @@ static BlockDriver bdrv_file = {
     .bdrv_create = raw_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = raw_co_get_block_status,
+    .bdrv_co_write_zeroes = raw_co_write_zeroes,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,
@@ -1230,6 +1366,7 @@ static BlockDriver bdrv_file = {
 
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
+    .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 
@@ -1525,6 +1662,26 @@ static coroutine_fn BlockDriverAIOCB *hdev_aio_discard(BlockDriverState *bs,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
+static coroutine_fn int hdev_co_write_zeroes(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
+{
+    BDRVRawState *s = bs->opaque;
+    int rc;
+
+    rc = fd_open(bs);
+    if (rc < 0) {
+        return rc;
+    }
+    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_WRITE_ZEROES|QEMU_AIO_BLKDEV);
+    } else if (s->discard_zeroes) {
+        return paio_submit_co(bs, s->fd, sector_num, NULL, nb_sectors,
+                              QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
+    }
+    return -ENOTSUP;
+}
+
 static int hdev_create(const char *filename, QEMUOptionParameter *options,
                        Error **errp)
 {
@@ -1577,6 +1734,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
+    .bdrv_co_write_zeroes = hdev_co_write_zeroes,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
@@ -1585,6 +1743,7 @@ static BlockDriver bdrv_host_device = {
 
     .bdrv_truncate      = raw_truncate,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
 

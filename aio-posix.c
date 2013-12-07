@@ -217,11 +217,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers--;
 
-    /* early return if we only have the aio_notify() fd */
-    if (ctx->pollfds->len == 1) {
-        return progress;
-    }
-
     /* wait until next event */
     ret = qemu_poll_ns((GPollFD *)ctx->pollfds->data,
                          ctx->pollfds->len,

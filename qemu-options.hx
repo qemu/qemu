@@ -228,7 +228,6 @@ STEXI
 Allocate guest RAM from a temporarily created file in @var{path}.
 ETEXI
 
-#ifdef MAP_POPULATE
 DEF("mem-prealloc", 0, QEMU_OPTION_mem_prealloc,
     "-mem-prealloc   preallocate guest memory (use with -mem-path)\n",
     QEMU_ARCH_ALL)
@@ -237,7 +236,6 @@ STEXI
 @findex -mem-prealloc
 Preallocate memory when using -mem-path.
 ETEXI
-#endif
 
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n",
