@@ -112,7 +112,7 @@ void openrisc_translate_init(void)
     }
 }
 
-/* Writeback SR_F transaltion-space to execution-space.  */
+/* Writeback SR_F translation space to execution space.  */
 static inline void wb_SR_F(void)
 {
     int label;
