@@ -3706,7 +3706,7 @@ static int parse_args(int argc, char **argv)
     return optind;
 }
 
-int main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
@@ -3724,7 +3724,6 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qemu_init_auxval(envp);
     qemu_cache_utils_init();
 
     if ((envlist = envlist_create()) == NULL) {
