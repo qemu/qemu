@@ -240,9 +240,8 @@ int keymap[] =
 
 static int cocoa_keycode_to_qemu(int keycode)
 {
-    if((sizeof(keymap)/sizeof(int)) <= keycode)
-    {
-        printf("(cocoa) warning unknow keycode 0x%x\n", keycode);
+    if (ARRAY_SIZE(keymap) <= keycode) {
+        printf("(cocoa) warning unknown keycode 0x%x\n", keycode);
         return 0;
     }
     return keymap[keycode];
