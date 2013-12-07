@@ -20,6 +20,7 @@
  */
 
 #include "qxl.h"
+#include "trace.h"
 
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
