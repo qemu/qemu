@@ -150,6 +150,59 @@ static void test_lifecycle(void)
     g_assert(done); /* expect done to be true (second time) */
 }
 
+
+#define RECORD_SIZE 10 /* Leave some room for expansion */
+struct coroutine_position {
+    int func;
+    int state;
+};
+static struct coroutine_position records[RECORD_SIZE];
+static unsigned record_pos;
+
+static void record_push(int func, int state)
+{
+    struct coroutine_position *cp = &records[record_pos++];
+    g_assert_cmpint(record_pos, <, RECORD_SIZE);
+    cp->func = func;
+    cp->state = state;
+}
+
+static void coroutine_fn co_order_test(void *opaque)
+{
+    record_push(2, 1);
+    g_assert(qemu_in_coroutine());
+    qemu_coroutine_yield();
+    record_push(2, 2);
+    g_assert(qemu_in_coroutine());
+}
+
+static void do_order_test(void)
+{
+    Coroutine *co;
+
+    co = qemu_coroutine_create(co_order_test);
+    record_push(1, 1);
+    qemu_coroutine_enter(co, NULL);
+    record_push(1, 2);
+    g_assert(!qemu_in_coroutine());
+    qemu_coroutine_enter(co, NULL);
+    record_push(1, 3);
+    g_assert(!qemu_in_coroutine());
+}
+
+static void test_order(void)
+{
+    int i;
+    const struct coroutine_position expected_pos[] = {
+        {1, 1,}, {2, 1}, {1, 2}, {2, 2}, {1, 3}
+    };
+    do_order_test();
+    g_assert_cmpint(record_pos, ==, 5);
+    for (i = 0; i < record_pos; i++) {
+        g_assert_cmpint(records[i].func , ==, expected_pos[i].func );
+        g_assert_cmpint(records[i].state, ==, expected_pos[i].state);
+    }
+}
 /*
  * Lifecycle benchmark
  */
@@ -243,6 +296,7 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/nesting", test_nesting);
     g_test_add_func("/basic/self", test_self);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
+    g_test_add_func("/basic/order", test_order);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);

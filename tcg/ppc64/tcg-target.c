@@ -45,15 +45,10 @@ static uint8_t *tb_ret_addr;
 #define GUEST_BASE 0
 #endif
 
-#ifdef CONFIG_GETAUXVAL
-#include <sys/auxv.h>
+#include "elf.h"
 static bool have_isa_2_06;
 #define HAVE_ISA_2_06  have_isa_2_06
 #define HAVE_ISEL      have_isa_2_06
-#else
-#define HAVE_ISA_2_06  0
-#define HAVE_ISEL      0
-#endif
 
 #ifdef CONFIG_USE_GUEST_BASE
 #define TCG_GUEST_BASE_REG 30
@@ -2132,12 +2127,10 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
 static void tcg_target_init(TCGContext *s)
 {
-#ifdef CONFIG_GETAUXVAL
-    unsigned long hwcap = getauxval(AT_HWCAP);
+    unsigned long hwcap = qemu_getauxval(AT_HWCAP);
     if (hwcap & PPC_FEATURE_ARCH_2_06) {
         have_isa_2_06 = true;
     }
-#endif
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffffffff);

@@ -1,3 +1,4 @@
+#include "qemu-common.h"
 #include "qemu/cache-utils.h"
 
 #if defined(_ARCH_PPC)
@@ -10,32 +11,33 @@ struct qemu_cache_conf qemu_cache_conf = {
 
 #include <sys/systemcfg.h>
 
-static void ppc_init_cacheline_sizes(void)
+void qemu_cache_utils_init(void)
 {
     qemu_cache_conf.icache_bsize = _system_configuration.icache_line;
     qemu_cache_conf.dcache_bsize = _system_configuration.dcache_line;
 }
 
 #elif defined __linux__
+#include "qemu/osdep.h"
+#include "elf.h"
 
-#define QEMU_AT_NULL        0
-#define QEMU_AT_DCACHEBSIZE 19
-#define QEMU_AT_ICACHEBSIZE 20
-
-static void ppc_init_cacheline_sizes(void)
+void qemu_cache_utils_init(void)
 {
-    char **envp = __environ;
-    unsigned long *auxv;
+    unsigned long dsize = qemu_getauxval(AT_DCACHEBSIZE);
+    unsigned long isize = qemu_getauxval(AT_ICACHEBSIZE);
 
-    while (*envp++);
-
-    for (auxv = (unsigned long *) envp; *auxv != QEMU_AT_NULL; auxv += 2) {
-        switch (*auxv) {
-        case QEMU_AT_DCACHEBSIZE: qemu_cache_conf.dcache_bsize = auxv[1]; break;
-        case QEMU_AT_ICACHEBSIZE: qemu_cache_conf.icache_bsize = auxv[1]; break;
-        default: break;
+    if (dsize == 0 || isize == 0) {
+        if (dsize == 0) {
+            fprintf(stderr, "getauxval AT_DCACHEBSIZE failed\n");
         }
+        if (isize == 0) {
+            fprintf(stderr, "getauxval AT_ICACHEBSIZE failed\n");
+        }
+        exit(1);
+
     }
+    qemu_cache_conf.dcache_bsize = dsize;
+    qemu_cache_conf.icache_bsize = isize;
 }
 
 #elif defined __APPLE__
@@ -44,7 +46,7 @@ static void ppc_init_cacheline_sizes(void)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-static void ppc_init_cacheline_sizes(void)
+void qemu_cache_utils_init(void)
 {
     size_t len;
     unsigned cacheline;
@@ -60,7 +62,6 @@ static void ppc_init_cacheline_sizes(void)
 }
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,7 +69,7 @@ static void ppc_init_cacheline_sizes(void)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-static void ppc_init_cacheline_sizes(void)
+void qemu_cache_utils_init(void)
 {
     size_t len = 4;
     unsigned cacheline;
@@ -84,10 +85,5 @@ static void ppc_init_cacheline_sizes(void)
 }
 
 #endif
-
-void qemu_cache_utils_init(void)
-{
-    ppc_init_cacheline_sizes();
-}
 
 #endif /* _ARCH_PPC */

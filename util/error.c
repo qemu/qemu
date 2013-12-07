@@ -27,6 +27,7 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
 {
     Error *err;
     va_list ap;
+    int saved_errno = errno;
 
     if (errp == NULL) {
         return;
@@ -41,6 +42,8 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     err->err_class = err_class;
 
     *errp = err;
+
+    errno = saved_errno;
 }
 
 void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
@@ -49,6 +52,7 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     Error *err;
     char *msg1;
     va_list ap;
+    int saved_errno = errno;
 
     if (errp == NULL) {
         return;
@@ -69,6 +73,8 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     err->err_class = err_class;
 
     *errp = err;
+
+    errno = saved_errno;
 }
 
 void error_setg_file_open(Error **errp, int os_errno, const char *filename)

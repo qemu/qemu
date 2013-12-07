@@ -63,6 +63,7 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_pause(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('drive-backup', device='drive0',
                              target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
@@ -70,6 +71,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-pause', device='drive0')
         self.assert_qmp(result, 'return', {})
 
+        self.vm.resume_drive('drive0')
         time.sleep(1)
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
@@ -113,6 +115,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSetSpeed.image_len))
+        qemu_io('-c', 'write -P1 0 512', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -124,6 +127,7 @@ class TestSetSpeed(iotests.QMPTestCase):
     def test_set_speed(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('drive-backup', device='drive0',
                              target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
@@ -141,10 +145,11 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 8 * 1024 * 1024)
 
-        event = self.cancel_and_wait()
+        event = self.cancel_and_wait(resume=True)
         self.assert_qmp(event, 'data/type', 'backup')
 
         # Check setting speed in drive-backup works
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('drive-backup', device='drive0',
                              target=target_img, sync='full', speed=4*1024*1024)
         self.assert_qmp(result, 'return', {})
@@ -153,7 +158,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 4 * 1024 * 1024)
 
-        event = self.cancel_and_wait()
+        event = self.cancel_and_wait(resume=True)
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_set_speed_invalid(self):
@@ -165,6 +170,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('drive-backup', device='drive0',
                              target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
@@ -172,7 +178,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        event = self.cancel_and_wait()
+        event = self.cancel_and_wait(resume=True)
         self.assert_qmp(event, 'data/type', 'backup')
 
 class TestSingleTransaction(iotests.QMPTestCase):
@@ -214,6 +220,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
     def test_pause(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'drive-backup',
                 'data': { 'device': 'drive0',
@@ -226,6 +233,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-pause', device='drive0')
         self.assert_qmp(result, 'return', {})
 
+        self.vm.resume_drive('drive0')
         time.sleep(1)
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')

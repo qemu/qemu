@@ -1293,6 +1293,11 @@ const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x53, .ascq = 0x02
 };
 
+/* Illegal request, Invalid Transfer Tag */
+const struct SCSISense sense_code_INVALID_TAG = {
+    .key = ILLEGAL_REQUEST, .asc = 0x4b, .ascq = 0x01
+};
+
 /* Command aborted, I/O process terminated */
 const struct SCSISense sense_code_IO_ERROR = {
     .key = ABORTED_COMMAND, .asc = 0x00, .ascq = 0x06
@@ -1306,6 +1311,11 @@ const struct SCSISense sense_code_I_T_NEXUS_LOSS = {
 /* Command aborted, Logical Unit failure */
 const struct SCSISense sense_code_LUN_FAILURE = {
     .key = ABORTED_COMMAND, .asc = 0x3e, .ascq = 0x01
+};
+
+/* Command aborted, Overlapped Commands Attempted */
+const struct SCSISense sense_code_OVERLAPPED_COMMANDS = {
+    .key = ABORTED_COMMAND, .asc = 0x4e, .ascq = 0x00
 };
 
 /* Unit attention, Capacity data has changed */

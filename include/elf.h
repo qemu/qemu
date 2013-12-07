@@ -411,6 +411,65 @@ typedef struct {
 #define R_SPARC_5		44
 #define R_SPARC_6		45
 
+/* Bits present in AT_HWCAP for ARM.  */
+
+#define HWCAP_ARM_SWP           (1 << 0)
+#define HWCAP_ARM_HALF          (1 << 1)
+#define HWCAP_ARM_THUMB         (1 << 2)
+#define HWCAP_ARM_26BIT         (1 << 3)
+#define HWCAP_ARM_FAST_MULT     (1 << 4)
+#define HWCAP_ARM_FPA           (1 << 5)
+#define HWCAP_ARM_VFP           (1 << 6)
+#define HWCAP_ARM_EDSP          (1 << 7)
+#define HWCAP_ARM_JAVA          (1 << 8)
+#define HWCAP_ARM_IWMMXT        (1 << 9)
+#define HWCAP_ARM_CRUNCH        (1 << 10)
+#define HWCAP_ARM_THUMBEE       (1 << 11)
+#define HWCAP_ARM_NEON          (1 << 12)
+#define HWCAP_ARM_VFPv3         (1 << 13)
+#define HWCAP_ARM_VFPv3D16      (1 << 14)       /* also set for VFPv4-D16 */
+#define HWCAP_ARM_TLS           (1 << 15)
+#define HWCAP_ARM_VFPv4         (1 << 16)
+#define HWCAP_ARM_IDIVA         (1 << 17)
+#define HWCAP_ARM_IDIVT         (1 << 18)
+#define HWCAP_IDIV              (HWCAP_IDIVA | HWCAP_IDIVT)
+#define HWCAP_VFPD32            (1 << 19)       /* set if VFP has 32 regs */
+#define HWCAP_LPAE              (1 << 20)
+
+/* Bits present in AT_HWCAP for PowerPC.  */
+
+#define PPC_FEATURE_32                  0x80000000
+#define PPC_FEATURE_64                  0x40000000
+#define PPC_FEATURE_601_INSTR           0x20000000
+#define PPC_FEATURE_HAS_ALTIVEC         0x10000000
+#define PPC_FEATURE_HAS_FPU             0x08000000
+#define PPC_FEATURE_HAS_MMU             0x04000000
+#define PPC_FEATURE_HAS_4xxMAC          0x02000000
+#define PPC_FEATURE_UNIFIED_CACHE       0x01000000
+#define PPC_FEATURE_HAS_SPE             0x00800000
+#define PPC_FEATURE_HAS_EFP_SINGLE      0x00400000
+#define PPC_FEATURE_HAS_EFP_DOUBLE      0x00200000
+#define PPC_FEATURE_NO_TB               0x00100000
+#define PPC_FEATURE_POWER4              0x00080000
+#define PPC_FEATURE_POWER5              0x00040000
+#define PPC_FEATURE_POWER5_PLUS         0x00020000
+#define PPC_FEATURE_CELL                0x00010000
+#define PPC_FEATURE_BOOKE               0x00008000
+#define PPC_FEATURE_SMT                 0x00004000
+#define PPC_FEATURE_ICACHE_SNOOP        0x00002000
+#define PPC_FEATURE_ARCH_2_05           0x00001000
+#define PPC_FEATURE_PA6T                0x00000800
+#define PPC_FEATURE_HAS_DFP             0x00000400
+#define PPC_FEATURE_POWER6_EXT          0x00000200
+#define PPC_FEATURE_ARCH_2_06           0x00000100
+#define PPC_FEATURE_HAS_VSX             0x00000080
+
+#define PPC_FEATURE_PSERIES_PERFMON_COMPAT \
+                                        0x00000040
+
+#define PPC_FEATURE_TRUE_LE             0x00000002
+#define PPC_FEATURE_PPC_LE              0x00000001
+
 /* Bits present in AT_HWCAP, primarily for Sparc32.  */
 
 #define HWCAP_SPARC_FLUSH       1    /* CPU supports flush instruction. */
@@ -419,6 +478,20 @@ typedef struct {
 #define HWCAP_SPARC_MULDIV      8
 #define HWCAP_SPARC_V9		16
 #define HWCAP_SPARC_ULTRA3	32
+
+/* Bits present in AT_HWCAP for s390.  */
+
+#define HWCAP_S390_ESAN3        1
+#define HWCAP_S390_ZARCH        2
+#define HWCAP_S390_STFLE        4
+#define HWCAP_S390_MSA          8
+#define HWCAP_S390_LDISP        16
+#define HWCAP_S390_EIMM         32
+#define HWCAP_S390_DFP          64
+#define HWCAP_S390_HPAGE        128
+#define HWCAP_S390_ETF3EH       256
+#define HWCAP_S390_HIGH_GPRS    512
+#define HWCAP_S390_TE           1024
 
 /*
  * 68k ELF relocation types

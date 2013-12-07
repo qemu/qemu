@@ -307,7 +307,7 @@ typedef struct CPUOpenRISCState {
 #ifndef CONFIG_USER_ONLY
     CPUOpenRISCTLBContext * tlb;
 
-    struct QEMUTimer *timer;
+    QEMUTimer *timer;
     uint32_t ttmr;          /* Timer tick mode register */
     uint32_t ttcr;          /* Timer tick count register */
 

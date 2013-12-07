@@ -605,13 +605,20 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         header = footer.header;
     }
 
-    if (le32_to_cpu(header.version) >= 3) {
+    if (le32_to_cpu(header.version) > 3) {
         char buf[64];
         snprintf(buf, sizeof(buf), "VMDK version %d",
                  le32_to_cpu(header.version));
         qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
                 bs->device_name, "vmdk", buf);
         return -ENOTSUP;
+    } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR)) {
+        /* VMware KB 2064959 explains that version 3 added support for
+         * persistent changed block tracking (CBT), and backup software can
+         * read it as version=1 if it doesn't care about the changed area
+         * information. So we are safe to enable read only. */
+        error_setg(errp, "VMDK version 3 must be read only");
+        return -EINVAL;
     }
 
     if (le32_to_cpu(header.num_gtes_per_gt) > 512) {
@@ -1419,7 +1426,8 @@ static coroutine_fn int vmdk_co_write(BlockDriverState *bs, int64_t sector_num,
 
 static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
                                              int64_t sector_num,
-                                             int nb_sectors)
+                                             int nb_sectors,
+                                             BdrvRequestFlags flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;
@@ -1689,7 +1697,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     }
     if (backing_file) {
         BlockDriverState *bs = bdrv_new("");
-        ret = bdrv_open(bs, backing_file, NULL, 0, NULL, errp);
+        ret = bdrv_open(bs, backing_file, NULL, BDRV_O_NO_BACKING, NULL, errp);
         if (ret != 0) {
             bdrv_unref(bs);
             return ret;
