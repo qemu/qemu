@@ -188,9 +188,7 @@ static int display_remote;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
-#ifdef MAP_POPULATE
 int mem_prealloc = 0; /* force preallocation of physical target memory */
-#endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
@@ -3211,11 +3209,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
                 break;
-#ifdef MAP_POPULATE
             case QEMU_OPTION_mem_prealloc:
                 mem_prealloc = 1;
                 break;
-#endif
             case QEMU_OPTION_d:
                 log_mask = optarg;
                 break;
