@@ -76,6 +76,11 @@ echo "=== Testing monolithicFlat with zeroed_grain ==="
 IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
 
 echo
+echo "=== Testing big twoGbMaxExtentFlat ==="
+IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
+$QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info

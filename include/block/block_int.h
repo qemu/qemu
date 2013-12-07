@@ -176,7 +176,9 @@ struct BlockDriver {
     int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
-                                  const char *snapshot_name);
+                                  const char *snapshot_id,
+                                  const char *name,
+                                  Error **errp);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
     ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
@@ -245,6 +247,9 @@ typedef struct BlockLimits {
 
     /* optimal alignment for write zeroes requests in sectors */
     int64_t write_zeroes_alignment;
+
+    /* optimal transfer length in sectors */
+    int opt_transfer_length;
 } BlockLimits;
 
 /*

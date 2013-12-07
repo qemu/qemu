@@ -93,6 +93,11 @@ static void help(void)
            "  'options' is a comma separated list of format specific options in a\n"
            "    name=value format. Use -o ? for an overview of the options supported by the\n"
            "    used format\n"
+           "  'snapshot_param' is param used for internal snapshot, format\n"
+           "    is 'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
+           "    '[ID_OR_NAME]'\n"
+           "  'snapshot_id_or_name' is deprecated, use 'snapshot_param'\n"
+           "    instead\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
            "  '-u' enables unsafe rebasing. It is assumed that old and new backing file\n"
            "       match exactly. The image doesn't need a working backing file before\n"
@@ -105,7 +110,6 @@ static void help(void)
            "       conversion. If the number of bytes is 0, the source will not be scanned for\n"
            "       unallocated or zero sectors, and the destination image will always be\n"
            "       fully allocated\n"
-           "       images will always be fully allocated\n"
            "  '--output' takes the format in which the output must be done (human or json)\n"
            "  '-n' skips the target volume creation (useful if the volume is created\n"
            "       prior to running qemu-img)\n"
@@ -1125,25 +1129,27 @@ out3:
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret = 0, n, n1, bs_n, bs_i, compress, cluster_size,
-        cluster_sectors, skip_create;
+    int c, n, n1, bs_n, bs_i, compress, cluster_sectors, skip_create;
+    int64_t ret = 0;
     int progress = 0, flags;
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
-    int64_t total_sectors, nb_sectors, sector_num, bs_offset;
+    int64_t total_sectors, nb_sectors, sector_num, bs_offset,
+            sector_num_next_status = 0;
     uint64_t bs_sectors;
     uint8_t * buf = NULL;
+    size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
     const uint8_t *buf1;
     BlockDriverInfo bdi;
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     QEMUOptionParameter *out_baseimg_param;
     char *options = NULL;
     const char *snapshot_name = NULL;
-    float local_progress = 0;
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
     bool quiet = false;
     Error *local_err = NULL;
+    QemuOpts *sn_opts = NULL;
 
     fmt = NULL;
     out_fmt = "raw";
@@ -1152,7 +1158,7 @@ static int img_convert(int argc, char **argv)
     compress = 0;
     skip_create = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:qn");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:qnl:");
         if (c == -1) {
             break;
         }
@@ -1186,6 +1192,18 @@ static int img_convert(int argc, char **argv)
             break;
         case 's':
             snapshot_name = optarg;
+            break;
+        case 'l':
+            if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
+                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                if (!sn_opts) {
+                    error_report("Failed in parsing snapshot param '%s'",
+                                 optarg);
+                    return 1;
+                }
+            } else {
+                snapshot_name = optarg;
+            }
             break;
         case 'S':
         {
@@ -1227,7 +1245,7 @@ static int img_convert(int argc, char **argv)
     out_filename = argv[argc - 1];
 
     /* Initialize before goto out */
-    qemu_progress_init(progress, 2.0);
+    qemu_progress_init(progress, 1.0);
 
     if (options && is_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
@@ -1258,17 +1276,26 @@ static int img_convert(int argc, char **argv)
         total_sectors += bs_sectors;
     }
 
-    if (snapshot_name != NULL) {
+    if (sn_opts) {
+        ret = bdrv_snapshot_load_tmp(bs[0],
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
+                                     qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
+                                     &local_err);
+    } else if (snapshot_name != NULL) {
         if (bs_n > 1) {
             error_report("No support for concatenating multiple snapshot");
             ret = -1;
             goto out;
         }
-        if (bdrv_snapshot_load_tmp(bs[0], snapshot_name) < 0) {
-            error_report("Failed to load snapshot");
-            ret = -1;
-            goto out;
-        }
+
+        bdrv_snapshot_load_tmp_by_id_or_name(bs[0], snapshot_name, &local_err);
+    }
+    if (error_is_set(&local_err)) {
+        error_report("Failed to load snapshot: %s",
+                     error_get_pretty(local_err));
+        error_free(local_err);
+        ret = -1;
+        goto out;
     }
 
     /* Find driver and parse its options */
@@ -1371,7 +1398,16 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
-    buf = qemu_blockalign(out_bs, IO_BUF_SIZE);
+
+    /* increase bufsectors from the default 4096 (2M) if opt_transfer_length
+     * or discard_alignment of the out_bs is greater. Limit to 32768 (16MB)
+     * as maximum. */
+    bufsectors = MIN(32768,
+                     MAX(bufsectors, MAX(out_bs->bl.opt_transfer_length,
+                                         out_bs->bl.discard_alignment))
+                    );
+
+    buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
         int64_t output_length = bdrv_getlength(out_bs);
@@ -1387,26 +1423,26 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    if (compress) {
-        ret = bdrv_get_info(out_bs, &bdi);
-        if (ret < 0) {
+    cluster_sectors = 0;
+    ret = bdrv_get_info(out_bs, &bdi);
+    if (ret < 0) {
+        if (compress) {
             error_report("could not get block driver info");
             goto out;
         }
-        cluster_size = bdi.cluster_size;
-        if (cluster_size <= 0 || cluster_size > IO_BUF_SIZE) {
+    } else {
+        cluster_sectors = bdi.cluster_size / BDRV_SECTOR_SIZE;
+    }
+
+    if (compress) {
+        if (cluster_sectors <= 0 || cluster_sectors > bufsectors) {
             error_report("invalid cluster size");
             ret = -1;
             goto out;
         }
-        cluster_sectors = cluster_size >> 9;
         sector_num = 0;
 
         nb_sectors = total_sectors;
-        if (nb_sectors != 0) {
-            local_progress = (float)100 /
-                (nb_sectors / MIN(nb_sectors, cluster_sectors));
-        }
 
         for(;;) {
             int64_t bs_num;
@@ -1464,7 +1500,7 @@ static int img_convert(int argc, char **argv)
                 }
             }
             sector_num += n;
-            qemu_progress_print(local_progress, 100);
+            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
         }
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
@@ -1481,20 +1517,12 @@ static int img_convert(int argc, char **argv)
 
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
-        if (nb_sectors != 0) {
-            local_progress = (float)100 /
-                (nb_sectors / MIN(nb_sectors, IO_BUF_SIZE / 512));
-        }
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0) {
+                ret = 0;
                 break;
-            }
-            if (nb_sectors >= (IO_BUF_SIZE / 512)) {
-                n = (IO_BUF_SIZE / 512);
-            } else {
-                n = nb_sectors;
             }
 
             while (sector_num - bs_offset >= bs_sectors) {
@@ -1507,33 +1535,58 @@ static int img_convert(int argc, char **argv)
                    sector_num, bs_i, bs_offset, bs_sectors); */
             }
 
-            if (n > bs_offset + bs_sectors - sector_num) {
-                n = bs_offset + bs_sectors - sector_num;
-            }
-
-            /* If the output image is being created as a copy on write image,
-               assume that sectors which are unallocated in the input image
-               are present in both the output's and input's base images (no
-               need to copy them). */
-            if (out_baseimg) {
-                ret = bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
-                                        n, &n1);
+            if ((out_baseimg || has_zero_init) &&
+                sector_num >= sector_num_next_status) {
+                n = nb_sectors > INT_MAX ? INT_MAX : nb_sectors;
+                ret = bdrv_get_block_status(bs[bs_i], sector_num - bs_offset,
+                                            n, &n1);
                 if (ret < 0) {
-                    error_report("error while reading metadata for sector "
-                                 "%" PRId64 ": %s",
-                                 sector_num - bs_offset, strerror(-ret));
+                    error_report("error while reading block status of sector %"
+                                 PRId64 ": %s", sector_num - bs_offset,
+                                 strerror(-ret));
                     goto out;
                 }
-                if (!ret) {
+                /* If the output image is zero initialized, we are not working
+                 * on a shared base and the input is zero we can skip the next
+                 * n1 sectors */
+                if (has_zero_init && !out_baseimg && (ret & BDRV_BLOCK_ZERO)) {
                     sector_num += n1;
                     continue;
                 }
-                /* The next 'n1' sectors are allocated in the input image. Copy
-                   only those as they may be followed by unallocated sectors. */
-                n = n1;
-            } else {
-                n1 = n;
+                /* If the output image is being created as a copy on write
+                 * image, assume that sectors which are unallocated in the
+                 * input image are present in both the output's and input's
+                 * base images (no need to copy them). */
+                if (out_baseimg) {
+                    if (!(ret & BDRV_BLOCK_DATA)) {
+                        sector_num += n1;
+                        continue;
+                    }
+                    /* The next 'n1' sectors are allocated in the input image.
+                     * Copy only those as they may be followed by unallocated
+                     * sectors. */
+                    nb_sectors = n1;
+                }
+                /* avoid redundant callouts to get_block_status */
+                sector_num_next_status = sector_num + n1;
             }
+
+            n = MIN(nb_sectors, bufsectors);
+
+            /* round down request length to an aligned sector, but
+             * do not bother doing this on short requests. They happen
+             * when we found an all-zero area, and the next sector to
+             * write will not be sector_num + n. */
+            if (cluster_sectors > 0 && n >= cluster_sectors) {
+                int64_t next_aligned_sector = (sector_num + n);
+                next_aligned_sector -= next_aligned_sector % cluster_sectors;
+                if (sector_num + n > next_aligned_sector) {
+                    n = next_aligned_sector - sector_num;
+                }
+            }
+
+            n = MIN(n, bs_sectors - (sector_num - bs_offset));
+            n1 = n;
 
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
@@ -1559,14 +1612,20 @@ static int img_convert(int argc, char **argv)
                 n -= n1;
                 buf1 += n1 * 512;
             }
-            qemu_progress_print(local_progress, 100);
+            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
         }
     }
 out:
+    if (!ret) {
+        qemu_progress_print(100, 0);
+    }
     qemu_progress_end();
     free_option_parameters(create_options);
     free_option_parameters(param);
     qemu_vfree(buf);
+    if (sn_opts) {
+        qemu_opts_del(sn_opts);
+    }
     if (out_bs) {
         bdrv_unref(out_bs);
     }

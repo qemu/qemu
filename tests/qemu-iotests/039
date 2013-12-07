@@ -44,7 +44,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto generic
 _supported_os Linux
-_unsupported_qemu_io_options --nocache
+_default_cache_mode "writethrough"
+_supported_cache_modes "writethrough"
 
 size=128M
 

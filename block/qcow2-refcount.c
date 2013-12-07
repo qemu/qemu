@@ -515,8 +515,8 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
             s->l2_table_cache);
     }
 
-    start = offset & ~(s->cluster_size - 1);
-    last = (offset + length - 1) & ~(s->cluster_size - 1);
+    start = start_of_cluster(s, offset);
+    last = start_of_cluster(s, offset + length - 1);
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size)
     {
@@ -724,7 +724,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     }
  redo:
     free_in_cluster = s->cluster_size -
-        (s->free_byte_offset & (s->cluster_size - 1));
+        offset_into_cluster(s, s->free_byte_offset);
     if (size <= free_in_cluster) {
         /* enough space in current cluster */
         offset = s->free_byte_offset;
@@ -732,7 +732,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
         free_in_cluster -= size;
         if (free_in_cluster == 0)
             s->free_byte_offset = 0;
-        if ((offset & (s->cluster_size - 1)) != 0)
+        if (offset_into_cluster(s, offset) != 0)
             qcow2_update_cluster_refcount(bs, offset >> s->cluster_bits, 1,
                                           QCOW2_DISCARD_NEVER);
     } else {
@@ -740,7 +740,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
         if (offset < 0) {
             return offset;
         }
-        cluster_offset = s->free_byte_offset & ~(s->cluster_size - 1);
+        cluster_offset = start_of_cluster(s, s->free_byte_offset);
         if ((cluster_offset + s->cluster_size) == offset) {
             /* we are lucky: contiguous data */
             offset = s->free_byte_offset;
@@ -1010,8 +1010,8 @@ static void inc_refcounts(BlockDriverState *bs,
     if (size <= 0)
         return;
 
-    start = offset & ~(s->cluster_size - 1);
-    last = (offset + size - 1) & ~(s->cluster_size - 1);
+    start = start_of_cluster(s, offset);
+    last = start_of_cluster(s, offset + size - 1);
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size) {
         k = cluster_offset >> s->cluster_bits;
@@ -1122,7 +1122,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                 offset, s->cluster_size);
 
             /* Correct offsets are cluster aligned */
-            if (offset & (s->cluster_size - 1)) {
+            if (offset_into_cluster(s, offset)) {
                 fprintf(stderr, "ERROR offset=%" PRIx64 ": Cluster is not "
                     "properly aligned; L2 entry corrupted.\n", offset);
                 res->corruptions++;
@@ -1194,7 +1194,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
                 l2_offset, s->cluster_size);
 
             /* L2 tables are cluster aligned */
-            if (l2_offset & (s->cluster_size - 1)) {
+            if (offset_into_cluster(s, l2_offset)) {
                 fprintf(stderr, "ERROR l2_offset=%" PRIx64 ": Table is not "
                     "cluster aligned; L1 entry corrupted\n", l2_offset);
                 res->corruptions++;
@@ -1423,7 +1423,7 @@ static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
     }
 
     /* update refcount table */
-    assert(!(new_offset & (s->cluster_size - 1)));
+    assert(!offset_into_cluster(s, new_offset));
     s->refcount_table[reftable_index] = new_offset;
     ret = write_reftable_entry(bs, reftable_index);
     if (ret < 0) {
@@ -1507,7 +1507,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         cluster = offset >> s->cluster_bits;
 
         /* Refcount blocks are cluster aligned */
-        if (offset & (s->cluster_size - 1)) {
+        if (offset_into_cluster(s, offset)) {
             fprintf(stderr, "ERROR refcount block %" PRId64 " is not "
                 "cluster aligned; refcount table entry corrupted\n", i);
             res->corruptions++;

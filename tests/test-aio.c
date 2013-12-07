@@ -195,7 +195,6 @@ static void test_bh_delete_from_cb(void)
     g_assert(data1.bh == NULL);
 
     g_assert(!aio_poll(ctx, false));
-    g_assert(!aio_poll(ctx, true));
 }
 
 static void test_bh_delete_from_cb_many(void)

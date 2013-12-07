@@ -37,6 +37,7 @@ qemu_args = os.environ.get('QEMU', 'qemu').strip().split(' ')
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR', '/var/tmp')
+cachemode = os.environ.get('CACHEMODE')
 
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 
@@ -96,7 +97,7 @@ class VM(object):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=virtio',
                    'format=%s' % imgfmt,
-                   'cache=none',
+                   'cache=%s' % cachemode,
                    'file=%s' % path,
                    'id=drive%d' % self._num_drives]
         if opts:

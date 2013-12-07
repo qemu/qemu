@@ -27,6 +27,14 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "qemu/option.h"
+
+
+#define SNAPSHOT_OPT_BASE       "snapshot."
+#define SNAPSHOT_OPT_ID         "snapshot.id"
+#define SNAPSHOT_OPT_NAME       "snapshot.name"
+
+extern QemuOptsList internal_snapshot_opts;
 
 typedef struct QEMUSnapshotInfo {
     char id_str[128]; /* unique snapshot id */
@@ -61,5 +69,10 @@ void bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
 int bdrv_snapshot_list(BlockDriverState *bs,
                        QEMUSnapshotInfo **psn_info);
 int bdrv_snapshot_load_tmp(BlockDriverState *bs,
-                           const char *snapshot_name);
+                           const char *snapshot_id,
+                           const char *name,
+                           Error **errp);
+int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
+                                         const char *id_or_name,
+                                         Error **errp);
 #endif

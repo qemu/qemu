@@ -105,7 +105,6 @@ bool qemu_in_coroutine(void);
  */
 typedef struct CoQueue {
     QTAILQ_HEAD(, Coroutine) entries;
-    AioContext *ctx;
 } CoQueue;
 
 /**
@@ -119,12 +118,6 @@ void qemu_co_queue_init(CoQueue *queue);
  * caller of the coroutine.
  */
 void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
-
-/**
- * Adds the current coroutine to the head of the CoQueue and transfers control to the
- * caller of the coroutine.
- */
-void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue);
 
 /**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.

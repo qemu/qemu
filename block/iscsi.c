@@ -2,6 +2,7 @@
  * QEMU Block driver for iSCSI images
  *
  * Copyright (c) 2010-2011 Ronnie Sahlberg <ronniesahlberg@gmail.com>
+ * Copyright (c) 2012-2013 Peter Lieven <pl@kamp.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -54,6 +55,7 @@ typedef struct IscsiLun {
     QEMUTimer *nop_timer;
     uint8_t lbpme;
     uint8_t lbprz;
+    uint8_t has_write_same;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
     unsigned char *zeroblock;
@@ -975,8 +977,13 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
         return -EINVAL;
     }
 
-    if (!iscsilun->lbp.lbpws) {
-        /* WRITE SAME is not supported by the target */
+    if (!(flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->has_write_same) {
+        /* WRITE SAME without UNMAP is not supported by the target */
+        return -ENOTSUP;
+    }
+
+    if ((flags & BDRV_REQ_MAY_UNMAP) && !iscsilun->lbp.lbpws) {
+        /* WRITE SAME with UNMAP is not supported by the target */
         return -ENOTSUP;
     }
 
@@ -1011,6 +1018,14 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
+        if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
+            iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
+            iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE) {
+            /* WRITE SAME is not supported by the target */
+            iscsilun->has_write_same = false;
+            return -ENOTSUP;
+        }
+
         return -EIO;
     }
 
@@ -1374,6 +1389,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     iscsilun->type = inq->periperal_device_type;
+    iscsilun->has_write_same = true;
 
     if ((ret = iscsi_readcapacity_sync(iscsilun)) != 0) {
         goto out;
@@ -1441,6 +1457,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         }
         bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
                                                         iscsilun);
+
+        bs->bl.opt_transfer_length = sector_lun2qemu(iscsilun->bl.opt_xfer_len,
+                                                     iscsilun);
     }
 
 #if defined(LIBISCSI_FEATURE_NOP_COUNTER)
@@ -1505,11 +1524,6 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
-static int iscsi_has_zero_init(BlockDriverState *bs)
-{
-    return 0;
-}
-
 static int iscsi_create(const char *filename, QEMUOptionParameter *options,
                         Error **errp)
 {
@@ -1569,6 +1583,13 @@ static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     IscsiLun *iscsilun = bs->opaque;
     bdi->unallocated_blocks_are_zero = !!iscsilun->lbprz;
     bdi->can_write_zeroes_with_unmap = iscsilun->lbprz && iscsilun->lbp.lbpws;
+    /* Guess the internal cluster (page) size of the iscsi target by the means
+     * of opt_unmap_gran. Transfer the unmap granularity only if it has a
+     * reasonable size for bdi->cluster_size */
+    if (iscsilun->bl.opt_unmap_gran * iscsilun->block_size >= 64 * 1024 &&
+        iscsilun->bl.opt_unmap_gran * iscsilun->block_size <= 16 * 1024 * 1024) {
+        bdi->cluster_size = iscsilun->bl.opt_unmap_gran * iscsilun->block_size;
+    }
     return 0;
 }
 
@@ -1607,8 +1628,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
     .bdrv_aio_flush  = iscsi_aio_flush,
-
-    .bdrv_has_zero_init = iscsi_has_zero_init,
 
 #ifdef __linux__
     .bdrv_ioctl       = iscsi_ioctl,

@@ -387,25 +387,31 @@ _supported_os()
     _notrun "not suitable for this OS: $HOSTOS"
 }
 
-_unsupported_qemu_io_options()
+_supported_cache_modes()
 {
-    for bad_opt
-    do
-        for opt in $QEMU_IO_OPTIONS
-        do
-            if [ "$bad_opt" = "$opt" ]
-            then
-                _notrun "not suitable for qemu-io option: $bad_opt"
-            fi
-        done
+    for mode; do
+        if [ "$mode" = "$CACHEMODE" ]; then
+            return
+        fi
     done
+    _notrun "not suitable for cache mode: $CACHEMODE"
+}
+
+_default_cache_mode()
+{
+    if $CACHEMODE_IS_DEFAULT; then
+        CACHEMODE="$1"
+        QEMU_IO="$QEMU_IO --cache $1"
+        return
+    fi
 }
 
 # this test requires that a specified command (executable) exists
 #
 _require_command()
 {
-    [ -x "$1" ] || _notrun "$1 utility required, skipped this test"
+    eval c=\$$1
+    [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 
 _full_imgfmt_details()
