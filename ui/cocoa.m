@@ -129,8 +129,8 @@ int keymap[] =
     14, //  51      0x33    0x0e            BKSP    QZ_BACKSPACE
     0,  //  52      0x34    Undefined
     1,  //  53      0x35    0x01            ESC     QZ_ESCAPE
-    0,  //  54      0x36                            QZ_RMETA
-    0,  //  55      0x37                            QZ_LMETA
+    220, // 54      0x36    0xdc    E0,5C   R GUI   QZ_RMETA
+    219, // 55      0x37    0xdb    E0,5B   L GUI   QZ_LMETA
     42, //  56      0x38    0x2a            L SHFT  QZ_LSHIFT
     58, //  57      0x39    0x3a            CAPS    QZ_CAPSLOCK
     56, //  58      0x3A    0x38            L ALT   QZ_LALT
@@ -206,8 +206,6 @@ int keymap[] =
 
 /* Aditional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
 /*
-    219 //          0xdb            e0,5b   L GUI
-    220 //          0xdc            e0,5c   R GUI
     221 //          0xdd            e0,5d   APPS
         //              E0,2A,E0,37         PRNT SCRN
         //              E1,1D,45,E1,9D,C5   PAUSE
@@ -493,6 +491,12 @@ QemuCocoaView *cocoaView;
     switch ([event type]) {
         case NSFlagsChanged:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            if ((keycode == 219 || keycode == 220) && !isMouseGrabed) {
+              /* Don't pass command key changes to guest unless mouse is grabbed */
+              keycode = 0;
+            }
+
             if (keycode) {
                 if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
                     kbd_put_keycode(keycode);
@@ -516,15 +520,15 @@ QemuCocoaView *cocoaView;
             }
             break;
         case NSKeyDown:
+            keycode = cocoa_keycode_to_qemu([event keyCode]);
 
-            // forward command Key Combos
-            if ([event modifierFlags] & NSCommandKeyMask) {
+            // forward command key combos to the host UI unless the mouse is grabbed
+            if (!isMouseGrabed && ([event modifierFlags] & NSCommandKeyMask)) {
                 [NSApp sendEvent:event];
                 return;
             }
 
             // default
-            keycode = cocoa_keycode_to_qemu([event keyCode]);
 
             // handle control + alt Key Combos (ctrl+alt is reserved for QEMU)
             if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
@@ -580,6 +584,13 @@ QemuCocoaView *cocoaView;
             break;
         case NSKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            // don't pass the guest a spurious key-up if we treated this
+            // command-key combo as a host UI action
+            if (!isMouseGrabed && ([event modifierFlags] & NSCommandKeyMask)) {
+                return;
+            }
+
             if (qemu_console_is_graphic(NULL)) {
                 if (keycode & 0x80)
                     kbd_put_keycode(0xe0);
