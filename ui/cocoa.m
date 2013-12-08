@@ -833,18 +833,18 @@ QemuCocoaView *cocoaView;
     if(returnCode == NSCancelButton) {
         exit(0);
     } else if(returnCode == NSOKButton) {
-        const char *bin = "qemu";
         char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
 
-        char **argv = (char**)malloc( sizeof(char*)*3 );
+        char **argv = g_new(char *, 4);
 
         [sheet close];
 
-        argv[0] = g_strdup_printf("%s", bin);
-        argv[1] = g_strdup_printf("-hda");
-        argv[2] = g_strdup_printf("%s", img);
+        argv[0] = g_strdup(gArgv[0]);
+        argv[1] = g_strdup("-hda");
+        argv[2] = g_strdup(img);
+        argv[3] = NULL;
 
-        printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
+        // printf("Using argc %d argv %s -hda %s\n", 3, gArgv[0], img);
 
         [self startEmulationWithArgc:3 argv:(char**)argv];
     }
