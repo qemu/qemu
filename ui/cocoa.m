@@ -52,7 +52,7 @@
 #define COCOA_MOUSE_EVENT \
         if (isTabletEnabled) { \
             kbd_mouse_event((int)(p.x * 0x7FFF / (screen.width - 1)), (int)((screen.height - p.y) * 0x7FFF / (screen.height - 1)), 0, buttons); \
-        } else if (isMouseGrabed) { \
+        } else if (isMouseGrabbed) { \
             kbd_mouse_event((int)[event deltaX], (int)[event deltaY], 0, buttons); \
         } else { \
             [NSApp sendEvent:event]; \
@@ -204,7 +204,7 @@ int keymap[] =
     200,//  126     0x7E    0xc8    E0,48   U ARROW QZ_UP
 /* completed according to http://www.libsdl.org/cgi/cvsweb.cgi/SDL12/src/video/quartz/SDL_QuartzKeys.h?rev=1.6&content-type=text/x-cvsweb-markup */
 
-/* Aditional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
+/* Additional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
 /*
     221 //          0xdd            e0,5d   APPS
         //              E0,2A,E0,37         PRNT SCRN
@@ -259,7 +259,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     float cx,cy,cw,ch,cdx,cdy;
     CGDataProviderRef dataProviderRef;
     int modifiers_state[256];
-    BOOL isMouseGrabed;
+    BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
     BOOL isTabletEnabled;
@@ -270,7 +270,7 @@ static int cocoa_keycode_to_qemu(int keycode)
 - (void) toggleFullScreen:(id)sender;
 - (void) handleEvent:(NSEvent *)event;
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
-- (BOOL) isMouseGrabed;
+- (BOOL) isMouseGrabbed;
 - (BOOL) isAbsoluteEnabled;
 - (float) cdx;
 - (float) cdy;
@@ -492,7 +492,7 @@ QemuCocoaView *cocoaView;
         case NSFlagsChanged:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
 
-            if ((keycode == 219 || keycode == 220) && !isMouseGrabed) {
+            if ((keycode == 219 || keycode == 220) && !isMouseGrabbed) {
               /* Don't pass command key changes to guest unless mouse is grabbed */
               keycode = 0;
             }
@@ -523,7 +523,7 @@ QemuCocoaView *cocoaView;
             keycode = cocoa_keycode_to_qemu([event keyCode]);
 
             // forward command key combos to the host UI unless the mouse is grabbed
-            if (!isMouseGrabed && ([event modifierFlags] & NSCommandKeyMask)) {
+            if (!isMouseGrabbed && ([event modifierFlags] & NSCommandKeyMask)) {
                 [NSApp sendEvent:event];
                 return;
             }
@@ -587,7 +587,7 @@ QemuCocoaView *cocoaView;
 
             // don't pass the guest a spurious key-up if we treated this
             // command-key combo as a host UI action
-            if (!isMouseGrabed && ([event modifierFlags] & NSCommandKeyMask)) {
+            if (!isMouseGrabbed && ([event modifierFlags] & NSCommandKeyMask)) {
                 return;
             }
 
@@ -648,7 +648,7 @@ QemuCocoaView *cocoaView;
         case NSLeftMouseUp:
             if (isTabletEnabled) {
                     COCOA_MOUSE_EVENT
-            } else if (!isMouseGrabed) {
+            } else if (!isMouseGrabbed) {
                 if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
                     [self grabMouse];
                 } else {
@@ -665,7 +665,7 @@ QemuCocoaView *cocoaView;
             COCOA_MOUSE_EVENT
             break;
         case NSScrollWheel:
-            if (isTabletEnabled || isMouseGrabed) {
+            if (isTabletEnabled || isMouseGrabbed) {
                 kbd_mouse_event(0, 0, -[event deltaY], 0);
             } else {
                 [NSApp sendEvent:event];
@@ -688,7 +688,7 @@ QemuCocoaView *cocoaView;
     }
     [NSCursor hide];
     CGAssociateMouseAndMouseCursorPosition(FALSE);
-    isMouseGrabed = TRUE; // while isMouseGrabed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
+    isMouseGrabbed = TRUE; // while isMouseGrabbed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
 }
 
 - (void) ungrabMouse
@@ -703,11 +703,11 @@ QemuCocoaView *cocoaView;
     }
     [NSCursor unhide];
     CGAssociateMouseAndMouseCursorPosition(TRUE);
-    isMouseGrabed = FALSE;
+    isMouseGrabbed = FALSE;
 }
 
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {isAbsoluteEnabled = tIsAbsoluteEnabled;}
-- (BOOL) isMouseGrabed {return isMouseGrabed;}
+- (BOOL) isMouseGrabbed {return isMouseGrabbed;}
 - (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
@@ -778,7 +778,7 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationDidFinishLaunching\n");
 
-    // Display an open dialog box if no argument were passed or
+    // Display an open dialog box if no arguments were passed or
     // if qemu was launched from the finder ( the Finder passes "-psn" )
     if( gArgc <= 1 || strncmp ((char *)gArgv[1], "-psn", 4) == 0) {
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
@@ -1010,7 +1010,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
 
     if (kbd_mouse_is_absolute()) {
         if (![cocoaView isAbsoluteEnabled]) {
-            if ([cocoaView isMouseGrabed]) {
+            if ([cocoaView isMouseGrabbed]) {
                 [cocoaView ungrabMouse];
             }
         }
