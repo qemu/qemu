@@ -13,6 +13,8 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 
+#define HPET_INTCAP "hpet-intcap"
+
 /* PC-style peripherals (also used by other machines).  */
 
 typedef struct PcPciInfo {
@@ -146,7 +148,8 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           ISADevice **floppy,
-                          bool no_vmport);
+                          bool no_vmport,
+                          uint32 hpet_irqs);
 void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
@@ -235,6 +238,25 @@ uint16_t pvpanic_port(void);
 #define E820_UNUSABLE   5
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
+
+#define PC_Q35_COMPAT_1_7 \
+        {\
+            .driver   = "hpet",\
+            .property = HPET_INTCAP,\
+            .value    = stringify(4),\
+        }
+
+#define PC_Q35_COMPAT_1_6 \
+        PC_COMPAT_1_6, \
+        PC_Q35_COMPAT_1_7
+
+#define PC_Q35_COMPAT_1_5 \
+        PC_COMPAT_1_5, \
+        PC_Q35_COMPAT_1_6
+
+#define PC_Q35_COMPAT_1_4 \
+        PC_COMPAT_1_4, \
+        PC_Q35_COMPAT_1_5
 
 #define PC_COMPAT_1_6 \
         {\

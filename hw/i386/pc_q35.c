@@ -190,7 +190,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     pc_register_ferr_irq(gsi[13]);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false);
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false, 0xff0104);
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc);
@@ -295,7 +295,11 @@ static QEMUMachine pc_q35_machine_v2_0 = {
 static QEMUMachine pc_q35_machine_v1_7 = {
     PC_Q35_1_7_MACHINE_OPTIONS,
     .name = "pc-q35-1.7",
-    .init = pc_q35_init,
+    .init = pc_q35_init_1_7,
+    .compat_props = (GlobalProperty[]) {
+        PC_Q35_COMPAT_1_7,
+        { /* end of list */ }
+    },
 };
 
 #define PC_Q35_1_6_MACHINE_OPTIONS PC_Q35_MACHINE_OPTIONS
@@ -305,7 +309,7 @@ static QEMUMachine pc_q35_machine_v1_6 = {
     .name = "pc-q35-1.6",
     .init = pc_q35_init_1_6,
     .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_6,
+        PC_Q35_COMPAT_1_6,
         { /* end of list */ }
     },
 };
@@ -315,7 +319,7 @@ static QEMUMachine pc_q35_machine_v1_5 = {
     .name = "pc-q35-1.5",
     .init = pc_q35_init_1_5,
     .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_5,
+        PC_Q35_COMPAT_1_5,
         { /* end of list */ }
     },
 };

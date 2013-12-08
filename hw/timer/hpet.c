@@ -73,6 +73,7 @@ typedef struct HPETState {
     uint8_t rtc_irq_level;
     qemu_irq pit_enabled;
     uint8_t num_timers;
+    uint32_t intcap;
     HPETTimer timer[HPET_MAX_TIMERS];
 
     /* Memory-mapped, software visible registers */
@@ -663,8 +664,8 @@ static void hpet_reset(DeviceState *d)
         if (s->flags & (1 << HPET_MSI_SUPPORT)) {
             timer->config |= HPET_TN_FSB_CAP;
         }
-        /* advertise availability of ioapic inti2 */
-        timer->config |=  0x00000004ULL << 32;
+        /* advertise availability of ioapic int */
+        timer->config |=  (uint64_t)s->intcap << 32;
         timer->period = 0ULL;
         timer->wrap_flag = 0;
     }
@@ -713,6 +714,9 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     int i;
     HPETTimer *timer;
 
+    if (!s->intcap) {
+        error_printf("Hpet's intcap not initialized.\n");
+    }
     if (hpet_cfg.count == UINT8_MAX) {
         /* first instance */
         hpet_cfg.count = 0;
@@ -753,6 +757,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
 static Property hpet_device_properties[] = {
     DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
     DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
+    DEFINE_PROP_UINT32(HPET_INTCAP, HPETState, intcap, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
