@@ -198,13 +198,23 @@ static void update_irq(struct HPETTimer *timer, int set)
     if (!set || !timer_enabled(timer) || !hpet_enabled(timer->state)) {
         s->isr &= ~mask;
         if (!timer_fsb_route(timer)) {
-            qemu_irq_lower(s->irqs[route]);
+            /* fold the ICH PIRQ# pin's internal inversion logic into hpet */
+            if (route >= ISA_NUM_IRQS) {
+                qemu_irq_raise(s->irqs[route]);
+            } else {
+                qemu_irq_lower(s->irqs[route]);
+            }
         }
     } else if (timer_fsb_route(timer)) {
         stl_le_phys(timer->fsb >> 32, timer->fsb & 0xffffffff);
     } else if (timer->config & HPET_TN_TYPE_LEVEL) {
         s->isr |= mask;
-        qemu_irq_raise(s->irqs[route]);
+        /* fold the ICH PIRQ# pin's internal inversion logic into hpet */
+        if (route >= ISA_NUM_IRQS) {
+            qemu_irq_lower(s->irqs[route]);
+        } else {
+            qemu_irq_raise(s->irqs[route]);
+        }
     } else {
         s->isr &= ~mask;
         qemu_irq_pulse(s->irqs[route]);
