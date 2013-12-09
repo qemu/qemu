@@ -2038,6 +2038,11 @@ Format specific information:
             filename: TEST_DIR/t-f500.vmdk
             format: FLAT
 
+=== Testing malformed VMFS extent description line ===
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent lines:
+RW 12582912 VMFS "dummy.IMGFMT" 1
+
+
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT
 file format: IMGFMT

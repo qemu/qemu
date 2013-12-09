@@ -81,6 +81,20 @@ IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
 $QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
 
 echo
+echo "=== Testing malformed VMFS extent description line ==="
+cat >"$TEST_IMG" <<EOF
+# Disk DescriptorFile
+version=1
+CID=58ab4847
+parentCID=ffffffff
+createType="vmfs"
+
+# Extent description
+RW 12582912 VMFS "dummy.vmdk" 1
+EOF
+_img_info
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info
