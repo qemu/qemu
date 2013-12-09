@@ -1626,7 +1626,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, data->iov.iov_len, BDRV_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, data->sector,
                                        &data->qiov, data->iov.iov_len / 512,
-                                       scsi_write_same_complete, r);
+                                       scsi_write_same_complete, data);
         return;
     }
 
