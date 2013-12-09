@@ -924,7 +924,7 @@ static void *file_ram_alloc(RAMBlock *block,
     char *filename;
     char *sanitized_name;
     char *c;
-    void *area;
+    void * volatile area;
     int fd;
     uintptr_t hpagesize;
 
