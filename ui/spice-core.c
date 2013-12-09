@@ -47,6 +47,7 @@ static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
+static int spice_display_is_running;
 int using_spice = 0;
 
 static QemuThread me;
@@ -902,6 +903,21 @@ int qemu_spice_display_add_client(int csock, int skipauth, int tls)
     } else {
         return spice_server_add_client(spice_server, csock, skipauth);
     }
+}
+
+void qemu_spice_display_start(void)
+{
+    spice_display_is_running = true;
+}
+
+void qemu_spice_display_stop(void)
+{
+    spice_display_is_running = false;
+}
+
+int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
+{
+    return spice_display_is_running;
 }
 
 static void spice_register_config(void)
