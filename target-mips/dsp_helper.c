@@ -1088,12 +1088,11 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
 target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
 {                                                                          \
     DSP32Value dt;                                                         \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                     \
                                                                            \
-    n = sizeof(DSP32Value) / sizeof(dt.element[0]);                        \
     dt.sw[0] = rt;                                                         \
                                                                            \
-    for (i = 0; i < n; i++) {                                              \
+    for (i = 0; i < ARRAY_SIZE(dt.element); i++) {                         \
         dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
     }                                                                      \
                                                                            \
@@ -1109,12 +1108,11 @@ MIPSDSP32_UNOP_ENV(absq_s_w, sat_abs32, sw)
 target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
 {                                                                          \
     DSP64Value dt;                                                         \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                        \
                                                                            \
-    n = sizeof(DSP64Value) / sizeof(dt.element[0]);                        \
     dt.sl[0] = rt;                                                         \
                                                                            \
-    for (i = 0; i < n; i++) {                                              \
+    for (i = 0; i < ARRAY_SIZE(dt.element); i++) {                         \
         dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
     }                                                                      \
                                                                            \
@@ -1130,13 +1128,12 @@ MIPSDSP64_UNOP_ENV(absq_s_pw, sat_abs32, sw)
 target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
 {                                                                          \
     DSP32Value ds, dt;                                                     \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                        \
                                                                            \
-    n = sizeof(DSP32Value) / sizeof(ds.element[0]);                        \
     ds.sw[0] = rs;                                                         \
     dt.sw[0] = rt;                                                         \
                                                                            \
-    for (i = 0; i < n; i++) {                                              \
+    for (i = 0; i < ARRAY_SIZE(ds.element); i++) {                         \
         ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i]);      \
     }                                                                      \
                                                                            \
@@ -1159,13 +1156,12 @@ target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
                            CPUMIPSState *env)                              \
 {                                                                          \
     DSP32Value ds, dt;                                                     \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                        \
                                                                            \
-    n = sizeof(DSP32Value) / sizeof(ds.element[0]);                        \
     ds.sw[0] = rs;                                                         \
     dt.sw[0] = rt;                                                         \
                                                                            \
-    for (i = 0 ; i < n ; i++) {                                            \
+    for (i = 0 ; i < ARRAY_SIZE(ds.element); i++) {                        \
         ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i], env); \
     }                                                                      \
                                                                            \
@@ -1192,13 +1188,12 @@ MIPSDSP32_BINOP_ENV(subu_s_qb, satu8_sub, ub);
 target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
 {                                                                          \
     DSP64Value ds, dt;                                                     \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                        \
                                                                            \
-    n = sizeof(DSP64Value) / sizeof(ds.element[0]);                        \
     ds.sl[0] = rs;                                                         \
     dt.sl[0] = rt;                                                         \
                                                                            \
-    for (i = 0 ; i < n ; i++) {                                            \
+    for (i = 0 ; i < ARRAY_SIZE(ds.element); i++) {                        \
         ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i]);      \
     }                                                                      \
                                                                            \
@@ -1215,13 +1210,12 @@ target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
                            CPUMIPSState *env)                              \
 {                                                                          \
     DSP64Value ds, dt;                                                     \
-    unsigned int i, n;                                                     \
+    unsigned int i;                                                        \
                                                                            \
-    n = sizeof(DSP64Value) / sizeof(ds.element[0]);                        \
     ds.sl[0] = rs;                                                         \
     dt.sl[0] = rt;                                                         \
                                                                            \
-    for (i = 0 ; i < n ; i++) {                                            \
+    for (i = 0 ; i < ARRAY_SIZE(ds.element); i++) {                        \
         ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i], env); \
     }                                                                      \
                                                                            \

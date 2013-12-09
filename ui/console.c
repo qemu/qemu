@@ -27,8 +27,8 @@
 #include "qemu/timer.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
+#include "trace.h"
 
-//#define DEBUG_CONSOLE
 #define DEFAULT_BACKSCROLL 512
 #define MAX_CONSOLES 12
 #define CONSOLE_CURSOR_PERIOD 500
@@ -161,7 +161,7 @@ struct QemuConsole {
 };
 
 struct DisplayState {
-    struct QEMUTimer *gui_timer;
+    QEMUTimer *gui_timer;
     uint64_t last_update;
     uint64_t update_interval;
     bool refreshing;
@@ -866,10 +866,8 @@ static void console_putchar(QemuConsole *s, int ch)
                 s->nb_esc_params++;
             if (ch == ';')
                 break;
-#ifdef DEBUG_CONSOLE
-            fprintf(stderr, "escape sequence CSI%d;%d%c, %d parameters\n",
-                    s->esc_params[0], s->esc_params[1], ch, s->nb_esc_params);
-#endif
+            trace_console_putchar_csi(s->esc_params[0], s->esc_params[1],
+                                      ch, s->nb_esc_params);
             s->state = TTY_STATE_NORM;
             switch(ch) {
             case 'A':
@@ -983,9 +981,7 @@ static void console_putchar(QemuConsole *s, int ch)
                 s->y = s->y_saved;
                 break;
             default:
-#ifdef DEBUG_CONSOLE
-                fprintf(stderr, "unhandled escape character '%c'\n", ch);
-#endif
+                trace_console_putchar_unhandled(ch);
                 break;
             }
             break;

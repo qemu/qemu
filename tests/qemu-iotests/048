@@ -81,32 +81,5 @@ cp "$TEST_IMG" "$TEST_IMG2"
 io_pattern write 512 512 0 1 101
 _compare
 
-# Test cluster allocated in one, with IO error
-cat > "$TEST_DIR/blkdebug.conf"<<EOF
-[inject-error]
-event = "read_aio"
-errno = "5"
-once ="off"
-EOF
-_make_test_img $size
-cp "$TEST_IMG" "$TEST_IMG2"
-io_pattern write 512 512 0 1 102
-TEST_IMG="blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" _compare 2>&1 |\
-    _filter_testdir | _filter_imgfmt
-
-# Test cluster allocated in one, with different sizes and IO error in the part
-# that exists only in one image
-cat > "$TEST_DIR/blkdebug.conf"<<EOF
-[inject-error]
-event = "read_aio"
-errno = "5"
-once ="off"
-EOF
-_make_test_img $size
-TEST_IMG="$TEST_IMG2" _make_test_img 0
-io_pattern write 512 512 0 1 102
-TEST_IMG="blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" _compare 2>&1 |\
-    _filter_testdir | _filter_imgfmt
-
 # Cleanup
 status=0

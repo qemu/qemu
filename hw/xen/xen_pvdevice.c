@@ -74,6 +74,10 @@ static int xen_pv_init(PCIDevice *pci_dev)
     XenPVDevice *d = XEN_PV_DEVICE(pci_dev);
     uint8_t *pci_conf;
 
+    /* device-id property must always be supplied */
+    if (d->device_id == 0xffff)
+	    return -1;
+
     pci_conf = pci_dev->config;
 
     pci_set_word(pci_conf + PCI_VENDOR_ID, d->vendor_id);
@@ -99,7 +103,7 @@ static int xen_pv_init(PCIDevice *pci_dev)
 
 static Property xen_pv_props[] = {
     DEFINE_PROP_UINT16("vendor-id", XenPVDevice, vendor_id, PCI_VENDOR_ID_XEN),
-    DEFINE_PROP_UINT16("device-id", XenPVDevice, device_id, PCI_DEVICE_ID_XEN_PVDEVICE),
+    DEFINE_PROP_UINT16("device-id", XenPVDevice, device_id, 0xffff),
     DEFINE_PROP_UINT8("revision", XenPVDevice, revision, 0x01),
     DEFINE_PROP_UINT32("size", XenPVDevice, size, 0x400000),
     DEFINE_PROP_END_OF_LIST()

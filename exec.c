@@ -904,6 +904,13 @@ static long gethugepagesize(const char *path)
     return fs.f_bsize;
 }
 
+static sigjmp_buf sigjump;
+
+static void sigbus_handler(int signal)
+{
+    siglongjmp(sigjump, 1);
+}
+
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path)
@@ -913,9 +920,6 @@ static void *file_ram_alloc(RAMBlock *block,
     char *c;
     void *area;
     int fd;
-#ifdef MAP_POPULATE
-    int flags;
-#endif
     unsigned long hpagesize;
 
     hpagesize = gethugepagesize(path);
@@ -963,21 +967,52 @@ static void *file_ram_alloc(RAMBlock *block,
     if (ftruncate(fd, memory))
         perror("ftruncate");
 
-#ifdef MAP_POPULATE
-    /* NB: MAP_POPULATE won't exhaustively alloc all phys pages in the case
-     * MAP_PRIVATE is requested.  For mem_prealloc we mmap as MAP_SHARED
-     * to sidestep this quirk.
-     */
-    flags = mem_prealloc ? MAP_POPULATE | MAP_SHARED : MAP_PRIVATE;
-    area = mmap(0, memory, PROT_READ | PROT_WRITE, flags, fd, 0);
-#else
     area = mmap(0, memory, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-#endif
     if (area == MAP_FAILED) {
         perror("file_ram_alloc: can't mmap RAM pages");
         close(fd);
         return (NULL);
     }
+
+    if (mem_prealloc) {
+        int ret, i;
+        struct sigaction act, oldact;
+        sigset_t set, oldset;
+
+        memset(&act, 0, sizeof(act));
+        act.sa_handler = &sigbus_handler;
+        act.sa_flags = 0;
+
+        ret = sigaction(SIGBUS, &act, &oldact);
+        if (ret) {
+            perror("file_ram_alloc: failed to install signal handler");
+            exit(1);
+        }
+
+        /* unblock SIGBUS */
+        sigemptyset(&set);
+        sigaddset(&set, SIGBUS);
+        pthread_sigmask(SIG_UNBLOCK, &set, &oldset);
+
+        if (sigsetjmp(sigjump, 1)) {
+            fprintf(stderr, "file_ram_alloc: failed to preallocate pages\n");
+            exit(1);
+        }
+
+        /* MAP_POPULATE silently ignores failures */
+        for (i = 0; i < (memory/hpagesize)-1; i++) {
+            memset(area + (hpagesize*i), 0, 1);
+        }
+
+        ret = sigaction(SIGBUS, &oldact, NULL);
+        if (ret) {
+            perror("file_ram_alloc: failed to reinstall signal handler");
+            exit(1);
+        }
+
+        pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+    }
+
     block->fd = fd;
     return area;
 }

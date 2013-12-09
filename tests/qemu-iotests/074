@@ -1,0 +1,86 @@
+#!/bin/bash
+##
+## qemu-img compare test (qcow2 only ones)
+##
+##
+## Copyright (C) 2013 Red Hat, Inc.
+##
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+#
+# creator
+owner=famz@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1        # failure is the default!
+
+_cleanup()
+{
+    echo "Cleanup"
+    _cleanup_test_img
+    rm "${TEST_IMG2}"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+_compare()
+{
+    $QEMU_IMG compare "$@" "$TEST_IMG" "${TEST_IMG2}"
+    echo $?
+}
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# Setup test basic parameters
+TEST_IMG2=$TEST_IMG.2
+CLUSTER_SIZE=4096
+size=1024M
+
+# Test cluster allocated in one, with IO error
+cat > "$TEST_DIR/blkdebug.conf"<<EOF
+[inject-error]
+event = "read_aio"
+errno = "5"
+once ="off"
+EOF
+_make_test_img $size
+cp "$TEST_IMG" "$TEST_IMG2"
+io_pattern write 512 512 0 1 102
+TEST_IMG="blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" _compare 2>&1 |\
+    _filter_testdir | _filter_imgfmt
+
+# Test cluster allocated in one, with different sizes and IO error in the part
+# that exists only in one image
+cat > "$TEST_DIR/blkdebug.conf"<<EOF
+[inject-error]
+event = "read_aio"
+errno = "5"
+once ="off"
+EOF
+_make_test_img $size
+TEST_IMG="$TEST_IMG2" _make_test_img 0
+io_pattern write 512 512 0 1 102
+TEST_IMG="blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" _compare 2>&1 |\
+    _filter_testdir | _filter_imgfmt
+
+# Cleanup
+status=0

@@ -39,6 +39,7 @@ typedef struct MirrorBlockJob {
     int64_t granularity;
     size_t buf_size;
     unsigned long *cow_bitmap;
+    BdrvDirtyBitmap *dirty_bitmap;
     HBitmapIter hbi;
     uint8_t *buf;
     QSIMPLEQ_HEAD(, MirrorBuffer) buf_free;
@@ -145,9 +146,10 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
     if (s->sector_num < 0) {
-        bdrv_dirty_iter_init(source, &s->hbi);
+        bdrv_dirty_iter_init(source, s->dirty_bitmap, &s->hbi);
         s->sector_num = hbitmap_iter_next(&s->hbi);
-        trace_mirror_restart_iter(s, bdrv_get_dirty_count(source));
+        trace_mirror_restart_iter(s,
+                                  bdrv_get_dirty_count(source, s->dirty_bitmap));
         assert(s->sector_num >= 0);
     }
 
@@ -183,7 +185,7 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
     do {
         int added_sectors, added_chunks;
 
-        if (!bdrv_get_dirty(source, next_sector) ||
+        if (!bdrv_get_dirty(source, s->dirty_bitmap, next_sector) ||
             test_bit(next_chunk, s->in_flight_bitmap)) {
             assert(nb_sectors > 0);
             break;
@@ -249,7 +251,8 @@ static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
         /* Advance the HBitmapIter in parallel, so that we do not examine
          * the same sector twice.
          */
-        if (next_sector > hbitmap_next_sector && bdrv_get_dirty(source, next_sector)) {
+        if (next_sector > hbitmap_next_sector
+            && bdrv_get_dirty(source, s->dirty_bitmap, next_sector)) {
             hbitmap_next_sector = hbitmap_iter_next(&s->hbi);
         }
 
@@ -355,7 +358,7 @@ static void coroutine_fn mirror_run(void *opaque)
         }
     }
 
-    bdrv_dirty_iter_init(bs, &s->hbi);
+    bdrv_dirty_iter_init(bs, s->dirty_bitmap, &s->hbi);
     last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     for (;;) {
         uint64_t delay_ns;
@@ -367,7 +370,7 @@ static void coroutine_fn mirror_run(void *opaque)
             goto immediate_exit;
         }
 
-        cnt = bdrv_get_dirty_count(bs);
+        cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
 
         /* Note that even when no rate limit is applied we need to yield
          * periodically with no pending I/O so that qemu_aio_flush() returns.
@@ -409,7 +412,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
                 should_complete = s->should_complete ||
                     block_job_is_cancelled(&s->common);
-                cnt = bdrv_get_dirty_count(bs);
+                cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
             }
         }
 
@@ -424,7 +427,7 @@ static void coroutine_fn mirror_run(void *opaque)
              */
             trace_mirror_before_drain(s, cnt);
             bdrv_drain_all();
-            cnt = bdrv_get_dirty_count(bs);
+            cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
         }
 
         ret = 0;
@@ -471,7 +474,7 @@ immediate_exit:
     qemu_vfree(s->buf);
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
-    bdrv_set_dirty_tracking(bs, 0);
+    bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
     bdrv_iostatus_disable(s->target);
     if (s->should_complete && ret == 0) {
         if (bdrv_get_flags(s->target) != bdrv_get_flags(s->common.bs)) {
@@ -575,7 +578,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
 
-    bdrv_set_dirty_tracking(bs, granularity);
+    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity);
     bdrv_set_enable_write_cache(s->target, true);
     bdrv_set_on_error(s->target, on_target_error, on_target_error);
     bdrv_iostatus_enable(s->target);

@@ -188,9 +188,7 @@ static int display_remote;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
-#ifdef MAP_POPULATE
 int mem_prealloc = 0; /* force preallocation of physical target memory */
-#endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
@@ -428,6 +426,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "usb",
             .type = QEMU_OPT_BOOL,
             .help = "Set on/off to enable/disable usb",
+        },{
+            .name = "firmware",
+            .type = QEMU_OPT_STRING,
+            .help = "firmware image",
         },
         { /* End of list */ }
     },
@@ -2894,7 +2896,8 @@ int main(int argc, char **argv, char **envp)
     init_clocks();
     rtc_clock = QEMU_CLOCK_HOST;
 
-    qemu_cache_utils_init(envp);
+    qemu_init_auxval(envp);
+    qemu_cache_utils_init();
 
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
@@ -3206,11 +3209,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
                 break;
-#ifdef MAP_POPULATE
             case QEMU_OPTION_mem_prealloc:
                 mem_prealloc = 1;
                 break;
-#endif
             case QEMU_OPTION_d:
                 log_mask = optarg;
                 break;
@@ -3229,7 +3230,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_bios:
-                bios_name = optarg;
+                qemu_opts_set(qemu_find_opts("machine"), 0, "firmware", optarg);
                 break;
             case QEMU_OPTION_singlestep:
                 singlestep = 1;
@@ -4050,6 +4051,7 @@ int main(int argc, char **argv, char **envp)
     kernel_filename = qemu_opt_get(machine_opts, "kernel");
     initrd_filename = qemu_opt_get(machine_opts, "initrd");
     kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    bios_name = qemu_opt_get(machine_opts, "firmware");
 
     boot_order = machine->default_boot_order;
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);

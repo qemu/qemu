@@ -120,8 +120,8 @@ typedef struct {
     uint64_t char_tx_time;
     CharDriverState *chr;
     qemu_irq irq;
-    struct QEMUTimer *fifo_trigger_handle;
-    struct QEMUTimer *tx_time_handle;
+    QEMUTimer *fifo_trigger_handle;
+    QEMUTimer *tx_time_handle;
 } UartState;
 
 static void uart_update_status(UartState *s)

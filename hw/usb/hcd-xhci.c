@@ -1150,6 +1150,111 @@ static void xhci_free_streams(XHCIEPContext *epctx)
     epctx->nr_pstreams = 0;
 }
 
+static int xhci_epmask_to_eps_with_streams(XHCIState *xhci,
+                                           unsigned int slotid,
+                                           uint32_t epmask,
+                                           XHCIEPContext **epctxs,
+                                           USBEndpoint **eps)
+{
+    XHCISlot *slot;
+    XHCIEPContext *epctx;
+    USBEndpoint *ep;
+    int i, j;
+
+    assert(slotid >= 1 && slotid <= xhci->numslots);
+
+    slot = &xhci->slots[slotid - 1];
+
+    for (i = 2, j = 0; i <= 31; i++) {
+        if (!(epmask & (1 << i))) {
+            continue;
+        }
+
+        epctx = slot->eps[i - 1];
+        ep = xhci_epid_to_usbep(xhci, slotid, i);
+        if (!epctx || !epctx->nr_pstreams || !ep) {
+            continue;
+        }
+
+        if (epctxs) {
+            epctxs[j] = epctx;
+        }
+        eps[j++] = ep;
+    }
+    return j;
+}
+
+static void xhci_free_device_streams(XHCIState *xhci, unsigned int slotid,
+                                     uint32_t epmask)
+{
+    USBEndpoint *eps[30];
+    int nr_eps;
+
+    nr_eps = xhci_epmask_to_eps_with_streams(xhci, slotid, epmask, NULL, eps);
+    if (nr_eps) {
+        usb_device_free_streams(eps[0]->dev, eps, nr_eps);
+    }
+}
+
+static TRBCCode xhci_alloc_device_streams(XHCIState *xhci, unsigned int slotid,
+                                          uint32_t epmask)
+{
+    XHCIEPContext *epctxs[30];
+    USBEndpoint *eps[30];
+    int i, r, nr_eps, req_nr_streams, dev_max_streams;
+
+    nr_eps = xhci_epmask_to_eps_with_streams(xhci, slotid, epmask, epctxs,
+                                             eps);
+    if (nr_eps == 0) {
+        return CC_SUCCESS;
+    }
+
+    req_nr_streams = epctxs[0]->nr_pstreams;
+    dev_max_streams = eps[0]->max_streams;
+
+    for (i = 1; i < nr_eps; i++) {
+        /*
+         * HdG: I don't expect these to ever trigger, but if they do we need
+         * to come up with another solution, ie group identical endpoints
+         * together and make an usb_device_alloc_streams call per group.
+         */
+        if (epctxs[i]->nr_pstreams != req_nr_streams) {
+            FIXME("guest streams config not identical for all eps");
+            return CC_RESOURCE_ERROR;
+        }
+        if (eps[i]->max_streams != dev_max_streams) {
+            FIXME("device streams config not identical for all eps");
+            return CC_RESOURCE_ERROR;
+        }
+    }
+
+    /*
+     * max-streams in both the device descriptor and in the controller is a
+     * power of 2. But stream id 0 is reserved, so if a device can do up to 4
+     * streams the guest will ask for 5 rounded up to the next power of 2 which
+     * becomes 8. For emulated devices usb_device_alloc_streams is a nop.
+     *
+     * For redirected devices however this is an issue, as there we must ask
+     * the real xhci controller to alloc streams, and the host driver for the
+     * real xhci controller will likely disallow allocating more streams then
+     * the device can handle.
+     *
+     * So we limit the requested nr_streams to the maximum number the device
+     * can handle.
+     */
+    if (req_nr_streams > dev_max_streams) {
+        req_nr_streams = dev_max_streams;
+    }
+
+    r = usb_device_alloc_streams(eps[0]->dev, eps, nr_eps, req_nr_streams);
+    if (r != 0) {
+        fprintf(stderr, "xhci: alloc streams failed\n");
+        return CC_RESOURCE_ERROR;
+    }
+
+    return CC_SUCCESS;
+}
+
 static XHCIStreamContext *xhci_find_stream(XHCIEPContext *epctx,
                                            unsigned int streamid,
                                            uint32_t *cc_error)
@@ -1495,7 +1600,8 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
     }
 
     if (!xhci->slots[slotid-1].uport ||
-        !xhci->slots[slotid-1].uport->dev) {
+        !xhci->slots[slotid-1].uport->dev ||
+        !xhci->slots[slotid-1].uport->dev->attached) {
         return CC_USB_TRANSACTION_ERROR;
     }
 
@@ -1982,6 +2088,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    /* If the device has been detached, but the guest has not noticed this
+       yet the 2 above checks will succeed, but we must NOT continue */
+    if (!xhci->slots[slotid - 1].uport ||
+        !xhci->slots[slotid - 1].uport->dev ||
+        !xhci->slots[slotid - 1].uport->dev->attached) {
+        return;
+    }
+
     if (epctx->retry) {
         XHCITransfer *xfer = epctx->retry;
 
@@ -2206,7 +2320,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     trace_usb_xhci_slot_address(slotid, uport->path);
 
     dev = uport->dev;
-    if (!dev) {
+    if (!dev || !dev->attached) {
         fprintf(stderr, "xhci: port %s not connected\n", uport->path);
         return CC_USB_TRANSACTION_ERROR;
     }
@@ -2313,6 +2427,8 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
         return CC_CONTEXT_STATE_ERROR;
     }
 
+    xhci_free_device_streams(xhci, slotid, ictl_ctx[0] | ictl_ctx[1]);
+
     for (i = 2; i <= 31; i++) {
         if (ictl_ctx[0] & (1<<i)) {
             xhci_disable_ep(xhci, slotid, i);
@@ -2332,6 +2448,16 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
                     ep_ctx[3], ep_ctx[4]);
             xhci_dma_write_u32s(xhci, octx+(32*i), ep_ctx, sizeof(ep_ctx));
         }
+    }
+
+    res = xhci_alloc_device_streams(xhci, slotid, ictl_ctx[1]);
+    if (res != CC_SUCCESS) {
+        for (i = 2; i <= 31; i++) {
+            if (ictl_ctx[1] & (1 << i)) {
+                xhci_disable_ep(xhci, slotid, i);
+            }
+        }
+        return res;
     }
 
     slot_ctx[3] &= ~(SLOT_STATE_MASK << SLOT_STATE_SHIFT);
@@ -3015,6 +3141,14 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
             xhci_run(xhci);
         } else if (!(val & USBCMD_RS) && (xhci->usbcmd & USBCMD_RS)) {
             xhci_stop(xhci);
+        }
+        if (val & USBCMD_CSS) {
+            /* save state */
+            xhci->usbsts &= ~USBSTS_SRE;
+        }
+        if (val & USBCMD_CRS) {
+            /* restore state */
+            xhci->usbsts |= USBSTS_SRE;
         }
         xhci->usbcmd = val & 0xc0f;
         xhci_mfwrap_update(xhci);

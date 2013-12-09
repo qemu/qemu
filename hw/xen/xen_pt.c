@@ -570,7 +570,8 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     if (args.rc) {
         XEN_PT_WARN(d, "Region: %d (addr: %#"FMT_PCIBUS
                     ", len: %#"FMT_PCIBUS") is overlapped.\n",
-                    bar, sec->offset_within_address_space, sec->size);
+                    bar, sec->offset_within_address_space,
+                    int128_get64(sec->size));
     }
 
     if (d->io_regions[bar].type & PCI_BASE_ADDRESS_SPACE_IO) {

@@ -934,7 +934,6 @@ vcard_emul_init(const VCardEmulOptions *options)
         vreader = vreader_new(options->vreader[i].vname, vreader_emul,
                               vreader_emul_delete);
         vreader_add_reader(vreader);
-        cert_count = options->vreader[i].cert_count;
 
         vcard_emul_alloc_arrays(&certs, &cert_len, &keys,
                                 options->vreader[i].cert_count);

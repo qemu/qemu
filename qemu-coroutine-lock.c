@@ -41,14 +41,6 @@ void coroutine_fn qemu_co_queue_wait(CoQueue *queue)
     assert(qemu_in_coroutine());
 }
 
-void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue)
-{
-    Coroutine *self = qemu_coroutine_self();
-    QTAILQ_INSERT_HEAD(&queue->entries, self, co_queue_next);
-    qemu_coroutine_yield();
-    assert(qemu_in_coroutine());
-}
-
 /**
  * qemu_co_queue_run_restart:
  *

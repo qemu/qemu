@@ -948,8 +948,8 @@
 # @tray_open: #optional True if the device has a tray and it is open
 #             (only present if removable is true)
 #
-# @dirty: #optional dirty bitmap information (only present if the dirty
-#         bitmap is enabled)
+# @dirty-bitmaps: #optional dirty bitmaps information (only present if the
+#                 driver has one or more dirty bitmaps) (Since 1.8)
 #
 # @io-status: #optional @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
@@ -963,7 +963,7 @@
   'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
            '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
-           '*dirty': 'BlockDirtyInfo' } }
+           '*dirty-bitmaps': ['BlockDirtyInfo'] } }
 
 ##
 # @query-block:

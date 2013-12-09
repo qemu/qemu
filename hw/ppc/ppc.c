@@ -684,7 +684,7 @@ static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
 }
 
 static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
-                                 struct QEMUTimer *timer,
+                                 QEMUTimer *timer,
                                  void (*raise_excp)(PowerPCCPU *),
                                  uint32_t decr, uint32_t value,
                                  int is_excp)
@@ -856,9 +856,9 @@ typedef struct ppc40x_timer_t ppc40x_timer_t;
 struct ppc40x_timer_t {
     uint64_t pit_reload;  /* PIT auto-reload value        */
     uint64_t fit_next;    /* Tick for next FIT interrupt  */
-    struct QEMUTimer *fit_timer;
+    QEMUTimer *fit_timer;
     uint64_t wdt_next;    /* Tick for next WDT interrupt  */
-    struct QEMUTimer *wdt_timer;
+    QEMUTimer *wdt_timer;
 
     /* 405 have the PIT, 440 have a DECR.  */
     unsigned int decr_excp;

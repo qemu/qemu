@@ -34,6 +34,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
+        qemu_io('-c', 'write -P 0x1 0 512', backing_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -69,6 +70,7 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_stream_pause(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
@@ -86,6 +88,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-resume', device='drive0')
         self.assert_qmp(result, 'return', {})
 
+        self.vm.resume_drive('drive0')
         completed = False
         while not completed:
             for event in self.vm.get_qmp_events(wait=True):
@@ -391,7 +394,7 @@ class TestStreamStop(iotests.QMPTestCase):
         qemu_io('-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         qemu_io('-c', 'write -P 0x1 32M 32M', test_img)
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
         self.vm.launch()
 
     def tearDown(self):
@@ -402,6 +405,7 @@ class TestStreamStop(iotests.QMPTestCase):
     def test_stream_stop(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
@@ -409,7 +413,7 @@ class TestStreamStop(iotests.QMPTestCase):
         events = self.vm.get_qmp_events(wait=False)
         self.assertEqual(events, [], 'unexpected QMP event: %s' % events)
 
-        self.cancel_and_wait()
+        self.cancel_and_wait(resume=True)
 
 class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
@@ -419,7 +423,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         qemu_io('-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         qemu_io('-c', 'write -P 0x1 32M 32M', test_img)
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
         self.vm.launch()
 
     def tearDown(self):
@@ -453,6 +457,7 @@ class TestSetSpeed(iotests.QMPTestCase):
     def test_set_speed(self):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
@@ -469,7 +474,8 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 8 * 1024 * 1024)
 
-        self.cancel_and_wait()
+        self.cancel_and_wait(resume=True)
+        self.vm.pause_drive('drive0')
 
         # Check setting speed in block-stream works
         result = self.vm.qmp('block-stream', device='drive0', speed=4 * 1024 * 1024)
@@ -479,7 +485,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 4 * 1024 * 1024)
 
-        self.cancel_and_wait()
+        self.cancel_and_wait(resume=True)
 
     def test_set_speed_invalid(self):
         self.assert_no_active_block_jobs()

@@ -56,9 +56,10 @@ default:
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
 	@echo "  slof           -- update slof.bin"
 
-bios: build-seabios-config-seabios
-	cp seabios/builds/seabios/bios.bin ../pc-bios/bios.bin
-	cp seabios/builds/seabios/*dsdt.aml ../pc-bios/
+bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
+	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
+	cp seabios/builds/seabios-256k/bios.bin ../pc-bios/bios-256k.bin
+	cp seabios/builds/seabios-256k/src/fw/*dsdt.aml ../pc-bios/
 
 seavgabios: $(patsubst %,seavgabios-%,$(vgabios_variants))
 
@@ -72,9 +73,11 @@ build-seabios-config-%: config.%
 	mkdir -p seabios/builds/$*
 	cp $< seabios/builds/$*/.config
 	$(MAKE) $(MAKEFLAGS) -C seabios \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ oldnoconfig
 	$(MAKE) $(MAKEFLAGS) -C seabios \
+		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ all
 

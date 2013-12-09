@@ -28,6 +28,7 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
+#include "trace.h"
 
 /* Capability Registers Base Address - section 2.2 */
 #define CAPLENGTH        0x0000  /* 1-byte, 0x0001 reserved */
@@ -826,14 +827,20 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
 static void ehci_wakeup(USBPort *port)
 {
     EHCIState *s = port->opaque;
-    uint32_t portsc = s->portsc[port->index];
+    uint32_t *portsc = &s->portsc[port->index];
 
-    if (portsc & PORTSC_POWNER) {
+    if (*portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
         if (companion->ops->wakeup) {
             companion->ops->wakeup(companion);
         }
         return;
+    }
+
+    if (*portsc & PORTSC_SUSPEND) {
+        trace_usb_ehci_port_wakeup(port->index);
+        *portsc |= PORTSC_FPRES;
+        ehci_raise_irq(s, USBSTS_PCD);
     }
 
     qemu_bh_schedule(s->async_bh);
@@ -1065,6 +1072,14 @@ static void ehci_port_write(void *ptr, hwaddr addr,
         if (dev && dev->attached && (dev->speedmask & USB_SPEED_MASK_HIGH)) {
             val |= PORTSC_PED;
         }
+    }
+
+    if ((val & PORTSC_SUSPEND) && !(*portsc & PORTSC_SUSPEND)) {
+        trace_usb_ehci_port_suspend(port);
+    }
+    if (!(val & PORTSC_FPRES) && (*portsc & PORTSC_FPRES)) {
+        trace_usb_ehci_port_resume(port);
+        val &= ~PORTSC_SUSPEND;
     }
 
     *portsc &= ~PORTSC_RO_MASK;

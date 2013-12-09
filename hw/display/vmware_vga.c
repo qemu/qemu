@@ -23,6 +23,7 @@
  */
 #include "hw/hw.h"
 #include "hw/loader.h"
+#include "trace.h"
 #include "ui/console.h"
 #include "hw/pci/pci.h"
 
