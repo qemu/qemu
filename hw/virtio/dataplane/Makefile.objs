@@ -1,1 +1,1 @@
-common-obj-y += hostmem.o vring.o
+common-obj-y += vring.o

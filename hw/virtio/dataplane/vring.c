@@ -15,8 +15,52 @@
  */
 
 #include "trace.h"
+#include "hw/hw.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "hw/virtio/dataplane/vring.h"
 #include "qemu/error-report.h"
+
+/* vring_map can be coupled with vring_unmap or (if you still have the
+ * value returned in *mr) memory_region_unref.
+ */
+static void *vring_map(MemoryRegion **mr, hwaddr phys, hwaddr len,
+                       bool is_write)
+{
+    MemoryRegionSection section = memory_region_find(get_system_memory(), phys, len);
+
+    if (!section.mr || int128_get64(section.size) < len) {
+        goto out;
+    }
+    if (is_write && section.readonly) {
+        goto out;
+    }
+    if (!memory_region_is_ram(section.mr)) {
+        goto out;
+    }
+
+    /* Ignore regions with dirty logging, we cannot mark them dirty */
+    if (memory_region_is_logging(section.mr)) {
+        goto out;
+    }
+
+    *mr = section.mr;
+    return memory_region_get_ram_ptr(section.mr) + section.offset_within_region;
+
+out:
+    memory_region_unref(section.mr);
+    *mr = NULL;
+    return NULL;
+}
+
+static void vring_unmap(void *buffer, bool is_write)
+{
+    ram_addr_t addr;
+    MemoryRegion *mr;
+
+    mr = qemu_ram_addr_from_host(buffer, &addr);
+    memory_region_unref(mr);
+}
 
 /* Map the guest's vring to host memory */
 bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
@@ -27,8 +71,7 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
 
     vring->broken = false;
 
-    hostmem_init(&vring->hostmem);
-    vring_ptr = hostmem_lookup(&vring->hostmem, vring_addr, vring_size, true);
+    vring_ptr = vring_map(&vring->mr, vring_addr, vring_size, true);
     if (!vring_ptr) {
         error_report("Failed to map vring "
                      "addr %#" HWADDR_PRIx " size %" HWADDR_PRIu,
@@ -54,7 +97,7 @@ void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
     virtio_queue_set_last_avail_idx(vdev, n, vring->last_avail_idx);
     virtio_queue_invalidate_signalled_used(vdev, n);
 
-    hostmem_finalize(&vring->hostmem);
+    memory_region_unref(vring->mr);
 }
 
 /* Disable guest->host notifies */
@@ -117,6 +160,7 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
     unsigned *num;
     struct iovec *iov;
     hwaddr *addr;
+    MemoryRegion *mr;
 
     if (desc->flags & VRING_DESC_F_WRITE) {
         num = &elem->in_num;
@@ -141,14 +185,16 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
     }
 
     /* TODO handle non-contiguous memory across region boundaries */
-    iov->iov_base = hostmem_lookup(&vring->hostmem, desc->addr, desc->len,
-                                   desc->flags & VRING_DESC_F_WRITE);
+    iov->iov_base = vring_map(&mr, desc->addr, desc->len,
+                              desc->flags & VRING_DESC_F_WRITE);
     if (!iov->iov_base) {
         error_report("Failed to map descriptor addr %#" PRIx64 " len %u",
                      (uint64_t)desc->addr, desc->len);
         return -EFAULT;
     }
 
+    /* The MemoryRegion is looked up again and unref'ed later, leave the
+     * ref in place.  */
     iov->iov_len = desc->len;
     *addr = desc->addr;
     *num += 1;
@@ -183,11 +229,12 @@ static int get_indirect(Vring *vring, VirtQueueElement *elem,
 
     do {
         struct vring_desc *desc_ptr;
+        MemoryRegion *mr;
 
         /* Translate indirect descriptor */
-        desc_ptr = hostmem_lookup(&vring->hostmem,
-                                  indirect->addr + found * sizeof(desc),
-                                  sizeof(desc), false);
+        desc_ptr = vring_map(&mr,
+                             indirect->addr + found * sizeof(desc),
+                             sizeof(desc), false);
         if (!desc_ptr) {
             error_report("Failed to map indirect descriptor "
                          "addr %#" PRIx64 " len %zu",
@@ -197,6 +244,7 @@ static int get_indirect(Vring *vring, VirtQueueElement *elem,
             return -EFAULT;
         }
         desc = *desc_ptr;
+        memory_region_unref(mr);
 
         /* Ensure descriptor has been loaded before accessing fields */
         barrier(); /* read_barrier_depends(); */
@@ -226,6 +274,20 @@ static int get_indirect(Vring *vring, VirtQueueElement *elem,
 
 void vring_free_element(VirtQueueElement *elem)
 {
+    int i;
+
+    /* This assumes that the iovecs, if changed, are never moved past
+     * the end of the valid area.  This is true if iovec manipulations
+     * are done with iov_discard_front and iov_discard_back.
+     */
+    for (i = 0; i < elem->out_num; i++) {
+        vring_unmap(elem->out_sg[i].iov_base, false);
+    }
+
+    for (i = 0; i < elem->in_num; i++) {
+        vring_unmap(elem->in_sg[i].iov_base, true);
+    }
+
     g_slice_free(VirtQueueElement, elem);
 }
 

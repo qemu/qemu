@@ -19,11 +19,10 @@
 
 #include <linux/virtio_ring.h>
 #include "qemu-common.h"
-#include "hostmem.h"
 #include "hw/virtio/virtio.h"
 
 typedef struct {
-    HostMem hostmem;                /* guest memory mapper */
+    MemoryRegion *mr;               /* memory region containing the vring */
     struct vring vr;                /* virtqueue vring mapped to host memory */
     uint16_t last_avail_idx;        /* last processed avail ring index */
     uint16_t last_used_idx;         /* last processed used ring index */
