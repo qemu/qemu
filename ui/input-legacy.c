@@ -220,20 +220,6 @@ int index_from_key(const char *key)
     return i;
 }
 
-int index_from_keycode(int code)
-{
-    int i;
-
-    for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-        if (key_defs[i] == code) {
-            break;
-        }
-    }
-
-    /* Return Q_KEY_CODE_MAX if the code is invalid */
-    return i;
-}
-
 static int *keycodes;
 static int keycodes_size;
 static QEMUTimer *key_timer;
