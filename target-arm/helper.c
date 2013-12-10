@@ -1173,7 +1173,7 @@ static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int maskshift = extract32(value, 0, 3);
 
-    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+    if (arm_feature(env, ARM_FEATURE_LPAE) && (value & (1 << 31))) {
         value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
     } else {
         value &= 7;
