@@ -35,12 +35,6 @@ struct QEMUPutMouseEntry {
     QEMUPutMouseEvent *qemu_put_mouse_event;
     void *qemu_put_mouse_event_opaque;
     int qemu_put_mouse_event_absolute;
-    char *qemu_put_mouse_event_name;
-
-    int index;
-
-    /* used internally by qemu for handling mice */
-    QTAILQ_ENTRY(QEMUPutMouseEntry) node;
 
     /* new input core */
     QemuInputHandler h;
@@ -412,17 +406,12 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
                                                 const char *name)
 {
     QEMUPutMouseEntry *s;
-    static int mouse_index = 0;
 
     s = g_malloc0(sizeof(QEMUPutMouseEntry));
 
     s->qemu_put_mouse_event = func;
     s->qemu_put_mouse_event_opaque = opaque;
     s->qemu_put_mouse_event_absolute = absolute;
-    s->qemu_put_mouse_event_name = g_strdup(name);
-    s->index = mouse_index++;
-
-    QTAILQ_INSERT_TAIL(&mouse_handlers, s, node);
 
     s->h.name = name;
     s->h.mask = INPUT_EVENT_MASK_BTN |
@@ -437,19 +426,13 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
 
 void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry)
 {
-    QTAILQ_REMOVE(&mouse_handlers, entry, node);
-    QTAILQ_INSERT_HEAD(&mouse_handlers, entry, node);
-
     qemu_input_handler_activate(entry->s);
 }
 
 void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry)
 {
-    QTAILQ_REMOVE(&mouse_handlers, entry, node);
-
     qemu_input_handler_unregister(entry->s);
 
-    g_free(entry->qemu_put_mouse_event_name);
     g_free(entry);
 }
 
@@ -481,30 +464,4 @@ void kbd_put_ledstate(int ledstate)
     QTAILQ_FOREACH(cursor, &led_handlers, next) {
         cursor->put_led(cursor->opaque, ledstate);
     }
-}
-
-void do_mouse_set(Monitor *mon, const QDict *qdict)
-{
-    QEMUPutMouseEntry *cursor;
-    int index = qdict_get_int(qdict, "index");
-    int found = 0;
-
-    if (QTAILQ_EMPTY(&mouse_handlers)) {
-        monitor_printf(mon, "No mouse devices connected\n");
-        return;
-    }
-
-    QTAILQ_FOREACH(cursor, &mouse_handlers, node) {
-        if (cursor->index == index) {
-            found = 1;
-            qemu_activate_mouse_event_handler(cursor);
-            break;
-        }
-    }
-
-    if (!found) {
-        monitor_printf(mon, "Mouse at given index not found\n");
-    }
-
-    qemu_input_check_mode_change();
 }
