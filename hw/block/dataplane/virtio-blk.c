@@ -308,6 +308,7 @@ static void handle_notify(EventNotifier *e)
 
             if (process_request(&s->ioqueue, iov, out_num, in_num, head) < 0) {
                 vring_set_broken(&s->vring);
+                ret = -EFAULT;
                 break;
             }
             iov += out_num + in_num;

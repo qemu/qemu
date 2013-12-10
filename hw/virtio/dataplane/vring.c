@@ -244,7 +244,8 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
 
     /* If there was a fatal error then refuse operation */
     if (vring->broken) {
-        return -EFAULT;
+        ret = -EFAULT;
+        goto out;
     }
 
     /* Check it isn't doing very strange things with descriptor numbers. */
@@ -255,13 +256,14 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     if (unlikely((uint16_t)(avail_idx - last_avail_idx) > num)) {
         error_report("Guest moved used index from %u to %u",
                      last_avail_idx, avail_idx);
-        vring->broken = true;
-        return -EFAULT;
+        ret = -EFAULT;
+        goto out;
     }
 
     /* If there's nothing new since last we looked. */
     if (avail_idx == last_avail_idx) {
-        return -EAGAIN;
+        ret = -EAGAIN;
+        goto out;
     }
 
     /* Only get avail ring entries after they have been exposed by guest. */
@@ -274,8 +276,8 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     /* If their number is silly, that's an error. */
     if (unlikely(head >= num)) {
         error_report("Guest says index %u > %u is available", head, num);
-        vring->broken = true;
-        return -EFAULT;
+        ret = -EFAULT;
+        goto out;
     }
 
     if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
@@ -289,14 +291,14 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     do {
         if (unlikely(i >= num)) {
             error_report("Desc index is %u > %u, head = %u", i, num, head);
-            vring->broken = true;
-            return -EFAULT;
+            ret = -EFAULT;
+            goto out;
         }
         if (unlikely(++found > num)) {
             error_report("Loop detected: last one at %u vq size %u head %u",
                          i, num, head);
-            vring->broken = true;
-            return -EFAULT;
+            ret = -EFAULT;
+            goto out;
         }
         desc = vring->vr.desc[i];
 
@@ -306,15 +308,14 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
         if (desc.flags & VRING_DESC_F_INDIRECT) {
             int ret = get_indirect(vring, iov, iov_end, out_num, in_num, &desc);
             if (ret < 0) {
-                return ret;
+                goto out;
             }
             continue;
         }
 
         ret = get_desc(vring, iov, iov_end, out_num, in_num, &desc);
         if (ret < 0) {
-            vring->broken |= (ret == -EFAULT);
-            return ret;
+            goto out;
         }
 
         i = desc.next;
@@ -323,6 +324,13 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     /* On success, increment avail index. */
     vring->last_avail_idx++;
     return head;
+
+out:
+    assert(ret < 0);
+    if (ret == -EFAULT) {
+        vring->broken = true;
+    }
+    return ret;
 }
 
 /* After we've used one of their buffers, we tell them about it.
