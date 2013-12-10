@@ -483,29 +483,6 @@ void kbd_put_ledstate(int ledstate)
     }
 }
 
-MouseInfoList *qmp_query_mice(Error **errp)
-{
-    MouseInfoList *mice_list = NULL;
-    QEMUPutMouseEntry *cursor;
-    bool current = true;
-
-    QTAILQ_FOREACH(cursor, &mouse_handlers, node) {
-        MouseInfoList *info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->name = g_strdup(cursor->qemu_put_mouse_event_name);
-        info->value->index = cursor->index;
-        info->value->absolute = !!cursor->qemu_put_mouse_event_absolute;
-        info->value->current = current;
-
-        current = false;
-
-        info->next = mice_list;
-        mice_list = info;
-    }
-
-    return mice_list;
-}
-
 void do_mouse_set(Monitor *mon, const QDict *qdict)
 {
     QEMUPutMouseEntry *cursor;
