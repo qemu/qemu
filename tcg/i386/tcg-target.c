@@ -1486,7 +1486,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        /* In 32-bit mode, 8-byte stores can only happen from [abcd]x.
+        /* In 32-bit mode, 8-bit stores can only happen from [abcd]x.
            Use the scratch register if necessary.  */
         if (TCG_TARGET_REG_BITS == 32 && datalo >= 4) {
             tcg_out_mov(s, TCG_TYPE_I32, scratch, datalo);
