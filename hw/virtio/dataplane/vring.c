@@ -111,29 +111,32 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
 }
 
 
-static int get_desc(Vring *vring,
-                    struct iovec iov[], struct iovec *iov_end,
-                    unsigned int *out_num, unsigned int *in_num,
+static int get_desc(Vring *vring, VirtQueueElement *elem,
                     struct vring_desc *desc)
 {
     unsigned *num;
+    struct iovec *iov;
+    hwaddr *addr;
 
     if (desc->flags & VRING_DESC_F_WRITE) {
-        num = in_num;
+        num = &elem->in_num;
+        iov = &elem->in_sg[*num];
+        addr = &elem->in_addr[*num];
     } else {
-        num = out_num;
+        num = &elem->out_num;
+        iov = &elem->out_sg[*num];
+        addr = &elem->out_addr[*num];
 
         /* If it's an output descriptor, they're all supposed
          * to come before any input descriptors. */
-        if (unlikely(*in_num)) {
+        if (unlikely(elem->in_num)) {
             error_report("Descriptor has out after in");
             return -EFAULT;
         }
     }
 
     /* Stop for now if there are not enough iovecs available. */
-    iov += *in_num + *out_num;
-    if (iov >= iov_end) {
+    if (*num >= VIRTQUEUE_MAX_SIZE) {
         return -ENOBUFS;
     }
 
@@ -147,14 +150,13 @@ static int get_desc(Vring *vring,
     }
 
     iov->iov_len = desc->len;
+    *addr = desc->addr;
     *num += 1;
     return 0;
 }
 
 /* This is stolen from linux/drivers/vhost/vhost.c. */
-static int get_indirect(Vring *vring,
-                        struct iovec iov[], struct iovec *iov_end,
-                        unsigned int *out_num, unsigned int *in_num,
+static int get_indirect(Vring *vring, VirtQueueElement *elem,
                         struct vring_desc *indirect)
 {
     struct vring_desc desc;
@@ -212,7 +214,7 @@ static int get_indirect(Vring *vring,
             return -EFAULT;
         }
 
-        ret = get_desc(vring, iov, iov_end, out_num, in_num, &desc);
+        ret = get_desc(vring, elem, &desc);
         if (ret < 0) {
             vring->broken |= (ret == -EFAULT);
             return ret;
@@ -220,6 +222,11 @@ static int get_indirect(Vring *vring,
         i = desc.next;
     } while (desc.flags & VRING_DESC_F_NEXT);
     return 0;
+}
+
+void vring_free_element(VirtQueueElement *elem)
+{
+    g_slice_free(VirtQueueElement, elem);
 }
 
 /* This looks in the virtqueue and for the first available buffer, and converts
@@ -234,12 +241,12 @@ static int get_indirect(Vring *vring,
  * Stolen from linux/drivers/vhost/vhost.c.
  */
 int vring_pop(VirtIODevice *vdev, Vring *vring,
-              struct iovec iov[], struct iovec *iov_end,
-              unsigned int *out_num, unsigned int *in_num)
+              VirtQueueElement **p_elem)
 {
     struct vring_desc desc;
     unsigned int i, head, found = 0, num = vring->vr.num;
     uint16_t avail_idx, last_avail_idx;
+    VirtQueueElement *elem = NULL;
     int ret;
 
     /* If there was a fatal error then refuse operation */
@@ -273,6 +280,10 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
      * the index we've seen. */
     head = vring->vr.avail->ring[last_avail_idx % num];
 
+    elem = g_slice_new(VirtQueueElement);
+    elem->index = head;
+    elem->in_num = elem->out_num = 0;
+    
     /* If their number is silly, that's an error. */
     if (unlikely(head >= num)) {
         error_report("Guest says index %u > %u is available", head, num);
@@ -283,9 +294,6 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
         vring_avail_event(&vring->vr) = vring->vr.avail->idx;
     }
-
-    /* When we start there are none of either input nor output. */
-    *out_num = *in_num = 0;
 
     i = head;
     do {
@@ -306,14 +314,14 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
         barrier();
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
-            int ret = get_indirect(vring, iov, iov_end, out_num, in_num, &desc);
+            int ret = get_indirect(vring, elem, &desc);
             if (ret < 0) {
                 goto out;
             }
             continue;
         }
 
-        ret = get_desc(vring, iov, iov_end, out_num, in_num, &desc);
+        ret = get_desc(vring, elem, &desc);
         if (ret < 0) {
             goto out;
         }
@@ -323,6 +331,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
 
     /* On success, increment avail index. */
     vring->last_avail_idx++;
+    *p_elem = elem;
     return head;
 
 out:
@@ -330,6 +339,10 @@ out:
     if (ret == -EFAULT) {
         vring->broken = true;
     }
+    if (elem) {
+        vring_free_element(elem);
+    }
+    *p_elem = NULL;
     return ret;
 }
 
@@ -337,10 +350,13 @@ out:
  *
  * Stolen from linux/drivers/vhost/vhost.c.
  */
-void vring_push(Vring *vring, unsigned int head, int len)
+void vring_push(Vring *vring, VirtQueueElement *elem, int len)
 {
     struct vring_used_elem *used;
+    unsigned int head = elem->index;
     uint16_t new;
+
+    vring_free_element(elem);
 
     /* Don't touch vring if a fatal error occurred */
     if (vring->broken) {
