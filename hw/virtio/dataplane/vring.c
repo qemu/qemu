@@ -110,6 +110,47 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
     return vring_need_event(vring_used_event(&vring->vr), new, old);
 }
 
+
+static int get_desc(Vring *vring,
+                    struct iovec iov[], struct iovec *iov_end,
+                    unsigned int *out_num, unsigned int *in_num,
+                    struct vring_desc *desc)
+{
+    unsigned *num;
+
+    if (desc->flags & VRING_DESC_F_WRITE) {
+        num = in_num;
+    } else {
+        num = out_num;
+
+        /* If it's an output descriptor, they're all supposed
+         * to come before any input descriptors. */
+        if (unlikely(*in_num)) {
+            error_report("Descriptor has out after in");
+            return -EFAULT;
+        }
+    }
+
+    /* Stop for now if there are not enough iovecs available. */
+    iov += *in_num + *out_num;
+    if (iov >= iov_end) {
+        return -ENOBUFS;
+    }
+
+    /* TODO handle non-contiguous memory across region boundaries */
+    iov->iov_base = hostmem_lookup(&vring->hostmem, desc->addr, desc->len,
+                                   desc->flags & VRING_DESC_F_WRITE);
+    if (!iov->iov_base) {
+        error_report("Failed to map descriptor addr %#" PRIx64 " len %u",
+                     (uint64_t)desc->addr, desc->len);
+        return -EFAULT;
+    }
+
+    iov->iov_len = desc->len;
+    *num += 1;
+    return 0;
+}
+
 /* This is stolen from linux/drivers/vhost/vhost.c. */
 static int get_indirect(Vring *vring,
                         struct iovec iov[], struct iovec *iov_end,
@@ -118,6 +159,7 @@ static int get_indirect(Vring *vring,
 {
     struct vring_desc desc;
     unsigned int i = 0, count, found = 0;
+    int ret;
 
     /* Sanity check */
     if (unlikely(indirect->len % sizeof(desc))) {
@@ -170,36 +212,10 @@ static int get_indirect(Vring *vring,
             return -EFAULT;
         }
 
-        /* Stop for now if there are not enough iovecs available. */
-        if (iov >= iov_end) {
-            return -ENOBUFS;
-        }
-
-        iov->iov_base = hostmem_lookup(&vring->hostmem, desc.addr, desc.len,
-                                       desc.flags & VRING_DESC_F_WRITE);
-        if (!iov->iov_base) {
-            error_report("Failed to map indirect descriptor"
-                         "addr %#" PRIx64 " len %u",
-                         (uint64_t)desc.addr, desc.len);
-            vring->broken = true;
-            return -EFAULT;
-        }
-        iov->iov_len = desc.len;
-        iov++;
-
-        /* If this is an input descriptor, increment that count. */
-        if (desc.flags & VRING_DESC_F_WRITE) {
-            *in_num += 1;
-        } else {
-            /* If it's an output descriptor, they're all supposed
-             * to come before any input descriptors. */
-            if (unlikely(*in_num)) {
-                error_report("Indirect descriptor "
-                             "has out after in: idx %u", i);
-                vring->broken = true;
-                return -EFAULT;
-            }
-            *out_num += 1;
+        ret = get_desc(vring, iov, iov_end, out_num, in_num, &desc);
+        if (ret < 0) {
+            vring->broken |= (ret == -EFAULT);
+            return ret;
         }
         i = desc.next;
     } while (desc.flags & VRING_DESC_F_NEXT);
@@ -224,6 +240,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     struct vring_desc desc;
     unsigned int i, head, found = 0, num = vring->vr.num;
     uint16_t avail_idx, last_avail_idx;
+    int ret;
 
     /* If there was a fatal error then refuse operation */
     if (vring->broken) {
@@ -294,40 +311,12 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
             continue;
         }
 
-        /* If there are not enough iovecs left, stop for now.  The caller
-         * should check if there are more descs available once they have dealt
-         * with the current set.
-         */
-        if (iov >= iov_end) {
-            return -ENOBUFS;
+        ret = get_desc(vring, iov, iov_end, out_num, in_num, &desc);
+        if (ret < 0) {
+            vring->broken |= (ret == -EFAULT);
+            return ret;
         }
 
-        /* TODO handle non-contiguous memory across region boundaries */
-        iov->iov_base = hostmem_lookup(&vring->hostmem, desc.addr, desc.len,
-                                       desc.flags & VRING_DESC_F_WRITE);
-        if (!iov->iov_base) {
-            error_report("Failed to map vring desc addr %#" PRIx64 " len %u",
-                         (uint64_t)desc.addr, desc.len);
-            vring->broken = true;
-            return -EFAULT;
-        }
-        iov->iov_len  = desc.len;
-        iov++;
-
-        if (desc.flags & VRING_DESC_F_WRITE) {
-            /* If this is an input descriptor,
-             * increment that count. */
-            *in_num += 1;
-        } else {
-            /* If it's an output descriptor, they're all supposed
-             * to come before any input descriptors. */
-            if (unlikely(*in_num)) {
-                error_report("Descriptor has out after in: idx %d", i);
-                vring->broken = true;
-                return -EFAULT;
-            }
-            *out_num += 1;
-        }
         i = desc.next;
     } while (desc.flags & VRING_DESC_F_NEXT);
 
