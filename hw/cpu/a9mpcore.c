@@ -24,11 +24,11 @@ static void a9mp_priv_initfn(Object *obj)
     memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
 
-    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
-    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
-
     object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
     qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
     object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
     qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
@@ -41,10 +41,19 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
-    DeviceState *gicdev, *scudev, *mptimerdev, *wdtdev;
-    SysBusDevice *mptimerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
+    DeviceState *scudev, *gicdev, *mptimerdev, *wdtdev;
+    SysBusDevice *scubusdev, *gicbusdev, *mptimerbusdev, *wdtbusdev;
     Error *err = NULL;
     int i;
+
+    scudev = DEVICE(&s->scu);
+    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
@@ -61,15 +70,6 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, a9mp_priv_set_irq, s->num_irq - 32);
-
-    scudev = DEVICE(&s->scu);
-    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
-        return;
-    }
-    scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     mptimerdev = DEVICE(&s->mptimer);
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);

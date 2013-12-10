@@ -28,8 +28,8 @@ typedef struct A9MPPrivState {
     MemoryRegion container;
     uint32_t num_irq;
 
-    GICState gic;
     A9SCUState scu;
+    GICState gic;
     ARMMPTimerState mptimer;
     ARMMPTimerState wdt;
 } A9MPPrivState;
