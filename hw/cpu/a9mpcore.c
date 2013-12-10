@@ -42,7 +42,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
     DeviceState *gicdev, *scudev, *mptimerdev, *wdtdev;
-    SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
+    SysBusDevice *mptimerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     Error *err = NULL;
     int i;
 
@@ -78,7 +78,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
+    mptimerbusdev = SYS_BUS_DEVICE(&s->mptimer);
 
     wdtdev = DEVICE(&s->wdt);
     qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
@@ -109,7 +109,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
     memory_region_add_subregion(&s->container, 0x600,
-                                sysbus_mmio_get_region(timerbusdev, 0));
+                                sysbus_mmio_get_region(mptimerbusdev, 0));
     memory_region_add_subregion(&s->container, 0x620,
                                 sysbus_mmio_get_region(wdtbusdev, 0));
     memory_region_add_subregion(&s->container, 0x1000,
@@ -120,7 +120,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(timerbusdev, i,
+        sysbus_connect_irq(mptimerbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 29));
         sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 30));
