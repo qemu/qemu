@@ -26,6 +26,8 @@
 #undef WIN32_LEAN_AND_MEAN
 
 #include <SDL.h>
+
+#if SDL_MAJOR_VERSION == 1
 #include <SDL_syswm.h>
 
 #include "qemu-common.h"
@@ -951,3 +953,4 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     atexit(sdl_cleanup);
 }
+#endif

@@ -9,12 +9,12 @@ vnc-obj-y += vnc-jobs.o
 
 common-obj-y += keymaps.o console.o cursor.o input.o input-legacy.o qemu-pixman.o
 common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
-common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
+common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o sdl2.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
-$(obj)/sdl.o $(obj)/sdl_zoom.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
+$(obj)/sdl.o $(obj)/sdl_zoom.o $(obj)/sdl2.o: QEMU_CFLAGS += $(SDL_CFLAGS)
 
 $(obj)/gtk.o: QEMU_CFLAGS += $(GTK_CFLAGS) $(VTE_CFLAGS)
