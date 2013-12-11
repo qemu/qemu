@@ -42,7 +42,6 @@
 
 #define HPET_MSI_SUPPORT        0
 
-#define TYPE_HPET "hpet"
 #define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
 
 struct HPETState;
@@ -770,11 +769,6 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     dc->reset = hpet_reset;
     dc->vmsd = &vmstate_hpet;
     dc->props = hpet_device_properties;
-}
-
-bool hpet_find(void)
-{
-    return object_resolve_path_type("", TYPE_HPET, NULL);
 }
 
 static const TypeInfo hpet_device_info = {
