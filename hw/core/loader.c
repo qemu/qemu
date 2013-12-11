@@ -785,6 +785,13 @@ static void rom_reset(void *unused)
             g_free(rom->data);
             rom->data = NULL;
         }
+        /*
+         * The rom loader is really on the same level as firmware in the guest
+         * shadowing a ROM into RAM. Such a shadowing mechanism needs to ensure
+         * that the instruction cache for that new region is clear, so that the
+         * CPU definitely fetches its instructions from the just written data.
+         */
+        cpu_flush_icache_range(rom->addr, rom->datasize);
     }
 }
 

@@ -50,6 +50,7 @@
 #include "translate-all.h"
 
 #include "exec/memory-internal.h"
+#include "qemu/cache-utils.h"
 
 #include "qemu/range.h"
 
@@ -2070,9 +2071,13 @@ void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
     address_space_rw(&address_space_memory, addr, buf, len, is_write);
 }
 
-/* used for ROM loading : can write in RAM and ROM */
-void cpu_physical_memory_write_rom(hwaddr addr,
-                                   const uint8_t *buf, int len)
+enum write_rom_type {
+    WRITE_DATA,
+    FLUSH_CACHE,
+};
+
+static inline void cpu_physical_memory_write_rom_internal(
+    hwaddr addr, const uint8_t *buf, int len, enum write_rom_type type)
 {
     hwaddr l;
     uint8_t *ptr;
@@ -2091,13 +2096,42 @@ void cpu_physical_memory_write_rom(hwaddr addr,
             addr1 += memory_region_get_ram_addr(mr);
             /* ROM/RAM case */
             ptr = qemu_get_ram_ptr(addr1);
-            memcpy(ptr, buf, l);
-            invalidate_and_set_dirty(addr1, l);
+            switch (type) {
+            case WRITE_DATA:
+                memcpy(ptr, buf, l);
+                invalidate_and_set_dirty(addr1, l);
+                break;
+            case FLUSH_CACHE:
+                flush_icache_range((uintptr_t)ptr, (uintptr_t)ptr + l);
+                break;
+            }
         }
         len -= l;
         buf += l;
         addr += l;
     }
+}
+
+/* used for ROM loading : can write in RAM and ROM */
+void cpu_physical_memory_write_rom(hwaddr addr,
+                                   const uint8_t *buf, int len)
+{
+    cpu_physical_memory_write_rom_internal(addr, buf, len, WRITE_DATA);
+}
+
+void cpu_flush_icache_range(hwaddr start, int len)
+{
+    /*
+     * This function should do the same thing as an icache flush that was
+     * triggered from within the guest. For TCG we are always cache coherent,
+     * so there is no need to flush anything. For KVM / Xen we need to flush
+     * the host's instruction cache at least.
+     */
+    if (tcg_enabled()) {
+        return;
+    }
+
+    cpu_physical_memory_write_rom_internal(start, NULL, len, FLUSH_CACHE);
 }
 
 typedef struct {
