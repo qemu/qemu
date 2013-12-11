@@ -1282,7 +1282,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
      */
     if (!no_hpet && (!kvm_irqchip_in_kernel() || kvm_has_pit_state2())) {
         /* In order to set property, here not using sysbus_try_create_simple */
-        hpet = qdev_try_create(NULL, "hpet");
+        hpet = qdev_try_create(NULL, TYPE_HPET);
         if (hpet) {
             /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7
              * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
