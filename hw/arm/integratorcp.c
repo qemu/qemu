@@ -36,6 +36,7 @@ typedef struct IntegratorCMState {
     uint32_t cm_init;
     uint32_t cm_flags;
     uint32_t cm_nvflags;
+    uint32_t cm_refcnt_offset;
     uint32_t int_level;
     uint32_t irq_enabled;
     uint32_t fiq_enabled;
@@ -82,9 +83,13 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
         return s->cm_sdram;
     case 9: /* CM_INIT */
         return s->cm_init;
-    case 10: /* CM_REFCT */
-        /* ??? High frequency timer.  */
-        hw_error("integratorcm_read: CM_REFCT");
+    case 10: /* CM_REFCNT */
+        /* This register, CM_REFCNT, provides a 32-bit count value.
+         * The count increments at the fixed reference clock frequency of 24MHz
+         * and can be used as a real-time counter.
+         */
+        return (uint32_t)muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
+                                  1000) - s->cm_refcnt_offset;
     case 12: /* CM_FLAGS */
         return s->cm_flags;
     case 14: /* CM_NVFLAGS */
@@ -257,6 +262,8 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
+    s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
+                                   1000);
     memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000);
     vmstate_register_ram_global(&s->flash);
 

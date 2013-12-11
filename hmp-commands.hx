@@ -1190,7 +1190,7 @@ ETEXI
     {
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
-        .params     = "tap|user|socket|vde|dump [options]",
+        .params     = "tap|user|socket|vde|netmap|dump [options]",
         .help       = "add host VLAN client",
         .mhandler.cmd = net_host_device_add,
     },
@@ -1218,7 +1218,7 @@ ETEXI
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .params     = "[user|tap|socket|hubport],id=str[,prop=value][,...]",
+        .params     = "[user|tap|socket|hubport|netmap],id=str[,prop=value][,...]",
         .help       = "add host network device",
         .mhandler.cmd = hmp_netdev_add,
     },

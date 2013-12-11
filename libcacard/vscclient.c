@@ -407,7 +407,7 @@ do_socket_read(GIOChannel *source,
             }
             break;
         default:
-            g_warn_if_reached();
+            g_assert_not_reached();
             return FALSE;
         }
 
@@ -760,7 +760,7 @@ main(
 
     g_io_channel_unref(channel_stdin);
     g_io_channel_unref(channel_socket);
-    g_byte_array_unref(socket_to_send);
+    g_byte_array_free(socket_to_send, TRUE);
 
     closesocket(sock);
     return 0;
