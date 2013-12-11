@@ -1525,6 +1525,16 @@ void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &errp);
 }
 
+void hmp_cpu_add(Monitor *mon, const QDict *qdict)
+{
+    int cpuid;
+    Error *err = NULL;
+
+    cpuid = qdict_get_int(qdict, "id");
+    qmp_cpu_add(cpuid, &err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_chardev_add(Monitor *mon, const QDict *qdict)
 {
     const char *args = qdict_get_str(qdict, "args");

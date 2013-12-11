@@ -1620,6 +1620,19 @@ Executes a qemu-io command on the given block device.
 ETEXI
 
     {
+        .name       = "cpu-add",
+        .args_type  = "id:i",
+        .params     = "id",
+        .help       = "add cpu",
+        .mhandler.cmd  = hmp_cpu_add,
+    },
+
+STEXI
+@item cpu-add @var{id}
+Add CPU with id @var{id}
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
