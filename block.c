@@ -483,7 +483,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
     return ret;
 }
 
-static int bdrv_refresh_limits(BlockDriverState *bs)
+int bdrv_refresh_limits(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
 
@@ -1607,6 +1607,8 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     reopen_state->bs->enable_write_cache = !!(reopen_state->flags &
                                               BDRV_O_CACHE_WB);
     reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
+
+    bdrv_refresh_limits(reopen_state->bs);
 }
 
 /*
@@ -2441,6 +2443,7 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     }
     new_top_bs->backing_hd = base_bs;
 
+    bdrv_refresh_limits(new_top_bs);
 
     QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
         /* so that bdrv_close() does not recursively close the chain */
