@@ -1606,12 +1606,12 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
-        tcg_gen_qemu_ld32u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
-        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t0, rt);
         opn = "ld";
         break;
@@ -1629,7 +1629,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
         tcg_gen_shl_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 63);
         t2 = tcg_const_tl(0x7fffffffffffffffull);
@@ -1650,7 +1650,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
         tcg_gen_shr_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 63);
         t2 = tcg_const_tl(0xfffffffffffffffeull);
@@ -1667,7 +1667,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         tcg_temp_free(t1);
-        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t0, rt);
         opn = "ldpc";
         break;
@@ -1676,32 +1676,32 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         tcg_temp_free(t1);
-        tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t0, rt);
         opn = "lwpc";
         break;
     case OPC_LW:
-        tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
-        tcg_gen_qemu_ld16s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
-        tcg_gen_qemu_ld16u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
     case OPC_LB:
-        tcg_gen_qemu_ld8s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_SB);
         gen_store_gpr(t0, rt);
         opn = "lb";
         break;
     case OPC_LBU:
-        tcg_gen_qemu_ld8u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
         gen_store_gpr(t0, rt);
         opn = "lbu";
         break;
@@ -1713,7 +1713,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
-        tcg_gen_qemu_ld32u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
         tcg_gen_shl_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 31);
         t2 = tcg_const_tl(0x7fffffffull);
@@ -1735,7 +1735,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
-        tcg_gen_qemu_ld32u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
         tcg_gen_shr_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 31);
         t2 = tcg_const_tl(0xfffffffeull);
@@ -1774,7 +1774,7 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        tcg_gen_qemu_st64(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         opn = "sd";
         break;
     case OPC_SDL:
@@ -1789,15 +1789,15 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     case OPC_SW:
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         opn = "sw";
         break;
     case OPC_SH:
-        tcg_gen_qemu_st16(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW);
         opn = "sh";
         break;
     case OPC_SB:
-        tcg_gen_qemu_st8(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_8);
         opn = "sb";
         break;
     case OPC_SWL:
@@ -1868,9 +1868,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-
-            tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
-            tcg_gen_trunc_tl_i32(fp0, t0);
+            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL);
             gen_store_fpr32(fp0, ft);
             tcg_temp_free_i32(fp0);
         }
@@ -1879,12 +1877,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_SWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            TCGv t1 = tcg_temp_new();
-
             gen_load_fpr32(fp0, ft);
-            tcg_gen_extu_i32_tl(t1, fp0);
-            tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
-            tcg_temp_free(t1);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
             tcg_temp_free_i32(fp0);
         }
         opn = "swc1";
@@ -1892,8 +1886,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LDC1:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             gen_store_fpr64(ctx, fp0, ft);
             tcg_temp_free_i64(fp0);
         }
@@ -1902,9 +1895,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_SDC1:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-
             gen_load_fpr64(ctx, fp0, ft);
-            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             tcg_temp_free_i64(fp0);
         }
         opn = "sdc1";
@@ -8652,7 +8644,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
             tcg_gen_trunc_tl_i32(fp0, t0);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free_i32(fp0);
@@ -8664,8 +8656,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         check_cp1_registers(ctx, fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
         }
@@ -8677,7 +8668,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
-            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
         }
@@ -8687,13 +8678,9 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            TCGv t1 = tcg_temp_new();
-
             gen_load_fpr32(fp0, fs);
-            tcg_gen_extu_i32_tl(t1, fp0);
-            tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
             tcg_temp_free_i32(fp0);
-            tcg_temp_free(t1);
         }
         opn = "swxc1";
         store = 1;
@@ -8703,9 +8690,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         check_cp1_registers(ctx, fs);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-
             gen_load_fpr64(ctx, fp0, fs);
-            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             tcg_temp_free_i64(fp0);
         }
         opn = "sdxc1";
@@ -8716,9 +8702,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         tcg_gen_andi_tl(t0, t0, ~0x7);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-
             gen_load_fpr64(ctx, fp0, fs);
-            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
             tcg_temp_free_i64(fp0);
         }
         opn = "suxc1";
@@ -9286,30 +9271,30 @@ static void gen_mips16_save (DisasContext *ctx,
     case 4:
         gen_base_offset_addr(ctx, t0, 29, 12);
         gen_load_gpr(t1, 7);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         /* Fall through */
     case 3:
         gen_base_offset_addr(ctx, t0, 29, 8);
         gen_load_gpr(t1, 6);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         /* Fall through */
     case 2:
         gen_base_offset_addr(ctx, t0, 29, 4);
         gen_load_gpr(t1, 5);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         /* Fall through */
     case 1:
         gen_base_offset_addr(ctx, t0, 29, 0);
         gen_load_gpr(t1, 4);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
     }
 
     gen_load_gpr(t0, 29);
 
-#define DECR_AND_STORE(reg) do {                \
-        tcg_gen_subi_tl(t0, t0, 4);             \
-        gen_load_gpr(t1, reg);                  \
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);                  \
+#define DECR_AND_STORE(reg) do {                                 \
+        tcg_gen_subi_tl(t0, t0, 4);                              \
+        gen_load_gpr(t1, reg);                                   \
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL); \
     } while (0)
 
     if (do_ra) {
@@ -9407,10 +9392,10 @@ static void gen_mips16_restore (DisasContext *ctx,
 
     tcg_gen_addi_tl(t0, cpu_gpr[29], framesize);
 
-#define DECR_AND_LOAD(reg) do {                   \
-        tcg_gen_subi_tl(t0, t0, 4);               \
-        tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx); \
-        gen_store_gpr(t1, reg);                   \
+#define DECR_AND_LOAD(reg) do {                            \
+        tcg_gen_subi_tl(t0, t0, 4);                        \
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL); \
+        gen_store_gpr(t1, reg);                            \
     } while (0)
 
     if (do_ra) {
@@ -10935,7 +10920,7 @@ static void gen_ldxs (DisasContext *ctx, int base, int index, int rd)
         gen_op_addr_add(ctx, t0, t1, t0);
     }
 
-    tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx);
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL);
     gen_store_gpr(t1, rd);
 
     tcg_temp_free(t0);
@@ -10964,21 +10949,21 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 4);
         gen_op_addr_add(ctx, t0, t0, t1);
-        tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t1, rd+1);
         opn = "lwp";
         break;
     case SWP:
         gen_load_gpr(t1, rd);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         tcg_gen_movi_tl(t1, 4);
         gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd+1);
-        tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         opn = "swp";
         break;
 #ifdef TARGET_MIPS64
@@ -10987,21 +10972,21 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        tcg_gen_qemu_ld64(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 8);
         gen_op_addr_add(ctx, t0, t0, t1);
-        tcg_gen_qemu_ld64(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t1, rd+1);
         opn = "ldp";
         break;
     case SDP:
         gen_load_gpr(t1, rd);
-        tcg_gen_qemu_st64(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         tcg_gen_movi_tl(t1, 8);
         gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd+1);
-        tcg_gen_qemu_st64(t1, t0, ctx->mem_idx);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         opn = "sdp";
         break;
 #endif
@@ -12672,23 +12657,23 @@ static void gen_mipsdsp_ld(DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case OPC_LBUX:
-        tcg_gen_qemu_ld8u(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
         gen_store_gpr(t0, rd);
         opn = "lbux";
         break;
     case OPC_LHX:
-        tcg_gen_qemu_ld16s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
         gen_store_gpr(t0, rd);
         opn = "lhx";
         break;
     case OPC_LWX:
-        tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t0, rd);
         opn = "lwx";
         break;
 #if defined(TARGET_MIPS64)
     case OPC_LDX:
-        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t0, rd);
         opn = "ldx";
         break;
