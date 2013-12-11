@@ -1902,3 +1902,31 @@ int kvm_arch_on_sigbus(int code, void *addr)
 void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
+
+int kvm_arch_insert_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+}
+
+void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
+{
+}
