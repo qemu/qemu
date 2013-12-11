@@ -428,10 +428,6 @@ static int vmdk_add_extent(BlockDriverState *bs,
     extent->l2_size = l2_size;
     extent->cluster_sectors = flat ? sectors : cluster_sectors;
 
-    if (!flat) {
-        bs->bl.write_zeroes_alignment =
-            MAX(bs->bl.write_zeroes_alignment, cluster_sectors);
-    }
     if (s->num_extents > 1) {
         extent->end_sector = (*(extent - 1)).end_sector + extent->sectors;
     } else {
@@ -900,6 +896,23 @@ fail:
     s->create_type = NULL;
     vmdk_free_extents(bs);
     return ret;
+}
+
+
+static int vmdk_refresh_limits(BlockDriverState *bs)
+{
+    BDRVVmdkState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_extents; i++) {
+        if (!s->extents[i].flat) {
+            bs->bl.write_zeroes_alignment =
+                MAX(bs->bl.write_zeroes_alignment,
+                    s->extents[i].cluster_sectors);
+        }
+    }
+
+    return 0;
 }
 
 static int get_whole_cluster(BlockDriverState *bs,
@@ -2013,6 +2026,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,
     .bdrv_has_zero_init           = vmdk_has_zero_init,
     .bdrv_get_specific_info       = vmdk_get_specific_info,
+    .bdrv_refresh_limits          = vmdk_refresh_limits,
 
     .create_options               = vmdk_create_options,
 };

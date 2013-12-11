@@ -483,6 +483,19 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
     return ret;
 }
 
+static int bdrv_refresh_limits(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+
+    memset(&bs->bl, 0, sizeof(bs->bl));
+
+    if (drv && drv->bdrv_refresh_limits) {
+        return drv->bdrv_refresh_limits(bs);
+    }
+
+    return 0;
+}
+
 /*
  * Create a uniquely-named empty temporary file.
  * Return 0 upon success, otherwise a negative errno value.
@@ -872,6 +885,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         goto free_and_fail;
     }
 
+    bdrv_refresh_limits(bs);
+
 #ifndef _WIN32
     if (bs->is_temporary) {
         assert(bs->filename[0] != '\0');
@@ -1084,6 +1099,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         pstrcpy(bs->backing_file, sizeof(bs->backing_file),
                 bs->backing_hd->file->filename);
     }
+
+    /* Recalculate the BlockLimits with the backing file */
+    bdrv_refresh_limits(bs);
 
     return 0;
 }
