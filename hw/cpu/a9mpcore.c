@@ -24,11 +24,14 @@ static void a9mp_priv_initfn(Object *obj)
     memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
 
+    object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
+    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+
     object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
-    object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
-    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+    object_initialize(&s->gtimer, sizeof(s->gtimer), TYPE_A9_GTIMER);
+    qdev_set_parent_bus(DEVICE(&s->gtimer), sysbus_get_default());
 
     object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
     qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
@@ -41,10 +44,20 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
-    DeviceState *gicdev, *scudev, *mptimerdev, *wdtdev;
-    SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
+    DeviceState *scudev, *gicdev, *gtimerdev, *mptimerdev, *wdtdev;
+    SysBusDevice *scubusdev, *gicbusdev, *gtimerbusdev, *mptimerbusdev,
+                 *wdtbusdev;
     Error *err = NULL;
     int i;
+
+    scudev = DEVICE(&s->scu);
+    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
@@ -62,14 +75,14 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, a9mp_priv_set_irq, s->num_irq - 32);
 
-    scudev = DEVICE(&s->scu);
-    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    gtimerdev = DEVICE(&s->gtimer);
+    qdev_prop_set_uint32(gtimerdev, "num-cpu", s->num_cpu);
+    object_property_set_bool(OBJECT(&s->gtimer), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    scubusdev = SYS_BUS_DEVICE(&s->scu);
+    gtimerbusdev = SYS_BUS_DEVICE(&s->gtimer);
 
     mptimerdev = DEVICE(&s->mptimer);
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
@@ -78,7 +91,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
+    mptimerbusdev = SYS_BUS_DEVICE(&s->mptimer);
 
     wdtdev = DEVICE(&s->wdt);
     qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
@@ -97,30 +110,33 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      *  0x0600-0x06ff -- private timers and watchdogs
      *  0x0700-0x0fff -- nothing
      *  0x1000-0x1fff -- GIC Distributor
-     *
-     * We should implement the global timer but don't currently do so.
      */
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interface */
     memory_region_add_subregion(&s->container, 0x100,
                                 sysbus_mmio_get_region(gicbusdev, 1));
+    memory_region_add_subregion(&s->container, 0x200,
+                                sysbus_mmio_get_region(gtimerbusdev, 0));
     /* Note that the A9 exposes only the "timer/watchdog for this core"
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
     memory_region_add_subregion(&s->container, 0x600,
-                                sysbus_mmio_get_region(timerbusdev, 0));
+                                sysbus_mmio_get_region(mptimerbusdev, 0));
     memory_region_add_subregion(&s->container, 0x620,
                                 sysbus_mmio_get_region(wdtbusdev, 0));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
 
     /* Wire up the interrupt from each watchdog and timer.
-     * For each core the timer is PPI 29 and the watchdog PPI 30.
+     * For each core the global timer is PPI 27, the private
+     * timer is PPI 29 and the watchdog PPI 30.
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(timerbusdev, i,
+        sysbus_connect_irq(gtimerbusdev, i,
+                           qdev_get_gpio_in(gicdev, ppibase + 27));
+        sysbus_connect_irq(mptimerbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 29));
         sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 30));

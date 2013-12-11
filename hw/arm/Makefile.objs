@@ -1,7 +1,7 @@
 obj-y += boot.o collie.o exynos4_boards.o gumstix.o highbank.o
 obj-y += integratorcp.o kzm.o mainstone.o musicpal.o nseries.o
 obj-y += omap_sx1.o palm.o realview.o spitz.o stellaris.o
-obj-y += tosa.o versatilepb.o vexpress.o xilinx_zynq.o z2.o
+obj-y += tosa.o versatilepb.o vexpress.o virt.o xilinx_zynq.o z2.o
 
 obj-y += armv7m.o exynos4210.o pxa2xx.o pxa2xx_gpio.o pxa2xx_pic.o
 obj-y += omap1.o omap2.o strongarm.o

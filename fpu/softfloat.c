@@ -6705,10 +6705,17 @@ int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
 /* min() and max() functions. These can't be implemented as
  * 'compare and pick one input' because that would mishandle
  * NaNs and +0 vs -0.
+ *
+ * minnum() and maxnum() functions. These are similar to the min()
+ * and max() functions but if one of the arguments is a QNaN and
+ * the other is numerical then the numerical argument is returned.
+ * minnum() and maxnum correspond to the IEEE 754-2008 minNum()
+ * and maxNum() operations. min() and max() are the typical min/max
+ * semantics provided by many CPUs which predate that specification.
  */
-#define MINMAX(s, nan_exp)                                              \
+#define MINMAX(s)                                                       \
 INLINE float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
-                                        int ismin STATUS_PARAM )        \
+                                        int ismin, int isieee STATUS_PARAM) \
 {                                                                       \
     flag aSign, bSign;                                                  \
     uint ## s ## _t av, bv;                                             \
@@ -6716,6 +6723,15 @@ INLINE float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
     b = float ## s ## _squash_input_denormal(b STATUS_VAR);             \
     if (float ## s ## _is_any_nan(a) ||                                 \
         float ## s ## _is_any_nan(b)) {                                 \
+        if (isieee) {                                                   \
+            if (float ## s ## _is_quiet_nan(a) &&                       \
+                !float ## s ##_is_any_nan(b)) {                         \
+                return b;                                               \
+            } else if (float ## s ## _is_quiet_nan(b) &&                \
+                       !float ## s ## _is_any_nan(a)) {                 \
+                return a;                                               \
+            }                                                           \
+        }                                                               \
         return propagateFloat ## s ## NaN(a, b STATUS_VAR);             \
     }                                                                   \
     aSign = extractFloat ## s ## Sign(a);                               \
@@ -6739,16 +6755,26 @@ INLINE float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
                                                                         \
 float ## s float ## s ## _min(float ## s a, float ## s b STATUS_PARAM)  \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 1 STATUS_VAR);                   \
+    return float ## s ## _minmax(a, b, 1, 0 STATUS_VAR);                \
 }                                                                       \
                                                                         \
 float ## s float ## s ## _max(float ## s a, float ## s b STATUS_PARAM)  \
 {                                                                       \
-    return float ## s ## _minmax(a, b, 0 STATUS_VAR);                   \
+    return float ## s ## _minmax(a, b, 0, 0 STATUS_VAR);                \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _minnum(float ## s a, float ## s b STATUS_PARAM) \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 1, 1 STATUS_VAR);                \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _maxnum(float ## s a, float ## s b STATUS_PARAM) \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 0, 1 STATUS_VAR);                \
 }
 
-MINMAX(32, 0xff)
-MINMAX(64, 0x7ff)
+MINMAX(32)
+MINMAX(64)
 
 
 /* Multiply A by 2 raised to the power N.  */
