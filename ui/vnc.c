@@ -2976,26 +2976,6 @@ static void vnc_display_close(DisplayState *ds)
 #endif
 }
 
-static int vnc_display_disable_login(DisplayState *ds)
-{
-    VncDisplay *vs = vnc_display;
-
-    if (!vs) {
-        return -1;
-    }
-
-    if (vs->password) {
-        g_free(vs->password);
-    }
-
-    vs->password = NULL;
-    if (vs->auth == VNC_AUTH_NONE) {
-        vs->auth = VNC_AUTH_VNC;
-    }
-
-    return 0;
-}
-
 int vnc_display_password(DisplayState *ds, const char *password)
 {
     VncDisplay *vs = vnc_display;
@@ -3003,20 +2983,18 @@ int vnc_display_password(DisplayState *ds, const char *password)
     if (!vs) {
         return -EINVAL;
     }
-
-    if (!password) {
-        /* This is not the intention of this interface but err on the side
-           of being safe */
-        return vnc_display_disable_login(ds);
+    if (vs->auth == VNC_AUTH_NONE) {
+        error_printf_unless_qmp("If you want use passwords please enable "
+                                "password auth using '-vnc ${dpy},password'.");
+        return -EINVAL;
     }
 
     if (vs->password) {
         g_free(vs->password);
         vs->password = NULL;
     }
-    vs->password = g_strdup(password);
-    if (vs->auth == VNC_AUTH_NONE) {
-        vs->auth = VNC_AUTH_VNC;
+    if (password) {
+        vs->password = g_strdup(password);
     }
 
     return 0;
