@@ -11,3 +11,4 @@ common-obj-$(CONFIG_AIX) += tap-aix.o
 common-obj-$(CONFIG_HAIKU) += tap-haiku.o
 common-obj-$(CONFIG_SLIRP) += slirp.o
 common-obj-$(CONFIG_VDE) += vde.o
+common-obj-$(CONFIG_NETMAP) += netmap.o
