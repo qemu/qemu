@@ -489,7 +489,25 @@ static int bdrv_refresh_limits(BlockDriverState *bs)
 
     memset(&bs->bl, 0, sizeof(bs->bl));
 
-    if (drv && drv->bdrv_refresh_limits) {
+    if (!drv) {
+        return 0;
+    }
+
+    /* Take some limits from the children as a default */
+    if (bs->file) {
+        bdrv_refresh_limits(bs->file);
+        bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
+    }
+
+    if (bs->backing_hd) {
+        bdrv_refresh_limits(bs->backing_hd);
+        bs->bl.opt_transfer_length =
+            MAX(bs->bl.opt_transfer_length,
+                bs->backing_hd->bl.opt_transfer_length);
+    }
+
+    /* Then let the driver override it */
+    if (drv->bdrv_refresh_limits) {
         return drv->bdrv_refresh_limits(bs);
     }
 
