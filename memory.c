@@ -1972,7 +1972,6 @@ typedef struct MemoryRegionList MemoryRegionList;
 
 struct MemoryRegionList {
     const MemoryRegion *mr;
-    bool printed;
     QTAILQ_ENTRY(MemoryRegionList) queue;
 };
 
@@ -2002,7 +2001,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
 
         /* check if the alias is already in the queue */
         QTAILQ_FOREACH(ml, alias_print_queue, queue) {
-            if (ml->mr == mr->alias && !ml->printed) {
+            if (ml->mr == mr->alias) {
                 found = true;
             }
         }
@@ -2010,7 +2009,6 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         if (!found) {
             ml = g_new(MemoryRegionList, 1);
             ml->mr = mr->alias;
-            ml->printed = false;
             QTAILQ_INSERT_TAIL(alias_print_queue, ml, queue);
         }
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx
@@ -2092,10 +2090,8 @@ void mtree_info(fprintf_function mon_printf, void *f)
     mon_printf(f, "aliases\n");
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
-        if (!ml->printed) {
-            mon_printf(f, "%s\n", memory_region_name(ml->mr));
-            mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
-        }
+        mon_printf(f, "%s\n", memory_region_name(ml->mr));
+        mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
     }
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
