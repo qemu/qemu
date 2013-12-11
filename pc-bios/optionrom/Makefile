@@ -12,6 +12,7 @@ $(call set-vpath, $(SRC_PATH)/pc-bios/optionrom)
 CFLAGS := -Wall -Wstrict-prototypes -Werror -fomit-frame-pointer -fno-builtin
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(call cc-option, $(CFLAGS), -fno-stack-protector)
+CFLAGS += $(CFLAGS_NOPIE)
 QEMU_CFLAGS = $(CFLAGS)
 
 build-all: multiboot.bin linuxboot.bin kvmvapic.bin
@@ -20,7 +21,7 @@ build-all: multiboot.bin linuxboot.bin kvmvapic.bin
 .SECONDARY:
 
 %.img: %.o
-	$(call quiet-command,$(LD) -Ttext 0 -e _start -s -o $@ $<,"  Building $(TARGET_DIR)$@")
+	$(call quiet-command,$(LD) $(LDFLAGS_NOPIE) -Ttext 0 -e _start -s -o $@ $<,"  Building $(TARGET_DIR)$@")
 
 %.raw: %.img
 	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"  Building $(TARGET_DIR)$@")
