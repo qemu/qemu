@@ -3022,7 +3022,7 @@
 #
 # @devname: #optional path of the netmap device (default: '/dev/netmap').
 #
-# Since 1.8
+# Since 2.0
 ##
 { 'type': 'NetdevNetmapOptions',
   'data': {
