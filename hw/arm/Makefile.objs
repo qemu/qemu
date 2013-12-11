@@ -9,3 +9,4 @@ obj-$(CONFIG_DIGIC) += digic.o
 obj-y += omap1.o omap2.o strongarm.o
 obj-$(CONFIG_ALLWINNER_A10) += allwinner-a10.o cubieboard.o
 obj-$(CONFIG_MXS) += imx23_digctl.o imx23_pinctrl.o mxs.o
+obj-$(CONFIG_MXS) += imx233-olinuxino.o
