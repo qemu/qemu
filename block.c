@@ -2421,6 +2421,11 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
             nb_sectors = INT_MAX;
         }
         ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
+        if (ret < 0) {
+            error_report("error getting block status at sector %" PRId64 ": %s",
+                         sector_num, strerror(-ret));
+            return ret;
+        }
         if (ret & BDRV_BLOCK_ZERO) {
             sector_num += n;
             continue;
