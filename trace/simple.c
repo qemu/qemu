@@ -40,7 +40,17 @@
  * Trace records are written out by a dedicated thread.  The thread waits for
  * records to become available, writes them out, and then waits again.
  */
+#if GLIB_CHECK_VERSION(2, 32, 0)
+static GMutex trace_lock;
+#define lock_trace_lock() g_mutex_lock(&trace_lock)
+#define unlock_trace_lock() g_mutex_unlock(&trace_lock)
+#define get_trace_lock_mutex() (&trace_lock)
+#else
 static GStaticMutex trace_lock = G_STATIC_MUTEX_INIT;
+#define lock_trace_lock() g_static_mutex_lock(&trace_lock)
+#define unlock_trace_lock() g_static_mutex_unlock(&trace_lock)
+#define get_trace_lock_mutex() g_static_mutex_get_mutex(&trace_lock)
+#endif
 
 /* g_cond_new() was deprecated in glib 2.31 but we still need to support it */
 #if GLIB_CHECK_VERSION(2, 31, 0)
@@ -140,27 +150,26 @@ static bool get_trace_record(unsigned int idx, TraceRecord **recordptr)
  */
 static void flush_trace_file(bool wait)
 {
-    g_static_mutex_lock(&trace_lock);
+    lock_trace_lock();
     trace_available = true;
     g_cond_signal(trace_available_cond);
 
     if (wait) {
-        g_cond_wait(trace_empty_cond, g_static_mutex_get_mutex(&trace_lock));
+        g_cond_wait(trace_empty_cond, get_trace_lock_mutex());
     }
 
-    g_static_mutex_unlock(&trace_lock);
+    unlock_trace_lock();
 }
 
 static void wait_for_trace_records_available(void)
 {
-    g_static_mutex_lock(&trace_lock);
+    lock_trace_lock();
     while (!(trace_available && trace_writeout_enabled)) {
         g_cond_signal(trace_empty_cond);
-        g_cond_wait(trace_available_cond,
-                    g_static_mutex_get_mutex(&trace_lock));
+        g_cond_wait(trace_available_cond, get_trace_lock_mutex());
     }
     trace_available = false;
-    g_static_mutex_unlock(&trace_lock);
+    unlock_trace_lock();
 }
 
 static gpointer writeout_thread(gpointer opaque)
