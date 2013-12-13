@@ -95,7 +95,7 @@ static void virtio_mmio_bus_new(VirtioBusState *bus, size_t bus_size,
 static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
 {
     VirtIOMMIOProxy *proxy = (VirtIOMMIOProxy *)opaque;
-    VirtIODevice *vdev = proxy->bus.vdev;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     DPRINTF("virtio_mmio_read offset 0x%x\n", (int)offset);
 
@@ -185,7 +185,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
     VirtIOMMIOProxy *proxy = (VirtIOMMIOProxy *)opaque;
-    VirtIODevice *vdev = proxy->bus.vdev;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     DPRINTF("virtio_mmio_write offset 0x%x value 0x%" PRIx64 "\n",
             (int)offset, value);
@@ -298,12 +298,13 @@ static const MemoryRegionOps virtio_mem_ops = {
 static void virtio_mmio_update_irq(DeviceState *opaque, uint16_t vector)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(opaque);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     int level;
 
-    if (!proxy->bus.vdev) {
+    if (!vdev) {
         return;
     }
-    level = (proxy->bus.vdev->isr != 0);
+    level = (vdev->isr != 0);
     DPRINTF("virtio_mmio setting IRQ %d\n", level);
     qemu_set_irq(proxy->irq, level);
 }

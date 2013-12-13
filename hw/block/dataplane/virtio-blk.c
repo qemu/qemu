@@ -380,8 +380,9 @@ static void start_data_plane_bh(void *opaque)
                        s, QEMU_THREAD_JOINABLE);
 }
 
-bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
-                                  VirtIOBlockDataPlane **dataplane)
+void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
+                                  VirtIOBlockDataPlane **dataplane,
+                                  Error **errp)
 {
     VirtIOBlockDataPlane *s;
     int fd;
@@ -389,33 +390,35 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     *dataplane = NULL;
 
     if (!blk->data_plane) {
-        return true;
+        return;
     }
 
     if (blk->scsi) {
-        error_report("device is incompatible with x-data-plane, use scsi=off");
-        return false;
+        error_setg(errp,
+                   "device is incompatible with x-data-plane, use scsi=off");
+        return;
     }
 
     if (blk->config_wce) {
-        error_report("device is incompatible with x-data-plane, "
-                     "use config-wce=off");
-        return false;
+        error_setg(errp, "device is incompatible with x-data-plane, "
+                         "use config-wce=off");
+        return;
     }
 
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
     if (bdrv_in_use(blk->conf.bs)) {
-        error_report("cannot start dataplane thread while device is in use");
-        return false;
+        error_setg(errp,
+                   "cannot start dataplane thread while device is in use");
+        return;
     }
 
     fd = raw_get_aio_fd(blk->conf.bs);
     if (fd < 0) {
-        error_report("drive is incompatible with x-data-plane, "
-                     "use format=raw,cache=none,aio=native");
-        return false;
+        error_setg(errp, "drive is incompatible with x-data-plane, "
+                         "use format=raw,cache=none,aio=native");
+        return;
     }
 
     s = g_new0(VirtIOBlockDataPlane, 1);
@@ -427,7 +430,6 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     bdrv_set_in_use(blk->conf.bs, 1);
 
     *dataplane = s;
-    return true;
 }
 
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
