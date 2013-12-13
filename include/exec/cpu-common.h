@@ -108,7 +108,7 @@ void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stq_phys(AddressSpace *as, hwaddr addr, uint64_t val);
 #endif
 
-void cpu_physical_memory_write_rom(hwaddr addr,
+void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
                                    const uint8_t *buf, int len);
 void cpu_flush_icache_range(hwaddr start, int len);
 

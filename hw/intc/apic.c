@@ -129,7 +129,8 @@ static void apic_sync_vapic(APICCommonState *s, int sync_type)
         }
         vapic_state.irr = vector & 0xff;
 
-        cpu_physical_memory_write_rom(s->vapic_paddr + start,
+        cpu_physical_memory_write_rom(&address_space_memory,
+                                      s->vapic_paddr + start,
                                       ((void *)&vapic_state) + start, length);
     }
 }

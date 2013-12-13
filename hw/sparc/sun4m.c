@@ -577,7 +577,8 @@ static void idreg_init(hwaddr addr)
     s = SYS_BUS_DEVICE(dev);
 
     sysbus_mmio_map(s, 0, addr);
-    cpu_physical_memory_write_rom(addr, idreg_data, sizeof(idreg_data));
+    cpu_physical_memory_write_rom(&address_space_memory,
+                                  addr, idreg_data, sizeof(idreg_data));
 }
 
 #define MACIO_ID_REGISTER(obj) \

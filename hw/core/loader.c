@@ -778,7 +778,8 @@ static void rom_reset(void *unused)
             void *host = memory_region_get_ram_ptr(rom->mr);
             memcpy(host, rom->data, rom->datasize);
         } else {
-            cpu_physical_memory_write_rom(rom->addr, rom->data, rom->datasize);
+            cpu_physical_memory_write_rom(&address_space_memory,
+                                          rom->addr, rom->data, rom->datasize);
         }
         if (rom->isrom) {
             /* rom needs to be written only once */

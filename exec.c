@@ -2102,7 +2102,7 @@ enum write_rom_type {
     FLUSH_CACHE,
 };
 
-static inline void cpu_physical_memory_write_rom_internal(
+static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
     hwaddr addr, const uint8_t *buf, int len, enum write_rom_type type)
 {
     hwaddr l;
@@ -2112,8 +2112,7 @@ static inline void cpu_physical_memory_write_rom_internal(
 
     while (len > 0) {
         l = len;
-        mr = address_space_translate(&address_space_memory,
-                                     addr, &addr1, &l, true);
+        mr = address_space_translate(as, addr, &addr1, &l, true);
 
         if (!(memory_region_is_ram(mr) ||
               memory_region_is_romd(mr))) {
@@ -2139,10 +2138,10 @@ static inline void cpu_physical_memory_write_rom_internal(
 }
 
 /* used for ROM loading : can write in RAM and ROM */
-void cpu_physical_memory_write_rom(hwaddr addr,
+void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
                                    const uint8_t *buf, int len)
 {
-    cpu_physical_memory_write_rom_internal(addr, buf, len, WRITE_DATA);
+    cpu_physical_memory_write_rom_internal(as, addr, buf, len, WRITE_DATA);
 }
 
 void cpu_flush_icache_range(hwaddr start, int len)
@@ -2157,7 +2156,8 @@ void cpu_flush_icache_range(hwaddr start, int len)
         return;
     }
 
-    cpu_physical_memory_write_rom_internal(start, NULL, len, FLUSH_CACHE);
+    cpu_physical_memory_write_rom_internal(&address_space_memory,
+                                           start, NULL, len, FLUSH_CACHE);
 }
 
 typedef struct {
@@ -2721,7 +2721,8 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
         if (is_write)
-            cpu_physical_memory_write_rom(phys_addr, buf, l);
+            cpu_physical_memory_write_rom(&address_space_memory,
+                                          phys_addr, buf, l);
         else
             cpu_physical_memory_rw(phys_addr, buf, l, is_write);
         len -= l;
