@@ -68,6 +68,8 @@ typedef struct BdrvTrackedRequest {
     QLIST_ENTRY(BdrvTrackedRequest) list;
     Coroutine *co; /* owner, used for deadlock detection */
     CoQueue wait_queue; /* coroutines blocked on this request */
+
+    struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
 
 struct BlockDriver {
