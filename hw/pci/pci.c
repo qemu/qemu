@@ -1330,7 +1330,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0601, "ISA bridge", "isa"},
     { 0x0602, "EISA bridge", "eisa"},
     { 0x0603, "MC bridge", "mca"},
-    { 0x0604, "PCI bridge", "pci"},
+    { 0x0604, "PCI bridge", "pci-bridge"},
     { 0x0605, "PCMCIA bridge", "pcmcia"},
     { 0x0606, "NUBUS bridge", "nubus"},
     { 0x0607, "CARDBUS bridge", "cardbus"},

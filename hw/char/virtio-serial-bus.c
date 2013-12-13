@@ -889,22 +889,24 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     return 0;
 }
 
-static int virtio_serial_device_init(VirtIODevice *vdev)
+static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
+    BusState *bus;
     uint32_t i, max_supported_ports;
 
     if (!vser->serial.max_virtserial_ports) {
-        return -1;
+        error_setg(errp, "Maximum number of serial ports not specified");
+        return;
     }
 
     /* Each port takes 2 queues, and one pair is for the control queue */
     max_supported_ports = VIRTIO_PCI_QUEUE_MAX / 2 - 1;
 
     if (vser->serial.max_virtserial_ports > max_supported_ports) {
-        error_report("maximum ports supported: %u", max_supported_ports);
-        return -1;
+        error_setg(errp, "maximum ports supported: %u", max_supported_ports);
+        return;
     }
 
     virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
@@ -912,8 +914,9 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
-                        qdev, vdev->bus_name);
-    vser->bus.qbus.allow_hotplug = 1;
+                        dev, vdev->bus_name);
+    bus = BUS(&vser->bus);
+    bus->allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
 
@@ -961,10 +964,8 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
-    register_savevm(qdev, "virtio-console", -1, 3, virtio_serial_save,
+    register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
-
-    return 0;
 }
 
 static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
@@ -987,10 +988,10 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_init = virtio_serial_port_class_init,
 };
 
-static int virtio_serial_device_exit(DeviceState *dev)
+static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
 
     unregister_savevm(dev, "virtio-console", vser);
 
@@ -1004,7 +1005,6 @@ static int virtio_serial_device_exit(DeviceState *dev)
         g_free(vser->post_load);
     }
     virtio_cleanup(vdev);
-    return 0;
 }
 
 static Property virtio_serial_properties[] = {
@@ -1016,10 +1016,11 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_serial_device_exit;
+
     dc->props = virtio_serial_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    vdc->init = virtio_serial_device_init;
+    vdc->realize = virtio_serial_device_realize;
+    vdc->unrealize = virtio_serial_device_unrealize;
     vdc->get_features = get_features;
     vdc->get_config = get_config;
     vdc->set_config = set_config;

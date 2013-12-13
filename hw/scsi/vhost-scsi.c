@@ -196,29 +196,31 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
     }
 }
 
-static int vhost_scsi_init(VirtIODevice *vdev)
+static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
-    VHostSCSI *s = VHOST_SCSI(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
+    VHostSCSI *s = VHOST_SCSI(dev);
+    Error *err = NULL;
     int vhostfd = -1;
     int ret;
 
     if (!vs->conf.wwpn) {
-        error_report("vhost-scsi: missing wwpn\n");
-        return -EINVAL;
+        error_setg(errp, "vhost-scsi: missing wwpn");
+        return;
     }
 
     if (vs->conf.vhostfd) {
         vhostfd = monitor_handle_fd_param(cur_mon, vs->conf.vhostfd);
         if (vhostfd == -1) {
-            error_report("vhost-scsi: unable to parse vhostfd\n");
-            return -EINVAL;
+            error_setg(errp, "vhost-scsi: unable to parse vhostfd");
+            return;
         }
     }
 
-    ret = virtio_scsi_common_init(vs);
-    if (ret < 0) {
-        return ret;
+    virtio_scsi_common_realize(dev, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
     }
 
     s->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
@@ -227,24 +229,21 @@ static int vhost_scsi_init(VirtIODevice *vdev)
 
     ret = vhost_dev_init(&s->dev, vhostfd, "/dev/vhost-scsi", true);
     if (ret < 0) {
-        error_report("vhost-scsi: vhost initialization failed: %s\n",
-                strerror(-ret));
-        return ret;
+        error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
+                   strerror(-ret));
+        return;
     }
     s->dev.backend_features = 0;
 
     error_setg(&s->migration_blocker,
             "vhost-scsi does not support migration");
     migrate_add_blocker(s->migration_blocker);
-
-    return 0;
 }
 
-static int vhost_scsi_exit(DeviceState *qdev)
+static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
-    VHostSCSI *s = VHOST_SCSI(qdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VHostSCSI *s = VHOST_SCSI(dev);
 
     migrate_del_blocker(s->migration_blocker);
     error_free(s->migration_blocker);
@@ -253,7 +252,8 @@ static int vhost_scsi_exit(DeviceState *qdev)
     vhost_scsi_set_status(vdev, 0);
 
     g_free(s->dev.vqs);
-    return virtio_scsi_common_exit(vs);
+
+    virtio_scsi_common_unrealize(dev, errp);
 }
 
 static Property vhost_scsi_properties[] = {
@@ -265,10 +265,11 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = vhost_scsi_exit;
+
     dc->props = vhost_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->init = vhost_scsi_init;
+    vdc->realize = vhost_scsi_realize;
+    vdc->unrealize = vhost_scsi_unrealize;
     vdc->get_features = vhost_scsi_get_features;
     vdc->set_config = vhost_scsi_set_config;
     vdc->set_status = vhost_scsi_set_status;

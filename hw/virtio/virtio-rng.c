@@ -133,27 +133,27 @@ static void check_rate_limit(void *opaque)
                    qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 }
 
-static int virtio_rng_device_init(VirtIODevice *vdev)
+static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIORNG *vrng = VIRTIO_RNG(dev);
     Error *local_err = NULL;
 
     if (!vrng->conf.period_ms > 0) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "period",
-                      "a positive number");
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "period",
+                  "a positive number");
+        return;
     }
 
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
 
-        object_property_add_child(OBJECT(qdev),
+        object_property_add_child(OBJECT(dev),
                                   "default-backend",
                                   OBJECT(vrng->conf.default_backend),
                                   NULL);
 
-        object_property_set_link(OBJECT(qdev),
+        object_property_set_link(OBJECT(dev),
                                  OBJECT(vrng->conf.default_backend),
                                  "rng", NULL);
     }
@@ -162,15 +162,14 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
 
     vrng->rng = vrng->conf.rng;
     if (vrng->rng == NULL) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
+        return;
     }
 
     rng_backend_open(vrng->rng, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
+        error_propagate(errp, local_err);
+        return;
     }
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
@@ -184,22 +183,19 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
     timer_mod(vrng->rate_limit_timer,
                    qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 
-    register_savevm(qdev, "virtio-rng", -1, 1, virtio_rng_save,
+    register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);
-
-    return 0;
 }
 
-static int virtio_rng_device_exit(DeviceState *qdev)
+static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIORNG *vrng = VIRTIO_RNG(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIORNG *vrng = VIRTIO_RNG(dev);
 
     timer_del(vrng->rate_limit_timer);
     timer_free(vrng->rate_limit_timer);
-    unregister_savevm(qdev, "virtio-rng", vrng);
+    unregister_savevm(dev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
-    return 0;
 }
 
 static Property virtio_rng_properties[] = {
@@ -211,10 +207,11 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_rng_device_exit;
+
     dc->props = virtio_rng_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->init = virtio_rng_device_init;
+    vdc->realize = virtio_rng_device_realize;
+    vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
 }
 

@@ -6,7 +6,10 @@
 #include "sysemu/blockdev.h"
 #include "hw/qdev.h"
 
+typedef struct QEMUMachine QEMUMachine;
+
 typedef struct QEMUMachineInitArgs {
+    const QEMUMachine *machine;
     ram_addr_t ram_size;
     const char *boot_order;
     const char *kernel_filename;
@@ -21,7 +24,7 @@ typedef void QEMUMachineResetFunc(void);
 
 typedef void QEMUMachineHotAddCPUFunc(const int64_t id, Error **errp);
 
-typedef struct QEMUMachine {
+struct QEMUMachine {
     const char *name;
     const char *alias;
     const char *desc;
@@ -43,7 +46,7 @@ typedef struct QEMUMachine {
     GlobalProperty *compat_props;
     struct QEMUMachine *next;
     const char *hw_version;
-} QEMUMachine;
+};
 
 int qemu_register_machine(QEMUMachine *m);
 QEMUMachine *find_default_machine(void);

@@ -1150,35 +1150,49 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
     }
 }
 
-static int virtio_device_init(DeviceState *qdev)
+static void virtio_device_realize(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(qdev);
-    assert(k->init != NULL);
-    if (k->init(vdev) < 0) {
-        return -1;
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
+    Error *err = NULL;
+
+    if (vdc->realize != NULL) {
+        vdc->realize(dev, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
     }
-    virtio_bus_plug_device(vdev);
-    return 0;
+    virtio_bus_device_plugged(vdev);
 }
 
-static int virtio_device_exit(DeviceState *qdev)
+static void virtio_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
+    Error *err = NULL;
+
+    if (vdc->unrealize != NULL) {
+        vdc->unrealize(dev, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
 
     if (vdev->bus_name) {
         g_free(vdev->bus_name);
         vdev->bus_name = NULL;
     }
-    return 0;
 }
 
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->init = virtio_device_init;
-    dc->exit = virtio_device_exit;
+
+    dc->realize = virtio_device_realize;
+    dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
 }
 

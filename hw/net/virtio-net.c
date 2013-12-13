@@ -1491,16 +1491,14 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
     n->netclient_type = g_strdup(type);
 }
 
-static int virtio_net_device_init(VirtIODevice *vdev)
+static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIONet *n = VIRTIO_NET(dev);
+    NetClientState *nc;
     int i;
 
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIONet *n = VIRTIO_NET(vdev);
-    NetClientState *nc;
-
-    virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
-                                  n->config_size);
+    virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
 
     n->max_queues = MAX(n->nic_conf.queues, 1);
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
@@ -1540,7 +1538,7 @@ static int virtio_net_device_init(VirtIODevice *vdev)
                               n->netclient_type, n->netclient_name, n);
     } else {
         n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
-                              object_get_typename(OBJECT(qdev)), qdev->id, n);
+                              object_get_typename(OBJECT(dev)), dev->id, n);
     }
 
     peer_test_vnet_hdr(n);
@@ -1567,24 +1565,23 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     nc = qemu_get_queue(n->nic);
     nc->rxfilter_notify_enabled = 1;
 
-    n->qdev = qdev;
-    register_savevm(qdev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
+    n->qdev = dev;
+    register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
 
-    add_boot_device_path(n->nic_conf.bootindex, qdev, "/ethernet-phy@0");
-    return 0;
+    add_boot_device_path(n->nic_conf.bootindex, dev, "/ethernet-phy@0");
 }
 
-static int virtio_net_device_exit(DeviceState *qdev)
+static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIONet *n = VIRTIO_NET(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIONet *n = VIRTIO_NET(dev);
     int i;
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
 
-    unregister_savevm(qdev, "virtio-net", n);
+    unregister_savevm(dev, "virtio-net", n);
 
     if (n->netclient_name) {
         g_free(n->netclient_name);
@@ -1615,8 +1612,6 @@ static int virtio_net_device_exit(DeviceState *qdev)
     g_free(n->vqs);
     qemu_del_nic(n->nic);
     virtio_cleanup(vdev);
-
-    return 0;
 }
 
 static void virtio_net_instance_init(Object *obj)
@@ -1643,10 +1638,11 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_net_device_exit;
+
     dc->props = virtio_net_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    vdc->init = virtio_net_device_init;
+    vdc->realize = virtio_net_device_realize;
+    vdc->unrealize = virtio_net_device_unrealize;
     vdc->get_config = virtio_net_get_config;
     vdc->set_config = virtio_net_set_config;
     vdc->get_features = virtio_net_get_features;

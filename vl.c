@@ -2667,7 +2667,7 @@ static struct {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
     { "xen", "Xen", xen_available, xen_init, &xen_allowed },
     { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
-    { "qtest", "QTest", qtest_available, qtest_init, &qtest_allowed },
+    { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
 };
 
 static int configure_accelerator(void)
@@ -2879,6 +2879,8 @@ int main(int argc, char **argv)
     QEMUMachine *machine;
     const char *cpu_model;
     const char *vga_model = "none";
+    const char *qtest_chrdev = NULL;
+    const char *qtest_log = NULL;
     const char *pid_file = NULL;
     const char *incoming = NULL;
 #ifdef CONFIG_VNC
@@ -4095,8 +4097,8 @@ int main(int argc, char **argv)
 
     configure_accelerator();
 
-    if (!qtest_enabled() && qtest_chrdev) {
-        qtest_init();
+    if (qtest_chrdev) {
+        qtest_init(qtest_chrdev, qtest_log);
     }
 
     machine_opts = qemu_get_machine_opts();
@@ -4291,7 +4293,8 @@ int main(int argc, char **argv)
 
     qdev_machine_init();
 
-    QEMUMachineInitArgs args = { .ram_size = ram_size,
+    QEMUMachineInitArgs args = { .machine = machine,
+                                 .ram_size = ram_size,
                                  .boot_order = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,

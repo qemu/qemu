@@ -333,7 +333,7 @@ DefinitionBlock (
             }
             Return (0x0B)
         }
-        Method(IQCR, 1, NotSerialized) {
+        Method(IQCR, 1, Serialized) {
             // _CRS method - get current settings
             Name(PRR0, ResourceTemplate() {
                 Interrupt(, Level, ActiveHigh, Shared) { 0 }
