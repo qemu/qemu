@@ -112,28 +112,10 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
 
-static void pm_update_sci(PIIX4PMState *s)
-{
-    int sci_level, pmsts;
-
-    pmsts = acpi_pm1_evt_get_sts(&s->ar);
-    sci_level = (((pmsts & s->ar.pm1.evt.en) &
-                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
-                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
-                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0) ||
-        ((s->ar.gpe.sts[0] & s->ar.gpe.en[0]) != 0);
-
-    qemu_set_irq(s->irq, sci_level);
-    /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
-                       !(pmsts & ACPI_BITMASK_TIMER_STATUS));
-}
-
 static void pm_tmr_timer(ACPIREGS *ar)
 {
     PIIX4PMState *s = container_of(ar, PIIX4PMState, ar);
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->irq);
 }
 
 static void apm_ctrl_changed(uint32_t val, void *arg)
@@ -577,7 +559,7 @@ static void gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
     PIIX4PMState *s = opaque;
 
     acpi_gpe_ioport_writeb(&s->ar, addr, val);
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->irq);
 
     PIIX4_DPRINTF("gpe write %" HWADDR_PRIx " <== %" PRIu64 "\n", addr, val);
 }
@@ -693,7 +675,7 @@ static void piix4_cpu_hotplug_req(PIIX4PMState *s, CPUState *cpu,
     } else {
         g->sts[cpu_id / 8] &= ~(1 << (cpu_id % 8));
     }
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->irq);
 }
 
 static void piix4_cpu_added_req(Notifier *n, void *opaque)
@@ -767,7 +749,7 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
         disable_device(s, slot);
     }
 
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->irq);
 
     return 0;
 }

@@ -44,29 +44,10 @@ do { printf("%s "fmt, __func__, ## __VA_ARGS__); } while (0)
 #define ICH9_DEBUG(fmt, ...)    do { } while (0)
 #endif
 
-static void pm_update_sci(ICH9LPCPMRegs *pm)
-{
-    int sci_level, pm1a_sts;
-
-    pm1a_sts = acpi_pm1_evt_get_sts(&pm->acpi_regs);
-
-    sci_level = (((pm1a_sts & pm->acpi_regs.pm1.evt.en) &
-                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
-                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
-                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    qemu_set_irq(pm->irq, sci_level);
-
-    /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&pm->acpi_regs,
-                       (pm->acpi_regs.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
-                       !(pm1a_sts & ACPI_BITMASK_TIMER_STATUS));
-}
-
 static void ich9_pm_update_sci_fn(ACPIREGS *regs)
 {
     ICH9LPCPMRegs *pm = container_of(regs, ICH9LPCPMRegs, acpi_regs);
-    pm_update_sci(pm);
+    acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
 
 static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
@@ -193,7 +174,7 @@ static void pm_reset(void *opaque)
         pm->smi_en |= ICH9_PMIO_SMI_EN_APMC_EN;
     }
 
-    pm_update_sci(pm);
+    acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
 
 static void pm_powerdown_req(Notifier *n, void *opaque)
