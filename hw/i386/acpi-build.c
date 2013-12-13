@@ -924,10 +924,16 @@ build_mcfg_q35(GArray *table_data, GArray *linker, AcpiMcfgInfo *info)
 static void
 build_dsdt(GArray *table_data, GArray *linker, AcpiMiscInfo *misc)
 {
-    void *dsdt;
+    AcpiTableHeader *dsdt;
+
     assert(misc->dsdt_code && misc->dsdt_size);
+
     dsdt = acpi_data_push(table_data, misc->dsdt_size);
     memcpy(dsdt, misc->dsdt_code, misc->dsdt_size);
+
+    memset(dsdt, 0, sizeof *dsdt);
+    build_header(linker, table_data, dsdt, ACPI_DSDT_SIGNATURE,
+                 misc->dsdt_size, 1);
 }
 
 /* Build final rsdt table */

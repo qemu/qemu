@@ -500,9 +500,23 @@ X86 Machines
 ------------
 PC
 M: Anthony Liguori <aliguori@amazon.com>
+M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
-F: hw/i386/pc.[ch]
-F: hw/i386/pc_piix.c
+F: include/hw/i386/
+F: hw/i386/
+F: hw/pci-host/piix.c
+F: hw/pci-host/q35.c
+F: hw/pci-host/pam.c
+F: include/hw/pci-host/q35.h
+F: include/hw/pci-host/pam.h
+F: hw/isa/piix4.c
+F: hw/isa/lpc_ich9.c
+F: hw/i2c/smbus_ich9.c
+F: hw/acpi/piix4.c
+F: hw/acpi/ich9.c
+F: include/hw/acpi/ich9.h
+F: include/hw/acpi/piix.h
+
 
 Xtensa Machines
 ---------------
