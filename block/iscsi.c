@@ -68,6 +68,7 @@ typedef struct IscsiTask {
     int do_retry;
     struct scsi_task *task;
     Coroutine *co;
+    QEMUBH *bh;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -123,6 +124,13 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
     qemu_bh_schedule(acb->bh);
 }
 
+static void iscsi_co_generic_bh_cb(void *opaque)
+{
+    struct IscsiTask *iTask = opaque;
+    qemu_bh_delete(iTask->bh);
+    qemu_coroutine_enter(iTask->co, NULL);
+}
+
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                         void *command_data, void *opaque)
@@ -147,7 +155,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
 out:
     if (iTask->co) {
-        qemu_coroutine_enter(iTask->co, NULL);
+        iTask->bh = qemu_bh_new(iscsi_co_generic_bh_cb, iTask);
+        qemu_bh_schedule(iTask->bh);
     }
 }
 
