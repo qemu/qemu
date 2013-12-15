@@ -1173,7 +1173,7 @@ static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int maskshift = extract32(value, 0, 3);
 
-    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+    if (arm_feature(env, ARM_FEATURE_LPAE) && (value & (1 << 31))) {
         value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
     } else {
         value &= 7;
@@ -1842,6 +1842,12 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, arm_cpu_list_entry, &s);
     g_slist_free(list);
+#ifdef CONFIG_KVM
+    /* The 'host' CPU type is dynamically registered only if KVM is
+     * enabled, so we have to special-case it here:
+     */
+    (*cpu_fprintf)(f, "  host (only available in KVM mode)\n");
+#endif
 }
 
 static void arm_cpu_add_definition(gpointer data, gpointer user_data)
@@ -4078,4 +4084,29 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
 {
     float_status *fpst = fpstp;
     return float64_muladd(a, b, c, 0, fpst);
+}
+
+/* ARMv8 VMAXNM/VMINNM */
+float32 VFP_HELPER(maxnm, s)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float32_maxnum(a, b, fpst);
+}
+
+float64 VFP_HELPER(maxnm, d)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float64_maxnum(a, b, fpst);
+}
+
+float32 VFP_HELPER(minnm, s)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float32_minnum(a, b, fpst);
+}
+
+float64 VFP_HELPER(minnm, d)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float64_minnum(a, b, fpst);
 }

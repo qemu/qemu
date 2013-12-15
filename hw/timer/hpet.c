@@ -42,7 +42,6 @@
 
 #define HPET_MSI_SUPPORT        0
 
-#define TYPE_HPET "hpet"
 #define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
 
 struct HPETState;
@@ -73,6 +72,7 @@ typedef struct HPETState {
     uint8_t rtc_irq_level;
     qemu_irq pit_enabled;
     uint8_t num_timers;
+    uint32_t intcap;
     HPETTimer timer[HPET_MAX_TIMERS];
 
     /* Memory-mapped, software visible registers */
@@ -198,13 +198,23 @@ static void update_irq(struct HPETTimer *timer, int set)
     if (!set || !timer_enabled(timer) || !hpet_enabled(timer->state)) {
         s->isr &= ~mask;
         if (!timer_fsb_route(timer)) {
-            qemu_irq_lower(s->irqs[route]);
+            /* fold the ICH PIRQ# pin's internal inversion logic into hpet */
+            if (route >= ISA_NUM_IRQS) {
+                qemu_irq_raise(s->irqs[route]);
+            } else {
+                qemu_irq_lower(s->irqs[route]);
+            }
         }
     } else if (timer_fsb_route(timer)) {
         stl_le_phys(timer->fsb >> 32, timer->fsb & 0xffffffff);
     } else if (timer->config & HPET_TN_TYPE_LEVEL) {
         s->isr |= mask;
-        qemu_irq_raise(s->irqs[route]);
+        /* fold the ICH PIRQ# pin's internal inversion logic into hpet */
+        if (route >= ISA_NUM_IRQS) {
+            qemu_irq_lower(s->irqs[route]);
+        } else {
+            qemu_irq_raise(s->irqs[route]);
+        }
     } else {
         s->isr &= ~mask;
         qemu_irq_pulse(s->irqs[route]);
@@ -653,8 +663,8 @@ static void hpet_reset(DeviceState *d)
         if (s->flags & (1 << HPET_MSI_SUPPORT)) {
             timer->config |= HPET_TN_FSB_CAP;
         }
-        /* advertise availability of ioapic inti2 */
-        timer->config |=  0x00000004ULL << 32;
+        /* advertise availability of ioapic int */
+        timer->config |=  (uint64_t)s->intcap << 32;
         timer->period = 0ULL;
         timer->wrap_flag = 0;
     }
@@ -703,6 +713,9 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     int i;
     HPETTimer *timer;
 
+    if (!s->intcap) {
+        error_printf("Hpet's intcap not initialized.\n");
+    }
     if (hpet_cfg.count == UINT8_MAX) {
         /* first instance */
         hpet_cfg.count = 0;
@@ -743,6 +756,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
 static Property hpet_device_properties[] = {
     DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
     DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
+    DEFINE_PROP_UINT32(HPET_INTCAP, HPETState, intcap, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -755,11 +769,6 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     dc->reset = hpet_reset;
     dc->vmsd = &vmstate_hpet;
     dc->props = hpet_device_properties;
-}
-
-bool hpet_find(void)
-{
-    return object_resolve_path_type("", TYPE_HPET, NULL);
 }
 
 static const TypeInfo hpet_device_info = {

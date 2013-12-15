@@ -1093,21 +1093,13 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     return guest_info;
 }
 
-void pc_init_pci64_hole(PcPciInfo *pci_info, uint64_t pci_hole64_start,
-                        uint64_t pci_hole64_size)
+/* setup pci memory address space mapping into system address space */
+void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
+                            MemoryRegion *pci_address_space)
 {
-    if ((sizeof(hwaddr) == 4) || (!pci_hole64_size)) {
-        return;
-    }
-    /*
-     * BIOS does not set MTRR entries for the 64 bit window, so no need to
-     * align address to power of two.  Align address at 1G, this makes sure
-     * it can be exactly covered with a PAT entry even when using huge
-     * pages.
-     */
-    pci_info->w64.begin = ROUND_UP(pci_hole64_start, 0x1ULL << 30);
-    pci_info->w64.end = pci_info->w64.begin + pci_hole64_size;
-    assert(pci_info->w64.begin <= pci_info->w64.end);
+    /* Set to lower priority than RAM */
+    memory_region_add_subregion_overlap(system_memory, 0x0,
+                                        pci_address_space, -1);
 }
 
 void pc_acpi_init(const char *default_dsdt)
@@ -1261,7 +1253,8 @@ static const MemoryRegionOps ioportF0_io_ops = {
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           ISADevice **floppy,
-                          bool no_vmport)
+                          bool no_vmport,
+                          uint32 hpet_irqs)
 {
     int i;
     DriveInfo *fd[MAX_FD];
@@ -1288,9 +1281,21 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
      * when the HPET wants to take over. Thus we have to disable the latter.
      */
     if (!no_hpet && (!kvm_irqchip_in_kernel() || kvm_has_pit_state2())) {
-        hpet = sysbus_try_create_simple("hpet", HPET_BASE, NULL);
-
+        /* In order to set property, here not using sysbus_try_create_simple */
+        hpet = qdev_try_create(NULL, TYPE_HPET);
         if (hpet) {
+            /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7
+             * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
+             * IRQ8 and IRQ2.
+             */
+            uint8_t compat = object_property_get_int(OBJECT(hpet),
+                    HPET_INTCAP, NULL);
+            if (!compat) {
+                qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
+            }
+            qdev_init_nofail(hpet);
+            sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
+
             for (i = 0; i < GSI_NUM_PINS; i++) {
                 sysbus_connect_irq(SYS_BUS_DEVICE(hpet), i, gsi[i]);
             }

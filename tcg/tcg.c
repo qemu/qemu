@@ -357,11 +357,12 @@ void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size)
 
 void tcg_func_start(TCGContext *s)
 {
-    int i;
     tcg_pool_reset(s);
     s->nb_temps = s->nb_globals;
-    for(i = 0; i < (TCG_TYPE_COUNT * 2); i++)
-        s->first_free_temp[i] = -1;
+
+    /* No temps have been previously allocated for size or locality.  */
+    memset(s->free_temps, 0, sizeof(s->free_temps));
+
     s->labels = tcg_malloc(sizeof(TCGLabel) * TCG_MAX_LABELS);
     s->nb_labels = 0;
     s->current_frame_offset = s->frame_start;
@@ -503,16 +504,15 @@ static inline int tcg_temp_new_internal(TCGType type, int temp_local)
     TCGTemp *ts;
     int idx, k;
 
-    k = type;
-    if (temp_local)
-        k += TCG_TYPE_COUNT;
-    idx = s->first_free_temp[k];
-    if (idx != -1) {
-        /* There is already an available temp with the
-           right type */
+    k = type + (temp_local ? TCG_TYPE_COUNT : 0);
+    idx = find_first_bit(s->free_temps[k].l, TCG_MAX_TEMPS);
+    if (idx < TCG_MAX_TEMPS) {
+        /* There is already an available temp with the right type.  */
+        clear_bit(idx, s->free_temps[k].l);
+
         ts = &s->temps[idx];
-        s->first_free_temp[k] = ts->next_free_temp;
         ts->temp_allocated = 1;
+        assert(ts->base_type == type);
         assert(ts->temp_local == temp_local);
     } else {
         idx = s->nb_temps;
@@ -568,7 +568,7 @@ TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
     return MAKE_TCGV_I64(idx);
 }
 
-static inline void tcg_temp_free_internal(int idx)
+static void tcg_temp_free_internal(int idx)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -585,11 +585,9 @@ static inline void tcg_temp_free_internal(int idx)
     ts = &s->temps[idx];
     assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
-    k = ts->base_type;
-    if (ts->temp_local)
-        k += TCG_TYPE_COUNT;
-    ts->next_free_temp = s->first_free_temp[k];
-    s->first_free_temp[k] = idx;
+
+    k = ts->type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
+    set_bit(idx, s->free_temps[k].l);
 }
 
 void tcg_temp_free_i32(TCGv_i32 arg)

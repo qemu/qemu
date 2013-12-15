@@ -23,17 +23,229 @@
 #include "cpu.h"
 #include "hw/arm/arm.h"
 
-/* Check that cpu.h's idea of coprocessor fields matches KVM's */
-#if (CP_REG_SIZE_SHIFT != KVM_REG_SIZE_SHIFT) || \
-    (CP_REG_SIZE_MASK != KVM_REG_SIZE_MASK) ||   \
-    (CP_REG_SIZE_U32 != KVM_REG_SIZE_U32) || \
-    (CP_REG_SIZE_U64 != KVM_REG_SIZE_U64) || \
-    (CP_REG_ARM != KVM_REG_ARM)
-#error mismatch between cpu.h and KVM header definitions
-#endif
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
+};
+
+bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
+                                      int *fdarray,
+                                      struct kvm_vcpu_init *init)
+{
+    int ret, kvmfd = -1, vmfd = -1, cpufd = -1;
+
+    kvmfd = qemu_open("/dev/kvm", O_RDWR);
+    if (kvmfd < 0) {
+        goto err;
+    }
+    vmfd = ioctl(kvmfd, KVM_CREATE_VM, 0);
+    if (vmfd < 0) {
+        goto err;
+    }
+    cpufd = ioctl(vmfd, KVM_CREATE_VCPU, 0);
+    if (cpufd < 0) {
+        goto err;
+    }
+
+    ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, init);
+    if (ret >= 0) {
+        ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
+        if (ret < 0) {
+            goto err;
+        }
+    } else {
+        /* Old kernel which doesn't know about the
+         * PREFERRED_TARGET ioctl: we know it will only support
+         * creating one kind of guest CPU which is its preferred
+         * CPU type.
+         */
+        while (*cpus_to_try != QEMU_KVM_ARM_TARGET_NONE) {
+            init->target = *cpus_to_try++;
+            memset(init->features, 0, sizeof(init->features));
+            ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
+            if (ret >= 0) {
+                break;
+            }
+        }
+        if (ret < 0) {
+            goto err;
+        }
+    }
+
+    fdarray[0] = kvmfd;
+    fdarray[1] = vmfd;
+    fdarray[2] = cpufd;
+
+    return true;
+
+err:
+    if (cpufd >= 0) {
+        close(cpufd);
+    }
+    if (vmfd >= 0) {
+        close(vmfd);
+    }
+    if (kvmfd >= 0) {
+        close(kvmfd);
+    }
+
+    return false;
+}
+
+void kvm_arm_destroy_scratch_host_vcpu(int *fdarray)
+{
+    int i;
+
+    for (i = 2; i >= 0; i--) {
+        close(fdarray[i]);
+    }
+}
+
+static inline void set_feature(uint64_t *features, int feature)
+{
+    *features |= 1ULL << feature;
+}
+
+bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
+{
+    /* Identify the feature bits corresponding to the host CPU, and
+     * fill out the ARMHostCPUClass fields accordingly. To do this
+     * we have to create a scratch VM, create a single CPU inside it,
+     * and then query that CPU for the relevant ID registers.
+     */
+    int i, ret, fdarray[3];
+    uint32_t midr, id_pfr0, id_isar0, mvfr1;
+    uint64_t features = 0;
+    /* Old kernels may not know about the PREFERRED_TARGET ioctl: however
+     * we know these will only support creating one kind of guest CPU,
+     * which is its preferred CPU type.
+     */
+    static const uint32_t cpus_to_try[] = {
+        QEMU_KVM_ARM_TARGET_CORTEX_A15,
+        QEMU_KVM_ARM_TARGET_NONE
+    };
+    struct kvm_vcpu_init init;
+    struct kvm_one_reg idregs[] = {
+        {
+            .id = KVM_REG_ARM | KVM_REG_SIZE_U32
+            | ENCODE_CP_REG(15, 0, 0, 0, 0, 0),
+            .addr = (uintptr_t)&midr,
+        },
+        {
+            .id = KVM_REG_ARM | KVM_REG_SIZE_U32
+            | ENCODE_CP_REG(15, 0, 0, 1, 0, 0),
+            .addr = (uintptr_t)&id_pfr0,
+        },
+        {
+            .id = KVM_REG_ARM | KVM_REG_SIZE_U32
+            | ENCODE_CP_REG(15, 0, 0, 2, 0, 0),
+            .addr = (uintptr_t)&id_isar0,
+        },
+        {
+            .id = KVM_REG_ARM | KVM_REG_SIZE_U32
+            | KVM_REG_ARM_VFP | KVM_REG_ARM_VFP_MVFR1,
+            .addr = (uintptr_t)&mvfr1,
+        },
+    };
+
+    if (!kvm_arm_create_scratch_host_vcpu(cpus_to_try, fdarray, &init)) {
+        return false;
+    }
+
+    ahcc->target = init.target;
+
+    /* This is not strictly blessed by the device tree binding docs yet,
+     * but in practice the kernel does not care about this string so
+     * there is no point maintaining an KVM_ARM_TARGET_* -> string table.
+     */
+    ahcc->dtb_compatible = "arm,arm-v7";
+
+    for (i = 0; i < ARRAY_SIZE(idregs); i++) {
+        ret = ioctl(fdarray[2], KVM_GET_ONE_REG, &idregs[i]);
+        if (ret) {
+            break;
+        }
+    }
+
+    kvm_arm_destroy_scratch_host_vcpu(fdarray);
+
+    if (ret) {
+        return false;
+    }
+
+    /* Now we've retrieved all the register information we can
+     * set the feature bits based on the ID register fields.
+     * We can assume any KVM supporting CPU is at least a v7
+     * with VFPv3, LPAE and the generic timers; this in turn implies
+     * most of the other feature bits, but a few must be tested.
+     */
+    set_feature(&features, ARM_FEATURE_V7);
+    set_feature(&features, ARM_FEATURE_VFP3);
+    set_feature(&features, ARM_FEATURE_LPAE);
+    set_feature(&features, ARM_FEATURE_GENERIC_TIMER);
+
+    switch (extract32(id_isar0, 24, 4)) {
+    case 1:
+        set_feature(&features, ARM_FEATURE_THUMB_DIV);
+        break;
+    case 2:
+        set_feature(&features, ARM_FEATURE_ARM_DIV);
+        set_feature(&features, ARM_FEATURE_THUMB_DIV);
+        break;
+    default:
+        break;
+    }
+
+    if (extract32(id_pfr0, 12, 4) == 1) {
+        set_feature(&features, ARM_FEATURE_THUMB2EE);
+    }
+    if (extract32(mvfr1, 20, 4) == 1) {
+        set_feature(&features, ARM_FEATURE_VFP_FP16);
+    }
+    if (extract32(mvfr1, 12, 4) == 1) {
+        set_feature(&features, ARM_FEATURE_NEON);
+    }
+    if (extract32(mvfr1, 28, 4) == 1) {
+        /* FMAC support implies VFPv4 */
+        set_feature(&features, ARM_FEATURE_VFP4);
+    }
+
+    ahcc->features = features;
+
+    return true;
+}
+
+static void kvm_arm_host_cpu_class_init(ObjectClass *oc, void *data)
+{
+    ARMHostCPUClass *ahcc = ARM_HOST_CPU_CLASS(oc);
+
+    /* All we really need to set up for the 'host' CPU
+     * is the feature bits -- we rely on the fact that the
+     * various ID register values in ARMCPU are only used for
+     * TCG CPUs.
+     */
+    if (!kvm_arm_get_host_cpu_features(ahcc)) {
+        fprintf(stderr, "Failed to retrieve host CPU features!\n");
+        abort();
+    }
+}
+
+static void kvm_arm_host_cpu_initfn(Object *obj)
+{
+    ARMHostCPUClass *ahcc = ARM_HOST_CPU_GET_CLASS(obj);
+    ARMCPU *cpu = ARM_CPU(obj);
+    CPUARMState *env = &cpu->env;
+
+    cpu->kvm_target = ahcc->target;
+    cpu->dtb_compatible = ahcc->dtb_compatible;
+    env->features = ahcc->features;
+}
+
+static const TypeInfo host_arm_cpu_type_info = {
+    .name = TYPE_ARM_HOST_CPU,
+    .parent = TYPE_ARM_CPU,
+    .instance_init = kvm_arm_host_cpu_initfn,
+    .class_init = kvm_arm_host_cpu_class_init,
+    .class_size = sizeof(ARMHostCPUClass),
 };
 
 int kvm_arch_init(KVMState *s)
@@ -42,6 +254,9 @@ int kvm_arch_init(KVMState *s)
      * whether we are using an in-kernel VGIC or not.
      */
     kvm_async_interrupts_allowed = true;
+
+    type_register_static(&host_arm_cpu_type_info);
+
     return 0;
 }
 
@@ -86,8 +301,16 @@ int kvm_arch_init_vcpu(CPUState *cs)
     struct kvm_reg_list *rlp;
     ARMCPU *cpu = ARM_CPU(cs);
 
-    init.target = KVM_ARM_TARGET_CORTEX_A15;
+    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE) {
+        fprintf(stderr, "KVM is not supported for this guest CPU type\n");
+        return -EINVAL;
+    }
+
+    init.target = cpu->kvm_target;
     memset(init.features, 0, sizeof(init.features));
+    if (cpu->start_powered_off) {
+        init.features[0] = 1 << KVM_ARM_VCPU_POWER_OFF;
+    }
     ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
     if (ret) {
         return ret;

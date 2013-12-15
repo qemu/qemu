@@ -1407,6 +1407,12 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                Use group 'groupname' and mode 'octalmode' to change default\n"
     "                ownership and permissions for communication port.\n"
 #endif
+#ifdef CONFIG_NETMAP
+    "-net netmap,ifname=name[,devname=nmname]\n"
+    "                attach to the existing netmap-enabled network interface 'name', or to a\n"
+    "                VALE port (created on the fly) called 'name' ('nmname' is name of the \n"
+    "                netmap device, defaults to '/dev/netmap')\n"
+#endif
     "-net dump[,vlan=n][,file=f][,len=n]\n"
     "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices. If no -net option\n"
@@ -1420,6 +1426,9 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "bridge|"
 #ifdef CONFIG_VDE
     "vde|"
+#endif
+#ifdef CONFIG_NETMAP
+    "netmap|"
 #endif
     "socket|"
     "hubport],id=str[,option][,option][,...]\n", QEMU_ARCH_ALL)
@@ -2087,7 +2096,7 @@ ETEXI
 DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "-iscsi [user=user][,password=password]\n"
     "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
-    "       [,initiator-name=iqn]\n"
+    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
 

@@ -726,6 +726,9 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 #ifdef CONFIG_VDE
         [NET_CLIENT_OPTIONS_KIND_VDE]       = net_init_vde,
 #endif
+#ifdef CONFIG_NETMAP
+        [NET_CLIENT_OPTIONS_KIND_NETMAP]    = net_init_netmap,
+#endif
         [NET_CLIENT_OPTIONS_KIND_DUMP]      = net_init_dump,
 #ifdef CONFIG_NET_BRIDGE
         [NET_CLIENT_OPTIONS_KIND_BRIDGE]    = net_init_bridge,
@@ -756,6 +759,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         case NET_CLIENT_OPTIONS_KIND_SOCKET:
 #ifdef CONFIG_VDE
         case NET_CLIENT_OPTIONS_KIND_VDE:
+#endif
+#ifdef CONFIG_NETMAP
+        case NET_CLIENT_OPTIONS_KIND_NETMAP:
 #endif
 #ifdef CONFIG_NET_BRIDGE
         case NET_CLIENT_OPTIONS_KIND_BRIDGE:
@@ -1065,15 +1071,23 @@ void qmp_set_link(const char *name, bool up, Error **errp)
         nc->info->link_status_changed(nc);
     }
 
-    /* Notify peer. Don't update peer link status: this makes it possible to
-     * disconnect from host network without notifying the guest.
-     * FIXME: is disconnected link status change operation useful?
-     *
-     * Current behaviour is compatible with qemu vlans where there could be
-     * multiple clients that can still communicate with each other in
-     * disconnected mode. For now maintain this compatibility. */
-    if (nc->peer && nc->peer->info->link_status_changed) {
-        nc->peer->info->link_status_changed(nc->peer);
+    if (nc->peer) {
+        /* Change peer link only if the peer is NIC and then notify peer.
+         * If the peer is a HUBPORT or a backend, we do not change the
+         * link status.
+         *
+         * This behavior is compatible with qemu vlans where there could be
+         * multiple clients that can still communicate with each other in
+         * disconnected mode. For now maintain this compatibility.
+         */
+        if (nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+            for (i = 0; i < queues; i++) {
+                ncs[i]->peer->link_down = !up;
+            }
+        }
+        if (nc->peer->info->link_status_changed) {
+            nc->peer->info->link_status_changed(nc->peer);
+        }
     }
 }
 

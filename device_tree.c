@@ -41,6 +41,10 @@ void *create_device_tree(int *sizep)
     if (ret < 0) {
         goto fail;
     }
+    ret = fdt_finish_reservemap(fdt);
+    if (ret < 0) {
+        goto fail;
+    }
     ret = fdt_begin_node(fdt, "");
     if (ret < 0) {
         goto fail;
