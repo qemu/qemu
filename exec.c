@@ -441,6 +441,12 @@ void cpu_exec_init(CPUArchState *env)
     CPUState *some_cpu;
     int cpu_index;
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    env->bigendian = 1;
+#else
+    env->bigendian = 0;
+#endif
+
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
@@ -991,9 +997,9 @@ static void *file_ram_alloc(RAMBlock *block,
     char *filename;
     char *sanitized_name;
     char *c;
-    void *area;
+    void * volatile area;
     int fd;
-    unsigned long hpagesize;
+    uintptr_t hpagesize;
 
     hpagesize = gethugepagesize(path);
     if (!hpagesize) {

@@ -52,7 +52,7 @@ int qemu_init_main_loop(void);
  * repeatedly calls main_loop_wait(false).
  *
  * Main loop services include file descriptor callbacks, bottom halves
- * and timers (defined in qemu-timer.h).  Bottom halves are similar to timers
+ * and timers (defined in qemu/timer.h).  Bottom halves are similar to timers
  * that execute immediately, but have a lower overhead and scheduling them
  * is wait-free, thread-safe and signal-safe.
  *

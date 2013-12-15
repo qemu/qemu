@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "trace.h"
 #include "ui/console.h"
 #include "hw/qdev-core.h"
 #include "qemu/timer.h"
@@ -945,7 +946,7 @@ static void console_putchar(QemuConsole *s, int ch)
                 switch (s->esc_params[0]) {
                 case 0:
                     /* clear to eol */
-                    for(x = s->x; x < s->width; x++) {
+                    for (x = s->x; x < s->width; x++) {
                         console_clear_xy(s, x, s->y);
                     }
                     break;

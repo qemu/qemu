@@ -8,7 +8,6 @@ common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
 common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
-common-obj-$(CONFIG_RASPI) += bcm2835_usb.o
 
 # emulated usb devices
 common-obj-y += dev-hub.o
@@ -32,3 +31,5 @@ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 
 # usb pass-through
 common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
+
+obj-$(CONFIG_RASPI) += bcm2835_usb.o

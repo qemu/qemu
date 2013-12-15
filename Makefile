@@ -62,8 +62,9 @@ GENERATED_SOURCES += trace/generated-tracers.c
 Makefile: ;
 configure: ;
 
-.PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist
+.PHONY: all clean cscope dist distclean doc dvi html \
+	info install install-doc install-tools \
+	pdf recurse-all speed test tools
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -71,13 +72,9 @@ LIBS+=-lz $(LIBS_TOOLS)
 
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
-ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qmp-commands.txt
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
-endif
-else
-DOCS=
 endif
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory) BUILD_DIR=$(BUILD_DIR)
@@ -128,7 +125,20 @@ ifeq ($(CONFIG_SMARTCARD_NSS),y)
 include $(SRC_PATH)/libcacard/Makefile
 endif
 
-all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
+all: recurse-all
+
+ifdef BUILD_DOCS
+all: doc
+endif
+
+ifdef BUILD_TOOLS
+all: tools
+endif
+
+all: $(HELPERS-y)
+
+doc: $(DOCS)
+tools: $(TOOLS)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
@@ -309,9 +319,9 @@ else
 BLOBS=
 endif
 
-install-doc: $(DOCS)
+install-doc: doc
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
-	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qemu-doc.html qemu-tech.html "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
@@ -343,7 +353,9 @@ install-confdir:
 install-sysconfig: install-datadir install-confdir
 	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
 
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
+install-tools: tools
+
+install: all $(if $(BUILD_DOCS),install-doc) $(if $(BUILD_TOOLS),install-tools) install-sysconfig \
 install-datadir install-localstatedir
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)

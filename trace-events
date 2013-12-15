@@ -751,6 +751,10 @@ milkymist_uart_lower_irq(void) "Lower IRQ"
 milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 
+# hw/input/ps2.c
+ps2_keyboard_set_translation(int mode) "%d"
+ps2_write_mouse(int val) "0x%02x"
+
 # hw/net/mipsnet.c
 mipsnet_send(uint32_t size) "sending len=%u"
 mipsnet_receive(uint32_t size) "receiving len=%u"

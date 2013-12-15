@@ -258,7 +258,7 @@ AioContext *aio_context_new(void)
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
     event_notifier_init(&ctx->notifier, false);
-    aio_set_event_notifier(ctx, &ctx->notifier, 
+    aio_set_event_notifier(ctx, &ctx->notifier,
                            (EventNotifierHandler *)
                            event_notifier_test_and_clear);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);

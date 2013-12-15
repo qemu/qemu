@@ -27,8 +27,6 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
-//#define DEBUG_MMIO
-//#define DEBUG_UNASSIGNED
 #define DEBUG_UIC
 
 

@@ -16,12 +16,211 @@
 /* Number of 2k memory pages available.  */
 #define NUM_PACKETS 4
 
+#if 0
+# define logout(fmt, ...) \
+    fprintf(stderr, "SMC91C111\t%-24s %s:%u " fmt, __func__, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+# define logout(fmt, ...) (void)0
+#endif
+
+typedef enum {
+    MII_WAITING,
+    MII_IDLE,
+    MII_GOT_START,
+    MII_READ,
+    MII_WRITE
+} MII_State;
+
+typedef enum {
+    MII_MDOE = 8,
+    MII_MCLK = 4,
+    MII_MDI = 2,
+    MII_MDO = 1
+} MII_BITS;
+
+/* PHY Register Addresses (LAN91C111 Internal PHY) */
+
+/* PHY Configuration Register 1 */
+#define PHY_CFG1_REG		0x10
+#define PHY_CFG1_LNKDIS		0x8000	/* 1=Rx Link Detect Function disabled */
+#define PHY_CFG1_XMTDIS		0x4000	/* 1=TP Transmitter Disabled */
+#define PHY_CFG1_XMTPDN		0x2000	/* 1=TP Transmitter Powered Down */
+#define PHY_CFG1_BYPSCR		0x0400	/* 1=Bypass scrambler/descrambler */
+#define PHY_CFG1_UNSCDS		0x0200	/* 1=Unscramble Idle Reception Disable */
+#define PHY_CFG1_EQLZR		0x0100	/* 1=Rx Equalizer Disabled */
+#define PHY_CFG1_CABLE		0x0080	/* 1=STP(150ohm), 0=UTP(100ohm) */
+#define PHY_CFG1_RLVL0		0x0040	/* 1=Rx Squelch level reduced by 4.5db */
+#define PHY_CFG1_TLVL_SHIFT	2	/* Transmit Output Level Adjust */
+#define PHY_CFG1_TLVL_MASK	0x003C
+#define PHY_CFG1_TRF_MASK	0x0003	/* Transmitter Rise/Fall time */
+
+/* PHY Configuration Register 2 */
+#define PHY_CFG2_REG		0x11
+#define PHY_CFG2_APOLDIS	0x0020	/* 1=Auto Polarity Correction disabled */
+#define PHY_CFG2_JABDIS		0x0010	/* 1=Jabber disabled */
+#define PHY_CFG2_MREG		0x0008	/* 1=Multiple register access (MII mgt) */
+#define PHY_CFG2_INTMDIO	0x0004	/* 1=Interrupt signaled with MDIO pulseo */
+
+/* PHY Status Output (and Interrupt status) Register */
+#define PHY_INT_REG		0x12	/* Status Output (Interrupt Status) */
+#define PHY_INT_INT		0x8000	/* 1=bits have changed since last read */
+#define PHY_INT_LNKFAIL		0x4000	/* 1=Link Not detected */
+#define PHY_INT_LOSSSYNC	0x2000	/* 1=Descrambler has lost sync */
+#define PHY_INT_CWRD		0x1000	/* 1=Invalid 4B5B code detected on rx */
+#define PHY_INT_SSD		0x0800	/* 1=No Start Of Stream detected on rx */
+#define PHY_INT_ESD		0x0400	/* 1=No End Of Stream detected on rx */
+#define PHY_INT_RPOL		0x0200	/* 1=Reverse Polarity detected */
+#define PHY_INT_JAB		0x0100	/* 1=Jabber detected */
+#define PHY_INT_SPDDET		0x0080	/* 1=100Base-TX mode, 0=10Base-T mode */
+#define PHY_INT_DPLXDET		0x0040	/* 1=Device in Full Duplex */
+
+/* PHY Interrupt/Status Mask Register */
+#define PHY_MASK_REG		0x13	/* Interrupt Mask */
+/* Uses the same bit definitions as PHY_INT_REG */
+
+typedef struct {
+    int mdoe;
+    int mclk;
+    int mdi;
+    int mdo;
+    uint32_t data;
+    MII_State status;
+    unsigned reg;
+    uint16_t regs[32];
+} MII;
+
+
+/* Declarations from include/linux/mii.h. */
+
+/* Generic MII registers. */
+
+#define MII_BMCR            0x00        /* Basic mode control register */ // rw
+#define MII_BMSR            0x01        /* Basic mode status register  */ // r
+#define MII_PHYSID1         0x02        /* PHYS ID 1                   */
+#define MII_PHYSID2         0x03        /* PHYS ID 2                   */
+#define MII_ADVERTISE       0x04        /* Advertisement control reg   */ // rw
+#define MII_LPA             0x05        /* Link partner ability reg    */
+#define MII_EXPANSION       0x06        /* Expansion register          */
+#define MII_CTRL1000        0x09        /* 1000BASE-T control          */
+#define MII_STAT1000        0x0a        /* 1000BASE-T status           */
+#define MII_ESTATUS         0x0f        /* Extended Status             */
+#define MII_DCOUNTER        0x12        /* Disconnect counter          */
+#define MII_FCSCOUNTER      0x13        /* False carrier counter       */
+#define MII_NWAYTEST        0x14        /* N-way auto-neg test reg     */
+#define MII_RERRCOUNTER     0x15        /* Receive error counter       */
+#define MII_SREVISION       0x16        /* Silicon revision            */
+#define MII_RESV1           0x17        /* Reserved...                 */
+#define MII_LBRERROR        0x18        /* Lpback, rx, bypass error    */
+#define MII_PHYADDR         0x19        /* PHY address                 */
+#define MII_RESV2           0x1a        /* Reserved...                 */
+#define MII_TPISTATUS       0x1b        /* TPI status for 10mbps       */
+#define MII_NCONFIG         0x1c        /* Network interface config    */
+
+/* Basic mode control register. */
+#define BMCR_RESV               0x003f  /* Unused...                   */
+#define BMCR_SPEED1000          0x0040  /* MSB of Speed (1000)         */
+#define BMCR_CTST               0x0080  /* Collision test              */
+#define BMCR_FULLDPLX           0x0100  /* Full duplex                 */
+#define BMCR_ANRESTART          0x0200  /* Auto negotiation restart    */
+#define BMCR_ISOLATE            0x0400  /* Disconnect PHY from MII     */
+#define BMCR_PDOWN              0x0800  /* Powerdown the               */
+#define BMCR_ANENABLE           0x1000  /* Enable auto negotiation     */
+#define BMCR_SPEED100           0x2000  /* Select 100Mbps              */
+#define BMCR_LOOPBACK           0x4000  /* TXD loopback bits           */
+#define BMCR_RESET              0x8000  /* Reset the PHY               */
+
+/* Basic mode status register. */
+#define BMSR_ERCAP              0x0001  /* Ext-reg capability          */
+#define BMSR_JCD                0x0002  /* Jabber detected             */
+#define BMSR_LSTATUS            0x0004  /* Link status                 */
+#define BMSR_ANEGCAPABLE        0x0008  /* Able to do auto-negotiation */
+#define BMSR_RFAULT             0x0010  /* Remote fault detected       */
+#define BMSR_ANEGCOMPLETE       0x0020  /* Auto-negotiation complete   */
+#define BMSR_RESV               0x00c0  /* Unused...                   */
+#define BMSR_ESTATEN            0x0100  /* Extended Status in R15      */
+#define BMSR_100HALF2           0x0200  /* Can do 100BASE-T2 HDX       */
+#define BMSR_100FULL2           0x0400  /* Can do 100BASE-T2 FDX       */
+#define BMSR_10HALF             0x0800  /* Can do 10mbps, half-duplex  */
+#define BMSR_10FULL             0x1000  /* Can do 10mbps, full-duplex  */
+#define BMSR_100HALF            0x2000  /* Can do 100mbps, half-duplex */
+#define BMSR_100FULL            0x4000  /* Can do 100mbps, full-duplex */
+#define BMSR_100BASE4           0x8000  /* Can do 100mbps, 4k packets  */
+
+//~ #define PHY_STAT_CAP_SUPR	0x0040	/* 1=recv mgmt frames with not preamble */
+
+/* Advertisement control register. */
+#define ADVERTISE_SLCT          0x001f  /* Selector bits               */
+#define ADVERTISE_CSMA          0x0001  /* Only selector supported     */
+#define ADVERTISE_10HALF        0x0020  /* Try for 10mbps half-duplex  */
+#define ADVERTISE_1000XFULL     0x0020  /* Try for 1000BASE-X full-duplex */
+#define ADVERTISE_10FULL        0x0040  /* Try for 10mbps full-duplex  */
+#define ADVERTISE_1000XHALF     0x0040  /* Try for 1000BASE-X half-duplex */
+#define ADVERTISE_100HALF       0x0080  /* Try for 100mbps half-duplex */
+#define ADVERTISE_1000XPAUSE    0x0080  /* Try for 1000BASE-X pause    */
+#define ADVERTISE_100FULL       0x0100  /* Try for 100mbps full-duplex */
+#define ADVERTISE_1000XPSE_ASYM 0x0100  /* Try for 1000BASE-X asym pause */
+#define ADVERTISE_100BASE4      0x0200  /* Try for 100mbps 4k packets  */
+#define ADVERTISE_PAUSE_CAP     0x0400  /* Try for pause               */
+#define ADVERTISE_PAUSE_ASYM    0x0800  /* Try for asymetric pause     */
+#define ADVERTISE_RESV          0x1000  /* Unused...                   */
+#define ADVERTISE_RFAULT        0x2000  /* Say we can detect faults    */
+#define ADVERTISE_LPACK         0x4000  /* Ack link partners response  */
+#define ADVERTISE_NPAGE         0x8000  /* Next page bit               */
+
+#define ADVERTISE_FULL (ADVERTISE_100FULL | ADVERTISE_10FULL | \
+                        ADVERTISE_CSMA)
+#define ADVERTISE_ALL (ADVERTISE_10HALF | ADVERTISE_10FULL | \
+                       ADVERTISE_100HALF | ADVERTISE_100FULL)
+
+/* Link partner ability register. */
+#define LPA_SLCT                0x001f  /* Same as advertise selector  */
+#define LPA_10HALF              0x0020  /* Can do 10mbps half-duplex   */
+#define LPA_1000XFULL           0x0020  /* Can do 1000BASE-X full-duplex */
+#define LPA_10FULL              0x0040  /* Can do 10mbps full-duplex   */
+#define LPA_1000XHALF           0x0040  /* Can do 1000BASE-X half-duplex */
+#define LPA_100HALF             0x0080  /* Can do 100mbps half-duplex  */
+#define LPA_1000XPAUSE          0x0080  /* Can do 1000BASE-X pause     */
+#define LPA_100FULL             0x0100  /* Can do 100mbps full-duplex  */
+#define LPA_1000XPAUSE_ASYM     0x0100  /* Can do 1000BASE-X pause asym*/
+#define LPA_100BASE4            0x0200  /* Can do 100mbps 4k packets   */
+#define LPA_PAUSE_CAP           0x0400  /* Can pause                   */
+#define LPA_PAUSE_ASYM          0x0800  /* Can pause asymetrically     */
+#define LPA_RESV                0x1000  /* Unused...                   */
+#define LPA_RFAULT              0x2000  /* Link partner faulted        */
+#define LPA_LPACK               0x4000  /* Link partner acked us       */
+#define LPA_NPAGE               0x8000  /* Next page bit               */
+
+#define LPA_DUPLEX              (LPA_10FULL | LPA_100FULL)
+#define LPA_100                 (LPA_100FULL | LPA_100HALF | LPA_100BASE4)
+
+/* End of declarations from include/linux/mii.h. */
+
+/* SMC 91C111 specific MII register. */
+
+/* 0x06 ... 0x0f are reserved. */
+#define MII_CONFIGURATION1  0x10        /* Configuration 1             */
+#define MII_CONFIGURATION2  0x11        /* Configuration 2             */
+#define MII_STATUSOUTPUT    0x12        /* Status Output               */
+    //~ PHY_FCSCR = 0x13,   /* Mask */
+/* 0x14 is reserved. */
+/* 0x15 ... 0x1f are unused. */
+
+
+/* Default values for MII management registers (see IEEE 802.3-2008 22.2.4). */
+
+static const uint16_t mii_regs_default[] = {
+    [MII_BMCR] = BMCR_ANENABLE | BMCR_SPEED100,
+    [MII_BMSR] = BMSR_100FULL | BMSR_100HALF | BMSR_10FULL | BMSR_10HALF |
+                 BMSR_ANEGCAPABLE | BMSR_LSTATUS | BMSR_ERCAP,
+    [MII_ADVERTISE] = ADVERTISE_PAUSE_CAP | ADVERTISE_ALL | ADVERTISE_CSMA,
+};
+
 #define TYPE_SMC91C111 "smc91c111"
 #define SMC91C111(obj) OBJECT_CHECK(smc91c111_state, (obj), TYPE_SMC91C111)
 
 typedef struct {
     SysBusDevice parent_obj;
-
+    MII mii;
     NICState *nic;
     NICConf conf;
     uint16_t tcr;
@@ -110,6 +309,103 @@ static const VMStateDescription vmstate_smc91c111 = {
 #define RS_TOOLONG      0x0800
 #define RS_TOOSHORT     0x0400
 #define RS_MULTICAST    0x0001
+
+static void mii_write(MII *mii, uint32_t value)
+{
+/*
+A timing diagram for a Ml serial port frame is shown in Figure 7.1. The Ml serial port is idle when at
+least 32 continuous 1's are detected on MDIO and remains idle as long as continuous 1's are detected.
+During idle, MDIO is in the high impedance state. When the Ml serial port is in the idle state, a 01
+pattern on the MDIO initiates a serial shift cycle. Data on MDIO is then shifted in on the next 14 rising
+edges of MDC (MDIO is high impedance). If the register access mode is not enabled, on the next 16
+rising edges of MDC, data is either shifted in or out on MDIO, depending on whether a write or read
+cycle was selected with the bits READ and WRITE. After the 32 MDC cycles have been completed,
+one complete register has been read/written, the serial shift process is halted, data is latched into the
+device, and MDIO goes into high impedance state. Another serial shift cycle cannot be initiated until
+the idle condition (at least 32 continuous 1's) is detected.
+*/
+    bool clock = !mii->mclk && (value & 4);
+
+    assert((value & 0xfffffff0) == 0x30);
+
+    if (clock) {
+        /* Raising clock. */
+        mii->mdi = value & MII_MDI;
+        mii->mdoe = value & MII_MDOE;
+        mii->mdo = value & MII_MDO;
+        mii->data = (mii->data << 1) + (value & 1);
+        logout("%u%u%u%u %08x\n",
+               mii->mdoe ? 1 : 0, mii->mclk ? 1 : 0,
+               mii->mdi ? 1 : 0, mii->mdo ? 1 : 0,
+               mii->data);
+        switch (mii->status) {
+            case MII_WAITING:
+                if (mii->data == 0xffffffff) {
+                    logout("mii is idle\n");
+                    mii->mdi = MII_MDI;
+                    mii->status = MII_IDLE;
+                }
+                break;
+            case MII_IDLE:
+                if (mii->data == 0xfffffffd) {
+                    logout("mii got start bit pattern 01\n");
+                    mii->status = MII_GOT_START;
+                }
+                break;
+            case MII_GOT_START:
+                if ((mii->data & 0xffffc000) == 0xffff4000) {
+                    unsigned op = (mii->data >> 12) & 0x3;
+                    unsigned phy = (mii->data >> 7) & 0x1f;
+                    unsigned reg = (mii->data >> 2) & 0x1f;
+                    logout("mii got 14 bits (op=%u, phy=%u, reg=%u, ta=%u)\n",
+                           op, phy, reg, mii->data & 0x3);
+                    mii->reg = reg;
+                    if (phy != 0) {
+                        logout("Wrong phy %u, wait for idle\n", phy);
+                        mii->status = MII_WAITING;
+                    } else if (reg >= ARRAY_SIZE(mii->regs)) {
+                        logout("Wrong reg %u, wait for idle\n", reg);
+                        mii->status = MII_WAITING;
+                    } else if (op == 1) {
+                        mii->status = MII_WRITE;
+                    } else if (op == 2) {
+                        mii->data = mii->regs[reg];
+                        mii->mdi = 0;
+                        mii->status = MII_READ;
+                    } else {
+                        logout("Illegal MII operation %u, wait for idle\n", op);
+                        mii->status = MII_WAITING;
+                    }
+                }
+                break;
+            case MII_WRITE:
+                if ((mii->data & 0xc0000000) == 0x40000000) {
+                    uint16_t data = mii->data & 0xffff;
+                    logout("mii wrote 16 bits (data=0x%04x=%u)\n", data, data);
+                    mii->regs[mii->reg] = data;
+                    mii->status = MII_WAITING;
+                }
+                break;
+            case MII_READ:
+                if ((mii->data & 0x0000ffff) == 0x0000ffff) {
+                    logout("mii read 16 bits\n");
+                    mii->mdi = MII_MDI;
+                    mii->status = MII_WAITING;
+                } else {
+                    mii->data |= 1;
+                    mii->mdi = (mii->data & 0x00010000) ? MII_MDI : 0;
+                }
+                break;
+        }
+    } /* clock */
+    mii->mclk = value & MII_MCLK;
+    //~ assert(mii->mdoe);
+}
+
+static void mii_reset(MII *mii)
+{
+    memcpy(mii->regs, mii_regs_default, sizeof(mii->regs));
+}
 
 /* Update interrupt status.  */
 static void smc91c111_update(smc91c111_state *s)
@@ -276,6 +572,7 @@ static void smc91c111_reset(DeviceState *dev)
     s->ercv = 0x1f;
     s->int_level = INT_TX_EMPTY;
     s->int_mask = 0;
+    mii_reset(&s->mii);
     smc91c111_update(s);
 }
 
@@ -317,6 +614,8 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 12: case 13: /* Reserved */
             return;
+        default:
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
         }
         break;
 
@@ -330,9 +629,9 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 2: case 3: /* BASE */
         case 4: case 5: case 6: case 7: case 8: case 9: /* IA */
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
             return;
-        case 10: /* Genral Purpose */
+        case 10: /* General Purpose */
             SET_LOW(gpr, value);
             return;
         case 11:
@@ -349,6 +648,8 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
         case 13:
             SET_HIGH(ctr, value);
             return;
+        default:
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
         }
         break;
 
@@ -390,6 +691,8 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
                 s->tx_fifo_len = 0;
                 s->tx_fifo_done_len = 0;
                 break;
+            default:
+                logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
             }
             return;
         case 1:
@@ -435,6 +738,8 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             s->int_mask = value;
             smc91c111_update(s);
             return;
+        default:
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
         }
         break;
 
@@ -442,19 +747,30 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
         switch (offset) {
         case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
             /* Multicast table.  */
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
             return;
-        case 8: case 9: /* Management Interface.  */
-            /* Not implemented.  */
+        case 8: /* Management Interface (low). */
+            mii_write(&s->mii, value);
+            return;
+        case 9: /* Management Interface (high). */
+            if (value != 0x33) {
+                /* MSK_CRS100 not implemented. */
+                logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
+            }
             return;
         case 12: /* Early receive.  */
             s->ercv = value & 0x1f;
             return;
         case 13:
             /* Ignore.  */
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
             return;
+        default:
+            logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
         }
         break;
+    default:
+        logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
     }
     hw_error("smc91c111_write: Bad reg %d:%x\n", s->bank, (int)offset);
 }
@@ -486,7 +802,7 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
             return s->rcr >> 8;
         case 6: /* Counter */
         case 7:
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "\n", offset);
             return 0;
         case 8: /* Memory size.  */
             return NUM_PACKETS;
@@ -502,10 +818,12 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                 return n;
             }
         case 10: case 11: /* RPCR */
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "\n", offset);
             return 0;
         case 12: case 13: /* Reserved */
             return 0;
+        default:
+            logout(TARGET_FMT_plx "\n", offset);
         }
         break;
 
@@ -516,7 +834,7 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
         case 1:
             return s->cr >> 8;
         case 2: case 3: /* BASE */
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "\n", offset);
             return 0;
         case 4: case 5: case 6: case 7: case 8: case 9: /* IA */
             return s->conf.macaddr.a[offset - 4];
@@ -528,6 +846,8 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
             return s->ctr & 0xff;
         case 13:
             return s->ctr >> 8;
+        default:
+            logout(TARGET_FMT_plx "\n", offset);
         }
         break;
 
@@ -574,6 +894,8 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
             return s->int_level;
         case 13: /* Interrupt mask.  */
             return s->int_mask;
+        default:
+            logout(TARGET_FMT_plx "\n", offset);
         }
         break;
 
@@ -581,12 +903,12 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
         switch (offset) {
         case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
             /* Multicast table.  */
-            /* Not implemented.  */
+            logout(TARGET_FMT_plx "\n", offset);
             return 0;
-        case 8: /* Management Interface.  */
-            /* Not implemented.  */
-            return 0x30;
-        case 9:
+        case 8: /* Management Interface (low). */
+            logout(TARGET_FMT_plx "\n", offset);
+            return 0x30 + s->mii.mdi;
+        case 9: /* Management Interface (high). */
             return 0x33;
         case 10: /* Revision.  */
             return 0x91;
@@ -596,8 +918,12 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
             return s->ercv;
         case 13:
             return 0;
+        default:
+            logout(TARGET_FMT_plx "\n", offset);
         }
         break;
+    default:
+        logout(TARGET_FMT_plx "\n", offset);
     }
     hw_error("smc91c111_read: Bad reg %d:%x\n", s->bank, (int)offset);
     return 0;

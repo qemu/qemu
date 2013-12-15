@@ -145,6 +145,7 @@ TODO (no longer available)
 
 @node install_mac
 @section Mac OS X
+@cindex installation (Mac OS X)
 
 Download the experimental binary installer at
 @url{http://www.free.oszoo.org/@/download.html}.
@@ -717,6 +718,8 @@ change or eject media.
 @item Hard disks
 Hard disks can be used with the syntax: @file{\\.\PhysicalDrive@var{N}}
 where @var{N} is the drive number (0 is the first hard disk).
+@file{/dev/hda} is supported as an alias to
+the first hard disk drive @file{\\.\PhysicalDrive0}.
 
 WARNING: unless you know what you do, it is better to only make
 READ-ONLY accesses to the hard disk otherwise you may corrupt your
@@ -1890,8 +1893,7 @@ PREP Non Volatile RAM
 PC compatible keyboard and mouse.
 @end itemize
 
-QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
-@url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
+QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS.
 
 Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
 for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
@@ -1923,10 +1925,6 @@ These variables are not used by Open Hack'Ware.
 @end table
 
 @c man end
-
-
-More information is available at
-@url{http://perso.magic.fr/l_indien/qemu-ppc/}.
 
 @node Sparc32 System emulator
 @section Sparc32 System emulator
@@ -2950,15 +2948,19 @@ installation directory.
 
 @end itemize
 
+@cindex wine, starting system emulation
 Wine can be used to launch the resulting qemu-system-i386.exe
 and all other qemu-system-@var{target}.exe compiled for Win32.
+@example
+wine qemu-system-i386
+@end example
 
 @node Mac OS X
 @section Mac OS X
 
 The Mac OS X patches are not fully merged in QEMU, so you should look
 at the QEMU mailing list archive to have all the necessary
-information.
+information. (TODO: is this still true?)
 
 @node Make targets
 @section Make targets

@@ -339,7 +339,7 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
         }
         env->gpr[4] = initrd_base;
         env->gpr[5] = initrd_size;
-        if (kernel_cmdline != NULL) {
+        if (kernel_cmdline != NULL && *kernel_cmdline) {
             len = strlen(kernel_cmdline);
             bdloc -= ((len + 255) & ~255);
             cpu_physical_memory_write(bdloc, kernel_cmdline, len + 1);

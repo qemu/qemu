@@ -52,6 +52,9 @@
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
 
+#undef BIOS_SIZE
+#define BIOS_SIZE (16 * MiB)
+
 //#define DEBUG_BOARD_INIT
 
 #define ENVP_ADDR		0x80002000l
@@ -67,6 +70,19 @@
 
 #define MAX_IDE_BUS 2
 
+//~ #define DEBUG
+
+#if defined(DEBUG)
+#  define TRACE(flag, command) ((flag) ? (command) : (void)0)
+#  define logout(fmt, ...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ## __VA_ARGS__)
+#else
+#  define TRACE(flag, command) ((void)0)
+#  define logout(fmt, ...) ((void)0)
+#endif
+
+#define EEPROM  1
+#define FPGA    0
+
 typedef struct {
     MemoryRegion iomem;
     MemoryRegion iomem_lo; /* 0 - 0x900 */
@@ -81,6 +97,7 @@ typedef struct {
     CharDriverState *display;
     char display_text[9];
     SerialState *uart;
+    int bigendian;
 } MaltaFPGAState;
 
 #define TYPE_MIPS_MALTA "mips-malta"
@@ -116,8 +133,8 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_fe_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_fe_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+    qemu_chr_fe_printf(s->display, "\e[3;2H\e[0;32m%-8.8s", leds_text);
+    qemu_chr_fe_printf(s->display, "\e[8;2H\e[0;31m%-8.8s\r\n\n\e[0;37m", s->display_text);
 }
 
 /*
@@ -129,14 +146,6 @@ static void malta_fpga_update_display(void *opaque)
  *
  * Typical device names include Microchip 24C02SC or SGS Thomson ST24C02.
  */
-
-//~ #define DEBUG
-
-#if defined(DEBUG)
-#  define logout(fmt, ...) fprintf(stderr, "MALTA\t%-24s" fmt, __func__, ## __VA_ARGS__)
-#else
-#  define logout(fmt, ...) ((void)0)
-#endif
 
 struct _eeprom24c0x_t {
   uint8_t tick;
@@ -259,42 +268,42 @@ static void generate_eeprom_serial(uint8_t *eeprom)
 
 static uint8_t eeprom24c0x_read(eeprom24c0x_t *eeprom)
 {
-    logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
-        eeprom->tick, eeprom->scl, eeprom->sda, eeprom->data);
+    TRACE(EEPROM, logout("%u: scl = %u, sda = %u, data = 0x%02x\n",
+        eeprom->tick, eeprom->scl, eeprom->sda, eeprom->data));
     return eeprom->sda;
 }
 
 static void eeprom24c0x_write(eeprom24c0x_t *eeprom, int scl, int sda)
 {
     if (eeprom->scl && scl && (eeprom->sda != sda)) {
-        logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u i2c %s\n",
                 eeprom->tick, eeprom->scl, scl, eeprom->sda, sda,
-                sda ? "stop" : "start");
+                sda ? "stop" : "start"));
         if (!sda) {
             eeprom->tick = 1;
             eeprom->command = 0;
         }
     } else if (eeprom->tick == 0 && !eeprom->ack) {
         /* Waiting for start. */
-        logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
-                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u wait for i2c start\n",
+                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda));
     } else if (!eeprom->scl && scl) {
-        logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
-                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u trigger bit\n",
+                eeprom->tick, eeprom->scl, scl, eeprom->sda, sda));
         if (eeprom->ack) {
-            logout("\ti2c ack bit = 0\n");
+            TRACE(EEPROM, logout("\ti2c ack bit = 0\n"));
             sda = 0;
             eeprom->ack = 0;
         } else if (eeprom->sda == sda) {
             uint8_t bit = (sda != 0);
-            logout("\ti2c bit = %d\n", bit);
+            TRACE(EEPROM, logout("\ti2c bit = %d\n", bit));
             if (eeprom->tick < 9) {
                 eeprom->command <<= 1;
                 eeprom->command += bit;
                 eeprom->tick++;
                 if (eeprom->tick == 9) {
-                    logout("\tcommand 0x%04x, %s\n", eeprom->command,
-                           bit ? "read" : "write");
+                    TRACE(EEPROM, logout("\tcommand 0x%04x, %s\n",
+                           bit ? "read" : "write"));
                     eeprom->ack = 1;
                 }
             } else if (eeprom->tick < 17) {
@@ -307,8 +316,8 @@ static void eeprom24c0x_write(eeprom24c0x_t *eeprom, int scl, int sda)
                 eeprom->data <<= 1;
                 if (eeprom->tick == 17) {
                     eeprom->data = eeprom->contents[eeprom->address];
-                    logout("\taddress 0x%04x, data 0x%02x\n",
-                           eeprom->address, eeprom->data);
+                    TRACE(EEPROM, logout("\taddress 0x%04x, data 0x%02x\n",
+                           eeprom->address, eeprom->data));
                     eeprom->ack = 1;
                     eeprom->tick = 0;
                 }
@@ -316,11 +325,11 @@ static void eeprom24c0x_write(eeprom24c0x_t *eeprom, int scl, int sda)
                 sda = 0;
             }
         } else {
-            logout("\tsda changed with raising scl\n");
+            TRACE(EEPROM, logout("\tsda changed with raising scl\n"));
         }
     } else {
-        logout("%u: scl = %u->%u, sda = %u->%u\n", eeprom->tick, eeprom->scl,
-               scl, eeprom->sda, sda);
+        TRACE(EEPROM, logout("%u: scl = %u->%u, sda = %u->%u\n",
+              eeprom->tick, eeprom->scl, scl, eeprom->sda, sda));
     }
     eeprom->scl = scl;
     eeprom->sda = sda;
@@ -344,11 +353,10 @@ static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
 
     /* STATUS Register */
     case 0x00208:
-#ifdef TARGET_WORDS_BIGENDIAN
-        val = 0x00000012;
-#else
         val = 0x00000010;
-#endif
+        if (s->bigendian) {
+            val |= 2;
+        }
         break;
 
     /* JMPRS Register */
@@ -405,12 +413,13 @@ static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
         break;
 
     default:
-#if 0
-        printf ("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
-                addr);
+#if 1
+        fprintf (stderr, "%s: Bad register offset 0x" TARGET_FMT_plx "\n",
+                __func__, addr);
 #endif
         break;
     }
+    TRACE(FPGA, logout("0x%08x = 0x%08x\n", saddr, val));
     return val;
 }
 
@@ -419,6 +428,7 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
 {
     MaltaFPGAState *s = opaque;
     uint32_t saddr;
+    int logging = 1;
 
     saddr = (addr & 0xfffff);
 
@@ -484,6 +494,7 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
     case 0x00b10:
         eeprom24c0x_write(&spd_eeprom, val & 0x02, val & 0x01);
         s->i2cout = val;
+        logging = 0;
         break;
 
     /* I2CSEL Register */
@@ -492,11 +503,16 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
         break;
 
     default:
-#if 0
-        printf ("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
-                addr);
+#if 1
+        fprintf(stderr, "%s: Bad register offset 0x" TARGET_FMT_plx "\n",
+                __func__, addr);
 #endif
         break;
+    }
+
+    if (logging) {
+        TRACE(FPGA, logout("0x%08x = 0x%08x (oe = 0x%08x, out = 0x%08x, sel = 0x%08x)\n",
+                saddr, val, s->i2coe, s->i2cout, s->i2csel));
     }
 }
 
@@ -536,7 +552,8 @@ static void malta_fpga_led_init(CharDriverState *chr)
 }
 
 static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
-         hwaddr base, qemu_irq uart_irq, CharDriverState *uart_chr)
+         hwaddr base, qemu_irq uart_irq, CharDriverState *uart_chr,
+         int bigendian)
 {
     MaltaFPGAState *s;
 
@@ -552,6 +569,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
 
+    s->bigendian = bigendian;
     s->display = qemu_chr_new("fpga", "vc:320x200", malta_fpga_led_init);
 
     s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,
@@ -607,6 +625,10 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
 {
     uint32_t *p;
 
+    if (cpu_mips_phys_to_kseg0(NULL, kernel_entry) == cpu_mips_phys_to_kseg0(NULL, 0x1fc00000LL)) {
+        return;
+    }
+
     /* Small bootloader */
     p = (uint32_t *)base;
     stl_raw(p++, 0x0bf00160);                                      /* j 0x1fc00580 */
@@ -631,8 +653,8 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     /* Second part of the bootloader */
     p = (uint32_t *) (base + 0x580);
     stl_raw(p++, 0x24040002);                                      /* addiu a0, zero, 2 */
-    stl_raw(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff)); /* lui sp, high(ENVP_ADDR) */
-    stl_raw(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));        /* ori sp, sp, low(ENVP_ADDR) */
+    stl_raw(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff)); /* lui sp, high(ENVP_ADDR - 64) */
+    stl_raw(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));        /* ori sp, sp, low(ENVP_ADDR - 64) */
     stl_raw(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));       /* lui a1, high(ENVP_ADDR) */
     stl_raw(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));               /* ori a1, a1, low(ENVP_ADDR) */
     stl_raw(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff)); /* lui a2, high(ENVP_ADDR + 8) */
@@ -643,52 +665,52 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     /* Load BAR registers as done by YAMON */
     stl_raw(p++, 0x3c09b400);                                      /* lui t1, 0xb400 */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08df00);                                      /* lui t0, 0xdf00 */
-#else
-    stl_raw(p++, 0x340800df);                                      /* ori t0, r0, 0x00df */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08df00);                                  /* lui t0, 0xdf00 */
+    } else {
+        stl_raw(p++, 0x340800df);                                  /* ori t0, r0, 0x00df */
+    }
     stl_raw(p++, 0xad280068);                                      /* sw t0, 0x0068(t1) */
 
     stl_raw(p++, 0x3c09bbe0);                                      /* lui t1, 0xbbe0 */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08c000);                                      /* lui t0, 0xc000 */
-#else
-    stl_raw(p++, 0x340800c0);                                      /* ori t0, r0, 0x00c0 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08c000);                                  /* lui t0, 0xc000 */
+    } else {
+        stl_raw(p++, 0x340800c0);                                  /* ori t0, r0, 0x00c0 */
+    }
     stl_raw(p++, 0xad280048);                                      /* sw t0, 0x0048(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c084000);                                      /* lui t0, 0x4000 */
-#else
-    stl_raw(p++, 0x34080040);                                      /* ori t0, r0, 0x0040 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c084000);                                  /* lui t0, 0x4000 */
+    } else {
+        stl_raw(p++, 0x34080040);                                  /* ori t0, r0, 0x0040 */
+    }
     stl_raw(p++, 0xad280050);                                      /* sw t0, 0x0050(t1) */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c088000);                                      /* lui t0, 0x8000 */
-#else
-    stl_raw(p++, 0x34080080);                                      /* ori t0, r0, 0x0080 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c088000);                                  /* lui t0, 0x8000 */
+    } else {
+        stl_raw(p++, 0x34080080);                                  /* ori t0, r0, 0x0080 */
+    }
     stl_raw(p++, 0xad280058);                                      /* sw t0, 0x0058(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c083f00);                                      /* lui t0, 0x3f00 */
-#else
-    stl_raw(p++, 0x3408003f);                                      /* ori t0, r0, 0x003f */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c083f00);                                  /* lui t0, 0x3f00 */
+    } else {
+        stl_raw(p++, 0x3408003f);                                  /* ori t0, r0, 0x003f */
+    }
     stl_raw(p++, 0xad280060);                                      /* sw t0, 0x0060(t1) */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08c100);                                      /* lui t0, 0xc100 */
-#else
-    stl_raw(p++, 0x340800c1);                                      /* ori t0, r0, 0x00c1 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08c100);                                  /* lui t0, 0xc100 */
+    } else {
+        stl_raw(p++, 0x340800c1);                                  /* ori t0, r0, 0x00c1 */
+    }
     stl_raw(p++, 0xad280080);                                      /* sw t0, 0x0080(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c085e00);                                      /* lui t0, 0x5e00 */
-#else
-    stl_raw(p++, 0x3408005e);                                      /* ori t0, r0, 0x005e */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c085e00);                                  /* lui t0, 0x5e00 */
+    } else {
+        stl_raw(p++, 0x3408005e);                                  /* ori t0, r0, 0x005e */
+    }
     stl_raw(p++, 0xad280088);                                      /* sw t0, 0x0088(t1) */
 
     /* Jump to kernel code */
@@ -739,7 +761,6 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base,
     stl_raw(p++, 0x00000000);                                     /* nop */
     stl_raw(p++, 0x03e00008);                                     /* jr ra */
     stl_raw(p++, 0xa1040000);                                     /* sb a0,0(t0) */
-
 }
 
 static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
@@ -765,21 +786,14 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
 }
 
 /* Kernel */
-static int64_t load_kernel (void)
+static int64_t load_kernel(int big_endian)
 {
     int64_t kernel_entry, kernel_high;
     long initrd_size;
     ram_addr_t initrd_offset;
-    int big_endian;
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     if (load_elf(loaderparams.kernel_filename, cpu_mips_kseg0_to_phys, NULL,
                  (uint64_t *)&kernel_entry, NULL, (uint64_t *)&kernel_high,
@@ -907,7 +921,6 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     DriveInfo *fd[MAX_FD];
     int fl_idx = 0;
     int fl_sectors = bios_size >> 16;
-    int be;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
     MaltaState *s = MIPS_MALTA(dev);
@@ -985,14 +998,10 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     generate_eeprom_spd(&smbus_eeprom_buf[0 * 256], ram_size);
     generate_eeprom_serial(&smbus_eeprom_buf[6 * 256]);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    be = 1;
-#else
-    be = 0;
-#endif
     /* FPGA */
     /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
-    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[4], serial_hds[2]);
+    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[4], serial_hds[2],
+                    env->bigendian);
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -1007,7 +1016,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
                                BIOS_SIZE, dinfo ? dinfo->bdrv : NULL,
                                65536, fl_sectors,
-                               4, 0x0000, 0x0000, 0x0000, 0x0000, be);
+                               4, 0x0000, 0x0000, 0x0000, 0x0000, env->bigendian);
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
     if (kernel_filename) {
@@ -1016,8 +1025,13 @@ void mips_malta_init(QEMUMachineInitArgs *args)
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        kernel_entry = load_kernel();
+        kernel_entry = load_kernel(env->bigendian);
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
+        // TODO: Always register flash.
+        //~ pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
+                              //~ FLASH_SIZE, flashdriver, 65536, fl_sectors,
+                              //~ 4, 0x0000, 0x0000, 0x0000, 0x0000,
+                              //~ env->bigendian);
     } else {
         /* Load firmware from flash. */
         if (!dinfo) {
@@ -1042,7 +1056,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
         }
         /* In little endian mode the 32bit words in the bios are swapped,
            a neat trick which allows bi-endian firmware. */
-#ifndef TARGET_WORDS_BIGENDIAN
+#if !defined(TARGET_WORDS_BIGENDIAN) && 0
         {
             uint32_t *end, *addr = rom_ptr(FLASH_ADDRESS);
             if (!addr) {
@@ -1050,6 +1064,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
             }
             end = (void *)addr + MIN(bios_size, 0x3e0000);
             while (addr < end) {
+                fprintf(stderr, "0x%08x\n", *addr);
                 bswap32s(addr);
                 addr++;
             }
@@ -1131,15 +1146,47 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     pci_vga_init(pci_bus);
 }
 
+static void mips_malta_reset(DeviceState *dev)
+{
+    /* TODO: fix code. */
+    MaltaState *s = MIPS_MALTA(dev);
+    (void)s;
+    logout("%s:%u\n", __FILE__, __LINE__);
+    //~ env->exception_index = EXCP_RESET;
+    //~ env->exception_index = EXCP_SRESET;
+    //~ do_interrupt(env);
+    //~ env->CP0_Cause |= 0x00000400;
+    //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
+}
+
+static const VMStateDescription vmstate_mips_malta = {
+    .name ="malta",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static Property mips_malta_properties[] = {
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
 {
+    /* TODO */
+    //MaltaState *s = FROM_SYSBUS(MaltaState, sysbusdev);
     return 0;
 }
 
 static void mips_malta_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
+    dc->props = mips_malta_properties;
+    dc->reset = mips_malta_reset;
+    dc->vmsd = &vmstate_mips_malta;
     k->init = mips_malta_sysbus_device_init;
 }
 
@@ -1170,3 +1217,28 @@ static void mips_malta_machine_init(void)
 
 type_init(mips_malta_register_types)
 machine_init(mips_malta_machine_init);
+
+/*
+http://memorytesters.com/ramcheck/rc_ap3.htm
+
+9fc00c64 <hal_malta_init_sdram>:
+9fc00c64:       03e0f021        move    s8,ra
+9fc00c68:       3c17b400        lui     s7,0xb400
+9fc00c6c:       240800df        li      t0,223
+9fc00c70:       aee80068        sw      t0,104(s7)
+9fc00c74:       3c17bbe0        lui     s7,0xbbe0
+9fc00c78:       3c080001        lui     t0,0x1
+9fc00c7c:       35080001        ori     t0,t0,0x1
+9fc00c80:       aee80c00        sw      t0,3072(s7)
+9fc00c84:       3c0800ff        lui     t0,0xff
+9fc00c88:       3508ffff        ori     t0,t0,0xffff
+
+9fc00ecc:       1000006c        b       9fc01080 <error>
+
+9fc0106c <noerror>:
+9fc0106c:       00001021        move    v0,zero
+9fc01070:       02111820        add     v1,s0,s1
+9fc01074:       03c0f821        move    ra,s8
+9fc01078:       03e00008        jr      ra
+9fc0107c:       00000000        nop
+*/

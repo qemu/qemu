@@ -13,6 +13,10 @@
 #include <linux/unistd.h>
 #include <asm/vm86.h>
 
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
+
 extern int vm86 (unsigned long int subfunction,
 		 struct vm86plus_struct *info);
 
@@ -22,7 +26,7 @@ extern int vm86 (unsigned long int subfunction,
 
 #define COM_BASE_ADDR    0x10100
 
-static void usage(void)
+static void QEMU_NORETURN usage(void)
 {
     printf("runcom version 0.1 (c) 2003 Fabrice Bellard\n"
            "usage: runcom file.com\n"
@@ -98,7 +102,7 @@ int main(int argc, char **argv)
 #endif
 
     /* load the MSDOS .com executable */
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         perror(filename);
         exit(1);

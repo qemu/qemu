@@ -1,7 +1,6 @@
 /* User memory access */
-#include <stdio.h>
-#include <string.h>
 
+#include "qemu-common.h"
 #include "qemu.h"
 
 /* copy_from_user() and copy_to_user() are usually used to copy data

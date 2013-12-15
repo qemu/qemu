@@ -161,13 +161,13 @@ extern unsigned long mmap_min_addr;
 struct linux_binprm {
         char buf[BPRM_BUF_SIZE] __attribute__((aligned));
         void *page[MAX_ARG_PAGES];
-        abi_ulong p;
-	int fd;
+        int fd;
         int e_uid, e_gid;
         int argc, envc;
         char **argv;
         char **envp;
         char * filename;        /* Name of binary */
+        abi_ulong p;
         int (*core_dump)(int, const CPUArchState *); /* coredump routine */
 };
 
@@ -194,7 +194,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg8);
 void gemu_log(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 extern THREAD CPUState *thread_cpu;
-void cpu_loop(CPUArchState *env);
+void QEMU_NORETURN cpu_loop(CPUArchState *env);
 char *target_strerror(int err);
 int get_osversion(void);
 void init_qemu_uname_release(void);

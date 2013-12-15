@@ -1574,25 +1574,47 @@ PciInfoList *qmp_query_pci(Error **errp)
 }
 
 static const char * const pci_nic_models[] = {
+#if !defined(CONFIG_WIN32)
+    "atheros_wlan",
+#endif
+    "dp83816",
+    "e100",
     "ne2k_pci",
     "i82551",
+    "i82557a",
     "i82557b",
+    "i82557c",
+    "i82558b",
+    "i82559c",
     "i82559er",
+    "i82801",
     "rtl8139",
     "e1000",
     "pcnet",
+    "tnetw1130",
     "virtio",
     NULL
 };
 
 static const char * const pci_nic_names[] = {
+#if !defined(CONFIG_WIN32)
+    "atheros_wlan",
+#endif
+    "dp83816",
+    "e100",
     "ne2k_pci",
     "i82551",
+    "i82557a",
     "i82557b",
+    "i82557c",
+    "i82558b",
+    "i82559c",
     "i82559er",
+    "i82801",
     "rtl8139",
     "e1000",
     "pcnet",
+    "tnetw1130",
     "virtio-net-pci",
     NULL
 };

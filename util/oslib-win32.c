@@ -168,6 +168,22 @@ int qemu_gettimeofday(qemu_timeval *tp)
   return 0;
 }
 
+int qemu_getsockopt(int sockfd, int level, int optname,
+                    void *optval, socklen_t *optlen)
+{
+    return getsockopt(sockfd, level, optname, optval, optlen);
+}
+
+int qemu_setsockopt(int sockfd, int level, int optname,
+                    const void *optval, socklen_t optlen)
+{
+    int res = 0;
+    if (optname != SO_REUSEADDR) {
+        res = setsockopt(sockfd, level, optname, optval, optlen);
+    }
+    return res;
+}
+
 int qemu_get_thread_id(void)
 {
     return GetCurrentThreadId();

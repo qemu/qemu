@@ -221,6 +221,7 @@ fmod_lib=""
 fmod_inc=""
 oss_lib=""
 bsd="no"
+haiku="no"
 linux="no"
 solaris="no"
 profiler="no"
@@ -259,6 +260,7 @@ glusterfs_discard="no"
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
+vte=""
 tpm="no"
 libssh2=""
 vhdx=""
@@ -330,7 +332,16 @@ ARFLAGS="${ARFLAGS-rv}"
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wmissing-format-attribute $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-unused-parameter $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-missing-field-initializers $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-sign-compare $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-override-init $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-error=format $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-error=format-extra-args $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wno-error=parentheses $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wextra $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/include"
 if test "$debug_info" = "yes"; then
@@ -340,6 +351,8 @@ fi
 
 # make source path absolute
 source_path=`cd "$source_path"; pwd`
+
+cc_macros=`$cc $QEMU_CFLAGS -E -dD - </dev/null`
 
 check_define() {
 cat > $TMPC <<EOF
@@ -410,7 +423,11 @@ elif check_define _ARCH_PPC ; then
     cpu="ppc"
   fi
 elif check_define __mips__ ; then
-  cpu="mips"
+  if check_define __mips64 ; then
+    cpu="mips64"
+  else
+    cpu="mips"
+  fi
 elif check_define __ia64__ ; then
   cpu="ia64"
 elif check_define __s390__ ; then
@@ -450,10 +467,16 @@ case "$cpu" in
   ;;
   mips*)
     cpu="mips"
+    if check_define __MIPSEL__ ; then
+      cpu="${cpu}el"
+    fi
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
   ;;
+  sh4)
+    cpu="sh4"
+    ;;
   *)
     # This will result in either an error or falling back to TCI later
     ARCH=unknown
@@ -611,6 +634,11 @@ if test "$mingw32" = "yes" ; then
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
+  # MinGW-w64 needs _POSIX defined.
+  QEMU_CFLAGS="-D_POSIX=1 $QEMU_CFLAGS"
+  # MinGW needs -mthreads for TLS and macro _MT.
+  QEMU_CFLAGS="-mthreads $QEMU_CFLAGS"
+  QEMU_CFLAGS="-I\$(SRC_PATH)/hosts/w32/include $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -989,6 +1017,10 @@ for opt do
   ;;
   --with-gtkabi=*) gtkabi="$optarg"
   ;;
+  --disable-vte) vte="no"
+  ;;
+  --enable-vte) vte="yes"
+  ;;
   --enable-tpm) tpm="yes"
   ;;
   --disable-libssh2) libssh2="no"
@@ -1278,6 +1310,7 @@ fi
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
+gcc_flags="-Wunused-but-set-variable $gcc_flags"
 gcc_flags="-Wendif-labels $gcc_flags"
 gcc_flags="-Wno-initializer-overrides $gcc_flags"
 gcc_flags="-Wno-string-plus-int $gcc_flags"
@@ -1298,9 +1331,11 @@ for flag in $gcc_flags; do
     fi
 done
 
-if compile_prog "-Werror -fstack-protector-all" "" ; then
+if test "$mingw32" != "yes"; then
+  if compile_prog "-Werror -fstack-protector-all" ""; then
     QEMU_CFLAGS="$QEMU_CFLAGS -fstack-protector-all"
     LIBTOOLFLAGS="$LIBTOOLFLAGS -Wc,-fstack-protector-all"
+  fi
 fi
 
 # Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
@@ -1757,30 +1792,41 @@ if test "$gtk" != "no"; then
     gtkpackage="gtk+-$gtkabi"
     if test "$gtkabi" = "3.0" ; then
       gtkversion="3.0.0"
+    else
+      gtkversion="2.18.0"
+    fi
+    if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
+        gtk_cflags=`$pkg_config --cflags $gtkpackage`
+        gtk_libs=`$pkg_config --libs $gtkpackage`
+        libs_softmmu="$gtk_libs $libs_softmmu"
+        gtk="yes"
+    elif test "$gtk" = "yes" ; then
+        feature_not_found "gtk"
+    else
+        gtk="no"
+    fi
+fi
+
+##########################################
+# VTE probe
+
+if test "$vte" != "no"; then
+    if test "$gtkabi" = "3.0"; then
       vtepackage="vte-2.90"
       vteversion="0.32.0"
     else
-      gtkversion="2.18.0"
       vtepackage="vte"
       vteversion="0.24.0"
     fi
-    if ! $pkg_config --exists "$gtkpackage >= $gtkversion"; then
-        if test "$gtk" = "yes" ; then
-            feature_not_found "gtk"
-        fi
-        gtk="no"
-    elif ! $pkg_config --exists "$vtepackage >= $vteversion"; then
-        if test "$gtk" = "yes" ; then
-            error_exit "libvte not found (required for gtk support)"
-        fi
-        gtk="no"
+    if $pkg_config --exists "$vtepackage >= $vteversion"; then
+        vte_cflags=`$pkg_config --cflags $vtepackage`
+        vte_libs=`$pkg_config --libs $vtepackage`
+        libs_softmmu="$vte_libs $libs_softmmu"
+        vte="yes"
+    elif test "$vte" = "yes"; then
+        feature_not_found "vte"
     else
-	gtk_cflags=`$pkg_config --cflags $gtkpackage`
-	gtk_libs=`$pkg_config --libs $gtkpackage`
-	vte_cflags=`$pkg_config --cflags $vtepackage`
-	vte_libs=`$pkg_config --libs $vtepackage`
-	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
-	gtk="yes"
+        vte="no"
     fi
 fi
 
@@ -1898,8 +1944,13 @@ if test "$vnc" = "yes" -a \( "$vnc_tls" != "no" -o "$vnc_ws" != "no" \) ; then
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-  vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-  vnc_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
+  if $pkg_config --exists gnutls; then
+    vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
+    vnc_tls_libs=`$pkg_config --libs gnutls 2>/dev/null`
+  else
+    vnc_tls_cflags=
+    vnc_tls_libs=-lgnutls
+  fi
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
     if test "$vnc_tls" != "no" ; then
       vnc_tls=yes
@@ -2081,6 +2132,7 @@ fi
 if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
   cat > $TMPC << EOF
+#include <stddef.h>
 #include <libvdeplug.h>
 int main(void)
 {
@@ -3029,6 +3081,14 @@ if test "$docs" != "no" ; then
   fi
 fi
 
+if test "$want_tools" = ""; then
+  if test `expr "$target_list" : ".*softmmu.*"` != 0; then
+    want_tools=yes
+  else
+    want_tools=no
+  fi
+fi
+
 # Search for bswap_32 function
 byteswap_h=no
 cat > $TMPC << EOF
@@ -3428,7 +3488,7 @@ else
 fi
 
 if test "$coroutine_pool" = ""; then
-  if test "$coroutine" = "gthread"; then
+  if test "$coroutine" = "gthread" -o "$coroutine" = "win32"; then
     coroutine_pool=no
   else
     coroutine_pool=yes
@@ -3490,8 +3550,6 @@ int main(void) {
 EOF
 if compile_prog "-Werror" "" ; then
     pragma_diagnostic_available=yes
-else
-    werror=no
 fi
 
 ########################################
@@ -3610,8 +3668,11 @@ else
     POD2MAN="pod2man"
 fi
 
-# Use ASLR, no-SEH and DEP if available
+# Use large addresses, ASLR, no-SEH and DEP if available.
 if test "$mingw32" = "yes" ; then
+    if test "$cpu" = i386; then
+        LDFLAGS="-Wl,--large-address-aware $LDFLAGS"
+    fi
     for flag in --dynamicbase --no-seh --nxcompat; do
         if $ld --help 2>/dev/null | grep ".$flag" >/dev/null 2>/dev/null ; then
             LDFLAGS="-Wl,$flag $LDFLAGS"
@@ -3624,11 +3685,9 @@ qemu_datadir=$datadir$confsuffix
 qemu_localedir="$datadir/locale"
 
 tools=""
-if test "$want_tools" = "yes" ; then
-  tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
-  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-    tools="qemu-nbd\$(EXESUF) $tools"
-  fi
+tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+  tools="qemu-nbd\$(EXESUF) $tools"
 fi
 if test "$softmmu" = yes ; then
   if test "$virtfs" != no ; then
@@ -3752,6 +3811,7 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
@@ -3774,6 +3834,7 @@ echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "bluez  support    $bluez"
 echo "Documentation     $docs"
+echo "Tools             $tools"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
 echo "GUEST_BASE        $guest_base"
@@ -3781,7 +3842,7 @@ echo "PIE               $pie"
 echo "vde support       $vde"
 echo "netmap support    $netmap"
 echo "Linux AIO support $linux_aio"
-echo "ATTR/XATTR support $attr"
+echo "(X)ATTR support   $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "RDMA support      $rdma"
@@ -3865,7 +3926,8 @@ if test "$bigendian" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  rc_version=`cat $source_path/VERSION`
+  echo "CONFIG_INSTALLER=y" >> $config_host_mak
+  rc_version=`cat "$source_path/VERSION"`
   version_major=${rc_version%%.*}
   rc_version=${rc_version#*.}
   version_minor=${rc_version%%.*}
@@ -3967,13 +4029,16 @@ fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
 fi
-qemu_version=`head $source_path/VERSION`
+qemu_version=`head "$source_path/VERSION"`
 echo "VERSION=$qemu_version" >>$config_host_mak
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
+fi
+if [ "$want_tools" = "yes" ] ; then
+  echo "BUILD_TOOLS=yes" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
@@ -4060,6 +4125,9 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$vte" = "yes" ; then
+  echo "CONFIG_VTE=y" >> $config_host_mak
   echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
 fi
 if test "$xen" = "yes" ; then

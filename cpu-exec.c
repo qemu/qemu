@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "config.h"
+
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
@@ -350,10 +350,10 @@ int cpu_exec(CPUArchState *env)
                             do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                                   (((env->hflags2 & HF2_VINTR_MASK) && 
+                                   (((env->hflags2 & HF2_VINTR_MASK) &&
                                      (env->hflags2 & HF2_HIF_MASK)) ||
-                                    (!(env->hflags2 & HF2_VINTR_MASK) && 
-                                     (env->eflags & IF_MASK && 
+                                    (!(env->hflags2 & HF2_VINTR_MASK) &&
+                                     (env->eflags & IF_MASK &&
                                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
                             int intno;
                             cpu_svm_check_intercept_param(env, SVM_EXIT_INTR,
@@ -368,7 +368,7 @@ int cpu_exec(CPUArchState *env)
                             next_tb = 0;
 #if !defined(CONFIG_USER_ONLY)
                         } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                                   (env->eflags & IF_MASK) && 
+                                   (env->eflags & IF_MASK) &&
                                    !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                             int intno;
                             /* FIXME: this should respect TPR */
@@ -679,11 +679,12 @@ int cpu_exec(CPUArchState *env)
         } else {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
-            cpu = current_cpu;
-            env = cpu->env_ptr;
+            /* TODO: Fix comment in 2014 - then it was wrong. */
+            g_assert(cpu == current_cpu);
+            g_assert(env == cpu->env_ptr);
 #if !(defined(CONFIG_USER_ONLY) && \
       (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
-            cc = CPU_GET_CLASS(cpu);
+            g_assert(cc == CPU_GET_CLASS(cpu));
 #endif
         }
     } /* for(;;) */

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1280"
+   height="1280"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.47 r22583"
+   sodipodi:docname="qemu-icon.svg"
+   inkscape:export-filename="qemu-icon.bmp"
+   inkscape:export-xdpi="2.25"
+   inkscape:export-ydpi="2.25">
+  <title
+     id="title3642">QEMU Icon</title>
+  <defs
+     id="defs4">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 526.18109 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="744.09448 : 526.18109 : 1"
+       inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+       id="perspective10" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.25"
+     inkscape:cx="-56.591724"
+     inkscape:cy="520"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1912"
+     inkscape:window-height="1145"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title>QEMU Icon</dc:title>
+        <cc:license
+           rdf:resource="GPL 2 or later" />
+        <dc:date>2011-01-21</dc:date>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Stefan Weil</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:rights>
+          <cc:Agent>
+            <dc:title>Copyright (C) 2011</dc:title>
+          </cc:Agent>
+        </dc:rights>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,227.63782)">
+    <text
+       xml:space="preserve"
+       style="font-size:1711.86793385px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr;text-anchor:start;fill:#0000ff;fill-opacity:1;stroke:#000000;stroke-width:20.43102074000000101;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;font-family:Liberation Sans;-inkscape-font-specification:Liberation Sans Bold"
+       x="-69.495888"
+       y="988.01501"
+       id="TextO"
+       sodipodi:linespacing="125%"
+       transform="scale(0.96365413,1.0377167)"
+       inkscape:label="#textO"><tspan
+         sodipodi:role="line"
+         id="tspan2839"
+         x="-69.495888"
+         y="988.01501"
+         style="stroke-width:20.43102074000000101;-inkscape-font-specification:Liberation Sans Bold;font-family:Liberation Sans;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:1711.86793385px;text-anchor:start;text-align:start;writing-mode:lr;line-height:125%">O</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:19.74012374999999864;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect3617"
+       width="623.61371"
+       height="338.18701"
+       x="788.27362"
+       y="-169.91519"
+       transform="matrix(0.79034946,0.61265629,-0.6723522,0.74023139,0,0)" />
+    <text
+       xml:space="preserve"
+       style="font-size:359.0585022px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ff0000;fill-opacity:1;stroke:#000000;stroke-width:15.89233208;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;font-family:Liberation Sans;-inkscape-font-specification:Liberation Sans Bold"
+       x="776.43433"
+       y="62.486996"
+       id="text2841"
+       sodipodi:linespacing="125%"
+       transform="matrix(0.73775186,0.63648615,-0.66305684,0.78342534,0,0)"><tspan
+         sodipodi:role="line"
+         id="tspan2843"
+         x="776.43433"
+         y="62.486996"
+         style="stroke-width:15.89233208">EMU</tspan></text>
+  </g>
+</svg>

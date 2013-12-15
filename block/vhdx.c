@@ -1904,6 +1904,8 @@ static BlockDriver bdrv_vhdx = {
 
 static void bdrv_vhdx_init(void)
 {
+    g_assert(1 * GiB == 1024ULL * MiB);
+    g_assert(1 * TiB == 1024ULL * GiB);
     bdrv_register(&bdrv_vhdx);
 }
 

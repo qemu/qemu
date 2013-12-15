@@ -264,6 +264,10 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
         parse_option_size(name, value, &list->value.n, &local_err);
         break;
 
+    case OPT_NUMBER:
+        list->value.n = atoi (value);
+        break;
+
     default:
         fprintf(stderr, "Bug: Option '%s' has an unknown type\n", name);
         return -1;
@@ -874,6 +878,10 @@ static int opts_do_parse(QemuOpts *opts, const char *params,
     char option[128], value[1024];
     const char *p,*pe,*pc;
     Error *local_err = NULL;
+
+    /* Initialize data to 0 to avoid warnings from Valgrind. */
+    memset(option, 0, sizeof(option));
+    memset(value, 0, sizeof(value));
 
     for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');

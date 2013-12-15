@@ -2950,6 +2950,7 @@ STEXI
 @findex -chroot
 Immediately before starting guest execution, chroot to the specified
 directory.  Especially useful in combination with -runas.
+This option is not supported for Windows hosts.
 ETEXI
 
 #ifndef _WIN32
@@ -3038,6 +3039,17 @@ The @code{-no-user-config} option makes QEMU not load any of the user-provided
 config files on @var{sysconfdir}, but won't make it skip the QEMU-provided config
 files from @var{datadir}.
 ETEXI
+
+DEF("trace-unassigned", 0, QEMU_OPTION_trace_unassigned,
+    "-trace-unassigned\n"
+    "                Trace unassigned memory or i/o accesses\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -trace-unassigned
+@findex -trace-unassigned
+Trace unassigned memory or i/o accesses to stderr.
+ETEXI
+
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace [events=<file>][,file=<file>]\n"
     "                specify tracing options\n",

@@ -1,6 +1,6 @@
 struct target_pt_regs {
         unsigned long regs[16];
-        unsigned long pc;
+        uintptr_t pc;
         unsigned long pr;
         unsigned long sr;
         unsigned long gbr;

@@ -18,8 +18,12 @@
 #ifndef BLOCK_VHDX_H
 #define BLOCK_VHDX_H
 
+#if !defined(KiB)
 #define KiB              (1 * 1024)
+#endif
+#if !defined(MiB)
 #define MiB            (KiB * 1024)
+#endif
 #define GiB            (MiB * 1024)
 #define TiB ((uint64_t) GiB * 1024)
 

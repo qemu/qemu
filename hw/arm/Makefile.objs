@@ -6,4 +6,21 @@ obj-y += tosa.o versatilepb.o vexpress.o virt.o xilinx_zynq.o z2.o
 obj-y += armv7m.o exynos4210.o pxa2xx.o pxa2xx_gpio.o pxa2xx_pic.o
 obj-y += omap1.o omap2.o strongarm.o
 
-obj-y += raspi.o bcm2835_todo.o
+obj-y += arm_tt.o
+obj-y += bast.o
+obj-y += phycard-l.o
+obj-y += syborg.o
+obj-y += s3c2410x.o
+obj-y += s3c2440.o
+obj-y += s3c24xx_clkcon.o
+obj-y += s3c24xx_gpio.o
+obj-y += s3c24xx_iic.o
+obj-y += s3c24xx_irq.o
+obj-y += s3c24xx_memc.o
+obj-y += s3c24xx_nand.o
+obj-y += s3c24xx_rtc.o
+obj-y += s3c24xx_serial.o
+obj-y += s3c24xx_timers.o
+
+obj-$(CONFIG_RASPI) += raspi.o
+obj-$(CONFIG_RASPI) += bcm2835_todo.o

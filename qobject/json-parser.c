@@ -1,5 +1,5 @@
 /*
- * JSON Parser 
+ * JSON Parser
  *
  * Copyright IBM, Corp. 2009
  *
@@ -175,7 +175,7 @@ static int hex2decimal(char ch)
  *      \n
  *      \r
  *      \t
- *      \u four-hex-digits 
+ *      \u four-hex-digits
  */
 static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token)
 {
@@ -191,7 +191,7 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token
     ptr++;
 
     str = qstring_new();
-    while (*ptr && 
+    while (*ptr &&
            ((double_quote && *ptr != '"') || (!double_quote && *ptr != '\''))) {
         if (*ptr == '\\') {
             ptr++;
@@ -579,7 +579,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
 
     return ret;
 
-out: 
+out:
     parser_context_restore(ctxt, saved_ctxt);
 
     return NULL;
@@ -692,7 +692,7 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
     }
     if (obj == NULL) {
         obj = parse_keyword(ctxt);
-    } 
+    }
     if (obj == NULL) {
         obj = parse_literal(ctxt);
     }

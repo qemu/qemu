@@ -23,7 +23,7 @@
   legacy x86 software to communicate with an attached serial console as
   if a video card were attached.  The master sources reside in a subversion
   repository at http://sgabios.googlecode.com/svn/trunk.  A git mirror is
-  available at git://git.qemu-project.org/sgabios.git.
+  available at git://git.qemu.org/sgabios.git.
 
 - The PXE roms come from the iPXE project. Built with BANNER_TIME 0.
   Sources available at http://ipxe.org.  Vendor:Device ID -> ROM mapping:

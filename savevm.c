@@ -493,7 +493,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
     s->stdio_file = fopen(filename, mode);
     if (!s->stdio_file)
         goto fail;
-    
+
     if(mode[0] == 'w') {
         s->file = qemu_fopen_ops(s, &stdio_file_write_ops);
     } else {
@@ -1857,7 +1857,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
         }
         se->ops->set_params(params, se->opaque);
     }
-    
+
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 

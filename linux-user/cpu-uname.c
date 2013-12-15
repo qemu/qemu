@@ -17,10 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
+#include "qemu-common.h"
 #include "qemu.h"
-//#include "qemu-common.h"
 #include "cpu-uname.h"
 
 /* return highest utsname machine name for emulated instruction set

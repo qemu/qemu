@@ -107,6 +107,10 @@ static void tcg_out_tb_init(TCGContext *s);
 static void tcg_out_tb_finalize(TCGContext *s);
 
 
+/* Forward declarations for functions which may be used in tcg-target.c. */
+static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
+                                 int idx);
+
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },
 #include "tcg-opc.h"
@@ -154,7 +158,7 @@ static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
     l = &s->labels[label_index];
     if (l->has_value) {
         /* FIXME: This may break relocations on RISC targets that
-           modify instruction fields in place.  The caller may not have 
+           modify instruction fields in place.  The caller may not have
            written the initial value.  */
         patch_reloc(code_ptr, type, l->u.value, addend);
     } else {
@@ -209,7 +213,7 @@ void *tcg_malloc_internal(TCGContext *s, int size)
 {
     TCGPool *p;
     int pool_size;
-    
+
     if (size > TCG_POOL_CHUNK_SIZE) {
         /* big malloc: insert a new pool (XXX: could optimize) */
         p = g_malloc(sizeof(TCGPool) + size);
@@ -230,7 +234,7 @@ void *tcg_malloc_internal(TCGContext *s, int size)
                 p = g_malloc(sizeof(TCGPool) + pool_size);
                 p->size = pool_size;
                 p->next = NULL;
-                if (s->pool_current) 
+                if (s->pool_current)
                     s->pool_current->next = p;
                 else
                     s->pool_first = p;
@@ -295,7 +299,7 @@ void tcg_context_init(TCGContext *s)
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
-    
+
     /* Count total number of arguments and allocate the corresponding
        space */
     total_args = 0;
@@ -1022,14 +1026,14 @@ static void tcg_reg_alloc_start(TCGContext *s)
 static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
                                  int idx)
 {
-    TCGTemp *ts;
+    TCGTemp *ts = NULL;
 
     assert(idx >= 0 && idx < s->nb_temps);
     ts = &s->temps[idx];
     if (idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
     } else {
-        if (ts->temp_local) 
+        if (ts && ts->temp_local)
             snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
         else
             snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
@@ -1185,7 +1189,7 @@ void tcg_dump_ops(TCGContext *s)
                 nb_iargs = def->nb_iargs;
                 nb_cargs = def->nb_cargs;
             }
-            
+
             k = 0;
             for(i = 0; i < nb_oargs; i++) {
                 if (k != 0) {
@@ -1393,7 +1397,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
 #ifdef USE_LIVENESS_ANALYSIS
 
 /* set a nop for an operation using 'nb_args' */
-static inline void tcg_set_nop(TCGContext *s, uint16_t *opc_ptr, 
+static inline void tcg_set_nop(TCGContext *s, uint16_t *opc_ptr,
                                TCGArg *args, int nb_args)
 {
     if (nb_args == 0) {
@@ -1442,14 +1446,14 @@ static void tcg_liveness_analysis(TCGContext *s)
     uint16_t dead_args;
     uint8_t sync_args;
     bool have_op_new2;
-    
+
     s->gen_opc_ptr++; /* skip end */
 
     nb_ops = s->gen_opc_ptr - s->gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
-    
+
     dead_temps = tcg_malloc(s->nb_temps);
     mem_temps = tcg_malloc(s->nb_temps);
     tcg_la_func_end(s, dead_temps, mem_temps);
@@ -1739,8 +1743,8 @@ static void dump_regs(TCGContext *s)
 
     for(i = 0; i < TCG_TARGET_NB_REGS; i++) {
         if (s->reg_to_temp[i] >= 0) {
-            printf("%s: %s\n", 
-                   tcg_target_reg_names[i], 
+            printf("%s: %s\n",
+                   tcg_target_reg_names[i],
                    tcg_get_arg_str_idx(s, buf, sizeof(buf), s->reg_to_temp[i]));
         }
     }
@@ -1758,7 +1762,7 @@ static void check_regs(TCGContext *s)
             ts = &s->temps[k];
             if (ts->val_type != TEMP_VAL_REG ||
                 ts->reg != reg) {
-                printf("Inconsistency for register %s:\n", 
+                printf("Inconsistency for register %s:\n",
                        tcg_target_reg_names[reg]);
                 goto fail;
             }
@@ -1769,7 +1773,7 @@ static void check_regs(TCGContext *s)
         if (ts->val_type == TEMP_VAL_REG &&
             !ts->fixed_reg &&
             s->reg_to_temp[ts->reg] != k) {
-                printf("Inconsistency for temp %s:\n", 
+                printf("Inconsistency for temp %s:\n",
                        tcg_get_arg_str_idx(s, buf, sizeof(buf), k));
         fail:
                 printf("reg state:\n");
@@ -2085,7 +2089,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
     }
 }
 
-static void tcg_reg_alloc_op(TCGContext *s, 
+static void tcg_reg_alloc_op(TCGContext *s,
                              const TCGOpDef *def, TCGOpcode opc,
                              const TCGArg *args, uint16_t dead_args,
                              uint8_t sync_args)
@@ -2102,11 +2106,11 @@ static void tcg_reg_alloc_op(TCGContext *s,
     nb_iargs = def->nb_iargs;
 
     /* copy constants */
-    memcpy(new_args + nb_oargs + nb_iargs, 
-           args + nb_oargs + nb_iargs, 
+    memcpy(new_args + nb_oargs + nb_iargs,
+           args + nb_oargs + nb_iargs,
            sizeof(TCGArg) * def->nb_cargs);
 
-    /* satisfy input constraints */ 
+    /* satisfy input constraints */
     tcg_regset_set(allocated_regs, s->reserved_regs);
     for(k = 0; k < nb_iargs; k++) {
         i = def->sorted_args[nb_oargs + k];
@@ -2157,7 +2161,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
             /* nothing to do : the constraint is satisfied */
         } else {
         allocate_in_reg:
-            /* allocate a new register matching the constraint 
+            /* allocate a new register matching the constraint
                and move the temporary register into it */
             reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
             tcg_out_mov(s, ts->type, reg, ts->reg);
@@ -2167,7 +2171,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
         tcg_regset_set_reg(allocated_regs, reg);
     iarg_end: ;
     }
-    
+
     /* mark dead temporaries and free the associated registers */
     for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
         if (IS_DEAD_ARG(i)) {
@@ -2179,7 +2183,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
         tcg_reg_alloc_bb_end(s, allocated_regs);
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
-            /* XXX: permit generic clobber register list ? */ 
+            /* XXX: permit generic clobber register list ? */
             for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
                 if (tcg_regset_test_reg(tcg_target_call_clobber_regs, reg)) {
                     tcg_reg_free(s, reg);
@@ -2191,7 +2195,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
                an exception. */
             sync_globals(s, allocated_regs);
         }
-        
+
         /* satisfy the output constraints */
         tcg_regset_set(allocated_regs, s->reserved_regs);
         for(k = 0; k < nb_oargs; k++) {
@@ -2230,7 +2234,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
 
     /* emit instruction */
     tcg_out_op(s, opc, new_args, const_args);
-    
+
     /* move the outputs in the correct register if needed */
     for(i = 0; i < nb_oargs; i++) {
         ts = &s->temps[args[i]];
@@ -2281,7 +2285,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
     /* assign stack slots first */
     call_stack_size = (nb_params - nb_regs) * sizeof(tcg_target_long);
-    call_stack_size = (call_stack_size + TCG_TARGET_STACK_ALIGN - 1) & 
+    call_stack_size = (call_stack_size + TCG_TARGET_STACK_ALIGN - 1) &
         ~(TCG_TARGET_STACK_ALIGN - 1);
     allocate_args = (call_stack_size > TCG_STATIC_CALL_ARGS_SIZE);
     if (allocate_args) {
@@ -2301,13 +2305,13 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
             if (ts->val_type == TEMP_VAL_REG) {
                 tcg_out_st(s, ts->type, ts->reg, TCG_REG_CALL_STACK, stack_offset);
             } else if (ts->val_type == TEMP_VAL_MEM) {
-                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type],
                                     s->reserved_regs);
                 /* XXX: not correct if reading values from the stack */
                 tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
                 tcg_out_st(s, ts->type, reg, TCG_REG_CALL_STACK, stack_offset);
             } else if (ts->val_type == TEMP_VAL_CONST) {
-                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type],
                                     s->reserved_regs);
                 /* XXX: sign extend may be needed on some targets */
                 tcg_out_movi(s, ts->type, reg, ts->val);
@@ -2320,7 +2324,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         stack_offset += sizeof(tcg_target_long);
 #endif
     }
-    
+
     /* assign input registers */
     tcg_regset_set(allocated_regs, s->reserved_regs);
     for(i = 0; i < nb_regs; i++) {
@@ -2344,7 +2348,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
             tcg_regset_set_reg(allocated_regs, reg);
         }
     }
-    
+
     /* assign function address */
     func_arg = args[nb_oargs + nb_iargs - 1];
     arg_ct = &def->args_ct[0];
@@ -2377,15 +2381,15 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     } else {
         tcg_abort();
     }
-        
-    
+
+
     /* mark dead temporaries and free the associated registers */
     for(i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
         if (IS_DEAD_ARG(i)) {
             temp_dead(s, args[i]);
         }
     }
-    
+
     /* clobber call registers */
     for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
         if (tcg_regset_test_reg(tcg_target_call_clobber_regs, reg)) {
@@ -2431,7 +2435,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
             }
         }
     }
-    
+
     return nb_iargs + nb_oargs + def->nb_cargs + 1;
 }
 
@@ -2602,7 +2606,7 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
     /* flush instruction cache */
     flush_icache_range((uintptr_t)gen_code_buf, (uintptr_t)s->code_ptr);
 
-    return s->code_ptr -  gen_code_buf;
+    return s->code_ptr - gen_code_buf;
 }
 
 /* Return the index of the micro operation such as the pc after is <
@@ -2623,36 +2627,36 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
     tot = s->interm_time + s->code_time;
     cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
                 tot, tot / 2.4e9);
-    cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
-                s->tb_count, 
+    cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n",
+                s->tb_count,
                 s->tb_count1 - s->tb_count,
                 s->tb_count1 ? (double)(s->tb_count1 - s->tb_count) / s->tb_count1 * 100.0 : 0);
-    cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
+    cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n",
                 s->tb_count ? (double)s->op_count / s->tb_count : 0, s->op_count_max);
     cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
-                s->tb_count ? 
+                s->tb_count ?
                 (double)s->del_op_count / s->tb_count : 0);
     cpu_fprintf(f, "avg temps/TB        %0.2f max=%d\n",
-                s->tb_count ? 
+                s->tb_count ?
                 (double)s->temp_count / s->tb_count : 0,
                 s->temp_count_max);
-    
-    cpu_fprintf(f, "cycles/op           %0.1f\n", 
+
+    cpu_fprintf(f, "cycles/op           %0.1f\n",
                 s->op_count ? (double)tot / s->op_count : 0);
-    cpu_fprintf(f, "cycles/in byte      %0.1f\n", 
+    cpu_fprintf(f, "cycles/in byte      %0.1f\n",
                 s->code_in_len ? (double)tot / s->code_in_len : 0);
-    cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
+    cpu_fprintf(f, "cycles/out byte     %0.1f\n",
                 s->code_out_len ? (double)tot / s->code_out_len : 0);
     if (tot == 0)
         tot = 1;
-    cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
+    cpu_fprintf(f, "  gen_interm time   %0.1f%%\n",
                 (double)s->interm_time / tot * 100.0);
-    cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
+    cpu_fprintf(f, "  gen_code time     %0.1f%%\n",
                 (double)s->code_time / tot * 100.0);
     cpu_fprintf(f, "optim./code time    %0.1f%%\n",
                 (double)s->opt_time / (s->code_time ? s->code_time : 1)
                 * 100.0);
-    cpu_fprintf(f, "liveness/code time  %0.1f%%\n", 
+    cpu_fprintf(f, "liveness/code time  %0.1f%%\n",
                 (double)s->la_time / (s->code_time ? s->code_time : 1) * 100.0);
     cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
                 s->restore_count);

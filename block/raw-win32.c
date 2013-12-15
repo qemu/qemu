@@ -306,7 +306,7 @@ static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
         return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_READ); 
+                                nb_sectors, cb, opaque, QEMU_AIO_READ);
     } else {
         return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
                            cb, opaque, QEMU_AIO_READ);
@@ -320,7 +320,7 @@ static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
         return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_WRITE); 
+                                nb_sectors, cb, opaque, QEMU_AIO_WRITE);
     } else {
         return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
                            cb, opaque, QEMU_AIO_WRITE);

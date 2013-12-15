@@ -19,12 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Tested features (i82559):
- *      PXE boot (i386 guest, i386 / mips / mipsel / ppc host) ok
- *      Linux networking (i386) ok
- *
- * Untested:
- *      Windows networking
+ * Tested features (i82559c):
+ *      PXE boot (i386 guest, i386 / ppc host) ok
+ *      Linux networking (i386 guest, i386 / ppc / ppc64 host) ok
+ *      Linux networking e100 driver (mips / mipsel guest, i386 host) ok
+ *      Linux networking eepro100 driver (mipsel guest) not ok
+ *      Windows networking (Vista) not ok
  *
  * References:
  *
@@ -50,12 +50,11 @@
 #include "qemu/bitops.h"
 
 /* QEMU sends frames smaller than 60 bytes to ethernet nics.
- * Such frames are rejected by real nics and their emulations.
+ * This should be fixed in the networking code because normally
+ * such frames are rejected by real nics and their emulations.
  * To avoid this behaviour, other nic emulations pad received
- * frames. The following definition enables this padding for
- * eepro100, too. We keep the define around in case it might
- * become useful the future if the core networking is ever
- * changed to pad short packets itself. */
+ * frames. The following definition enables this workaround for
+ * eepro100, too. */
 #define CONFIG_PAD_RECEIVED_FRAMES
 
 #define KiB 1024
@@ -80,7 +79,13 @@
 
 #define TRACE(flag, command) ((flag) ? (command) : (void)0)
 
-#define missing(text) fprintf(stderr, "eepro100: feature is missing in this emulation: " text "\n")
+#define UNEXPECTED() logout("%s:%u unexpected\n", __FILE__, __LINE__)
+
+#if 0
+#define missing(text)       assert(!"feature is missing in this emulation: " text)
+#else
+#define missing(text)       logout("feature is missing in this emulation: " text "\n")
+#endif
 
 #define MAX_ETH_FRAME_SIZE 1514
 
@@ -288,7 +293,7 @@ typedef enum {
     EEPROM_SMBUS_ADDR = 0x90,
 } EEPROMOffset;
 
-/* Bit values for EEPROM ID word. */
+/* Bit values for EEPROM ID word (offset 0x0a). */
 typedef enum {
     EEPROM_ID_MDM = BIT(0),     /* Modem */
     EEPROM_ID_STB = BIT(1),     /* Standby Enable */
@@ -393,6 +398,7 @@ static const char *nic_dump(const uint8_t * buf, unsigned size)
 }
 #endif                          /* DEBUG_EEPRO100 */
 
+#if 0 /* TODO */
 enum scb_stat_ack {
     stat_ack_not_ours = 0x00,
     stat_ack_sw_gen = 0x04,
@@ -404,6 +410,7 @@ enum scb_stat_ack {
     stat_ack_rx = (stat_ack_sw_gen | stat_ack_rnr | stat_ack_frame_rx),
     stat_ack_tx = (stat_ack_cu_idle | stat_ack_cu_cmd_done),
 };
+#endif
 
 static void disable_interrupt(EEPRO100State * s)
 {
@@ -600,13 +607,62 @@ static void e100_pci_reset(EEPRO100State * s)
 
 static void nic_selective_reset(EEPRO100State * s)
 {
+#if EEPROM_SIZE > 0
+    static const uint16_t eeprom_i82559[] = {
+        /* 0x0000 */ 0x0000, 0x0000, 0x0000, 0x020b,
+        /* 0x0008 */ 0xffff, 0x0201, 0x4701, 0xffff,
+        /* 0x0010 */ 0x7517, 0x6704, 0x50a2, 0x0040,
+        /* 0x0018 */ 0x8086, 0x0064, 0xffff, 0xffff,
+        /* 0x0020 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0028 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0030 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0038 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0040 */ 0xffff, 0xffff, 0xffff, 0x1229,
+        /* 0x0048 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0050 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0058 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0060 */ 0x002c, 0x4000, 0x3003, 0xffff,
+        /* 0x0068 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0070 */ 0xffff, 0xffff, 0xffff, 0xffff,
+        /* 0x0078 */ 0xffff, 0xffff, 0xffff, 0xffff,
+    };
     size_t i;
+    uint8_t *pci_conf = s->dev.config;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
 #if 0
     eeprom93xx_reset(s->eeprom);
 #endif
+    memcpy(eeprom_contents, eeprom_i82559, EEPROM_SIZE * 2);
     memcpy(eeprom_contents, s->conf.macaddr.a, 6);
-    eeprom_contents[EEPROM_ID] = EEPROM_ID_VALID;
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[0]);
+    bswap16s(&eeprom_contents[1]);
+    bswap16s(&eeprom_contents[2]);
+#endif
+#if 0
+    /* Only needed to set a different vendor id. */
+    memcpy(eeprom_contents + eeprom_vendor_id, pci_conf + PCI_VENDOR_ID, 2);
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[eeprom_vendor_id]);
+#endif
+#endif /* EEPROM_SIZE > 0 */
+    memcpy(eeprom_contents + EEPROM_DEVICE_ID, pci_conf + PCI_DEVICE_ID, 2);
+#if defined(WORDS_BIGENDIAN)
+    bswap16s(&eeprom_contents[EEPROM_DEVICE_ID]);
+#endif
+#if 0
+    /* We might change the phy id here. */
+    eeprom_contents[EEPROM_PHY_ID] =
+        (eeprom_contents[EEPROM_PHY_ID] & 0xff00) + 1;
+#endif
+    /* TODO: eeprom_id_alt for i82559 */
+    eeprom_contents[EEPROM_ID] |= EEPROM_ID_VALID;
+    if (s->device >= i82557A && s->device <= i82557C) {
+        /* Set revision. */
+        eeprom_contents[EEPROM_ID] |= BIT(8);
+    }
+    /* TODO: source of next statement? */
+    eeprom_contents[0xa] = 0x4000;
     if (s->device == i82557B || s->device == i82557C)
         eeprom_contents[5] = 0x0100;
     eeprom_contents[EEPROM_PHY_ID] = 1;
@@ -616,6 +672,7 @@ static void nic_selective_reset(EEPRO100State * s)
     }
     eeprom_contents[EEPROM_SIZE - 1] = 0xbaba - sum;
     TRACE(EEPROM, logout("checksum=0x%04x\n", eeprom_contents[EEPROM_SIZE - 1]));
+#endif
 
     memset(s->mem, 0, sizeof(s->mem));
     e100_write_reg4(s, SCBCtrlMDI, BIT(21));
@@ -689,8 +746,6 @@ enum commands {
     CmdDiagnose = 7,
 
     /* And some extra flags: */
-    CmdSuspend = 0x4000,        /* Suspend after completion. */
-    CmdIntr = 0x2000,           /* Interrupt after completion. */
     CmdTxFlex = 0x0008,         /* Use "Flexible mode" for CmdTx command. */
 };
 
@@ -722,10 +777,8 @@ static void dump_statistics(EEPRO100State * s)
      * Number of data should check configuration!!!
      */
     pci_dma_write(&s->dev, s->statsaddr, &s->statistics, s->stats_size);
-    stl_le_pci_dma(&s->dev, s->statsaddr + 0,
-                   s->statistics.tx_good_frames);
-    stl_le_pci_dma(&s->dev, s->statsaddr + 36,
-                   s->statistics.rx_good_frames);
+    stl_le_pci_dma(&s->dev, s->statsaddr + 0, s->statistics.tx_good_frames);
+    stl_le_pci_dma(&s->dev, s->statsaddr + 36, s->statistics.rx_good_frames);
     stl_le_pci_dma(&s->dev, s->statsaddr + 48,
                    s->statistics.rx_resource_errors);
     stl_le_pci_dma(&s->dev, s->statsaddr + 60,
@@ -758,52 +811,65 @@ static void tx_command(EEPRO100State *s)
     TRACE(RXTX, logout
         ("transmit, TBD array address 0x%08x, TCB byte count 0x%04x, TBD count %u\n",
          tbd_array, tcb_bytes, s->tx.tbd_count));
-
-    if (tcb_bytes > 2600) {
-        logout("TCB byte count too large, using 2600\n");
-        tcb_bytes = 2600;
-    }
+    assert(!(s->tx.command & COMMAND_NC));
+    assert(tcb_bytes <= sizeof(buf));
     if (!((tcb_bytes > 0) || (tbd_array != 0xffffffff))) {
         logout
             ("illegal values of TBD array address and TCB byte count!\n");
     }
-    assert(tcb_bytes <= sizeof(buf));
-    while (size < tcb_bytes) {
-        uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address);
-        uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4);
+    if (s->tx.command & COMMAND_SF) {
+        /* No simplified mode. TODO: check code in this block. */
+        for (size = 0; size < tcb_bytes; ) {
+            uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address);
+            uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4);
 #if 0
-        uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
+            uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
 #endif
-        tbd_address += 8;
-        TRACE(RXTX, logout
-            ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
-             tx_buffer_address, tx_buffer_size));
-        tx_buffer_size = MIN(tx_buffer_size, sizeof(buf) - size);
-        pci_dma_read(&s->dev, tx_buffer_address, &buf[size], tx_buffer_size);
-        size += tx_buffer_size;
+            tbd_address += 8;
+            TRACE(RXTX, logout
+                ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
+                 tx_buffer_address, tx_buffer_size));
+            if (size + tx_buffer_size > sizeof(buf)) {
+                logout("bad simple TCB with size 0x%04x\n", tx_buffer_size);
+            } else {
+                pci_dma_read(&s->dev, tx_buffer_address, &buf[size],
+                             tx_buffer_size);
+            }
+            size += tx_buffer_size;
+        }
     }
-    if (tbd_array == 0xffffffff) {
-        /* Simplified mode. Was already handled by code above. */
+    if (!(s->tx.command & COMMAND_SF)) {
+        /* Simplified mode. */
+        if (tcb_bytes > sizeof(buf)) {
+            logout("bad TCB byte count 0x%04x (simplified mode)\n", tcb_bytes);
+        } else if (tbd_array != 0xffffffff) {
+            logout("bad TCB array address 0x%04x (simplified mode)\n", tbd_array);
+            UNEXPECTED();
+        } else {
+            cpu_physical_memory_read(tbd_address, &buf[0], tcb_bytes);
+        }
     } else {
         /* Flexible mode. */
         uint8_t tbd_count = 0;
-        if (s->has_extended_tcb_support && !(s->configuration[6] & BIT(4))) {
-            /* Extended Flexible TCB. */
-            for (; tbd_count < 2; tbd_count++) {
-                uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev,
-                                                            tbd_address);
-                uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev,
-                                                          tbd_address + 4);
-                uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev,
-                                                        tbd_address + 6);
+        if (!(s->configuration[6] & BIT(4))) {
+            /* Extended TxCB. */
+            assert(tcb_bytes == 0);
+            for (; tbd_count < 2 && tbd_count < s->tx.tbd_count; tbd_count++) {
+                uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address);
+                uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4);
+                uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
                 tbd_address += 8;
                 TRACE(RXTX, logout
-                    ("TBD (extended flexible mode): buffer address 0x%08x, size 0x%04x\n",
+                    ("TBD (extended mode): buffer address 0x%08x, size 0x%04x\n",
                      tx_buffer_address, tx_buffer_size));
-                tx_buffer_size = MIN(tx_buffer_size, sizeof(buf) - size);
-                pci_dma_read(&s->dev, tx_buffer_address,
-                             &buf[size], tx_buffer_size);
+                if (size + tx_buffer_size > sizeof(buf)) {
+                    logout("bad extended TCB with size 0x%04x\n", tx_buffer_size);
+                } else if (tx_buffer_size > 0) {
+                    assert(tx_buffer_address != 0);
+                pci_dma_read(&s->dev, tx_buffer_address, &buf[size],
+                             tx_buffer_size);
                 size += tx_buffer_size;
+                }
                 if (tx_buffer_el & 1) {
                     break;
                 }
@@ -818,16 +884,20 @@ static void tx_command(EEPRO100State *s)
             TRACE(RXTX, logout
                 ("TBD (flexible mode): buffer address 0x%08x, size 0x%04x\n",
                  tx_buffer_address, tx_buffer_size));
-            tx_buffer_size = MIN(tx_buffer_size, sizeof(buf) - size);
-            pci_dma_read(&s->dev, tx_buffer_address,
-                         &buf[size], tx_buffer_size);
+            if (size + tx_buffer_size > sizeof(buf)) {
+                logout("bad flexible TCB with size 0x%04x\n", tx_buffer_size);
+            } else {
+            pci_dma_read(&s->dev, tx_buffer_address, &buf[size],
+                         tx_buffer_size);
             size += tx_buffer_size;
+            }
             if (tx_buffer_el & 1) {
                 break;
             }
         }
     }
     TRACE(RXTX, logout("%p sending frame, len=%d,%s\n", s, size, nic_dump(buf, size)));
+    assert(size <= sizeof(buf));
     qemu_send_packet(qemu_get_queue(s->nic), buf, size);
     s->statistics.tx_good_frames++;
     /* Transmit with bad status would raise an CX/TNO interrupt.
@@ -867,13 +937,10 @@ static void action_command(EEPRO100State *s)
         bit_s = ((s->tx.command & COMMAND_S) != 0);
         bit_i = ((s->tx.command & COMMAND_I) != 0);
         bit_nc = ((s->tx.command & COMMAND_NC) != 0);
-#if 0
-        bool bit_sf = ((s->tx.command & COMMAND_SF) != 0);
-#endif
         s->cu_offset = s->tx.link;
-        TRACE(OTHER,
-              logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
-                     s->tx.status, s->tx.command, s->tx.link));
+        TRACE(OTHER, logout
+            ("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
+             s->tx.status, s->tx.command, s->cu_offset));
         switch (s->tx.command & COMMAND_CMD) {
         case CmdNOp:
             /* Do nothing. */
@@ -881,10 +948,15 @@ static void action_command(EEPRO100State *s)
         case CmdIASetup:
             pci_dma_read(&s->dev, s->cb_address + 8, &s->conf.macaddr.a[0], 6);
             TRACE(OTHER, logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6)));
+            /* TODO: missing code. */
             break;
         case CmdConfigure:
-            pci_dma_read(&s->dev, s->cb_address + 8,
-                         &s->configuration[0], sizeof(s->configuration));
+            pci_dma_read(&s->dev, s->cb_address + 8, &s->configuration[0],
+                         sizeof(s->configuration));
+            if (!s->has_extended_tcb_support) {
+              /* Force standard TxCB. */
+              s->configuration[6] |= BIT(4);
+            }
             TRACE(OTHER, logout("configuration: %s\n",
                                 nic_dump(&s->configuration[0], 16)));
             TRACE(OTHER, logout("configuration: %s\n",
@@ -1064,7 +1136,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         break;
     default:
         logout("val=0x%02x (undefined RU command)\n", val);
-        missing("Undefined SU command");
+        missing("Undefined RU command");
     }
 }
 
@@ -1327,6 +1399,7 @@ static void eepro100_write_port(EEPRO100State *s)
 static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 {
     uint8_t val = 0;
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         val = s->mem[addr];
     }
@@ -1380,6 +1453,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 {
     uint16_t val = 0;
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         val = e100_read_reg2(s, addr);
     }
@@ -1408,6 +1482,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 {
     uint32_t val = 0;
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         val = e100_read_reg4(s, addr);
     }
@@ -1439,6 +1514,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 
 static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 {
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     /* SCBStatus is readonly. */
     if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
         s->mem[addr] = val;
@@ -1505,6 +1581,7 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 
 static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 {
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     /* SCBStatus is readonly. */
     if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
         e100_write_reg2(s, addr, val);
@@ -1551,6 +1628,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 
 static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 {
+    assert(addr <= sizeof(s->mem) - sizeof(val));
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         e100_write_reg4(s, addr, val);
     }
@@ -1729,14 +1807,16 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     }
     /* !!! */
     eepro100_rx_t rx;
-    pci_dma_read(&s->dev, s->ru_base + s->ru_offset,
-                 &rx, sizeof(eepro100_rx_t));
+    pci_dma_read(&s->dev, s->ru_base + s->ru_offset, &rx,
+                 sizeof(eepro100_rx_t));
+    /* !!! */
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
 
     if (size > rfd_size) {
-        logout("Receive buffer (%" PRId16 " bytes) too small for data "
-            "(%zu bytes); data truncated\n", rfd_size, size);
+        /* TODO: does real hardware truncate, too? */
+        logout("received frame with %zu > %u\n", size, rfd_size);
+        UNEXPECTED();
         size = rfd_size;
     }
 #if !defined(CONFIG_PAD_RECEIVED_FRAMES)
@@ -1770,7 +1850,12 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     s->ru_offset = le32_to_cpu(rx.link);
     if (rfd_command & COMMAND_EL) {
         /* EL bit is set, so this was the last frame. */
+        set_ru_state(s, ru_idle);
+#if 1
         logout("receive: Running out of frames\n");
+        // TODO: do we need ru_suspended here?
+        set_ru_state(s, ru_suspended);
+#endif
         set_ru_state(s, ru_no_resources);
         eepro100_rnr_interrupt(s);
     }
@@ -1871,9 +1956,11 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
     e100_pci_reset(s);
 
+#if EEPROM_SIZE > 0
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
     s->eeprom = eeprom93xx_new(&pci_dev->qdev, EEPROM_SIZE);
+#endif
 
     /* Handler for memory-mapped I/O */
     memory_region_init_io(&s->mmio_bar, OBJECT(s), &eepro100_ops, s,
@@ -1933,6 +2020,7 @@ static E100PCIDeviceInfo e100_devices[] = {
         .revision = 0x0f,
         /* TODO: check size of statistical counters. */
         .stats_size = 80,
+        /* TODO: check extended tcb support. */
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
@@ -2114,3 +2202,5 @@ static void eepro100_register_types(void)
 }
 
 type_init(eepro100_register_types)
+
+/* eof */

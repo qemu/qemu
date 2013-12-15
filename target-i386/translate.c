@@ -16,13 +16,10 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+
 #include <signal.h>
 
+#include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include "cpu.h"
 #include "disas/disas.h"
@@ -31,6 +28,10 @@
 #include "helper.h"
 #define GEN_HELPER 1
 #include "helper.h"
+
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+#include "vsyscall.h"
+#endif
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -3751,9 +3752,9 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             }
             break;
         case 0x22c: /* cvttss2si */
-        case 0x32c: /* cvttsd2si */
         case 0x22d: /* cvtss2si */
         case 0x32d: /* cvtsd2si */
+        case 0x32c: /* cvttsd2si */
             ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
@@ -8360,6 +8361,15 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
 
     gen_tb_start();
     for(;;) {
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+        /* Detect vsyscall */
+        if (unlikely(pc_ptr >= TARGET_VSYSCALL_START
+                     && pc_ptr < TARGET_VSYSCALL_END)) {
+            gen_helper_vsyscall(cpu_env);
+            break;
+        }
+#endif
+
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == pc_ptr &&

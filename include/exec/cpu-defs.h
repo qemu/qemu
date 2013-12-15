@@ -148,8 +148,7 @@ typedef struct CPUWatchpoint {
     /* in order to avoid passing too many arguments to the MMIO         \
        helpers, we store some rarely used information in the CPU        \
        context) */                                                      \
-    uintptr_t mem_io_pc; /* host pc at which the memory was             \
-                            accessed */                                 \
+    uintptr_t mem_io_pc; /* host pc at which the memory was accessed */ \
     target_ulong mem_io_vaddr; /* target virtual addr at which the      \
                                      memory was accessed */             \
     CPU_COMMON_TLB                                                      \
@@ -176,6 +175,7 @@ typedef struct CPUWatchpoint {
     sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
                                                                         \
+    int bigendian; /* Endianness, 0 = little endian, 1 = big endian. */ \
     /* user data */                                                     \
     void *opaque;                                                       \
 

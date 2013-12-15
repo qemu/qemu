@@ -2083,6 +2083,10 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_R13,
     TCG_REG_R14, /* Currently used for the global env. */
     TCG_REG_R15,
+#if defined(_WIN64)
+    TCG_REG_RDI,
+    TCG_REG_RSI
+#endif
 #else
     TCG_REG_EBP, /* Currently used for the global env. */
     TCG_REG_EBX,

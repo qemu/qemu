@@ -67,6 +67,12 @@
 #define EXYNOS4210_EXT_COMBINER_BASE_ADDR   0x10440000
 #define EXYNOS4210_INT_COMBINER_BASE_ADDR   0x10448000
 
+/* SD/MMC host controllers SFR base addresses */
+#define EXYNOS4210_SDHC0_BASE_ADDR          0x12510000
+#define EXYNOS4210_SDHC1_BASE_ADDR          0x12520000
+#define EXYNOS4210_SDHC2_BASE_ADDR          0x12530000
+#define EXYNOS4210_SDHC3_BASE_ADDR          0x12540000
+
 /* PMU SFR base address */
 #define EXYNOS4210_PMU_BASE_ADDR            0x10020000
 
@@ -346,6 +352,20 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     exynos4210_uart_create(EXYNOS4210_UART3_BASE_ADDR,
                            EXYNOS4210_UART3_FIFO_SIZE, 3, NULL,
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
+
+    /*** SD/MMC host controllers ***/
+
+    sysbus_create_simple("exynos4210.sdhci", EXYNOS4210_SDHC0_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(29, 0)]);
+
+    sysbus_create_simple("exynos4210.sdhci", EXYNOS4210_SDHC1_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(29, 1)]);
+
+    sysbus_create_simple("exynos4210.sdhci", EXYNOS4210_SDHC2_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(29, 2)]);
+
+    sysbus_create_simple("exynos4210.sdhci", EXYNOS4210_SDHC3_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(29, 3)]);
 
     /*** Display controller (FIMD) ***/
     sysbus_create_varargs("exynos4210.fimd", EXYNOS4210_FIMD0_BASE_ADDR,

@@ -671,7 +671,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     int num_ld_disks = 0;
     uint16_t sdev_id;
 
-    memset(&info, 0x0, cmd->iov_size);
+    memset(&info, 0x0, sizeof(info));
     if (cmd->iov_size < dcmd_size) {
         trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
                                             dcmd_size);

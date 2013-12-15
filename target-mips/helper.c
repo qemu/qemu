@@ -16,13 +16,10 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+
 #include <signal.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 
 enum {
@@ -40,7 +37,10 @@ int no_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
     *physical = address;
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ;
+    if (rw) {
+        *prot |= PAGE_WRITE;
+    }
     return TLBRET_MATCH;
 }
 
@@ -58,7 +58,10 @@ int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
     else
         *physical = address;
 
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ;
+    if (rw) {
+        *prot |= PAGE_WRITE;
+    }
     return TLBRET_MATCH;
 }
 
@@ -122,7 +125,10 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
         /* useg */
         if (env->CP0_Status & (1 << CP0St_ERL)) {
             *physical = address & 0xFFFFFFFF;
-            *prot = PAGE_READ | PAGE_WRITE;
+            *prot = PAGE_READ;
+            if (rw) {
+                *prot |= PAGE_WRITE;
+            }
         } else {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         }
@@ -147,7 +153,10 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
         if (kernel_mode && KX &&
             (address & 0x07FFFFFFFFFFFFFFULL) <= env->PAMask) {
             *physical = address & env->PAMask;
-            *prot = PAGE_READ | PAGE_WRITE;
+            *prot = PAGE_READ;
+            if (rw) {
+                *prot |= PAGE_WRITE;
+            }
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -164,7 +173,10 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
         /* kseg0 */
         if (kernel_mode) {
             *physical = address - (int32_t)0x80000000UL;
-            *prot = PAGE_READ | PAGE_WRITE;
+            *prot = PAGE_READ;
+            if (rw) {
+                *prot |= PAGE_WRITE;
+            }
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -172,7 +184,10 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
         /* kseg1 */
         if (kernel_mode) {
             *physical = address - (int32_t)0xA0000000UL;
-            *prot = PAGE_READ | PAGE_WRITE;
+            *prot = PAGE_READ;
+            if (rw) {
+                *prot |= PAGE_WRITE;
+            }
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -680,6 +695,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | (mask >> 1);
         while (addr < end) {
+            // optimize memset in tlb_flush_page!!!
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }
@@ -693,6 +709,7 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 #endif
         end = addr | mask;
         while (addr - 1 < end) {
+            // optimize memset in tlb_flush_page!!!
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;
         }

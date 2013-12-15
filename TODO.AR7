@@ -1,0 +1,292 @@
+TODO list for AR7 / QEMU
+
+Hello Qemu Developers.
+
+Here at work we're implementing qemu mcast networking while using avahi-autoipd to obtain network address. The implementation of qemu networking is the following:
+
+-net nic,vlan=1,macaddr=52:54:00:12:34:01,model=virtio -net socket,vlan=1,mcast=230.0.0.1:1234
+
+So, while running avahi-autoipd we get his messages:
+
+[root@localhost ~]# avahi-autoipd eth1
+Found user 'avahi-autoipd' (UID 499) and group 'avahi-autoipd' (GID 499).
+Successfully called chroot().
+Successfully dropped root privileges.
+Starting with address 169.254.2.176
+Callout BIND, address 169.254.2.176 on interface eth1
+Received conflicting normal ARP packet.
+Callout CONFLICT, address 169.254.2.176 on interface eth1
+Trying address 169.254.189.32
+Callout BIND, address 169.254.189.32 on interface eth1
+Received conflicting normal ARP packet.
+
+After sniffing ARP packets, we've realized that we're getting ARP packets back, which screws with autoipd. I think this is due to the mcast implementation not doing RPF. Is your mcast implementation supposed to do RPF?? If it is, we've got ourselves a bug.
+
+Thanks for your help,
+
+Look forward to hear from you.
+
+
+-- 
+Andres E. Rodriguez Lazo (4nDr3s - RoAkSoAx)
+Ubuntu Counter Project - User # 17582
+
+
+2009-01-30
+
+High network load crashs Qemu (tested with malta and ar7).
+Reverting change r6288 (from official Qemu trunk) fixes this.
+
+#0  ip_reass (ip=0x1bfa800, fp=0x1874050) at /home/stefan/src/qemu/trunk/slirp/ip_input.c:403
+#1  0x00000000004cca01 in ip_input (m=0x1bfa7b0) at /home/stefan/src/qemu/trunk/slirp/ip_input.c:224
+#2  0x00000000004aaba5 in slirp_input (pkt=0x1977bd0 "RT", pkt_len=1294) at /home/stefan/src/qemu/trunk/slirp/slirp.c:679
+#3  0x000000000049295d in qemu_send_packet (vc1=0x177a480, buf=0x1977bd0 "RT", size=1294) at /home/stefan/src/qemu/trunk/net.c:399
+#4  0x000000000042bc74 in pcnet_transmit (s=0x1977810) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1300
+#5  0x000000000042c190 in pcnet_poll_timer (opaque=0x1977810) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1363
+#6  0x000000000042ca79 in pcnet_ioport_writew (opaque=0x1977810, addr=4146, val=0) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1645
+#7  0x0000000040632fb5 in ?? ()
+#8  0x0000000000000000 in ?? ()
+
+2008-12-16
+
+AR7_RESET_PEREPHERIAL
+
+* Linux 2.6.27.9 working, but some locking issues with acx driver:
+
+[ 9424.190000] get_mask 0x00000000, set_mask 0x00000040
+[ 9424.200000] setting RXconfig to 2010:0FDD
+[ 9424.220000] get_mask 0x00000000, set_mask 0x00000000 - after update
+[ 9424.250000]
+[ 9424.250000] =======================================================
+[ 9424.250000] [ INFO: possible circular locking dependency detected ]
+[ 9424.250000] 2.6.27.9 #3
+[ 9424.250000] -------------------------------------------------------
+[ 9424.250000] ifconfig/410 is trying to acquire lock:
+[ 9424.250000]  (events){--..}, at: [<94044984>] flush_workqueue+0x0/0x80
+[ 9424.250000]
+[ 9424.250000] but task is already holding lock:
+[ 9424.250000]  (rtnl_mutex){--..}, at: [<941f907c>] devinet_ioctl+0x160/0x858
+[ 9424.250000]
+[ 9424.250000] which lock already depends on the new lock.
+[ 9424.250000]
+[ 9424.250000]
+[ 9424.250000] the existing dependency chain (in reverse order) is:
+[ 9424.250000]
+[ 9424.250000] -> #2 (rtnl_mutex){--..}:
+[ 9424.250000]        [<9405bc8c>] validate_chain+0xb84/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<940078c8>] mutex_lock_nested+0x114/0x498
+[ 9424.250000]        [<941a81c8>] linkwatch_event+0x10/0x38
+[ 9424.250000]        [<94043fa0>] run_workqueue+0x1a8/0x2bc
+[ 9424.250000]        [<94044ff0>] worker_thread+0xac/0xcc
+[ 9424.250000]        [<94048f84>] kthread+0x58/0x98
+[ 9424.250000]        [<9400c4d4>] kernel_thread_helper+0x10/0x18
+[ 9424.250000]
+[ 9424.250000] -> #1 ((linkwatch_work).work){--..}:
+[ 9424.250000]        [<9405bc8c>] validate_chain+0xb84/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<94043f98>] run_workqueue+0x1a0/0x2bc
+[ 9424.250000]        [<94044ff0>] worker_thread+0xac/0xcc
+[ 9424.250000]        [<94048f84>] kthread+0x58/0x98
+[ 9424.250000]        [<9400c4d4>] kernel_thread_helper+0x10/0x18
+[ 9424.250000]
+[ 9424.250000] -> #0 (events){--..}:
+[ 9424.250000]        [<9405b8e8>] validate_chain+0x7e0/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<940449d8>] flush_workqueue+0x54/0x80
+[ 9424.250000]        [<c0046c90>] acxpci_l_get_txbuf+0x138/0x2c4 [acx]
+[ 9424.250000]
+[ 9424.250000] other info that might help us debug this:
+[ 9424.250000]
+[ 9424.250000] 1 lock held by ifconfig/410:
+[ 9424.250000]  #0:  (rtnl_mutex){--..}, at: [<941f907c>] devinet_ioctl+0x160/0x858
+[ 9424.250000]
+[ 9424.250000] stack backtrace:
+[ 9424.250000] Call Trace:
+[ 9424.250000] [<940111a8>] dump_stack+0x8/0x34
+[ 9424.250000] [<9405b0f0>] print_circular_bug_tail+0xd4/0xec
+[ 9424.250000] [<9405b8e8>] validate_chain+0x7e0/0xee0
+[ 9424.250000] [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000] [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000] [<940449d8>] flush_workqueue+0x54/0x80
+[ 9424.250000] [<c0046c90>] acxpci_l_get_txbuf+0x138/0x2c4 [acx]
+[ 9424.250000]
+[ 9424.520000] acx_set_status(0):STOPPED
+[ 9424.520000] closed device
+root@OpenWrt:/# iwlist wlan0 scan
+wlan0     Interface doesn't support scanning : Resource temporarily unavailable
+
+* very poor performance on cpmac:
+  eth0 sinus-heipc84499         1,4 MBit / s
+  eth0 sinus-heipc84499         2,1 MBit / s    linux-2.6.27.21 preemptive
+  eth0 sinus-heipc84499         2,2 MBit / s    linux-2.6.27.21
+  eth0 fritzbox-heipc84499      2,9 MBit / s    2009-05-10
+  eth0 heipc84499-sinus        23,6 MBit / s
+  eth0 heipc84499-sinus        32,3 MBit / s    linux-2.6.27.21 preemptive
+  eth0 heipc84499-sinus        34,2 MBit / s    linux-2.6.27.21
+  eth0 heipc84499-fritzbox     41,9 MBit / s    2009-05-10
+  lo fritzbox-fritzbox         59,0 MBit / s    2009-05-10
+  lo sinus-sinus               49,0 MBit / s
+  lo sinus-sinus               51,7 MBit / s    linux-2.6.27.21 preemptive
+  lo sinus-sinus               55,2 MBit / s    linux-2.6.27.21
+  wlan0 fritzbox-flocke         0,6 MBit / s    2009-05-10
+  wlan0 flocke-fritzbox        10,7 MBit / s    2009-05-10
+  wlan0 heipc84499-flocke       3,6 MBit / s
+  wlan0 heipc84499-flocke      14,5 MBit / s    2009-04-29
+
+root@OpenWrt:/# netserver
+root@OpenWrt:/# netperf -H 192.168.2.2
+TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.2.2 (192.168.2.2) port 0 AF_INET
+Recv   Send    Send
+Socket Socket  Message  Elapsed
+Size   Size    Size     Time     Throughput
+bytes  bytes   bytes    secs.    10^6bits/sec
+
+   256  16384  16384    10.02       1.40
+   256  16384  16384    10.01       2.07        2008-04-26, linux-2.6.27.21
+ 87380  16384  16384    10.04      32.29
+ 43689  16384  16384    10.01      57.00        Linux version 2.6.13.1-ar7 AVM localhost
+   256  16384  16384    10.06       2.91
+
+2008-07-14
+
+* Linux 2.6.26 working.
+
+2008-04-01
+
+* Switched to new QEMU code using TCG. Some changes in ar7.c were needed,
+  others may still be missing, so this revision is highly experimental.
+
+2008-03-16
+
+* USB Treiber für TNETV115PAP
+
+* Absturz CPMAC unter hoher Dauerlast
+
+94139fd0:       8c450000        lw      a1,0(v0)
+94139fd4:       26100004        addiu   s0,s0,4
+94139fd8:       0d00927f        jal     940249fc <printk>
+94139fdc:       24842f24        addiu   a0,a0,12068
+94139fe0:       2a020680        slti    v0,s0,1664
+94139fe4:       3203000f        andi    v1,s0,0xf
+94139fe8:       1440ffe9        bnez    v0,94139f90 <cpmac_irq+0x4c0>
+94139fec:       02009021        move    s2,s0
+94139ff0:       3c049425        lui     a0,0x9425
+94139ff4:       0d00927f        jal     940249fc <printk>
+94139ff8:       2484d7a4        addiu   a0,a0,-10332
+94139ffc:       8e620060        lw      v0,96(s3)
+9413a000:       26650058        addiu   a1,s3,88
+9413a004:       38420001        xori    v0,v0,0x1
+9413a008:       30420001        andi    v0,v0,0x1
+9413a00c:       00028036        tne     zero,v0,0x200                   <= BUG_ON
+9413a010:       3c029429        lui     v0,0x9429
+9413a014:       8c427528        lw      v0,29992(v0)
+9413a018:       3c030001        lui     v1,0x1
+9413a01c:       00431024        and     v0,v0,v1
+9413a020:       10400009        beqz    v0,9413a048 <cpmac_irq+0x578>
+9413a024:       00000000        nop
+9413a028:       c0a20008        ll      v0,8(a1)
+9413a02c:       2401fffe        li      at,-2
+9413a030:       00411024        and     v0,v0,at
+9413a034:       e0a20008        sc      v0,8(a1)
+
+Cpu 0
+$ 0   : 00000000 10008401 00000001 a8610000
+$ 4   : 0000001b 9435c3d8 00000001 94307b2c
+$ 8   : 10008400 1000001f 94a47194 0000006c
+$12   : 94b3f8cc 00000000 00000000 00000000
+$16   : 00000000 9435c000 00000000 9435c380
+$20   : 00000000 00010000 0000000f 94307b2c
+$24   : 00000000 94000b5c
+$28   : 94918000 94919848 0003017a 94051400
+Hi    : 00007bda
+Lo    : e1481a74
+epc   : 9413a00c cpmac_irq+0x53c/0x5f8     Not tainted
+ra    : 94051400 handle_IRQ_event+0x64/0xd4
+Status: 10008403    KERNEL EXL IE
+Cause : 30800034
+PrId  : 00018448 (MIPS 4KEc)
+Modules linked in:
+Process dd (pid: 362, threadinfo=94918000, task=94329908)
+Stack : 00000000 943bdd60 94d1bd80 94191ef4 94d1bd80 943bdd60 9438e900 00000000
+        00000000 0000001b 00000010 94315560 94051400 0000006c 94e0ea8c 00000000
+        9435c000 94191dc0 94268eb8 0000001b 0000000a 9438d81c 9405339c 943bdd60
+        94d1a824 943bdee4 941b580c 00000010 00000013 94919ab0 94000af4 00000000
+        0102a8c0 00000000 943bdd60 00000000 949199e0 94001b84 0102a8c0 941b6c90
+        ...
+Call Trace:
+[<9413a00c>] cpmac_irq+0x53c/0x5f8
+[<94051400>] handle_IRQ_event+0x64/0xd4
+[<9405339c>] handle_level_irq+0xa4/0x118
+[<94000af4>] plat_irq_dispatch+0x98/0x100
+[<94001b84>] ret_from_irq+0x0/0x4
+[<9402a4c0>] __do_softirq+0x44/0x100
+[<9402a5d8>] do_softirq+0x5c/0x94
+[<9402ab54>] irq_exit+0x40/0x8c
+[<94001b84>] ret_from_irq+0x0/0x4
+[<941e7b00>] xs_send_kvec+0x6c/0xd0
+[<941e7c84>] xs_sendpages+0x120/0x2c8
+[<941ea130>] xs_udp_send_request+0x50/0x134
+[<941e6878>] xprt_transmit+0xc8/0x208
+[<941e3284>] call_transmit+0x278/0x2e4
+[<941ebf00>] __rpc_execute+0x94/0x4a4
+[<940e8264>] nfs_execute_read+0x40/0x64
+[<940e8500>] nfs_pagein_one+0x148/0x224
+[<940e5a14>] nfs_pageio_doio+0x44/0x88
+[<940e5b6c>] nfs_pageio_add_request+0x114/0x138
+[<940e8cb8>] readpage_async_filler+0x1a4/0x264
+[<9405fec0>] read_cache_pages+0xa0/0xf0
+[<940e8e94>] nfs_readpages+0x11c/0x190
+[<9405fca4>] __do_page_cache_readahead+0x1f4/0x2b8
+[<94060298>] page_cache_sync_readahead+0x28/0x34
+[<94055ae0>] do_generic_mapping_read+0x120/0x604
+[<94058244>] generic_file_aio_read+0x16c/0x1e0
+[<94080de0>] do_sync_read+0xc4/0x128
+[<94081bf4>] sys_read+0x54/0x98
+[<9400a390>] stack_done+0x20/0x3c
+
+
+Code: 26650058  38420001  30420001 <00028036> 3c029429  8c427528  3c030001  00431024  10400009
+Kernel panic - not syncing: Fatal exception in interrupt
+
+* arch/mips/ar7/prom.c:205 psp_env=afb10084 Zugriff führt auf HW zum Absturz!!!
+
+* cache_parity_error in Vektortabelle mit 0x8400xxxx (falsch) statt 0x9400xxxx
+
+2007-10-30
+* cmos rtc register a is constant when emulating mips in mips.
+
+2006-08-29
+* Wanted: network emulation for more chipsets:
+	Intel 8255xER PCI (eepro100),
+		Intel 82559ER Fast Ethernet PCI Controller 
+			ftp://download.intel.com/design/network/datashts/71468206.pdf
+		Intel 82559 Fast Ethernet Multifunction PCI/CardBus Controller 
+			ftp://download.intel.com/design/network/datashts/73825902.pdf
+
+	Intel PRO/100 VE (? linux driver),
+	E100B325, E100ENT (? linux driver),
+	Realtek RTL8168/8111 PCI (r1000),
+		ftp://202.65.194.18/cn/nic/rtl8111brtl8168b/spec-8168b(110).pdf
+  
+	National Semiconductor DP83815/DP83816 (natsemi)
+
+2006-06-12
+
+* AVM Linux kernel does not get interrupt from CP0_Count.
+  It runs in an endless loop ("Calibrating delay loop...). Fixed.
+
+* Fix handling of CP0_Count. Must not count if not told to do so.
+
+* cpmac emulation for QEMU is still very incomplete.
+
+* TI cpmac driver has bad performace (AVM: 30 Mbit/s from box,
+  50 Mbit/s to box), could be close to 90 MBit/s.
+
+2006-05-23
+
+* serial ports in QEMU are 16450, should be 16550A.
+  Patch exists, but decreases the performance.

@@ -43,6 +43,7 @@ static void save_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUMIPSState *env = opaque;
+    // TODO: i is too small?
     int i;
 
     /* Save active TC */

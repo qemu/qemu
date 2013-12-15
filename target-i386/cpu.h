@@ -591,6 +591,8 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
+#define EXCP_VSYSCALL   0x101 /* only happens in user only emulation
+                                 on x86_64 */
 
 /* i386-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_POLL      CPU_INTERRUPT_TGT_EXT_1
@@ -1243,7 +1245,7 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
 /* svm_helper.c */
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
+void QEMU_NORETURN cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);

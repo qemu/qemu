@@ -1575,7 +1575,7 @@ static const TypeInfo musicpal_key_info = {
 };
 
 static struct arm_boot_info musicpal_binfo = {
-    .loader_start = 0x0,
+    .loader_start = MP_SRAM_BASE,
     .board_id = 0x20e,
 };
 
@@ -1652,24 +1652,13 @@ static void musicpal_init(QEMUMachineInitArgs *args)
          * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
          * image is smaller than 32 MB.
          */
-#ifdef TARGET_WORDS_BIGENDIAN
         pflash_cfi02_register(0x100000000ULL-MP_FLASH_SIZE_MAX, NULL,
                               "musicpal.flash", flash_size,
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 1);
-#else
-        pflash_cfi02_register(0x100000000ULL-MP_FLASH_SIZE_MAX, NULL,
-                              "musicpal.flash", flash_size,
-                              dinfo->bdrv, 0x10000,
-                              (flash_size + 0xffff) >> 16,
-                              MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 0);
-#endif
-
+                              0x5555, 0x2AAA, cpu->env.bigendian);
     }
     sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 

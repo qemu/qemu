@@ -16,18 +16,15 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/mman.h>
 #endif
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
 
+#include "qemu-common.h"
 #include "config.h"
 
 #include "qemu-common.h"
@@ -37,6 +34,9 @@
 #include "tcg.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
+#if defined(TARGET_X86_64)
+#include "vsyscall.h"
+#endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <sys/param.h>
 #if __FreeBSD_version >= 700104
@@ -131,7 +131,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
 void cpu_gen_init(void)
 {
-    tcg_context_init(&tcg_ctx); 
+    tcg_context_init(&tcg_ctx);
 }
 
 /* return non zero if the very first instruction is invalid so that
@@ -591,7 +591,7 @@ static inline void code_gen_alloc(size_t tb_size)
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
-void tcg_exec_init(unsigned long tb_size)
+void tcg_exec_init(uintptr_t tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
@@ -968,6 +968,14 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
     cpu_gen_code(env, tb, &code_gen_size);
     tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)tcg_ctx.code_gen_ptr +
             code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
+    /* if we are doing vsyscall don't link the page as it lies in high memory
+       and tb_alloc_page will abort due to page_l1_map returning NULL */
+    if (unlikely(phys_pc >= TARGET_VSYSCALL_START
+                 && phys_pc < TARGET_VSYSCALL_END))
+        return tb;
+#endif
 
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
@@ -1654,7 +1662,7 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
 }
 
 static int dump_region(void *priv, abi_ulong start,
-    abi_ulong end, unsigned long prot)
+    abi_ulong end, abi_ulong prot)
 {
     FILE *f = (FILE *)priv;
 

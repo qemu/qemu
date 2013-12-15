@@ -78,10 +78,11 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
    the effective address of the memory exception. 'is_write' is 1 if a
    write caused the exception and otherwise 0'. 'old_set' is the
    signal set which should be restored */
-static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
+static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
+    uintptr_t address = (uintptr_t)ptr;
     CPUArchState *env;
     int ret;
 
@@ -166,7 +167,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #else
     struct ucontext *uc = puc;
 #endif
-    unsigned long pc;
+    uintptr_t pc;
     int trapno;
 
 #ifndef REG_EIP
@@ -177,7 +178,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #endif
     pc = EIP_sig(uc);
     trapno = TRAP_sig(uc);
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
+    return handle_cpu_signal(pc, info->si_addr,
                              trapno == 0xe ?
                              (ERROR_sig(uc) >> 1) & 1 : 0,
                              &MASK_sig(uc), puc);
@@ -213,7 +214,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
-    unsigned long pc;
+    uintptr_t pc;
 #if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
     ucontext_t *uc = puc;
 #elif defined(__OpenBSD__)
@@ -223,7 +224,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #endif
 
     pc = PC_sig(uc);
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
+    return handle_cpu_signal(pc, info->si_addr,
                              TRAP_sig(uc) == 0xe ?
                              (ERROR_sig(uc) >> 1) & 1 : 0,
                              &MASK_sig(uc), puc);
@@ -326,7 +327,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #else
     struct ucontext *uc = puc;
 #endif
-    unsigned long pc;
+    uintptr_t pc;
     int is_write;
 
     pc = IAR_sig(uc);
@@ -341,8 +342,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
         is_write = 1;
     }
 #endif
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__alpha__)
@@ -372,8 +372,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
         is_write = 1;
     }
 
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 #elif defined(__sparc__)
 
@@ -387,15 +386,15 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     uint32_t *regs = (uint32_t *)(info + 1);
     void *sigmask = (regs + 20);
     /* XXX: is there a standard glibc define ? */
-    unsigned long pc = regs[1];
+    uintptr_t pc = regs[1];
 #else
 #ifdef __linux__
     struct sigcontext *sc = puc;
-    unsigned long pc = sc->sigc_regs.tpc;
+    uintptr_t pc = sc->sigc_regs.tpc;
     void *sigmask = (void *)sc->sigc_mask;
 #elif defined(__OpenBSD__)
     struct sigcontext *uc = puc;
-    unsigned long pc = uc->sc_pc;
+    uintptr_t pc = uc->sc_pc;
     void *sigmask = (void *)(long)uc->sc_mask;
 #endif
 #endif
@@ -428,8 +427,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
             break;
         }
     }
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, sigmask, NULL);
+    return handle_cpu_signal(pc, info->si_addr, is_write, sigmask, NULL);
 }
 
 #elif defined(__arm__)
@@ -439,7 +437,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 {
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
-    unsigned long pc;
+    uintptr_t pc;
     int is_write;
 
 #if defined(__GLIBC__) && (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
@@ -452,9 +450,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
      * later processor; on v5 we will always report this as a read).
      */
     is_write = extract32(uc->uc_mcontext.error_code, 11, 1);
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write,
-                             &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__aarch64__)
@@ -479,15 +475,13 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 {
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
-    unsigned long pc;
+    uintptr_t pc;
     int is_write;
 
     pc = uc->uc_mcontext.gregs[16];
     /* XXX: compute is_write */
     is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write,
-                             &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__ia64)
@@ -520,8 +514,7 @@ int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
     default:
         break;
     }
-    return handle_cpu_signal(ip, (unsigned long)info->si_addr,
-                             is_write,
+    return handle_cpu_signal(ip, info->si_addr, is_write,
                              (sigset_t *)&uc->uc_sigmask, puc);
 }
 
@@ -532,7 +525,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 {
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
-    unsigned long pc;
+    uintptr_t pc;
     uint16_t *pinsn;
     int is_write = 0;
 
@@ -574,8 +567,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
         }
         break;
     }
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__mips__)
@@ -590,8 +582,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
     /* XXX: compute is_write */
     is_write = 0;
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #elif defined(__hppa__)
@@ -601,7 +592,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 {
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
-    unsigned long pc = uc->uc_mcontext.sc_iaoq[0];
+    uintptr_t pc = uc->uc_mcontext.sc_iaoq[0];
     uint32_t insn = *(uint32_t *)pc;
     int is_write = 0;
 
@@ -632,8 +623,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
         break;
     }
 
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             is_write, &uc->uc_sigmask, puc);
+    return handle_cpu_signal(pc, info->si_addr, is_write, &uc->uc_sigmask, puc);
 }
 
 #else

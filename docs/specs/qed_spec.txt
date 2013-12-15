@@ -15,18 +15,18 @@ All fields are little-endian.
 ==Header==
  Header {
      uint32_t magic;               /* QED\0 */
- 
+
      uint32_t cluster_size;        /* in bytes */
      uint32_t table_size;          /* for L1 and L2 tables, in clusters */
      uint32_t header_size;         /* in clusters */
- 
+
      uint64_t features;            /* format feature bits */
      uint64_t compat_features;     /* compat feature bits */
      uint64_t autoclear_features;  /* self-resetting feature bits */
 
      uint64_t l1_table_offset;     /* in bytes */
      uint64_t image_size;          /* total logical image size, in bytes */
- 
+
      /* if (features & QED_F_BACKING_FILE) */
      uint32_t backing_filename_offset; /* in bytes from start of header */
      uint32_t backing_filename_size;   /* in bytes */
@@ -58,7 +58,7 @@ Fields predicated on a feature bit are only used when that feature is set.  The 
 Tables provide the translation from logical offsets in the block device to cluster offsets in the file.
 
  #define TABLE_NOFFSETS (table_size * cluster_size / sizeof(uint64_t))
-  
+
  Table {
      uint64_t offsets[TABLE_NOFFSETS];
  }
@@ -113,11 +113,11 @@ Logical offsets are translated into cluster offsets as follows:
  +----------+----------+-----------------+
  | L1 index | L2 index |     byte offset |
  +----------+----------+-----------------+
- 
+
        Structure of a logical offset
 
  offset_mask = ~(cluster_size - 1) # mask for the image file byte offset
- 
+
  def logical_to_cluster_offset(l1_index, l2_index, byte_offset):
    l2_offset = l1_table[l1_index]
    l2_table = load_table(l2_offset)

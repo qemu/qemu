@@ -1,7 +1,7 @@
 QA output created by 036
 === Create image with unknown autoclear feature bit ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0

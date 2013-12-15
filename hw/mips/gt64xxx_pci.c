@@ -224,6 +224,16 @@
 #define GT_PCI0_HICMASK    	(0xca4 >> 2)
 #define GT_PCI1_SERR1MASK    	(0xca8 >> 2)
 
+#if 0
+#define DEBUG
+#endif
+
+#if defined(DEBUG)
+#define logout(fmt, ...) fprintf(stderr, "GT64XXX\t%-24s" fmt, __func__, ##__VA_ARGS__)
+#else
+#define logout(fmt, ...) ((void)0)
+#endif
+
 #define PCI_MAPPING_ENTRY(regname)            \
     hwaddr regname ##_start;      \
     hwaddr regname ##_length;     \
@@ -323,6 +333,8 @@ static void gt64120_writel (void *opaque, hwaddr addr,
         val = bswap32(val);
 
     saddr = (addr & 0xfff) >> 2;
+    logout("addr = 0x%08x, val = 0x%08x\n", saddr, val);
+
     switch (saddr) {
 
     /* CPU Configuration */
@@ -1043,11 +1055,10 @@ static void gt64120_reset(void *opaque)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD]      = 0;
+    if (s->regs[GT_CPU] & (1 << 12)) {
+      s->regs[GT_PCI0_CMD]    = 0x00010001;
+    }
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
@@ -1064,11 +1075,10 @@ static void gt64120_reset(void *opaque)
     s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
     s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
     s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI1_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI1_CMD]      = 0;
+    if (s->regs[GT_CPU] & (1 << 12)) {
+      s->regs[GT_PCI1_CMD]    = 0x00010001;
+    }
     s->regs[GT_PCI1_TOR]      = 0x0000070f;
     s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
@@ -1133,7 +1143,7 @@ static int gt64120_init(SysBusDevice *dev)
 static int gt64120_pci_init(PCIDevice *d)
 {
     /* FIXME: Malta specific hw assumptions ahead */
-    pci_set_word(d->config + PCI_COMMAND, 0);
+    //~ pci_set_word(d->config + PCI_COMMAND, 0);
     pci_set_word(d->config + PCI_STATUS,
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
     pci_config_set_prog_interface(d->config, 0);
@@ -1145,6 +1155,9 @@ static int gt64120_pci_init(PCIDevice *d)
     pci_set_long(d->config + PCI_BASE_ADDRESS_5, 0x14000001);
     pci_set_byte(d->config + 0x3d, 0x01);
 
+    //~ pci_set_byte(d->config + PCI_INTERRUPT_PIN, 0x01);
+
+    //~ gt64120_reset(s);
     return 0;
 }
 

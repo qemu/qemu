@@ -66,6 +66,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/wireless.h>
 #include <linux/icmp.h>
 #include "qemu-common.h"
+#include "qemu/sockets.h"
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
@@ -4184,7 +4185,7 @@ abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
     }
     unlock_user_struct(target_ldt_info, ptr, 1);
 
-    if (ldt_info.entry_number < TARGET_GDT_ENTRY_TLS_MIN || 
+    if (ldt_info.entry_number < TARGET_GDT_ENTRY_TLS_MIN ||
         ldt_info.entry_number > TARGET_GDT_ENTRY_TLS_MAX)
            return -TARGET_EINVAL;
     seg_32bit = ldt_info.flags & 1;
@@ -4262,7 +4263,7 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
     lp = (uint32_t *)(gdt_table + idx);
     entry_1 = tswap32(lp[0]);
     entry_2 = tswap32(lp[1]);
-    
+
     read_exec_only = ((entry_2 >> 9) & 1) ^ 1;
     contents = (entry_2 >> 10) & 3;
     seg_not_present = ((entry_2 >> 15) & 1) ^ 1;
@@ -4278,8 +4279,8 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
         (read_exec_only << 3) | (limit_in_pages << 4) |
         (seg_not_present << 5) | (useable << 6) | (lm << 7);
     limit = (entry_1 & 0xffff) | (entry_2  & 0xf0000);
-    base_addr = (entry_1 >> 16) | 
-        (entry_2 & 0xff000000) | 
+    base_addr = (entry_1 >> 16) |
+        (entry_2 & 0xff000000) |
         ((entry_2 & 0xff) << 16);
     target_ldt_info->base_addr = tswapal(base_addr);
     target_ldt_info->limit = tswap32(limit);
@@ -4341,7 +4342,7 @@ typedef struct {
     sigset_t sigmask;
 } new_thread_info;
 
-static void *clone_func(void *arg)
+static void * QEMU_NORETURN clone_func(void *arg)
 {
     new_thread_info *info = arg;
     CPUArchState *env;
@@ -4370,7 +4371,6 @@ static void *clone_func(void *arg)
     pthread_mutex_unlock(&clone_lock);
     cpu_loop(env);
     /* never exits */
-    return NULL;
 }
 
 /* do_fork() Must return host values and target errnos (unlike most
@@ -7951,7 +7951,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #if defined(TARGET_NR_fchownat)
     case TARGET_NR_fchownat:
-        if (!(p = lock_user_string(arg2))) 
+        if (!(p = lock_user_string(arg2)))
             goto efault;
         ret = get_errno(fchownat(arg1, p, low2highuid(arg3),
                                  low2highgid(arg4), arg5));
@@ -8436,7 +8436,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         case TARGET_F_GETLK64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
+                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1))
                     goto efault;
                 fl.l_type = tswap16(target_efl->l_type);
                 fl.l_whence = tswap16(target_efl->l_whence);
@@ -8447,7 +8447,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             } else
 #endif
             {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
+                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1))
                     goto efault;
                 fl.l_type = tswap16(target_fl->l_type);
                 fl.l_whence = tswap16(target_fl->l_whence);
@@ -8460,7 +8460,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 	    if (ret == 0) {
 #ifdef TARGET_ARM
                 if (((CPUARMState *)cpu_env)->eabi) {
-                    if (!lock_user_struct(VERIFY_WRITE, target_efl, arg3, 0)) 
+                    if (!lock_user_struct(VERIFY_WRITE, target_efl, arg3, 0))
                         goto efault;
                     target_efl->l_type = tswap16(fl.l_type);
                     target_efl->l_whence = tswap16(fl.l_whence);
@@ -8471,7 +8471,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 } else
 #endif
                 {
-                    if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0)) 
+                    if (!lock_user_struct(VERIFY_WRITE, target_fl, arg3, 0))
                         goto efault;
                     target_fl->l_type = tswap16(fl.l_type);
                     target_fl->l_whence = tswap16(fl.l_whence);
@@ -8487,7 +8487,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         case TARGET_F_SETLKW64:
 #ifdef TARGET_ARM
             if (((CPUARMState *)cpu_env)->eabi) {
-                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1)) 
+                if (!lock_user_struct(VERIFY_READ, target_efl, arg3, 1))
                     goto efault;
                 fl.l_type = tswap16(target_efl->l_type);
                 fl.l_whence = tswap16(target_efl->l_whence);
@@ -8498,7 +8498,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             } else
 #endif
             {
-                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1)) 
+                if (!lock_user_struct(VERIFY_READ, target_fl, arg3, 1))
                     goto efault;
                 fl.l_type = tswap16(target_fl->l_type);
                 fl.l_whence = tswap16(target_fl->l_whence);

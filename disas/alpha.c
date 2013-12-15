@@ -19,7 +19,6 @@ You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not, see
 <http://www.gnu.org/licenses/>. */
 
-#include <stdio.h>
 #include "disas/bfd.h"
 
 /* MAX is redefined below, so remove any previous definition. */

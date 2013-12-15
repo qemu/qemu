@@ -11,3 +11,4 @@ common-obj-$(CONFIG_SUN4M) += sun4m_iommu.o
 
 obj-$(CONFIG_OMAP) += omap_dma.o soc_dma.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_dma.o
+obj-$(CONFIG_RASPI) += bcm2835_dma.o

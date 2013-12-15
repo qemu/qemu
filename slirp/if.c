@@ -73,7 +73,7 @@ if_output(struct socket *so, struct mbuf *ifm)
 	 * We mustn't put this packet back on the fastq (or we'll send it out of order)
 	 * XXX add cache here?
 	 */
-	for (ifq = slirp->if_batchq.ifq_prev; ifq != &slirp->if_batchq;
+	for (ifq = slirp->if_batchq.ifq_prev; ifq && ifq != &slirp->if_batchq;
 	     ifq = ifq->ifq_prev) {
 		if (so == ifq->ifq_so) {
 			/* A match! */

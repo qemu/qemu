@@ -271,6 +271,10 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     SerialState *s = opaque;
 
     addr &= 7;
+    assert(addr < 8);
+
+    //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+
     DPRINTF("write addr=0x%" HWADDR_PRIx " val=0x%" PRIx64 "\n", addr, val);
     switch(addr) {
     default:
@@ -418,6 +422,10 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t ret;
 
     addr &= 7;
+    assert(addr < 8);
+
+  //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+
     switch(addr) {
     default:
     case 0:
@@ -500,6 +508,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
 
 static int serial_can_receive(SerialState *s)
 {
+    //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
     if(s->fcr & UART_FCR_FE) {
         if (s->recv_fifo.num < UART_FIFO_LENGTH) {
             /*
@@ -625,13 +634,12 @@ static void serial_reset(void *opaque)
     s->lcr = 0;
     s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
     s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
-    /* Default to 9600 baud, 1 start bit, 8 data bits, 1 stop bit, no parity. */
     s->divider = 0x0C;
     s->mcr = UART_MCR_OUT2;
     s->scr = 0;
     s->tsr_retry = 0;
-    s->char_transmit_time = (get_ticks_per_sec() / 9600) * 10;
     s->poll_msl = 0;
+    serial_update_parameters(s);
 
     fifo8_reset(&s->recv_fifo);
     fifo8_reset(&s->xmit_fifo);
@@ -692,6 +700,8 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     s = g_malloc0(sizeof(SerialState));
 
+    s->base = base;
+    s->it_shift = 0;
     s->irq = irq;
     s->baudbase = baudbase;
     s->chr = chr;
@@ -711,19 +721,19 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 }
 
 /* Memory mapped interface */
-static uint64_t serial_mm_read(void *opaque, hwaddr addr,
-                               unsigned size)
+uint64_t serial_mm_read(void *opaque, hwaddr addr,
+                        unsigned size)
 {
     SerialState *s = opaque;
-    return serial_ioport_read(s, addr >> s->it_shift, 1);
+    return serial_ioport_read(s, (addr - s->base) >> s->it_shift, 1);
 }
 
-static void serial_mm_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
+void serial_mm_write(void *opaque, hwaddr addr,
+                     uint64_t value, unsigned size)
 {
     SerialState *s = opaque;
     value &= ~0u >> (32 - (size * 8));
-    serial_ioport_write(s, addr >> s->it_shift, value, 1);
+    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value, 1);
 }
 
 static const MemoryRegionOps serial_mm_ops[3] = {
@@ -754,6 +764,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     s = g_malloc0(sizeof(SerialState));
 
+    s->base = base;
     s->it_shift = it_shift;
     s->irq = irq;
     s->baudbase = baudbase;

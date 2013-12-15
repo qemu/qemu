@@ -933,10 +933,16 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
 #ifdef TARGET_X86_64
 #if defined(CONFIG_USER_ONLY)
-void helper_syscall(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_syscall(CPUX86State *env, int next_eip_addend)
 {
     env->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
+    cpu_loop_exit(env);
+}
+
+void QEMU_NORETURN helper_vsyscall(CPUX86State *env)
+{
+    env->exception_index = EXCP_VSYSCALL;
     cpu_loop_exit(env);
 }
 #else

@@ -84,6 +84,12 @@
 # error Unknown pointer size
 #endif
 
+#define KiB     1024
+#define MiB     (KiB * KiB)
+
+/* Trace unassigned memory or i/o accesses. */
+extern bool trace_unassigned;
+
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
@@ -229,25 +235,6 @@ int qemu_pipe(int pipefd[2]);
 int qemu_openpty_raw(int *aslave, char *pty_name);
 #endif
 
-#ifdef _WIN32
-/* MinGW needs type casts for the 'buf' and 'optval' arguments. */
-#define qemu_getsockopt(sockfd, level, optname, optval, optlen) \
-    getsockopt(sockfd, level, optname, (void *)optval, optlen)
-#define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
-    setsockopt(sockfd, level, optname, (const void *)optval, optlen)
-#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
-#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
-    sendto(sockfd, (const void *)buf, len, flags, destaddr, addrlen)
-#else
-#define qemu_getsockopt(sockfd, level, optname, optval, optlen) \
-    getsockopt(sockfd, level, optname, optval, optlen)
-#define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
-    setsockopt(sockfd, level, optname, optval, optlen)
-#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
-#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
-    sendto(sockfd, buf, len, flags, destaddr, addrlen)
-#endif
-
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
@@ -276,7 +263,7 @@ typedef struct PCIHostDeviceAddress {
     unsigned int function;
 } PCIHostDeviceAddress;
 
-void tcg_exec_init(unsigned long tb_size);
+void tcg_exec_init(uintptr_t tb_size);
 bool tcg_enabled(void);
 
 void cpu_exec_init_all(void);

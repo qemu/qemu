@@ -8,6 +8,7 @@ struct qemu_cache_conf qemu_cache_conf = {
 };
 
 #if defined _AIX
+
 #include <sys/systemcfg.h>
 
 void qemu_cache_utils_init(void)
@@ -40,6 +41,7 @@ void qemu_cache_utils_init(void)
 }
 
 #elif defined __APPLE__
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -81,6 +83,7 @@ void qemu_cache_utils_init(void)
     qemu_cache_conf.dcache_bsize = cacheline;
     qemu_cache_conf.icache_bsize = cacheline;
 }
+
 #endif
 
 #endif /* _ARCH_PPC */

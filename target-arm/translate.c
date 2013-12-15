@@ -18,12 +18,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
@@ -8419,7 +8415,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         if (insn & (1 << 22)) {
             /* Other load/store, table branch.  */
             if (insn & 0x01200000) {
-                /* Load/store doubleword.  */
+                ARCH(5); /* Load/store doubleword.  */
                 if (rn == 15) {
                     addr = tcg_temp_new_i32();
                     tcg_gen_movi_i32(addr, s->pc & ~3);

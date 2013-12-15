@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "cpu.h"
 #include "helper.h"
 
@@ -216,7 +217,7 @@ uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
     return res;
 }
 
-void HELPER(wfi)(CPUARMState *env)
+void QEMU_NORETURN HELPER(wfi)(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
@@ -225,7 +226,7 @@ void HELPER(wfi)(CPUARMState *env)
     cpu_loop_exit(env);
 }
 
-void HELPER(exception)(CPUARMState *env, uint32_t excp)
+void QEMU_NORETURN HELPER(exception)(CPUARMState *env, uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit(env);

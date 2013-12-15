@@ -23,8 +23,6 @@
 
 #include "exec/memory-internal.h"
 
-//#define DEBUG_UNASSIGNED
-
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool global_dirty_log = false;
@@ -863,12 +861,55 @@ void memory_region_init(MemoryRegion *mr,
     mr->flush_coalesced_mmio = false;
 }
 
+static int qemu_target_backtrace(target_ulong *array, size_t size)
+{
+    int n = 0;
+    if (size >= 2) {
+#if defined(TARGET_ARM)
+        CPUArchState *env = current_cpu->env_ptr;
+        array[0] = env->regs[15];
+        array[1] = env->regs[14];
+#elif defined(TARGET_MIPS)
+        CPUArchState *env = current_cpu->env_ptr;
+        array[0] = env->active_tc.PC;
+        array[1] = env->active_tc.gpr[31];
+#else
+        array[0] = 0;
+        array[1] = 0;
+#endif
+        n = 2;
+    }
+    return n;
+}
+
+#include "disas/disas.h"
+const char *qemu_sprint_backtrace(char *buffer, size_t length)
+{
+    char *p = buffer;
+    if (current_cpu) {
+        target_ulong caller[2];
+        const char *symbol;
+        qemu_target_backtrace(caller, 2);
+        symbol = lookup_symbol(caller[0]);
+        p += sprintf(p, "[%s]", symbol);
+        symbol = lookup_symbol(caller[1]);
+        p += sprintf(p, "[%s]", symbol);
+    } else {
+        p += sprintf(p, "[cpu not running]");
+    }
+    assert((p - buffer) < length);
+    return buffer;
+}
+
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
-#endif
+    if (trace_unassigned) {
+        char buffer[256];
+        fprintf(stderr, "Unassigned mem read " TARGET_FMT_plx " %s\n",
+                addr, qemu_sprint_backtrace(buffer, sizeof(buffer)));
+    }
+    //~ vm_stop(0);
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
     }
@@ -878,9 +919,12 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
 static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
-#endif
+    if (trace_unassigned) {
+        char buffer[256];
+        fprintf(stderr, "Unassigned mem write " TARGET_FMT_plx
+                " = 0x%" PRIx64 " %s\n",
+                addr, val, qemu_sprint_backtrace(buffer, sizeof(buffer)));
+    }
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
     }
@@ -906,6 +950,8 @@ bool memory_region_access_valid(MemoryRegion *mr,
     int access_size, i;
 
     if (!mr->ops->valid.unaligned && (addr & (size - 1))) {
+        fprintf(stderr, "Misaligned i/o with size %u for memory region %s\n",
+                size, mr->name);
         return false;
     }
 

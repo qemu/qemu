@@ -1884,7 +1884,7 @@ int bdrv_commit(BlockDriverState *bs)
 
     if (!drv)
         return -ENOMEDIUM;
-    
+
     if (!bs->backing_hd) {
         return -ENOTSUP;
     }

@@ -431,7 +431,7 @@ _full_imgproto_details()
 _full_platform_details()
 {
     os=`uname -s`
-    host=`hostname -s`
+    host=`hostname -s 2>/dev/null || hostname`
     kernel=`uname -r`
     platform=`uname -m`
     echo "$os/$platform $host $kernel"

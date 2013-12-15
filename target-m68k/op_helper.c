@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "cpu.h"
 #include "helper.h"
 
@@ -166,13 +167,13 @@ void do_interrupt_m68k_hardirq(CPUM68KState *env)
 }
 #endif
 
-static void raise_exception(CPUM68KState *env, int tt)
+static void QEMU_NORETURN raise_exception(CPUM68KState *env, int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit(env);
 }
 
-void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
+void QEMU_NORETURN HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
 {
     raise_exception(env, tt);
 }

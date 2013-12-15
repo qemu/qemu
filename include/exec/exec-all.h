@@ -77,6 +77,9 @@ void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
                           int pc_pos);
 
+/* Get a backtrace for the guest code. */
+const char *qemu_sprint_backtrace(char *buffer, size_t length);
+
 void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
@@ -84,7 +87,7 @@ bool cpu_restore_state(CPUArchState *env, uintptr_t searched_pc);
 
 void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, uintptr_t retaddr);
-TranslationBlock *tb_gen_code(CPUArchState *env, 
+TranslationBlock *tb_gen_code(CPUArchState *env,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
@@ -221,7 +224,7 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
-void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)

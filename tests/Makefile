@@ -211,7 +211,9 @@ tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_hel
 # QTest rules
 
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
+ifdef CONFIG_POSIX
 QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
+endif
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
 qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a

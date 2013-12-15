@@ -118,7 +118,7 @@ typedef struct VncRectStat VncRectStat;
 struct VncSurface
 {
     struct timeval last_freq_check;
-    DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_MAX_WIDTH / 16);
+    DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
     VncRectStat stats[VNC_STAT_ROWS][VNC_STAT_COLS];
     pixman_image_t *fb;
     pixman_format_code_t format;
@@ -503,8 +503,8 @@ enum {
 void vnc_client_read(void *opaque);
 void vnc_client_write(void *opaque);
 
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+long vnc_client_read_buf(VncState *vs, void *data, size_t datalen);
+long vnc_client_write_buf(VncState *vs, const void *data, size_t datalen);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);

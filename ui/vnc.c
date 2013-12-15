@@ -1144,7 +1144,7 @@ static long vnc_client_write_tls(gnutls_session_t *session,
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
+long vnc_client_write_buf(VncState *vs, const void *data, size_t datalen)
 {
     long ret;
 #ifdef CONFIG_VNC_TLS
@@ -1292,7 +1292,7 @@ static long vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
+long vnc_client_read_buf(VncState *vs, void *data, size_t datalen)
 {
     long ret;
 #ifdef CONFIG_VNC_TLS
@@ -2200,34 +2200,34 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 default:
                     printf("Invalid audio format %d\n", read_u8(data, 4));
                     vnc_client_error(vs);
-                    break;
+                    return -1;
                 }
                 vs->as.nchannels = read_u8(data, 5);
                 if (vs->as.nchannels != 1 && vs->as.nchannels != 2) {
                     printf("Invalid audio channel coount %d\n",
                            read_u8(data, 5));
                     vnc_client_error(vs);
-                    break;
+                    return -1;
                 }
                 vs->as.freq = read_u32(data, 6);
                 break;
             default:
                 printf ("Invalid audio message %d\n", read_u8(data, 4));
                 vnc_client_error(vs);
-                break;
+                return -1;
             }
             break;
 
         default:
             printf("Msg: %d\n", read_u16(data, 0));
             vnc_client_error(vs);
-            break;
+            return -1;
         }
         break;
     default:
-        printf("Msg: %d\n", data[0]);
+        fprintf(stderr, "Msg: %d\n", data[0]);
         vnc_client_error(vs);
-        break;
+        return -1;
     }
 
     vnc_read_when(vs, protocol_client_msg, 1);

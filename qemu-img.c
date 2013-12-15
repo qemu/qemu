@@ -64,7 +64,7 @@ static void format_print(void *opaque, const char *name)
 }
 
 /* Please keep in synch with qemu-img.texi */
-static void help(void)
+static void QEMU_NORETURN help(void)
 {
     const char *help_msg =
            "qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
@@ -1869,6 +1869,48 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
+static int img_update(int argc, char **argv)
+{
+    int c;
+    const char *filename, *fmt;
+    BlockDriverState *bs;
+
+    fmt = NULL;
+    for(;;) {
+        c = getopt(argc, argv, "f:h");
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        }
+    }
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
+
+    bs = bdrv_new_open(filename, fmt,
+                       BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_RDWR,
+                       true, false);
+    if (!bs) {
+        return 1;
+    }
+
+    if (bs->drv->bdrv_update==NULL) {
+        error_report("the 'update' command is not supported for the "
+                     "'%s' image format.", bdrv_get_format_name(bs));
+    }
+
+    bs->drv->bdrv_update(bs, argc-optind, &argv[optind]);
+
+    bdrv_unref(bs);
+    return 0;
+}
 
 typedef struct MapEntry {
     int flags;

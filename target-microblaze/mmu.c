@@ -52,7 +52,7 @@ static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
     }
 }
 
-static void mmu_change_pid(CPUMBState *env, unsigned int newpid) 
+static void mmu_change_pid(CPUMBState *env, unsigned int newpid)
 {
     struct microblaze_mmu *mmu = &env->mmu;
     unsigned int i;

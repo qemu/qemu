@@ -1744,6 +1744,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &auxcr);
     }
 
+    if (arm_feature(env, ARM_FEATURE_V6_VECBASE)) {
+        ARMCPRegInfo v6_vecbase = {
+            .name = "VBAR", .cp = 15, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
+            .access = PL1_RW,
+            .fieldoffset = offsetof(CPUARMState, cp15.c12_vecbase),
+        };
+        define_one_arm_cp_reg(cpu, &v6_vecbase);
+    }
+
     /* Generic registers whose values depend on the implementation */
     {
         ARMCPRegInfo sctlr = {
@@ -2149,10 +2158,10 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
 
-uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
+uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
-    return 0;
+    //~ return 0;
 }
 
 void switch_mode(CPUARMState *env, int mode)
@@ -2161,15 +2170,15 @@ void switch_mode(CPUARMState *env, int mode)
         cpu_abort(env, "Tried to switch out of user mode\n");
 }
 
-void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
+void QEMU_NORETURN HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r13 write\n");
 }
 
-uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
+uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
     cpu_abort(env, "banked r13 read\n");
-    return 0;
+    //~ return 0;
 }
 
 #else
@@ -2495,6 +2504,9 @@ void arm_cpu_do_interrupt(CPUState *cs)
     if (env->cp15.c1_sys & (1 << 13)) {
         /* when enabled, base address cannot be remapped.  */
         addr += 0xffff0000;
+    } else if (arm_feature(env, ARM_FEATURE_V6_VECBASE)) {
+        /* Vector base address */
+        addr += env->cp15.c12_vecbase;
     } else {
         /* ARM v7 architectures provide a vector base address register to remap
          * the interrupt vector table.

@@ -2,13 +2,13 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 
+#include "qemu-common.h"
 #include "qemu.h"
+
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
 
 #define NGROUPS 32
 

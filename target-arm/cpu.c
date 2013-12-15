@@ -323,6 +323,16 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 /* CPU models. These are not needed for the AArch64 linux-user build. */
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
+static void arm920t_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    /* TODO: check features. */
+    set_feature(&cpu->env, ARM_FEATURE_V4T);
+    cpu->midr = 0x41129200;
+    cpu->ctr = 0x0d172172;
+    cpu->reset_sctlr = 0x00000078;
+}
+
 static void arm926_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -459,6 +469,7 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+    set_feature(&cpu->env, ARM_FEATURE_V6_VECBASE);
     cpu->midr = 0x410fb767;
     cpu->reset_fpsid = 0x410120b5;
     cpu->mvfr0 = 0x11111111;
@@ -909,6 +920,7 @@ typedef struct ARMCPUInfo {
 
 static const ARMCPUInfo arm_cpus[] = {
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
+    { .name = "arm920t",     .initfn = arm920t_initfn },
     { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },

@@ -33,14 +33,14 @@ struct QEMUMachine {
     QEMUMachineHotAddCPUFunc *hot_add_cpu;
     BlockInterfaceType block_default_type;
     int max_cpus;
-    unsigned int no_serial:1,
-        no_parallel:1,
-        use_virtcon:1,
-        use_sclp:1,
-        no_floppy:1,
-        no_cdrom:1,
-        no_sdcard:1;
-    int is_default;
+    bool no_serial:1;
+    bool no_parallel:1;
+    bool use_virtcon:1;
+    bool use_sclp:1;
+    bool no_floppy:1;
+    bool no_cdrom:1;
+    bool no_sdcard:1;
+    bool is_default:1;
     const char *default_machine_opts;
     const char *default_boot_order;
     GlobalProperty *compat_props;
