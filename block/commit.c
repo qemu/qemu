@@ -198,13 +198,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    /* Once we support top == active layer, remove this check */
-    if (top == bs) {
-        error_setg(errp,
-                   "Top image as the active layer is currently unsupported");
-        return;
-    }
-
+    assert(top != bs);
     if (top == base) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
         return;
