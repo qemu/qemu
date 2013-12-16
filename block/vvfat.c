@@ -266,8 +266,7 @@ typedef struct mbr_t {
 } QEMU_PACKED mbr_t;
 
 typedef struct direntry_t {
-    uint8_t name[8];
-    uint8_t extension[3];
+    uint8_t name[8 + 3];
     uint8_t attributes;
     uint8_t reserved[2];
     uint16_t ctime;
@@ -518,11 +517,9 @@ static inline uint8_t fat_chksum(const direntry_t* entry)
     uint8_t chksum=0;
     int i;
 
-    for(i=0;i<11;i++) {
-        unsigned char c;
-
-        c = (i < 8) ? entry->name[i] : entry->extension[i-8];
-        chksum=(((chksum&0xfe)>>1)|((chksum&0x01)?0x80:0)) + c;
+    for (i = 0; i < ARRAY_SIZE(entry->name); i++) {
+        chksum = (((chksum & 0xfe) >> 1) |
+                  ((chksum & 0x01) ? 0x80 : 0)) + entry->name[i];
     }
 
     return chksum;
@@ -617,7 +614,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 
     if(is_dot) {
 	entry=array_get_next(&(s->directory));
-	memset(entry->name,0x20,11);
+        memset(entry->name, 0x20, sizeof(entry->name));
 	memcpy(entry->name,filename,strlen(filename));
 	return entry;
     }
@@ -632,12 +629,14 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 	i = 8;
 
     entry=array_get_next(&(s->directory));
-    memset(entry->name,0x20,11);
+    memset(entry->name, 0x20, sizeof(entry->name));
     memcpy(entry->name, filename, i);
 
-    if(j > 0)
-	for (i = 0; i < 3 && filename[j+1+i]; i++)
-	    entry->extension[i] = filename[j+1+i];
+    if (j > 0) {
+        for (i = 0; i < 3 && filename[j + 1 + i]; i++) {
+            entry->name[8 + i] = filename[j + 1 + i];
+        }
+    }
 
     /* upcase & remove unwanted characters */
     for(i=10;i>=0;i--) {
@@ -861,8 +860,7 @@ static int init_directories(BDRVVVFATState* s,
     {
 	direntry_t* entry=array_get_next(&(s->directory));
 	entry->attributes=0x28; /* archive | volume label */
-	memcpy(entry->name,"QEMU VVF",8);
-	memcpy(entry->extension,"AT ",3);
+        memcpy(entry->name, "QEMU VVFAT ", sizeof(entry->name));
     }
 
     /* Now build FAT, and write back information into directory */
@@ -1591,17 +1589,20 @@ static int parse_short_name(BDRVVVFATState* s,
 	    lfn->name[i] = direntry->name[i];
     }
 
-    for (j = 2; j >= 0 && direntry->extension[j] == ' '; j--);
+    for (j = 2; j >= 0 && direntry->name[8 + j] == ' '; j--) {
+    }
     if (j >= 0) {
 	lfn->name[i++] = '.';
 	lfn->name[i + j + 1] = '\0';
 	for (;j >= 0; j--) {
-	    if (direntry->extension[j] <= ' ' || direntry->extension[j] > 0x7f)
-		return -2;
-	    else if (s->downcase_short_names)
-		lfn->name[i + j] = qemu_tolower(direntry->extension[j]);
-	    else
-		lfn->name[i + j] = direntry->extension[j];
+            uint8_t c = direntry->name[8 + j];
+            if (c <= ' ' || c > 0x7f) {
+                return -2;
+            } else if (s->downcase_short_names) {
+                lfn->name[i + j] = qemu_tolower(c);
+            } else {
+                lfn->name[i + j] = c;
+            }
 	}
     } else
 	lfn->name[i + j + 1] = '\0';

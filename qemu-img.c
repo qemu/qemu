@@ -1135,8 +1135,7 @@ static int img_convert(int argc, char **argv)
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
-    int64_t total_sectors, nb_sectors, sector_num, bs_offset,
-            sector_num_next_status = 0;
+    int64_t total_sectors, nb_sectors, sector_num, bs_offset;
     uint64_t bs_sectors;
     uint8_t * buf = NULL;
     size_t bufsectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
@@ -1505,6 +1504,8 @@ static int img_convert(int argc, char **argv)
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
+        int64_t sectors_to_read, sectors_read, sector_num_next_status;
+        bool count_allocated_sectors;
         int has_zero_init = min_sparse ? bdrv_has_zero_init(out_bs) : 0;
 
         if (!has_zero_init && bdrv_can_write_zeroes_with_unmap(out_bs)) {
@@ -1515,12 +1516,21 @@ static int img_convert(int argc, char **argv)
             has_zero_init = 1;
         }
 
+        sectors_to_read = total_sectors;
+        count_allocated_sectors = progress && (out_baseimg || has_zero_init);
+restart:
         sector_num = 0; // total number of sectors converted so far
-        nb_sectors = total_sectors - sector_num;
+        sectors_read = 0;
+        sector_num_next_status = 0;
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0) {
+                if (count_allocated_sectors) {
+                    sectors_to_read = sectors_read;
+                    count_allocated_sectors = false;
+                    goto restart;
+                }
                 ret = 0;
                 break;
             }
@@ -1586,8 +1596,14 @@ static int img_convert(int argc, char **argv)
             }
 
             n = MIN(n, bs_sectors - (sector_num - bs_offset));
-            n1 = n;
 
+            sectors_read += n;
+            if (count_allocated_sectors) {
+                sector_num += n;
+                continue;
+            }
+
+            n1 = n;
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
                 error_report("error while reading sector %" PRId64 ": %s",
@@ -1612,7 +1628,7 @@ static int img_convert(int argc, char **argv)
                 n -= n1;
                 buf1 += n1 * 512;
             }
-            qemu_progress_print(100.0 * sector_num / total_sectors, 0);
+            qemu_progress_print(100.0 * sectors_read / sectors_to_read, 0);
         }
     }
 out:
