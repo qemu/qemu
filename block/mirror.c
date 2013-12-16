@@ -481,6 +481,13 @@ immediate_exit:
             bdrv_reopen(s->target, bdrv_get_flags(s->common.bs), NULL);
         }
         bdrv_swap(s->target, s->common.bs);
+        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
+            /* drop the bs loop chain formed by the swap: break the loop then
+             * trigger the unref from the top one */
+            BlockDriverState *p = s->base->backing_hd;
+            s->base->backing_hd = NULL;
+            bdrv_unref(p);
+        }
     }
     bdrv_unref(s->target);
     block_job_completed(&s->common, ret);
@@ -623,6 +630,10 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
                          BlockDriverCompletionFunc *cb,
                          void *opaque, Error **errp)
 {
+    if (bdrv_reopen(base, bs->open_flags, errp)) {
+        return;
+    }
+    bdrv_ref(base);
     mirror_start_job(bs, base, speed, 0, 0,
                      on_error, on_error, cb, opaque, errp,
                      &commit_active_job_driver, false, base);

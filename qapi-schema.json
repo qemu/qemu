@@ -1967,9 +1967,11 @@
 #
 # @top:              The file name of the backing image within the image chain,
 #                    which contains the topmost data to be committed down.
-#                    Note, the active layer as 'top' is currently unsupported.
 #
 #                    If top == base, that is an error.
+#                    If top == active, the job will not be completed by itself,
+#                    user needs to complete the job with the block-job-complete
+#                    command after getting the ready event. (Since 2.0)
 #
 #
 # @speed:  #optional the maximum speed, in bytes per second
@@ -1979,7 +1981,6 @@
 #          If @device does not exist, DeviceNotFound
 #          If image commit is not supported by this device, NotSupported
 #          If @base or @top is invalid, a generic error is returned
-#          If @top is the active layer, or omitted, a generic error is returned
 #          If @speed is invalid, InvalidParameter
 #
 # Since: 1.3
