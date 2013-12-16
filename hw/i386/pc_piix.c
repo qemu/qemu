@@ -61,6 +61,7 @@ static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 static bool has_pci_info;
 static bool has_acpi_build = true;
 static bool smbios_type1_defaults = true;
+static bool gigabyte_align = true;
 
 /* PC hardware initialisation */
 static void pc_init1(QEMUMachineInitArgs *args,
@@ -107,8 +108,9 @@ static void pc_init1(QEMUMachineInitArgs *args,
     }
 
     if (args->ram_size >= 0xe0000000) {
-        above_4g_mem_size = args->ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
+        ram_addr_t lowmem = gigabyte_align ? 0xc0000000 : 0xe0000000;
+        above_4g_mem_size = args->ram_size - lowmem;
+        below_4g_mem_size = lowmem;
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = args->ram_size;
@@ -245,6 +247,7 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
     smbios_type1_defaults = false;
+    gigabyte_align = false;
 }
 
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
