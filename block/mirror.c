@@ -32,7 +32,7 @@ typedef struct MirrorBlockJob {
     RateLimit limit;
     BlockDriverState *target;
     BlockDriverState *base;
-    MirrorSyncMode mode;
+    bool is_none_mode;
     BlockdevOnError on_source_error, on_target_error;
     bool synced;
     bool should_complete;
@@ -336,7 +336,7 @@ static void coroutine_fn mirror_run(void *opaque)
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 
-    if (s->mode != MIRROR_SYNC_MODE_NONE) {
+    if (!s->is_none_mode) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
         BlockDriverState *base = s->base;
         for (sector_num = 0; sector_num < end; ) {
@@ -535,15 +535,26 @@ static const BlockJobDriver mirror_job_driver = {
     .complete      = mirror_complete,
 };
 
-void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, int64_t granularity, int64_t buf_size,
-                  MirrorSyncMode mode, BlockdevOnError on_source_error,
-                  BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb,
-                  void *opaque, Error **errp)
+static const BlockJobDriver commit_active_job_driver = {
+    .instance_size = sizeof(MirrorBlockJob),
+    .job_type      = BLOCK_JOB_TYPE_COMMIT,
+    .set_speed     = mirror_set_speed,
+    .iostatus_reset
+                   = mirror_iostatus_reset,
+    .complete      = mirror_complete,
+};
+
+static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
+                            int64_t speed, int64_t granularity,
+                            int64_t buf_size,
+                            BlockdevOnError on_source_error,
+                            BlockdevOnError on_target_error,
+                            BlockDriverCompletionFunc *cb,
+                            void *opaque, Error **errp,
+                            const BlockJobDriver *driver,
+                            bool is_none_mode, BlockDriverState *base)
 {
     MirrorBlockJob *s;
-    BlockDriverState *base = NULL;
 
     if (granularity == 0) {
         /* Choose the default granularity based on the target file's cluster
@@ -566,13 +577,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    if (mode == MIRROR_SYNC_MODE_TOP) {
-        base = bs->backing_hd;
-    } else {
-        base = NULL;
-    }
 
-    s = block_job_create(&mirror_job_driver, bs, speed, cb, opaque, errp);
+    s = block_job_create(driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }
@@ -580,7 +586,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
     s->target = target;
-    s->mode = mode;
+    s->is_none_mode = is_none_mode;
     s->base = base;
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
@@ -592,4 +598,32 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);
+}
+
+void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  MirrorSyncMode mode, BlockdevOnError on_source_error,
+                  BlockdevOnError on_target_error,
+                  BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp)
+{
+    bool is_none_mode;
+    BlockDriverState *base;
+
+    is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
+    base = mode == MIRROR_SYNC_MODE_TOP ? bs->backing_hd : NULL;
+    mirror_start_job(bs, target, speed, granularity, buf_size,
+                     on_source_error, on_target_error, cb, opaque, errp,
+                     &mirror_job_driver, is_none_mode, base);
+}
+
+void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
+                         int64_t speed,
+                         BlockdevOnError on_error,
+                         BlockDriverCompletionFunc *cb,
+                         void *opaque, Error **errp)
+{
+    mirror_start_job(bs, base, speed, 0, 0,
+                     on_error, on_error, cb, opaque, errp,
+                     &commit_active_job_driver, false, base);
 }
