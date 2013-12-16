@@ -31,6 +31,7 @@ typedef struct MirrorBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockDriverState *target;
+    BlockDriverState *base;
     MirrorSyncMode mode;
     BlockdevOnError on_source_error, on_target_error;
     bool synced;
@@ -337,8 +338,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
     if (s->mode != MIRROR_SYNC_MODE_NONE) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
-        BlockDriverState *base;
-        base = s->mode == MIRROR_SYNC_MODE_FULL ? NULL : bs->backing_hd;
+        BlockDriverState *base = s->base;
         for (sector_num = 0; sector_num < end; ) {
             int64_t next = (sector_num | (sectors_per_chunk - 1)) + 1;
             ret = bdrv_is_allocated_above(bs, base,
@@ -543,6 +543,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   void *opaque, Error **errp)
 {
     MirrorBlockJob *s;
+    BlockDriverState *base = NULL;
 
     if (granularity == 0) {
         /* Choose the default granularity based on the target file's cluster
@@ -565,6 +566,12 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
+    if (mode == MIRROR_SYNC_MODE_TOP) {
+        base = bs->backing_hd;
+    } else {
+        base = NULL;
+    }
+
     s = block_job_create(&mirror_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
@@ -574,6 +581,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->on_target_error = on_target_error;
     s->target = target;
     s->mode = mode;
+    s->base = base;
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
 
