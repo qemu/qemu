@@ -126,23 +126,6 @@ void qemu_spice_wakeup(SimpleSpiceDisplay *ssd)
     spice_qxl_wakeup(&ssd->qxl);
 }
 
-static int spice_display_is_running;
-
-void qemu_spice_display_start(void)
-{
-    spice_display_is_running = true;
-}
-
-void qemu_spice_display_stop(void)
-{
-    spice_display_is_running = false;
-}
-
-int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
-{
-    return spice_display_is_running;
-}
-
 static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
                                          QXLRect *rect)
 {

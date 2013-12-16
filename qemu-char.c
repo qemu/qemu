@@ -3353,6 +3353,13 @@ void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open)
     }
 }
 
+void qemu_chr_fe_event(struct CharDriverState *chr, int event)
+{
+    if (chr->chr_fe_event) {
+        chr->chr_fe_event(chr, event);
+    }
+}
+
 int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
                           GIOFunc func, void *user_data)
 {
