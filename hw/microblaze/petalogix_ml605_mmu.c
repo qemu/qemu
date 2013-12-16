@@ -75,7 +75,6 @@ static void
 petalogix_ml605_init(QEMUMachineInitArgs *args)
 {
     ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     Object *ds, *cs;
@@ -89,10 +88,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     qemu_irq irq[32];
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "microblaze";
-    }
-    cpu = cpu_mb_init(cpu_model);
+    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    object_property_set_bool(OBJECT(cpu), true, "realized", &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
