@@ -714,6 +714,7 @@ F: ui/
 
 Cocoa graphics
 M: Andreas Färber <andreas.faerber@web.de>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Odd Fixes
 F: ui/cocoa.m
 
