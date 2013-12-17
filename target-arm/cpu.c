@@ -89,6 +89,12 @@ static void arm_cpu_reset(CPUState *s)
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
         env->aarch64 = 1;
+#if defined(CONFIG_USER_ONLY)
+        env->pstate = PSTATE_MODE_EL0t;
+#else
+        env->pstate = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F
+            | PSTATE_MODE_EL1h;
+#endif
     }
 
 #if defined(CONFIG_USER_ONLY)

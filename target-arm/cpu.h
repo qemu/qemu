@@ -113,8 +113,15 @@ typedef struct CPUARMState {
     /* Regs for A64 mode.  */
     uint64_t xregs[32];
     uint64_t pc;
-    /* TODO: pstate doesn't correspond to an architectural register;
-     * it would be better modelled as the underlying fields.
+    /* PSTATE isn't an architectural register for ARMv8. However, it is
+     * convenient for us to assemble the underlying state into a 32 bit format
+     * identical to the architectural format used for the SPSR. (This is also
+     * what the Linux kernel's 'pstate' field in signal handlers and KVM's
+     * 'pstate' register are.) Of the PSTATE bits:
+     *  NZCV are kept in the split out env->CF/VF/NF/ZF, (which have the same
+     *    semantics as for AArch32, as described in the comments on each field)
+     *  nRW (also known as M[4]) is kept, inverted, in env->aarch64
+     *  all other bits are stored in their correct places in env->pstate
      */
     uint32_t pstate;
     uint32_t aarch64; /* 1 if CPU is in aarch64 state; inverse of PSTATE.nRW */
@@ -309,15 +316,6 @@ static inline bool is_a64(CPUARMState *env)
     return env->aarch64;
 }
 
-#define PSTATE_N_SHIFT 3
-#define PSTATE_N  (1 << PSTATE_N_SHIFT)
-#define PSTATE_Z_SHIFT 2
-#define PSTATE_Z  (1 << PSTATE_Z_SHIFT)
-#define PSTATE_C_SHIFT 1
-#define PSTATE_C  (1 << PSTATE_C_SHIFT)
-#define PSTATE_V_SHIFT 0
-#define PSTATE_V  (1 << PSTATE_V_SHIFT)
-
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -351,6 +349,56 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 #define CPSR_USER (CPSR_NZCV | CPSR_Q | CPSR_GE)
 /* Execution state bits.  MRS read as zero, MSR writes ignored.  */
 #define CPSR_EXEC (CPSR_T | CPSR_IT | CPSR_J)
+
+/* Bit definitions for ARMv8 SPSR (PSTATE) format.
+ * Only these are valid when in AArch64 mode; in
+ * AArch32 mode SPSRs are basically CPSR-format.
+ */
+#define PSTATE_M (0xFU)
+#define PSTATE_nRW (1U << 4)
+#define PSTATE_F (1U << 6)
+#define PSTATE_I (1U << 7)
+#define PSTATE_A (1U << 8)
+#define PSTATE_D (1U << 9)
+#define PSTATE_IL (1U << 20)
+#define PSTATE_SS (1U << 21)
+#define PSTATE_V (1U << 28)
+#define PSTATE_C (1U << 29)
+#define PSTATE_Z (1U << 30)
+#define PSTATE_N (1U << 31)
+#define PSTATE_NZCV (PSTATE_N | PSTATE_Z | PSTATE_C | PSTATE_V)
+#define CACHED_PSTATE_BITS (PSTATE_NZCV)
+/* Mode values for AArch64 */
+#define PSTATE_MODE_EL3h 13
+#define PSTATE_MODE_EL3t 12
+#define PSTATE_MODE_EL2h 9
+#define PSTATE_MODE_EL2t 8
+#define PSTATE_MODE_EL1h 5
+#define PSTATE_MODE_EL1t 4
+#define PSTATE_MODE_EL0t 0
+
+/* Return the current PSTATE value. For the moment we don't support 32<->64 bit
+ * interprocessing, so we don't attempt to sync with the cpsr state used by
+ * the 32 bit decoder.
+ */
+static inline uint32_t pstate_read(CPUARMState *env)
+{
+    int ZF;
+
+    ZF = (env->ZF == 0);
+    return (env->NF & 0x80000000) | (ZF << 30)
+        | (env->CF << 29) | ((env->VF & 0x80000000) >> 3)
+        | env->pstate;
+}
+
+static inline void pstate_write(CPUARMState *env, uint32_t val)
+{
+    env->ZF = (~val) & PSTATE_Z;
+    env->NF = val;
+    env->CF = (val >> 29) & 1;
+    env->VF = (val << 3) & 0x80000000;
+    env->pstate = val & ~CACHED_PSTATE_BITS;
+}
 
 /* Return the current CPSR value.  */
 uint32_t cpsr_read(CPUARMState *env);

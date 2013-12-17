@@ -67,6 +67,7 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+    uint32_t psr = pstate_read(env);
     int i;
 
     cpu_fprintf(f, "PC=%016"PRIx64"  SP=%016"PRIx64"\n",
@@ -79,11 +80,12 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
             cpu_fprintf(f, " ");
         }
     }
-    cpu_fprintf(f, "PSTATE=%c%c%c%c\n",
-        env->pstate & PSTATE_N ? 'n' : '.',
-        env->pstate & PSTATE_Z ? 'z' : '.',
-        env->pstate & PSTATE_C ? 'c' : '.',
-        env->pstate & PSTATE_V ? 'v' : '.');
+    cpu_fprintf(f, "PSTATE=%08x (flags %c%c%c%c)\n",
+                psr,
+                psr & PSTATE_N ? 'N' : '-',
+                psr & PSTATE_Z ? 'Z' : '-',
+                psr & PSTATE_C ? 'C' : '-',
+                psr & PSTATE_V ? 'V' : '-');
     cpu_fprintf(f, "\n");
 }
 
