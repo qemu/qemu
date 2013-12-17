@@ -24,6 +24,8 @@
 
 #define DIGIC4_TIMER_BASE(n)    (0xc0210000 + (n) * 0x100)
 
+#define DIGIC_UART_BASE          0xc0800000
+
 static void digic_init(Object *obj)
 {
     DigicState *s = DIGIC(obj);
@@ -43,6 +45,11 @@ static void digic_init(Object *obj)
         snprintf(name, DIGIC_TIMER_NAME_MLEN, "timer[%d]", i);
         object_property_add_child(obj, name, OBJECT(&s->timer[i]), NULL);
     }
+
+    object_initialize(&s->uart, sizeof(s->uart), TYPE_DIGIC_UART);
+    dev = DEVICE(&s->uart);
+    qdev_set_parent_bus(dev, sysbus_get_default());
+    object_property_add_child(obj, "uart", OBJECT(&s->uart), NULL);
 }
 
 static void digic_realize(DeviceState *dev, Error **errp)
@@ -74,6 +81,15 @@ static void digic_realize(DeviceState *dev, Error **errp)
         sbd = SYS_BUS_DEVICE(&s->timer[i]);
         sysbus_mmio_map(sbd, 0, DIGIC4_TIMER_BASE(i));
     }
+
+    object_property_set_bool(OBJECT(&s->uart), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    sbd = SYS_BUS_DEVICE(&s->uart);
+    sysbus_mmio_map(sbd, 0, DIGIC_UART_BASE);
 }
 
 static void digic_class_init(ObjectClass *oc, void *data)

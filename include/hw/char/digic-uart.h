@@ -1,5 +1,5 @@
 /*
- * Misc Canon DIGIC declarations.
+ * Canon DIGIC UART block declarations.
  *
  * Copyright (C) 2013 Antony Pavlov <antonynpavlov@gmail.com>
  *
@@ -15,29 +15,33 @@
  *
  */
 
-#ifndef HW_ARM_DIGIC_H
-#define HW_ARM_DIGIC_H
+#ifndef HW_CHAR_DIGIC_UART_H
+#define HW_CHAR_DIGIC_UART_H
 
-#include "cpu.h"
+#include "hw/sysbus.h"
+#include "qemu/typedefs.h"
 
-#include "hw/timer/digic-timer.h"
-#include "hw/char/digic-uart.h"
+#define TYPE_DIGIC_UART "digic-uart"
+#define DIGIC_UART(obj) \
+    OBJECT_CHECK(DigicUartState, (obj), TYPE_DIGIC_UART)
 
-#define TYPE_DIGIC "digic"
+enum {
+    R_TX = 0x00,
+    R_RX,
+    R_ST = (0x14 >> 2),
+    R_MAX
+};
 
-#define DIGIC(obj) OBJECT_CHECK(DigicState, (obj), TYPE_DIGIC)
-
-#define DIGIC4_NB_TIMERS 3
-
-typedef struct DigicState {
+typedef struct DigicUartState {
     /*< private >*/
-    DeviceState parent_obj;
+    SysBusDevice parent_obj;
     /*< public >*/
 
-    ARMCPU cpu;
+    MemoryRegion regs_region;
+    CharDriverState *chr;
 
-    DigicTimerState timer[DIGIC4_NB_TIMERS];
-    DigicUartState uart;
-} DigicState;
+    uint32_t reg_rx;
+    uint32_t reg_st;
+} DigicUartState;
 
-#endif /* HW_ARM_DIGIC_H */
+#endif /* HW_CHAR_DIGIC_UART_H */
