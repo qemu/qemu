@@ -680,7 +680,8 @@ static void css_update_chnmon(SubchDev *sch)
         count = lduw_phys(&address_space_memory,
                           channel_subsys->chnmon_area + offset);
         count++;
-        stw_phys(channel_subsys->chnmon_area + offset, count);
+        stw_phys(&address_space_memory,
+                 channel_subsys->chnmon_area + offset, count);
     }
 }
 

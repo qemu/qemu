@@ -65,7 +65,7 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
     for (i = 0; i < 6; i++) {
         stb_phys(bdloc + 0x24 + i, bd->bi_enetaddr[i]);
     }
-    stw_be_phys(bdloc + 0x2A, bd->bi_ethspeed);
+    stw_be_phys(cs->as, bdloc + 0x2A, bd->bi_ethspeed);
     stl_be_phys(cs->as, bdloc + 0x2C, bd->bi_intfreq);
     stl_be_phys(cs->as, bdloc + 0x30, bd->bi_busfreq);
     stl_be_phys(cs->as, bdloc + 0x34, bd->bi_baudrate);

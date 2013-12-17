@@ -570,7 +570,7 @@ static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         stb_phys(addr, val);
         return H_SUCCESS;
     case 2:
-        stw_phys(addr, val);
+        stw_phys(cs->as, addr, val);
         return H_SUCCESS;
     case 4:
         stl_phys(cs->as, addr, val);
@@ -635,7 +635,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             stb_phys(dst, tmp);
             break;
         case 1:
-            stw_phys(dst, tmp);
+            stw_phys(cs->as, dst, tmp);
             break;
         case 2:
             stl_phys(cs->as, dst, tmp);

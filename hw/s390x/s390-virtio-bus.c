@@ -77,10 +77,10 @@ void s390_virtio_reset_idx(VirtIOS390Device *dev)
     for (i = 0; i < num_vq; i++) {
         idx_addr = virtio_queue_get_avail_addr(dev->vdev, i) +
             VIRTIO_VRING_AVAIL_IDX_OFFS;
-        stw_phys(idx_addr, 0);
+        stw_phys(&address_space_memory, idx_addr, 0);
         idx_addr = virtio_queue_get_used_addr(dev->vdev, i) +
             VIRTIO_VRING_USED_IDX_OFFS;
-        stw_phys(idx_addr, 0);
+        stw_phys(&address_space_memory, idx_addr, 0);
     }
 }
 
@@ -380,7 +380,9 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
         virtio_queue_set_vector(dev->vdev, i, i);
         stq_be_phys(&address_space_memory,
                     vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
-        stw_be_phys(vq + VIRTIO_VQCONFIG_OFFS_NUM, virtio_queue_get_num(dev->vdev, i));
+        stw_be_phys(&address_space_memory,
+                    vq + VIRTIO_VQCONFIG_OFFS_NUM,
+                    virtio_queue_get_num(dev->vdev, i));
     }
 
     cur_offs = dev->dev_offs;

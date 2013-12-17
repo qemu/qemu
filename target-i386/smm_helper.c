@@ -60,8 +60,8 @@ void do_smm_enter(X86CPU *cpu)
     for (i = 0; i < 6; i++) {
         dt = &env->segs[i];
         offset = 0x7e00 + i * 16;
-        stw_phys(sm_state + offset, dt->selector);
-        stw_phys(sm_state + offset + 2, (dt->flags >> 8) & 0xf0ff);
+        stw_phys(cs->as, sm_state + offset, dt->selector);
+        stw_phys(cs->as, sm_state + offset + 2, (dt->flags >> 8) & 0xf0ff);
         stl_phys(cs->as, sm_state + offset + 4, dt->limit);
         stq_phys(cs->as, sm_state + offset + 8, dt->base);
     }
@@ -69,18 +69,18 @@ void do_smm_enter(X86CPU *cpu)
     stq_phys(cs->as, sm_state + 0x7e68, env->gdt.base);
     stl_phys(cs->as, sm_state + 0x7e64, env->gdt.limit);
 
-    stw_phys(sm_state + 0x7e70, env->ldt.selector);
+    stw_phys(cs->as, sm_state + 0x7e70, env->ldt.selector);
     stq_phys(cs->as, sm_state + 0x7e78, env->ldt.base);
     stl_phys(cs->as, sm_state + 0x7e74, env->ldt.limit);
-    stw_phys(sm_state + 0x7e72, (env->ldt.flags >> 8) & 0xf0ff);
+    stw_phys(cs->as, sm_state + 0x7e72, (env->ldt.flags >> 8) & 0xf0ff);
 
     stq_phys(cs->as, sm_state + 0x7e88, env->idt.base);
     stl_phys(cs->as, sm_state + 0x7e84, env->idt.limit);
 
-    stw_phys(sm_state + 0x7e90, env->tr.selector);
+    stw_phys(cs->as, sm_state + 0x7e90, env->tr.selector);
     stq_phys(cs->as, sm_state + 0x7e98, env->tr.base);
     stl_phys(cs->as, sm_state + 0x7e94, env->tr.limit);
-    stw_phys(sm_state + 0x7e92, (env->tr.flags >> 8) & 0xf0ff);
+    stw_phys(cs->as, sm_state + 0x7e92, (env->tr.flags >> 8) & 0xf0ff);
 
     stq_phys(cs->as, sm_state + 0x7ed0, env->efer);
 

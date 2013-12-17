@@ -474,7 +474,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             vq_config.index = lduw_phys(&address_space_memory, ccw.cda);
             vq_config.num_max = virtio_queue_get_num(vdev,
                                                      vq_config.index);
-            stw_phys(ccw.cda + sizeof(vq_config.index), vq_config.num_max);
+            stw_phys(&address_space_memory,
+                     ccw.cda + sizeof(vq_config.index), vq_config.num_max);
             sch->curr_status.scsw.count = ccw.count - sizeof(vq_config);
             ret = 0;
         }

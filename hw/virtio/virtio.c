@@ -180,21 +180,23 @@ static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
 {
     hwaddr pa;
     pa = vq->vring.used + offsetof(VRingUsed, idx);
-    stw_phys(pa, val);
+    stw_phys(&address_space_memory, pa, val);
 }
 
 static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
 {
     hwaddr pa;
     pa = vq->vring.used + offsetof(VRingUsed, flags);
-    stw_phys(pa, lduw_phys(&address_space_memory, pa) | mask);
+    stw_phys(&address_space_memory,
+             pa, lduw_phys(&address_space_memory, pa) | mask);
 }
 
 static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
 {
     hwaddr pa;
     pa = vq->vring.used + offsetof(VRingUsed, flags);
-    stw_phys(pa, lduw_phys(&address_space_memory, pa) & ~mask);
+    stw_phys(&address_space_memory,
+             pa, lduw_phys(&address_space_memory, pa) & ~mask);
 }
 
 static inline void vring_avail_event(VirtQueue *vq, uint16_t val)
@@ -204,7 +206,7 @@ static inline void vring_avail_event(VirtQueue *vq, uint16_t val)
         return;
     }
     pa = vq->vring.used + offsetof(VRingUsed, ring[vq->vring.num]);
-    stw_phys(pa, val);
+    stw_phys(&address_space_memory, pa, val);
 }
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable)

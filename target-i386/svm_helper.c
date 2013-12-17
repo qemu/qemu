@@ -89,13 +89,13 @@ static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
                                 const SegmentCache *sc)
 {
     CPUState *cs = ENV_GET_CPU(env);
-    stw_phys(addr + offsetof(struct vmcb_seg, selector),
+    stw_phys(cs->as, addr + offsetof(struct vmcb_seg, selector),
              sc->selector);
     stq_phys(cs->as, addr + offsetof(struct vmcb_seg, base),
              sc->base);
     stl_phys(cs->as, addr + offsetof(struct vmcb_seg, limit),
              sc->limit);
-    stw_phys(addr + offsetof(struct vmcb_seg, attrib),
+    stw_phys(cs->as, addr + offsetof(struct vmcb_seg, attrib),
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
 
