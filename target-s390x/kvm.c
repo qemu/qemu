@@ -626,6 +626,8 @@ static int s390_cpu_initial_reset(S390CPU *cpu)
     return 0;
 }
 
+#define SIGP_ORDER_MASK 0x000000ff
+
 static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
@@ -637,11 +639,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
-    order_code = run->s390_sieic.ipb >> 28;
-    if (order_code > 0) {
-        order_code = env->regs[order_code];
-    }
-    order_code += (run->s390_sieic.ipb & 0x0fff0000) >> 16;
+    order_code = decode_basedisp_rs(env, run->s390_sieic.ipb) & SIGP_ORDER_MASK;
 
     cpu_addr = env->regs[ipa1 & 0x0f];
     target_cpu = s390_cpu_addr2state(cpu_addr);
