@@ -661,7 +661,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
              env->vm_vmcb + offsetof(struct vmcb, save.dr7), env->dr[7]);
     stq_phys(cs->as,
              env->vm_vmcb + offsetof(struct vmcb, save.dr6), env->dr[6]);
-    stb_phys(env->vm_vmcb + offsetof(struct vmcb, save.cpl),
+    stb_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.cpl),
              env->hflags & HF_CPL_MASK);
 
     /* Reload the host state from vm_hsave */

@@ -1625,7 +1625,7 @@ static void watch_mem_write(void *opaque, hwaddr addr,
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_WRITE);
     switch (size) {
     case 1:
-        stb_phys(addr, val);
+        stb_phys(&address_space_memory, addr, val);
         break;
     case 2:
         stw_phys(&address_space_memory, addr, val);
@@ -2621,10 +2621,10 @@ void stl_be_phys(AddressSpace *as, hwaddr addr, uint32_t val)
 }
 
 /* XXX: optimize */
-void stb_phys(hwaddr addr, uint32_t val)
+void stb_phys(AddressSpace *as, hwaddr addr, uint32_t val)
 {
     uint8_t v = val;
-    cpu_physical_memory_write(addr, &v, 1);
+    address_space_rw(as, addr, &v, 1, 1);
 }
 
 /* warning: addr must be aligned */

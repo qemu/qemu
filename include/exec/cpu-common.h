@@ -90,7 +90,7 @@ uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr);
 uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr);
 uint64_t ldq_le_phys(AddressSpace *as, hwaddr addr);
 uint64_t ldq_be_phys(AddressSpace *as, hwaddr addr);
-void stb_phys(hwaddr addr, uint32_t val);
+void stb_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stw_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stw_be_phys(AddressSpace *as, hwaddr addr, uint32_t val);
 void stl_le_phys(AddressSpace *as, hwaddr addr, uint32_t val);

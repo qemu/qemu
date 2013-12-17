@@ -1012,7 +1012,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         {
             switch (size) {
             case 1:
-                stb_phys(addr, val);
+                stb_phys(cs->as, addr, val);
                 break;
             case 2:
                 stw_phys(cs->as, addr, val);
@@ -1031,7 +1031,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         {
             switch (size) {
             case 1:
-                stb_phys((hwaddr)addr
+                stb_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             case 2:
@@ -1811,7 +1811,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
         {
             switch (size) {
             case 1:
-                stb_phys(addr, val);
+                stb_phys(cs->as, addr, val);
                 break;
             case 2:
                 stw_phys(cs->as, addr, val);

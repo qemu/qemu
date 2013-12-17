@@ -63,27 +63,27 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
     stl_be_phys(cs->as, bdloc + 0x1C, bd->bi_bootflags);
     stl_be_phys(cs->as, bdloc + 0x20, bd->bi_ipaddr);
     for (i = 0; i < 6; i++) {
-        stb_phys(bdloc + 0x24 + i, bd->bi_enetaddr[i]);
+        stb_phys(cs->as, bdloc + 0x24 + i, bd->bi_enetaddr[i]);
     }
     stw_be_phys(cs->as, bdloc + 0x2A, bd->bi_ethspeed);
     stl_be_phys(cs->as, bdloc + 0x2C, bd->bi_intfreq);
     stl_be_phys(cs->as, bdloc + 0x30, bd->bi_busfreq);
     stl_be_phys(cs->as, bdloc + 0x34, bd->bi_baudrate);
     for (i = 0; i < 4; i++) {
-        stb_phys(bdloc + 0x38 + i, bd->bi_s_version[i]);
+        stb_phys(cs->as, bdloc + 0x38 + i, bd->bi_s_version[i]);
     }
     for (i = 0; i < 32; i++) {
-        stb_phys(bdloc + 0x3C + i, bd->bi_r_version[i]);
+        stb_phys(cs->as, bdloc + 0x3C + i, bd->bi_r_version[i]);
     }
     stl_be_phys(cs->as, bdloc + 0x5C, bd->bi_plb_busfreq);
     stl_be_phys(cs->as, bdloc + 0x60, bd->bi_pci_busfreq);
     for (i = 0; i < 6; i++) {
-        stb_phys(bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
+        stb_phys(cs->as, bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
     }
     n = 0x6A;
     if (flags & 0x00000001) {
         for (i = 0; i < 6; i++)
-            stb_phys(bdloc + n++, bd->bi_pci_enetaddr2[i]);
+            stb_phys(cs->as, bdloc + n++, bd->bi_pci_enetaddr2[i]);
     }
     stl_be_phys(cs->as, bdloc + n, bd->bi_opbfreq);
     n += 4;

@@ -74,7 +74,7 @@ static inline void
 vmw_shmem_st8(hwaddr addr, uint8_t value)
 {
     VMW_SHPRN("SHMEM store8: %" PRIx64 " (value 0x%X)", addr, value);
-    stb_phys(addr, value);
+    stb_phys(&address_space_memory, addr, value);
 }
 
 static inline uint32_t

@@ -144,12 +144,14 @@ static bool megasas_is_jbod(MegasasState *s)
 
 static void megasas_frame_set_cmd_status(unsigned long frame, uint8_t v)
 {
-    stb_phys(frame + offsetof(struct mfi_frame_header, cmd_status), v);
+    stb_phys(&address_space_memory,
+             frame + offsetof(struct mfi_frame_header, cmd_status), v);
 }
 
 static void megasas_frame_set_scsi_status(unsigned long frame, uint8_t v)
 {
-    stb_phys(frame + offsetof(struct mfi_frame_header, scsi_status), v);
+    stb_phys(&address_space_memory,
+             frame + offsetof(struct mfi_frame_header, scsi_status), v);
 }
 
 /*

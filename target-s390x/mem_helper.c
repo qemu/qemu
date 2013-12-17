@@ -985,7 +985,7 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
             mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
             break;
         }
-        stb_phys(dest + i, ldub_phys(cs->as, src + i));
+        stb_phys(cs->as, dest + i, ldub_phys(cs->as, src + i));
     }
 
     return cc;

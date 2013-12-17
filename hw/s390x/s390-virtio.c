@@ -91,7 +91,7 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
         return -EINVAL;
     }
     virtio_reset(dev->vdev);
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
+    stb_phys(&address_space_memory, dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
 

@@ -359,15 +359,21 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     virtio_reset(dev->vdev);
 
     /* Sync dev space */
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_TYPE, dev->vdev->device_id);
+    stb_phys(&address_space_memory,
+             dev->dev_offs + VIRTIO_DEV_OFFS_TYPE, dev->vdev->device_id);
 
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ, s390_virtio_device_num_vq(dev));
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_FEATURE_LEN, dev->feat_len);
+    stb_phys(&address_space_memory,
+             dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ,
+             s390_virtio_device_num_vq(dev));
+    stb_phys(&address_space_memory,
+             dev->dev_offs + VIRTIO_DEV_OFFS_FEATURE_LEN, dev->feat_len);
 
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_CONFIG_LEN, dev->vdev->config_len);
+    stb_phys(&address_space_memory,
+             dev->dev_offs + VIRTIO_DEV_OFFS_CONFIG_LEN, dev->vdev->config_len);
 
     num_vq = s390_virtio_device_num_vq(dev);
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ, num_vq);
+    stb_phys(&address_space_memory,
+             dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ, num_vq);
 
     /* Sync virtqueues */
     for (i = 0; i < num_vq; i++) {

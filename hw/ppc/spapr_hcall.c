@@ -370,7 +370,7 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
 
     tmp = ldub_phys(cs->as, env->vpa_addr + VPA_SHARED_PROC_OFFSET);
     tmp |= VPA_SHARED_PROC_VAL;
-    stb_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
+    stb_phys(cs->as, env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
 
     return H_SUCCESS;
 }
@@ -567,7 +567,7 @@ static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     switch (size) {
     case 1:
-        stb_phys(addr, val);
+        stb_phys(cs->as, addr, val);
         return H_SUCCESS;
     case 2:
         stw_phys(cs->as, addr, val);
@@ -632,7 +632,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         }
         switch (esize) {
         case 0:
-            stb_phys(dst, tmp);
+            stb_phys(cs->as, dst, tmp);
             break;
         case 1:
             stw_phys(cs->as, dst, tmp);
