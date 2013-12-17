@@ -36,4 +36,8 @@ extern const VMStateDescription vmstate_ptimer;
     .offset     = vmstate_offset_pointer(_state, _field, ptimer_state), \
 }
 
+#define VMSTATE_PTIMER_ARRAY(_f, _s, _n)                                \
+    VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, 0,                   \
+                                       vmstate_ptimer, ptimer_state)
+
 #endif
