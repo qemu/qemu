@@ -1080,6 +1080,73 @@ static void handle_rbit(DisasContext *s, unsigned int sf,
     }
 }
 
+/* C5.6.149 REV with sf==1, opcode==3 ("REV64") */
+static void handle_rev64(DisasContext *s, unsigned int sf,
+                         unsigned int rn, unsigned int rd)
+{
+    if (!sf) {
+        unallocated_encoding(s);
+        return;
+    }
+    tcg_gen_bswap64_i64(cpu_reg(s, rd), cpu_reg(s, rn));
+}
+
+/* C5.6.149 REV with sf==0, opcode==2
+ * C5.6.151 REV32 (sf==1, opcode==2)
+ */
+static void handle_rev32(DisasContext *s, unsigned int sf,
+                         unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_rd = cpu_reg(s, rd);
+
+    if (sf) {
+        TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+        TCGv_i64 tcg_rn = read_cpu_reg(s, rn, sf);
+
+        /* bswap32_i64 requires zero high word */
+        tcg_gen_ext32u_i64(tcg_tmp, tcg_rn);
+        tcg_gen_bswap32_i64(tcg_rd, tcg_tmp);
+        tcg_gen_shri_i64(tcg_tmp, tcg_rn, 32);
+        tcg_gen_bswap32_i64(tcg_tmp, tcg_tmp);
+        tcg_gen_concat32_i64(tcg_rd, tcg_rd, tcg_tmp);
+
+        tcg_temp_free_i64(tcg_tmp);
+    } else {
+        tcg_gen_ext32u_i64(tcg_rd, cpu_reg(s, rn));
+        tcg_gen_bswap32_i64(tcg_rd, tcg_rd);
+    }
+}
+
+/* C5.6.150 REV16 (opcode==1) */
+static void handle_rev16(DisasContext *s, unsigned int sf,
+                         unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_rd = cpu_reg(s, rd);
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+    TCGv_i64 tcg_rn = read_cpu_reg(s, rn, sf);
+
+    tcg_gen_andi_i64(tcg_tmp, tcg_rn, 0xffff);
+    tcg_gen_bswap16_i64(tcg_rd, tcg_tmp);
+
+    tcg_gen_shri_i64(tcg_tmp, tcg_rn, 16);
+    tcg_gen_andi_i64(tcg_tmp, tcg_tmp, 0xffff);
+    tcg_gen_bswap16_i64(tcg_tmp, tcg_tmp);
+    tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, 16, 16);
+
+    if (sf) {
+        tcg_gen_shri_i64(tcg_tmp, tcg_rn, 32);
+        tcg_gen_andi_i64(tcg_tmp, tcg_tmp, 0xffff);
+        tcg_gen_bswap16_i64(tcg_tmp, tcg_tmp);
+        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, 32, 16);
+
+        tcg_gen_shri_i64(tcg_tmp, tcg_rn, 48);
+        tcg_gen_bswap16_i64(tcg_tmp, tcg_tmp);
+        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, 48, 16);
+    }
+
+    tcg_temp_free_i64(tcg_tmp);
+}
+
 /* C3.5.7 Data-processing (1 source)
  *   31  30  29  28             21 20     16 15    10 9    5 4    0
  * +----+---+---+-----------------+---------+--------+------+------+
@@ -1105,9 +1172,13 @@ static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
         handle_rbit(s, sf, rn, rd);
         break;
     case 1: /* REV16 */
+        handle_rev16(s, sf, rn, rd);
+        break;
     case 2: /* REV32 */
+        handle_rev32(s, sf, rn, rd);
+        break;
     case 3: /* REV64 */
-        unsupported_encoding(s, insn);
+        handle_rev64(s, sf, rn, rd);
         break;
     case 4: /* CLZ */
         handle_clz(s, sf, rn, rd);
