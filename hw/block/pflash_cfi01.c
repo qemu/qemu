@@ -193,9 +193,20 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
     case 0x60: /* Block /un)lock */
     case 0x70: /* Status Register */
     case 0xe8: /* Write block */
-        /* Status register read */
+        /* Status register read.  Return status from each device in
+         * bank.
+         */
         ret = pfl->status;
-        if (width > 2) {
+        if (pfl->device_width && width > pfl->device_width) {
+            int shift = pfl->device_width * 8;
+            while (shift + pfl->device_width * 8 <= width * 8) {
+                ret |= pfl->status << shift;
+                shift += pfl->device_width * 8;
+            }
+        } else if (!pfl->device_width && width > 2) {
+            /* Handle 32 bit flash cases where device width is not
+             * set. (Existing behavior before device width added.)
+             */
             ret |= pfl->status << 16;
         }
         DPRINTF("%s: status %x\n", __func__, ret);
