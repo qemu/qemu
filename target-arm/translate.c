@@ -4592,6 +4592,8 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VREV16 2
 #define NEON_2RM_VPADDL 4
 #define NEON_2RM_VPADDL_U 5
+#define NEON_2RM_AESE 6 /* Includes AESD */
+#define NEON_2RM_AESMC 7 /* Includes AESIMC */
 #define NEON_2RM_VCLS 8
 #define NEON_2RM_VCLZ 9
 #define NEON_2RM_VCNT 10
@@ -4649,6 +4651,8 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VREV16] = 0x1,
     [NEON_2RM_VPADDL] = 0x7,
     [NEON_2RM_VPADDL_U] = 0x7,
+    [NEON_2RM_AESE] = 0x1,
+    [NEON_2RM_AESMC] = 0x1,
     [NEON_2RM_VCLS] = 0x7,
     [NEON_2RM_VCLZ] = 0x7,
     [NEON_2RM_VCNT] = 0x1,
@@ -6181,6 +6185,28 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_gen_shri_i32(tmp3, tmp2, 16);
                     gen_helper_neon_fcvt_f16_to_f32(cpu_F0s, tmp3, cpu_env);
                     tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, 3));
+                    tcg_temp_free_i32(tmp2);
+                    tcg_temp_free_i32(tmp3);
+                    break;
+                case NEON_2RM_AESE: case NEON_2RM_AESMC:
+                    if (!arm_feature(env, ARM_FEATURE_V8_AES)
+                        || ((rm | rd) & 1)) {
+                        return 1;
+                    }
+                    tmp = tcg_const_i32(rd);
+                    tmp2 = tcg_const_i32(rm);
+
+                     /* Bit 6 is the lowest opcode bit; it distinguishes between
+                      * encryption (AESE/AESMC) and decryption (AESD/AESIMC)
+                      */
+                    tmp3 = tcg_const_i32(extract32(insn, 6, 1));
+
+                    if (op == NEON_2RM_AESE) {
+                        gen_helper_crypto_aese(cpu_env, tmp, tmp2, tmp3);
+                    } else {
+                        gen_helper_crypto_aesmc(cpu_env, tmp, tmp2, tmp3);
+                    }
+                    tcg_temp_free_i32(tmp);
                     tcg_temp_free_i32(tmp2);
                     tcg_temp_free_i32(tmp3);
                     break;
