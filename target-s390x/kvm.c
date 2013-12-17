@@ -642,18 +642,18 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     }
 
     switch (order_code) {
-        case SIGP_RESTART:
-            r = kvm_s390_cpu_restart(target_cpu);
-            break;
-        case SIGP_SET_ARCH:
-            /* make the caller panic */
-            return -1;
-        case SIGP_INITIAL_CPU_RESET:
-            r = s390_cpu_initial_reset(target_cpu);
-            break;
-        default:
-            fprintf(stderr, "KVM: unknown SIGP: 0x%x\n", order_code);
-            break;
+    case SIGP_RESTART:
+        r = kvm_s390_cpu_restart(target_cpu);
+        break;
+    case SIGP_SET_ARCH:
+        /* make the caller panic */
+        return -1;
+    case SIGP_INITIAL_CPU_RESET:
+        r = s390_cpu_initial_reset(target_cpu);
+        break;
+    default:
+        fprintf(stderr, "KVM: unknown SIGP: 0x%x\n", order_code);
+        break;
     }
 
 out:
