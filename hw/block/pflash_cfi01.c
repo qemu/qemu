@@ -40,6 +40,7 @@
 #include "hw/block/flash.h"
 #include "block/block.h"
 #include "qemu/timer.h"
+#include "qemu/bitops.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/sysbus.h"
@@ -72,6 +73,7 @@ struct pflash_t {
     uint32_t nb_blocs;
     uint64_t sector_len;
     uint8_t bank_width;
+    uint8_t device_width; /* If 0, device width not specified. */
     uint8_t be;
     uint8_t wcycle; /* if 0, the flash is read normally */
     int ro;
@@ -379,6 +381,14 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
 
             break;
         case 0xe8:
+            /* Mask writeblock size based on device width, or bank width if
+             * device width not specified.
+             */
+            if (pfl->device_width) {
+                value = extract32(value, 0, pfl->device_width * 8);
+            } else {
+                value = extract32(value, 0, pfl->bank_width * 8);
+            }
             DPRINTF("%s: block write of %x bytes\n", __func__, value);
             pfl->counter = value;
             pfl->wcycle++;
@@ -708,6 +718,7 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT64("sector-length", struct pflash_t, sector_len, 0),
     DEFINE_PROP_UINT8("width", struct pflash_t, bank_width, 0),
+    DEFINE_PROP_UINT8("device-width", struct pflash_t, device_width, 0),
     DEFINE_PROP_UINT8("big-endian", struct pflash_t, be, 0),
     DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
     DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
