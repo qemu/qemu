@@ -1077,6 +1077,20 @@ static void handle_div(DisasContext *s, bool is_signed, unsigned int sf,
     }
 }
 
+/* C5.6.115 LSLV, C5.6.118 LSRV, C5.6.17 ASRV, C5.6.154 RORV */
+static void handle_shift_reg(DisasContext *s,
+                             enum a64_shift_type shift_type, unsigned int sf,
+                             unsigned int rm, unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_shift = tcg_temp_new_i64();
+    TCGv_i64 tcg_rd = cpu_reg(s, rd);
+    TCGv_i64 tcg_rn = read_cpu_reg(s, rn, sf);
+
+    tcg_gen_andi_i64(tcg_shift, cpu_reg(s, rm), sf ? 63 : 31);
+    shift_reg(tcg_rd, tcg_rn, sf, shift_type, tcg_shift);
+    tcg_temp_free_i64(tcg_shift);
+}
+
 /* C3.5.8 Data-processing (2 source)
  *   31   30  29 28             21 20  16 15    10 9    5 4    0
  * +----+---+---+-----------------+------+--------+------+------+
@@ -1105,9 +1119,17 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
         handle_div(s, true, sf, rm, rn, rd);
         break;
     case 8: /* LSLV */
+        handle_shift_reg(s, A64_SHIFT_TYPE_LSL, sf, rm, rn, rd);
+        break;
     case 9: /* LSRV */
+        handle_shift_reg(s, A64_SHIFT_TYPE_LSR, sf, rm, rn, rd);
+        break;
     case 10: /* ASRV */
+        handle_shift_reg(s, A64_SHIFT_TYPE_ASR, sf, rm, rn, rd);
+        break;
     case 11: /* RORV */
+        handle_shift_reg(s, A64_SHIFT_TYPE_ROR, sf, rm, rn, rd);
+        break;
     case 16:
     case 17:
     case 18:
