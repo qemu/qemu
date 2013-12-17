@@ -74,6 +74,7 @@ struct pflash_t {
     uint64_t sector_len;
     uint8_t bank_width;
     uint8_t device_width; /* If 0, device width not specified. */
+    uint8_t max_device_width;  /* max device width in bytes */
     uint8_t be;
     uint8_t wcycle; /* if 0, the flash is read normally */
     int ro;
@@ -635,6 +636,13 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         pfl->ro = 0;
     }
 
+    /* Default to devices being used at their maximum device width. This was
+     * assumed before the device_width support was added.
+     */
+    if (!pfl->max_device_width) {
+        pfl->max_device_width = pfl->device_width;
+    }
+
     pfl->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
     pfl->wcycle = 0;
     pfl->cmd = 0;
@@ -728,8 +736,25 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT64("sector-length", struct pflash_t, sector_len, 0),
+    /* width here is the overall width of this QEMU device in bytes.
+     * The QEMU device may be emulating a number of flash devices
+     * wired up in parallel; the width of each individual flash
+     * device should be specified via device-width. If the individual
+     * devices have a maximum width which is greater than the width
+     * they are being used for, this maximum width should be set via
+     * max-device-width (which otherwise defaults to device-width).
+     * So for instance a 32-bit wide QEMU flash device made from four
+     * 16-bit flash devices used in 8-bit wide mode would be configured
+     * with width = 4, device-width = 1, max-device-width = 2.
+     *
+     * If device-width is not specified we default to backwards
+     * compatible behaviour which is a bad emulation of two
+     * 16 bit devices making up a 32 bit wide QEMU device. This
+     * is deprecated for new uses of this device.
+     */
     DEFINE_PROP_UINT8("width", struct pflash_t, bank_width, 0),
     DEFINE_PROP_UINT8("device-width", struct pflash_t, device_width, 0),
+    DEFINE_PROP_UINT8("max-device-width", struct pflash_t, max_device_width, 0),
     DEFINE_PROP_UINT8("big-endian", struct pflash_t, be, 0),
     DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
     DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
