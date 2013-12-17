@@ -1044,10 +1044,58 @@ static void disas_cond_select(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Data-processing (1 source) */
+static void handle_clz(DisasContext *s, unsigned int sf,
+                       unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_rd, tcg_rn;
+    tcg_rd = cpu_reg(s, rd);
+    tcg_rn = cpu_reg(s, rn);
+
+    if (sf) {
+        gen_helper_clz64(tcg_rd, tcg_rn);
+    } else {
+        TCGv_i32 tcg_tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(tcg_tmp32, tcg_rn);
+        gen_helper_clz(tcg_tmp32, tcg_tmp32);
+        tcg_gen_extu_i32_i64(tcg_rd, tcg_tmp32);
+        tcg_temp_free_i32(tcg_tmp32);
+    }
+}
+
+/* C3.5.7 Data-processing (1 source)
+ *   31  30  29  28             21 20     16 15    10 9    5 4    0
+ * +----+---+---+-----------------+---------+--------+------+------+
+ * | sf | 1 | S | 1 1 0 1 0 1 1 0 | opcode2 | opcode |  Rn  |  Rd  |
+ * +----+---+---+-----------------+---------+--------+------+------+
+ */
 static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, opcode, rn, rd;
+
+    if (extract32(insn, 29, 1) || extract32(insn, 16, 5)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    sf = extract32(insn, 31, 1);
+    opcode = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+
+    switch (opcode) {
+    case 0: /* RBIT */
+    case 1: /* REV16 */
+    case 2: /* REV32 */
+    case 3: /* REV64 */
+        unsupported_encoding(s, insn);
+        break;
+    case 4: /* CLZ */
+        handle_clz(s, sf, rn, rd);
+        break;
+    case 5: /* CLS */
+        unsupported_encoding(s, insn);
+        break;
+    }
 }
 
 static void handle_div(DisasContext *s, bool is_signed, unsigned int sf,
