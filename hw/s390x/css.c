@@ -677,7 +677,8 @@ static void css_update_chnmon(SubchDev *sch)
         uint16_t count;
 
         offset = sch->curr_status.pmcw.mbi << 5;
-        count = lduw_phys(channel_subsys->chnmon_area + offset);
+        count = lduw_phys(&address_space_memory,
+                          channel_subsys->chnmon_area + offset);
         count++;
         stw_phys(channel_subsys->chnmon_area + offset, count);
     }

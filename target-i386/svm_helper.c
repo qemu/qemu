@@ -104,10 +104,11 @@ static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
     CPUState *cs = ENV_GET_CPU(env);
     unsigned int flags;
 
-    sc->selector = lduw_phys(addr + offsetof(struct vmcb_seg, selector));
+    sc->selector = lduw_phys(cs->as,
+                             addr + offsetof(struct vmcb_seg, selector));
     sc->base = ldq_phys(cs->as, addr + offsetof(struct vmcb_seg, base));
     sc->limit = ldl_phys(cs->as, addr + offsetof(struct vmcb_seg, limit));
-    flags = lduw_phys(addr + offsetof(struct vmcb_seg, attrib));
+    flags = lduw_phys(cs->as, addr + offsetof(struct vmcb_seg, attrib));
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 }
 
@@ -180,16 +181,16 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
        vmcb in svm mode */
     env->intercept = ldq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       control.intercept));
-    env->intercept_cr_read = lduw_phys(env->vm_vmcb +
+    env->intercept_cr_read = lduw_phys(cs->as, env->vm_vmcb +
                                        offsetof(struct vmcb,
                                                 control.intercept_cr_read));
-    env->intercept_cr_write = lduw_phys(env->vm_vmcb +
+    env->intercept_cr_write = lduw_phys(cs->as, env->vm_vmcb +
                                         offsetof(struct vmcb,
                                                  control.intercept_cr_write));
-    env->intercept_dr_read = lduw_phys(env->vm_vmcb +
+    env->intercept_dr_read = lduw_phys(cs->as, env->vm_vmcb +
                                        offsetof(struct vmcb,
                                                 control.intercept_dr_read));
-    env->intercept_dr_write = lduw_phys(env->vm_vmcb +
+    env->intercept_dr_write = lduw_phys(cs->as, env->vm_vmcb +
                                         offsetof(struct vmcb,
                                                  control.intercept_dr_write));
     env->intercept_exceptions = ldl_phys(cs->as, env->vm_vmcb +
@@ -561,7 +562,7 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
                                  offsetof(struct vmcb, control.iopm_base_pa));
         uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
 
-        if (lduw_phys(addr + port / 8) & (mask << (port & 7))) {
+        if (lduw_phys(cs->as, addr + port / 8) & (mask << (port & 7))) {
             /* next env->eip */
             stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
                      env->eip + next_eip_addend);

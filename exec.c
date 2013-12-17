@@ -1613,7 +1613,7 @@ static uint64_t watch_mem_read(void *opaque, hwaddr addr,
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_READ);
     switch (size) {
     case 1: return ldub_phys(&address_space_memory, addr);
-    case 2: return lduw_phys(addr);
+    case 2: return lduw_phys(&address_space_memory, addr);
     case 4: return ldl_phys(&address_space_memory, addr);
     default: abort();
     }
@@ -2473,7 +2473,7 @@ uint32_t ldub_phys(AddressSpace *as, hwaddr addr)
 }
 
 /* warning: addr must be aligned */
-static inline uint32_t lduw_phys_internal(hwaddr addr,
+static inline uint32_t lduw_phys_internal(AddressSpace *as, hwaddr addr,
                                           enum device_endian endian)
 {
     uint8_t *ptr;
@@ -2482,7 +2482,7 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
     hwaddr l = 2;
     hwaddr addr1;
 
-    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+    mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
@@ -2516,19 +2516,19 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
     return val;
 }
 
-uint32_t lduw_phys(hwaddr addr)
+uint32_t lduw_phys(AddressSpace *as, hwaddr addr)
 {
-    return lduw_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
+    return lduw_phys_internal(as, addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint32_t lduw_le_phys(hwaddr addr)
+uint32_t lduw_le_phys(AddressSpace *as, hwaddr addr)
 {
-    return lduw_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
+    return lduw_phys_internal(as, addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint32_t lduw_be_phys(hwaddr addr)
+uint32_t lduw_be_phys(AddressSpace *as, hwaddr addr)
 {
-    return lduw_phys_internal(addr, DEVICE_BIG_ENDIAN);
+    return lduw_phys_internal(as, addr, DEVICE_BIG_ENDIAN);
 }
 
 /* warning: addr must be aligned. The ram page is not masked as dirty

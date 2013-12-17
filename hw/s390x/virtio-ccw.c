@@ -265,9 +265,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             info.queue = ldq_phys(&address_space_memory, ccw.cda);
             info.align = ldl_phys(&address_space_memory,
                                   ccw.cda + sizeof(info.queue));
-            info.index = lduw_phys(ccw.cda + sizeof(info.queue)
+            info.index = lduw_phys(&address_space_memory,
+                                   ccw.cda + sizeof(info.queue)
                                    + sizeof(info.align));
-            info.num = lduw_phys(ccw.cda + sizeof(info.queue)
+            info.num = lduw_phys(&address_space_memory,
+                                 ccw.cda + sizeof(info.queue)
                                  + sizeof(info.align)
                                  + sizeof(info.index));
             ret = virtio_ccw_set_vqs(sch, info.queue, info.align, info.index,
@@ -469,7 +471,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            vq_config.index = lduw_phys(ccw.cda);
+            vq_config.index = lduw_phys(&address_space_memory, ccw.cda);
             vq_config.num_max = virtio_queue_get_num(vdev,
                                                      vq_config.index);
             stw_phys(ccw.cda + sizeof(vq_config.index), vq_config.num_max);

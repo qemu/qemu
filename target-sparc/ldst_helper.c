@@ -612,7 +612,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             ret = ldub_phys(cs->as, addr);
             break;
         case 2:
-            ret = lduw_phys(addr);
+            ret = lduw_phys(cs->as, addr);
             break;
         default:
         case 4:
@@ -630,7 +630,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                             | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 2:
-            ret = lduw_phys((hwaddr)addr
+            ret = lduw_phys(cs->as, (hwaddr)addr
                             | ((hwaddr)(asi & 0xf) << 32));
             break;
         default:
@@ -1442,7 +1442,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                 ret = ldub_phys(cs->as, addr);
                 break;
             case 2:
-                ret = lduw_phys(addr);
+                ret = lduw_phys(cs->as, addr);
                 break;
             case 4:
                 ret = ldl_phys(cs->as, addr);

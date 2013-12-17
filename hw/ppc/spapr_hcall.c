@@ -355,7 +355,7 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
     }
     /* FIXME: bounds check the address */
 
-    size = lduw_be_phys(vpa + 0x4);
+    size = lduw_be_phys(cs->as, vpa + 0x4);
 
     if (size < VPA_MIN_SIZE) {
         return H_PARAMETER;
@@ -544,7 +544,7 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         args[0] = ldub_phys(cs->as, addr);
         return H_SUCCESS;
     case 2:
-        args[0] = lduw_phys(addr);
+        args[0] = lduw_phys(cs->as, addr);
         return H_SUCCESS;
     case 4:
         args[0] = ldl_phys(cs->as, addr);
@@ -614,7 +614,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             tmp = ldub_phys(cs->as, src);
             break;
         case 1:
-            tmp = lduw_phys(src);
+            tmp = lduw_phys(cs->as, src);
             break;
         case 2:
             tmp = ldl_phys(cs->as, src);

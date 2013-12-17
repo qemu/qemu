@@ -193,28 +193,28 @@ void helper_rsm(CPUX86State *env)
     for (i = 0; i < 6; i++) {
         offset = 0x7e00 + i * 16;
         cpu_x86_load_seg_cache(env, i,
-                               lduw_phys(sm_state + offset),
+                               lduw_phys(cs->as, sm_state + offset),
                                ldq_phys(cs->as, sm_state + offset + 8),
                                ldl_phys(cs->as, sm_state + offset + 4),
-                               (lduw_phys(sm_state + offset + 2) &
+                               (lduw_phys(cs->as, sm_state + offset + 2) &
                                 0xf0ff) << 8);
     }
 
     env->gdt.base = ldq_phys(cs->as, sm_state + 0x7e68);
     env->gdt.limit = ldl_phys(cs->as, sm_state + 0x7e64);
 
-    env->ldt.selector = lduw_phys(sm_state + 0x7e70);
+    env->ldt.selector = lduw_phys(cs->as, sm_state + 0x7e70);
     env->ldt.base = ldq_phys(cs->as, sm_state + 0x7e78);
     env->ldt.limit = ldl_phys(cs->as, sm_state + 0x7e74);
-    env->ldt.flags = (lduw_phys(sm_state + 0x7e72) & 0xf0ff) << 8;
+    env->ldt.flags = (lduw_phys(cs->as, sm_state + 0x7e72) & 0xf0ff) << 8;
 
     env->idt.base = ldq_phys(cs->as, sm_state + 0x7e88);
     env->idt.limit = ldl_phys(cs->as, sm_state + 0x7e84);
 
-    env->tr.selector = lduw_phys(sm_state + 0x7e90);
+    env->tr.selector = lduw_phys(cs->as, sm_state + 0x7e90);
     env->tr.base = ldq_phys(cs->as, sm_state + 0x7e98);
     env->tr.limit = ldl_phys(cs->as, sm_state + 0x7e94);
-    env->tr.flags = (lduw_phys(sm_state + 0x7e92) & 0xf0ff) << 8;
+    env->tr.flags = (lduw_phys(cs->as, sm_state + 0x7e92) & 0xf0ff) << 8;
 
     env->regs[R_EAX] = ldq_phys(cs->as, sm_state + 0x7ff8);
     env->regs[R_ECX] = ldq_phys(cs->as, sm_state + 0x7ff0);
