@@ -82,11 +82,6 @@
 #define ICPT_CPU_STOP                   0x28
 #define ICPT_IO                         0x40
 
-#define SIGP_RESTART                    0x06
-#define SIGP_INITIAL_CPU_RESET          0x0b
-#define SIGP_STORE_STATUS_ADDR          0x0e
-#define SIGP_SET_ARCH                   0x12
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
