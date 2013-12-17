@@ -1050,10 +1050,78 @@ static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Data-processing (2 source) */
+static void handle_div(DisasContext *s, bool is_signed, unsigned int sf,
+                       unsigned int rm, unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_n, tcg_m, tcg_rd;
+    tcg_rd = cpu_reg(s, rd);
+
+    if (!sf && is_signed) {
+        tcg_n = new_tmp_a64(s);
+        tcg_m = new_tmp_a64(s);
+        tcg_gen_ext32s_i64(tcg_n, cpu_reg(s, rn));
+        tcg_gen_ext32s_i64(tcg_m, cpu_reg(s, rm));
+    } else {
+        tcg_n = read_cpu_reg(s, rn, sf);
+        tcg_m = read_cpu_reg(s, rm, sf);
+    }
+
+    if (is_signed) {
+        gen_helper_sdiv64(tcg_rd, tcg_n, tcg_m);
+    } else {
+        gen_helper_udiv64(tcg_rd, tcg_n, tcg_m);
+    }
+
+    if (!sf) { /* zero extend final result */
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+}
+
+/* C3.5.8 Data-processing (2 source)
+ *   31   30  29 28             21 20  16 15    10 9    5 4    0
+ * +----+---+---+-----------------+------+--------+------+------+
+ * | sf | 0 | S | 1 1 0 1 0 1 1 0 |  Rm  | opcode |  Rn  |  Rd  |
+ * +----+---+---+-----------------+------+--------+------+------+
+ */
 static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, rm, opcode, rn, rd;
+    sf = extract32(insn, 31, 1);
+    rm = extract32(insn, 16, 5);
+    opcode = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+
+    if (extract32(insn, 29, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 2: /* UDIV */
+        handle_div(s, false, sf, rm, rn, rd);
+        break;
+    case 3: /* SDIV */
+        handle_div(s, true, sf, rm, rn, rd);
+        break;
+    case 8: /* LSLV */
+    case 9: /* LSRV */
+    case 10: /* ASRV */
+    case 11: /* RORV */
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23: /* CRC32 */
+        unsupported_encoding(s, insn);
+        break;
+    default:
+        unallocated_encoding(s);
+        break;
+    }
 }
 
 /* C3.5 Data processing - register */
