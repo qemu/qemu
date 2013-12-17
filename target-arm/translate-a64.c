@@ -160,16 +160,71 @@ static void unallocated_encoding(DisasContext *s)
         unallocated_encoding(s);                                         \
     } while (0);
 
+static void init_tmp_a64_array(DisasContext *s)
+{
+#ifdef CONFIG_DEBUG_TCG
+    int i;
+    for (i = 0; i < ARRAY_SIZE(s->tmp_a64); i++) {
+        TCGV_UNUSED_I64(s->tmp_a64[i]);
+    }
+#endif
+    s->tmp_a64_count = 0;
+}
+
+static void free_tmp_a64(DisasContext *s)
+{
+    int i;
+    for (i = 0; i < s->tmp_a64_count; i++) {
+        tcg_temp_free_i64(s->tmp_a64[i]);
+    }
+    init_tmp_a64_array(s);
+}
+
+static TCGv_i64 new_tmp_a64(DisasContext *s)
+{
+    assert(s->tmp_a64_count < TMP_A64_MAX);
+    return s->tmp_a64[s->tmp_a64_count++] = tcg_temp_new_i64();
+}
+
+static TCGv_i64 new_tmp_a64_zero(DisasContext *s)
+{
+    TCGv_i64 t = new_tmp_a64(s);
+    tcg_gen_movi_i64(t, 0);
+    return t;
+}
+
+static TCGv_i64 cpu_reg(DisasContext *s, int reg)
+{
+    if (reg == 31) {
+        return new_tmp_a64_zero(s);
+    } else {
+        return cpu_X[reg];
+    }
+}
+
 /*
  * the instruction disassembly implemented here matches
  * the instruction encoding classifications in chapter 3 (C3)
  * of the ARM Architecture Reference Manual (DDI0487A_a)
  */
 
-/* Unconditional branch (immediate) */
+/* C3.2.7 Unconditional branch (immediate)
+ *   31  30       26 25                                  0
+ * +----+-----------+-------------------------------------+
+ * | op | 0 0 1 0 1 |                 imm26               |
+ * +----+-----------+-------------------------------------+
+ */
 static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    uint64_t addr = s->pc + sextract32(insn, 0, 26) * 4 - 4;
+
+    if (insn & (1 << 31)) {
+        /* C5.6.26 BL Branch with link */
+        tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+    }
+
+    /* C5.6.20 B Branch / C5.6.26 BL Branch with link */
+    gen_goto_tb(s, 0, addr);
 }
 
 /* Compare & branch (immediate) */
@@ -651,6 +706,9 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
         assert(FALSE); /* all 15 cases should be handled above */
         break;
     }
+
+    /* if we allocated any temporaries, free them here */
+    free_tmp_a64(s);
 }
 
 void gen_intermediate_code_internal_a64(ARMCPU *cpu,
@@ -690,6 +748,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->vfp_enabled = 0;
     dc->vec_len = 0;
     dc->vec_stride = 0;
+
+    init_tmp_a64_array(dc);
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     lj = -1;
