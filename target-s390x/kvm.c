@@ -588,6 +588,14 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
     return r;
 }
 
+static int kvm_s390_cpu_start(S390CPU *cpu)
+{
+    s390_add_running_cpu(cpu);
+    qemu_cpu_kick(CPU(cpu));
+    DPRINTF("DONE: KVM cpu start: %p\n", &cpu->env);
+    return 0;
+}
+
 int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
@@ -642,6 +650,9 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     }
 
     switch (order_code) {
+    case SIGP_START:
+        r = kvm_s390_cpu_start(target_cpu);
+        break;
     case SIGP_RESTART:
         r = kvm_s390_cpu_restart(target_cpu);
         break;
