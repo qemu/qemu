@@ -704,10 +704,55 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Extract */
+/* C3.4.3 Extract
+ *   31  30  29 28         23 22   21  20  16 15    10 9    5 4    0
+ * +----+------+-------------+---+----+------+--------+------+------+
+ * | sf | op21 | 1 0 0 1 1 1 | N | o0 |  Rm  |  imms  |  Rn  |  Rd  |
+ * +----+------+-------------+---+----+------+--------+------+------+
+ */
 static void disas_extract(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, n, rm, imm, rn, rd, bitsize, op21, op0;
+
+    sf = extract32(insn, 31, 1);
+    n = extract32(insn, 22, 1);
+    rm = extract32(insn, 16, 5);
+    imm = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+    op21 = extract32(insn, 29, 2);
+    op0 = extract32(insn, 21, 1);
+    bitsize = sf ? 64 : 32;
+
+    if (sf != n || op21 || op0 || imm >= bitsize) {
+        unallocated_encoding(s);
+    } else {
+        TCGv_i64 tcg_rd, tcg_rm, tcg_rn;
+
+        tcg_rd = cpu_reg(s, rd);
+
+        if (imm) {
+            /* OPTME: we can special case rm==rn as a rotate */
+            tcg_rm = read_cpu_reg(s, rm, sf);
+            tcg_rn = read_cpu_reg(s, rn, sf);
+            tcg_gen_shri_i64(tcg_rm, tcg_rm, imm);
+            tcg_gen_shli_i64(tcg_rn, tcg_rn, bitsize - imm);
+            tcg_gen_or_i64(tcg_rd, tcg_rm, tcg_rn);
+            if (!sf) {
+                tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+            }
+        } else {
+            /* tcg shl_i32/shl_i64 is undefined for 32/64 bit shifts,
+             * so an extract from bit 0 is a special case.
+             */
+            if (sf) {
+                tcg_gen_mov_i64(tcg_rd, cpu_reg(s, rm));
+            } else {
+                tcg_gen_ext32u_i64(tcg_rd, cpu_reg(s, rm));
+            }
+        }
+
+    }
 }
 
 /* C3.4 Data processing - immediate */
