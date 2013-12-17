@@ -20,9 +20,13 @@
 
 #include "cpu.h"
 
+#include "hw/timer/digic-timer.h"
+
 #define TYPE_DIGIC "digic"
 
 #define DIGIC(obj) OBJECT_CHECK(DigicState, (obj), TYPE_DIGIC)
+
+#define DIGIC4_NB_TIMERS 3
 
 typedef struct DigicState {
     /*< private >*/
@@ -30,6 +34,8 @@ typedef struct DigicState {
     /*< public >*/
 
     ARMCPU cpu;
+
+    DigicTimerState timer[DIGIC4_NB_TIMERS];
 } DigicState;
 
 #endif /* HW_ARM_DIGIC_H */

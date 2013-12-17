@@ -22,18 +22,35 @@
 
 #include "hw/arm/digic.h"
 
+#define DIGIC4_TIMER_BASE(n)    (0xc0210000 + (n) * 0x100)
+
 static void digic_init(Object *obj)
 {
     DigicState *s = DIGIC(obj);
+    DeviceState *dev;
+    int i;
 
     object_initialize(&s->cpu, sizeof(s->cpu), "arm946-" TYPE_ARM_CPU);
     object_property_add_child(obj, "cpu", OBJECT(&s->cpu), NULL);
+
+    for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
+#define DIGIC_TIMER_NAME_MLEN    11
+        char name[DIGIC_TIMER_NAME_MLEN];
+
+        object_initialize(&s->timer[i], sizeof(s->timer[i]), TYPE_DIGIC_TIMER);
+        dev = DEVICE(&s->timer[i]);
+        qdev_set_parent_bus(dev, sysbus_get_default());
+        snprintf(name, DIGIC_TIMER_NAME_MLEN, "timer[%d]", i);
+        object_property_add_child(obj, name, OBJECT(&s->timer[i]), NULL);
+    }
 }
 
 static void digic_realize(DeviceState *dev, Error **errp)
 {
     DigicState *s = DIGIC(dev);
     Error *err = NULL;
+    SysBusDevice *sbd;
+    int i;
 
     object_property_set_bool(OBJECT(&s->cpu), true, "reset-hivecs", &err);
     if (err != NULL) {
@@ -45,6 +62,17 @@ static void digic_realize(DeviceState *dev, Error **errp)
     if (err != NULL) {
         error_propagate(errp, err);
         return;
+    }
+
+    for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
+        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        sbd = SYS_BUS_DEVICE(&s->timer[i]);
+        sysbus_mmio_map(sbd, 0, DIGIC4_TIMER_BASE(i));
     }
 }
 
