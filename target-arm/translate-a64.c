@@ -202,6 +202,25 @@ static TCGv_i64 cpu_reg(DisasContext *s, int reg)
     }
 }
 
+/* read a cpu register in 32bit/64bit mode. Returns a TCGv_i64
+ * representing the register contents. This TCGv is an auto-freed
+ * temporary so it need not be explicitly freed, and may be modified.
+ */
+static TCGv_i64 read_cpu_reg(DisasContext *s, int reg, int sf)
+{
+    TCGv_i64 v = new_tmp_a64(s);
+    if (reg != 31) {
+        if (sf) {
+            tcg_gen_mov_i64(v, cpu_X[reg]);
+        } else {
+            tcg_gen_ext32u_i64(v, cpu_X[reg]);
+        }
+    } else {
+        tcg_gen_movi_i64(v, 0);
+    }
+    return v;
+}
+
 /*
  * the instruction disassembly implemented here matches
  * the instruction encoding classifications in chapter 3 (C3)
@@ -227,10 +246,33 @@ static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
     gen_goto_tb(s, 0, addr);
 }
 
-/* Compare & branch (immediate) */
+/* C3.2.1 Compare & branch (immediate)
+ *   31  30         25  24  23                  5 4      0
+ * +----+-------------+----+---------------------+--------+
+ * | sf | 0 1 1 0 1 0 | op |         imm19       |   Rt   |
+ * +----+-------------+----+---------------------+--------+
+ */
 static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, op, rt;
+    uint64_t addr;
+    int label_match;
+    TCGv_i64 tcg_cmp;
+
+    sf = extract32(insn, 31, 1);
+    op = extract32(insn, 24, 1); /* 0: CBZ; 1: CBNZ */
+    rt = extract32(insn, 0, 5);
+    addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
+
+    tcg_cmp = read_cpu_reg(s, rt, sf);
+    label_match = gen_new_label();
+
+    tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
+                        tcg_cmp, 0, label_match);
+
+    gen_goto_tb(s, 0, s->pc);
+    gen_set_label(label_match);
+    gen_goto_tb(s, 1, addr);
 }
 
 /* C3.2.5 Test & branch (immediate)
