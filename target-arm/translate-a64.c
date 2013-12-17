@@ -201,6 +201,21 @@ static TCGv_i64 new_tmp_a64_zero(DisasContext *s)
     return t;
 }
 
+/*
+ * Register access functions
+ *
+ * These functions are used for directly accessing a register in where
+ * changes to the final register value are likely to be made. If you
+ * need to use a register for temporary calculation (e.g. index type
+ * operations) use the read_* form.
+ *
+ * B1.2.1 Register mappings
+ *
+ * In instruction register encoding 31 can refer to ZR (zero register) or
+ * the SP (stack pointer) depending on context. In QEMU's case we map SP
+ * to cpu_X[31] and ZR accesses to a temporary which can be discarded.
+ * This is the point of the _sp forms.
+ */
 static TCGv_i64 cpu_reg(DisasContext *s, int reg)
 {
     if (reg == 31) {
@@ -208,6 +223,12 @@ static TCGv_i64 cpu_reg(DisasContext *s, int reg)
     } else {
         return cpu_X[reg];
     }
+}
+
+/* register access for when 31 == SP */
+static TCGv_i64 cpu_reg_sp(DisasContext *s, int reg)
+{
+    return cpu_X[reg];
 }
 
 /* read a cpu register in 32bit/64bit mode. Returns a TCGv_i64
@@ -686,10 +707,160 @@ static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Logical (immediate) */
+/* The input should be a value in the bottom e bits (with higher
+ * bits zero); returns that value replicated into every element
+ * of size e in a 64 bit integer.
+ */
+static uint64_t bitfield_replicate(uint64_t mask, unsigned int e)
+{
+    assert(e != 0);
+    while (e < 64) {
+        mask |= mask << e;
+        e *= 2;
+    }
+    return mask;
+}
+
+/* Return a value with the bottom len bits set (where 0 < len <= 64) */
+static inline uint64_t bitmask64(unsigned int length)
+{
+    assert(length > 0 && length <= 64);
+    return ~0ULL >> (64 - length);
+}
+
+/* Simplified variant of pseudocode DecodeBitMasks() for the case where we
+ * only require the wmask. Returns false if the imms/immr/immn are a reserved
+ * value (ie should cause a guest UNDEF exception), and true if they are
+ * valid, in which case the decoded bit pattern is written to result.
+ */
+static bool logic_imm_decode_wmask(uint64_t *result, unsigned int immn,
+                                   unsigned int imms, unsigned int immr)
+{
+    uint64_t mask;
+    unsigned e, levels, s, r;
+    int len;
+
+    assert(immn < 2 && imms < 64 && immr < 64);
+
+    /* The bit patterns we create here are 64 bit patterns which
+     * are vectors of identical elements of size e = 2, 4, 8, 16, 32 or
+     * 64 bits each. Each element contains the same value: a run
+     * of between 1 and e-1 non-zero bits, rotated within the
+     * element by between 0 and e-1 bits.
+     *
+     * The element size and run length are encoded into immn (1 bit)
+     * and imms (6 bits) as follows:
+     * 64 bit elements: immn = 1, imms = <length of run - 1>
+     * 32 bit elements: immn = 0, imms = 0 : <length of run - 1>
+     * 16 bit elements: immn = 0, imms = 10 : <length of run - 1>
+     *  8 bit elements: immn = 0, imms = 110 : <length of run - 1>
+     *  4 bit elements: immn = 0, imms = 1110 : <length of run - 1>
+     *  2 bit elements: immn = 0, imms = 11110 : <length of run - 1>
+     * Notice that immn = 0, imms = 11111x is the only combination
+     * not covered by one of the above options; this is reserved.
+     * Further, <length of run - 1> all-ones is a reserved pattern.
+     *
+     * In all cases the rotation is by immr % e (and immr is 6 bits).
+     */
+
+    /* First determine the element size */
+    len = 31 - clz32((immn << 6) | (~imms & 0x3f));
+    if (len < 1) {
+        /* This is the immn == 0, imms == 0x11111x case */
+        return false;
+    }
+    e = 1 << len;
+
+    levels = e - 1;
+    s = imms & levels;
+    r = immr & levels;
+
+    if (s == levels) {
+        /* <length of run - 1> mustn't be all-ones. */
+        return false;
+    }
+
+    /* Create the value of one element: s+1 set bits rotated
+     * by r within the element (which is e bits wide)...
+     */
+    mask = bitmask64(s + 1);
+    mask = (mask >> r) | (mask << (e - r));
+    /* ...then replicate the element over the whole 64 bit value */
+    mask = bitfield_replicate(mask, e);
+    *result = mask;
+    return true;
+}
+
+/* C3.4.4 Logical (immediate)
+ *   31  30 29 28         23 22  21  16 15  10 9    5 4    0
+ * +----+-----+-------------+---+------+------+------+------+
+ * | sf | opc | 1 0 0 1 0 0 | N | immr | imms |  Rn  |  Rd  |
+ * +----+-----+-------------+---+------+------+------+------+
+ */
 static void disas_logic_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, opc, is_n, immr, imms, rn, rd;
+    TCGv_i64 tcg_rd, tcg_rn;
+    uint64_t wmask;
+    bool is_and = false;
+
+    sf = extract32(insn, 31, 1);
+    opc = extract32(insn, 29, 2);
+    is_n = extract32(insn, 22, 1);
+    immr = extract32(insn, 16, 6);
+    imms = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+
+    if (!sf && is_n) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (opc == 0x3) { /* ANDS */
+        tcg_rd = cpu_reg(s, rd);
+    } else {
+        tcg_rd = cpu_reg_sp(s, rd);
+    }
+    tcg_rn = cpu_reg(s, rn);
+
+    if (!logic_imm_decode_wmask(&wmask, is_n, imms, immr)) {
+        /* some immediate field values are reserved */
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!sf) {
+        wmask &= 0xffffffff;
+    }
+
+    switch (opc) {
+    case 0x3: /* ANDS */
+    case 0x0: /* AND */
+        tcg_gen_andi_i64(tcg_rd, tcg_rn, wmask);
+        is_and = true;
+        break;
+    case 0x1: /* ORR */
+        tcg_gen_ori_i64(tcg_rd, tcg_rn, wmask);
+        break;
+    case 0x2: /* EOR */
+        tcg_gen_xori_i64(tcg_rd, tcg_rn, wmask);
+        break;
+    default:
+        assert(FALSE); /* must handle all above */
+        break;
+    }
+
+    if (!sf && !is_and) {
+        /* zero extend final result; we know we can skip this for AND
+         * since the immediate had the high 32 bits clear.
+         */
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+
+    if (opc == 3) { /* ANDS */
+        gen_logic_CC(sf, tcg_rd);
+    }
 }
 
 /* Move wide (immediate) */
