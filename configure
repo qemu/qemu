@@ -4438,7 +4438,7 @@ case "$target_name" in
   aarch64)
     TARGET_BASE_ARCH=arm
     bflt="yes"
-    gdb_xml_files="aarch64-core.xml"
+    gdb_xml_files="aarch64-core.xml aarch64-fpu.xml"
   ;;
   cris)
   ;;
