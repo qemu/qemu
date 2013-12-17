@@ -1,4 +1,5 @@
 obj-y += boot.o collie.o exynos4_boards.o gumstix.o highbank.o
+obj-$(CONFIG_DIGIC) += digic_boards.o
 obj-y += integratorcp.o kzm.o mainstone.o musicpal.o nseries.o
 obj-y += omap_sx1.o palm.o realview.o spitz.o stellaris.o
 obj-y += tosa.o versatilepb.o vexpress.o virt.o xilinx_zynq.o z2.o
