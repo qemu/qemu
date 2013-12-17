@@ -71,6 +71,7 @@ static const char *arm_machines[] = {
     "highbank",
     "midway",
     "canon-a1100",
+    "cubieboard",
 };
 
 static const char *cris_machines[] = {
