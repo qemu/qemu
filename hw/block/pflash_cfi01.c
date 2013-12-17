@@ -71,7 +71,7 @@ struct pflash_t {
     BlockDriverState *bs;
     uint32_t nb_blocs;
     uint64_t sector_len;
-    uint8_t width;
+    uint8_t bank_width;
     uint8_t be;
     uint8_t wcycle; /* if 0, the flash is read normally */
     int ro;
@@ -126,10 +126,11 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
     ret = -1;
     boff = offset & 0xFF; /* why this here ?? */
 
-    if (pfl->width == 2)
+    if (pfl->bank_width == 2) {
         boff = boff >> 1;
-    else if (pfl->width == 4)
+    } else if (pfl->bank_width == 4) {
         boff = boff >> 2;
+    }
 
 #if 0
     DPRINTF("%s: reading offset " TARGET_FMT_plx " under cmd %02x width %d\n",
@@ -665,7 +666,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
     /* Max number of bytes in multi-bytes write */
-    if (pfl->width == 1) {
+    if (pfl->bank_width == 1) {
         pfl->cfi_table[0x2A] = 0x08;
     } else {
         pfl->cfi_table[0x2A] = 0x0B;
@@ -706,7 +707,7 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT64("sector-length", struct pflash_t, sector_len, 0),
-    DEFINE_PROP_UINT8("width", struct pflash_t, width, 0),
+    DEFINE_PROP_UINT8("width", struct pflash_t, bank_width, 0),
     DEFINE_PROP_UINT8("big-endian", struct pflash_t, be, 0),
     DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
     DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
@@ -745,8 +746,8 @@ pflash_t *pflash_cfi01_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
                                 hwaddr size,
                                 BlockDriverState *bs,
-                                uint32_t sector_len, int nb_blocs, int width,
-                                uint16_t id0, uint16_t id1,
+                                uint32_t sector_len, int nb_blocs,
+                                int bank_width, uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be)
 {
     DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH01);
@@ -756,7 +757,7 @@ pflash_t *pflash_cfi01_register(hwaddr base,
     }
     qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);
     qdev_prop_set_uint64(dev, "sector-length", sector_len);
-    qdev_prop_set_uint8(dev, "width", width);
+    qdev_prop_set_uint8(dev, "width", bank_width);
     qdev_prop_set_uint8(dev, "big-endian", !!be);
     qdev_prop_set_uint16(dev, "id0", id0);
     qdev_prop_set_uint16(dev, "id1", id1);
