@@ -233,6 +233,12 @@ S: Supported
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
 
+Canon DIGIC
+M: Antony Pavlov <antonynpavlov@gmail.com>
+S: Maintained
+F: include/hw/arm/digic.h
+F: hw/*/digic*
+
 Gumstix
 M: qemu-devel@nongnu.org
 S: Orphan
