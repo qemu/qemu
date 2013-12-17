@@ -597,13 +597,6 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
     return 0;
 }
 
-static int s390_store_status(CPUS390XState *env, uint32_t parameter)
-{
-    /* XXX */
-    fprintf(stderr, "XXX SIGP store status\n");
-    return -1;
-}
-
 static int s390_cpu_initial_reset(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -629,12 +622,9 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t order_code;
-    uint32_t parameter;
     uint16_t cpu_addr;
-    uint8_t t;
     int r = -1;
     S390CPU *target_cpu;
-    CPUS390XState *target_env;
 
     cpu_synchronize_state(CPU(cpu));
 
@@ -645,27 +635,15 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     }
     order_code += (run->s390_sieic.ipb & 0x0fff0000) >> 16;
 
-    /* get parameters */
-    t = (ipa1 & 0xf0) >> 4;
-    if (!(t % 2)) {
-        t++;
-    }
-
-    parameter = env->regs[t] & 0x7ffffe00;
     cpu_addr = env->regs[ipa1 & 0x0f];
-
     target_cpu = s390_cpu_addr2state(cpu_addr);
     if (target_cpu == NULL) {
         goto out;
     }
-    target_env = &target_cpu->env;
 
     switch (order_code) {
         case SIGP_RESTART:
             r = kvm_s390_cpu_restart(target_cpu);
-            break;
-        case SIGP_STORE_STATUS_ADDR:
-            r = s390_store_status(target_env, parameter);
             break;
         case SIGP_SET_ARCH:
             /* make the caller panic */
