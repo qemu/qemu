@@ -128,7 +128,11 @@ static void kvm_arm_host_cpu_initfn(Object *obj)
 
 static const TypeInfo host_arm_cpu_type_info = {
     .name = TYPE_ARM_HOST_CPU,
+#ifdef TARGET_AARCH64
+    .parent = TYPE_AARCH64_CPU,
+#else
     .parent = TYPE_ARM_CPU,
+#endif
     .instance_init = kvm_arm_host_cpu_initfn,
     .class_init = kvm_arm_host_cpu_class_init,
     .class_size = sizeof(ARMHostCPUClass),
