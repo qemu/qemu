@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
+#include "qapi/qmp/qerror.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
@@ -228,6 +229,21 @@ static void arm_cpu_initfn(Object *obj)
     if (tcg_enabled() && !inited) {
         inited = true;
         arm_translate_init();
+    }
+}
+
+static Property arm_cpu_reset_cbar_property =
+            DEFINE_PROP_UINT32("reset-cbar", ARMCPU, reset_cbar, 0);
+
+static void arm_cpu_post_init(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    Error *err = NULL;
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property,
+                                 &err);
+        assert_no_error(err);
     }
 }
 
@@ -994,6 +1010,7 @@ static const TypeInfo arm_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(ARMCPU),
     .instance_init = arm_cpu_initfn,
+    .instance_post_init = arm_cpu_post_init,
     .instance_finalize = arm_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
