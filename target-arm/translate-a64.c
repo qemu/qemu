@@ -698,10 +698,62 @@ static void disas_movw_imm(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Bitfield */
+/* C3.4.2 Bitfield
+ *   31  30 29 28         23 22  21  16 15  10 9    5 4    0
+ * +----+-----+-------------+---+------+------+------+------+
+ * | sf | opc | 1 0 0 1 1 0 | N | immr | imms |  Rn  |  Rd  |
+ * +----+-----+-------------+---+------+------+------+------+
+ */
 static void disas_bitfield(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int sf, n, opc, ri, si, rn, rd, bitsize, pos, len;
+    TCGv_i64 tcg_rd, tcg_tmp;
+
+    sf = extract32(insn, 31, 1);
+    opc = extract32(insn, 29, 2);
+    n = extract32(insn, 22, 1);
+    ri = extract32(insn, 16, 6);
+    si = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+    bitsize = sf ? 64 : 32;
+
+    if (sf != n || ri >= bitsize || si >= bitsize || opc > 2) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rd = cpu_reg(s, rd);
+    tcg_tmp = read_cpu_reg(s, rn, sf);
+
+    /* OPTME: probably worth recognizing common cases of ext{8,16,32}{u,s} */
+
+    if (opc != 1) { /* SBFM or UBFM */
+        tcg_gen_movi_i64(tcg_rd, 0);
+    }
+
+    /* do the bit move operation */
+    if (si >= ri) {
+        /* Wd<s-r:0> = Wn<s:r> */
+        tcg_gen_shri_i64(tcg_tmp, tcg_tmp, ri);
+        pos = 0;
+        len = (si - ri) + 1;
+    } else {
+        /* Wd<32+s-r,32-r> = Wn<s:0> */
+        pos = bitsize - ri;
+        len = si + 1;
+    }
+
+    tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
+
+    if (opc == 0) { /* SBFM - sign extend the destination field */
+        tcg_gen_shli_i64(tcg_rd, tcg_rd, 64 - (pos + len));
+        tcg_gen_sari_i64(tcg_rd, tcg_rd, 64 - (pos + len));
+    }
+
+    if (!sf) { /* zero extend final result */
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
 }
 
 /* C3.4.3 Extract
