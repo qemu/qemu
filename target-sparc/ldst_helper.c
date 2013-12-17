@@ -609,7 +609,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case 0x1c: /* LEON MMU passthrough */
         switch (size) {
         case 1:
-            ret = ldub_phys(addr);
+            ret = ldub_phys(cs->as, addr);
             break;
         case 2:
             ret = lduw_phys(addr);
@@ -619,14 +619,14 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             ret = ldl_phys(cs->as, addr);
             break;
         case 8:
-            ret = ldq_phys(addr);
+            ret = ldq_phys(cs->as, addr);
             break;
         }
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch (size) {
         case 1:
-            ret = ldub_phys((hwaddr)addr
+            ret = ldub_phys(cs->as, (hwaddr)addr
                             | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 2:
@@ -639,7 +639,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                            | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 8:
-            ret = ldq_phys((hwaddr)addr
+            ret = ldq_phys(cs->as, (hwaddr)addr
                            | ((hwaddr)(asi & 0xf) << 32));
             break;
         }
@@ -716,6 +716,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                    int size)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     helper_check_align(env, addr, size - 1);
     switch (asi) {
     case 2: /* SuperSparc MXCC registers and Leon3 cache control */
@@ -772,13 +773,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                               "%08x: unimplemented access size: %d\n", addr,
                               size);
             }
-            env->mxccdata[0] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[0] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         0);
-            env->mxccdata[1] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[1] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         8);
-            env->mxccdata[2] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[2] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         16);
-            env->mxccdata[3] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[3] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         24);
             break;
         case 0x01c00200: /* MXCC stream destination */
@@ -1434,7 +1439,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         {
             switch (size) {
             case 1:
-                ret = ldub_phys(addr);
+                ret = ldub_phys(cs->as, addr);
                 break;
             case 2:
                 ret = lduw_phys(addr);
@@ -1444,7 +1449,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                 break;
             default:
             case 8:
-                ret = ldq_phys(addr);
+                ret = ldq_phys(cs->as, addr);
                 break;
             }
             break;

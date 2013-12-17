@@ -613,7 +613,7 @@ static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
    translation, given the address of the PTE.  */
 static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
 {
-    uint64_t pte = ldq_phys(pte_addr);
+    uint64_t pte = ldq_phys(&address_space_memory, pte_addr);
 
     /* Check valid bit.  */
     if ((pte & 1) == 0) {

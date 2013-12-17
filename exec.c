@@ -1612,7 +1612,7 @@ static uint64_t watch_mem_read(void *opaque, hwaddr addr,
 {
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_READ);
     switch (size) {
-    case 1: return ldub_phys(addr);
+    case 1: return ldub_phys(&address_space_memory, addr);
     case 2: return lduw_phys(addr);
     case 4: return ldl_phys(&address_space_memory, addr);
     default: abort();
@@ -2406,7 +2406,7 @@ uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr)
 }
 
 /* warning: addr must be aligned */
-static inline uint64_t ldq_phys_internal(hwaddr addr,
+static inline uint64_t ldq_phys_internal(AddressSpace *as, hwaddr addr,
                                          enum device_endian endian)
 {
     uint8_t *ptr;
@@ -2415,7 +2415,7 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
     hwaddr l = 8;
     hwaddr addr1;
 
-    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+    mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 8 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
@@ -2449,26 +2449,26 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
     return val;
 }
 
-uint64_t ldq_phys(hwaddr addr)
+uint64_t ldq_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldq_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
+    return ldq_phys_internal(as, addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint64_t ldq_le_phys(hwaddr addr)
+uint64_t ldq_le_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldq_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
+    return ldq_phys_internal(as, addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint64_t ldq_be_phys(hwaddr addr)
+uint64_t ldq_be_phys(AddressSpace *as, hwaddr addr)
 {
-    return ldq_phys_internal(addr, DEVICE_BIG_ENDIAN);
+    return ldq_phys_internal(as, addr, DEVICE_BIG_ENDIAN);
 }
 
 /* XXX: optimize */
-uint32_t ldub_phys(hwaddr addr)
+uint32_t ldub_phys(AddressSpace *as, hwaddr addr)
 {
     uint8_t val;
-    cpu_physical_memory_read(addr, &val, 1);
+    address_space_rw(as, addr, &val, 1, 0);
     return val;
 }
 

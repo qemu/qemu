@@ -188,46 +188,46 @@ void helper_rsm(CPUX86State *env)
 
     sm_state = env->smbase + 0x8000;
 #ifdef TARGET_X86_64
-    cpu_load_efer(env, ldq_phys(sm_state + 0x7ed0));
+    cpu_load_efer(env, ldq_phys(cs->as, sm_state + 0x7ed0));
 
     for (i = 0; i < 6; i++) {
         offset = 0x7e00 + i * 16;
         cpu_x86_load_seg_cache(env, i,
                                lduw_phys(sm_state + offset),
-                               ldq_phys(sm_state + offset + 8),
+                               ldq_phys(cs->as, sm_state + offset + 8),
                                ldl_phys(cs->as, sm_state + offset + 4),
                                (lduw_phys(sm_state + offset + 2) &
                                 0xf0ff) << 8);
     }
 
-    env->gdt.base = ldq_phys(sm_state + 0x7e68);
+    env->gdt.base = ldq_phys(cs->as, sm_state + 0x7e68);
     env->gdt.limit = ldl_phys(cs->as, sm_state + 0x7e64);
 
     env->ldt.selector = lduw_phys(sm_state + 0x7e70);
-    env->ldt.base = ldq_phys(sm_state + 0x7e78);
+    env->ldt.base = ldq_phys(cs->as, sm_state + 0x7e78);
     env->ldt.limit = ldl_phys(cs->as, sm_state + 0x7e74);
     env->ldt.flags = (lduw_phys(sm_state + 0x7e72) & 0xf0ff) << 8;
 
-    env->idt.base = ldq_phys(sm_state + 0x7e88);
+    env->idt.base = ldq_phys(cs->as, sm_state + 0x7e88);
     env->idt.limit = ldl_phys(cs->as, sm_state + 0x7e84);
 
     env->tr.selector = lduw_phys(sm_state + 0x7e90);
-    env->tr.base = ldq_phys(sm_state + 0x7e98);
+    env->tr.base = ldq_phys(cs->as, sm_state + 0x7e98);
     env->tr.limit = ldl_phys(cs->as, sm_state + 0x7e94);
     env->tr.flags = (lduw_phys(sm_state + 0x7e92) & 0xf0ff) << 8;
 
-    env->regs[R_EAX] = ldq_phys(sm_state + 0x7ff8);
-    env->regs[R_ECX] = ldq_phys(sm_state + 0x7ff0);
-    env->regs[R_EDX] = ldq_phys(sm_state + 0x7fe8);
-    env->regs[R_EBX] = ldq_phys(sm_state + 0x7fe0);
-    env->regs[R_ESP] = ldq_phys(sm_state + 0x7fd8);
-    env->regs[R_EBP] = ldq_phys(sm_state + 0x7fd0);
-    env->regs[R_ESI] = ldq_phys(sm_state + 0x7fc8);
-    env->regs[R_EDI] = ldq_phys(sm_state + 0x7fc0);
+    env->regs[R_EAX] = ldq_phys(cs->as, sm_state + 0x7ff8);
+    env->regs[R_ECX] = ldq_phys(cs->as, sm_state + 0x7ff0);
+    env->regs[R_EDX] = ldq_phys(cs->as, sm_state + 0x7fe8);
+    env->regs[R_EBX] = ldq_phys(cs->as, sm_state + 0x7fe0);
+    env->regs[R_ESP] = ldq_phys(cs->as, sm_state + 0x7fd8);
+    env->regs[R_EBP] = ldq_phys(cs->as, sm_state + 0x7fd0);
+    env->regs[R_ESI] = ldq_phys(cs->as, sm_state + 0x7fc8);
+    env->regs[R_EDI] = ldq_phys(cs->as, sm_state + 0x7fc0);
     for (i = 8; i < 16; i++) {
-        env->regs[i] = ldq_phys(sm_state + 0x7ff8 - i * 8);
+        env->regs[i] = ldq_phys(cs->as, sm_state + 0x7ff8 - i * 8);
     }
-    env->eip = ldq_phys(sm_state + 0x7f78);
+    env->eip = ldq_phys(cs->as, sm_state + 0x7f78);
     cpu_load_eflags(env, ldl_phys(cs->as, sm_state + 0x7f70),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     env->dr[6] = ldl_phys(cs->as, sm_state + 0x7f68);

@@ -955,6 +955,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
                         uint64_t mode1, uint64_t a2, uint64_t mode2)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     target_ulong src, dest;
     int flags, cc = 0, i;
 
@@ -984,7 +985,7 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
             mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
             break;
         }
-        stb_phys(dest + i, ldub_phys(src + i));
+        stb_phys(dest + i, ldub_phys(cs->as, src + i));
     }
 
     return cc;

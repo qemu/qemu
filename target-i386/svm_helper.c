@@ -105,7 +105,7 @@ static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
     unsigned int flags;
 
     sc->selector = lduw_phys(addr + offsetof(struct vmcb_seg, selector));
-    sc->base = ldq_phys(addr + offsetof(struct vmcb_seg, base));
+    sc->base = ldq_phys(cs->as, addr + offsetof(struct vmcb_seg, base));
     sc->limit = ldl_phys(cs->as, addr + offsetof(struct vmcb_seg, limit));
     flags = lduw_phys(addr + offsetof(struct vmcb_seg, attrib));
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
@@ -178,7 +178,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     /* load the interception bitmaps so we do not need to access the
        vmcb in svm mode */
-    env->intercept = ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->intercept = ldq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       control.intercept));
     env->intercept_cr_read = lduw_phys(env->vm_vmcb +
                                        offsetof(struct vmcb,
@@ -200,15 +200,15 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     /* enable intercepts */
     env->hflags |= HF_SVMI_MASK;
 
-    env->tsc_offset = ldq_phys(env->vm_vmcb +
+    env->tsc_offset = ldq_phys(cs->as, env->vm_vmcb +
                                offsetof(struct vmcb, control.tsc_offset));
 
-    env->gdt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->gdt.base  = ldq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.gdtr.base));
     env->gdt.limit = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.gdtr.limit));
 
-    env->idt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->idt.base  = ldq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.idtr.base));
     env->idt.limit = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                       save.idtr.limit));
@@ -216,13 +216,17 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     /* clear exit_info_2 so we behave like the real hardware */
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), 0);
 
-    cpu_x86_update_cr0(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    cpu_x86_update_cr0(env, ldq_phys(cs->as,
+                                     env->vm_vmcb + offsetof(struct vmcb,
                                                              save.cr0)));
-    cpu_x86_update_cr4(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    cpu_x86_update_cr4(env, ldq_phys(cs->as,
+                                     env->vm_vmcb + offsetof(struct vmcb,
                                                              save.cr4)));
-    cpu_x86_update_cr3(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    cpu_x86_update_cr3(env, ldq_phys(cs->as,
+                                     env->vm_vmcb + offsetof(struct vmcb,
                                                              save.cr3)));
-    env->cr[2] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr2));
+    env->cr[2] = ldq_phys(cs->as,
+                          env->vm_vmcb + offsetof(struct vmcb, save.cr2));
     int_ctl = ldl_phys(cs->as,
                        env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
@@ -235,9 +239,11 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     }
 
     cpu_load_efer(env,
-                  ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer)));
+                  ldq_phys(cs->as,
+                           env->vm_vmcb + offsetof(struct vmcb, save.efer)));
     env->eflags = 0;
-    cpu_load_eflags(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+    cpu_load_eflags(env, ldq_phys(cs->as,
+                                  env->vm_vmcb + offsetof(struct vmcb,
                                                           save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     CC_OP = CC_OP_EFLAGS;
@@ -251,18 +257,25 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
                        R_DS);
 
-    env->eip = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip));
+    env->eip = ldq_phys(cs->as,
+                        env->vm_vmcb + offsetof(struct vmcb, save.rip));
 
-    env->regs[R_ESP] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp));
-    env->regs[R_EAX] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax));
-    env->dr[7] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7));
-    env->dr[6] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr6));
-    cpu_x86_set_cpl(env, ldub_phys(env->vm_vmcb + offsetof(struct vmcb,
+    env->regs[R_ESP] = ldq_phys(cs->as,
+                                env->vm_vmcb + offsetof(struct vmcb, save.rsp));
+    env->regs[R_EAX] = ldq_phys(cs->as,
+                                env->vm_vmcb + offsetof(struct vmcb, save.rax));
+    env->dr[7] = ldq_phys(cs->as,
+                          env->vm_vmcb + offsetof(struct vmcb, save.dr7));
+    env->dr[6] = ldq_phys(cs->as,
+                          env->vm_vmcb + offsetof(struct vmcb, save.dr6));
+    cpu_x86_set_cpl(env, ldub_phys(cs->as,
+                                   env->vm_vmcb + offsetof(struct vmcb,
                                                            save.cpl)));
 
     /* FIXME: guest state consistency checks */
 
-    switch (ldub_phys(env->vm_vmcb + offsetof(struct vmcb, control.tlb_ctl))) {
+    switch (ldub_phys(cs->as,
+                      env->vm_vmcb + offsetof(struct vmcb, control.tlb_ctl))) {
     case TLB_CONTROL_DO_NOTHING:
         break;
     case TLB_CONTROL_FLUSH_ALL_ASID:
@@ -339,6 +352,7 @@ void helper_vmmcall(CPUX86State *env)
 
 void helper_vmload(CPUX86State *env, int aflag)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0);
@@ -351,7 +365,7 @@ void helper_vmload(CPUX86State *env, int aflag)
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmload! " TARGET_FMT_lx
                   "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
-                  addr, ldq_phys(addr + offsetof(struct vmcb,
+                  addr, ldq_phys(cs->as, addr + offsetof(struct vmcb,
                                                           save.fs.base)),
                   env->segs[R_FS].base);
 
@@ -361,22 +375,24 @@ void helper_vmload(CPUX86State *env, int aflag)
     svm_load_seg(env, addr + offsetof(struct vmcb, save.ldtr), &env->ldt);
 
 #ifdef TARGET_X86_64
-    env->kernelgsbase = ldq_phys(addr + offsetof(struct vmcb,
+    env->kernelgsbase = ldq_phys(cs->as, addr + offsetof(struct vmcb,
                                                  save.kernel_gs_base));
-    env->lstar = ldq_phys(addr + offsetof(struct vmcb, save.lstar));
-    env->cstar = ldq_phys(addr + offsetof(struct vmcb, save.cstar));
-    env->fmask = ldq_phys(addr + offsetof(struct vmcb, save.sfmask));
+    env->lstar = ldq_phys(cs->as, addr + offsetof(struct vmcb, save.lstar));
+    env->cstar = ldq_phys(cs->as, addr + offsetof(struct vmcb, save.cstar));
+    env->fmask = ldq_phys(cs->as, addr + offsetof(struct vmcb, save.sfmask));
 #endif
-    env->star = ldq_phys(addr + offsetof(struct vmcb, save.star));
-    env->sysenter_cs = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_cs));
-    env->sysenter_esp = ldq_phys(addr + offsetof(struct vmcb,
+    env->star = ldq_phys(cs->as, addr + offsetof(struct vmcb, save.star));
+    env->sysenter_cs = ldq_phys(cs->as,
+                                addr + offsetof(struct vmcb, save.sysenter_cs));
+    env->sysenter_esp = ldq_phys(cs->as, addr + offsetof(struct vmcb,
                                                  save.sysenter_esp));
-    env->sysenter_eip = ldq_phys(addr + offsetof(struct vmcb,
+    env->sysenter_eip = ldq_phys(cs->as, addr + offsetof(struct vmcb,
                                                  save.sysenter_eip));
 }
 
 void helper_vmsave(CPUX86State *env, int aflag)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0);
@@ -389,7 +405,8 @@ void helper_vmsave(CPUX86State *env, int aflag)
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmsave! " TARGET_FMT_lx
                   "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
-                  addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
+                  addr, ldq_phys(cs->as,
+                                 addr + offsetof(struct vmcb, save.fs.base)),
                   env->segs[R_FS].base);
 
     svm_save_seg(env, addr + offsetof(struct vmcb, save.fs),
@@ -455,6 +472,8 @@ void helper_invlpga(CPUX86State *env, int aflag)
 void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                       uint64_t param)
 {
+    CPUState *cs = ENV_GET_CPU(env);
+
     if (likely(!(env->hflags & HF_SVMI_MASK))) {
         return;
     }
@@ -487,7 +506,7 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     case SVM_EXIT_MSR:
         if (env->intercept & (1ULL << (SVM_EXIT_MSR - SVM_EXIT_INTR))) {
             /* FIXME: this should be read in at vmrun (faster this way?) */
-            uint64_t addr = ldq_phys(env->vm_vmcb +
+            uint64_t addr = ldq_phys(cs->as, env->vm_vmcb +
                                      offsetof(struct vmcb,
                                               control.msrpm_base_pa));
             uint32_t t0, t1;
@@ -513,7 +532,7 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                 t1 = 0;
                 break;
             }
-            if (ldub_phys(addr + t1) & ((1 << param) << t0)) {
+            if (ldub_phys(cs->as, addr + t1) & ((1 << param) << t0)) {
                 helper_vmexit(env, type, param);
             }
         }
@@ -535,9 +554,10 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
 void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
                          uint32_t next_eip_addend)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     if (env->intercept & (1ULL << (SVM_EXIT_IOIO - SVM_EXIT_INTR))) {
         /* FIXME: this should be read in at vmrun (faster this way?) */
-        uint64_t addr = ldq_phys(env->vm_vmcb +
+        uint64_t addr = ldq_phys(cs->as, env->vm_vmcb +
                                  offsetof(struct vmcb, control.iopm_base_pa));
         uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
 
@@ -559,7 +579,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016"
                   PRIx64 ", " TARGET_FMT_lx ")!\n",
                   exit_code, exit_info_1,
-                  ldq_phys(env->vm_vmcb + offsetof(struct vmcb,
+                  ldq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                    control.exit_info_2)),
                   env->eip);
 
@@ -625,29 +645,33 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
     env->tsc_offset = 0;
 
-    env->gdt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    env->gdt.base  = ldq_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.gdtr.base));
     env->gdt.limit = ldl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.gdtr.limit));
 
-    env->idt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    env->idt.base  = ldq_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.idtr.base));
     env->idt.limit = ldl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                        save.idtr.limit));
 
-    cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    cpu_x86_update_cr0(env, ldq_phys(cs->as,
+                                     env->vm_hsave + offsetof(struct vmcb,
                                                               save.cr0)) |
                        CR0_PE_MASK);
-    cpu_x86_update_cr4(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    cpu_x86_update_cr4(env, ldq_phys(cs->as,
+                                     env->vm_hsave + offsetof(struct vmcb,
                                                               save.cr4)));
-    cpu_x86_update_cr3(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    cpu_x86_update_cr3(env, ldq_phys(cs->as,
+                                     env->vm_hsave + offsetof(struct vmcb,
                                                               save.cr3)));
     /* we need to set the efer after the crs so the hidden flags get
        set properly */
-    cpu_load_efer(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    cpu_load_efer(env, ldq_phys(cs->as, env->vm_hsave + offsetof(struct vmcb,
                                                          save.efer)));
     env->eflags = 0;
-    cpu_load_eflags(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb,
+    cpu_load_eflags(env, ldq_phys(cs->as,
+                                  env->vm_hsave + offsetof(struct vmcb,
                                                            save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     CC_OP = CC_OP_EFLAGS;
@@ -661,14 +685,17 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.ds),
                        R_DS);
 
-    env->eip = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip));
-    env->regs[R_ESP] = ldq_phys(env->vm_hsave +
+    env->eip = ldq_phys(cs->as,
+                        env->vm_hsave + offsetof(struct vmcb, save.rip));
+    env->regs[R_ESP] = ldq_phys(cs->as, env->vm_hsave +
                                 offsetof(struct vmcb, save.rsp));
-    env->regs[R_EAX] = ldq_phys(env->vm_hsave +
+    env->regs[R_EAX] = ldq_phys(cs->as, env->vm_hsave +
                                 offsetof(struct vmcb, save.rax));
 
-    env->dr[6] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6));
-    env->dr[7] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr7));
+    env->dr[6] = ldq_phys(cs->as,
+                          env->vm_hsave + offsetof(struct vmcb, save.dr6));
+    env->dr[7] = ldq_phys(cs->as,
+                          env->vm_hsave + offsetof(struct vmcb, save.dr7));
 
     /* other setups */
     cpu_x86_set_cpl(env, 0);

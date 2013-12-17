@@ -65,7 +65,7 @@ vmw_shmem_set(hwaddr addr, uint8 val, int len)
 static inline uint32_t
 vmw_shmem_ld8(hwaddr addr)
 {
-    uint8_t res = ldub_phys(addr);
+    uint8_t res = ldub_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load8: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -110,7 +110,7 @@ vmw_shmem_st32(hwaddr addr, uint32_t value)
 static inline uint64_t
 vmw_shmem_ld64(hwaddr addr)
 {
-    uint64_t res = ldq_le_phys(addr);
+    uint64_t res = ldq_le_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load64: %" PRIx64 " (value %" PRIx64 ")", addr, res);
     return res;
 }

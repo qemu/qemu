@@ -341,6 +341,7 @@ static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
 static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint16_t size;
     uint8_t tmp;
 
@@ -367,7 +368,7 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
 
     env->vpa_addr = vpa;
 
-    tmp = ldub_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET);
+    tmp = ldub_phys(cs->as, env->vpa_addr + VPA_SHARED_PROC_OFFSET);
     tmp |= VPA_SHARED_PROC_VAL;
     stb_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
 
@@ -540,7 +541,7 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     switch (size) {
     case 1:
-        args[0] = ldub_phys(addr);
+        args[0] = ldub_phys(cs->as, addr);
         return H_SUCCESS;
     case 2:
         args[0] = lduw_phys(addr);
@@ -549,7 +550,7 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         args[0] = ldl_phys(cs->as, addr);
         return H_SUCCESS;
     case 8:
-        args[0] = ldq_phys(addr);
+        args[0] = ldq_phys(cs->as, addr);
         return H_SUCCESS;
     }
     return H_PARAMETER;
@@ -610,7 +611,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     while (count--) {
         switch (esize) {
         case 0:
-            tmp = ldub_phys(src);
+            tmp = ldub_phys(cs->as, src);
             break;
         case 1:
             tmp = lduw_phys(src);
@@ -619,7 +620,7 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             tmp = ldl_phys(cs->as, src);
             break;
         case 3:
-            tmp = ldq_phys(src);
+            tmp = ldq_phys(cs->as, src);
             break;
         default:
             return H_PARAMETER;

@@ -563,7 +563,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pml4e = ldq_phys(pml4e_addr);
+            pml4e = ldq_phys(cs->as, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 error_code = 0;
                 goto do_fault;
@@ -579,7 +579,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             ptep = pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PHYS_ADDR_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pdpe = ldq_phys(pdpe_addr);
+            pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 error_code = 0;
                 goto do_fault;
@@ -599,7 +599,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             /* XXX: load them when cr3 is loaded ? */
             pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) &
                 env->a20_mask;
-            pdpe = ldq_phys(pdpe_addr);
+            pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 error_code = 0;
                 goto do_fault;
@@ -609,7 +609,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
         pde_addr = ((pdpe & PHYS_ADDR_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
             env->a20_mask;
-        pde = ldq_phys(pde_addr);
+        pde = ldq_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             error_code = 0;
             goto do_fault;
@@ -674,7 +674,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
             }
             pte_addr = ((pde & PHYS_ADDR_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pte = ldq_phys(pte_addr);
+            pte = ldq_phys(cs->as, pte_addr);
             if (!(pte & PG_PRESENT_MASK)) {
                 error_code = 0;
                 goto do_fault;
@@ -920,13 +920,13 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pml4e = ldq_phys(pml4e_addr);
+            pml4e = ldq_phys(cs->as, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK))
                 return -1;
 
             pdpe_addr = ((pml4e & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
                          (((addr >> 30) & 0x1ff) << 3)) & env->a20_mask;
-            pdpe = ldq_phys(pdpe_addr);
+            pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
         } else
@@ -934,14 +934,14 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         {
             pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) &
                 env->a20_mask;
-            pdpe = ldq_phys(pdpe_addr);
+            pdpe = ldq_phys(cs->as, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
         }
 
         pde_addr = ((pdpe & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
                     (((addr >> 21) & 0x1ff) << 3)) & env->a20_mask;
-        pde = ldq_phys(pde_addr);
+        pde = ldq_phys(cs->as, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             return -1;
         }
@@ -954,7 +954,7 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
             pte_addr = ((pde & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
                         (((addr >> 12) & 0x1ff) << 3)) & env->a20_mask;
             page_size = 4096;
-            pte = ldq_phys(pte_addr);
+            pte = ldq_phys(cs->as, pte_addr);
         }
         pte &= ~(PG_NX_MASK | PG_HI_USER_MASK);
         if (!(pte & PG_PRESENT_MASK))

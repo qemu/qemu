@@ -168,6 +168,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, int level,
                               target_ulong *raddr, int *flags, int rw)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t offs = 0;
     uint64_t origin;
     uint64_t new_asce;
@@ -218,7 +219,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     /* XXX region protection flags */
     /* *flags &= ~PAGE_WRITE */
 
-    new_asce = ldq_phys(origin + offs);
+    new_asce = ldq_phys(cs->as, origin + offs);
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
                 __func__, origin, offs, new_asce);
 

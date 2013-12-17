@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
+#include "exec/address-spaces.h"
 
 /*
  * Status: 2010/05/07

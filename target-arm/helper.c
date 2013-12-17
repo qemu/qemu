@@ -3036,6 +3036,7 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
                               hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
@@ -3124,7 +3125,7 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
         uint64_t descriptor;
 
         descaddr |= ((address >> (9 * (4 - level))) & 0xff8);
-        descriptor = ldq_phys(descaddr);
+        descriptor = ldq_phys(cs->as, descaddr);
         if (!(descriptor & 1) ||
             (!(descriptor & 2) && (level == 3))) {
             /* Invalid, or the Reserved level 3 encoding */

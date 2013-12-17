@@ -83,13 +83,13 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr);
  */
 void qemu_flush_coalesced_mmio_buffer(void);
 
-uint32_t ldub_phys(hwaddr addr);
+uint32_t ldub_phys(AddressSpace *as, hwaddr addr);
 uint32_t lduw_le_phys(hwaddr addr);
 uint32_t lduw_be_phys(hwaddr addr);
 uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr);
 uint32_t ldl_be_phys(AddressSpace *as, hwaddr addr);
-uint64_t ldq_le_phys(hwaddr addr);
-uint64_t ldq_be_phys(hwaddr addr);
+uint64_t ldq_le_phys(AddressSpace *as, hwaddr addr);
+uint64_t ldq_be_phys(AddressSpace *as, hwaddr addr);
 void stb_phys(hwaddr addr, uint32_t val);
 void stw_le_phys(hwaddr addr, uint32_t val);
 void stw_be_phys(hwaddr addr, uint32_t val);
@@ -101,7 +101,7 @@ void stq_be_phys(hwaddr addr, uint64_t val);
 #ifdef NEED_CPU_H
 uint32_t lduw_phys(hwaddr addr);
 uint32_t ldl_phys(AddressSpace *as, hwaddr addr);
-uint64_t ldq_phys(hwaddr addr);
+uint64_t ldq_phys(AddressSpace *as, hwaddr addr);
 void stl_phys_notdirty(hwaddr addr, uint32_t val);
 void stw_phys(hwaddr addr, uint32_t val);
 void stl_phys(hwaddr addr, uint32_t val);

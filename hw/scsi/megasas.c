@@ -158,7 +158,8 @@ static void megasas_frame_set_scsi_status(unsigned long frame, uint8_t v)
  */
 static uint64_t megasas_frame_get_context(unsigned long frame)
 {
-    return ldq_le_phys(frame + offsetof(struct mfi_frame_header, context));
+    return ldq_le_phys(&address_space_memory,
+                       frame + offsetof(struct mfi_frame_header, context));
 }
 
 static bool megasas_frame_is_ieee_sgl(MegasasCmd *cmd)
