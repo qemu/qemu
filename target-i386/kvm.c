@@ -1115,6 +1115,25 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
 
+/*
+ * Provide a separate write service for the feature control MSR in order to
+ * kick the VCPU out of VMXON or even guest mode on reset. This has to be done
+ * before writing any other state because forcibly leaving nested mode
+ * invalidates the VCPU state.
+ */
+static int kvm_put_msr_feature_control(X86CPU *cpu)
+{
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entry;
+    } msr_data;
+
+    kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
+                      cpu->env.msr_ia32_feature_control);
+    msr_data.info.nmsrs = 1;
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -1205,13 +1224,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (cpu->hyperv_vapic) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
-        if (has_msr_feature_control) {
-            kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL,
-                              env->msr_ia32_feature_control);
-        }
         if (has_msr_bndcfgs) {
             kvm_msr_entry_set(&msrs[n++], MSR_IA32_BNDCFGS, env->msr_bndcfgs);
         }
+
+        /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
+         *       kvm_put_msr_feature_control. */
     }
     if (env->mcg_cap) {
         int i;
@@ -1814,6 +1832,13 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     int ret;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    if (level >= KVM_PUT_RESET_STATE && has_msr_feature_control) {
+        ret = kvm_put_msr_feature_control(x86_cpu);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     ret = kvm_getput_regs(x86_cpu, 1);
     if (ret < 0) {
