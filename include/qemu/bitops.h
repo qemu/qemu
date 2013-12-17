@@ -28,7 +28,7 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  */
-static inline void set_bit(int nr, unsigned long *addr)
+static inline void set_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -41,7 +41,7 @@ static inline void set_bit(int nr, unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  */
-static inline void clear_bit(int nr, unsigned long *addr)
+static inline void clear_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -54,7 +54,7 @@ static inline void clear_bit(int nr, unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to start counting from
  */
-static inline void change_bit(int nr, unsigned long *addr)
+static inline void change_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -67,7 +67,7 @@ static inline void change_bit(int nr, unsigned long *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  */
-static inline int test_and_set_bit(int nr, unsigned long *addr)
+static inline int test_and_set_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -82,7 +82,7 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  */
-static inline int test_and_clear_bit(int nr, unsigned long *addr)
+static inline int test_and_clear_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -97,7 +97,7 @@ static inline int test_and_clear_bit(int nr, unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  */
-static inline int test_and_change_bit(int nr, unsigned long *addr)
+static inline int test_and_change_bit(long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
         unsigned long *p = addr + BIT_WORD(nr);
@@ -112,7 +112,7 @@ static inline int test_and_change_bit(int nr, unsigned long *addr)
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-static inline int test_bit(int nr, const unsigned long *addr)
+static inline int test_bit(long nr, const unsigned long *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
