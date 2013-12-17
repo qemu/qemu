@@ -304,7 +304,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 /* Return zeroes if the guest supports more feature bits. */
                 features.features = 0;
             }
-            stl_le_phys(ccw.cda, features.features);
+            stl_le_phys(&address_space_memory, ccw.cda, features.features);
             sch->curr_status.scsw.count = ccw.count - sizeof(features);
             ret = 0;
         }

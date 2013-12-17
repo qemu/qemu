@@ -670,7 +670,7 @@ static void css_update_chnmon(SubchDev *sch)
 
         count = ldl_phys(&address_space_memory, sch->curr_status.mba);
         count++;
-        stl_phys(sch->curr_status.mba, count);
+        stl_phys(&address_space_memory, sch->curr_status.mba, count);
     } else {
         /* Format 0, global area. */
         uint32_t offset;

@@ -2449,8 +2449,9 @@ void switch_mode(CPUARMState *env, int mode)
 
 static void v7m_push(CPUARMState *env, uint32_t val)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     env->regs[13] -= 4;
-    stl_phys(env->regs[13], val);
+    stl_phys(cs->as, env->regs[13], val);
 }
 
 static uint32_t v7m_pop(CPUARMState *env)

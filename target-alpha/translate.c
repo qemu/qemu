@@ -3225,7 +3225,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access */
-                gen_helper_stl_phys(addr, val);
+                gen_helper_stl_phys(cpu_env, addr, val);
                 break;
             case 0x1:
                 /* Quadword physical access */

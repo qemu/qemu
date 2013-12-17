@@ -93,7 +93,7 @@ static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
              sc->selector);
     stq_phys(cs->as, addr + offsetof(struct vmcb_seg, base),
              sc->base);
-    stl_phys(addr + offsetof(struct vmcb_seg, limit),
+    stl_phys(cs->as, addr + offsetof(struct vmcb_seg, limit),
              sc->limit);
     stw_phys(addr + offsetof(struct vmcb_seg, attrib),
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
@@ -145,12 +145,12 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     /* save the current CPU state in the hsave page */
     stq_phys(cs->as, env->vm_hsave + offsetof(struct vmcb, save.gdtr.base),
              env->gdt.base);
-    stl_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.limit),
+    stl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb, save.gdtr.limit),
              env->gdt.limit);
 
     stq_phys(cs->as, env->vm_hsave + offsetof(struct vmcb, save.idtr.base),
              env->idt.base);
-    stl_phys(env->vm_hsave + offsetof(struct vmcb, save.idtr.limit),
+    stl_phys(cs->as, env->vm_hsave + offsetof(struct vmcb, save.idtr.limit),
              env->idt.limit);
 
     stq_phys(cs->as,
@@ -599,11 +599,13 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                   env->eip);
 
     if (env->hflags & HF_INHIBIT_IRQ_MASK) {
-        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_state),
+        stl_phys(cs->as,
+                 env->vm_vmcb + offsetof(struct vmcb, control.int_state),
                  SVM_INTERRUPT_SHADOW_MASK);
         env->hflags &= ~HF_INHIBIT_IRQ_MASK;
     } else {
-        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_state), 0);
+        stl_phys(cs->as,
+                 env->vm_vmcb + offsetof(struct vmcb, control.int_state), 0);
     }
 
     /* Save the VM state in the vmcb */
@@ -618,12 +620,12 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base),
              env->gdt.base);
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.limit),
+    stl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.gdtr.limit),
              env->gdt.limit);
 
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.idtr.base),
              env->idt.base);
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, save.idtr.limit),
+    stl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.idtr.limit),
              env->idt.limit);
 
     stq_phys(cs->as,
@@ -644,7 +646,8 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     if (cs->interrupt_request & CPU_INTERRUPT_VIRQ) {
         int_ctl |= V_IRQ_MASK;
     }
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
+    stl_phys(cs->as,
+             env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
 
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, save.rflags),
              cpu_compute_eflags(env));
@@ -728,13 +731,16 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     stq_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1),
              exit_info_1);
 
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info),
+    stl_phys(cs->as,
+             env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info),
              ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                               control.event_inj)));
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info_err),
+    stl_phys(cs->as,
+             env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info_err),
              ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                               control.event_inj_err)));
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), 0);
+    stl_phys(cs->as,
+             env->vm_vmcb + offsetof(struct vmcb, control.event_inj), 0);
 
     env->hflags2 &= ~HF2_GIF_MASK;
     /* FIXME: Resets the current ASID register to zero (host ASID). */

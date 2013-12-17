@@ -521,7 +521,8 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
                         s->reply_queue_pa + queue_offset, context);
         } else {
             queue_offset = tail * sizeof(uint32_t);
-            stl_le_phys(s->reply_queue_pa + queue_offset, context);
+            stl_le_phys(&address_space_memory,
+                        s->reply_queue_pa + queue_offset, context);
         }
         s->reply_queue_head = megasas_next_index(s, tail, s->fw_cmds);
         trace_megasas_qf_complete(context, tail, queue_offset,
@@ -1951,7 +1952,8 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         if (s->producer_pa && megasas_intr_enabled(s)) {
             /* Update reply queue pointer */
             trace_megasas_qf_update(s->reply_queue_head, s->busy);
-            stl_le_phys(s->producer_pa, s->reply_queue_head);
+            stl_le_phys(&address_space_memory,
+                        s->producer_pa, s->reply_queue_head);
             if (!msix_enabled(pci_dev)) {
                 trace_megasas_irq_lower();
                 pci_irq_deassert(pci_dev);

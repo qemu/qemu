@@ -46,7 +46,8 @@
     (ldl_le_phys(&address_space_memory, \
                  rs_pa + offsetof(struct PVSCSIRingsState, field)))
 #define RS_SET_FIELD(rs_pa, field, val) \
-    (stl_le_phys(rs_pa + offsetof(struct PVSCSIRingsState, field), val))
+    (stl_le_phys(&address_space_memory, \
+                 rs_pa + offsetof(struct PVSCSIRingsState, field), val))
 
 #define TYPE_PVSCSI "pvscsi"
 #define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)

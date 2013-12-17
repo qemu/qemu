@@ -1019,7 +1019,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                 break;
             case 4:
             default:
-                stl_phys(addr, val);
+                stl_phys(cs->as, addr, val);
                 break;
             case 8:
                 stq_phys(cs->as, addr, val);
@@ -1040,7 +1040,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                 break;
             case 4:
             default:
-                stl_phys((hwaddr)addr
+                stl_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             case 8:
@@ -1817,7 +1817,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 stw_phys(addr, val);
                 break;
             case 4:
-                stl_phys(addr, val);
+                stl_phys(cs->as, addr, val);
                 break;
             case 8:
             default:

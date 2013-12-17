@@ -318,7 +318,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
         }
 
         /* initialization which should be done by firmware */
-        stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
+        stl_phys(&address_space_memory, SH7750_BCR1, 1<<3); /* cs3 SDRAM */
         stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
         reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
     }

@@ -84,15 +84,17 @@ static inline target_ulong ppc_hash32_load_hpte1(CPUPPCState *env,
 static inline void ppc_hash32_store_hpte0(CPUPPCState *env,
                                           hwaddr pte_offset, target_ulong pte0)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     assert(!env->external_htab); /* Not supported on 32-bit for now */
-    stl_phys(env->htab_base + pte_offset, pte0);
+    stl_phys(cs->as, env->htab_base + pte_offset, pte0);
 }
 
 static inline void ppc_hash32_store_hpte1(CPUPPCState *env,
                                           hwaddr pte_offset, target_ulong pte1)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     assert(!env->external_htab); /* Not supported on 32-bit for now */
-    stl_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_32/2, pte1);
+    stl_phys(cs->as, env->htab_base + pte_offset + HASH_PTE_SIZE_32/2, pte1);
 }
 
 typedef struct {

@@ -104,7 +104,7 @@ static inline void
 vmw_shmem_st32(hwaddr addr, uint32_t value)
 {
     VMW_SHPRN("SHMEM store32: %" PRIx64 " (value 0x%X)", addr, value);
-    stl_le_phys(addr, value);
+    stl_le_phys(&address_space_memory, addr, value);
 }
 
 static inline uint64_t

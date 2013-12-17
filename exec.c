@@ -1631,7 +1631,7 @@ static void watch_mem_write(void *opaque, hwaddr addr,
         stw_phys(addr, val);
         break;
     case 4:
-        stl_phys(addr, val);
+        stl_phys(&address_space_memory, addr, val);
         break;
     default: abort();
     }
@@ -2564,7 +2564,8 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
 }
 
 /* warning: addr must be aligned */
-static inline void stl_phys_internal(hwaddr addr, uint32_t val,
+static inline void stl_phys_internal(AddressSpace *as,
+                                     hwaddr addr, uint32_t val,
                                      enum device_endian endian)
 {
     uint8_t *ptr;
@@ -2572,7 +2573,7 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
     hwaddr l = 4;
     hwaddr addr1;
 
-    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+    mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2604,19 +2605,19 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
     }
 }
 
-void stl_phys(hwaddr addr, uint32_t val)
+void stl_phys(AddressSpace *as, hwaddr addr, uint32_t val)
 {
-    stl_phys_internal(addr, val, DEVICE_NATIVE_ENDIAN);
+    stl_phys_internal(as, addr, val, DEVICE_NATIVE_ENDIAN);
 }
 
-void stl_le_phys(hwaddr addr, uint32_t val)
+void stl_le_phys(AddressSpace *as, hwaddr addr, uint32_t val)
 {
-    stl_phys_internal(addr, val, DEVICE_LITTLE_ENDIAN);
+    stl_phys_internal(as, addr, val, DEVICE_LITTLE_ENDIAN);
 }
 
-void stl_be_phys(hwaddr addr, uint32_t val)
+void stl_be_phys(AddressSpace *as, hwaddr addr, uint32_t val)
 {
-    stl_phys_internal(addr, val, DEVICE_BIG_ENDIAN);
+    stl_phys_internal(as, addr, val, DEVICE_BIG_ENDIAN);
 }
 
 /* XXX: optimize */
