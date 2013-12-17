@@ -1062,6 +1062,24 @@ static void handle_clz(DisasContext *s, unsigned int sf,
     }
 }
 
+static void handle_rbit(DisasContext *s, unsigned int sf,
+                        unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_rd, tcg_rn;
+    tcg_rd = cpu_reg(s, rd);
+    tcg_rn = cpu_reg(s, rn);
+
+    if (sf) {
+        gen_helper_rbit64(tcg_rd, tcg_rn);
+    } else {
+        TCGv_i32 tcg_tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(tcg_tmp32, tcg_rn);
+        gen_helper_rbit(tcg_tmp32, tcg_tmp32);
+        tcg_gen_extu_i32_i64(tcg_rd, tcg_tmp32);
+        tcg_temp_free_i32(tcg_tmp32);
+    }
+}
+
 /* C3.5.7 Data-processing (1 source)
  *   31  30  29  28             21 20     16 15    10 9    5 4    0
  * +----+---+---+-----------------+---------+--------+------+------+
@@ -1084,6 +1102,8 @@ static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
 
     switch (opcode) {
     case 0: /* RBIT */
+        handle_rbit(s, sf, rn, rd);
+        break;
     case 1: /* REV16 */
     case 2: /* REV32 */
     case 3: /* REV64 */
