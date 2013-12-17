@@ -180,6 +180,58 @@ static uint32_t pflash_cfi_query(pflash_t *pfl, hwaddr offset)
     return resp;
 }
 
+
+
+/* Perform a device id query based on the bank width of the flash. */
+static uint32_t pflash_devid_query(pflash_t *pfl, hwaddr offset)
+{
+    int i;
+    uint32_t resp;
+    hwaddr boff;
+
+    /* Adjust incoming offset to match expected device-width
+     * addressing. Device ID read addresses are always specified in
+     * terms of the maximum supported width of the device.  This means
+     * that x8 devices and x8/x16 devices in x8 mode behave
+     * differently. For devices that are not used at their max width,
+     * we will be provided with addresses that use higher address bits
+     * than expected (based on the max width), so we will shift them
+     * lower so that they will match the addresses used when
+     * device_width==max_device_width.
+     */
+    boff = offset >> (ctz32(pfl->bank_width) +
+                      ctz32(pfl->max_device_width) - ctz32(pfl->device_width));
+
+    /* Mask off upper bits which may be used in to query block
+     * or sector lock status at other addresses.
+     * Offsets 2/3 are block lock status, is not emulated.
+     */
+    switch (boff & 0xFF) {
+    case 0:
+        resp = pfl->ident0;
+        DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+        break;
+    case 1:
+        resp = pfl->ident1;
+        DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+        break;
+    default:
+        DPRINTF("%s: Read Device Information offset=%x\n", __func__,
+                (unsigned)offset);
+        return 0;
+        break;
+    }
+    /* Replicate responses for each device in bank. */
+    if (pfl->device_width < pfl->bank_width) {
+        for (i = pfl->device_width;
+              i < pfl->bank_width; i += pfl->device_width) {
+            resp = deposit32(resp, 8 * i, 8 * pfl->device_width, resp);
+        }
+    }
+
+    return resp;
+}
+
 static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
                              int width, int be)
 {
@@ -267,27 +319,40 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         DPRINTF("%s: status %x\n", __func__, ret);
         break;
     case 0x90:
-        boff = offset & 0xFF;
-        if (pfl->bank_width == 2) {
-            boff = boff >> 1;
-        } else if (pfl->bank_width == 4) {
-            boff = boff >> 2;
-        }
+        if (!pfl->device_width) {
+            /* Preserve old behavior if device width not specified */
+            boff = offset & 0xFF;
+            if (pfl->bank_width == 2) {
+                boff = boff >> 1;
+            } else if (pfl->bank_width == 4) {
+                boff = boff >> 2;
+            }
 
-        switch (boff) {
-        case 0:
-            ret = pfl->ident0 << 8 | pfl->ident1;
-            DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
-            break;
-        case 1:
-            ret = pfl->ident2 << 8 | pfl->ident3;
-            DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
-            break;
-        default:
-            DPRINTF("%s: Read Device Information boff=%x\n", __func__,
-                    (unsigned)boff);
-            ret = 0;
-            break;
+            switch (boff) {
+            case 0:
+                ret = pfl->ident0 << 8 | pfl->ident1;
+                DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+                break;
+            case 1:
+                ret = pfl->ident2 << 8 | pfl->ident3;
+                DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+                break;
+            default:
+                DPRINTF("%s: Read Device Information boff=%x\n", __func__,
+                        (unsigned)boff);
+                ret = 0;
+                break;
+            }
+        } else {
+            /* If we have a read larger than the bank_width, combine multiple
+             * manufacturer/device ID queries into a single response.
+             */
+            int i;
+            for (i = 0; i < width; i += pfl->bank_width) {
+                ret = deposit32(ret, i * 8, pfl->bank_width * 8,
+                                pflash_devid_query(pfl,
+                                                 offset + i * pfl->bank_width));
+            }
         }
         break;
     case 0x98: /* Query mode */

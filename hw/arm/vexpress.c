@@ -499,10 +499,10 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_prop_set_uint8(dev, "width", 4);
     qdev_prop_set_uint8(dev, "device-width", 2);
     qdev_prop_set_uint8(dev, "big-endian", 0);
-    qdev_prop_set_uint16(dev, "id0", 0x00);
-    qdev_prop_set_uint16(dev, "id1", 0x89);
+    qdev_prop_set_uint16(dev, "id0", 0x89);
+    qdev_prop_set_uint16(dev, "id1", 0x18);
     qdev_prop_set_uint16(dev, "id2", 0x00);
-    qdev_prop_set_uint16(dev, "id3", 0x18);
+    qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
