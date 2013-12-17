@@ -384,10 +384,49 @@ static void disas_exc(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Unconditional branch (register) */
+/* C3.2.7 Unconditional branch (register)
+ *  31           25 24   21 20   16 15   10 9    5 4     0
+ * +---------------+-------+-------+-------+------+-------+
+ * | 1 1 0 1 0 1 1 |  opc  |  op2  |  op3  |  Rn  |  op4  |
+ * +---------------+-------+-------+-------+------+-------+
+ */
 static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int opc, op2, op3, rn, op4;
+
+    opc = extract32(insn, 21, 4);
+    op2 = extract32(insn, 16, 5);
+    op3 = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    op4 = extract32(insn, 0, 5);
+
+    if (op4 != 0x0 || op3 != 0x0 || op2 != 0x1f) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opc) {
+    case 0: /* BR */
+    case 2: /* RET */
+        break;
+    case 1: /* BLR */
+        tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+        break;
+    case 4: /* ERET */
+    case 5: /* DRPS */
+        if (rn != 0x1f) {
+            unallocated_encoding(s);
+        } else {
+            unsupported_encoding(s, insn);
+        }
+        return;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_gen_mov_i64(cpu_pc, cpu_reg(s, rn));
+    s->is_jmp = DISAS_JUMP;
 }
 
 /* C3.2 Branches, exception generating and system instructions */
