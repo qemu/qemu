@@ -236,14 +236,16 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
 
         cpu = ARM_CPU(object_new(object_class_get_name(oc)));
 
+        object_property_set_int(OBJECT(cpu), GIC_BASE_ADDR, "reset-cbar", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
         object_property_set_bool(OBJECT(cpu), true, "realized", &err);
         if (err) {
             error_report("%s", error_get_pretty(err));
             exit(1);
         }
-
-        /* This will become a QOM property eventually */
-        cpu->reset_cbar = GIC_BASE_ADDR;
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
