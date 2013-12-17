@@ -36,13 +36,20 @@
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
-static TCGv_i32 pstate;
+static TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
 
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
     "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
     "x24", "x25", "x26", "x27", "x28", "x29", "lr", "sp"
+};
+
+enum a64_shift_type {
+    A64_SHIFT_TYPE_LSL = 0,
+    A64_SHIFT_TYPE_LSR = 1,
+    A64_SHIFT_TYPE_ASR = 2,
+    A64_SHIFT_TYPE_ROR = 3
 };
 
 /* initialize TCG globals.  */
@@ -59,9 +66,10 @@ void a64_translate_init(void)
                                           regnames[i]);
     }
 
-    pstate = tcg_global_mem_new_i32(TCG_AREG0,
-                                    offsetof(CPUARMState, pstate),
-                                    "pstate");
+    cpu_NF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, NF), "NF");
+    cpu_ZF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, ZF), "ZF");
+    cpu_CF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, CF), "CF");
+    cpu_VF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, VF), "VF");
 }
 
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
@@ -219,6 +227,33 @@ static TCGv_i64 read_cpu_reg(DisasContext *s, int reg, int sf)
         tcg_gen_movi_i64(v, 0);
     }
     return v;
+}
+
+/* Set ZF and NF based on a 64 bit result. This is alas fiddlier
+ * than the 32 bit equivalent.
+ */
+static inline void gen_set_NZ64(TCGv_i64 result)
+{
+    TCGv_i64 flag = tcg_temp_new_i64();
+
+    tcg_gen_setcondi_i64(TCG_COND_NE, flag, result, 0);
+    tcg_gen_trunc_i64_i32(cpu_ZF, flag);
+    tcg_gen_shri_i64(flag, result, 32);
+    tcg_gen_trunc_i64_i32(cpu_NF, flag);
+    tcg_temp_free_i64(flag);
+}
+
+/* Set NZCV as for a logical operation: NZ as per result, CV cleared. */
+static inline void gen_logic_CC(int sf, TCGv_i64 result)
+{
+    if (sf) {
+        gen_set_NZ64(result);
+    } else {
+        tcg_gen_trunc_i64_i32(cpu_ZF, result);
+        tcg_gen_trunc_i64_i32(cpu_NF, result);
+    }
+    tcg_gen_movi_i32(cpu_CF, 0);
+    tcg_gen_movi_i32(cpu_VF, 0);
 }
 
 /*
@@ -682,10 +717,160 @@ static void disas_data_proc_imm(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Logical (shifted register) */
+/* Shift a TCGv src by TCGv shift_amount, put result in dst.
+ * Note that it is the caller's responsibility to ensure that the
+ * shift amount is in range (ie 0..31 or 0..63) and provide the ARM
+ * mandated semantics for out of range shifts.
+ */
+static void shift_reg(TCGv_i64 dst, TCGv_i64 src, int sf,
+                      enum a64_shift_type shift_type, TCGv_i64 shift_amount)
+{
+    switch (shift_type) {
+    case A64_SHIFT_TYPE_LSL:
+        tcg_gen_shl_i64(dst, src, shift_amount);
+        break;
+    case A64_SHIFT_TYPE_LSR:
+        tcg_gen_shr_i64(dst, src, shift_amount);
+        break;
+    case A64_SHIFT_TYPE_ASR:
+        if (!sf) {
+            tcg_gen_ext32s_i64(dst, src);
+        }
+        tcg_gen_sar_i64(dst, sf ? src : dst, shift_amount);
+        break;
+    case A64_SHIFT_TYPE_ROR:
+        if (sf) {
+            tcg_gen_rotr_i64(dst, src, shift_amount);
+        } else {
+            TCGv_i32 t0, t1;
+            t0 = tcg_temp_new_i32();
+            t1 = tcg_temp_new_i32();
+            tcg_gen_trunc_i64_i32(t0, src);
+            tcg_gen_trunc_i64_i32(t1, shift_amount);
+            tcg_gen_rotr_i32(t0, t0, t1);
+            tcg_gen_extu_i32_i64(dst, t0);
+            tcg_temp_free_i32(t0);
+            tcg_temp_free_i32(t1);
+        }
+        break;
+    default:
+        assert(FALSE); /* all shift types should be handled */
+        break;
+    }
+
+    if (!sf) { /* zero extend final result */
+        tcg_gen_ext32u_i64(dst, dst);
+    }
+}
+
+/* Shift a TCGv src by immediate, put result in dst.
+ * The shift amount must be in range (this should always be true as the
+ * relevant instructions will UNDEF on bad shift immediates).
+ */
+static void shift_reg_imm(TCGv_i64 dst, TCGv_i64 src, int sf,
+                          enum a64_shift_type shift_type, unsigned int shift_i)
+{
+    assert(shift_i < (sf ? 64 : 32));
+
+    if (shift_i == 0) {
+        tcg_gen_mov_i64(dst, src);
+    } else {
+        TCGv_i64 shift_const;
+
+        shift_const = tcg_const_i64(shift_i);
+        shift_reg(dst, src, sf, shift_type, shift_const);
+        tcg_temp_free_i64(shift_const);
+    }
+}
+
+/* C3.5.10 Logical (shifted register)
+ *   31  30 29 28       24 23   22 21  20  16 15    10 9    5 4    0
+ * +----+-----+-----------+-------+---+------+--------+------+------+
+ * | sf | opc | 0 1 0 1 0 | shift | N |  Rm  |  imm6  |  Rn  |  Rd  |
+ * +----+-----+-----------+-------+---+------+--------+------+------+
+ */
 static void disas_logic_reg(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    TCGv_i64 tcg_rd, tcg_rn, tcg_rm;
+    unsigned int sf, opc, shift_type, invert, rm, shift_amount, rn, rd;
+
+    sf = extract32(insn, 31, 1);
+    opc = extract32(insn, 29, 2);
+    shift_type = extract32(insn, 22, 2);
+    invert = extract32(insn, 21, 1);
+    rm = extract32(insn, 16, 5);
+    shift_amount = extract32(insn, 10, 6);
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+
+    if (!sf && (shift_amount & (1 << 5))) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rd = cpu_reg(s, rd);
+
+    if (opc == 1 && shift_amount == 0 && shift_type == 0 && rn == 31) {
+        /* Unshifted ORR and ORN with WZR/XZR is the standard encoding for
+         * register-register MOV and MVN, so it is worth special casing.
+         */
+        tcg_rm = cpu_reg(s, rm);
+        if (invert) {
+            tcg_gen_not_i64(tcg_rd, tcg_rm);
+            if (!sf) {
+                tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+            }
+        } else {
+            if (sf) {
+                tcg_gen_mov_i64(tcg_rd, tcg_rm);
+            } else {
+                tcg_gen_ext32u_i64(tcg_rd, tcg_rm);
+            }
+        }
+        return;
+    }
+
+    tcg_rm = read_cpu_reg(s, rm, sf);
+
+    if (shift_amount) {
+        shift_reg_imm(tcg_rm, tcg_rm, sf, shift_type, shift_amount);
+    }
+
+    tcg_rn = cpu_reg(s, rn);
+
+    switch (opc | (invert << 2)) {
+    case 0: /* AND */
+    case 3: /* ANDS */
+        tcg_gen_and_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    case 1: /* ORR */
+        tcg_gen_or_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    case 2: /* EOR */
+        tcg_gen_xor_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    case 4: /* BIC */
+    case 7: /* BICS */
+        tcg_gen_andc_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    case 5: /* ORN */
+        tcg_gen_orc_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    case 6: /* EON */
+        tcg_gen_eqv_i64(tcg_rd, tcg_rn, tcg_rm);
+        break;
+    default:
+        assert(FALSE);
+        break;
+    }
+
+    if (!sf) {
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+
+    if (opc == 3) {
+        gen_logic_CC(sf, tcg_rd);
+    }
 }
 
 /* Add/subtract (extended register) */
