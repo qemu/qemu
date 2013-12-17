@@ -1114,6 +1114,24 @@ static void handle_clz(DisasContext *s, unsigned int sf,
     }
 }
 
+static void handle_cls(DisasContext *s, unsigned int sf,
+                       unsigned int rn, unsigned int rd)
+{
+    TCGv_i64 tcg_rd, tcg_rn;
+    tcg_rd = cpu_reg(s, rd);
+    tcg_rn = cpu_reg(s, rn);
+
+    if (sf) {
+        gen_helper_cls64(tcg_rd, tcg_rn);
+    } else {
+        TCGv_i32 tcg_tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(tcg_tmp32, tcg_rn);
+        gen_helper_cls32(tcg_tmp32, tcg_tmp32);
+        tcg_gen_extu_i32_i64(tcg_rd, tcg_tmp32);
+        tcg_temp_free_i32(tcg_tmp32);
+    }
+}
+
 static void handle_rbit(DisasContext *s, unsigned int sf,
                         unsigned int rn, unsigned int rd)
 {
@@ -1236,7 +1254,7 @@ static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
         handle_clz(s, sf, rn, rd);
         break;
     case 5: /* CLS */
-        unsupported_encoding(s, insn);
+        handle_cls(s, sf, rn, rd);
         break;
     }
 }

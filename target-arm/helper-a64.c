@@ -50,6 +50,16 @@ uint64_t HELPER(clz64)(uint64_t x)
     return clz64(x);
 }
 
+uint64_t HELPER(cls64)(uint64_t x)
+{
+    return clrsb64(x);
+}
+
+uint32_t HELPER(cls32)(uint32_t x)
+{
+    return clrsb32(x);
+}
+
 uint64_t HELPER(rbit64)(uint64_t x)
 {
     /* assign the correct byte position */
