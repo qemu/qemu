@@ -24,3 +24,4 @@ obj-$(CONFIG_OPENPIC_KVM) += openpic_kvm.o
 obj-$(CONFIG_SH4) += sh_intc.o
 obj-$(CONFIG_XICS) += xics.o
 obj-$(CONFIG_XICS_KVM) += xics_kvm.o
+obj-$(CONFIG_ALLWINNER_A10_PIC) += allwinner-a10-pic.o
