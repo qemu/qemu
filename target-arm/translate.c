@@ -56,11 +56,6 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 #define IS_USER(s) (s->user)
 #endif
 
-/* These instructions trap after executing, so defer them until after the
-   conditional execution state has been updated.  */
-#define DISAS_WFI 4
-#define DISAS_SWI 5
-
 TCGv_ptr cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
@@ -900,11 +895,7 @@ DO_GEN_ST(32, MO_TEUL)
 
 static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
-    if (s->aarch64) {
-        gen_a64_set_pc_im(val);
-    } else {
-        tcg_gen_movi_i32(cpu_R[15], val);
-    }
+    tcg_gen_movi_i32(cpu_R[15], val);
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
@@ -10243,6 +10234,15 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     int max_insns;
 
     /* generate intermediate code */
+
+    /* The A64 decoder has its own top level loop, because it doesn't need
+     * the A32/T32 complexity to do with conditional execution/IT blocks/etc.
+     */
+    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
+        gen_intermediate_code_internal_a64(cpu, tb, search_pc);
+        return;
+    }
+
     pc_start = tb->pc;
 
     dc->tb = tb;
@@ -10254,31 +10254,18 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->singlestep_enabled = cs->singlestep_enabled;
     dc->condjmp = 0;
 
-    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
-        dc->aarch64 = 1;
-        dc->thumb = 0;
-        dc->bswap_code = 0;
-        dc->condexec_mask = 0;
-        dc->condexec_cond = 0;
+    dc->aarch64 = 0;
+    dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
+    dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
+    dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
+    dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
 #if !defined(CONFIG_USER_ONLY)
-        dc->user = 0;
+    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
 #endif
-        dc->vfp_enabled = 0;
-        dc->vec_len = 0;
-        dc->vec_stride = 0;
-    } else {
-        dc->aarch64 = 0;
-        dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
-        dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
-        dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
-        dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
-#if !defined(CONFIG_USER_ONLY)
-        dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
-#endif
-        dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
-        dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
-        dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
-    }
+    dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
+    dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
+    dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
@@ -10340,7 +10327,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     do {
 #ifdef CONFIG_USER_ONLY
         /* Intercept jump to the magic kernel page.  */
-        if (!dc->aarch64 && dc->pc >= 0xffff0000) {
+        if (dc->pc >= 0xffff0000) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
             gen_exception(EXCP_KERNEL_TRAP);
@@ -10388,9 +10375,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             tcg_gen_debug_insn_start(dc->pc);
         }
 
-        if (dc->aarch64) {
-            disas_a64_insn(env, dc);
-        } else if (dc->thumb) {
+        if (dc->thumb) {
             disas_thumb_insn(env, dc);
             if (dc->condexec_mask) {
                 dc->condexec_cond = (dc->condexec_cond & 0xe)
@@ -10585,8 +10570,9 @@ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
 {
     if (is_a64(env)) {
         env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+        env->condexec_bits = 0;
     } else {
         env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
+        env->condexec_bits = gen_opc_condexec_bits[pc_pos];
     }
-    env->condexec_bits = gen_opc_condexec_bits[pc_pos];
 }

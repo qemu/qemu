@@ -28,16 +28,32 @@ typedef struct DisasContext {
 
 extern TCGv_ptr cpu_env;
 
+/* target-specific extra values for is_jmp */
+/* These instructions trap after executing, so the A32/T32 decoder must
+ * defer them until after the conditional execution state has been updated.
+ * WFI also needs special handling when single-stepping.
+ */
+#define DISAS_WFI 4
+#define DISAS_SWI 5
+/* For instructions which unconditionally cause an exception we can skip
+ * emitting unreachable code at the end of the TB in the A64 decoder
+ */
+#define DISAS_EXC 6
+
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
-void disas_a64_insn(CPUARMState *env, DisasContext *s);
+void gen_intermediate_code_internal_a64(ARMCPU *cpu,
+                                        TranslationBlock *tb,
+                                        bool search_pc);
 void gen_a64_set_pc_im(uint64_t val);
 #else
 static inline void a64_translate_init(void)
 {
 }
 
-static inline void disas_a64_insn(CPUARMState *env, DisasContext *s)
+static inline void gen_intermediate_code_internal_a64(ARMCPU *cpu,
+                                                      TranslationBlock *tb,
+                                                      bool search_pc)
 {
 }
 
