@@ -138,6 +138,7 @@ typedef struct subpage_t {
 
 static void io_mem_init(void);
 static void memory_map_init(void);
+static void tcg_commit(MemoryListener *listener);
 
 static MemoryRegion io_mem_watch;
 #endif
@@ -453,6 +454,22 @@ CPUState *qemu_get_cpu(int index)
     return NULL;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as)
+{
+    /* We only support one address space per cpu at the moment.  */
+    assert(cpu->as == as);
+
+    if (cpu->tcg_as_listener) {
+        memory_listener_unregister(cpu->tcg_as_listener);
+    } else {
+        cpu->tcg_as_listener = g_new0(MemoryListener, 1);
+    }
+    cpu->tcg_as_listener->commit = tcg_commit;
+    memory_listener_register(cpu->tcg_as_listener, as);
+}
+#endif
+
 void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
@@ -472,6 +489,7 @@ void cpu_exec_init(CPUArchState *env)
     QTAILQ_INIT(&env->breakpoints);
     QTAILQ_INIT(&env->watchpoints);
 #ifndef CONFIG_USER_ONLY
+    cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
 #endif
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
@@ -503,7 +521,7 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
     hwaddr phys = cpu_get_phys_page_debug(cpu, pc);
     if (phys != -1) {
-        tb_invalidate_phys_addr(&address_space_memory,
+        tb_invalidate_phys_addr(cpu->as,
                                 phys | (pc & ~TARGET_PAGE_MASK));
     }
 }
@@ -1830,10 +1848,6 @@ static MemoryListener core_memory_listener = {
     .priority = 1,
 };
 
-static MemoryListener tcg_memory_listener = {
-    .commit = tcg_commit,
-};
-
 void address_space_init_dispatch(AddressSpace *as)
 {
     as->dispatch = NULL;
@@ -1869,9 +1883,6 @@ static void memory_map_init(void)
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
-    if (tcg_enabled()) {
-        memory_listener_register(&tcg_memory_listener, &address_space_memory);
-    }
 }
 
 MemoryRegion *get_system_memory(void)

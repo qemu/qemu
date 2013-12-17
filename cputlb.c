@@ -232,6 +232,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     uintptr_t addend;
     CPUTLBEntry *te;
     hwaddr iotlb, xlat, sz;
+    CPUState *cpu = ENV_GET_CPU(env);
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
@@ -239,7 +240,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     }
 
     sz = size;
-    section = address_space_translate_for_iotlb(&address_space_memory, paddr,
+    section = address_space_translate_for_iotlb(cpu->as, paddr,
                                                 &xlat, &sz);
     assert(sz >= TARGET_PAGE_SIZE);
 
@@ -305,6 +306,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     int mmu_idx, page_index, pd;
     void *p;
     MemoryRegion *mr;
+    CPUState *cpu = ENV_GET_CPU(env1);
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1);
@@ -313,9 +315,8 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
         cpu_ldub_code(env1, addr);
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
-    mr = iotlb_to_region(&address_space_memory, pd);
+    mr = iotlb_to_region(cpu->as, pd);
     if (memory_region_is_unassigned(mr)) {
-        CPUState *cpu = ENV_GET_CPU(env1);
         CPUClass *cc = CPU_GET_CLASS(cpu);
 
         if (cc->do_unassigned_access) {
