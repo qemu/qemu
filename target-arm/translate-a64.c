@@ -239,10 +239,35 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Conditional branch (immediate) */
+/* C3.2.2 / C5.6.19 Conditional branch (immediate)
+ *  31           25  24  23                  5   4  3    0
+ * +---------------+----+---------------------+----+------+
+ * | 0 1 0 1 0 1 0 | o1 |         imm19       | o0 | cond |
+ * +---------------+----+---------------------+----+------+
+ */
 static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int cond;
+    uint64_t addr;
+
+    if ((insn & (1 << 4)) || (insn & (1 << 24))) {
+        unallocated_encoding(s);
+        return;
+    }
+    addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
+    cond = extract32(insn, 0, 4);
+
+    if (cond < 0x0e) {
+        /* genuinely conditional branches */
+        int label_match = gen_new_label();
+        arm_gen_test_cc(cond, label_match);
+        gen_goto_tb(s, 0, s->pc);
+        gen_set_label(label_match);
+        gen_goto_tb(s, 1, addr);
+    } else {
+        /* 0xe and 0xf are both "always" conditions */
+        gen_goto_tb(s, 0, addr);
+    }
 }
 
 /* C5.6.68 HINT */

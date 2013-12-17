@@ -671,7 +671,11 @@ static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv_i32 a, TCGv_i32 b)
 }
 #undef PAS_OP
 
-static void gen_test_cc(int cc, int label)
+/*
+ * generate a conditional branch based on ARM condition code cc.
+ * This is common between ARM and Aarch64 targets.
+ */
+void arm_gen_test_cc(int cc, int label)
 {
     TCGv_i32 tmp;
     int inv;
@@ -7131,7 +7135,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         /* if not always execute, we generate a conditional jump to
            next instruction */
         s->condlabel = gen_new_label();
-        gen_test_cc(cond ^ 1, s->condlabel);
+        arm_gen_test_cc(cond ^ 1, s->condlabel);
         s->condjmp = 1;
     }
     if ((insn & 0x0f900000) == 0x03000000) {
@@ -9148,7 +9152,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 op = (insn >> 22) & 0xf;
                 /* Generate a conditional jump to next instruction.  */
                 s->condlabel = gen_new_label();
-                gen_test_cc(op ^ 1, s->condlabel);
+                arm_gen_test_cc(op ^ 1, s->condlabel);
                 s->condjmp = 1;
 
                 /* offset[11:1] = insn[10:0] */
@@ -9505,7 +9509,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         cond = s->condexec_cond;
         if (cond != 0x0e) {     /* Skip conditional when condition is AL. */
           s->condlabel = gen_new_label();
-          gen_test_cc(cond ^ 1, s->condlabel);
+          arm_gen_test_cc(cond ^ 1, s->condlabel);
           s->condjmp = 1;
         }
     }
@@ -10178,7 +10182,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         }
         /* generate a conditional jump to next instruction */
         s->condlabel = gen_new_label();
-        gen_test_cc(cond ^ 1, s->condlabel);
+        arm_gen_test_cc(cond ^ 1, s->condlabel);
         s->condjmp = 1;
 
         /* jump to the offset */
