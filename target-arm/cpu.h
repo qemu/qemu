@@ -468,6 +468,7 @@ enum arm_features {
     ARM_FEATURE_V8,
     ARM_FEATURE_AARCH64, /* supports 64 bit mode */
     ARM_FEATURE_V8_AES, /* implements AES part of v8 Crypto Extensions */
+    ARM_FEATURE_CBAR, /* has cp15 CBAR */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

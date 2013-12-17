@@ -1745,6 +1745,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &auxcr);
     }
 
+    if (arm_feature(env, ARM_FEATURE_CBAR)) {
+        ARMCPRegInfo cbar = {
+            .name = "CBAR", .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+            .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
+        };
+        define_one_arm_cp_reg(cpu, &cbar);
+    }
+
     /* Generic registers whose values depend on the implementation */
     {
         ARMCPRegInfo sctlr = {

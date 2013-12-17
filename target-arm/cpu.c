@@ -617,6 +617,7 @@ static void cortex_a9_initfn(Object *obj)
      * and valid configurations; we don't model A9UP).
      */
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR);
     cpu->midr = 0x410fc090;
     cpu->reset_fpsid = 0x41033090;
     cpu->mvfr0 = 0x11110222;
@@ -639,15 +640,7 @@ static void cortex_a9_initfn(Object *obj)
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
-    {
-        ARMCPRegInfo cbar = {
-            .name = "CBAR", .cp = 15, .crn = 15,  .crm = 0, .opc1 = 4,
-            .opc2 = 0, .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
-            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
-        };
-        define_one_arm_cp_reg(cpu, &cbar);
-        define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
-    }
+    define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -686,6 +679,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR);
     set_feature(&cpu->env, ARM_FEATURE_LPAE);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
