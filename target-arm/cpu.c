@@ -121,6 +121,11 @@ static void arm_cpu_reset(CPUState *s)
             env->regs[15] = pc & ~1;
         }
     }
+
+    if (env->cp15.c1_sys & (1 << 13)) {
+            env->regs[15] = 0xFFFF0000;
+    }
+
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
