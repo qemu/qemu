@@ -17,8 +17,13 @@
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
 
+/* Kernel boot protocol is specified in the kernel docs
+ * Documentation/arm/Booting and Documentation/arm64/booting.txt
+ * They have different preferred image load offsets from system RAM base.
+ */
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000
+#define KERNEL64_LOAD_ADDR 0x00080000
 
 typedef enum {
     FIXUP_NONE = 0,   /* do nothing */
@@ -36,6 +41,20 @@ typedef struct ARMInsnFixup {
     uint32_t insn;
     FixupType fixup;
 } ARMInsnFixup;
+
+static const ARMInsnFixup bootloader_aarch64[] = {
+    { 0x580000c0 }, /* ldr x0, arg ; Load the lower 32-bits of DTB */
+    { 0xaa1f03e1 }, /* mov x1, xzr */
+    { 0xaa1f03e2 }, /* mov x2, xzr */
+    { 0xaa1f03e3 }, /* mov x3, xzr */
+    { 0x58000084 }, /* ldr x4, entry ; Load the lower 32-bits of kernel entry */
+    { 0xd61f0080 }, /* br x4      ; Jump to the kernel entry point */
+    { 0, FIXUP_ARGPTR }, /* arg: .word @DTB Lower 32-bits */
+    { 0 }, /* .word @DTB Higher 32-bits */
+    { 0, FIXUP_ENTRYPOINT }, /* entry: .word @Kernel Entry Lower 32-bits */
+    { 0 }, /* .word @Kernel Entry Higher 32-bits */
+    { 0, FIXUP_TERMINATOR }
+};
 
 /* The worlds second smallest bootloader.  Set r0-r2, then jump to kernel.  */
 static const ARMInsnFixup bootloader[] = {
@@ -396,7 +415,12 @@ static void do_cpu_reset(void *opaque)
             env->thumb = info->entry & 1;
         } else {
             if (CPU(cpu) == first_cpu) {
-                env->regs[15] = info->loader_start;
+                if (env->aarch64) {
+                    env->pc = info->loader_start;
+                } else {
+                    env->regs[15] = info->loader_start;
+                }
+
                 if (!info->dtb_filename) {
                     if (old_param) {
                         set_kernel_args_old(info);
@@ -418,8 +442,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int initrd_size;
     int is_linux = 0;
     uint64_t elf_entry;
-    hwaddr entry;
+    hwaddr entry, kernel_load_offset;
     int big_endian;
+    static const ARMInsnFixup *primary_loader;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -427,6 +452,14 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          * (typically a boot ROM image) in the same way as hardware.
          */
         return;
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        primary_loader = bootloader_aarch64;
+        kernel_load_offset = KERNEL64_LOAD_ADDR;
+    } else {
+        primary_loader = bootloader;
+        kernel_load_offset = KERNEL_LOAD_ADDR;
     }
 
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
@@ -469,9 +502,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
                                   &is_linux);
     }
     if (kernel_size < 0) {
-        entry = info->loader_start + KERNEL_LOAD_ADDR;
+        entry = info->loader_start + kernel_load_offset;
         kernel_size = load_image_targphys(info->kernel_filename, entry,
-                                          info->ram_size - KERNEL_LOAD_ADDR);
+                                          info->ram_size - kernel_load_offset);
         is_linux = 1;
     }
     if (kernel_size < 0) {
@@ -532,7 +565,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         fixupcontext[FIXUP_ENTRYPOINT] = entry;
 
         write_bootloader("bootloader", info->loader_start,
-                         bootloader, fixupcontext);
+                         primary_loader, fixupcontext);
 
         if (info->nb_cpus > 1) {
             info->write_secondary_boot(cpu, info);
