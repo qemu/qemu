@@ -284,7 +284,7 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int apic_init_common(ICCDevice *dev)
+static void apic_common_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
@@ -293,14 +293,16 @@ static int apic_init_common(ICCDevice *dev)
     static bool mmio_registered;
 
     if (apic_no >= MAX_APICS) {
-        return -1;
+        error_setg(errp, "%s initialization failed.",
+                   object_get_typename(OBJECT(dev)));
+        return;
     }
     s->idx = apic_no++;
 
     info = APIC_COMMON_GET_CLASS(s);
-    info->realize(DEVICE(dev), NULL);
+    info->realize(dev, errp);
     if (!mmio_registered) {
-        ICCBus *b = ICC_BUS(qdev_get_parent_bus(DEVICE(dev)));
+        ICCBus *b = ICC_BUS(qdev_get_parent_bus(dev));
         memory_region_add_subregion(b->apic_address_space, 0, &s->io_memory);
         mmio_registered = true;
     }
@@ -315,7 +317,6 @@ static int apic_init_common(ICCDevice *dev)
         info->enable_tpr_reporting(s, true);
     }
 
-    return 0;
 }
 
 static void apic_dispatch_pre_save(void *opaque)
@@ -387,7 +388,7 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_apic_common;
     dc->reset = apic_reset_common;
     dc->props = apic_properties_common;
-    idc->init = apic_init_common;
+    idc->realize = apic_common_realize;
     /*
      * Reason: APIC and CPU need to be wired up by
      * x86_cpu_apic_create()
