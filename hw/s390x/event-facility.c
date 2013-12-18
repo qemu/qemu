@@ -315,6 +315,17 @@ static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
     }
 }
 
+static const VMStateDescription vmstate_event_facility = {
+    .name = "vmstate-event-facility",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(receive_mask, SCLPEventFacility),
+        VMSTATE_END_OF_LIST()
+     }
+};
+
 static int init_event_facility(SCLPEventFacility *event_facility)
 {
     DeviceState *sdev = DEVICE(event_facility);
@@ -352,6 +363,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
     SCLPEventFacilityClass *k = EVENT_FACILITY_CLASS(dc);
 
     dc->reset = reset_event_facility;
+    dc->vmsd = &vmstate_event_facility;
     k->init = init_event_facility;
     k->command_handler = command_handler;
     k->event_pending = event_pending;
