@@ -283,8 +283,6 @@ void qdev_reset_all(DeviceState *dev);
 void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
 
-void qbus_free(BusState *bus);
-
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
 

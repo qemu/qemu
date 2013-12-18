@@ -391,7 +391,7 @@ void pci_bridge_exitfn(PCIDevice *pci_dev)
     pci_bridge_region_cleanup(s, s->windows);
     memory_region_destroy(&s->address_space_mem);
     memory_region_destroy(&s->address_space_io);
-    /* qbus_free() is called automatically during device deletion */
+    /* object_unparent() is called automatically during device deletion */
 }
 
 /*
