@@ -176,4 +176,23 @@ typedef struct SCLPEventClass {
     bool (*can_handle_event)(uint8_t type);
 } SCLPEventClass;
 
+#define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
+#define EVENT_FACILITY(obj) \
+     OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
+#define EVENT_FACILITY_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SCLPEventFacilityClass, (klass), \
+                        TYPE_SCLP_EVENT_FACILITY)
+#define EVENT_FACILITY_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
+                      TYPE_SCLP_EVENT_FACILITY)
+
+typedef struct SCLPEventFacility SCLPEventFacility;
+
+typedef struct SCLPEventFacilityClass {
+    DeviceClass parent_class;
+    int (*init)(SCLPEventFacility *ef);
+    void (*command_handler)(SCLPEventFacility *ef, SCCB *sccb, uint64_t code);
+    bool (*event_pending)(SCLPEventFacility *ef);
+} SCLPEventFacilityClass;
+
 #endif

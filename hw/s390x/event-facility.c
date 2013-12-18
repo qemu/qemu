@@ -26,8 +26,8 @@ typedef struct SCLPEventsBus {
 } SCLPEventsBus;
 
 struct SCLPEventFacility {
+    SysBusDevice parent_obj;
     SCLPEventsBus sbus;
-    DeviceState *qdev;
     /* guest' receive mask */
     unsigned int receive_mask;
 };
@@ -315,21 +315,15 @@ static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
     }
 }
 
-static int init_event_facility(S390SCLPDevice *sdev)
+static int init_event_facility(SCLPEventFacility *event_facility)
 {
-    SCLPEventFacility *event_facility;
+    DeviceState *sdev = DEVICE(event_facility);
     DeviceState *quiesce;
 
-    event_facility = g_malloc0(sizeof(SCLPEventFacility));
-    sdev->ef = event_facility;
-    sdev->sclp_command_handler = command_handler;
-    sdev->event_pending = event_pending;
-
-    /* Spawn a new sclp-events facility */
+    /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
-                        TYPE_SCLP_EVENTS_BUS, DEVICE(sdev), NULL);
+                        TYPE_SCLP_EVENTS_BUS, sdev, NULL);
     event_facility->sbus.qbus.allow_hotplug = 0;
-    event_facility->qdev = (DeviceState *) sdev;
 
     quiesce = qdev_create(&event_facility->sbus.qbus, "sclpquiesce");
     if (!quiesce) {
@@ -346,25 +340,29 @@ static int init_event_facility(S390SCLPDevice *sdev)
 
 static void reset_event_facility(DeviceState *dev)
 {
-    S390SCLPDevice *sdev = SCLP_S390_DEVICE(dev);
+    SCLPEventFacility *sdev = EVENT_FACILITY(dev);
 
-    sdev->ef->receive_mask = 0;
+    sdev->receive_mask = 0;
 }
 
 static void init_event_facility_class(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    S390SCLPDeviceClass *k = SCLP_S390_DEVICE_CLASS(klass);
+    SysBusDeviceClass *sbdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(sbdc);
+    SCLPEventFacilityClass *k = EVENT_FACILITY_CLASS(dc);
 
     dc->reset = reset_event_facility;
     k->init = init_event_facility;
+    k->command_handler = command_handler;
+    k->event_pending = event_pending;
 }
 
 static const TypeInfo sclp_event_facility_info = {
-    .name          = "s390-sclp-event-facility",
-    .parent        = TYPE_DEVICE_S390_SCLP,
-    .instance_size = sizeof(S390SCLPDevice),
+    .name          = TYPE_SCLP_EVENT_FACILITY,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SCLPEventFacility),
     .class_init    = init_event_facility_class,
+    .class_size    = sizeof(SCLPEventFacilityClass),
 };
 
 static int event_qdev_init(DeviceState *qdev)
