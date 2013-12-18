@@ -66,7 +66,7 @@ bulk-phase round of the migration and can be enabled for extremely
 high-performance RDMA hardware using the following command:
 
 QEMU Monitor Command:
-$ migrate_set_capability x-rdma-pin-all on # disabled by default
+$ migrate_set_capability rdma-pin-all on # disabled by default
 
 Performing this action will cause all 8GB to be pinned, so if that's
 not what you want, then please ignore this step altogether.
@@ -93,12 +93,12 @@ $ migrate_set_speed 40g # or whatever is the MAX of your RDMA device
 
 Next, on the destination machine, add the following to the QEMU command line:
 
-qemu ..... -incoming x-rdma:host:port
+qemu ..... -incoming rdma:host:port
 
 Finally, perform the actual migration on the source machine:
 
 QEMU Monitor Command:
-$ migrate -d x-rdma:host:port
+$ migrate -d rdma:host:port
 
 PERFORMANCE
 ===========
@@ -120,8 +120,8 @@ For example, in the same 8GB RAM example with all 8GB of memory in
 active use and the VM itself is completely idle using the same 40 gbps
 infiniband link:
 
-1. x-rdma-pin-all disabled total time: approximately 7.5 seconds @ 9.5 Gbps
-2. x-rdma-pin-all enabled total time: approximately 4 seconds @ 26 Gbps
+1. rdma-pin-all disabled total time: approximately 7.5 seconds @ 9.5 Gbps
+2. rdma-pin-all enabled total time: approximately 4 seconds @ 26 Gbps
 
 These numbers would of course scale up to whatever size virtual machine
 you have to migrate using RDMA.
@@ -407,18 +407,14 @@ socket is broken during a non-RDMA based migration.
 
 TODO:
 =====
-1. 'migrate x-rdma:host:port' and '-incoming x-rdma' options will be
-   renamed to 'rdma' after the experimental phase of this work has
-   completed upstream.
-2. Currently, 'ulimit -l' mlock() limits as well as cgroups swap limits
+1. Currently, 'ulimit -l' mlock() limits as well as cgroups swap limits
    are not compatible with infinband memory pinning and will result in
    an aborted migration (but with the source VM left unaffected).
-3. Use of the recent /proc/<pid>/pagemap would likely speed up
+2. Use of the recent /proc/<pid>/pagemap would likely speed up
    the use of KSM and ballooning while using RDMA.
-4. Also, some form of balloon-device usage tracking would also
+3. Also, some form of balloon-device usage tracking would also
    help alleviate some issues.
-5. Move UNREGISTER requests to a separate thread.
-6. Use LRU to provide more fine-grained direction of UNREGISTER
+4. Use LRU to provide more fine-grained direction of UNREGISTER
    requests for unpinning memory in an overcommitted environment.
-7. Expose UNREGISTER support to the user by way of workload-specific
+5. Expose UNREGISTER support to the user by way of workload-specific
    hints about application behavior.

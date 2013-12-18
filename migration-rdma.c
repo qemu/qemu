@@ -3412,7 +3412,7 @@ void rdma_start_outgoing_migration(void *opaque,
     }
 
     ret = qemu_rdma_source_init(rdma, &local_err,
-        s->enabled_capabilities[MIGRATION_CAPABILITY_X_RDMA_PIN_ALL]);
+        s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL]);
 
     if (ret) {
         goto err;

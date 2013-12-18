@@ -82,7 +82,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     if (strstart(uri, "tcp:", &p))
         tcp_start_incoming_migration(p, errp);
 #ifdef CONFIG_RDMA
-    else if (strstart(uri, "x-rdma:", &p))
+    else if (strstart(uri, "rdma:", &p))
         rdma_start_incoming_migration(p, errp);
 #endif
 #if !defined(WIN32)
@@ -438,7 +438,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
 #ifdef CONFIG_RDMA
-    } else if (strstart(uri, "x-rdma:", &p)) {
+    } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
 #if !defined(WIN32)
@@ -532,7 +532,7 @@ bool migrate_rdma_pin_all(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_RDMA_PIN_ALL];
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL];
 }
 
 bool migrate_auto_converge(void)
