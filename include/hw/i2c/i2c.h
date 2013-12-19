@@ -59,8 +59,6 @@ void i2c_nack(I2CBus *bus);
 int i2c_send(I2CBus *bus, uint8_t data);
 int i2c_recv(I2CBus *bus);
 
-#define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
-
 DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr);
 
 /* wm8750.c */
