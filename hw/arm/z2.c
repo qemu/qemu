@@ -193,15 +193,20 @@ static const TypeInfo zipit_lcd_info = {
     .class_init    = zipit_lcd_class_init,
 };
 
-typedef struct {
-    I2CSlave i2c;
+#define TYPE_AER915 "aer915"
+#define AER915(obj) OBJECT_CHECK(AER915State, (obj), TYPE_AER915)
+
+typedef struct AER915State {
+    I2CSlave parent_obj;
+
     int len;
     uint8_t buf[3];
 } AER915State;
 
 static int aer915_send(I2CSlave *i2c, uint8_t data)
 {
-    AER915State *s = FROM_I2C_SLAVE(AER915State, i2c);
+    AER915State *s = AER915(i2c);
+
     s->buf[s->len] = data;
     if (s->len++ > 2) {
         DPRINTF("%s: message too long (%i bytes)\n",
@@ -219,7 +224,8 @@ static int aer915_send(I2CSlave *i2c, uint8_t data)
 
 static void aer915_event(I2CSlave *i2c, enum i2c_event event)
 {
-    AER915State *s = FROM_I2C_SLAVE(AER915State, i2c);
+    AER915State *s = AER915(i2c);
+
     switch (event) {
     case I2C_START_SEND:
         s->len = 0;
@@ -238,8 +244,8 @@ static void aer915_event(I2CSlave *i2c, enum i2c_event event)
 
 static int aer915_recv(I2CSlave *slave)
 {
+    AER915State *s = AER915(slave);
     int retval = 0x00;
-    AER915State *s = FROM_I2C_SLAVE(AER915State, slave);
 
     switch (s->buf[0]) {
     /* Return hardcoded battery voltage,
@@ -290,7 +296,7 @@ static void aer915_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo aer915_info = {
-    .name          = "aer915",
+    .name          = TYPE_AER915,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(AER915State),
     .class_init    = aer915_class_init,
@@ -351,7 +357,7 @@ static void z2_init(QEMUMachineInitArgs *args)
     type_register_static(&aer915_info);
     z2_lcd = ssi_create_slave(mpu->ssp[1], "zipit-lcd");
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
-    i2c_create_slave(bus, "aer915", 0x55);
+    i2c_create_slave(bus, TYPE_AER915, 0x55);
     wm = i2c_create_slave(bus, "wm8750", 0x1b);
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;
