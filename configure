@@ -4438,7 +4438,7 @@ case "$target_name" in
   aarch64)
     TARGET_BASE_ARCH=arm
     bflt="yes"
-    gdb_xml_files="aarch64-core.xml"
+    gdb_xml_files="aarch64-core.xml aarch64-fpu.xml"
   ;;
   cris)
   ;;
@@ -4550,7 +4550,7 @@ case "$target_name" in
   *)
 esac
 case "$target_name" in
-  arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
+  aarch64|arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_name" = "$cpu" -o \

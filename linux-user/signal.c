@@ -1171,7 +1171,7 @@ static int target_setup_sigframe(struct target_rt_sigframe *sf,
     }
     __put_user(env->xregs[31], &sf->uc.tuc_mcontext.sp);
     __put_user(env->pc, &sf->uc.tuc_mcontext.pc);
-    __put_user(env->pstate, &sf->uc.tuc_mcontext.pstate);
+    __put_user(pstate_read(env), &sf->uc.tuc_mcontext.pstate);
 
     __put_user(/*current->thread.fault_address*/ 0,
             &sf->uc.tuc_mcontext.fault_address);
@@ -1210,6 +1210,7 @@ static int target_restore_sigframe(CPUARMState *env,
     struct target_aux_context *aux =
         (struct target_aux_context *)sf->uc.tuc_mcontext.__reserved;
     uint32_t magic, size;
+    uint64_t pstate;
 
     target_to_host_sigset(&set, &sf->uc.tuc_sigmask);
     sigprocmask(SIG_SETMASK, &set, NULL);
@@ -1220,7 +1221,8 @@ static int target_restore_sigframe(CPUARMState *env,
 
     __get_user(env->xregs[31], &sf->uc.tuc_mcontext.sp);
     __get_user(env->pc, &sf->uc.tuc_mcontext.pc);
-    __get_user(env->pstate, &sf->uc.tuc_mcontext.pstate);
+    __get_user(pstate, &sf->uc.tuc_mcontext.pstate);
+    pstate_write(env, pstate);
 
     __get_user(magic, &aux->fpsimd.head.magic);
     __get_user(size, &aux->fpsimd.head.size);

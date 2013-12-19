@@ -25,6 +25,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/loader.h"
 #include "hw/ssi.h"
+#include "qemu/error-report.h"
 
 #define NUM_SPI_FLASHES 4
 #define NUM_QSPI_FLASHES 2
@@ -34,6 +35,8 @@
 #define FLASH_SECTOR_SIZE (128 * 1024)
 
 #define IRQ_OFFSET 32 /* pic interrupts start from index 32 */
+
+#define MPCORE_PERIPHBASE 0xF8F00000
 
 static const int dma_irqs[8] = {
     46, 47, 48, 49, 72, 73, 74, 75
@@ -102,6 +105,7 @@ static void zynq_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
+    ObjectClass *cpu_oc;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ext_ram = g_new(MemoryRegion, 1);
@@ -110,15 +114,24 @@ static void zynq_init(QEMUMachineInitArgs *args)
     SysBusDevice *busdev;
     qemu_irq pic[64];
     NICInfo *nd;
+    Error *err = NULL;
     int n;
 
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
+    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
 
-    cpu = cpu_arm_init(cpu_model);
-    if (!cpu) {
-        fprintf(stderr, "Unable to find CPU definition\n");
+    cpu = ARM_CPU(object_new(object_class_get_name(cpu_oc)));
+
+    object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
+        exit(1);
+    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
         exit(1);
     }
 
@@ -154,7 +167,7 @@ static void zynq_init(QEMUMachineInitArgs *args)
     qdev_prop_set_uint32(dev, "num-cpu", 1);
     qdev_init_nofail(dev);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0xF8F00000);
+    sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
 

@@ -65,6 +65,48 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
+static int aarch64_fpu_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    switch (reg) {
+    case 0 ... 31:
+        /* 128 bit FP register */
+        stfq_le_p(buf, env->vfp.regs[reg * 2]);
+        stfq_le_p(buf + 8, env->vfp.regs[reg * 2 + 1]);
+        return 16;
+    case 32:
+        /* FPSR */
+        stl_p(buf, vfp_get_fpsr(env));
+        return 4;
+    case 33:
+        /* FPCR */
+        stl_p(buf, vfp_get_fpcr(env));
+        return 4;
+    default:
+        return 0;
+    }
+}
+
+static int aarch64_fpu_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    switch (reg) {
+    case 0 ... 31:
+        /* 128 bit FP register */
+        env->vfp.regs[reg * 2] = ldfq_le_p(buf);
+        env->vfp.regs[reg * 2 + 1] = ldfq_le_p(buf + 8);
+        return 16;
+    case 32:
+        /* FPSR */
+        vfp_set_fpsr(env, ldl_p(buf));
+        return 4;
+    case 33:
+        /* FPCR */
+        vfp_set_fpcr(env, ldl_p(buf));
+        return 4;
+    default:
+        return 0;
+    }
+}
+
 static int raw_read(CPUARMState *env, const ARMCPRegInfo *ri,
                     uint64_t *value)
 {
@@ -1338,7 +1380,8 @@ static const ARMCPRegInfo dummy_c15_cp_reginfo[] = {
      */
     { .name = "C15_IMPDEF", .cp = 15, .crn = 15,
       .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_NO_MIGRATE,
+      .access = PL1_RW,
+      .type = ARM_CP_CONST | ARM_CP_NO_MIGRATE | ARM_CP_OVERRIDE,
       .resetvalue = 0 },
     REGINFO_SENTINEL
 };
@@ -1744,6 +1787,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &auxcr);
     }
 
+    if (arm_feature(env, ARM_FEATURE_CBAR)) {
+        ARMCPRegInfo cbar = {
+            .name = "CBAR", .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
+            .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
+        };
+        define_one_arm_cp_reg(cpu, &cbar);
+    }
+
     /* Generic registers whose values depend on the implementation */
     {
         ARMCPRegInfo sctlr = {
@@ -1785,7 +1837,11 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
 
-    if (arm_feature(env, ARM_FEATURE_NEON)) {
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        gdb_register_coprocessor(cs, aarch64_fpu_gdb_get_reg,
+                                 aarch64_fpu_gdb_set_reg,
+                                 34, "aarch64-fpu.xml", 0);
+    } else if (arm_feature(env, ARM_FEATURE_NEON)) {
         gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
     } else if (arm_feature(env, ARM_FEATURE_VFP3)) {

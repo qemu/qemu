@@ -219,6 +219,13 @@ F: *win32*
 
 ARM Machines
 ------------
+Allwinner-a10
+M: Li Guang <lig.fnst@cn.fujitsu.com>
+S: Maintained
+F: hw/*/allwinner-a10*
+F: include/hw/*/allwinner-a10*
+F: hw/arm/cubieboard.c
+
 Exynos
 M: Evgeny Voevodin <e.voevodin@samsung.com>
 M: Maksim Kozlov <m.kozlov@samsung.com>
@@ -232,6 +239,12 @@ M: Mark Langsdorf <mark.langsdorf@calxeda.com>
 S: Supported
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
+
+Canon DIGIC
+M: Antony Pavlov <antonynpavlov@gmail.com>
+S: Maintained
+F: include/hw/arm/digic.h
+F: hw/*/digic*
 
 Gumstix
 M: qemu-devel@nongnu.org

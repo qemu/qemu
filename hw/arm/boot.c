@@ -17,18 +17,55 @@
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
 
+/* Kernel boot protocol is specified in the kernel docs
+ * Documentation/arm/Booting and Documentation/arm64/booting.txt
+ * They have different preferred image load offsets from system RAM base.
+ */
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000
+#define KERNEL64_LOAD_ADDR 0x00080000
+
+typedef enum {
+    FIXUP_NONE = 0,   /* do nothing */
+    FIXUP_TERMINATOR, /* end of insns */
+    FIXUP_BOARDID,    /* overwrite with board ID number */
+    FIXUP_ARGPTR,     /* overwrite with pointer to kernel args */
+    FIXUP_ENTRYPOINT, /* overwrite with kernel entry point */
+    FIXUP_GIC_CPU_IF, /* overwrite with GIC CPU interface address */
+    FIXUP_BOOTREG,    /* overwrite with boot register address */
+    FIXUP_DSB,        /* overwrite with correct DSB insn for cpu */
+    FIXUP_MAX,
+} FixupType;
+
+typedef struct ARMInsnFixup {
+    uint32_t insn;
+    FixupType fixup;
+} ARMInsnFixup;
+
+static const ARMInsnFixup bootloader_aarch64[] = {
+    { 0x580000c0 }, /* ldr x0, arg ; Load the lower 32-bits of DTB */
+    { 0xaa1f03e1 }, /* mov x1, xzr */
+    { 0xaa1f03e2 }, /* mov x2, xzr */
+    { 0xaa1f03e3 }, /* mov x3, xzr */
+    { 0x58000084 }, /* ldr x4, entry ; Load the lower 32-bits of kernel entry */
+    { 0xd61f0080 }, /* br x4      ; Jump to the kernel entry point */
+    { 0, FIXUP_ARGPTR }, /* arg: .word @DTB Lower 32-bits */
+    { 0 }, /* .word @DTB Higher 32-bits */
+    { 0, FIXUP_ENTRYPOINT }, /* entry: .word @Kernel Entry Lower 32-bits */
+    { 0 }, /* .word @Kernel Entry Higher 32-bits */
+    { 0, FIXUP_TERMINATOR }
+};
 
 /* The worlds second smallest bootloader.  Set r0-r2, then jump to kernel.  */
-static uint32_t bootloader[] = {
-  0xe3a00000, /* mov     r0, #0 */
-  0xe59f1004, /* ldr     r1, [pc, #4] */
-  0xe59f2004, /* ldr     r2, [pc, #4] */
-  0xe59ff004, /* ldr     pc, [pc, #4] */
-  0, /* Board ID */
-  0, /* Address of kernel args.  Set by integratorcp_init.  */
-  0  /* Kernel entry point.  Set by integratorcp_init.  */
+static const ARMInsnFixup bootloader[] = {
+    { 0xe3a00000 }, /* mov     r0, #0 */
+    { 0xe59f1004 }, /* ldr     r1, [pc, #4] */
+    { 0xe59f2004 }, /* ldr     r2, [pc, #4] */
+    { 0xe59ff004 }, /* ldr     pc, [pc, #4] */
+    { 0, FIXUP_BOARDID },
+    { 0, FIXUP_ARGPTR },
+    { 0, FIXUP_ENTRYPOINT },
+    { 0, FIXUP_TERMINATOR }
 };
 
 /* Handling for secondary CPU boot in a multicore system.
@@ -48,39 +85,83 @@ static uint32_t bootloader[] = {
 #define DSB_INSN 0xf57ff04f
 #define CP15_DSB_INSN 0xee070f9a /* mcr cp15, 0, r0, c7, c10, 4 */
 
-static uint32_t smpboot[] = {
-  0xe59f2028, /* ldr r2, gic_cpu_if */
-  0xe59f0028, /* ldr r0, startaddr */
-  0xe3a01001, /* mov r1, #1 */
-  0xe5821000, /* str r1, [r2] - set GICC_CTLR.Enable */
-  0xe3a010ff, /* mov r1, #0xff */
-  0xe5821004, /* str r1, [r2, 4] - set GIC_PMR.Priority to 0xff */
-  DSB_INSN,   /* dsb */
-  0xe320f003, /* wfi */
-  0xe5901000, /* ldr     r1, [r0] */
-  0xe1110001, /* tst     r1, r1 */
-  0x0afffffb, /* beq     <wfi> */
-  0xe12fff11, /* bx      r1 */
-  0,          /* gic_cpu_if: base address of GIC CPU interface */
-  0           /* bootreg: Boot register address is held here */
+static const ARMInsnFixup smpboot[] = {
+    { 0xe59f2028 }, /* ldr r2, gic_cpu_if */
+    { 0xe59f0028 }, /* ldr r0, bootreg_addr */
+    { 0xe3a01001 }, /* mov r1, #1 */
+    { 0xe5821000 }, /* str r1, [r2] - set GICC_CTLR.Enable */
+    { 0xe3a010ff }, /* mov r1, #0xff */
+    { 0xe5821004 }, /* str r1, [r2, 4] - set GIC_PMR.Priority to 0xff */
+    { 0, FIXUP_DSB },   /* dsb */
+    { 0xe320f003 }, /* wfi */
+    { 0xe5901000 }, /* ldr     r1, [r0] */
+    { 0xe1110001 }, /* tst     r1, r1 */
+    { 0x0afffffb }, /* beq     <wfi> */
+    { 0xe12fff11 }, /* bx      r1 */
+    { 0, FIXUP_GIC_CPU_IF }, /* gic_cpu_if: .word 0x.... */
+    { 0, FIXUP_BOOTREG }, /* bootreg_addr: .word 0x.... */
+    { 0, FIXUP_TERMINATOR }
 };
+
+static void write_bootloader(const char *name, hwaddr addr,
+                             const ARMInsnFixup *insns, uint32_t *fixupcontext)
+{
+    /* Fix up the specified bootloader fragment and write it into
+     * guest memory using rom_add_blob_fixed(). fixupcontext is
+     * an array giving the values to write in for the fixup types
+     * which write a value into the code array.
+     */
+    int i, len;
+    uint32_t *code;
+
+    len = 0;
+    while (insns[len].fixup != FIXUP_TERMINATOR) {
+        len++;
+    }
+
+    code = g_new0(uint32_t, len);
+
+    for (i = 0; i < len; i++) {
+        uint32_t insn = insns[i].insn;
+        FixupType fixup = insns[i].fixup;
+
+        switch (fixup) {
+        case FIXUP_NONE:
+            break;
+        case FIXUP_BOARDID:
+        case FIXUP_ARGPTR:
+        case FIXUP_ENTRYPOINT:
+        case FIXUP_GIC_CPU_IF:
+        case FIXUP_BOOTREG:
+        case FIXUP_DSB:
+            insn = fixupcontext[fixup];
+            break;
+        default:
+            abort();
+        }
+        code[i] = tswap32(insn);
+    }
+
+    rom_add_blob_fixed(name, code, len * sizeof(uint32_t), addr);
+
+    g_free(code);
+}
 
 static void default_write_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
-    int n;
-    smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
-    smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
-    for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
-        /* Replace DSB with the pre-v7 DSB if necessary. */
-        if (!arm_feature(&cpu->env, ARM_FEATURE_V7) &&
-            smpboot[n] == DSB_INSN) {
-            smpboot[n] = CP15_DSB_INSN;
-        }
-        smpboot[n] = tswap32(smpboot[n]);
+    uint32_t fixupcontext[FIXUP_MAX];
+
+    fixupcontext[FIXUP_GIC_CPU_IF] = info->gic_cpu_if_addr;
+    fixupcontext[FIXUP_BOOTREG] = info->smp_bootreg_addr;
+    if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+        fixupcontext[FIXUP_DSB] = DSB_INSN;
+    } else {
+        fixupcontext[FIXUP_DSB] = CP15_DSB_INSN;
     }
-    rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
-                       info->smp_loader_start);
+
+    write_bootloader("smpboot", info->smp_loader_start,
+                     smpboot, fixupcontext);
 }
 
 static void default_reset_secondary(ARMCPU *cpu,
@@ -334,7 +415,12 @@ static void do_cpu_reset(void *opaque)
             env->thumb = info->entry & 1;
         } else {
             if (CPU(cpu) == first_cpu) {
-                env->regs[15] = info->loader_start;
+                if (env->aarch64) {
+                    env->pc = info->loader_start;
+                } else {
+                    env->regs[15] = info->loader_start;
+                }
+
                 if (!info->dtb_filename) {
                     if (old_param) {
                         set_kernel_args_old(info);
@@ -354,11 +440,11 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     CPUState *cs = CPU(cpu);
     int kernel_size;
     int initrd_size;
-    int n;
     int is_linux = 0;
     uint64_t elf_entry;
-    hwaddr entry;
+    hwaddr entry, kernel_load_offset;
     int big_endian;
+    static const ARMInsnFixup *primary_loader;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -366,6 +452,14 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          * (typically a boot ROM image) in the same way as hardware.
          */
         return;
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        primary_loader = bootloader_aarch64;
+        kernel_load_offset = KERNEL64_LOAD_ADDR;
+    } else {
+        primary_loader = bootloader;
+        kernel_load_offset = KERNEL_LOAD_ADDR;
     }
 
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
@@ -408,9 +502,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
                                   &is_linux);
     }
     if (kernel_size < 0) {
-        entry = info->loader_start + KERNEL_LOAD_ADDR;
+        entry = info->loader_start + kernel_load_offset;
         kernel_size = load_image_targphys(info->kernel_filename, entry,
-                                          info->ram_size - KERNEL_LOAD_ADDR);
+                                          info->ram_size - kernel_load_offset);
         is_linux = 1;
     }
     if (kernel_size < 0) {
@@ -420,6 +514,8 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     info->entry = entry;
     if (is_linux) {
+        uint32_t fixupcontext[FIXUP_MAX];
+
         if (info->initrd_filename) {
             initrd_size = load_ramdisk(info->initrd_filename,
                                        info->initrd_start,
@@ -441,7 +537,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         }
         info->initrd_size = initrd_size;
 
-        bootloader[4] = info->board_id;
+        fixupcontext[FIXUP_BOARDID] = info->board_id;
 
         /* for device tree boot, we pass the DTB directly in r2. Otherwise
          * we point to the kernel args.
@@ -456,9 +552,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
             if (load_dtb(dtb_start, info)) {
                 exit(1);
             }
-            bootloader[5] = dtb_start;
+            fixupcontext[FIXUP_ARGPTR] = dtb_start;
         } else {
-            bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
+            fixupcontext[FIXUP_ARGPTR] = info->loader_start + KERNEL_ARGS_ADDR;
             if (info->ram_size >= (1ULL << 32)) {
                 fprintf(stderr, "qemu: RAM size must be less than 4GB to boot"
                         " Linux kernel using ATAGS (try passing a device tree"
@@ -466,12 +562,11 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
                 exit(1);
             }
         }
-        bootloader[6] = entry;
-        for (n = 0; n < sizeof(bootloader) / 4; n++) {
-            bootloader[n] = tswap32(bootloader[n]);
-        }
-        rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
-                           info->loader_start);
+        fixupcontext[FIXUP_ENTRYPOINT] = entry;
+
+        write_bootloader("bootloader", info->loader_start,
+                         primary_loader, fixupcontext);
+
         if (info->nb_cpus > 1) {
             info->write_secondary_boot(cpu, info);
         }

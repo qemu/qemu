@@ -228,6 +228,38 @@ static inline int cto64(uint64_t val)
 }
 
 /**
+ * clrsb32 - count leading redundant sign bits in a 32-bit value.
+ * @val: The value to search
+ *
+ * Returns the number of bits following the sign bit that are equal to it.
+ * No special cases; output range is [0-31].
+ */
+static inline int clrsb32(uint32_t val)
+{
+#if QEMU_GNUC_PREREQ(4, 7)
+    return __builtin_clrsb(val);
+#else
+    return clz32(val ^ ((int32_t)val >> 1)) - 1;
+#endif
+}
+
+/**
+ * clrsb64 - count leading redundant sign bits in a 64-bit value.
+ * @val: The value to search
+ *
+ * Returns the number of bits following the sign bit that are equal to it.
+ * No special cases; output range is [0-63].
+ */
+static inline int clrsb64(uint64_t val)
+{
+#if QEMU_GNUC_PREREQ(4, 7)
+    return __builtin_clrsbll(val);
+#else
+    return clz64(val ^ ((int64_t)val >> 1)) - 1;
+#endif
+}
+
+/**
  * ctpop8 - count the population of one bits in an 8-bit value.
  * @val: The value to search
  */

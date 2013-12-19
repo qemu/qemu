@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
+#include "qapi/qmp/qerror.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
@@ -88,6 +89,12 @@ static void arm_cpu_reset(CPUState *s)
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
         env->aarch64 = 1;
+#if defined(CONFIG_USER_ONLY)
+        env->pstate = PSTATE_MODE_EL0t;
+#else
+        env->pstate = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F
+            | PSTATE_MODE_EL1h;
+#endif
     }
 
 #if defined(CONFIG_USER_ONLY)
@@ -120,6 +127,11 @@ static void arm_cpu_reset(CPUState *s)
             env->regs[15] = pc & ~1;
         }
     }
+
+    if (env->cp15.c1_sys & (1 << 13)) {
+            env->regs[15] = 0xFFFF0000;
+    }
+
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
@@ -231,6 +243,30 @@ static void arm_cpu_initfn(Object *obj)
     }
 }
 
+static Property arm_cpu_reset_cbar_property =
+            DEFINE_PROP_UINT32("reset-cbar", ARMCPU, reset_cbar, 0);
+
+static Property arm_cpu_reset_hivecs_property =
+            DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
+
+static void arm_cpu_post_init(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    Error *err = NULL;
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property,
+                                 &err);
+        assert_no_error(err);
+    }
+
+    if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property,
+                                 &err);
+        assert_no_error(err);
+    }
+}
+
 static void arm_cpu_finalizefn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -249,6 +285,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         set_feature(env, ARM_FEATURE_V7);
         set_feature(env, ARM_FEATURE_ARM_DIV);
         set_feature(env, ARM_FEATURE_LPAE);
+        set_feature(env, ARM_FEATURE_V8_AES);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
@@ -288,6 +325,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         set_feature(env, ARM_FEATURE_V7MP);
         set_feature(env, ARM_FEATURE_PXN);
+    }
+
+    if (cpu->reset_hivecs) {
+            cpu->reset_sctlr |= (1 << 13);
     }
 
     register_cp_regs_for_features(cpu);
@@ -616,6 +657,7 @@ static void cortex_a9_initfn(Object *obj)
      * and valid configurations; we don't model A9UP).
      */
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR);
     cpu->midr = 0x410fc090;
     cpu->reset_fpsid = 0x41033090;
     cpu->mvfr0 = 0x11110222;
@@ -638,15 +680,7 @@ static void cortex_a9_initfn(Object *obj)
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
-    {
-        ARMCPRegInfo cbar = {
-            .name = "CBAR", .cp = 15, .crn = 15,  .crm = 0, .opc1 = 4,
-            .opc2 = 0, .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
-            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
-        };
-        define_one_arm_cp_reg(cpu, &cbar);
-        define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
-    }
+    define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -685,6 +719,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CBAR);
     set_feature(&cpu->env, ARM_FEATURE_LPAE);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
@@ -999,6 +1034,7 @@ static const TypeInfo arm_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(ARMCPU),
     .instance_init = arm_cpu_initfn,
+    .instance_post_init = arm_cpu_post_init,
     .instance_finalize = arm_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
