@@ -1523,7 +1523,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
 }
 
 void qmp_change_blockdev(const char *device, const char *filename,
-                         bool has_format, const char *format, Error **errp)
+                         const char *format, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriver *drv = NULL;

@@ -443,7 +443,6 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 
     TRACE("Receiving negotiation.");
 
-    qemu_set_block(csock);
     rc = -EINVAL;
 
     if (read_sync(csock, buf, 8) != 8) {
@@ -558,7 +557,6 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     rc = 0;
 
 fail:
-    qemu_set_nonblock(csock);
     return rc;
 }
 

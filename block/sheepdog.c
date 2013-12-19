@@ -1666,9 +1666,11 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
                 goto out;
             }
         } else if (!strcmp(options->name, BLOCK_OPT_REDUNDANCY)) {
-            ret = parse_redundancy(s, options->value.s);
-            if (ret < 0) {
-                goto out;
+            if (options->value.s) {
+                ret = parse_redundancy(s, options->value.s);
+                if (ret < 0) {
+                    goto out;
+                }
             }
         }
         options++;

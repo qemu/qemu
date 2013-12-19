@@ -949,7 +949,7 @@
 #             (only present if removable is true)
 #
 # @dirty-bitmaps: #optional dirty bitmaps information (only present if the
-#                 driver has one or more dirty bitmaps) (Since 1.8)
+#                 driver has one or more dirty bitmaps) (Since 2.0)
 #
 # @io-status: #optional @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
