@@ -23,8 +23,12 @@
 #define HOURS_PM   0x20
 #define CTRL_OSF   0x20
 
-typedef struct {
-    I2CSlave i2c;
+#define TYPE_DS1338 "ds1338"
+#define DS1338(obj) OBJECT_CHECK(DS1338State, (obj), TYPE_DS1338)
+
+typedef struct DS1338State {
+    I2CSlave parent_obj;
+
     int64_t offset;
     uint8_t wday_offset;
     uint8_t nvram[NVRAM_SIZE];
@@ -38,7 +42,7 @@ static const VMStateDescription vmstate_ds1338 = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_I2C_SLAVE(i2c, DS1338State),
+        VMSTATE_I2C_SLAVE(parent_obj, DS1338State),
         VMSTATE_INT64(offset, DS1338State),
         VMSTATE_UINT8_V(wday_offset, DS1338State, 2),
         VMSTATE_UINT8_ARRAY(nvram, DS1338State, NVRAM_SIZE),
@@ -90,7 +94,7 @@ static void inc_regptr(DS1338State *s)
 
 static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
 {
-    DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
+    DS1338State *s = DS1338(i2c);
 
     switch (event) {
     case I2C_START_RECV:
@@ -111,7 +115,7 @@ static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
 
 static int ds1338_recv(I2CSlave *i2c)
 {
-    DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
+    DS1338State *s = DS1338(i2c);
     uint8_t res;
 
     res  = s->nvram[s->ptr];
@@ -121,7 +125,8 @@ static int ds1338_recv(I2CSlave *i2c)
 
 static int ds1338_send(I2CSlave *i2c, uint8_t data)
 {
-    DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
+    DS1338State *s = DS1338(i2c);
+
     if (s->addr_byte) {
         s->ptr = data & (NVRAM_SIZE - 1);
         s->addr_byte = false;
@@ -198,7 +203,7 @@ static int ds1338_init(I2CSlave *i2c)
 
 static void ds1338_reset(DeviceState *dev)
 {
-    DS1338State *s = FROM_I2C_SLAVE(DS1338State, I2C_SLAVE(dev));
+    DS1338State *s = DS1338(dev);
 
     /* The clock is running and synchronized with the host */
     s->offset = 0;
@@ -222,7 +227,7 @@ static void ds1338_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ds1338_info = {
-    .name          = "ds1338",
+    .name          = TYPE_DS1338,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(DS1338State),
     .class_init    = ds1338_class_init,
