@@ -479,7 +479,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "'%s' is not a valid device model name", driver);
         return NULL;
     }
 
