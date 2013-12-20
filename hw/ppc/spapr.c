@@ -526,14 +526,15 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
                                 cpu_to_be32(0x0), cpu_to_be32(0x0),
                                 cpu_to_be32(0x0)};
     char mem_name[32];
-    hwaddr node0_size, mem_start;
+    hwaddr node0_size, mem_start, node_size;
     uint64_t mem_reg_property[2];
     int i, off;
 
     /* memory node(s) */
-    node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
-    if (spapr->rma_size > node0_size) {
-        spapr->rma_size = node0_size;
+    if (nb_numa_nodes > 1 && node_mem[0] < ram_size) {
+        node0_size = node_mem[0];
+    } else {
+        node0_size = ram_size;
     }
 
     /* RMA */
@@ -566,7 +567,15 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
     mem_start = node0_size;
     for (i = 1; i < nb_numa_nodes; i++) {
         mem_reg_property[0] = cpu_to_be64(mem_start);
-        mem_reg_property[1] = cpu_to_be64(node_mem[i]);
+        if (mem_start >= ram_size) {
+            node_size = 0;
+        } else {
+            node_size = node_mem[i];
+            if (node_size > ram_size - mem_start) {
+                node_size = ram_size - mem_start;
+            }
+        }
+        mem_reg_property[1] = cpu_to_be64(node_size);
         associativity[3] = associativity[4] = cpu_to_be32(i);
         sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
         off = fdt_add_subnode(fdt, 0, mem_name);
@@ -576,7 +585,7 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
                           sizeof(mem_reg_property))));
         _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
                           sizeof(associativity))));
-        mem_start += node_mem[i];
+        mem_start += node_size;
     }
 
     return 0;
@@ -688,7 +697,8 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
     /* Update the RMA size if necessary */
     if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(ram_size, spapr->htab_shift);
+        hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+        spapr->rma_size = kvmppc_rma_size(node0_size, spapr->htab_shift);
     }
 }
 
@@ -739,18 +749,10 @@ static void spapr_cpu_reset(void *opaque)
 static void spapr_create_nvram(sPAPREnvironment *spapr)
 {
     DeviceState *dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
-    const char *drivename = qemu_opt_get(qemu_get_machine_opts(), "nvram");
+    DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
-    if (drivename) {
-        BlockDriverState *bs;
-
-        bs = bdrv_find(drivename);
-        if (!bs) {
-            fprintf(stderr, "No such block device \"%s\" for nvram\n",
-                    drivename);
-            exit(1);
-        }
-        qdev_prop_set_drive_nofail(dev, "drive", bs);
+    if (dinfo) {
+        qdev_prop_set_drive_nofail(dev, "drive", dinfo->bdrv);
     }
 
     qdev_init_nofail(dev);
@@ -1113,6 +1115,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     hwaddr rma_alloc_size;
+    hwaddr node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;
@@ -1134,10 +1137,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    if (rma_alloc_size && (rma_alloc_size < ram_size)) {
+    if (rma_alloc_size && (rma_alloc_size < node0_size)) {
         spapr->rma_size = rma_alloc_size;
     } else {
-        spapr->rma_size = ram_size;
+        spapr->rma_size = node0_size;
 
         /* With KVM, we don't actually know whether KVM supports an
          * unbounded RMA (PR KVM) or is limited by the hash table size
@@ -1152,6 +1155,12 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             spapr->vrma_adjust = 1;
             spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
         }
+    }
+
+    if (spapr->rma_size > node0_size) {
+        fprintf(stderr, "Error: Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")\n",
+                spapr->rma_size);
+        exit(1);
     }
 
     /* We place the device tree and RTAS just below either the top of the RMA,

@@ -156,42 +156,42 @@ static void create_fdt(VirtBoardInfo *vbi)
     vbi->fdt = fdt;
 
     /* Header */
-    qemu_devtree_setprop_string(fdt, "/", "compatible", "linux,dummy-virt");
-    qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 0x2);
-    qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 0x2);
+    qemu_fdt_setprop_string(fdt, "/", "compatible", "linux,dummy-virt");
+    qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x2);
 
     /*
      * /chosen and /memory nodes must exist for load_dtb
      * to fill in necessary properties later
      */
-    qemu_devtree_add_subnode(fdt, "/chosen");
-    qemu_devtree_add_subnode(fdt, "/memory");
-    qemu_devtree_setprop_string(fdt, "/memory", "device_type", "memory");
+    qemu_fdt_add_subnode(fdt, "/chosen");
+    qemu_fdt_add_subnode(fdt, "/memory");
+    qemu_fdt_setprop_string(fdt, "/memory", "device_type", "memory");
 
     /* Clock node, for the benefit of the UART. The kernel device tree
      * binding documentation claims the PL011 node clock properties are
      * optional but in practice if you omit them the kernel refuses to
      * probe for the device.
      */
-    vbi->clock_phandle = qemu_devtree_alloc_phandle(fdt);
-    qemu_devtree_add_subnode(fdt, "/apb-pclk");
-    qemu_devtree_setprop_string(fdt, "/apb-pclk", "compatible", "fixed-clock");
-    qemu_devtree_setprop_cell(fdt, "/apb-pclk", "#clock-cells", 0x0);
-    qemu_devtree_setprop_cell(fdt, "/apb-pclk", "clock-frequency", 24000000);
-    qemu_devtree_setprop_string(fdt, "/apb-pclk", "clock-output-names",
+    vbi->clock_phandle = qemu_fdt_alloc_phandle(fdt);
+    qemu_fdt_add_subnode(fdt, "/apb-pclk");
+    qemu_fdt_setprop_string(fdt, "/apb-pclk", "compatible", "fixed-clock");
+    qemu_fdt_setprop_cell(fdt, "/apb-pclk", "#clock-cells", 0x0);
+    qemu_fdt_setprop_cell(fdt, "/apb-pclk", "clock-frequency", 24000000);
+    qemu_fdt_setprop_string(fdt, "/apb-pclk", "clock-output-names",
                                 "clk24mhz");
-    qemu_devtree_setprop_cell(fdt, "/apb-pclk", "phandle", vbi->clock_phandle);
+    qemu_fdt_setprop_cell(fdt, "/apb-pclk", "phandle", vbi->clock_phandle);
 
     /* No PSCI for TCG yet */
     if (kvm_enabled()) {
-        qemu_devtree_add_subnode(fdt, "/psci");
-        qemu_devtree_setprop_string(fdt, "/psci", "compatible", "arm,psci");
-        qemu_devtree_setprop_string(fdt, "/psci", "method", "hvc");
-        qemu_devtree_setprop_cell(fdt, "/psci", "cpu_suspend",
+        qemu_fdt_add_subnode(fdt, "/psci");
+        qemu_fdt_setprop_string(fdt, "/psci", "compatible", "arm,psci");
+        qemu_fdt_setprop_string(fdt, "/psci", "method", "hvc");
+        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_suspend",
                                   PSCI_FN_CPU_SUSPEND);
-        qemu_devtree_setprop_cell(fdt, "/psci", "cpu_off", PSCI_FN_CPU_OFF);
-        qemu_devtree_setprop_cell(fdt, "/psci", "cpu_on", PSCI_FN_CPU_ON);
-        qemu_devtree_setprop_cell(fdt, "/psci", "migrate", PSCI_FN_MIGRATE);
+        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", PSCI_FN_CPU_OFF);
+        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", PSCI_FN_CPU_ON);
+        qemu_fdt_setprop_cell(fdt, "/psci", "migrate", PSCI_FN_MIGRATE);
     }
 }
 
@@ -206,10 +206,10 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
     irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                          GIC_FDT_IRQ_PPI_CPU_WIDTH, (1 << vbi->smp_cpus) - 1);
 
-    qemu_devtree_add_subnode(vbi->fdt, "/timer");
-    qemu_devtree_setprop_string(vbi->fdt, "/timer",
+    qemu_fdt_add_subnode(vbi->fdt, "/timer");
+    qemu_fdt_setprop_string(vbi->fdt, "/timer",
                                 "compatible", "arm,armv7-timer");
-    qemu_devtree_setprop_cells(vbi->fdt, "/timer", "interrupts",
+    qemu_fdt_setprop_cells(vbi->fdt, "/timer", "interrupts",
                                GIC_FDT_IRQ_TYPE_PPI, 13, irqflags,
                                GIC_FDT_IRQ_TYPE_PPI, 14, irqflags,
                                GIC_FDT_IRQ_TYPE_PPI, 11, irqflags,
@@ -220,25 +220,25 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
 {
     int cpu;
 
-    qemu_devtree_add_subnode(vbi->fdt, "/cpus");
-    qemu_devtree_setprop_cell(vbi->fdt, "/cpus", "#address-cells", 0x1);
-    qemu_devtree_setprop_cell(vbi->fdt, "/cpus", "#size-cells", 0x0);
+    qemu_fdt_add_subnode(vbi->fdt, "/cpus");
+    qemu_fdt_setprop_cell(vbi->fdt, "/cpus", "#address-cells", 0x1);
+    qemu_fdt_setprop_cell(vbi->fdt, "/cpus", "#size-cells", 0x0);
 
     for (cpu = vbi->smp_cpus - 1; cpu >= 0; cpu--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
 
-        qemu_devtree_add_subnode(vbi->fdt, nodename);
-        qemu_devtree_setprop_string(vbi->fdt, nodename, "device_type", "cpu");
-        qemu_devtree_setprop_string(vbi->fdt, nodename, "compatible",
+        qemu_fdt_add_subnode(vbi->fdt, nodename);
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "device_type", "cpu");
+        qemu_fdt_setprop_string(vbi->fdt, nodename, "compatible",
                                     armcpu->dtb_compatible);
 
         if (vbi->smp_cpus > 1) {
-            qemu_devtree_setprop_string(vbi->fdt, nodename,
+            qemu_fdt_setprop_string(vbi->fdt, nodename,
                                         "enable-method", "psci");
         }
 
-        qemu_devtree_setprop_cell(vbi->fdt, nodename, "reg", cpu);
+        qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg", cpu);
         g_free(nodename);
     }
 }
@@ -247,20 +247,20 @@ static void fdt_add_gic_node(const VirtBoardInfo *vbi)
 {
     uint32_t gic_phandle;
 
-    gic_phandle = qemu_devtree_alloc_phandle(vbi->fdt);
-    qemu_devtree_setprop_cell(vbi->fdt, "/", "interrupt-parent", gic_phandle);
+    gic_phandle = qemu_fdt_alloc_phandle(vbi->fdt);
+    qemu_fdt_setprop_cell(vbi->fdt, "/", "interrupt-parent", gic_phandle);
 
-    qemu_devtree_add_subnode(vbi->fdt, "/intc");
-    qemu_devtree_setprop_string(vbi->fdt, "/intc", "compatible",
+    qemu_fdt_add_subnode(vbi->fdt, "/intc");
+    qemu_fdt_setprop_string(vbi->fdt, "/intc", "compatible",
                                 vbi->gic_compatible);
-    qemu_devtree_setprop_cell(vbi->fdt, "/intc", "#interrupt-cells", 3);
-    qemu_devtree_setprop(vbi->fdt, "/intc", "interrupt-controller", NULL, 0);
-    qemu_devtree_setprop_sized_cells(vbi->fdt, "/intc", "reg",
+    qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#interrupt-cells", 3);
+    qemu_fdt_setprop(vbi->fdt, "/intc", "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_sized_cells(vbi->fdt, "/intc", "reg",
                                      2, vbi->memmap[VIRT_GIC_DIST].base,
                                      2, vbi->memmap[VIRT_GIC_DIST].size,
                                      2, vbi->memmap[VIRT_GIC_CPU].base,
                                      2, vbi->memmap[VIRT_GIC_CPU].size);
-    qemu_devtree_setprop_cell(vbi->fdt, "/intc", "phandle", gic_phandle);
+    qemu_fdt_setprop_cell(vbi->fdt, "/intc", "phandle", gic_phandle);
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
@@ -275,18 +275,18 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
     sysbus_create_simple("pl011", base, pic[irq]);
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
-    qemu_devtree_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
     /* Note that we can't use setprop_string because of the embedded NUL */
-    qemu_devtree_setprop(vbi->fdt, nodename, "compatible",
+    qemu_fdt_setprop(vbi->fdt, nodename, "compatible",
                          compat, sizeof(compat));
-    qemu_devtree_setprop_sized_cells(vbi->fdt, nodename, "reg",
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
                                      2, base, 2, size);
-    qemu_devtree_setprop_cells(vbi->fdt, nodename, "interrupts",
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
                                GIC_FDT_IRQ_TYPE_SPI, irq,
                                GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
-    qemu_devtree_setprop_cells(vbi->fdt, nodename, "clocks",
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "clocks",
                                vbi->clock_phandle, vbi->clock_phandle);
-    qemu_devtree_setprop(vbi->fdt, nodename, "clock-names",
+    qemu_fdt_setprop(vbi->fdt, nodename, "clock-names",
                          clocknames, sizeof(clocknames));
     g_free(nodename);
 }
@@ -314,14 +314,14 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
         hwaddr base = vbi->memmap[VIRT_MMIO].base + i * size;
 
         nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
-        qemu_devtree_add_subnode(vbi->fdt, nodename);
-        qemu_devtree_setprop_string(vbi->fdt, nodename,
-                                    "compatible", "virtio,mmio");
-        qemu_devtree_setprop_sized_cells(vbi->fdt, nodename, "reg",
-                                         2, base, 2, size);
-        qemu_devtree_setprop_cells(vbi->fdt, nodename, "interrupts",
-                                   GIC_FDT_IRQ_TYPE_SPI, irq,
-                                   GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+        qemu_fdt_add_subnode(vbi->fdt, nodename);
+        qemu_fdt_setprop_string(vbi->fdt, nodename,
+                                "compatible", "virtio,mmio");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                     2, base, 2, size);
+        qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
+                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
         g_free(nodename);
     }
 }

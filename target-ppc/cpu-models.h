@@ -39,6 +39,7 @@ extern PowerPCCPUAlias ppc_cpu_aliases[];
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
 enum {
+    CPU_POWERPC_DEFAULT_MASK       = 0xFFFFFFFF,
     /* PowerPC 401 family */
     /* Generic PowerPC 401 */
 #define CPU_POWERPC_401              CPU_POWERPC_401G2
@@ -552,10 +553,16 @@ enum {
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
     CPU_POWERPC_POWER6A            = 0x0F000002,
+    CPU_POWERPC_POWER7_BASE        = 0x003F0000,
+    CPU_POWERPC_POWER7_MASK        = 0xFFFF0000,
     CPU_POWERPC_POWER7_v20         = 0x003F0200,
     CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
+    CPU_POWERPC_POWER7P_BASE       = 0x004A0000,
+    CPU_POWERPC_POWER7P_MASK       = 0xFFFF0000,
     CPU_POWERPC_POWER7P_v21        = 0x004A0201,
+    CPU_POWERPC_POWER8_BASE        = 0x004B0000,
+    CPU_POWERPC_POWER8_MASK        = 0xFFFF0000,
     CPU_POWERPC_POWER8_v10         = 0x004B0100,
     CPU_POWERPC_970                = 0x00390202,
     CPU_POWERPC_970FX_v10          = 0x00391100,

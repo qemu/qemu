@@ -110,6 +110,7 @@ void stq_phys(hwaddr addr, uint64_t val);
 
 void cpu_physical_memory_write_rom(hwaddr addr,
                                    const uint8_t *buf, int len);
+void cpu_flush_icache_range(hwaddr start, int len);
 
 extern struct MemoryRegion io_mem_rom;
 extern struct MemoryRegion io_mem_notdirty;

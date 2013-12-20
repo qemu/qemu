@@ -1745,6 +1745,7 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     uint32_t icache_size = kvmppc_read_int_cpu_dt("i-cache-size");
 
     /* Now fix up the class with information we can query from the host */
+    pcc->pvr = mfpvr();
 
     if (vmx != -1) {
         /* Only override when we know what the host supports */
@@ -1794,6 +1795,9 @@ static int kvm_ppc_register_host_cpu_type(void)
     PowerPCCPUClass *pvr_pcc;
 
     pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc == NULL) {
+        pvr_pcc = ppc_cpu_class_by_pvr_mask(host_pvr);
+    }
     if (pvr_pcc == NULL) {
         return -1;
     }
@@ -1900,5 +1904,33 @@ int kvm_arch_on_sigbus(int code, void *addr)
 }
 
 void kvm_arch_init_irq_routing(KVMState *s)
+{
+}
+
+int kvm_arch_insert_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cpu, struct kvm_sw_breakpoint *bp)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+int kvm_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -EINVAL;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+}
+
+void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
 }

@@ -335,8 +335,8 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
         }
     }
 
-    acells = qemu_devtree_getprop_cell(fdt, "/", "#address-cells");
-    scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
+    acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells");
+    scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells");
     if (acells == 0 || scells == 0) {
         fprintf(stderr, "dtb file invalid (#address-cells or #size-cells 0)\n");
         goto fail;
@@ -351,17 +351,17 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
         goto fail;
     }
 
-    rc = qemu_devtree_setprop_sized_cells(fdt, "/memory", "reg",
-                                          acells, binfo->loader_start,
-                                          scells, binfo->ram_size);
+    rc = qemu_fdt_setprop_sized_cells(fdt, "/memory", "reg",
+                                      acells, binfo->loader_start,
+                                      scells, binfo->ram_size);
     if (rc < 0) {
         fprintf(stderr, "couldn't set /memory/reg\n");
         goto fail;
     }
 
     if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
-        rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
-                                          binfo->kernel_cmdline);
+        rc = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                                     binfo->kernel_cmdline);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/bootargs\n");
             goto fail;
@@ -369,15 +369,15 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     }
 
     if (binfo->initrd_size) {
-        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                binfo->initrd_start);
+        rc = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                                   binfo->initrd_start);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
             goto fail;
         }
 
-        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                    binfo->initrd_start + binfo->initrd_size);
+        rc = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                                   binfo->initrd_start + binfo->initrd_size);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
             goto fail;
@@ -388,7 +388,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
         binfo->modify_dtb(binfo, fdt);
     }
 
-    qemu_devtree_dumpdtb(fdt, size);
+    qemu_fdt_dumpdtb(fdt, size);
 
     cpu_physical_memory_write(addr, fdt, size);
 
