@@ -24,6 +24,8 @@
 #include "hw/qdev.h"
 #include "sysemu/blockdev.h"
 #include "qom/qom-qobject.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
 
 NameInfo *qmp_query_name(Error **errp)
@@ -528,6 +530,66 @@ void qmp_add_client(const char *protocol, const char *fdname,
 
     error_setg(errp, "protocol '%s' is invalid", protocol);
     close(fd);
+}
+
+void object_add(const char *type, const char *id, const QDict *qdict,
+                Visitor *v, Error **errp)
+{
+    Object *obj;
+    const QDictEntry *e;
+    Error *local_err = NULL;
+
+    if (!object_class_by_name(type)) {
+        error_setg(errp, "invalid class name");
+        return;
+    }
+
+    obj = object_new(type);
+    if (qdict) {
+        for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+            object_property_set(obj, v, e->key, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                object_unref(obj);
+                return;
+            }
+        }
+    }
+
+    object_property_add_child(container_get(object_get_root(), "/objects"),
+                              id, obj, errp);
+    object_unref(obj);
+}
+
+int qmp_object_add(Monitor *mon, const QDict *qdict, QObject **ret)
+{
+    const char *type = qdict_get_str(qdict, "qom-type");
+    const char *id = qdict_get_str(qdict, "id");
+    QObject *props = qdict_get(qdict, "props");
+    const QDict *pdict = NULL;
+    Error *local_err = NULL;
+    QmpInputVisitor *qiv;
+
+    if (props) {
+        pdict = qobject_to_qdict(props);
+        if (!pdict) {
+            error_set(&local_err, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
+            goto out;
+        }
+    }
+
+    qiv = qmp_input_visitor_new(props);
+    object_add(type, id, pdict, qmp_input_get_visitor(qiv), &local_err);
+    qmp_input_visitor_cleanup(qiv);
+
+out:
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 void qmp_object_del(const char *id, Error **errp)

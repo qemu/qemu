@@ -21,6 +21,7 @@
 #include "qmp-commands.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
+#include "qapi/opts-visitor.h"
 #include "ui/console.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
@@ -1351,6 +1352,63 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_netdev_del(id, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_object_add(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    QemuOpts *opts;
+    char *type = NULL;
+    char *id = NULL;
+    void *dummy = NULL;
+    OptsVisitor *ov;
+    QDict *pdict;
+
+    opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
+    if (err) {
+        goto out;
+    }
+
+    ov = opts_visitor_new(opts);
+    pdict = qdict_clone_shallow(qdict);
+
+    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    if (err) {
+        goto out_clean;
+    }
+
+    qdict_del(pdict, "qom-type");
+    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    if (err) {
+        goto out_clean;
+    }
+
+    qdict_del(pdict, "id");
+    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    if (err) {
+        goto out_clean;
+    }
+
+    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    if (err) {
+        goto out_clean;
+    }
+    visit_end_struct(opts_get_visitor(ov), &err);
+    if (err) {
+        qmp_object_del(id, NULL);
+    }
+
+out_clean:
+    opts_visitor_cleanup(ov);
+
+    QDECREF(pdict);
+    qemu_opts_del(opts);
+    g_free(id);
+    g_free(type);
+    g_free(dummy);
+
+out:
     hmp_handle_error(mon, &err);
 }
 
