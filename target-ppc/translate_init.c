@@ -8149,9 +8149,10 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         }
         printf("PowerPC %-12s : PVR %08x MSR %016" PRIx64 "\n"
                "    MMU model        : %s\n",
-               pcc->name, pcc->pvr, pcc->msr_mask, mmu_model);
+               object_class_get_name(OBJECT_CLASS(pcc)),
+               pcc->pvr, pcc->msr_mask, mmu_model);
 #if !defined(CONFIG_USER_ONLY)
-        if (env->tlb != NULL) {
+        if (env->tlb.tlb6) {
             printf("                       %d %s TLB in %d ways\n",
                    env->nb_tlb, env->id_tlbs ? "splitted" : "merged",
                    env->nb_ways);
