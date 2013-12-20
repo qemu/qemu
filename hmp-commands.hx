@@ -1243,6 +1243,20 @@ STEXI
 Remove host network device.
 ETEXI
 
+    {
+        .name       = "object_del",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "destroy QOM object",
+        .mhandler.cmd = hmp_object_del,
+    },
+
+STEXI
+@item object_del
+@findex object_del
+Destroy QOM object.
+ETEXI
+
 #ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_add",

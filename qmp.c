@@ -529,3 +529,17 @@ void qmp_add_client(const char *protocol, const char *fdname,
     error_setg(errp, "protocol '%s' is invalid", protocol);
     close(fd);
 }
+
+void qmp_object_del(const char *id, Error **errp)
+{
+    Object *container;
+    Object *obj;
+
+    container = container_get(object_get_root(), "/objects");
+    obj = object_resolve_path_component(container, id);
+    if (!obj) {
+        error_setg(errp, "object id not found");
+        return;
+    }
+    object_unparent(obj);
+}

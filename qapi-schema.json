@@ -2759,6 +2759,20 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
+# @object-del:
+#
+# Remove a QOM object.
+#
+# @id: the name of the QOM object to remove
+#
+# Returns: Nothing on success
+#          Error if @id is not a valid id for a QOM object
+#
+# Since: 2.0
+##
+{ 'command': 'object-del', 'data': {'id': 'str'} }
+
+##
 # @NetdevNoneOptions
 #
 # Use it alone to have zero network devices.

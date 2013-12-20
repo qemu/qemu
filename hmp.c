@@ -1574,3 +1574,12 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 
     hmp_handle_error(mon, &err);
 }
+
+void hmp_object_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    Error *err = NULL;
+
+    qmp_object_del(id, &err);
+    hmp_handle_error(mon, &err);
+}
