@@ -1172,6 +1172,8 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
+    virtio_bus_device_unplugged(vdev);
+
     if (vdc->unrealize != NULL) {
         vdc->unrealize(dev, &err);
         if (err != NULL) {
