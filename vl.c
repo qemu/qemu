@@ -2810,12 +2810,13 @@ static int object_create(QemuOpts *opts, void *opaque)
 
     obj = object_new(type);
     if (qemu_opt_foreach(opts, object_set_property, obj, 1) < 0) {
+        object_unref(obj);
         return -1;
     }
 
     object_property_add_child(container_get(object_get_root(), "/objects"),
                               id, obj, NULL);
-
+    object_unref(obj);
     return 0;
 }
 
