@@ -1156,8 +1156,6 @@
                 "PowerPC 970FX v3.0 (G5)")
     POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970FX,
                 "PowerPC 970FX v3.1 (G5)")
-    POWERPC_DEF("970gx",         CPU_POWERPC_970GX,                  970GX,
-                "PowerPC 970GX (G5)")
     POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970MP,
                 "PowerPC 970MP v1.0")
     POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970MP,
