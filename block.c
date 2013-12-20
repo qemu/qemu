@@ -858,9 +858,10 @@ free_and_fail:
  * dictionary, it needs to use QINCREF() before calling bdrv_file_open.
  */
 int bdrv_file_open(BlockDriverState **pbs, const char *filename,
-                   QDict *options, int flags, Error **errp)
+                   const char *reference, QDict *options, int flags,
+                   Error **errp)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     BlockDriver *drv;
     const char *drvname;
     bool allow_protocol_prefix = false;
@@ -870,6 +871,24 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     /* NULL means an empty set of options */
     if (options == NULL) {
         options = qdict_new();
+    }
+
+    if (reference) {
+        if (filename || qdict_size(options)) {
+            error_setg(errp, "Cannot reference an existing block device with "
+                       "additional options or a new filename");
+            return -EINVAL;
+        }
+        QDECREF(options);
+
+        bs = bdrv_find(reference);
+        if (!bs) {
+            error_setg(errp, "Cannot find block device '%s'", reference);
+            return -ENODEV;
+        }
+        bdrv_ref(bs);
+        *pbs = bs;
+        return 0;
     }
 
     bs = bdrv_new("");
@@ -1124,7 +1143,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
     qdict_extract_subqdict(options, &file_options, "file.");
 
-    ret = bdrv_file_open(&file, filename, file_options,
+    ret = bdrv_file_open(&file, filename, NULL, file_options,
                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP), &local_err);
     if (ret < 0) {
         goto fail;

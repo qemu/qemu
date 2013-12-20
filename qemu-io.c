@@ -59,7 +59,7 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
     }
 
     if (growable) {
-        if (bdrv_file_open(&qemuio_bs, name, opts, flags, &local_err)) {
+        if (bdrv_file_open(&qemuio_bs, name, NULL, opts, flags, &local_err)) {
             fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
                     error_get_pretty(local_err));
             error_free(local_err);

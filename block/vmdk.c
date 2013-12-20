@@ -769,8 +769,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
         path_combine(extent_path, sizeof(extent_path),
                 desc_file_path, fname);
-        ret = bdrv_file_open(&extent_file, extent_path, NULL, bs->open_flags,
-                             errp);
+        ret = bdrv_file_open(&extent_file, extent_path, NULL, NULL,
+                             bs->open_flags, errp);
         if (ret) {
             return ret;
         }
@@ -1469,7 +1469,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1807,7 +1807,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
             goto exit;
         }
     }
-    ret = bdrv_file_open(&new_bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&new_bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write description");
         goto exit;
