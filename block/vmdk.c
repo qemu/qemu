@@ -1452,23 +1452,33 @@ static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
 }
 
 static int vmdk_create_extent(const char *filename, int64_t filesize,
-                              bool flat, bool compress, bool zeroed_grain)
+                              bool flat, bool compress, bool zeroed_grain,
+                              Error **errp)
 {
     int ret, i;
-    int fd = 0;
+    BlockDriverState *bs = NULL;
     VMDK4Header header;
-    uint32_t tmp, magic, grains, gd_size, gt_size, gt_count;
+    Error *local_err;
+    uint32_t tmp, magic, grains, gd_sectors, gt_size, gt_count;
+    uint32_t *gd_buf = NULL;
+    int gd_buf_size;
 
-    fd = qemu_open(filename,
-                   O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
-                   0644);
-    if (fd < 0) {
-        return -errno;
+    ret = bdrv_create_file(filename, NULL, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
     }
+
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
+    }
+
     if (flat) {
-        ret = ftruncate(fd, filesize);
+        ret = bdrv_truncate(bs, filesize);
         if (ret < 0) {
-            ret = -errno;
+            error_setg(errp, "Could not truncate file");
         }
         goto exit;
     }
@@ -1479,24 +1489,23 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
                    | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0)
                    | (zeroed_grain ? VMDK4_FLAG_ZERO_GRAIN : 0);
     header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
-    header.capacity = filesize / 512;
+    header.capacity = filesize / BDRV_SECTOR_SIZE;
     header.granularity = 128;
-    header.num_gtes_per_gt = 512;
+    header.num_gtes_per_gt = BDRV_SECTOR_SIZE;
 
-    grains = (filesize / 512 + header.granularity - 1) / header.granularity;
-    gt_size = ((header.num_gtes_per_gt * sizeof(uint32_t)) + 511) >> 9;
-    gt_count =
-        (grains + header.num_gtes_per_gt - 1) / header.num_gtes_per_gt;
-    gd_size = (gt_count * sizeof(uint32_t) + 511) >> 9;
+    grains = DIV_ROUND_UP(filesize / BDRV_SECTOR_SIZE, header.granularity);
+    gt_size = DIV_ROUND_UP(header.num_gtes_per_gt * sizeof(uint32_t),
+                           BDRV_SECTOR_SIZE);
+    gt_count = DIV_ROUND_UP(grains, header.num_gtes_per_gt);
+    gd_sectors = DIV_ROUND_UP(gt_count * sizeof(uint32_t), BDRV_SECTOR_SIZE);
 
     header.desc_offset = 1;
     header.desc_size = 20;
     header.rgd_offset = header.desc_offset + header.desc_size;
-    header.gd_offset = header.rgd_offset + gd_size + (gt_size * gt_count);
+    header.gd_offset = header.rgd_offset + gd_sectors + (gt_size * gt_count);
     header.grain_offset =
-       ((header.gd_offset + gd_size + (gt_size * gt_count) +
-         header.granularity - 1) / header.granularity) *
-        header.granularity;
+        ROUND_UP(header.gd_offset + gd_sectors + (gt_size * gt_count),
+                 header.granularity);
     /* swap endianness for all header fields */
     header.version = cpu_to_le32(header.version);
     header.flags = cpu_to_le32(header.flags);
@@ -1516,48 +1525,55 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     header.check_bytes[3] = 0xa;
 
     /* write all the data */
-    ret = qemu_write_full(fd, &magic, sizeof(magic));
-    if (ret != sizeof(magic)) {
-        ret = -errno;
+    ret = bdrv_pwrite(bs, 0, &magic, sizeof(magic));
+    if (ret < 0) {
+        error_set(errp, QERR_IO_ERROR);
         goto exit;
     }
-    ret = qemu_write_full(fd, &header, sizeof(header));
-    if (ret != sizeof(header)) {
-        ret = -errno;
+    ret = bdrv_pwrite(bs, sizeof(magic), &header, sizeof(header));
+    if (ret < 0) {
+        error_set(errp, QERR_IO_ERROR);
         goto exit;
     }
 
-    ret = ftruncate(fd, le64_to_cpu(header.grain_offset) << 9);
+    ret = bdrv_truncate(bs, le64_to_cpu(header.grain_offset) << 9);
     if (ret < 0) {
-        ret = -errno;
+        error_setg(errp, "Could not truncate file");
         goto exit;
     }
 
     /* write grain directory */
-    lseek(fd, le64_to_cpu(header.rgd_offset) << 9, SEEK_SET);
-    for (i = 0, tmp = le64_to_cpu(header.rgd_offset) + gd_size;
+    gd_buf_size = gd_sectors * BDRV_SECTOR_SIZE;
+    gd_buf = g_malloc0(gd_buf_size);
+    for (i = 0, tmp = le64_to_cpu(header.rgd_offset) + gd_sectors;
          i < gt_count; i++, tmp += gt_size) {
-        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
-        if (ret != sizeof(tmp)) {
-            ret = -errno;
-            goto exit;
-        }
+        gd_buf[i] = cpu_to_le32(tmp);
+    }
+    ret = bdrv_pwrite(bs, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
+                      gd_buf, gd_buf_size);
+    if (ret < 0) {
+        error_set(errp, QERR_IO_ERROR);
+        goto exit;
     }
 
     /* write backup grain directory */
-    lseek(fd, le64_to_cpu(header.gd_offset) << 9, SEEK_SET);
-    for (i = 0, tmp = le64_to_cpu(header.gd_offset) + gd_size;
+    for (i = 0, tmp = le64_to_cpu(header.gd_offset) + gd_sectors;
          i < gt_count; i++, tmp += gt_size) {
-        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
-        if (ret != sizeof(tmp)) {
-            ret = -errno;
-            goto exit;
-        }
+        gd_buf[i] = cpu_to_le32(tmp);
+    }
+    ret = bdrv_pwrite(bs, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
+                      gd_buf, gd_buf_size);
+    if (ret < 0) {
+        error_set(errp, QERR_IO_ERROR);
+        goto exit;
     }
 
     ret = 0;
- exit:
-    qemu_close(fd);
+exit:
+    if (bs) {
+        bdrv_unref(bs);
+    }
+    g_free(gd_buf);
     return ret;
 }
 
@@ -1604,7 +1620,9 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
 static int vmdk_create(const char *filename, QEMUOptionParameter *options,
                        Error **errp)
 {
-    int fd, idx = 0;
+    int idx = 0;
+    BlockDriverState *new_bs = NULL;
+    Error *local_err;
     char *desc = NULL;
     int64_t total_size = 0, filesize;
     const char *adapter_type = NULL;
@@ -1621,6 +1639,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     uint32_t parent_cid = 0xffffffff;
     uint32_t number_heads = 16;
     bool zeroed_grain = false;
+    uint32_t desc_offset = 0, desc_len;
     const char desc_template[] =
         "# Disk DescriptorFile\n"
         "version=1\n"
@@ -1754,7 +1773,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
                 path, desc_filename);
 
         if (vmdk_create_extent(ext_filename, size,
-                               flat, compress, zeroed_grain)) {
+                               flat, compress, zeroed_grain, errp)) {
             ret = -EINVAL;
             goto exit;
         }
@@ -1762,7 +1781,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
 
         /* Format description line */
         snprintf(desc_line, sizeof(desc_line),
-                    desc_extent_line, size / 512, desc_filename);
+                    desc_extent_line, size / BDRV_SECTOR_SIZE, desc_filename);
         g_string_append(ext_desc_lines, desc_line);
     }
     /* generate descriptor file */
@@ -1773,36 +1792,43 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
                            parent_desc_line,
                            ext_desc_lines->str,
                            (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4),
-                           total_size / (int64_t)(63 * number_heads * 512),
+                           total_size /
+                               (int64_t)(63 * number_heads * BDRV_SECTOR_SIZE),
                            number_heads,
                            adapter_type);
-    if (split || flat) {
-        fd = qemu_open(filename,
-                       O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
-                       0644);
+    desc_len = strlen(desc);
+    /* the descriptor offset = 0x200 */
+    if (!split && !flat) {
+        desc_offset = 0x200;
     } else {
-        fd = qemu_open(filename,
-                       O_WRONLY | O_BINARY | O_LARGEFILE,
-                       0644);
+        ret = bdrv_create_file(filename, options, &local_err);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Could not create image file");
+            goto exit;
+        }
     }
-    if (fd < 0) {
-        ret = -errno;
+    ret = bdrv_file_open(&new_bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not write description");
         goto exit;
     }
-    /* the descriptor offset = 0x200 */
-    if (!split && !flat && 0x200 != lseek(fd, 0x200, SEEK_SET)) {
-        ret = -errno;
-        goto close_exit;
+    ret = bdrv_pwrite(new_bs, desc_offset, desc, desc_len);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not write description");
+        goto exit;
     }
-    ret = qemu_write_full(fd, desc, strlen(desc));
-    if (ret != strlen(desc)) {
-        ret = -errno;
-        goto close_exit;
+    /* bdrv_pwrite write padding zeros to align to sector, we don't need that
+     * for description file */
+    if (desc_offset == 0) {
+        ret = bdrv_truncate(new_bs, desc_len);
+        if (ret < 0) {
+            error_setg(errp, "Could not truncate file");
+        }
     }
-    ret = 0;
-close_exit:
-    qemu_close(fd);
 exit:
+    if (new_bs) {
+        bdrv_unref(new_bs);
+    }
     g_free(desc);
     g_string_free(ext_desc_lines, true);
     return ret;
