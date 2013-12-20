@@ -377,22 +377,31 @@ static const TypeInfo sclp_event_facility_info = {
     .class_size    = sizeof(SCLPEventFacilityClass),
 };
 
-static int event_qdev_init(DeviceState *qdev)
+static void event_realize(DeviceState *qdev, Error **errp)
 {
-    SCLPEvent *event = DO_UPCAST(SCLPEvent, qdev, qdev);
+    SCLPEvent *event = SCLP_EVENT(qdev);
     SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
 
-    return child->init(event);
+    if (child->init) {
+        int rc = child->init(event);
+        if (rc < 0) {
+            error_setg(errp, "SCLP event initialization failed.");
+            return;
+        }
+    }
 }
 
-static int event_qdev_exit(DeviceState *qdev)
+static void event_unrealize(DeviceState *qdev, Error **errp)
 {
-    SCLPEvent *event = DO_UPCAST(SCLPEvent, qdev, qdev);
+    SCLPEvent *event = SCLP_EVENT(qdev);
     SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
     if (child->exit) {
-        child->exit(event);
+        int rc = child->exit(event);
+        if (rc < 0) {
+            error_setg(errp, "SCLP event exit failed.");
+            return;
+        }
     }
-    return 0;
 }
 
 static void event_class_init(ObjectClass *klass, void *data)
@@ -401,8 +410,8 @@ static void event_class_init(ObjectClass *klass, void *data)
 
     dc->bus_type = TYPE_SCLP_EVENTS_BUS;
     dc->unplug = qdev_simple_unplug_cb;
-    dc->init = event_qdev_init;
-    dc->exit = event_qdev_exit;
+    dc->realize = event_realize;
+    dc->unrealize = event_unrealize;
 }
 
 static const TypeInfo sclp_event_type_info = {
