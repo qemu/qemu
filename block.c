@@ -948,14 +948,19 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         goto fail;
     }
 
-    ret = bdrv_open_common(bs, NULL, options, flags, drv, &local_err);
+    if (!drv->bdrv_file_open) {
+        ret = bdrv_open(bs, filename, options, flags, drv, &local_err);
+        options = NULL;
+    } else {
+        ret = bdrv_open_common(bs, NULL, options, flags, drv, &local_err);
+    }
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto fail;
     }
 
     /* Check if any unknown options were used */
-    if (qdict_size(options) != 0) {
+    if (options && (qdict_size(options) != 0)) {
         const QDictEntry *entry = qdict_first(options);
         error_setg(errp, "Block protocol '%s' doesn't support the option '%s'",
                    drv->format_name, entry->key);
