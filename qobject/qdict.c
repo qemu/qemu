@@ -554,3 +554,40 @@ void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
         entry = next;
     }
 }
+
+/**
+ * qdict_array_split(): This function moves array-like elements of a QDict into
+ * a new QList of QDicts. Every entry in the original QDict with a key prefixed
+ * "%u.", where %u designates an unsigned integer starting at 0 and
+ * incrementally counting up, will be moved to a new QDict at index %u in the
+ * output QList with the key prefix removed. The function terminates when there
+ * is no entry in the QDict with a prefix directly (incrementally) following the
+ * last one.
+ * Example: {"0.a": 42, "0.b": 23, "1.x": 0, "3.y": 1, "o.o": 7}
+ *      (or {"1.x": 0, "3.y": 1, "0.a": 42, "o.o": 7, "0.b": 23})
+ *       => [{"a": 42, "b": 23}, {"x": 0}]
+ *      and {"3.y": 1, "o.o": 7} (remainder of the old QDict)
+ */
+void qdict_array_split(QDict *src, QList **dst)
+{
+    unsigned i;
+
+    *dst = qlist_new();
+
+    for (i = 0; i < UINT_MAX; i++) {
+        QDict *subqdict;
+        char prefix[32];
+        size_t snprintf_ret;
+
+        snprintf_ret = snprintf(prefix, 32, "%u.", i);
+        assert(snprintf_ret < 32);
+
+        qdict_extract_subqdict(src, &subqdict, prefix);
+        if (!qdict_size(subqdict)) {
+            QDECREF(subqdict);
+            break;
+        }
+
+        qlist_append_obj(*dst, QOBJECT(subqdict));
+    }
+}
