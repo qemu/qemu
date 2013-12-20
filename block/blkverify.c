@@ -78,7 +78,9 @@ static void blkverify_parse_filename(const char *filename, QDict *options,
 
     /* Parse the blkverify: prefix */
     if (!strstart(filename, "blkverify:", &filename)) {
-        error_setg(errp, "File name string must start with 'blkverify:'");
+        /* There was no prefix; therefore, all options have to be already
+           present in the QDict (except for the filename) */
+        qdict_put(options, "x-image", qstring_from_str(filename));
         return;
     }
 
