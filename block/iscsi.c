@@ -308,7 +308,7 @@ retry:
                                     iscsi_co_generic_cb, &iTask);
     if (iTask.task == NULL) {
         g_free(buf);
-        return -EIO;
+        return -ENOMEM;
     }
 #if defined(LIBISCSI_FEATURE_IOVECTOR)
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
@@ -376,7 +376,7 @@ retry:
         break;
     }
     if (iTask.task == NULL) {
-        return -EIO;
+        return -ENOMEM;
     }
 #if defined(LIBISCSI_FEATURE_IOVECTOR)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
@@ -419,7 +419,7 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
-        return -EIO;
+        return -ENOMEM;
     }
 
     while (!iTask.complete) {
@@ -669,7 +669,7 @@ retry:
                                   sector_qemu2lun(sector_num, iscsilun),
                                   8 + 16, iscsi_co_generic_cb,
                                   &iTask) == NULL) {
-        ret = -EIO;
+        ret = -ENOMEM;
         goto out;
     }
 
@@ -753,7 +753,7 @@ coroutine_fn iscsi_co_discard(BlockDriverState *bs, int64_t sector_num,
 retry:
     if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
                      iscsi_co_generic_cb, &iTask) == NULL) {
-        return -EIO;
+        return -ENOMEM;
     }
 
     while (!iTask.complete) {
@@ -822,7 +822,7 @@ retry:
                                iscsilun->zeroblock, iscsilun->block_size,
                                nb_blocks, 0, !!(flags & BDRV_REQ_MAY_UNMAP),
                                0, 0, iscsi_co_generic_cb, &iTask) == NULL) {
-        return -EIO;
+        return -ENOMEM;
     }
 
     while (!iTask.complete) {
