@@ -307,12 +307,11 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
-static DriveInfo *blockdev_init(QDict *bs_opts,
+static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
                                 BlockInterfaceType type,
                                 Error **errp)
 {
     const char *buf;
-    const char *file = NULL;
     const char *serial;
     int ro = 0;
     int bdrv_flags = 0;
@@ -354,7 +353,6 @@ static DriveInfo *blockdev_init(QDict *bs_opts,
     ro = qemu_opt_get_bool(opts, "read-only", 0);
     copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
 
-    file = qemu_opt_get(opts, "file");
     serial = qemu_opt_get(opts, "serial");
 
     if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
@@ -599,6 +597,10 @@ QemuOptsList qemu_legacy_drive_opts = {
             .name = "addr",
             .type = QEMU_OPT_STRING,
             .help = "pci address (virtio only)",
+        },{
+            .name = "file",
+            .type = QEMU_OPT_STRING,
+            .help = "file name",
         },
 
         /* Options that are passed on, but have special semantics with -drive */
@@ -629,6 +631,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *devaddr;
     bool read_only = false;
     bool copy_on_read;
+    const char *filename;
     Error *local_err = NULL;
 
     /* Change legacy command line options into QMP ones */
@@ -867,8 +870,10 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
     }
 
+    filename = qemu_opt_get(legacy_opts, "file");
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(bs_opts, type, &local_err);
+    dinfo = blockdev_init(filename, bs_opts, type, &local_err);
     if (dinfo == NULL) {
         if (error_is_set(&local_err)) {
             qerror_report_err(local_err);
@@ -2210,7 +2215,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    blockdev_init(qdict, IF_NONE, &local_err);
+    blockdev_init(NULL, qdict, IF_NONE, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         goto fail;
@@ -2250,10 +2255,6 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "snapshot",
             .type = QEMU_OPT_BOOL,
             .help = "enable/disable snapshot mode",
-        },{
-            .name = "file",
-            .type = QEMU_OPT_STRING,
-            .help = "disk image",
         },{
             .name = "discard",
             .type = QEMU_OPT_STRING,
