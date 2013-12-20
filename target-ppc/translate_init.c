@@ -6661,16 +6661,6 @@ static void init_proc_970 (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
@@ -6761,16 +6751,6 @@ static void init_proc_970FX (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
@@ -6873,16 +6853,6 @@ static void init_proc_970MP (CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
@@ -6965,16 +6935,6 @@ static void init_proc_power5plus(CPUPPCState *env)
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
@@ -7077,12 +7037,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_PMC6, 0x00000000);
 #endif /* !CONFIG_USER_ONLY */
-    /* Memory management */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
     gen_spr_amr(env);
     /* XXX : not implemented */
     spr_register(env, SPR_CTRL, "SPR_CTRLT",
