@@ -227,6 +227,81 @@ static void qdict_iterapi_test(void)
     QDECREF(tests_dict);
 }
 
+static void qdict_flatten_test(void)
+{
+    QList *list1 = qlist_new();
+    QList *list2 = qlist_new();
+    QDict *dict1 = qdict_new();
+    QDict *dict2 = qdict_new();
+    QDict *dict3 = qdict_new();
+
+    /*
+     * Test the flattening of
+     *
+     * {
+     *     "e": [
+     *         42,
+     *         [
+     *             23,
+     *             66,
+     *             {
+     *                 "a": 0,
+     *                 "b": 1
+     *             }
+     *         ]
+     *     ],
+     *     "f": {
+     *         "c": 2,
+     *         "d": 3,
+     *     },
+     *     "g": 4
+     * }
+     *
+     * to
+     *
+     * {
+     *     "e.0": 42,
+     *     "e.1.0": 23,
+     *     "e.1.1": 66,
+     *     "e.1.2.a": 0,
+     *     "e.1.2.b": 1,
+     *     "f.c": 2,
+     *     "f.d": 3,
+     *     "g": 4
+     * }
+     */
+
+    qdict_put(dict1, "a", qint_from_int(0));
+    qdict_put(dict1, "b", qint_from_int(1));
+
+    qlist_append_obj(list1, QOBJECT(qint_from_int(23)));
+    qlist_append_obj(list1, QOBJECT(qint_from_int(66)));
+    qlist_append_obj(list1, QOBJECT(dict1));
+    qlist_append_obj(list2, QOBJECT(qint_from_int(42)));
+    qlist_append_obj(list2, QOBJECT(list1));
+
+    qdict_put(dict2, "c", qint_from_int(2));
+    qdict_put(dict2, "d", qint_from_int(3));
+    qdict_put_obj(dict3, "e", QOBJECT(list2));
+    qdict_put_obj(dict3, "f", QOBJECT(dict2));
+    qdict_put(dict3, "g", qint_from_int(4));
+
+    qdict_flatten(dict3);
+
+    g_assert(qdict_get_int(dict3, "e.0") == 42);
+    g_assert(qdict_get_int(dict3, "e.1.0") == 23);
+    g_assert(qdict_get_int(dict3, "e.1.1") == 66);
+    g_assert(qdict_get_int(dict3, "e.1.2.a") == 0);
+    g_assert(qdict_get_int(dict3, "e.1.2.b") == 1);
+    g_assert(qdict_get_int(dict3, "f.c") == 2);
+    g_assert(qdict_get_int(dict3, "f.d") == 3);
+    g_assert(qdict_get_int(dict3, "g") == 4);
+
+    g_assert(qdict_size(dict3) == 8);
+
+    QDECREF(dict3);
+}
+
 static void qdict_array_split_test(void)
 {
     QDict *test_dict = qdict_new();
@@ -444,6 +519,7 @@ int main(int argc, char **argv)
     g_test_add_func("/public/del", qdict_del_test);
     g_test_add_func("/public/to_qdict", qobject_to_qdict_test);
     g_test_add_func("/public/iterapi", qdict_iterapi_test);
+    g_test_add_func("/public/flatten", qdict_flatten_test);
     g_test_add_func("/public/array_split", qdict_array_split_test);
 
     g_test_add_func("/errors/put_exists", qdict_put_exists_test);
