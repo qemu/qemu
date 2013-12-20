@@ -313,7 +313,9 @@ static void blkdebug_parse_filename(const char *filename, QDict *options,
 
     /* Parse the blkdebug: prefix */
     if (!strstart(filename, "blkdebug:", &filename)) {
-        error_setg(errp, "File name string must start with 'blkdebug:'");
+        /* There was no prefix; therefore, all options have to be already
+           present in the QDict (except for the filename) */
+        qdict_put(options, "x-image", qstring_from_str(filename));
         return;
     }
 
