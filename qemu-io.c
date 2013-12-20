@@ -163,11 +163,13 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
         flags |= BDRV_O_RDWR;
     }
 
-    if (optind != argc - 1) {
+    if (optind == argc - 1) {
+        return openfile(argv[optind], flags, growable, opts);
+    } else if (optind == argc) {
+        return openfile(NULL, flags, growable, opts);
+    } else {
         return qemuio_command_usage(&open_cmd);
     }
-
-    return openfile(argv[optind], flags, growable, opts);
 }
 
 static int quit_f(BlockDriverState *bs, int argc, char **argv)
