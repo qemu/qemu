@@ -1056,6 +1056,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     char tmp_filename[PATH_MAX + 1];
     BlockDriverState *file = NULL;
     QDict *file_options = NULL;
+    const char *file_reference;
     const char *drvname;
     Error *local_err = NULL;
 
@@ -1142,9 +1143,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     }
 
     qdict_extract_subqdict(options, &file_options, "file.");
+    file_reference = qdict_get_try_str(options, "file");
 
-    ret = bdrv_file_open(&file, filename, NULL, file_options,
+    ret = bdrv_file_open(&file, filename, file_reference, file_options,
                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP), &local_err);
+    qdict_del(options, "file");
     if (ret < 0) {
         goto fail;
     }
