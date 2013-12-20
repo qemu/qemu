@@ -374,7 +374,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *filename, *config;
+    const char *config;
     int ret;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
@@ -396,14 +396,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     s->state = 1;
 
     /* Open the backing file */
-    filename = qemu_opt_get(opts, "x-image");
-    if (filename == NULL) {
-        error_setg(errp, "Could not retrieve image file name");
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    ret = bdrv_file_open(&bs->file, filename, NULL, NULL, flags, &local_err);
+    ret = bdrv_open_image(&bs->file, qemu_opt_get(opts, "x-image"), options, "image",
+                          flags, true, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto fail;
