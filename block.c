@@ -1128,8 +1128,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char tmp_filename[PATH_MAX + 1];
     BlockDriverState *file = NULL;
-    QDict *file_options = NULL;
-    const char *file_reference;
     const char *drvname;
     Error *local_err = NULL;
 
@@ -1215,17 +1213,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    qdict_extract_subqdict(options, &file_options, "file.");
-    file_reference = qdict_get_try_str(options, "file");
-
-    if (filename || file_reference || qdict_size(file_options)) {
-        ret = bdrv_file_open(&file, filename, file_reference, file_options,
-                             bdrv_open_flags(bs, flags | BDRV_O_UNMAP),
-                             &local_err);
-        qdict_del(options, "file");
-        if (ret < 0) {
-            goto fail;
-        }
+    ret = bdrv_open_image(&file, filename, options, "file",
+                          bdrv_open_flags(bs, flags | BDRV_O_UNMAP), true, true,
+                          &local_err);
+    if (ret < 0) {
+        goto fail;
     }
 
     /* Find the right image format driver */
