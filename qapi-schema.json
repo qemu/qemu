@@ -4201,6 +4201,113 @@
             '*pass-discard-other': 'bool' } }
 
 ##
+# @BlkdebugEvent
+#
+# Trigger events supported by blkdebug.
+##
+{ 'enum': 'BlkdebugEvent',
+  'data': [ 'l1_update', 'l1_grow.alloc_table', 'l1_grow.write_table',
+            'l1_grow.activate_table', 'l2_load', 'l2_update',
+            'l2_update_compressed', 'l2_alloc.cow_read', 'l2_alloc.write',
+            'read_aio', 'read_backing_aio', 'read_compressed', 'write_aio',
+            'write_compressed', 'vmstate_load', 'vmstate_save', 'cow_read',
+            'cow_write', 'reftable_load', 'reftable_grow', 'reftable_update',
+            'refblock_load', 'refblock_update', 'refblock_update_part',
+            'refblock_alloc', 'refblock_alloc.hookup', 'refblock_alloc.write',
+            'refblock_alloc.write_blocks', 'refblock_alloc.write_table',
+            'refblock_alloc.switch_table', 'cluster_alloc',
+            'cluster_alloc_bytes', 'cluster_free', 'flush_to_os',
+            'flush_to_disk' ] }
+
+##
+# @BlkdebugInjectErrorOptions
+#
+# Describes a single error injection for blkdebug.
+#
+# @event:       trigger event
+#
+# @state:       #optional the state identifier blkdebug needs to be in to
+#               actually trigger the event; defaults to "any"
+#
+# @errno:       #optional error identifier (errno) to be returned; defaults to
+#               EIO
+#
+# @sector:      #optional specifies the sector index which has to be affected
+#               in order to actually trigger the event; defaults to "any
+#               sector"
+#
+# @once:        #optional disables further events after this one has been
+#               triggered; defaults to false
+#
+# @immediately: #optional fail immediately; defaults to false
+#
+# Since: 2.0
+##
+{ 'type': 'BlkdebugInjectErrorOptions',
+  'data': { 'event': 'BlkdebugEvent',
+            '*state': 'int',
+            '*errno': 'int',
+            '*sector': 'int',
+            '*once': 'bool',
+            '*immediately': 'bool' } }
+
+##
+# @BlkdebugSetStateOptions
+#
+# Describes a single state-change event for blkdebug.
+#
+# @event:       trigger event
+#
+# @state:       #optional the current state identifier blkdebug needs to be in;
+#               defaults to "any"
+#
+# @new_state:   the state identifier blkdebug is supposed to assume if
+#               this event is triggered
+#
+# Since: 2.0
+##
+{ 'type': 'BlkdebugSetStateOptions',
+  'data': { 'event': 'BlkdebugEvent',
+            '*state': 'int',
+            'new_state': 'int' } }
+
+##
+# @BlockdevOptionsBlkdebug
+#
+# Driver specific block device options for blkdebug.
+#
+# @image:           underlying raw block device (or image file)
+#
+# @config:          #optional filename of the configuration file
+#
+# @inject-error:    #optional array of error injection descriptions
+#
+# @set-state:       #optional array of state-change descriptions
+#
+# Since: 2.0
+##
+{ 'type': 'BlockdevOptionsBlkdebug',
+  'data': { 'image': 'BlockdevRef',
+            '*config': 'str',
+            '*inject-error': ['BlkdebugInjectErrorOptions'],
+            '*set-state': ['BlkdebugSetStateOptions'] } }
+
+##
+# @BlockdevOptionsBlkverify
+#
+# Driver specific block device options for blkverify.
+#
+# @test:    block device to be tested
+#
+# @raw:     raw image used for verification
+#
+# Since: 2.0
+##
+{ 'type': 'BlockdevOptionsBlkverify',
+  'data': { 'test': 'BlockdevRef',
+            'raw': 'BlockdevRef' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.
@@ -4224,10 +4331,8 @@
 # TODO sheepdog: Wait for structured options
 # TODO ssh: Should take InetSocketAddress for 'host'?
       'vvfat':      'BlockdevOptionsVVFAT',
-
-# TODO blkdebug: Wait for structured options
-# TODO blkverify: Wait for structured options
-
+      'blkdebug':   'BlockdevOptionsBlkdebug',
+      'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
       'cow':        'BlockdevOptionsGenericCOWFormat',
