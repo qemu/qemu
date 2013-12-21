@@ -622,6 +622,7 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
         break;
     }
 
+    setcc(cpu, 0);    /* Command execution complete */
 out:
     s390_cpu_physical_memory_unmap(env, req, map_size, 1);
 }
