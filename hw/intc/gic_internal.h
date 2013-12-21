@@ -61,5 +61,6 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu);
 void gic_complete_irq(GICState *s, int cpu, int irq);
 void gic_update(GICState *s);
 void gic_init_irqs_and_distributor(GICState *s, int num_irq);
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val);
 
 #endif /* !QEMU_ARM_GIC_INTERNAL_H */

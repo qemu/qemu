@@ -168,6 +168,15 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu)
     return new_irq;
 }
 
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val)
+{
+    if (irq < GIC_INTERNAL) {
+        s->priority1[irq][cpu] = val;
+    } else {
+        s->priority2[(irq) - GIC_INTERNAL] = val;
+    }
+}
+
 void gic_complete_irq(GICState *s, int cpu, int irq)
 {
     int update = 0;
@@ -443,11 +452,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x400) + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < GIC_INTERNAL) {
-            s->priority1[irq][cpu] = value;
-        } else {
-            s->priority2[irq - GIC_INTERNAL] = value;
-        }
+        gic_set_priority(s, cpu, irq, value);
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target. RAZ/WI on uniprocessor GICs, with the
          * annoying exception of the 11MPCore's GIC.
