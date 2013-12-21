@@ -311,6 +311,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     ram_addr_t ram_size,
+                    ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_address_space,
                     MemoryRegion *ram_memory)
@@ -340,15 +341,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     f->ram_memory = ram_memory;
 
     i440fx = I440FX_PCI_HOST_BRIDGE(dev);
-    /* Set PCI window size the way seabios has always done it. */
-    /* Power of 2 so bios can cover it with a single MTRR */
-    if (ram_size <= 0x80000000) {
-        i440fx->pci_info.w32.begin = 0x80000000;
-    } else if (ram_size <= 0xc0000000) {
-        i440fx->pci_info.w32.begin = 0xc0000000;
-    } else {
-        i440fx->pci_info.w32.begin = 0xe0000000;
-    }
+    i440fx->pci_info.w32.begin = below_4g_mem_size;
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(f), f->system_memory,
