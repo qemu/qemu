@@ -354,6 +354,29 @@ out:
     g_slice_free(GlusterAIOCB, acb);
     return ret;
 }
+
+static inline bool gluster_supports_zerofill(void)
+{
+    return 1;
+}
+
+static inline int qemu_gluster_zerofill(struct glfs_fd *fd, int64_t offset,
+        int64_t size)
+{
+    return glfs_zerofill(fd, offset, size);
+}
+
+#else
+static inline bool gluster_supports_zerofill(void)
+{
+    return 0;
+}
+
+static inline int qemu_gluster_zerofill(struct glfs_fd *fd, int64_t offset,
+        int64_t size)
+{
+    return 0;
+}
 #endif
 
 static int qemu_gluster_create(const char *filename,
@@ -362,6 +385,7 @@ static int qemu_gluster_create(const char *filename,
     struct glfs *glfs;
     struct glfs_fd *fd;
     int ret = 0;
+    int prealloc = 0;
     int64_t total_size = 0;
     GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
 
@@ -374,6 +398,19 @@ static int qemu_gluster_create(const char *filename,
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
             total_size = options->value.n / BDRV_SECTOR_SIZE;
+        } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
+            if (!options->value.s || !strcmp(options->value.s, "off")) {
+                prealloc = 0;
+            } else if (!strcmp(options->value.s, "full") &&
+                    gluster_supports_zerofill()) {
+                prealloc = 1;
+            } else {
+                error_setg(errp, "Invalid preallocation mode: '%s'"
+                    " or GlusterFS doesn't support zerofill API",
+                           options->value.s);
+                ret = -EINVAL;
+                goto out;
+            }
         }
         options++;
     }
@@ -383,9 +420,15 @@ static int qemu_gluster_create(const char *filename,
     if (!fd) {
         ret = -errno;
     } else {
-        if (glfs_ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
+        if (!glfs_ftruncate(fd, total_size * BDRV_SECTOR_SIZE)) {
+            if (prealloc && qemu_gluster_zerofill(fd, 0,
+                    total_size * BDRV_SECTOR_SIZE)) {
+                ret = -errno;
+            }
+        } else {
             ret = -errno;
         }
+
         if (glfs_close(fd) != 0) {
             ret = -errno;
         }
@@ -559,6 +602,11 @@ static QEMUOptionParameter qemu_gluster_create_options[] = {
         .name = BLOCK_OPT_SIZE,
         .type = OPT_SIZE,
         .help = "Virtual disk size"
+    },
+    {
+        .name = BLOCK_OPT_PREALLOC,
+        .type = OPT_STRING,
+        .help = "Preallocation mode (allowed values: off, full)"
     },
     { NULL }
 };
