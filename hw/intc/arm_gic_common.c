@@ -51,7 +51,7 @@ static const VMStateDescription vmstate_gic_irq_state = {
         VMSTATE_UINT8(active, gic_irq_state),
         VMSTATE_UINT8(level, gic_irq_state),
         VMSTATE_BOOL(model, gic_irq_state),
-        VMSTATE_BOOL(trigger, gic_irq_state),
+        VMSTATE_BOOL(edge_trigger, gic_irq_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -126,7 +126,7 @@ static void arm_gic_common_reset(DeviceState *dev)
     }
     for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
-        GIC_SET_TRIGGER(i);
+        GIC_SET_EDGE_TRIGGER(i);
     }
     if (s->num_cpu == 1) {
         /* For uniprocessor GICs all interrupts always target the sole CPU */

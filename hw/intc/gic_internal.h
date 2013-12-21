@@ -44,9 +44,9 @@
 #define GIC_SET_LEVEL(irq, cm) s->irq_state[irq].level = (cm)
 #define GIC_CLEAR_LEVEL(irq, cm) s->irq_state[irq].level &= ~(cm)
 #define GIC_TEST_LEVEL(irq, cm) ((s->irq_state[irq].level & (cm)) != 0)
-#define GIC_SET_TRIGGER(irq) s->irq_state[irq].trigger = true
-#define GIC_CLEAR_TRIGGER(irq) s->irq_state[irq].trigger = false
-#define GIC_TEST_TRIGGER(irq) s->irq_state[irq].trigger
+#define GIC_SET_EDGE_TRIGGER(irq) s->irq_state[irq].edge_trigger = true
+#define GIC_CLEAR_EDGE_TRIGGER(irq) s->irq_state[irq].edge_trigger = false
+#define GIC_TEST_EDGE_TRIGGER(irq) (s->irq_state[irq].edge_trigger)
 #define GIC_GET_PRIORITY(irq, cpu) (((irq) < GIC_INTERNAL) ?            \
                                     s->priority1[irq][cpu] :            \
                                     s->priority2[(irq) - GIC_INTERNAL])
