@@ -33,7 +33,7 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-static struct keymap map[0x100] = {
+static const struct keymap map[0x100] = {
     [0 ... 0xff] = { -1, -1 },
     [0x3b] = {0, 0}, /* Option = F1 */
     [0xc8] = {0, 1}, /* Up */

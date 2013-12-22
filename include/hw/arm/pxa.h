@@ -109,8 +109,8 @@ typedef struct PXA2xxKeyPadState PXA2xxKeyPadState;
 PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
                                       hwaddr base,
                                       qemu_irq irq);
-void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
-                int size);
+void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
+                            const struct keymap *map, int size);
 
 /* pxa2xx.c */
 typedef struct PXA2xxI2CState PXA2xxI2CState;

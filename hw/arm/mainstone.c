@@ -45,7 +45,7 @@
 #define S1_STSCHG_IRQ 14
 #define S1_IRQ        15
 
-static struct keymap map[0xE0] = {
+static const struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },
     [0x1e] = {0,0}, /* a */
     [0x30] = {0,1}, /* b */
