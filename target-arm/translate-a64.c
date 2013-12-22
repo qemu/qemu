@@ -99,6 +99,15 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     cpu_fprintf(f, "\n");
 }
 
+static int get_mem_index(DisasContext *s)
+{
+#ifdef CONFIG_USER_ONLY
+    return 1;
+#else
+    return s->user;
+#endif
+}
+
 void gen_a64_set_pc_im(uint64_t val)
 {
     tcg_gen_movi_i64(cpu_pc, val);
@@ -250,6 +259,17 @@ static TCGv_i64 read_cpu_reg(DisasContext *s, int reg, int sf)
     return v;
 }
 
+static TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
+{
+    TCGv_i64 v = new_tmp_a64(s);
+    if (sf) {
+        tcg_gen_mov_i64(v, cpu_X[reg]);
+    } else {
+        tcg_gen_ext32u_i64(v, cpu_X[reg]);
+    }
+    return v;
+}
+
 /* Set ZF and NF based on a 64 bit result. This is alas fiddlier
  * than the 32 bit equivalent.
  */
@@ -275,6 +295,126 @@ static inline void gen_logic_CC(int sf, TCGv_i64 result)
     }
     tcg_gen_movi_i32(cpu_CF, 0);
     tcg_gen_movi_i32(cpu_VF, 0);
+}
+
+/*
+ * Load/Store generators
+ */
+
+/*
+ * Store from GPR register to memory
+ */
+static void do_gpr_st(DisasContext *s, TCGv_i64 source,
+                      TCGv_i64 tcg_addr, int size)
+{
+    g_assert(size <= 3);
+    tcg_gen_qemu_st_i64(source, tcg_addr, get_mem_index(s), MO_TE + size);
+}
+
+/*
+ * Load from memory to GPR register
+ */
+static void do_gpr_ld(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
+                      int size, bool is_signed, bool extend)
+{
+    TCGMemOp memop = MO_TE + size;
+
+    g_assert(size <= 3);
+
+    if (is_signed) {
+        memop += MO_SIGN;
+    }
+
+    tcg_gen_qemu_ld_i64(dest, tcg_addr, get_mem_index(s), memop);
+
+    if (extend && is_signed) {
+        g_assert(size < 3);
+        tcg_gen_ext32u_i64(dest, dest);
+    }
+}
+
+/*
+ * Store from FP register to memory
+ */
+static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
+{
+    /* This writes the bottom N bits of a 128 bit wide vector to memory */
+    int freg_offs = offsetof(CPUARMState, vfp.regs[srcidx * 2]);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    if (size < 4) {
+        switch (size) {
+        case 0:
+            tcg_gen_ld8u_i64(tmp, cpu_env, freg_offs);
+            break;
+        case 1:
+            tcg_gen_ld16u_i64(tmp, cpu_env, freg_offs);
+            break;
+        case 2:
+            tcg_gen_ld32u_i64(tmp, cpu_env, freg_offs);
+            break;
+        case 3:
+            tcg_gen_ld_i64(tmp, cpu_env, freg_offs);
+            break;
+        }
+        tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TE + size);
+    } else {
+        TCGv_i64 tcg_hiaddr = tcg_temp_new_i64();
+        tcg_gen_ld_i64(tmp, cpu_env, freg_offs);
+        tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TEQ);
+        tcg_gen_qemu_st64(tmp, tcg_addr, get_mem_index(s));
+        tcg_gen_ld_i64(tmp, cpu_env, freg_offs + sizeof(float64));
+        tcg_gen_addi_i64(tcg_hiaddr, tcg_addr, 8);
+        tcg_gen_qemu_st_i64(tmp, tcg_hiaddr, get_mem_index(s), MO_TEQ);
+        tcg_temp_free_i64(tcg_hiaddr);
+    }
+
+    tcg_temp_free_i64(tmp);
+}
+
+/*
+ * Load from memory to FP register
+ */
+static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
+{
+    /* This always zero-extends and writes to a full 128 bit wide vector */
+    int freg_offs = offsetof(CPUARMState, vfp.regs[destidx * 2]);
+    TCGv_i64 tmplo = tcg_temp_new_i64();
+    TCGv_i64 tmphi;
+
+    if (size < 4) {
+        TCGMemOp memop = MO_TE + size;
+        tmphi = tcg_const_i64(0);
+        tcg_gen_qemu_ld_i64(tmplo, tcg_addr, get_mem_index(s), memop);
+    } else {
+        TCGv_i64 tcg_hiaddr;
+        tmphi = tcg_temp_new_i64();
+        tcg_hiaddr = tcg_temp_new_i64();
+
+        tcg_gen_qemu_ld_i64(tmplo, tcg_addr, get_mem_index(s), MO_TEQ);
+        tcg_gen_addi_i64(tcg_hiaddr, tcg_addr, 8);
+        tcg_gen_qemu_ld_i64(tmphi, tcg_hiaddr, get_mem_index(s), MO_TEQ);
+        tcg_temp_free_i64(tcg_hiaddr);
+    }
+
+    tcg_gen_st_i64(tmplo, cpu_env, freg_offs);
+    tcg_gen_st_i64(tmphi, cpu_env, freg_offs + sizeof(float64));
+
+    tcg_temp_free_i64(tmplo);
+    tcg_temp_free_i64(tmphi);
+}
+
+static inline void gen_check_sp_alignment(DisasContext *s)
+{
+    /* The AArch64 architecture mandates that (if enabled via PSTATE
+     * or SCTLR bits) there is a check that SP is 16-aligned on every
+     * SP-relative load or store (with an exception generated if it is not).
+     * In line with general QEMU practice regarding misaligned accesses,
+     * we omit these checks for the sake of guest program performance.
+     * This function is provided as a hook so we can more easily add these
+     * checks in future (possibly as a "favour catching guest program bugs
+     * over speed" user selectable option).
+     */
 }
 
 /*
@@ -620,10 +760,145 @@ static void disas_ld_lit(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
-/* Load/store pair (all forms) */
+/*
+ * C5.6.80 LDNP (Load Pair - non-temporal hint)
+ * C5.6.81 LDP (Load Pair - non vector)
+ * C5.6.82 LDPSW (Load Pair Signed Word - non vector)
+ * C5.6.176 STNP (Store Pair - non-temporal hint)
+ * C5.6.177 STP (Store Pair - non vector)
+ * C6.3.165 LDNP (Load Pair of SIMD&FP - non-temporal hint)
+ * C6.3.165 LDP (Load Pair of SIMD&FP)
+ * C6.3.284 STNP (Store Pair of SIMD&FP - non-temporal hint)
+ * C6.3.284 STP (Store Pair of SIMD&FP)
+ *
+ *  31 30 29   27  26  25 24   23  22 21   15 14   10 9    5 4    0
+ * +-----+-------+---+---+-------+---+-----------------------------+
+ * | opc | 1 0 1 | V | 0 | index | L |  imm7 |  Rt2  |  Rn  | Rt   |
+ * +-----+-------+---+---+-------+---+-------+-------+------+------+
+ *
+ * opc: LDP/STP/LDNP/STNP        00 -> 32 bit, 10 -> 64 bit
+ *      LDPSW                    01
+ *      LDP/STP/LDNP/STNP (SIMD) 00 -> 32 bit, 01 -> 64 bit, 10 -> 128 bit
+ *   V: 0 -> GPR, 1 -> Vector
+ * idx: 00 -> signed offset with non-temporal hint, 01 -> post-index,
+ *      10 -> signed offset, 11 -> pre-index
+ *   L: 0 -> Store 1 -> Load
+ *
+ * Rt, Rt2 = GPR or SIMD registers to be stored
+ * Rn = general purpose register containing address
+ * imm7 = signed offset (multiple of 4 or 8 depending on size)
+ */
 static void disas_ldst_pair(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rt = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int rt2 = extract32(insn, 10, 5);
+    int64_t offset = sextract32(insn, 15, 7);
+    int index = extract32(insn, 23, 2);
+    bool is_vector = extract32(insn, 26, 1);
+    bool is_load = extract32(insn, 22, 1);
+    int opc = extract32(insn, 30, 2);
+
+    bool is_signed = false;
+    bool postindex = false;
+    bool wback = false;
+
+    TCGv_i64 tcg_addr; /* calculated address */
+    int size;
+
+    if (opc == 3) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (is_vector) {
+        size = 2 + opc;
+    } else {
+        size = 2 + extract32(opc, 1, 1);
+        is_signed = extract32(opc, 0, 1);
+        if (!is_load && is_signed) {
+            unallocated_encoding(s);
+            return;
+        }
+    }
+
+    switch (index) {
+    case 1: /* post-index */
+        postindex = true;
+        wback = true;
+        break;
+    case 0:
+        /* signed offset with "non-temporal" hint. Since we don't emulate
+         * caches we don't care about hints to the cache system about
+         * data access patterns, and handle this identically to plain
+         * signed offset.
+         */
+        if (is_signed) {
+            /* There is no non-temporal-hint version of LDPSW */
+            unallocated_encoding(s);
+            return;
+        }
+        postindex = false;
+        break;
+    case 2: /* signed offset, rn not updated */
+        postindex = false;
+        break;
+    case 3: /* pre-index */
+        postindex = false;
+        wback = true;
+        break;
+    }
+
+    offset <<= size;
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    tcg_addr = read_cpu_reg_sp(s, rn, 1);
+
+    if (!postindex) {
+        tcg_gen_addi_i64(tcg_addr, tcg_addr, offset);
+    }
+
+    if (is_vector) {
+        if (is_load) {
+            do_fp_ld(s, rt, tcg_addr, size);
+        } else {
+            do_fp_st(s, rt, tcg_addr, size);
+        }
+    } else {
+        TCGv_i64 tcg_rt = cpu_reg(s, rt);
+        if (is_load) {
+            do_gpr_ld(s, tcg_rt, tcg_addr, size, is_signed, false);
+        } else {
+            do_gpr_st(s, tcg_rt, tcg_addr, size);
+        }
+    }
+    tcg_gen_addi_i64(tcg_addr, tcg_addr, 1 << size);
+    if (is_vector) {
+        if (is_load) {
+            do_fp_ld(s, rt2, tcg_addr, size);
+        } else {
+            do_fp_st(s, rt2, tcg_addr, size);
+        }
+    } else {
+        TCGv_i64 tcg_rt2 = cpu_reg(s, rt2);
+        if (is_load) {
+            do_gpr_ld(s, tcg_rt2, tcg_addr, size, is_signed, false);
+        } else {
+            do_gpr_st(s, tcg_rt2, tcg_addr, size);
+        }
+    }
+
+    if (wback) {
+        if (postindex) {
+            tcg_gen_addi_i64(tcg_addr, tcg_addr, offset - (1 << size));
+        } else {
+            tcg_gen_subi_i64(tcg_addr, tcg_addr, 1 << size);
+        }
+        tcg_gen_mov_i64(cpu_reg_sp(s, rn), tcg_addr);
+    }
 }
 
 /* Load/store register (all forms) */
