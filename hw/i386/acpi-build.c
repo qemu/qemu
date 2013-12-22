@@ -36,6 +36,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "bios-linker-loader.h"
 #include "hw/loader.h"
+#include "hw/isa/isa.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -80,6 +81,7 @@ typedef struct AcpiMiscInfo {
 
 static void acpi_get_dsdt(AcpiMiscInfo *info)
 {
+    unsigned short applesmc_sta_val, *applesmc_sta_off;
     Object *piix = piix4_pm_find();
     Object *lpc = ich9_lpc_find();
     assert(!!piix != !!lpc);
@@ -87,11 +89,18 @@ static void acpi_get_dsdt(AcpiMiscInfo *info)
     if (piix) {
         info->dsdt_code = AcpiDsdtAmlCode;
         info->dsdt_size = sizeof AcpiDsdtAmlCode;
+        applesmc_sta_off = piix_dsdt_applesmc_sta;
     }
     if (lpc) {
         info->dsdt_code = Q35AcpiDsdtAmlCode;
         info->dsdt_size = sizeof Q35AcpiDsdtAmlCode;
+        applesmc_sta_off = q35_dsdt_applesmc_sta;
     }
+
+    /* Patch in appropriate value for AppleSMC _STA */
+    applesmc_sta_val = applesmc_find() ? 0x0b : 0x00;
+    *(uint16_t *)(info->dsdt_code + *applesmc_sta_off) =
+        cpu_to_le16(applesmc_sta_val);
 }
 
 static
