@@ -2670,10 +2670,178 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
     }
 }
 
+/* C3.6.22 Floating point compare
+ *   31  30  29 28       24 23  22  21 20  16 15 14 13  10    9    5 4     0
+ * +---+---+---+-----------+------+---+------+-----+---------+------+-------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 |  Rm  | op  | 1 0 0 0 |  Rn  |  op2  |
+ * +---+---+---+-----------+------+---+------+-----+---------+------+-------+
+ */
+static void disas_fp_compare(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.23 Floating point conditional compare
+ *   31  30  29 28       24 23  22  21 20  16 15  12 11 10 9    5  4   3    0
+ * +---+---+---+-----------+------+---+------+------+-----+------+----+------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 |  Rm  | cond | 0 1 |  Rn  | op | nzcv |
+ * +---+---+---+-----------+------+---+------+------+-----+------+----+------+
+ */
+static void disas_fp_ccomp(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.24 Floating point conditional select
+ *   31  30  29 28       24 23  22  21 20  16 15  12 11 10 9    5 4    0
+ * +---+---+---+-----------+------+---+------+------+-----+------+------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 |  Rm  | cond | 1 1 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+------+------+-----+------+------+
+ */
+static void disas_fp_csel(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.25 Floating point data-processing (1 source)
+ *   31  30  29 28       24 23  22  21 20    15 14       10 9    5 4    0
+ * +---+---+---+-----------+------+---+--------+-----------+------+------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 | opcode | 1 0 0 0 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+--------+-----------+------+------+
+ */
+static void disas_fp_1src(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.26 Floating point data-processing (2 source)
+ *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
+ * +---+---+---+-----------+------+---+------+--------+-----+------+------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 |  Rm  | opcode | 1 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+------+--------+-----+------+------+
+ */
+static void disas_fp_2src(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.27 Floating point data-processing (3 source)
+ *   31  30  29 28       24 23  22  21  20  16  15  14  10 9    5 4    0
+ * +---+---+---+-----------+------+----+------+----+------+------+------+
+ * | M | 0 | S | 1 1 1 1 1 | type | o1 |  Rm  | o0 |  Ra  |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+----+------+----+------+------+------+
+ */
+static void disas_fp_3src(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.28 Floating point immediate
+ *   31  30  29 28       24 23  22  21 20        13 12   10 9    5 4    0
+ * +---+---+---+-----------+------+---+------------+-------+------+------+
+ * | M | 0 | S | 1 1 1 1 0 | type | 1 |    imm8    | 1 0 0 | imm5 |  Rd  |
+ * +---+---+---+-----------+------+---+------------+-------+------+------+
+ */
+static void disas_fp_imm(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.29 Floating point <-> fixed point conversions
+ *   31   30  29 28       24 23  22  21 20   19 18    16 15   10 9    5 4    0
+ * +----+---+---+-----------+------+---+-------+--------+-------+------+------+
+ * | sf | 0 | S | 1 1 1 1 0 | type | 0 | rmode | opcode | scale |  Rn  |  Rd  |
+ * +----+---+---+-----------+------+---+-------+--------+-------+------+------+
+ */
+static void disas_fp_fixed_conv(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.30 Floating point <-> integer conversions
+ *   31   30  29 28       24 23  22  21 20   19 18 16 15         10 9  5 4  0
+ * +----+---+---+-----------+------+---+-------+-----+-------------+----+----+
+ * | sf | 0 | S | 1 1 1 1 0 | type | 0 | rmode | opc | 0 0 0 0 0 0 | Rn | Rd |
+ * +----+---+---+-----------+------+---+-------+-----+-------------+----+----+
+ */
+static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* FP-specific subcases of table C3-6 (SIMD and FP data processing)
+ *   31  30  29 28     25 24                          0
+ * +---+---+---+---------+-----------------------------+
+ * |   | 0 |   | 1 1 1 1 |                             |
+ * +---+---+---+---------+-----------------------------+
+ */
+static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
+{
+    if (extract32(insn, 24, 1)) {
+        /* Floating point data-processing (3 source) */
+        disas_fp_3src(s, insn);
+    } else if (extract32(insn, 21, 1) == 0) {
+        /* Floating point to fixed point conversions */
+        disas_fp_fixed_conv(s, insn);
+    } else {
+        switch (extract32(insn, 10, 2)) {
+        case 1:
+            /* Floating point conditional compare */
+            disas_fp_ccomp(s, insn);
+            break;
+        case 2:
+            /* Floating point data-processing (2 source) */
+            disas_fp_2src(s, insn);
+            break;
+        case 3:
+            /* Floating point conditional select */
+            disas_fp_csel(s, insn);
+            break;
+        case 0:
+            switch (ctz32(extract32(insn, 12, 4))) {
+            case 0: /* [15:12] == xxx1 */
+                /* Floating point immediate */
+                disas_fp_imm(s, insn);
+                break;
+            case 1: /* [15:12] == xx10 */
+                /* Floating point compare */
+                disas_fp_compare(s, insn);
+                break;
+            case 2: /* [15:12] == x100 */
+                /* Floating point data-processing (1 source) */
+                disas_fp_1src(s, insn);
+                break;
+            case 3: /* [15:12] == 1000 */
+                unallocated_encoding(s);
+                break;
+            default: /* [15:12] == 0000 */
+                /* Floating point <-> integer conversions */
+                disas_fp_int_conv(s, insn);
+                break;
+            }
+            break;
+        }
+    }
+}
+
+static void disas_data_proc_simd(DisasContext *s, uint32_t insn)
+{
+    /* Note that this is called with all non-FP cases from
+     * table C3-6 so it must UNDEF for entries not specifically
+     * allocated to instructions in that table.
+     */
+    unsupported_encoding(s, insn);
+}
+
 /* C3.6 Data processing - SIMD and floating point */
 static void disas_data_proc_simd_fp(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    if (extract32(insn, 28, 1) == 1 && extract32(insn, 30, 1) == 0) {
+        disas_data_proc_fp(s, insn);
+    } else {
+        /* SIMD, including crypto */
+        disas_data_proc_simd(s, insn);
+    }
 }
 
 /* C3.1 A64 instruction index by encoding */
