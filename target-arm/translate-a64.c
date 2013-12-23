@@ -808,10 +808,57 @@ static void disas_system(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Exception generation */
+/* C3.2.3 Exception generation
+ *
+ *  31             24 23 21 20                     5 4   2 1  0
+ * +-----------------+-----+------------------------+-----+----+
+ * | 1 1 0 1 0 1 0 0 | opc |          imm16         | op2 | LL |
+ * +-----------------------+------------------------+----------+
+ */
 static void disas_exc(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int opc = extract32(insn, 21, 3);
+    int op2_ll = extract32(insn, 0, 5);
+
+    switch (opc) {
+    case 0:
+        /* SVC, HVC, SMC; since we don't support the Virtualization
+         * or TrustZone extensions these all UNDEF except SVC.
+         */
+        if (op2_ll != 1) {
+            unallocated_encoding(s);
+            break;
+        }
+        gen_exception_insn(s, 0, EXCP_SWI);
+        break;
+    case 1:
+        if (op2_ll != 0) {
+            unallocated_encoding(s);
+            break;
+        }
+        /* BRK */
+        gen_exception_insn(s, 0, EXCP_BKPT);
+        break;
+    case 2:
+        if (op2_ll != 0) {
+            unallocated_encoding(s);
+            break;
+        }
+        /* HLT */
+        unsupported_encoding(s, insn);
+        break;
+    case 5:
+        if (op2_ll < 1 || op2_ll > 3) {
+            unallocated_encoding(s);
+            break;
+        }
+        /* DCPS1, DCPS2, DCPS3 */
+        unsupported_encoding(s, insn);
+        break;
+    default:
+        unallocated_encoding(s);
+        break;
+    }
 }
 
 /* C3.2.7 Unconditional branch (register)
