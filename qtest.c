@@ -500,7 +500,7 @@ static void qtest_event(void *opaque, int event)
     }
 }
 
-int qtest_init_accel(void)
+int qtest_init_accel(QEMUMachine *machine)
 {
     configure_icount("0");
 

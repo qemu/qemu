@@ -374,6 +374,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "firmware",
             .type = QEMU_OPT_STRING,
             .help = "firmware image",
+        },{
+            .name = "kvm-type",
+            .type = QEMU_OPT_STRING,
+            .help = "Specifies the KVM virtualization mode (HV, PR)",
         },
         { /* End of list */ }
     },
@@ -2578,7 +2582,7 @@ static QEMUMachine *machine_parse(const char *name)
     exit(!name || !is_help_option(name));
 }
 
-static int tcg_init(void)
+static int tcg_init(QEMUMachine *machine)
 {
     tcg_exec_init(tcg_tb_size * 1024 * 1024);
     return 0;
@@ -2588,7 +2592,7 @@ static struct {
     const char *opt_name;
     const char *name;
     int (*available)(void);
-    int (*init)(void);
+    int (*init)(QEMUMachine *);
     bool *allowed;
 } accel_list[] = {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
@@ -2597,7 +2601,7 @@ static struct {
     { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
 };
 
-static int configure_accelerator(void)
+static int configure_accelerator(QEMUMachine *machine)
 {
     const char *p;
     char buf[10];
@@ -2624,7 +2628,7 @@ static int configure_accelerator(void)
                     continue;
                 }
                 *(accel_list[i].allowed) = true;
-                ret = accel_list[i].init();
+                ret = accel_list[i].init(machine);
                 if (ret < 0) {
                     init_failed = true;
                     fprintf(stderr, "failed to initialize %s: %s\n",
@@ -4053,7 +4057,7 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    configure_accelerator();
+    configure_accelerator(machine);
 
     if (qtest_chrdev) {
         Error *local_err = NULL;

@@ -153,7 +153,7 @@ extern KVMState *kvm_state;
 
 /* external API */
 
-int kvm_init(void);
+int kvm_init(QEMUMachine *machine);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);

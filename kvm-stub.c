@@ -35,7 +35,7 @@ int kvm_init_vcpu(CPUState *cpu)
     return -ENOSYS;
 }
 
-int kvm_init(void)
+int kvm_init(QEMUMachine *machine)
 {
     return -ENOSYS;
 }

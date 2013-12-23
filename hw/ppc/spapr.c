@@ -49,6 +49,7 @@
 #include "exec/address-spaces.h"
 #include "hw/usb.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 
 #include <libfdt.h>
 
@@ -1366,6 +1367,24 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     assert(spapr->fdt_skel != NULL);
 }
 
+static int spapr_kvm_type(const char *vm_type)
+{
+    if (!vm_type) {
+        return 0;
+    }
+
+    if (!strcmp(vm_type, "HV")) {
+        return 1;
+    }
+
+    if (!strcmp(vm_type, "PR")) {
+        return 2;
+    }
+
+    error_report("Unknown kvm-type specified '%s'", vm_type);
+    exit(1);
+}
+
 static QEMUMachine spapr_machine = {
     .name = "pseries",
     .desc = "pSeries Logical Partition (PAPR compliant)",
@@ -1376,6 +1395,7 @@ static QEMUMachine spapr_machine = {
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
     .default_boot_order = NULL,
+    .kvm_type = spapr_kvm_type,
 };
 
 static void spapr_machine_init(void)
