@@ -901,10 +901,97 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
     }
 }
 
+/*
+ * C3.3.13 Load/store (unsigned immediate)
+ *
+ * 31 30 29   27  26 25 24 23 22 21        10 9     5
+ * +----+-------+---+-----+-----+------------+-------+------+
+ * |size| 1 1 1 | V | 0 1 | opc |   imm12    |  Rn   |  Rt  |
+ * +----+-------+---+-----+-----+------------+-------+------+
+ *
+ * For non-vector:
+ *   size: 00-> byte, 01 -> 16 bit, 10 -> 32bit, 11 -> 64bit
+ *   opc: 00 -> store, 01 -> loadu, 10 -> loads 64, 11 -> loads 32
+ * For vector:
+ *   size is opc<1>:size<1:0> so 100 -> 128 bit; 110 and 111 unallocated
+ *   opc<0>: 0 -> store, 1 -> load
+ * Rn: base address register (inc SP)
+ * Rt: target register
+ */
+static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn)
+{
+    int rt = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    unsigned int imm12 = extract32(insn, 10, 12);
+    bool is_vector = extract32(insn, 26, 1);
+    int size = extract32(insn, 30, 2);
+    int opc = extract32(insn, 22, 2);
+    unsigned int offset;
+
+    TCGv_i64 tcg_addr;
+
+    bool is_store;
+    bool is_signed = false;
+    bool is_extended = false;
+
+    if (is_vector) {
+        size |= (opc & 2) << 1;
+        if (size > 4) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_store = !extract32(opc, 0, 1);
+    } else {
+        if (size == 3 && opc == 2) {
+            /* PRFM - prefetch */
+            return;
+        }
+        if (opc == 3 && size > 1) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_store = (opc == 0);
+        is_signed = extract32(opc, 1, 1);
+        is_extended = (size < 3) && extract32(opc, 0, 1);
+    }
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    tcg_addr = read_cpu_reg_sp(s, rn, 1);
+    offset = imm12 << size;
+    tcg_gen_addi_i64(tcg_addr, tcg_addr, offset);
+
+    if (is_vector) {
+        if (is_store) {
+            do_fp_st(s, rt, tcg_addr, size);
+        } else {
+            do_fp_ld(s, rt, tcg_addr, size);
+        }
+    } else {
+        TCGv_i64 tcg_rt = cpu_reg(s, rt);
+        if (is_store) {
+            do_gpr_st(s, tcg_rt, tcg_addr, size);
+        } else {
+            do_gpr_ld(s, tcg_rt, tcg_addr, size, is_signed, is_extended);
+        }
+    }
+}
+
 /* Load/store register (all forms) */
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    switch (extract32(insn, 24, 2)) {
+    case 0:
+        unsupported_encoding(s, insn);
+        break;
+    case 1:
+        disas_ldst_reg_unsigned_imm(s, insn);
+        break;
+    default:
+        unallocated_encoding(s);
+        break;
+    }
 }
 
 /* AdvSIMD load/store multiple structures */
