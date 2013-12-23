@@ -2449,7 +2449,7 @@ static void x86_cpu_reset(CPUState *s)
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     if (s->cpu_index == 0) {
-        apic_designate_bsp(env->apic_state);
+        apic_designate_bsp(cpu->apic_state);
     }
 
     s->halted = !cpu_is_bsp(cpu);
@@ -2459,7 +2459,7 @@ static void x86_cpu_reset(CPUState *s)
 #ifndef CONFIG_USER_ONLY
 bool cpu_is_bsp(X86CPU *cpu)
 {
-    return cpu_get_apic_base(cpu->env.apic_state) & MSR_IA32_APICBASE_BSP;
+    return cpu_get_apic_base(cpu->apic_state) & MSR_IA32_APICBASE_BSP;
 }
 
 /* TODO: remove me, when reset over QOM tree is implemented */
@@ -2500,31 +2500,29 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
         apic_type = "xen-apic";
     }
 
-    env->apic_state = qdev_try_create(qdev_get_parent_bus(dev), apic_type);
-    if (env->apic_state == NULL) {
+    cpu->apic_state = qdev_try_create(qdev_get_parent_bus(dev), apic_type);
+    if (cpu->apic_state == NULL) {
         error_setg(errp, "APIC device '%s' could not be created", apic_type);
         return;
     }
 
     object_property_add_child(OBJECT(cpu), "apic",
-                              OBJECT(env->apic_state), NULL);
-    qdev_prop_set_uint8(env->apic_state, "id", env->cpuid_apic_id);
+                              OBJECT(cpu->apic_state), NULL);
+    qdev_prop_set_uint8(cpu->apic_state, "id", env->cpuid_apic_id);
     /* TODO: convert to link<> */
-    apic = APIC_COMMON(env->apic_state);
+    apic = APIC_COMMON(cpu->apic_state);
     apic->cpu = cpu;
 }
 
 static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 {
-    CPUX86State *env = &cpu->env;
-
-    if (env->apic_state == NULL) {
+    if (cpu->apic_state == NULL) {
         return;
     }
 
-    if (qdev_init(env->apic_state)) {
+    if (qdev_init(cpu->apic_state)) {
         error_setg(errp, "APIC device '%s' could not be initialized",
-                   object_get_typename(OBJECT(env->apic_state)));
+                   object_get_typename(OBJECT(cpu->apic_state)));
         return;
     }
 }

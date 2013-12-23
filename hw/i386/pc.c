@@ -171,14 +171,15 @@ void cpu_smm_update(CPUX86State *env)
 /* IRQ handling */
 int cpu_get_pic_interrupt(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int intno;
 
-    intno = apic_get_interrupt(env->apic_state);
+    intno = apic_get_interrupt(cpu->apic_state);
     if (intno >= 0) {
         return intno;
     }
     /* read the irq from the PIC */
-    if (!apic_accept_pic_intr(env->apic_state)) {
+    if (!apic_accept_pic_intr(cpu->apic_state)) {
         return -1;
     }
 
@@ -190,15 +191,13 @@ static void pic_irq_request(void *opaque, int irq, int level)
 {
     CPUState *cs = first_cpu;
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
 
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
-    if (env->apic_state) {
+    if (cpu->apic_state) {
         CPU_FOREACH(cs) {
             cpu = X86_CPU(cs);
-            env = &cpu->env;
-            if (apic_accept_pic_intr(env->apic_state)) {
-                apic_deliver_pic_intr(env->apic_state, level);
+            if (apic_accept_pic_intr(cpu->apic_state)) {
+                apic_deliver_pic_intr(cpu->apic_state, level);
             }
         }
     } else {
@@ -908,7 +907,7 @@ DeviceState *cpu_get_current_apic(void)
 {
     if (current_cpu) {
         X86CPU *cpu = X86_CPU(current_cpu);
-        return cpu->env.apic_state;
+        return cpu->apic_state;
     } else {
         return NULL;
     }
@@ -1002,7 +1001,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
     }
 
     /* map APIC MMIO area if CPU has APIC */
-    if (cpu && cpu->env.apic_state) {
+    if (cpu && cpu->apic_state) {
         /* XXX: what if the base changes? */
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
                                 APIC_DEFAULT_ADDRESS, 0x1000);

@@ -320,7 +320,7 @@ int cpu_exec(CPUArchState *env)
 #if !defined(CONFIG_USER_ONLY)
                     if (interrupt_request & CPU_INTERRUPT_POLL) {
                         cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-                        apic_poll_irq(env->apic_state);
+                        apic_poll_irq(x86_env_get_cpu(env)->apic_state);
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_INIT) {

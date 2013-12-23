@@ -1458,12 +1458,11 @@ void qmp_inject_nmi(Error **errp)
 
     CPU_FOREACH(cs) {
         X86CPU *cpu = X86_CPU(cs);
-        CPUX86State *env = &cpu->env;
 
-        if (!env->apic_state) {
+        if (!cpu->apic_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_NMI);
         } else {
-            apic_deliver_nmi(env->apic_state);
+            apic_deliver_nmi(cpu->apic_state);
         }
     }
 #elif defined(TARGET_S390X)

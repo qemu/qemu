@@ -82,6 +82,10 @@ typedef struct X86CPU {
      * capabilities) directly to the guest.
      */
     bool enable_pmu;
+
+    /* in order to simplify APIC support, we leave this pointer to the
+       user */
+    struct DeviceState *apic_state;
 } X86CPU;
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)

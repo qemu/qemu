@@ -1069,8 +1069,8 @@ static int kvm_put_sregs(X86CPU *cpu)
     sregs.cr3 = env->cr[3];
     sregs.cr4 = env->cr[4];
 
-    sregs.cr8 = cpu_get_apic_tpr(env->apic_state);
-    sregs.apic_base = cpu_get_apic_base(env->apic_state);
+    sregs.cr8 = cpu_get_apic_tpr(cpu->apic_state);
+    sregs.apic_base = cpu_get_apic_base(cpu->apic_state);
 
     sregs.efer = env->efer;
 
@@ -1619,8 +1619,7 @@ static int kvm_get_mp_state(X86CPU *cpu)
 
 static int kvm_get_apic(X86CPU *cpu)
 {
-    CPUX86State *env = &cpu->env;
-    DeviceState *apic = env->apic_state;
+    DeviceState *apic = cpu->apic_state;
     struct kvm_lapic_state kapic;
     int ret;
 
@@ -1637,8 +1636,7 @@ static int kvm_get_apic(X86CPU *cpu)
 
 static int kvm_put_apic(X86CPU *cpu)
 {
-    CPUX86State *env = &cpu->env;
-    DeviceState *apic = env->apic_state;
+    DeviceState *apic = cpu->apic_state;
     struct kvm_lapic_state kapic;
 
     if (apic && kvm_irqchip_in_kernel()) {
@@ -1962,7 +1960,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
 
         DPRINTF("setting tpr\n");
-        run->cr8 = cpu_get_apic_tpr(env->apic_state);
+        run->cr8 = cpu_get_apic_tpr(x86_cpu->apic_state);
     }
 }
 
@@ -1976,8 +1974,8 @@ void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
     } else {
         env->eflags &= ~IF_MASK;
     }
-    cpu_set_apic_tpr(env->apic_state, run->cr8);
-    cpu_set_apic_base(env->apic_state, run->apic_base);
+    cpu_set_apic_tpr(x86_cpu->apic_state, run->cr8);
+    cpu_set_apic_base(x86_cpu->apic_state, run->apic_base);
 }
 
 int kvm_arch_process_async_events(CPUState *cs)
@@ -2014,7 +2012,7 @@ int kvm_arch_process_async_events(CPUState *cs)
 
     if (cs->interrupt_request & CPU_INTERRUPT_POLL) {
         cs->interrupt_request &= ~CPU_INTERRUPT_POLL;
-        apic_poll_irq(env->apic_state);
+        apic_poll_irq(cpu->apic_state);
     }
     if (((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
@@ -2032,7 +2030,7 @@ int kvm_arch_process_async_events(CPUState *cs)
     if (cs->interrupt_request & CPU_INTERRUPT_TPR) {
         cs->interrupt_request &= ~CPU_INTERRUPT_TPR;
         kvm_cpu_synchronize_state(cs);
-        apic_handle_tpr_access_report(env->apic_state, env->eip,
+        apic_handle_tpr_access_report(cpu->apic_state, env->eip,
                                       env->tpr_access_type);
     }
 
@@ -2056,11 +2054,10 @@ static int kvm_handle_halt(X86CPU *cpu)
 
 static int kvm_handle_tpr_access(X86CPU *cpu)
 {
-    CPUX86State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_run *run = cs->kvm_run;
 
-    apic_handle_tpr_access_report(env->apic_state, run->tpr_access.rip,
+    apic_handle_tpr_access_report(cpu->apic_state, run->tpr_access.rip,
                                   run->tpr_access.is_write ? TPR_ACCESS_WRITE
                                                            : TPR_ACCESS_READ);
     return 1;

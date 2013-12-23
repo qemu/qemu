@@ -895,10 +895,6 @@ typedef struct CPUX86State {
     int tsc_khz;
     void *kvm_xsave_buf;
 
-    /* in order to simplify APIC support, we leave this pointer to the
-       user */
-    struct DeviceState *apic_state;
-
     uint64_t mcg_cap;
     uint64_t mcg_ctl;
     uint64_t mce_banks[MCE_BANKS_DEF*4];
