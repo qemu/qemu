@@ -6739,11 +6739,11 @@ static void init_proc_970FX (CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_UCTRL, "SPR_UCTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
@@ -6909,11 +6909,11 @@ static void init_proc_power5plus(CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_UCTRL, "SPR_UCTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
@@ -7014,11 +7014,11 @@ static void init_proc_POWER7 (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_CTRL, "SPR_CTRLT",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x80800000);
     spr_register(env, SPR_UCTRL, "SPR_CTRLF",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x80800000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
