@@ -2128,10 +2128,103 @@ static void disas_add_sub_reg(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_result);
 }
 
-/* Data-processing (3 source) */
+/* C3.5.9 Data-processing (3 source)
+
+   31 30  29 28       24 23 21  20  16  15  14  10 9    5 4    0
+  +--+------+-----------+------+------+----+------+------+------+
+  |sf| op54 | 1 1 0 1 1 | op31 |  Rm  | o0 |  Ra  |  Rn  |  Rd  |
+  +--+------+-----------+------+------+----+------+------+------+
+
+ */
 static void disas_data_proc_3src(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int ra = extract32(insn, 10, 5);
+    int rm = extract32(insn, 16, 5);
+    int op_id = (extract32(insn, 29, 3) << 4) |
+        (extract32(insn, 21, 3) << 1) |
+        extract32(insn, 15, 1);
+    bool sf = extract32(insn, 31, 1);
+    bool is_sub = extract32(op_id, 0, 1);
+    bool is_high = extract32(op_id, 2, 1);
+    bool is_signed = false;
+    TCGv_i64 tcg_op1;
+    TCGv_i64 tcg_op2;
+    TCGv_i64 tcg_tmp;
+
+    /* Note that op_id is sf:op54:op31:o0 so it includes the 32/64 size flag */
+    switch (op_id) {
+    case 0x42: /* SMADDL */
+    case 0x43: /* SMSUBL */
+    case 0x44: /* SMULH */
+        is_signed = true;
+        break;
+    case 0x0: /* MADD (32bit) */
+    case 0x1: /* MSUB (32bit) */
+    case 0x40: /* MADD (64bit) */
+    case 0x41: /* MSUB (64bit) */
+    case 0x4a: /* UMADDL */
+    case 0x4b: /* UMSUBL */
+    case 0x4c: /* UMULH */
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (is_high) {
+        TCGv_i64 low_bits = tcg_temp_new_i64(); /* low bits discarded */
+        TCGv_i64 tcg_rd = cpu_reg(s, rd);
+        TCGv_i64 tcg_rn = cpu_reg(s, rn);
+        TCGv_i64 tcg_rm = cpu_reg(s, rm);
+
+        if (is_signed) {
+            tcg_gen_muls2_i64(low_bits, tcg_rd, tcg_rn, tcg_rm);
+        } else {
+            tcg_gen_mulu2_i64(low_bits, tcg_rd, tcg_rn, tcg_rm);
+        }
+
+        tcg_temp_free_i64(low_bits);
+        return;
+    }
+
+    tcg_op1 = tcg_temp_new_i64();
+    tcg_op2 = tcg_temp_new_i64();
+    tcg_tmp = tcg_temp_new_i64();
+
+    if (op_id < 0x42) {
+        tcg_gen_mov_i64(tcg_op1, cpu_reg(s, rn));
+        tcg_gen_mov_i64(tcg_op2, cpu_reg(s, rm));
+    } else {
+        if (is_signed) {
+            tcg_gen_ext32s_i64(tcg_op1, cpu_reg(s, rn));
+            tcg_gen_ext32s_i64(tcg_op2, cpu_reg(s, rm));
+        } else {
+            tcg_gen_ext32u_i64(tcg_op1, cpu_reg(s, rn));
+            tcg_gen_ext32u_i64(tcg_op2, cpu_reg(s, rm));
+        }
+    }
+
+    if (ra == 31 && !is_sub) {
+        /* Special-case MADD with rA == XZR; it is the standard MUL alias */
+        tcg_gen_mul_i64(cpu_reg(s, rd), tcg_op1, tcg_op2);
+    } else {
+        tcg_gen_mul_i64(tcg_tmp, tcg_op1, tcg_op2);
+        if (is_sub) {
+            tcg_gen_sub_i64(cpu_reg(s, rd), cpu_reg(s, ra), tcg_tmp);
+        } else {
+            tcg_gen_add_i64(cpu_reg(s, rd), cpu_reg(s, ra), tcg_tmp);
+        }
+    }
+
+    if (!sf) {
+        tcg_gen_ext32u_i64(cpu_reg(s, rd), cpu_reg(s, rd));
+    }
+
+    tcg_temp_free_i64(tcg_op1);
+    tcg_temp_free_i64(tcg_op2);
+    tcg_temp_free_i64(tcg_tmp);
 }
 
 /* Add/subtract (with carry) */
