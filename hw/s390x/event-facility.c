@@ -21,12 +21,12 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
 
-typedef struct EventTypesBus {
+typedef struct SCLPEventsBus {
     BusState qbus;
-} EventTypesBus;
+} SCLPEventsBus;
 
 struct SCLPEventFacility {
-    EventTypesBus sbus;
+    SCLPEventsBus sbus;
     DeviceState *qdev;
     /* guest' receive mask */
     unsigned int receive_mask;
@@ -291,7 +291,7 @@ static void sclp_events_bus_class_init(ObjectClass *klass, void *data)
 {
 }
 
-static const TypeInfo s390_sclp_events_bus_info = {
+static const TypeInfo sclp_events_bus_info = {
     .name = TYPE_SCLP_EVENTS_BUS,
     .parent = TYPE_BUS,
     .class_init = sclp_events_bus_class_init,
@@ -360,7 +360,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
     k->init = init_event_facility;
 }
 
-static const TypeInfo s390_sclp_event_facility_info = {
+static const TypeInfo sclp_event_facility_info = {
     .name          = "s390-sclp-event-facility",
     .parent        = TYPE_DEVICE_S390_SCLP,
     .instance_size = sizeof(S390SCLPDevice),
@@ -395,7 +395,7 @@ static void event_class_init(ObjectClass *klass, void *data)
     dc->exit = event_qdev_exit;
 }
 
-static const TypeInfo s390_sclp_event_type_info = {
+static const TypeInfo sclp_event_type_info = {
     .name = TYPE_SCLP_EVENT,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SCLPEvent),
@@ -406,9 +406,9 @@ static const TypeInfo s390_sclp_event_type_info = {
 
 static void register_types(void)
 {
-    type_register_static(&s390_sclp_events_bus_info);
-    type_register_static(&s390_sclp_event_facility_info);
-    type_register_static(&s390_sclp_event_type_info);
+    type_register_static(&sclp_events_bus_info);
+    type_register_static(&sclp_event_facility_info);
+    type_register_static(&sclp_event_type_info);
 }
 
 type_init(register_types)
