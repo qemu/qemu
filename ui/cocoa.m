@@ -321,7 +321,12 @@ QemuCocoaView *cocoaView;
     CGContextSetShouldAntialias (viewContextRef, NO);
 
     // draw screen bitmap directly to Core Graphics context
-    if (dataProviderRef) {
+    if (!dataProviderRef) {
+        // Draw request before any guest device has set up a framebuffer:
+        // just draw an opaque black rectangle
+        CGContextSetRGBFillColor(viewContextRef, 0, 0, 0, 1.0);
+        CGContextFillRect(viewContextRef, NSRectToCGRect(rect));
+    } else {
         CGImageRef imageRef = CGImageCreate(
             screen.width, //width
             screen.height, //height
