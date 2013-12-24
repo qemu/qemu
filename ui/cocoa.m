@@ -427,8 +427,8 @@ QemuCocoaView *cocoaView;
         CGDataProviderRelease(dataProviderRef);
 
     //sync host window color space with guests
-	screen.bitsPerPixel = surface_bits_per_pixel(surface);
-	screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
+    screen.bitsPerPixel = surface_bits_per_pixel(surface);
+    screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
 
     dataProviderRef = CGDataProviderCreateWithData(NULL, surface_data(surface), w * 4 * h, NULL);
 
@@ -774,7 +774,7 @@ QemuCocoaView *cocoaView;
         [normalWindow setContentView:cocoaView];
         [normalWindow useOptimizedDrawing:YES];
         [normalWindow makeKeyAndOrderFront:self];
-		[normalWindow center];
+        [normalWindow center];
 
     }
     return self;
