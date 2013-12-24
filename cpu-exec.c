@@ -206,6 +206,9 @@ int cpu_exec(CPUArchState *env)
       (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
     CPUClass *cc = CPU_GET_CLASS(cpu);
 #endif
+#ifdef TARGET_I386
+    X86CPU *x86_cpu = X86_CPU(cpu);
+#endif
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -320,24 +323,24 @@ int cpu_exec(CPUArchState *env)
 #if !defined(CONFIG_USER_ONLY)
                     if (interrupt_request & CPU_INTERRUPT_POLL) {
                         cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-                        apic_poll_irq(x86_env_get_cpu(env)->apic_state);
+                        apic_poll_irq(x86_cpu->apic_state);
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT,
                                                           0);
-                            do_cpu_init(x86_env_get_cpu(env));
+                            do_cpu_init(x86_cpu);
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
                     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
-                            do_cpu_sipi(x86_env_get_cpu(env));
+                            do_cpu_sipi(x86_cpu);
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
                                                           0);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter(x86_env_get_cpu(env));
+                            do_smm_enter(x86_cpu);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
@@ -684,6 +687,9 @@ int cpu_exec(CPUArchState *env)
 #if !(defined(CONFIG_USER_ONLY) && \
       (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
             cc = CPU_GET_CLASS(cpu);
+#endif
+#ifdef TARGET_I386
+            x86_cpu = X86_CPU(cpu);
 #endif
         }
     } /* for(;;) */
