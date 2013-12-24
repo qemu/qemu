@@ -405,6 +405,17 @@ QemuCocoaView *cocoaView;
 
     int w = surface_width(surface);
     int h = surface_height(surface);
+    bool isResize = (w != screen.width || h != screen.height);
+
+    int oldh = screen.height;
+    if (isResize) {
+        // Resize before we trigger the redraw, or we'll redraw at the wrong size
+        COCOA_DEBUG("switchSurface: new size %d x %d\n", w, h);
+        screen.width = w;
+        screen.height = h;
+        [self setContentDimensions];
+        [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+    }
 
     // update screenBuffer
     if (dataProviderRef)
@@ -419,17 +430,16 @@ QemuCocoaView *cocoaView;
     // update windows
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:NO animate:NO];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:NO animate:NO];
     } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:YES animate:NO];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:YES animate:NO];
     }
-    screen.width = w;
-    screen.height = h;
-	[normalWindow center];
-    [self setContentDimensions];
-    [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+
+    if (isResize) {
+        [normalWindow center];
+    }
 }
 
 - (void) toggleFullScreen:(id)sender
