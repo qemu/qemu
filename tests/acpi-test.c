@@ -127,6 +127,11 @@ static uint8_t boot_sector[0x7e000] = {
 
 static const char *disk = "tests/acpi-test-disk.raw";
 static const char *data_dir = "tests/acpi-test-data";
+#ifdef CONFIG_IASL
+static const char *iasl = stringify(CONFIG_IASL);
+#else
+static const char *iasl;
+#endif
 
 static void free_test_data(test_data *data)
 {
@@ -358,26 +363,6 @@ static void test_acpi_ssdt_tables(test_data *data)
     }
 }
 
-static bool iasl_installed(void)
-{
-    gchar *out = NULL, *out_err = NULL;
-    bool ret;
-
-    /* pass 'out' and 'out_err' in order to be redirected */
-    ret = g_spawn_command_line_sync("iasl", &out, &out_err, NULL, NULL);
-
-    if (out_err) {
-        ret = ret && (out_err[0] == '\0');
-        g_free(out_err);
-    }
-
-    if (out) {
-        g_free(out);
-    }
-
-    return ret;
-}
-
 static void dump_aml_files(test_data *data)
 {
     AcpiSdtTable *sdt;
@@ -406,7 +391,7 @@ static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
     GError *error = NULL;
-    GString *command_line = g_string_new("'iasl' ");
+    GString *command_line = g_string_new(iasl);
     gint fd;
     gchar *out, *out_err;
     gboolean ret;
@@ -417,7 +402,7 @@ static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
     close(fd);
 
     /* build command line */
-    g_string_append_printf(command_line, "-p %s ", sdt->asl_file);
+    g_string_append_printf(command_line, " -p %s ", sdt->asl_file);
     for (i = 0; i < 2; ++i) { /* reference DSDT and SSDT */
         temp = &g_array_index(sdts, AcpiSdtTable, i);
         g_string_append_printf(command_line, "-e %s ", temp->aml_file);
@@ -571,7 +556,7 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_dsdt_table(data);
     test_acpi_ssdt_tables(data);
 
-    if (iasl_installed()) {
+    if (iasl) {
         test_acpi_asl(data);
     }
 
