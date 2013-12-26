@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <glib.h>
+#include <glib/gstdio.h>
 #include "qemu-common.h"
 #include "libqtest.h"
 #include "qemu/compiler.h"
@@ -20,6 +21,8 @@
 
 #define MACHINE_PC "pc"
 #define MACHINE_Q35 "q35"
+
+#define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
 /* DSDT and SSDTs format */
 typedef struct {
@@ -363,10 +366,11 @@ static void test_acpi_ssdt_tables(test_data *data)
     }
 }
 
-static void dump_aml_files(test_data *data)
+static void dump_aml_files(test_data *data, bool rebuild)
 {
     AcpiSdtTable *sdt;
     GError *error = NULL;
+    gchar *aml_file = NULL;
     gint fd;
     ssize_t ret;
     int i;
@@ -375,8 +379,16 @@ static void dump_aml_files(test_data *data)
         sdt = &g_array_index(data->ssdt_tables, AcpiSdtTable, i);
         g_assert(sdt->aml);
 
-        fd = g_file_open_tmp("aml-XXXXXX", &sdt->aml_file, &error);
-        g_assert_no_error(error);
+        if (rebuild) {
+            aml_file = g_strdup_printf("%s/%s/%.4s", data_dir, data->machine,
+                                       (gchar *)&sdt->header.signature);
+            fd = g_open(aml_file, O_WRONLY|O_TRUNC|O_CREAT,
+                        S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
+        } else {
+            fd = g_file_open_tmp("aml-XXXXXX", &sdt->aml_file, &error);
+            g_assert_no_error(error);
+        }
+        g_assert(fd >= 0);
 
         ret = qemu_write_full(fd, sdt, sizeof(AcpiTableHeader));
         g_assert(ret == sizeof(AcpiTableHeader));
@@ -384,6 +396,10 @@ static void dump_aml_files(test_data *data)
         g_assert(ret == sdt->aml_len);
 
         close(fd);
+
+        if (aml_file) {
+            g_free(aml_file);
+        }
     }
 }
 
@@ -491,7 +507,7 @@ static void test_acpi_asl(test_data *data)
 
     memset(&exp_data, 0, sizeof(exp_data));
     exp_data.ssdt_tables = load_expected_aml(data);
-    dump_aml_files(data);
+    dump_aml_files(data, false);
     for (i = 0; i < data->ssdt_tables->len; ++i) {
         GString *asl, *exp_asl;
 
@@ -557,7 +573,11 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_ssdt_tables(data);
 
     if (iasl) {
-        test_acpi_asl(data);
+        if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
+            dump_aml_files(data, true);
+        } else {
+            test_acpi_asl(data);
+        }
     }
 
     qtest_quit(global_qtest);
