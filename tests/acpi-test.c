@@ -382,6 +382,7 @@ int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
     FILE *f = fopen(disk, "w");
+    int ret;
     fwrite(boot_sector, 1, sizeof boot_sector, f);
     fclose(f);
 
@@ -390,5 +391,7 @@ int main(int argc, char *argv[])
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_add_func("acpi/tcg", test_acpi_tcg);
     }
-    return g_test_run();
+    ret = g_test_run();
+    unlink(disk);
+    return ret;
 }
