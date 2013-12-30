@@ -437,6 +437,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 #endif
     } else {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "uri", "a valid migration protocol");
+        s->state = MIG_STATE_ERROR;
         return;
     }
 
