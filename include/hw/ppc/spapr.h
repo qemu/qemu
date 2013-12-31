@@ -332,6 +332,15 @@ static inline int spapr_allocate_lsi(int hint)
     return spapr_allocate_irq(hint, true);
 }
 
+/* RTAS return codes */
+#define RTAS_OUT_SUCCESS            0
+#define RTAS_OUT_NO_ERRORS_FOUND    1
+#define RTAS_OUT_HW_ERROR           -1
+#define RTAS_OUT_BUSY               -2
+#define RTAS_OUT_PARAM_ERROR        -3
+#define RTAS_OUT_NOT_SUPPORTED      -3
+#define RTAS_OUT_NOT_AUTHORIZED     -9002
+
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {
     return addr & ~0xF000000000000000ULL;

@@ -339,6 +339,16 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
+#define VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, _v, _vmsd, _type) { \
+    .name       = (stringify(_f)),                                   \
+    .version_id = (_v),                                              \
+    .num        = (_n),                                              \
+    .vmsd       = &(_vmsd),                                          \
+    .size       = sizeof(_type *),                                    \
+    .flags      = VMS_ARRAY|VMS_STRUCT|VMS_ARRAY_OF_POINTER,         \
+    .offset     = vmstate_offset_array(_s, _f, _type*, _n),          \
+}
+
 #define VMSTATE_STRUCT_ARRAY_TEST(_field, _state, _num, _test, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
     .num          = (_num),                                          \

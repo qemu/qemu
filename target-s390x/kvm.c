@@ -82,11 +82,6 @@
 #define ICPT_CPU_STOP                   0x28
 #define ICPT_IO                         0x40
 
-#define SIGP_RESTART                    0x06
-#define SIGP_INITIAL_CPU_RESET          0x0b
-#define SIGP_STORE_STATUS_ADDR          0x0e
-#define SIGP_SET_ARCH                   0x12
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
@@ -562,11 +557,19 @@ static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
     handle_diag_308(&cpu->env, r1, r3);
 }
 
-static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
+#define DIAG_KVM_CODE_MASK 0x000000000000ffff
+
+static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
 {
     int r = 0;
+    uint16_t func_code;
 
-    switch (ipb_code) {
+    /*
+     * For any diagnose call we support, bits 48-63 of the resulting
+     * address specify the function code; the remainder is ignored.
+     */
+    func_code = decode_basedisp_rs(&cpu->env, ipb) & DIAG_KVM_CODE_MASK;
+    switch (func_code) {
     case DIAG_IPL:
         kvm_handle_diag_308(cpu, run);
         break;
@@ -577,12 +580,20 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
         sleep(10);
         break;
     default:
-        DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
+        DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
         r = -1;
         break;
     }
 
     return r;
+}
+
+static int kvm_s390_cpu_start(S390CPU *cpu)
+{
+    s390_add_running_cpu(cpu);
+    qemu_cpu_kick(CPU(cpu));
+    DPRINTF("DONE: KVM cpu start: %p\n", &cpu->env);
+    return 0;
 }
 
 int kvm_s390_cpu_restart(S390CPU *cpu)
@@ -592,13 +603,6 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
     qemu_cpu_kick(CPU(cpu));
     DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
-}
-
-static int s390_store_status(CPUS390XState *env, uint32_t parameter)
-{
-    /* XXX */
-    fprintf(stderr, "XXX SIGP store status\n");
-    return -1;
 }
 
 static int s390_cpu_initial_reset(S390CPU *cpu)
@@ -622,61 +626,52 @@ static int s390_cpu_initial_reset(S390CPU *cpu)
     return 0;
 }
 
+#define SIGP_ORDER_MASK 0x000000ff
+
 static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t order_code;
-    uint32_t parameter;
     uint16_t cpu_addr;
-    uint8_t t;
-    int r = -1;
     S390CPU *target_cpu;
-    CPUS390XState *target_env;
+    uint64_t *statusreg = &env->regs[ipa1 >> 4];
+    int cc;
 
     cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
-    order_code = run->s390_sieic.ipb >> 28;
-    if (order_code > 0) {
-        order_code = env->regs[order_code];
-    }
-    order_code += (run->s390_sieic.ipb & 0x0fff0000) >> 16;
+    order_code = decode_basedisp_rs(env, run->s390_sieic.ipb) & SIGP_ORDER_MASK;
 
-    /* get parameters */
-    t = (ipa1 & 0xf0) >> 4;
-    if (!(t % 2)) {
-        t++;
-    }
-
-    parameter = env->regs[t] & 0x7ffffe00;
     cpu_addr = env->regs[ipa1 & 0x0f];
-
     target_cpu = s390_cpu_addr2state(cpu_addr);
     if (target_cpu == NULL) {
+        cc = 3;    /* not operational */
         goto out;
     }
-    target_env = &target_cpu->env;
 
     switch (order_code) {
-        case SIGP_RESTART:
-            r = kvm_s390_cpu_restart(target_cpu);
-            break;
-        case SIGP_STORE_STATUS_ADDR:
-            r = s390_store_status(target_env, parameter);
-            break;
-        case SIGP_SET_ARCH:
-            /* make the caller panic */
-            return -1;
-        case SIGP_INITIAL_CPU_RESET:
-            r = s390_cpu_initial_reset(target_cpu);
-            break;
-        default:
-            fprintf(stderr, "KVM: unknown SIGP: 0x%x\n", order_code);
-            break;
+    case SIGP_START:
+        cc = kvm_s390_cpu_start(target_cpu);
+        break;
+    case SIGP_RESTART:
+        cc = kvm_s390_cpu_restart(target_cpu);
+        break;
+    case SIGP_SET_ARCH:
+        /* make the caller panic */
+        return -1;
+    case SIGP_INITIAL_CPU_RESET:
+        cc = s390_cpu_initial_reset(target_cpu);
+        break;
+    default:
+        DPRINTF("KVM: unknown SIGP: 0x%x\n", order_code);
+        *statusreg &= 0xffffffff00000000UL;
+        *statusreg |= SIGP_STAT_INVALID_ORDER;
+        cc = 1;   /* status stored */
+        break;
     }
 
 out:
-    setcc(cpu, r ? 3 : 0);
+    setcc(cpu, cc);
     return 0;
 }
 
@@ -684,7 +679,6 @@ static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
-    int ipb_code = (run->s390_sieic.ipb & 0x0fff0000) >> 16;
     int r = -1;
 
     DPRINTF("handle_instruction 0x%x 0x%x\n",
@@ -696,7 +690,7 @@ static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
         r = handle_priv(cpu, run, ipa0 >> 8, ipa1);
         break;
     case IPA0_DIAG:
-        r = handle_diag(cpu, run, ipb_code);
+        r = handle_diag(cpu, run, run->s390_sieic.ipb);
         break;
     case IPA0_SIGP:
         r = handle_sigp(cpu, run, ipa1);

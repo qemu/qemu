@@ -723,7 +723,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t nr, server, priority;
 
     if ((nargs != 3) || (nret != 1)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -733,13 +733,13 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     if (!ics_valid_irq(ics, nr) || (server >= ics->icp->nr_servers)
         || (priority > 0xff)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     ics_write_xive(ics, nr, server, priority, priority);
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_get_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -751,18 +751,18 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t nr;
 
     if ((nargs != 1) || (nret != 3)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     nr = rtas_ld(args, 0);
 
     if (!ics_valid_irq(ics, nr)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, ics->irqs[nr - ics->offset].server);
     rtas_st(rets, 2, ics->irqs[nr - ics->offset].priority);
 }
@@ -776,21 +776,21 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t nr;
 
     if ((nargs != 1) || (nret != 1)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     nr = rtas_ld(args, 0);
 
     if (!ics_valid_irq(ics, nr)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server, 0xff,
                    ics->irqs[nr - ics->offset].priority);
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -802,14 +802,14 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t nr;
 
     if ((nargs != 1) || (nret != 1)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     nr = rtas_ld(args, 0);
 
     if (!ics_valid_irq(ics, nr)) {
-        rtas_st(rets, 0, -3);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
@@ -817,7 +817,7 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                    ics->irqs[nr - ics->offset].saved_priority,
                    ics->irqs[nr - ics->offset].saved_priority);
 
-    rtas_st(rets, 0, 0); /* Success */
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 /*

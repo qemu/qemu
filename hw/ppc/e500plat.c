@@ -23,9 +23,9 @@ static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
     const char model[] = "QEMU ppce500";
     const char compatible[] = "fsl,qemu-e500";
 
-    qemu_devtree_setprop(fdt, "/", "model", model, sizeof(model));
-    qemu_devtree_setprop(fdt, "/", "compatible", compatible,
-                         sizeof(compatible));
+    qemu_fdt_setprop(fdt, "/", "model", model, sizeof(model));
+    qemu_fdt_setprop(fdt, "/", "compatible", compatible,
+                     sizeof(compatible));
 }
 
 static void e500plat_init(QEMUMachineInitArgs *args)

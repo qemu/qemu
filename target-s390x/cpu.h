@@ -352,6 +352,9 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
     return addr;
 }
 
+/* Base/displacement are at the same locations. */
+#define decode_basedisp_rs decode_basedisp_s
+
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 

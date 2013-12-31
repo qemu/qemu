@@ -139,6 +139,7 @@ typedef struct ARMCPU {
     uint32_t ccsidr[16];
     uint32_t reset_cbar;
     uint32_t reset_auxcr;
+    bool reset_hivecs;
 } ARMCPU;
 
 #define TYPE_AARCH64_CPU "aarch64-cpu"

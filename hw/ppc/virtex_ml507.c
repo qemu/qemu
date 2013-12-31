@@ -166,7 +166,7 @@ static int xilinx_load_device_tree(hwaddr addr,
     if (!fdt) {
         return 0;
     }
-    r = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
+    r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
     cpu_physical_memory_write(addr, fdt, fdt_size);
