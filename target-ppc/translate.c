@@ -7311,6 +7311,7 @@ GEN_VSX_HELPER_2(xsdivdp, 0x00, 0x07, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsredp, 0x14, 0x05, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xssqrtdp, 0x16, 0x04, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsrsqrtedp, 0x14, 0x04, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xstdivdp, 0x14, 0x07, 0, PPC2_VSX)
 
 GEN_VSX_HELPER_2(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
@@ -7319,6 +7320,7 @@ GEN_VSX_HELPER_2(xvdivdp, 0x00, 0x0F, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvredp, 0x14, 0x0D, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsqrtdp, 0x16, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvrsqrtedp, 0x14, 0x0C, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvtdivdp, 0x14, 0x0F, 0, PPC2_VSX)
 
 GEN_VSX_HELPER_2(xvaddsp, 0x00, 0x08, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsubsp, 0x00, 0x09, 0, PPC2_VSX)
@@ -7327,6 +7329,7 @@ GEN_VSX_HELPER_2(xvdivsp, 0x00, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvresp, 0x14, 0x09, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsqrtsp, 0x16, 0x08, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvrsqrtesp, 0x14, 0x08, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvtdivsp, 0x14, 0x0B, 0, PPC2_VSX)
 
 #define VSX_LOGICAL(name, tcg_op)                                    \
 static void glue(gen_, name)(DisasContext * ctx)                     \
@@ -10016,6 +10019,7 @@ GEN_XX3FORM(xsdivdp, 0x00, 0x07, PPC2_VSX),
 GEN_XX2FORM(xsredp,  0x14, 0x05, PPC2_VSX),
 GEN_XX2FORM(xssqrtdp,  0x16, 0x04, PPC2_VSX),
 GEN_XX2FORM(xsrsqrtedp,  0x14, 0x04, PPC2_VSX),
+GEN_XX3FORM(xstdivdp,  0x14, 0x07, PPC2_VSX),
 
 GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
 GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),
@@ -10024,6 +10028,7 @@ GEN_XX3FORM(xvdivdp, 0x00, 0x0F, PPC2_VSX),
 GEN_XX2FORM(xvredp,  0x14, 0x0D, PPC2_VSX),
 GEN_XX2FORM(xvsqrtdp,  0x16, 0x0C, PPC2_VSX),
 GEN_XX2FORM(xvrsqrtedp,  0x14, 0x0C, PPC2_VSX),
+GEN_XX3FORM(xvtdivdp, 0x14, 0x0F, PPC2_VSX),
 
 GEN_XX3FORM(xvaddsp, 0x00, 0x08, PPC2_VSX),
 GEN_XX3FORM(xvsubsp, 0x00, 0x09, PPC2_VSX),
@@ -10032,6 +10037,7 @@ GEN_XX3FORM(xvdivsp, 0x00, 0x0B, PPC2_VSX),
 GEN_XX2FORM(xvresp, 0x14, 0x09, PPC2_VSX),
 GEN_XX2FORM(xvsqrtsp, 0x16, 0x08, PPC2_VSX),
 GEN_XX2FORM(xvrsqrtesp, 0x14, 0x08, PPC2_VSX),
+GEN_XX3FORM(xvtdivsp, 0x14, 0x0B, PPC2_VSX),
 
 #undef VSX_LOGICAL
 #define VSX_LOGICAL(name, opc2, opc3, fl2) \
