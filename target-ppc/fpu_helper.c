@@ -1904,3 +1904,38 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 VSX_DIV(xsdivdp, 1, float64, f64, 1)
 VSX_DIV(xvdivdp, 2, float64, f64, 0)
 VSX_DIV(xvdivsp, 4, float32, f32, 0)
+
+/* VSX_RE  - VSX floating point reciprocal estimate
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   sfprf - set FPRF
+ */
+#define VSX_RE(op, nels, tp, fld, sfprf)                                      \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+{                                                                             \
+    ppc_vsr_t xt, xb;                                                         \
+    int i;                                                                    \
+                                                                              \
+    getVSR(xB(opcode), &xb, env);                                             \
+    getVSR(xT(opcode), &xt, env);                                             \
+    helper_reset_fpstatus(env);                                               \
+                                                                              \
+    for (i = 0; i < nels; i++) {                                              \
+        if (unlikely(tp##_is_signaling_nan(xb.fld[i]))) {                     \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
+        }                                                                     \
+        xt.fld[i] = tp##_div(tp##_one, xb.fld[i], &env->fp_status);           \
+        if (sfprf) {                                                          \
+            helper_compute_fprf(env, xt.fld[0], sfprf);                       \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    putVSR(xT(opcode), &xt, env);                                             \
+    helper_float_check_status(env);                                           \
+}
+
+VSX_RE(xsredp, 1, float64, f64, 1)
+VSX_RE(xvredp, 2, float64, f64, 0)
+VSX_RE(xvresp, 4, float32, f32, 0)
