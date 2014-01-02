@@ -142,11 +142,7 @@ static bool read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else if (ri->readfn) {
         return (ri->readfn(env, ri, v) == 0);
     } else {
-        if (ri->type & ARM_CP_64BIT) {
-            *v = CPREG_FIELD64(env, ri);
-        } else {
-            *v = CPREG_FIELD32(env, ri);
-        }
+        raw_read(env, ri, v);
     }
     return true;
 }
@@ -167,11 +163,7 @@ static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else if (ri->writefn) {
         return (ri->writefn(env, ri, v) == 0);
     } else {
-        if (ri->type & ARM_CP_64BIT) {
-            CPREG_FIELD64(env, ri) = v;
-        } else {
-            CPREG_FIELD32(env, ri) = v;
-        }
+        raw_write(env, ri, v);
     }
     return true;
 }
