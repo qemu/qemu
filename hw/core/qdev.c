@@ -746,11 +746,6 @@ static void device_initfn(Object *obj)
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
-    if (err != NULL) {
-        qerror_report_err(err);
-        error_free(err);
-        exit(1);
-    }
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
                              (Object **)&dev->parent_bus, &err);
