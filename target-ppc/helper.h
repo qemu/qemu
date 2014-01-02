@@ -268,6 +268,8 @@ DEF_HELPER_2(xsnmaddadp, void, env, i32)
 DEF_HELPER_2(xsnmaddmdp, void, env, i32)
 DEF_HELPER_2(xsnmsubadp, void, env, i32)
 DEF_HELPER_2(xsnmsubmdp, void, env, i32)
+DEF_HELPER_2(xscmpodp, void, env, i32)
+DEF_HELPER_2(xscmpudp, void, env, i32)
 
 DEF_HELPER_2(xvadddp, void, env, i32)
 DEF_HELPER_2(xvsubdp, void, env, i32)

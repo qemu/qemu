@@ -7321,6 +7321,8 @@ GEN_VSX_HELPER_2(xsnmaddadp, 0x04, 0x14, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsnmaddmdp, 0x04, 0x15, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsnmsubadp, 0x04, 0x16, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsnmsubmdp, 0x04, 0x17, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xscmpodp, 0x0C, 0x05, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xscmpudp, 0x0C, 0x04, 0, PPC2_VSX)
 
 GEN_VSX_HELPER_2(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
@@ -10056,6 +10058,8 @@ GEN_XX3FORM(xsnmaddadp, 0x04, 0x14, PPC2_VSX),
 GEN_XX3FORM(xsnmaddmdp, 0x04, 0x15, PPC2_VSX),
 GEN_XX3FORM(xsnmsubadp, 0x04, 0x16, PPC2_VSX),
 GEN_XX3FORM(xsnmsubmdp, 0x04, 0x17, PPC2_VSX),
+GEN_XX2FORM(xscmpodp,  0x0C, 0x05, PPC2_VSX),
+GEN_XX2FORM(xscmpudp,  0x0C, 0x04, PPC2_VSX),
 
 GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
 GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),

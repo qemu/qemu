@@ -2249,3 +2249,42 @@ VSX_MADD(xvnmaddasp, 4, float32, f32, NMADD_FLGS, 1, 0)
 VSX_MADD(xvnmaddmsp, 4, float32, f32, NMADD_FLGS, 0, 0)
 VSX_MADD(xvnmsubasp, 4, float32, f32, NMSUB_FLGS, 1, 0)
 VSX_MADD(xvnmsubmsp, 4, float32, f32, NMSUB_FLGS, 0, 0)
+
+#define VSX_SCALAR_CMP(op, ordered)                                      \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
+{                                                                        \
+    ppc_vsr_t xa, xb;                                                    \
+    uint32_t cc = 0;                                                     \
+                                                                         \
+    getVSR(xA(opcode), &xa, env);                                        \
+    getVSR(xB(opcode), &xb, env);                                        \
+                                                                         \
+    if (unlikely(float64_is_any_nan(xa.f64[0]) ||                        \
+                 float64_is_any_nan(xb.f64[0]))) {                       \
+        if (float64_is_signaling_nan(xa.f64[0]) ||                       \
+            float64_is_signaling_nan(xb.f64[0])) {                       \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
+        }                                                                \
+        if (ordered) {                                                   \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);         \
+        }                                                                \
+        cc = 1;                                                          \
+    } else {                                                             \
+        if (float64_lt(xa.f64[0], xb.f64[0], &env->fp_status)) {         \
+            cc = 8;                                                      \
+        } else if (!float64_le(xa.f64[0], xb.f64[0], &env->fp_status)) { \
+            cc = 4;                                                      \
+        } else {                                                         \
+            cc = 2;                                                      \
+        }                                                                \
+    }                                                                    \
+                                                                         \
+    env->fpscr &= ~(0x0F << FPSCR_FPRF);                                 \
+    env->fpscr |= cc << FPSCR_FPRF;                                      \
+    env->crf[BF(opcode)] = cc;                                           \
+                                                                         \
+    helper_float_check_status(env);                                      \
+}
+
+VSX_SCALAR_CMP(xscmpodp, 1)
+VSX_SCALAR_CMP(xscmpudp, 0)
