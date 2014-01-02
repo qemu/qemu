@@ -7333,6 +7333,11 @@ GEN_VSX_HELPER_2(xscvdpuxds, 0x10, 0x14, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xscvdpuxws, 0x10, 0x04, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xscvsxddp, 0x10, 0x17, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xscvuxddp, 0x10, 0x16, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xsrdpi, 0x12, 0x04, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xsrdpic, 0x16, 0x06, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xsrdpim, 0x12, 0x07, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xsrdpip, 0x12, 0x06, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xsrdpiz, 0x12, 0x05, 0, PPC2_VSX)
 
 GEN_VSX_HELPER_2(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
@@ -7365,6 +7370,11 @@ GEN_VSX_HELPER_2(xvcvsxddp, 0x10, 0x1F, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvuxddp, 0x10, 0x1E, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvsxwdp, 0x10, 0x0F, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvuxwdp, 0x10, 0x0E, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrdpi, 0x12, 0x0C, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrdpic, 0x16, 0x0E, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrdpim, 0x12, 0x0F, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrdpip, 0x12, 0x0E, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrdpiz, 0x12, 0x0D, 0, PPC2_VSX)
 
 GEN_VSX_HELPER_2(xvaddsp, 0x00, 0x08, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvsubsp, 0x00, 0x09, 0, PPC2_VSX)
@@ -7397,6 +7407,11 @@ GEN_VSX_HELPER_2(xvcvsxdsp, 0x10, 0x1B, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvuxdsp, 0x10, 0x1A, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvsxwsp, 0x10, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvuxwsp, 0x10, 0x0A, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrspi, 0x12, 0x08, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrspic, 0x16, 0x0A, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrspim, 0x12, 0x0B, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrspip, 0x12, 0x0A, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvrspiz, 0x12, 0x09, 0, PPC2_VSX)
 
 #define VSX_LOGICAL(name, tcg_op)                                    \
 static void glue(gen_, name)(DisasContext * ctx)                     \
@@ -10119,6 +10134,11 @@ GEN_XX2FORM(xscvdpuxds, 0x10, 0x14, PPC2_VSX),
 GEN_XX2FORM(xscvdpuxws, 0x10, 0x04, PPC2_VSX),
 GEN_XX2FORM(xscvsxddp, 0x10, 0x17, PPC2_VSX),
 GEN_XX2FORM(xscvuxddp, 0x10, 0x16, PPC2_VSX),
+GEN_XX2FORM(xsrdpi, 0x12, 0x04, PPC2_VSX),
+GEN_XX2FORM(xsrdpic, 0x16, 0x06, PPC2_VSX),
+GEN_XX2FORM(xsrdpim, 0x12, 0x07, PPC2_VSX),
+GEN_XX2FORM(xsrdpip, 0x12, 0x06, PPC2_VSX),
+GEN_XX2FORM(xsrdpiz, 0x12, 0x05, PPC2_VSX),
 
 GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
 GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),
@@ -10151,6 +10171,11 @@ GEN_XX2FORM(xvcvsxddp, 0x10, 0x1F, PPC2_VSX),
 GEN_XX2FORM(xvcvuxddp, 0x10, 0x1E, PPC2_VSX),
 GEN_XX2FORM(xvcvsxwdp, 0x10, 0x0F, PPC2_VSX),
 GEN_XX2FORM(xvcvuxwdp, 0x10, 0x0E, PPC2_VSX),
+GEN_XX2FORM(xvrdpi, 0x12, 0x0C, PPC2_VSX),
+GEN_XX2FORM(xvrdpic, 0x16, 0x0E, PPC2_VSX),
+GEN_XX2FORM(xvrdpim, 0x12, 0x0F, PPC2_VSX),
+GEN_XX2FORM(xvrdpip, 0x12, 0x0E, PPC2_VSX),
+GEN_XX2FORM(xvrdpiz, 0x12, 0x0D, PPC2_VSX),
 
 GEN_XX3FORM(xvaddsp, 0x00, 0x08, PPC2_VSX),
 GEN_XX3FORM(xvsubsp, 0x00, 0x09, PPC2_VSX),
@@ -10183,6 +10208,11 @@ GEN_XX2FORM(xvcvsxdsp, 0x10, 0x1B, PPC2_VSX),
 GEN_XX2FORM(xvcvuxdsp, 0x10, 0x1A, PPC2_VSX),
 GEN_XX2FORM(xvcvsxwsp, 0x10, 0x0B, PPC2_VSX),
 GEN_XX2FORM(xvcvuxwsp, 0x10, 0x0A, PPC2_VSX),
+GEN_XX2FORM(xvrspi, 0x12, 0x08, PPC2_VSX),
+GEN_XX2FORM(xvrspic, 0x16, 0x0A, PPC2_VSX),
+GEN_XX2FORM(xvrspim, 0x12, 0x0B, PPC2_VSX),
+GEN_XX2FORM(xvrspip, 0x12, 0x0A, PPC2_VSX),
+GEN_XX2FORM(xvrspiz, 0x12, 0x09, PPC2_VSX),
 
 #undef VSX_LOGICAL
 #define VSX_LOGICAL(name, opc2, opc3, fl2) \

@@ -2537,3 +2537,71 @@ VSX_CVT_INT_TO_FP(xvcvuxdsp, 2, uint64, float32, u64[i], f32[j], \
                   2*i + JOFFSET, 0)
 VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, u32[j], f32[i], i, 0)
 VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, u32[j], f32[i], i, 0)
+
+/* For "use current rounding mode", define a value that will not be one of
+ * the existing rounding model enums.
+ */
+#define FLOAT_ROUND_CURRENT (float_round_nearest_even + float_round_down + \
+  float_round_up + float_round_to_zero)
+
+/* VSX_ROUND - VSX floating point round
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   rmode - rounding mode
+ *   sfprf - set FPRF
+ */
+#define VSX_ROUND(op, nels, tp, fld, rmode, sfprf)                     \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
+{                                                                      \
+    ppc_vsr_t xt, xb;                                                  \
+    int i;                                                             \
+    getVSR(xB(opcode), &xb, env);                                      \
+    getVSR(xT(opcode), &xt, env);                                      \
+                                                                       \
+    if (rmode != FLOAT_ROUND_CURRENT) {                                \
+        set_float_rounding_mode(rmode, &env->fp_status);               \
+    }                                                                  \
+                                                                       \
+    for (i = 0; i < nels; i++) {                                       \
+        if (unlikely(tp##_is_signaling_nan(xb.fld[i]))) {              \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);     \
+            xt.fld[i] = tp##_snan_to_qnan(xb.fld[i]);                  \
+        } else {                                                       \
+            xt.fld[i] = tp##_round_to_int(xb.fld[i], &env->fp_status); \
+        }                                                              \
+        if (sfprf) {                                                   \
+            helper_compute_fprf(env, xt.fld[i], sfprf);                \
+        }                                                              \
+    }                                                                  \
+                                                                       \
+    /* If this is not a "use current rounding mode" instruction,       \
+     * then inhibit setting of the XX bit and restore rounding         \
+     * mode from FPSCR */                                              \
+    if (rmode != FLOAT_ROUND_CURRENT) {                                \
+        fpscr_set_rounding_mode(env);                                  \
+        env->fp_status.float_exception_flags &= ~float_flag_inexact;   \
+    }                                                                  \
+                                                                       \
+    putVSR(xT(opcode), &xt, env);                                      \
+    helper_float_check_status(env);                                    \
+}
+
+VSX_ROUND(xsrdpi, 1, float64, f64, float_round_nearest_even, 1)
+VSX_ROUND(xsrdpic, 1, float64, f64, FLOAT_ROUND_CURRENT, 1)
+VSX_ROUND(xsrdpim, 1, float64, f64, float_round_down, 1)
+VSX_ROUND(xsrdpip, 1, float64, f64, float_round_up, 1)
+VSX_ROUND(xsrdpiz, 1, float64, f64, float_round_to_zero, 1)
+
+VSX_ROUND(xvrdpi, 2, float64, f64, float_round_nearest_even, 0)
+VSX_ROUND(xvrdpic, 2, float64, f64, FLOAT_ROUND_CURRENT, 0)
+VSX_ROUND(xvrdpim, 2, float64, f64, float_round_down, 0)
+VSX_ROUND(xvrdpip, 2, float64, f64, float_round_up, 0)
+VSX_ROUND(xvrdpiz, 2, float64, f64, float_round_to_zero, 0)
+
+VSX_ROUND(xvrspi, 4, float32, f32, float_round_nearest_even, 0)
+VSX_ROUND(xvrspic, 4, float32, f32, FLOAT_ROUND_CURRENT, 0)
+VSX_ROUND(xvrspim, 4, float32, f32, float_round_down, 0)
+VSX_ROUND(xvrspip, 4, float32, f32, float_round_up, 0)
+VSX_ROUND(xvrspiz, 4, float32, f32, float_round_to_zero, 0)
