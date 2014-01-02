@@ -2564,7 +2564,7 @@ static int img_resize(int argc, char **argv)
     }
 
     /* Parse size */
-    param = qemu_opts_create_nofail(&resize_options);
+    param = qemu_opts_create(&resize_options, NULL, 0, &error_abort);
     if (qemu_opt_set(param, BLOCK_OPT_SIZE, size)) {
         /* Error message already printed when size parsing fails */
         ret = -1;

@@ -730,7 +730,7 @@ int qemu_global_option(const char *str)
         return -1;
     }
 
-    opts = qemu_opts_create_nofail(&qemu_global_opts);
+    opts = qemu_opts_create(&qemu_global_opts, NULL, 0, &error_abort);
     qemu_opt_set(opts, "driver", driver);
     qemu_opt_set(opts, "property", property);
     qemu_opt_set(opts, "value", str+offset+1);

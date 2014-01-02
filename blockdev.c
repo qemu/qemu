@@ -682,7 +682,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bs_opts = qdict_new();
     qemu_opts_to_qdict(all_opts, bs_opts);
 
-    legacy_opts = qemu_opts_create_nofail(&qemu_legacy_drive_opts);
+    legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
+                                   &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
     if (error_is_set(&local_err)) {
         qerror_report_err(local_err);
@@ -853,7 +854,8 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     if (type == IF_VIRTIO) {
         QemuOpts *devopts;
-        devopts = qemu_opts_create_nofail(qemu_find_opts("device"));
+        devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                   &error_abort);
         if (arch_type == QEMU_ARCH_S390X) {
             qemu_opt_set(devopts, "driver", "virtio-blk-s390");
         } else {
