@@ -2384,3 +2384,49 @@ VSX_CMP(xvcmpgtdp, 2, float64, f64, lt, 1)
 VSX_CMP(xvcmpeqsp, 4, float32, f32, eq, 0)
 VSX_CMP(xvcmpgesp, 4, float32, f32, le, 1)
 VSX_CMP(xvcmpgtsp, 4, float32, f32, lt, 1)
+
+#if defined(HOST_WORDS_BIGENDIAN)
+#define JOFFSET 0
+#else
+#define JOFFSET 1
+#endif
+
+/* VSX_CVT_FP_TO_FP - VSX floating point/floating point conversion
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   stp   - source type (float32 or float64)
+ *   ttp   - target type (float32 or float64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field (f32 or f64)
+ *   sfprf - set FPRF
+ */
+#define VSX_CVT_FP_TO_FP(op, nels, stp, ttp, sfld, tfld, sfprf)    \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                \
+{                                                                  \
+    ppc_vsr_t xt, xb;                                              \
+    int i;                                                         \
+                                                                   \
+    getVSR(xB(opcode), &xb, env);                                  \
+    getVSR(xT(opcode), &xt, env);                                  \
+                                                                   \
+    for (i = 0; i < nels; i++) {                                   \
+        int j = 2*i + JOFFSET;                                     \
+        xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);        \
+        if (unlikely(stp##_is_signaling_nan(xb.sfld))) {           \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0); \
+            xt.tfld = ttp##_snan_to_qnan(xt.tfld);                 \
+        }                                                          \
+        if (sfprf) {                                               \
+            helper_compute_fprf(env, ttp##_to_float64(xt.tfld,     \
+                                &env->fp_status), sfprf);          \
+        }                                                          \
+    }                                                              \
+                                                                   \
+    putVSR(xT(opcode), &xt, env);                                  \
+    helper_float_check_status(env);                                \
+}
+
+VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, f64[i], f32[j], 1)
+VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, f32[j], f64[i], 1)
+VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, f64[i], f32[j], 0)
+VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, f32[j], f64[i], 0)
