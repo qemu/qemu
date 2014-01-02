@@ -2288,3 +2288,42 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 
 VSX_SCALAR_CMP(xscmpodp, 1)
 VSX_SCALAR_CMP(xscmpudp, 0)
+
+#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ul)
+#define float32_snan_to_qnan(x) ((x) | 0x00400000)
+
+/* VSX_MAX_MIN - VSX floating point maximum/minimum
+ *   name  - instruction mnemonic
+ *   op    - operation (max or min)
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ */
+#define VSX_MAX_MIN(name, op, nels, tp, fld)                                  \
+void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
+{                                                                             \
+    ppc_vsr_t xt, xa, xb;                                                     \
+    int i;                                                                    \
+                                                                              \
+    getVSR(xA(opcode), &xa, env);                                             \
+    getVSR(xB(opcode), &xb, env);                                             \
+    getVSR(xT(opcode), &xt, env);                                             \
+                                                                              \
+    for (i = 0; i < nels; i++) {                                              \
+        xt.fld[i] = tp##_##op(xa.fld[i], xb.fld[i], &env->fp_status);         \
+        if (unlikely(tp##_is_signaling_nan(xa.fld[i]) ||                      \
+                     tp##_is_signaling_nan(xb.fld[i]))) {                     \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);            \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    putVSR(xT(opcode), &xt, env);                                             \
+    helper_float_check_status(env);                                           \
+}
+
+VSX_MAX_MIN(xsmaxdp, maxnum, 1, float64, f64)
+VSX_MAX_MIN(xvmaxdp, maxnum, 2, float64, f64)
+VSX_MAX_MIN(xvmaxsp, maxnum, 4, float32, f32)
+VSX_MAX_MIN(xsmindp, minnum, 1, float64, f64)
+VSX_MAX_MIN(xvmindp, minnum, 2, float64, f64)
+VSX_MAX_MIN(xvminsp, minnum, 4, float32, f32)
