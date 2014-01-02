@@ -2095,3 +2095,57 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
 VSX_TDIV(xstdivdp, 1, float64, f64, -1022, 1023, 52)
 VSX_TDIV(xvtdivdp, 2, float64, f64, -1022, 1023, 52)
 VSX_TDIV(xvtdivsp, 4, float32, f32, -126, 127, 23)
+
+/* VSX_TSQRT - VSX floating point test for square root
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   emin  - minimum unbiased exponent
+ *   emax  - maximum unbiased exponent
+ *   nbits - number of fraction bits
+ */
+#define VSX_TSQRT(op, nels, tp, fld, emin, nbits)                       \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
+{                                                                       \
+    ppc_vsr_t xa, xb;                                                   \
+    int i;                                                              \
+    int fe_flag = 0;                                                    \
+    int fg_flag = 0;                                                    \
+                                                                        \
+    getVSR(xA(opcode), &xa, env);                                       \
+    getVSR(xB(opcode), &xb, env);                                       \
+                                                                        \
+    for (i = 0; i < nels; i++) {                                        \
+        if (unlikely(tp##_is_infinity(xb.fld[i]) ||                     \
+                     tp##_is_zero(xb.fld[i]))) {                        \
+            fe_flag = 1;                                                \
+            fg_flag = 1;                                                \
+        } else {                                                        \
+            int e_b = ppc_##tp##_get_unbiased_exp(xb.fld[i]);           \
+                                                                        \
+            if (unlikely(tp##_is_any_nan(xb.fld[i]))) {                 \
+                fe_flag = 1;                                            \
+            } else if (unlikely(tp##_is_zero(xb.fld[i]))) {             \
+                fe_flag = 1;                                            \
+            } else if (unlikely(tp##_is_neg(xb.fld[i]))) {              \
+                fe_flag = 1;                                            \
+            } else if (!tp##_is_zero(xb.fld[i]) &&                      \
+                      (e_b <= (emin+nbits))) {                          \
+                fe_flag = 1;                                            \
+            }                                                           \
+                                                                        \
+            if (unlikely(tp##_is_zero_or_denormal(xb.fld[i]))) {        \
+                /* XB is not zero because of the above check and */     \
+                /* therefore must be denormalized.               */     \
+                fg_flag = 1;                                            \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    env->crf[BF(opcode)] = 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0); \
+}
+
+VSX_TSQRT(xstsqrtdp, 1, float64, f64, -1022, 52)
+VSX_TSQRT(xvtsqrtdp, 2, float64, f64, -1022, 52)
+VSX_TSQRT(xvtsqrtsp, 4, float32, f32, -126, 23)
