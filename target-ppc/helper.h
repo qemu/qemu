@@ -254,14 +254,17 @@ DEF_HELPER_4(vctsxs, void, env, avr, avr, i32)
 DEF_HELPER_2(xsadddp, void, env, i32)
 DEF_HELPER_2(xssubdp, void, env, i32)
 DEF_HELPER_2(xsmuldp, void, env, i32)
+DEF_HELPER_2(xsdivdp, void, env, i32)
 
 DEF_HELPER_2(xvadddp, void, env, i32)
 DEF_HELPER_2(xvsubdp, void, env, i32)
 DEF_HELPER_2(xvmuldp, void, env, i32)
+DEF_HELPER_2(xvdivdp, void, env, i32)
 
 DEF_HELPER_2(xvaddsp, void, env, i32)
 DEF_HELPER_2(xvsubsp, void, env, i32)
 DEF_HELPER_2(xvmulsp, void, env, i32)
+DEF_HELPER_2(xvdivsp, void, env, i32)
 
 DEF_HELPER_2(efscfsi, i32, env, i32)
 DEF_HELPER_2(efscfui, i32, env, i32)
