@@ -7289,6 +7289,20 @@ VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
 
+#define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
+static void gen_##name(DisasContext * ctx)                                    \
+{                                                                             \
+    TCGv_i32 opc;                                                             \
+    if (unlikely(!ctx->vsx_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
+        return;                                                               \
+    }                                                                         \
+    /* NIP cannot be restored if the memory exception comes from an helper */ \
+    gen_update_nip(ctx, ctx->nip - 4);                                        \
+    opc = tcg_const_i32(ctx->opcode);                                         \
+    gen_helper_##name(cpu_env, opc);                                          \
+    tcg_temp_free_i32(opc);                                                   \
+}
 
 #define VSX_LOGICAL(name, tcg_op)                                    \
 static void glue(gen_, name)(DisasContext * ctx)                     \
