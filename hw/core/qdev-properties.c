@@ -1003,73 +1003,55 @@ void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
 
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
-    Error *errp = NULL;
-    object_property_set_bool(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_bool(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
 {
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 {
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value)
 {
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
 {
-    Error *errp = NULL;
-    object_property_set_str(OBJECT(dev), value, name, &errp);
-    assert_no_error(errp);
+    object_property_set_str(OBJECT(dev), value, name, &error_abort);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
 {
-    Error *errp = NULL;
     char str[2 * 6 + 5 + 1];
     snprintf(str, sizeof(str), "%02x:%02x:%02x:%02x:%02x:%02x",
              value[0], value[1], value[2], value[3], value[4], value[5]);
 
-    object_property_set_str(OBJECT(dev), str, name, &errp);
-    assert_no_error(errp);
+    object_property_set_str(OBJECT(dev), str, name, &error_abort);
 }
 
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
 {
     Property *prop;
-    Error *errp = NULL;
 
     prop = qdev_prop_find(dev, name);
     object_property_set_str(OBJECT(dev), prop->info->enum_table[value],
-                            name, &errp);
-    assert_no_error(errp);
+                            name, &error_abort);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
@@ -1161,12 +1143,10 @@ static void set_size(Object *obj, Visitor *v, void *opaque,
 static int parse_size(DeviceState *dev, Property *prop, const char *str)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    Error *errp = NULL;
 
     if (str != NULL) {
-        parse_option_size(prop->name, str, ptr, &errp);
+        parse_option_size(prop->name, str, ptr, &error_abort);
     }
-    assert_no_error(errp);
     return 0;
 }
 

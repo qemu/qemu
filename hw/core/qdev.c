@@ -656,14 +656,13 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     }
 
     if (prop->qtype == QTYPE_QBOOL) {
-        object_property_set_bool(obj, prop->defval, prop->name, &local_err);
+        object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
     } else if (prop->info->enum_table) {
         object_property_set_str(obj, prop->info->enum_table[prop->defval],
-                                prop->name, &local_err);
+                                prop->name, &error_abort);
     } else if (prop->qtype == QTYPE_QINT) {
-        object_property_set_int(obj, prop->defval, prop->name, &local_err);
+        object_property_set_int(obj, prop->defval, prop->name, &error_abort);
     }
-    assert_no_error(local_err);
 }
 
 static bool device_get_realized(Object *obj, Error **err)
@@ -723,7 +722,6 @@ static void device_initfn(Object *obj)
     DeviceState *dev = DEVICE(obj);
     ObjectClass *class;
     Property *prop;
-    Error *err = NULL;
 
     if (qdev_hotplug) {
         dev->hotplugged = 1;
@@ -739,26 +737,19 @@ static void device_initfn(Object *obj)
     class = object_get_class(OBJECT(dev));
     do {
         for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
-            qdev_property_add_legacy(dev, prop, &err);
-            assert_no_error(err);
-            qdev_property_add_static(dev, prop, &err);
-            assert_no_error(err);
+            qdev_property_add_legacy(dev, prop, &error_abort);
+            qdev_property_add_static(dev, prop, &error_abort);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
-                             (Object **)&dev->parent_bus, &err);
-    assert_no_error(err);
+                             (Object **)&dev->parent_bus, &error_abort);
 }
 
 static void device_post_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    Error *err = NULL;
-
-    qdev_prop_set_globals(dev, &err);
-    assert_no_error(err);
+    qdev_prop_set_globals(DEVICE(obj), &error_abort);
 }
 
 /* Unlink device from bus and free the structure.  */
