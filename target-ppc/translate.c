@@ -7304,6 +7304,15 @@ static void gen_##name(DisasContext * ctx)                                    \
     tcg_temp_free_i32(opc);                                                   \
 }
 
+GEN_VSX_HELPER_2(xsadddp, 0x00, 0x04, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xssubdp, 0x00, 0x05, 0, PPC2_VSX)
+
+GEN_VSX_HELPER_2(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
+
+GEN_VSX_HELPER_2(xvaddsp, 0x00, 0x08, 0, PPC2_VSX)
+GEN_VSX_HELPER_2(xvsubsp, 0x00, 0x09, 0, PPC2_VSX)
+
 #define VSX_LOGICAL(name, tcg_op)                                    \
 static void glue(gen_, name)(DisasContext * ctx)                     \
     {                                                                \
@@ -9984,6 +9993,15 @@ GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
 GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
 GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
 GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
+
+GEN_XX3FORM(xsadddp, 0x00, 0x04, PPC2_VSX),
+GEN_XX3FORM(xssubdp, 0x00, 0x05, PPC2_VSX),
+
+GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
+GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),
+
+GEN_XX3FORM(xvaddsp, 0x00, 0x08, PPC2_VSX),
+GEN_XX3FORM(xvsubsp, 0x00, 0x09, PPC2_VSX),
 
 #undef VSX_LOGICAL
 #define VSX_LOGICAL(name, opc2, opc3, fl2) \

@@ -1758,3 +1758,53 @@ static void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 }
 
 #define float64_to_float64(x, env) x
+
+
+/* VSX_ADD_SUB - VSX floating point add/subract
+ *   name  - instruction mnemonic
+ *   op    - operation (add or sub)
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   sfprf - set FPRF
+ */
+#define VSX_ADD_SUB(name, op, nels, tp, fld, sfprf)                          \
+void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
+{                                                                            \
+    ppc_vsr_t xt, xa, xb;                                                    \
+    int i;                                                                   \
+                                                                             \
+    getVSR(xA(opcode), &xa, env);                                            \
+    getVSR(xB(opcode), &xb, env);                                            \
+    getVSR(xT(opcode), &xt, env);                                            \
+    helper_reset_fpstatus(env);                                              \
+                                                                             \
+    for (i = 0; i < nels; i++) {                                             \
+        float_status tstat = env->fp_status;                                 \
+        set_float_exception_flags(0, &tstat);                                \
+        xt.fld[i] = tp##_##op(xa.fld[i], xb.fld[i], &tstat);                 \
+        env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
+                                                                             \
+        if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
+            if (tp##_is_infinity(xa.fld[i]) && tp##_is_infinity(xb.fld[i])) {\
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);    \
+            } else if (tp##_is_signaling_nan(xa.fld[i]) ||                   \
+                       tp##_is_signaling_nan(xb.fld[i])) {                   \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+            }                                                                \
+        }                                                                    \
+                                                                             \
+        if (sfprf) {                                                         \
+            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+        }                                                                    \
+    }                                                                        \
+    putVSR(xT(opcode), &xt, env);                                            \
+    helper_float_check_status(env);                                          \
+}
+
+VSX_ADD_SUB(xsadddp, add, 1, float64, f64, 1)
+VSX_ADD_SUB(xvadddp, add, 2, float64, f64, 0)
+VSX_ADD_SUB(xvaddsp, add, 4, float32, f32, 0)
+VSX_ADD_SUB(xssubdp, sub, 1, float64, f64, 1)
+VSX_ADD_SUB(xvsubdp, sub, 2, float64, f64, 0)
+VSX_ADD_SUB(xvsubsp, sub, 4, float32, f32, 0)
