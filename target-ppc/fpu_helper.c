@@ -2430,3 +2430,110 @@ VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, f64[i], f32[j], 1)
 VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, f32[j], f64[i], 1)
 VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, f64[i], f32[j], 0)
 VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, f32[j], f64[i], 0)
+
+/* VSX_CVT_FP_TO_INT - VSX floating point to integer conversion
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   stp   - source type (float32 or float64)
+ *   ttp   - target type (int32, uint32, int64 or uint64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field
+ *   jdef  - definition of the j index (i or 2*i)
+ *   rnan  - resulting NaN
+ */
+#define VSX_CVT_FP_TO_INT(op, nels, stp, ttp, sfld, tfld, jdef, rnan)        \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+{                                                                            \
+    ppc_vsr_t xt, xb;                                                        \
+    int i;                                                                   \
+                                                                             \
+    getVSR(xB(opcode), &xb, env);                                            \
+    getVSR(xT(opcode), &xt, env);                                            \
+                                                                             \
+    for (i = 0; i < nels; i++) {                                             \
+        int j = jdef;                                                        \
+        if (unlikely(stp##_is_any_nan(xb.sfld))) {                           \
+            if (stp##_is_signaling_nan(xb.sfld)) {                           \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
+            }                                                                \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);            \
+            xt.tfld = rnan;                                                  \
+        } else {                                                             \
+            xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);              \
+            if (env->fp_status.float_exception_flags & float_flag_invalid) { \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 0);        \
+            }                                                                \
+        }                                                                    \
+    }                                                                        \
+                                                                             \
+    putVSR(xT(opcode), &xt, env);                                            \
+    helper_float_check_status(env);                                          \
+}
+
+VSX_CVT_FP_TO_INT(xscvdpsxds, 1, float64, int64, f64[j], u64[i], i, \
+                  0x8000000000000000ul)
+VSX_CVT_FP_TO_INT(xscvdpsxws, 1, float64, int32, f64[i], u32[j], \
+                  2*i + JOFFSET, 0x80000000l)
+VSX_CVT_FP_TO_INT(xscvdpuxds, 1, float64, uint64, f64[j], u64[i], i, 0ul)
+VSX_CVT_FP_TO_INT(xscvdpuxws, 1, float64, uint32, f64[i], u32[j], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_FP_TO_INT(xvcvdpsxds, 2, float64, int64, f64[j], u64[i], i, \
+                  0x8000000000000000ul)
+VSX_CVT_FP_TO_INT(xvcvdpsxws, 2, float64, int32, f64[i], u32[j], \
+                  2*i + JOFFSET, 0x80000000l)
+VSX_CVT_FP_TO_INT(xvcvdpuxds, 2, float64, uint64, f64[j], u64[i], i, 0ul)
+VSX_CVT_FP_TO_INT(xvcvdpuxws, 2, float64, uint32, f64[i], u32[j], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_FP_TO_INT(xvcvspsxds, 2, float32, int64, f32[j], u64[i], \
+                  2*i + JOFFSET, 0x8000000000000000ul)
+VSX_CVT_FP_TO_INT(xvcvspsxws, 4, float32, int32, f32[j], u32[j], i, \
+                  0x80000000l)
+VSX_CVT_FP_TO_INT(xvcvspuxds, 2, float32, uint64, f32[j], u64[i], \
+                  2*i + JOFFSET, 0ul)
+VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, f32[j], u32[i], i, 0)
+
+/* VSX_CVT_INT_TO_FP - VSX integer to floating point conversion
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   stp   - source type (int32, uint32, int64 or uint64)
+ *   ttp   - target type (float32 or float64)
+ *   sfld  - source vsr_t field
+ *   tfld  - target vsr_t field
+ *   jdef  - definition of the j index (i or 2*i)
+ *   sfprf - set FPRF
+ */
+#define VSX_CVT_INT_TO_FP(op, nels, stp, ttp, sfld, tfld, jdef, sfprf)  \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
+{                                                                       \
+    ppc_vsr_t xt, xb;                                                   \
+    int i;                                                              \
+                                                                        \
+    getVSR(xB(opcode), &xb, env);                                       \
+    getVSR(xT(opcode), &xt, env);                                       \
+                                                                        \
+    for (i = 0; i < nels; i++) {                                        \
+        int j = jdef;                                                   \
+        xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);             \
+        if (sfprf) {                                                    \
+            helper_compute_fprf(env, xt.tfld, sfprf);                   \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    putVSR(xT(opcode), &xt, env);                                       \
+    helper_float_check_status(env);                                     \
+}
+
+VSX_CVT_INT_TO_FP(xscvsxddp, 1, int64, float64, u64[j], f64[i], i, 1)
+VSX_CVT_INT_TO_FP(xscvuxddp, 1, uint64, float64, u64[j], f64[i], i, 1)
+VSX_CVT_INT_TO_FP(xvcvsxddp, 2, int64, float64, u64[j], f64[i], i, 0)
+VSX_CVT_INT_TO_FP(xvcvuxddp, 2, uint64, float64, u64[j], f64[i], i, 0)
+VSX_CVT_INT_TO_FP(xvcvsxwdp, 2, int32, float64, u32[j], f64[i], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_INT_TO_FP(xvcvuxwdp, 2, uint64, float64, u32[j], f64[i], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_INT_TO_FP(xvcvsxdsp, 2, int64, float32, u64[i], f32[j], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_INT_TO_FP(xvcvuxdsp, 2, uint64, float32, u64[i], f32[j], \
+                  2*i + JOFFSET, 0)
+VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, u32[j], f32[i], i, 0)
+VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, u32[j], f32[i], i, 0)
