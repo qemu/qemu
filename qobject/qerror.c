@@ -121,14 +121,6 @@ void qerror_report_err(Error *err)
     }
 }
 
-void assert_no_error(Error *err)
-{
-    if (err) {
-        qerror_report_err(err);
-        abort();
-    }
-}
-
 /**
  * qobject_to_qerror(): Convert a QObject into a QError
  */
