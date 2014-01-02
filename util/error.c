@@ -23,6 +23,8 @@ struct Error
     ErrorClass err_class;
 };
 
+Error *error_abort;
+
 void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
 {
     Error *err;
@@ -40,6 +42,11 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     err->msg = g_strdup_vprintf(fmt, ap);
     va_end(ap);
     err->err_class = err_class;
+
+    if (errp == &error_abort) {
+        error_report("%s", error_get_pretty(err));
+        abort();
+    }
 
     *errp = err;
 
@@ -71,6 +78,11 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     }
     va_end(ap);
     err->err_class = err_class;
+
+    if (errp == &error_abort) {
+        error_report("%s", error_get_pretty(err));
+        abort();
+    }
 
     *errp = err;
 
@@ -111,6 +123,11 @@ void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
     }
     va_end(ap);
     err->err_class = err_class;
+
+    if (errp == &error_abort) {
+        error_report("%s", error_get_pretty(err));
+        abort();
+    }
 
     *errp = err;
 }
@@ -153,7 +170,10 @@ void error_free(Error *err)
 
 void error_propagate(Error **dst_err, Error *local_err)
 {
-    if (dst_err && !*dst_err) {
+    if (local_err && dst_err == &error_abort) {
+        error_report("%s", error_get_pretty(local_err));
+        abort();
+    } else if (dst_err && !*dst_err) {
         *dst_err = local_err;
     } else if (local_err) {
         error_free(local_err);
