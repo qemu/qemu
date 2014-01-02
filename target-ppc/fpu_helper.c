@@ -1983,3 +1983,48 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
 VSX_SQRT(xssqrtdp, 1, float64, f64, 1)
 VSX_SQRT(xvsqrtdp, 2, float64, f64, 0)
 VSX_SQRT(xvsqrtsp, 4, float32, f32, 0)
+
+/* VSX_RSQRTE - VSX floating point reciprocal square root estimate
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   sfprf - set FPRF
+ */
+#define VSX_RSQRTE(op, nels, tp, fld, sfprf)                                 \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+{                                                                            \
+    ppc_vsr_t xt, xb;                                                        \
+    int i;                                                                   \
+                                                                             \
+    getVSR(xB(opcode), &xb, env);                                            \
+    getVSR(xT(opcode), &xt, env);                                            \
+    helper_reset_fpstatus(env);                                              \
+                                                                             \
+    for (i = 0; i < nels; i++) {                                             \
+        float_status tstat = env->fp_status;                                 \
+        set_float_exception_flags(0, &tstat);                                \
+        xt.fld[i] = tp##_sqrt(xb.fld[i], &tstat);                            \
+        xt.fld[i] = tp##_div(tp##_one, xt.fld[i], &tstat);                   \
+        env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
+                                                                             \
+        if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
+            if (tp##_is_neg(xb.fld[i]) && !tp##_is_zero(xb.fld[i])) {        \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, sfprf);   \
+            } else if (tp##_is_signaling_nan(xb.fld[i])) {                   \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);   \
+            }                                                                \
+        }                                                                    \
+                                                                             \
+        if (sfprf) {                                                         \
+            helper_compute_fprf(env, xt.fld[i], sfprf);                      \
+        }                                                                    \
+    }                                                                        \
+                                                                             \
+    putVSR(xT(opcode), &xt, env);                                            \
+    helper_float_check_status(env);                                          \
+}
+
+VSX_RSQRTE(xsrsqrtedp, 1, float64, f64, 1)
+VSX_RSQRTE(xvrsqrtedp, 2, float64, f64, 0)
+VSX_RSQRTE(xvrsqrtesp, 4, float32, f32, 0)
