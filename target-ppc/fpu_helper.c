@@ -2327,3 +2327,60 @@ VSX_MAX_MIN(xvmaxsp, maxnum, 4, float32, f32)
 VSX_MAX_MIN(xsmindp, minnum, 1, float64, f64)
 VSX_MAX_MIN(xvmindp, minnum, 2, float64, f64)
 VSX_MAX_MIN(xvminsp, minnum, 4, float32, f32)
+
+/* VSX_CMP - VSX floating point compare
+ *   op    - instruction mnemonic
+ *   nels  - number of elements (1, 2 or 4)
+ *   tp    - type (float32 or float64)
+ *   fld   - vsr_t field (f32 or f64)
+ *   cmp   - comparison operation
+ *   svxvc - set VXVC bit
+ */
+#define VSX_CMP(op, nels, tp, fld, cmp, svxvc)                            \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
+{                                                                         \
+    ppc_vsr_t xt, xa, xb;                                                 \
+    int i;                                                                \
+    int all_true = 1;                                                     \
+    int all_false = 1;                                                    \
+                                                                          \
+    getVSR(xA(opcode), &xa, env);                                         \
+    getVSR(xB(opcode), &xb, env);                                         \
+    getVSR(xT(opcode), &xt, env);                                         \
+                                                                          \
+    for (i = 0; i < nels; i++) {                                          \
+        if (unlikely(tp##_is_any_nan(xa.fld[i]) ||                        \
+                     tp##_is_any_nan(xb.fld[i]))) {                       \
+            if (tp##_is_signaling_nan(xa.fld[i]) ||                       \
+                tp##_is_signaling_nan(xb.fld[i])) {                       \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);    \
+            }                                                             \
+            if (svxvc) {                                                  \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);      \
+            }                                                             \
+            xt.fld[i] = 0;                                                \
+            all_true = 0;                                                 \
+        } else {                                                          \
+            if (tp##_##cmp(xb.fld[i], xa.fld[i], &env->fp_status) == 1) { \
+                xt.fld[i] = -1;                                           \
+                all_false = 0;                                            \
+            } else {                                                      \
+                xt.fld[i] = 0;                                            \
+                all_true = 0;                                             \
+            }                                                             \
+        }                                                                 \
+    }                                                                     \
+                                                                          \
+    putVSR(xT(opcode), &xt, env);                                         \
+    if ((opcode >> (31-21)) & 1) {                                        \
+        env->crf[6] = (all_true ? 0x8 : 0) | (all_false ? 0x2 : 0);       \
+    }                                                                     \
+    helper_float_check_status(env);                                       \
+ }
+
+VSX_CMP(xvcmpeqdp, 2, float64, f64, eq, 0)
+VSX_CMP(xvcmpgedp, 2, float64, f64, le, 1)
+VSX_CMP(xvcmpgtdp, 2, float64, f64, lt, 1)
+VSX_CMP(xvcmpeqsp, 4, float32, f32, eq, 0)
+VSX_CMP(xvcmpgesp, 4, float32, f32, le, 1)
+VSX_CMP(xvcmpgtsp, 4, float32, f32, lt, 1)
