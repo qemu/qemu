@@ -161,7 +161,7 @@ typedef struct SheepdogVdiReq {
     uint32_t id;
     uint32_t data_length;
     uint64_t vdi_size;
-    uint32_t vdi_id;
+    uint32_t base_vdi_id;
     uint8_t copies;
     uint8_t copy_policy;
     uint8_t reserved[2];
@@ -1493,7 +1493,7 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot)
 
     memset(&hdr, 0, sizeof(hdr));
     hdr.opcode = SD_OP_NEW_VDI;
-    hdr.vdi_id = s->inode.vdi_id;
+    hdr.base_vdi_id = s->inode.vdi_id;
 
     wlen = SD_MAX_VDI_LEN;
 
@@ -1684,7 +1684,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
 
     if (backing_file) {
         BlockDriverState *bs;
-        BDRVSheepdogState *s;
+        BDRVSheepdogState *base;
         BlockDriver *drv;
 
         /* Currently, only Sheepdog backing image is supported. */
@@ -1702,15 +1702,15 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             goto out;
         }
 
-        s = bs->opaque;
+        base = bs->opaque;
 
-        if (!is_snapshot(&s->inode)) {
+        if (!is_snapshot(&base->inode)) {
             error_report("cannot clone from a non snapshot vdi");
             bdrv_unref(bs);
             ret = -EINVAL;
             goto out;
         }
-
+        s->inode.vdi_id = base->inode.vdi_id;
         bdrv_unref(bs);
     }
 
@@ -1743,7 +1743,7 @@ static void sd_close(BlockDriverState *bs)
     memset(&hdr, 0, sizeof(hdr));
 
     hdr.opcode = SD_OP_RELEASE_VDI;
-    hdr.vdi_id = s->inode.vdi_id;
+    hdr.base_vdi_id = s->inode.vdi_id;
     wlen = strlen(s->name) + 1;
     hdr.data_length = wlen;
     hdr.flags = SD_FLAG_CMD_WRITE;
@@ -1846,7 +1846,7 @@ static bool sd_delete(BDRVSheepdogState *s)
     unsigned int wlen = SD_MAX_VDI_LEN, rlen = 0;
     SheepdogVdiReq hdr = {
         .opcode = SD_OP_DEL_VDI,
-        .vdi_id = s->inode.vdi_id,
+        .base_vdi_id = s->inode.vdi_id,
         .data_length = wlen,
         .flags = SD_FLAG_CMD_WRITE,
     };
