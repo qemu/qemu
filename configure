@@ -12,7 +12,10 @@ else
 fi
 
 TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
-TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
+TMPB="qemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPO="${TMPDIR1}/${TMPB}.o"
+TMPL="${TMPDIR1}/${TMPB}.lo"
+TMPA="${TMPDIR1}/lib${TMPB}.la"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
 # NB: do not call "exit" in the trap handler; this is buggy with some shells;
@@ -84,6 +87,38 @@ compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
   do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags
+}
+
+do_libtool() {
+    local mode=$1
+    shift
+    # Run the compiler, capturing its output to the log.
+    echo $libtool $mode --tag=CC $cc "$@" >> config.log
+    $libtool $mode --tag=CC $cc "$@" >> config.log 2>&1 || return $?
+    # Test passed. If this is an --enable-werror build, rerun
+    # the test with -Werror and bail out if it fails. This
+    # makes warning-generating-errors in configure test code
+    # obvious to developers.
+    if test "$werror" != "yes"; then
+        return 0
+    fi
+    # Don't bother rerunning the compile if we were already using -Werror
+    case "$*" in
+        *-Werror*)
+           return 0
+        ;;
+    esac
+    echo $libtool $mode --tag=CC $cc -Werror "$@" >> config.log
+    $libtool $mode --tag=CC $cc -Werror "$@" >> config.log 2>&1 && return $?
+    error_exit "configure test passed without -Werror but failed with -Werror." \
+        "This is probably a bug in the configure script. The failing command" \
+        "will be at the bottom of config.log." \
+        "You can run configure with --disable-werror to bypass this check."
+}
+
+libtool_prog() {
+    do_libtool --mode=compile $QEMU_CFLAGS -c -fPIE -DPIE -o $TMPO $TMPC || return $?
+    do_libtool --mode=link $LDFLAGS -o $TMPA $TMPL -rpath /usr/local/lib
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -1403,6 +1438,32 @@ EOF
   if compile_prog "-fno-pie" "-nopie"; then
     CFLAGS_NOPIE="-fno-pie"
     LDFLAGS_NOPIE="-nopie"
+  fi
+fi
+
+# check for broken gcc and libtool in RHEL5
+if test -n "$libtool" -a "$pie" != "no" ; then
+  cat > $TMPC <<EOF
+
+void *f(unsigned char *buf, int len);
+void *g(unsigned char *buf, int len);
+
+void *
+f(unsigned char *buf, int len)
+{
+    return (void*)0L;
+}
+
+void *
+g(unsigned char *buf, int len)
+{
+    return f(buf, len);
+}
+
+EOF
+  if ! libtool_prog; then
+    echo "Disabling libtool due to broken toolchain support"
+    libtool=
   fi
 fi
 
