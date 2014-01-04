@@ -278,11 +278,11 @@ typedef struct CPUARMState {
         float_status fp_status;
         float_status standard_fp_status;
     } vfp;
-    uint32_t exclusive_addr;
-    uint32_t exclusive_val;
-    uint32_t exclusive_high;
+    uint64_t exclusive_addr;
+    uint64_t exclusive_val;
+    uint64_t exclusive_high;
 #if defined(CONFIG_USER_ONLY)
-    uint32_t exclusive_test;
+    uint64_t exclusive_test;
     uint32_t exclusive_info;
 #endif
 
