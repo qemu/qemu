@@ -3367,6 +3367,82 @@ static void disas_fp_2src(DisasContext *s, uint32_t insn)
     }
 }
 
+/* C3.6.27 Floating-point data-processing (3 source) - single precision */
+static void handle_fp_3src_single(DisasContext *s, bool o0, bool o1,
+                                  int rd, int rn, int rm, int ra)
+{
+    TCGv_i32 tcg_op1, tcg_op2, tcg_op3;
+    TCGv_i32 tcg_res = tcg_temp_new_i32();
+    TCGv_ptr fpst = get_fpstatus_ptr();
+
+    tcg_op1 = read_fp_sreg(s, rn);
+    tcg_op2 = read_fp_sreg(s, rm);
+    tcg_op3 = read_fp_sreg(s, ra);
+
+    /* These are fused multiply-add, and must be done as one
+     * floating point operation with no rounding between the
+     * multiplication and addition steps.
+     * NB that doing the negations here as separate steps is
+     * correct : an input NaN should come out with its sign bit
+     * flipped if it is a negated-input.
+     */
+    if (o1 == true) {
+        gen_helper_vfp_negs(tcg_op3, tcg_op3);
+    }
+
+    if (o0 != o1) {
+        gen_helper_vfp_negs(tcg_op1, tcg_op1);
+    }
+
+    gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2, tcg_op3, fpst);
+
+    write_fp_sreg(s, rd, tcg_res);
+
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i32(tcg_op1);
+    tcg_temp_free_i32(tcg_op2);
+    tcg_temp_free_i32(tcg_op3);
+    tcg_temp_free_i32(tcg_res);
+}
+
+/* C3.6.27 Floating-point data-processing (3 source) - double precision */
+static void handle_fp_3src_double(DisasContext *s, bool o0, bool o1,
+                                  int rd, int rn, int rm, int ra)
+{
+    TCGv_i64 tcg_op1, tcg_op2, tcg_op3;
+    TCGv_i64 tcg_res = tcg_temp_new_i64();
+    TCGv_ptr fpst = get_fpstatus_ptr();
+
+    tcg_op1 = read_fp_dreg(s, rn);
+    tcg_op2 = read_fp_dreg(s, rm);
+    tcg_op3 = read_fp_dreg(s, ra);
+
+    /* These are fused multiply-add, and must be done as one
+     * floating point operation with no rounding between the
+     * multiplication and addition steps.
+     * NB that doing the negations here as separate steps is
+     * correct : an input NaN should come out with its sign bit
+     * flipped if it is a negated-input.
+     */
+    if (o1 == true) {
+        gen_helper_vfp_negd(tcg_op3, tcg_op3);
+    }
+
+    if (o0 != o1) {
+        gen_helper_vfp_negd(tcg_op1, tcg_op1);
+    }
+
+    gen_helper_vfp_muladdd(tcg_res, tcg_op1, tcg_op2, tcg_op3, fpst);
+
+    write_fp_dreg(s, rd, tcg_res);
+
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i64(tcg_op1);
+    tcg_temp_free_i64(tcg_op2);
+    tcg_temp_free_i64(tcg_op3);
+    tcg_temp_free_i64(tcg_res);
+}
+
 /* C3.6.27 Floating point data-processing (3 source)
  *   31  30  29 28       24 23  22  21  20  16  15  14  10 9    5 4    0
  * +---+---+---+-----------+------+----+------+----+------+------+------+
@@ -3375,7 +3451,24 @@ static void disas_fp_2src(DisasContext *s, uint32_t insn)
  */
 static void disas_fp_3src(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int type = extract32(insn, 22, 2);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int ra = extract32(insn, 10, 5);
+    int rm = extract32(insn, 16, 5);
+    bool o0 = extract32(insn, 15, 1);
+    bool o1 = extract32(insn, 21, 1);
+
+    switch (type) {
+    case 0:
+        handle_fp_3src_single(s, o0, o1, rd, rn, rm, ra);
+        break;
+    case 1:
+        handle_fp_3src_double(s, o0, o1, rd, rn, rm, ra);
+        break;
+    default:
+        unallocated_encoding(s);
+    }
 }
 
 /* C3.6.28 Floating point immediate
