@@ -733,6 +733,50 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
     unsupported_encoding(s, insn);
 }
 
+static void gen_get_nzcv(TCGv_i64 tcg_rt)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    TCGv_i32 nzcv = tcg_temp_new_i32();
+
+    /* build bit 31, N */
+    tcg_gen_andi_i32(nzcv, cpu_NF, (1 << 31));
+    /* build bit 30, Z */
+    tcg_gen_setcondi_i32(TCG_COND_EQ, tmp, cpu_ZF, 0);
+    tcg_gen_deposit_i32(nzcv, nzcv, tmp, 30, 1);
+    /* build bit 29, C */
+    tcg_gen_deposit_i32(nzcv, nzcv, cpu_CF, 29, 1);
+    /* build bit 28, V */
+    tcg_gen_shri_i32(tmp, cpu_VF, 31);
+    tcg_gen_deposit_i32(nzcv, nzcv, tmp, 28, 1);
+    /* generate result */
+    tcg_gen_extu_i32_i64(tcg_rt, nzcv);
+
+    tcg_temp_free_i32(nzcv);
+    tcg_temp_free_i32(tmp);
+}
+
+static void gen_set_nzcv(TCGv_i64 tcg_rt)
+
+{
+    TCGv_i32 nzcv = tcg_temp_new_i32();
+
+    /* take NZCV from R[t] */
+    tcg_gen_trunc_i64_i32(nzcv, tcg_rt);
+
+    /* bit 31, N */
+    tcg_gen_andi_i32(cpu_NF, nzcv, (1 << 31));
+    /* bit 30, Z */
+    tcg_gen_andi_i32(cpu_ZF, nzcv, (1 << 30));
+    tcg_gen_setcondi_i32(TCG_COND_EQ, cpu_ZF, cpu_ZF, 0);
+    /* bit 29, C */
+    tcg_gen_andi_i32(cpu_CF, nzcv, (1 << 29));
+    tcg_gen_shri_i32(cpu_CF, cpu_CF, 29);
+    /* bit 28, V */
+    tcg_gen_andi_i32(cpu_VF, nzcv, (1 << 28));
+    tcg_gen_shli_i32(cpu_VF, cpu_VF, 3);
+    tcg_temp_free_i32(nzcv);
+}
+
 /* C5.6.129 MRS - move from system register
  * C5.6.131 MSR (register) - move to system register
  * C5.6.204 SYS
@@ -766,6 +810,14 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     /* Handle special cases first */
     switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
     case ARM_CP_NOP:
+        return;
+    case ARM_CP_NZCV:
+        tcg_rt = cpu_reg(s, rt);
+        if (isread) {
+            gen_get_nzcv(tcg_rt);
+        } else {
+            gen_set_nzcv(tcg_rt);
+        }
         return;
     default:
         break;

@@ -1560,6 +1560,64 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    *value = vfp_get_fpcr(env);
+    return 0;
+}
+
+static int aa64_fpcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    vfp_set_fpcr(env, value);
+    return 0;
+}
+
+static int aa64_fpsr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    *value = vfp_get_fpsr(env);
+    return 0;
+}
+
+static int aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    vfp_set_fpsr(env, value);
+    return 0;
+}
+
+static const ARMCPRegInfo v8_cp_reginfo[] = {
+    /* Minimal set of EL0-visible registers. This will need to be expanded
+     * significantly for system emulation of AArch64 CPUs.
+     */
+    { .name = "NZCV", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 2,
+      .access = PL0_RW, .type = ARM_CP_NZCV },
+    { .name = "FPCR", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
+      .access = PL0_RW, .readfn = aa64_fpcr_read, .writefn = aa64_fpcr_write },
+    { .name = "FPSR", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 4,
+      .access = PL0_RW, .readfn = aa64_fpsr_read, .writefn = aa64_fpsr_write },
+    /* This claims a 32 byte cacheline size for icache and dcache, VIPT icache.
+     * It will eventually need to have a CPU-specified reset value.
+     */
+    { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
+      .access = PL0_R, .type = ARM_CP_CONST,
+      .resetvalue = 0x80030003 },
+    /* Prohibit use of DC ZVA. OPTME: implement DC ZVA and allow its use.
+     * For system mode the DZP bit here will need to be computed, not constant.
+     */
+    { .name = "DCZID_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
+      .access = PL0_R, .type = ARM_CP_CONST,
+      .resetvalue = 0x10 },
+    REGINFO_SENTINEL
+};
+
 static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c1_sys = value;
@@ -1661,6 +1719,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new

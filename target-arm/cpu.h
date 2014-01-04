@@ -660,7 +660,8 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_IO 64
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
-#define ARM_LAST_SPECIAL ARM_CP_WFI
+#define ARM_CP_NZCV (ARM_CP_SPECIAL | (3 << 8))
+#define ARM_LAST_SPECIAL ARM_CP_NZCV
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
