@@ -38,6 +38,15 @@ static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 static TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
 
+/* Load/store exclusive handling */
+static TCGv_i64 cpu_exclusive_addr;
+static TCGv_i64 cpu_exclusive_val;
+static TCGv_i64 cpu_exclusive_high;
+#ifdef CONFIG_USER_ONLY
+static TCGv_i64 cpu_exclusive_test;
+static TCGv_i32 cpu_exclusive_info;
+#endif
+
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
@@ -70,6 +79,19 @@ void a64_translate_init(void)
     cpu_ZF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, ZF), "ZF");
     cpu_CF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, CF), "CF");
     cpu_VF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, VF), "VF");
+
+    cpu_exclusive_addr = tcg_global_mem_new_i64(TCG_AREG0,
+        offsetof(CPUARMState, exclusive_addr), "exclusive_addr");
+    cpu_exclusive_val = tcg_global_mem_new_i64(TCG_AREG0,
+        offsetof(CPUARMState, exclusive_val), "exclusive_val");
+    cpu_exclusive_high = tcg_global_mem_new_i64(TCG_AREG0,
+        offsetof(CPUARMState, exclusive_high), "exclusive_high");
+#ifdef CONFIG_USER_ONLY
+    cpu_exclusive_test = tcg_global_mem_new_i64(TCG_AREG0,
+        offsetof(CPUARMState, exclusive_test), "exclusive_test");
+    cpu_exclusive_info = tcg_global_mem_new_i32(TCG_AREG0,
+        offsetof(CPUARMState, exclusive_info), "exclusive_info");
+#endif
 }
 
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
@@ -767,6 +789,11 @@ static void handle_hint(DisasContext *s, uint32_t insn,
     }
 }
 
+static void gen_clrex(DisasContext *s, uint32_t insn)
+{
+    tcg_gen_movi_i64(cpu_exclusive_addr, -1);
+}
+
 /* CLREX, DSB, DMB, ISB */
 static void handle_sync(DisasContext *s, uint32_t insn,
                         unsigned int op1, unsigned int op2, unsigned int crm)
@@ -778,7 +805,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
 
     switch (op2) {
     case 2: /* CLREX */
-        unsupported_encoding(s, insn);
+        gen_clrex(s, insn);
         return;
     case 4: /* DSB */
     case 5: /* DMB */
@@ -1106,10 +1133,133 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Load/store exclusive */
+/*
+ * Load/Store exclusive instructions are implemented by remembering
+ * the value/address loaded, and seeing if these are the same
+ * when the store is performed. This is not actually the architecturally
+ * mandated semantics, but it works for typical guest code sequences
+ * and avoids having to monitor regular stores.
+ *
+ * In system emulation mode only one CPU will be running at once, so
+ * this sequence is effectively atomic.  In user emulation mode we
+ * throw an exception and handle the atomic operation elsewhere.
+ */
+static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
+                               TCGv_i64 addr, int size, bool is_pair)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGMemOp memop = MO_TE + size;
+
+    g_assert(size <= 3);
+    tcg_gen_qemu_ld_i64(tmp, addr, get_mem_index(s), memop);
+
+    if (is_pair) {
+        TCGv_i64 addr2 = tcg_temp_new_i64();
+        TCGv_i64 hitmp = tcg_temp_new_i64();
+
+        g_assert(size >= 2);
+        tcg_gen_addi_i64(addr2, addr, 1 << size);
+        tcg_gen_qemu_ld_i64(hitmp, addr2, get_mem_index(s), memop);
+        tcg_temp_free_i64(addr2);
+        tcg_gen_mov_i64(cpu_exclusive_high, hitmp);
+        tcg_gen_mov_i64(cpu_reg(s, rt2), hitmp);
+        tcg_temp_free_i64(hitmp);
+    }
+
+    tcg_gen_mov_i64(cpu_exclusive_val, tmp);
+    tcg_gen_mov_i64(cpu_reg(s, rt), tmp);
+
+    tcg_temp_free_i64(tmp);
+    tcg_gen_mov_i64(cpu_exclusive_addr, addr);
+}
+
+#ifdef CONFIG_USER_ONLY
+static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
+                                TCGv_i64 addr, int size, int is_pair)
+{
+    tcg_gen_mov_i64(cpu_exclusive_test, addr);
+    tcg_gen_movi_i32(cpu_exclusive_info,
+                     size | is_pair << 2 | (rd << 4) | (rt << 9) | (rt2 << 14));
+    gen_exception_insn(s, 4, EXCP_STREX);
+}
+#else
+static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
+                                TCGv_i64 addr, int size, int is_pair)
+{
+    qemu_log_mask(LOG_UNIMP,
+                  "%s:%d: system mode store_exclusive unsupported "
+                  "at pc=%016" PRIx64 "\n",
+                  __FILE__, __LINE__, s->pc - 4);
+}
+#endif
+
+/* C3.3.6 Load/store exclusive
+ *
+ *  31 30 29         24  23  22   21  20  16  15  14   10 9    5 4    0
+ * +-----+-------------+----+---+----+------+----+-------+------+------+
+ * | sz  | 0 0 1 0 0 0 | o2 | L | o1 |  Rs  | o0 |  Rt2  |  Rn  | Rt   |
+ * +-----+-------------+----+---+----+------+----+-------+------+------+
+ *
+ *  sz: 00 -> 8 bit, 01 -> 16 bit, 10 -> 32 bit, 11 -> 64 bit
+ *   L: 0 -> store, 1 -> load
+ *  o2: 0 -> exclusive, 1 -> not
+ *  o1: 0 -> single register, 1 -> register pair
+ *  o0: 1 -> load-acquire/store-release, 0 -> not
+ *
+ *  o0 == 0 AND o2 == 1 is un-allocated
+ *  o1 == 1 is un-allocated except for 32 and 64 bit sizes
+ */
 static void disas_ldst_excl(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rt = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int rt2 = extract32(insn, 10, 5);
+    int is_lasr = extract32(insn, 15, 1);
+    int rs = extract32(insn, 16, 5);
+    int is_pair = extract32(insn, 21, 1);
+    int is_store = !extract32(insn, 22, 1);
+    int is_excl = !extract32(insn, 23, 1);
+    int size = extract32(insn, 30, 2);
+    TCGv_i64 tcg_addr;
+
+    if ((!is_excl && !is_lasr) ||
+        (is_pair && size < 2)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    tcg_addr = read_cpu_reg_sp(s, rn, 1);
+
+    /* Note that since TCG is single threaded load-acquire/store-release
+     * semantics require no extra if (is_lasr) { ... } handling.
+     */
+
+    if (is_excl) {
+        if (!is_store) {
+            gen_load_exclusive(s, rt, rt2, tcg_addr, size, is_pair);
+        } else {
+            gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, is_pair);
+        }
+    } else {
+        TCGv_i64 tcg_rt = cpu_reg(s, rt);
+        if (is_store) {
+            do_gpr_st(s, tcg_rt, tcg_addr, size);
+        } else {
+            do_gpr_ld(s, tcg_rt, tcg_addr, size, false, false);
+        }
+        if (is_pair) {
+            TCGv_i64 tcg_rt2 = cpu_reg(s, rt);
+            tcg_gen_addi_i64(tcg_addr, tcg_addr, 1 << size);
+            if (is_store) {
+                do_gpr_st(s, tcg_rt2, tcg_addr, size);
+            } else {
+                do_gpr_ld(s, tcg_rt2, tcg_addr, size, false, false);
+            }
+        }
+    }
 }
 
 /*
