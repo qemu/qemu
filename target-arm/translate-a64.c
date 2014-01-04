@@ -3186,6 +3186,54 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
     }
 }
 
+static void handle_fp_compare(DisasContext *s, bool is_double,
+                              unsigned int rn, unsigned int rm,
+                              bool cmp_with_zero, bool signal_all_nans)
+{
+    TCGv_i64 tcg_flags = tcg_temp_new_i64();
+    TCGv_ptr fpst = get_fpstatus_ptr();
+
+    if (is_double) {
+        TCGv_i64 tcg_vn, tcg_vm;
+
+        tcg_vn = read_fp_dreg(s, rn);
+        if (cmp_with_zero) {
+            tcg_vm = tcg_const_i64(0);
+        } else {
+            tcg_vm = read_fp_dreg(s, rm);
+        }
+        if (signal_all_nans) {
+            gen_helper_vfp_cmped_a64(tcg_flags, tcg_vn, tcg_vm, fpst);
+        } else {
+            gen_helper_vfp_cmpd_a64(tcg_flags, tcg_vn, tcg_vm, fpst);
+        }
+        tcg_temp_free_i64(tcg_vn);
+        tcg_temp_free_i64(tcg_vm);
+    } else {
+        TCGv_i32 tcg_vn, tcg_vm;
+
+        tcg_vn = read_fp_sreg(s, rn);
+        if (cmp_with_zero) {
+            tcg_vm = tcg_const_i32(0);
+        } else {
+            tcg_vm = read_fp_sreg(s, rm);
+        }
+        if (signal_all_nans) {
+            gen_helper_vfp_cmpes_a64(tcg_flags, tcg_vn, tcg_vm, fpst);
+        } else {
+            gen_helper_vfp_cmps_a64(tcg_flags, tcg_vn, tcg_vm, fpst);
+        }
+        tcg_temp_free_i32(tcg_vn);
+        tcg_temp_free_i32(tcg_vm);
+    }
+
+    tcg_temp_free_ptr(fpst);
+
+    gen_set_nzcv(tcg_flags);
+
+    tcg_temp_free_i64(tcg_flags);
+}
+
 /* C3.6.22 Floating point compare
  *   31  30  29 28       24 23  22  21 20  16 15 14 13  10    9    5 4     0
  * +---+---+---+-----------+------+---+------+-----+---------+------+-------+
@@ -3194,7 +3242,22 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
  */
 static void disas_fp_compare(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    unsigned int mos, type, rm, op, rn, opc, op2r;
+
+    mos = extract32(insn, 29, 3);
+    type = extract32(insn, 22, 2); /* 0 = single, 1 = double */
+    rm = extract32(insn, 16, 5);
+    op = extract32(insn, 14, 2);
+    rn = extract32(insn, 5, 5);
+    opc = extract32(insn, 3, 2);
+    op2r = extract32(insn, 0, 3);
+
+    if (mos || op || op2r || type > 1) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    handle_fp_compare(s, type, rn, rm, opc & 1, opc & 2);
 }
 
 /* C3.6.23 Floating point conditional compare
