@@ -328,6 +328,60 @@ static inline int fp_reg_hi_offset(int regno)
     return offsetof(CPUARMState, vfp.regs[regno * 2 + 1]);
 }
 
+/* Convenience accessors for reading and writing single and double
+ * FP registers. Writing clears the upper parts of the associated
+ * 128 bit vector register, as required by the architecture.
+ * Note that unlike the GP register accessors, the values returned
+ * by the read functions must be manually freed.
+ */
+static TCGv_i64 read_fp_dreg(DisasContext *s, int reg)
+{
+    TCGv_i64 v = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(v, cpu_env, fp_reg_offset(reg, MO_64));
+    return v;
+}
+
+static TCGv_i32 read_fp_sreg(DisasContext *s, int reg)
+{
+    TCGv_i32 v = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(v, cpu_env, fp_reg_offset(reg, MO_32));
+    return v;
+}
+
+static void write_fp_dreg(DisasContext *s, int reg, TCGv_i64 v)
+{
+    TCGv_i64 tcg_zero = tcg_const_i64(0);
+
+    tcg_gen_st_i64(v, cpu_env, fp_reg_offset(reg, MO_64));
+    tcg_gen_st_i64(tcg_zero, cpu_env, fp_reg_hi_offset(reg));
+    tcg_temp_free_i64(tcg_zero);
+}
+
+static void write_fp_sreg(DisasContext *s, int reg, TCGv_i32 v)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_extu_i32_i64(tmp, v);
+    write_fp_dreg(s, reg, tmp);
+    tcg_temp_free_i64(tmp);
+}
+
+static TCGv_ptr get_fpstatus_ptr(void)
+{
+    TCGv_ptr statusptr = tcg_temp_new_ptr();
+    int offset;
+
+    /* In A64 all instructions (both FP and Neon) use the FPCR;
+     * there is no equivalent of the A32 Neon "standard FPSCR value"
+     * and all operations use vfp.fp_status.
+     */
+    offset = offsetof(CPUARMState, vfp.fp_status);
+    tcg_gen_addi_ptr(statusptr, cpu_env, offset);
+    return statusptr;
+}
+
 /* Set ZF and NF based on a 64 bit result. This is alas fiddlier
  * than the 32 bit equivalent.
  */
@@ -3176,6 +3230,112 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
+/* C3.6.26 Floating-point data-processing (2 source) - single precision */
+static void handle_fp_2src_single(DisasContext *s, int opcode,
+                                  int rd, int rn, int rm)
+{
+    TCGv_i32 tcg_op1;
+    TCGv_i32 tcg_op2;
+    TCGv_i32 tcg_res;
+    TCGv_ptr fpst;
+
+    tcg_res = tcg_temp_new_i32();
+    fpst = get_fpstatus_ptr();
+    tcg_op1 = read_fp_sreg(s, rn);
+    tcg_op2 = read_fp_sreg(s, rm);
+
+    switch (opcode) {
+    case 0x0: /* FMUL */
+        gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x1: /* FDIV */
+        gen_helper_vfp_divs(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x2: /* FADD */
+        gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x3: /* FSUB */
+        gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x4: /* FMAX */
+        gen_helper_vfp_maxs(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x5: /* FMIN */
+        gen_helper_vfp_mins(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x6: /* FMAXNM */
+        gen_helper_vfp_maxnums(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x7: /* FMINNM */
+        gen_helper_vfp_minnums(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x8: /* FNMUL */
+        gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
+        gen_helper_vfp_negs(tcg_res, tcg_res);
+        break;
+    }
+
+    write_fp_sreg(s, rd, tcg_res);
+
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i32(tcg_op1);
+    tcg_temp_free_i32(tcg_op2);
+    tcg_temp_free_i32(tcg_res);
+}
+
+/* C3.6.26 Floating-point data-processing (2 source) - double precision */
+static void handle_fp_2src_double(DisasContext *s, int opcode,
+                                  int rd, int rn, int rm)
+{
+    TCGv_i64 tcg_op1;
+    TCGv_i64 tcg_op2;
+    TCGv_i64 tcg_res;
+    TCGv_ptr fpst;
+
+    tcg_res = tcg_temp_new_i64();
+    fpst = get_fpstatus_ptr();
+    tcg_op1 = read_fp_dreg(s, rn);
+    tcg_op2 = read_fp_dreg(s, rm);
+
+    switch (opcode) {
+    case 0x0: /* FMUL */
+        gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x1: /* FDIV */
+        gen_helper_vfp_divd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x2: /* FADD */
+        gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x3: /* FSUB */
+        gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x4: /* FMAX */
+        gen_helper_vfp_maxd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x5: /* FMIN */
+        gen_helper_vfp_mind(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x6: /* FMAXNM */
+        gen_helper_vfp_maxnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x7: /* FMINNM */
+        gen_helper_vfp_minnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+        break;
+    case 0x8: /* FNMUL */
+        gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
+        gen_helper_vfp_negd(tcg_res, tcg_res);
+        break;
+    }
+
+    write_fp_dreg(s, rd, tcg_res);
+
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i64(tcg_op1);
+    tcg_temp_free_i64(tcg_op2);
+    tcg_temp_free_i64(tcg_res);
+}
+
 /* C3.6.26 Floating point data-processing (2 source)
  *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+---+------+--------+-----+------+------+
@@ -3184,7 +3344,27 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
  */
 static void disas_fp_2src(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int type = extract32(insn, 22, 2);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int rm = extract32(insn, 16, 5);
+    int opcode = extract32(insn, 12, 4);
+
+    if (opcode > 8) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (type) {
+    case 0:
+        handle_fp_2src_single(s, opcode, rd, rn, rm);
+        break;
+    case 1:
+        handle_fp_2src_double(s, opcode, rd, rn, rm);
+        break;
+    default:
+        unallocated_encoding(s);
+    }
 }
 
 /* C3.6.27 Floating point data-processing (3 source)
