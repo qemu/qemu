@@ -589,16 +589,21 @@ do_kernel_trap(CPUARMState *env)
 
 static int do_strex(CPUARMState *env)
 {
-    uint32_t val;
+    uint64_t val;
     int size;
     int rc = 1;
     int segv = 0;
     uint32_t addr;
     start_exclusive();
-    addr = env->exclusive_addr;
-    if (addr != env->exclusive_test) {
+    if (env->exclusive_addr != env->exclusive_test) {
         goto fail;
     }
+    /* We know we're always AArch32 so the address is in uint32_t range
+     * unless it was the -1 exclusive-monitor-lost value (which won't
+     * match exclusive_test above).
+     */
+    assert(extract64(env->exclusive_addr, 32, 32) == 0);
+    addr = env->exclusive_addr;
     size = env->exclusive_info & 0xf;
     switch (size) {
     case 0:
@@ -618,19 +623,19 @@ static int do_strex(CPUARMState *env)
         env->cp15.c6_data = addr;
         goto done;
     }
-    if (val != env->exclusive_val) {
-        goto fail;
-    }
     if (size == 3) {
-        segv = get_user_u32(val, addr + 4);
+        uint32_t valhi;
+        segv = get_user_u32(valhi, addr + 4);
         if (segv) {
             env->cp15.c6_data = addr + 4;
             goto done;
         }
-        if (val != env->exclusive_high) {
-            goto fail;
-        }
+        val = deposit64(val, 32, 32, valhi);
     }
+    if (val != env->exclusive_val) {
+        goto fail;
+    }
+
     val = env->regs[(env->exclusive_info >> 8) & 0xf];
     switch (size) {
     case 0:
