@@ -3007,6 +3007,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->vfp_enabled = 0;
     dc->vec_len = 0;
     dc->vec_stride = 0;
+    dc->cp_regs = cpu->cp_regs;
+    dc->current_pl = arm_current_pl(env);
 
     init_tmp_a64_array(dc);
 

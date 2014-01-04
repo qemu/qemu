@@ -186,7 +186,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
         uint64_t v;
-        ri = get_arm_cp_reginfo(cpu, regidx);
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
             continue;
@@ -214,7 +214,7 @@ bool write_list_to_cpustate(ARMCPU *cpu)
         uint64_t readback;
         const ARMCPRegInfo *ri;
 
-        ri = get_arm_cp_reginfo(cpu, regidx);
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
             continue;
@@ -242,7 +242,7 @@ static void add_cpreg_to_list(gpointer key, gpointer opaque)
     const ARMCPRegInfo *ri;
 
     regidx = *(uint32_t *)key;
-    ri = get_arm_cp_reginfo(cpu, regidx);
+    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
 
     if (!(ri->type & ARM_CP_NO_MIGRATE)) {
         cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
@@ -258,7 +258,7 @@ static void count_cpreg(gpointer key, gpointer opaque)
     const ARMCPRegInfo *ri;
 
     regidx = *(uint32_t *)key;
-    ri = get_arm_cp_reginfo(cpu, regidx);
+    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
 
     if (!(ri->type & ARM_CP_NO_MIGRATE)) {
         cpu->cpreg_array_len++;
@@ -2136,9 +2136,9 @@ void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
     }
 }
 
-const ARMCPRegInfo *get_arm_cp_reginfo(ARMCPU *cpu, uint32_t encoded_cp)
+const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp)
 {
-    return g_hash_table_lookup(cpu->cp_regs, &encoded_cp);
+    return g_hash_table_lookup(cpregs, &encoded_cp);
 }
 
 int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,

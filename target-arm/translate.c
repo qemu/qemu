@@ -6498,7 +6498,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
     const ARMCPRegInfo *ri;
-    ARMCPU *cpu = arm_env_get_cpu(env);
 
     cpnum = (insn >> 8) & 0xf;
     if (arm_feature(env, ARM_FEATURE_XSCALE)
@@ -6541,11 +6540,11 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     isread = (insn >> 20) & 1;
     rt = (insn >> 12) & 0xf;
 
-    ri = get_arm_cp_reginfo(cpu,
+    ri = get_arm_cp_reginfo(s->cp_regs,
                             ENCODE_CP_REG(cpnum, is64, crn, crm, opc1, opc2));
     if (ri) {
         /* Check access permissions */
-        if (!cp_access_ok(env, ri, isread)) {
+        if (!cp_access_ok(s->current_pl, ri, isread)) {
             return 1;
         }
 
@@ -10269,6 +10268,8 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+    dc->cp_regs = cpu->cp_regs;
+    dc->current_pl = arm_current_pl(env);
 
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();

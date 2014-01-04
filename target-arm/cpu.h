@@ -853,7 +853,7 @@ static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
 {
     define_one_arm_cp_reg_with_opaque(cpu, regs, 0);
 }
-const ARMCPRegInfo *get_arm_cp_reginfo(ARMCPU *cpu, uint32_t encoded_cp);
+const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp);
 
 /* CPWriteFn that can be used to implement writes-ignored behaviour */
 int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -866,10 +866,10 @@ int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value);
  */
 void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque);
 
-static inline bool cp_access_ok(CPUARMState *env,
+static inline bool cp_access_ok(int current_pl,
                                 const ARMCPRegInfo *ri, int isread)
 {
-    return (ri->access >> ((arm_current_pl(env) * 2) + isread)) & 1;
+    return (ri->access >> ((current_pl * 2) + isread)) & 1;
 }
 
 /**
