@@ -49,9 +49,11 @@ static void gem_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *s;
 
-    qemu_check_nic_model(nd, "cadence_gem");
     dev = qdev_create(NULL, "cadence_gem");
-    qdev_set_nic_properties(dev, nd);
+    if (nd->used) {
+        qemu_check_nic_model(nd, "cadence_gem");
+        qdev_set_nic_properties(dev, nd);
+    }
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
@@ -113,7 +115,6 @@ static void zynq_init(QEMUMachineInitArgs *args)
     DeviceState *dev;
     SysBusDevice *busdev;
     qemu_irq pic[64];
-    NICInfo *nd;
     Error *err = NULL;
     int n;
 
@@ -190,14 +191,8 @@ static void zynq_init(QEMUMachineInitArgs *args)
     sysbus_create_varargs("cadence_ttc", 0xF8002000,
             pic[69-IRQ_OFFSET], pic[70-IRQ_OFFSET], pic[71-IRQ_OFFSET], NULL);
 
-    for (n = 0; n < nb_nics; n++) {
-        nd = &nd_table[n];
-        if (n == 0) {
-            gem_init(nd, 0xE000B000, pic[54-IRQ_OFFSET]);
-        } else if (n == 1) {
-            gem_init(nd, 0xE000C000, pic[77-IRQ_OFFSET]);
-        }
-    }
+    gem_init(&nd_table[0], 0xE000B000, pic[54-IRQ_OFFSET]);
+    gem_init(&nd_table[1], 0xE000C000, pic[77-IRQ_OFFSET]);
 
     dev = qdev_create(NULL, "generic-sdhci");
     qdev_init_nofail(dev);
