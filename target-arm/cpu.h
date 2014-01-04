@@ -66,6 +66,18 @@
 /* ARM-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
 
+/* The usual mapping for an AArch64 system register to its AArch32
+ * counterpart is for the 32 bit world to have access to the lower
+ * half only (with writes leaving the upper half untouched). It's
+ * therefore useful to be able to pass TCG the offset of the least
+ * significant half of a uint64_t struct member.
+ */
+#ifdef HOST_WORDS_BIGENDIAN
+#define offsetoflow32(S, M) offsetof(S, M + sizeof(uint32_t))
+#else
+#define offsetoflow32(S, M) offsetof(S, M)
+#endif
+
 /* Meanings of the ARMCPU object's two inbound GPIO lines */
 #define ARM_CPU_IRQ 0
 #define ARM_CPU_FIQ 1
@@ -188,9 +200,9 @@ typedef struct CPUARMState {
         uint32_t c12_vbar; /* vector base address register */
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
-        uint32_t c13_tls1; /* User RW Thread register.  */
-        uint32_t c13_tls2; /* User RO Thread register.  */
-        uint32_t c13_tls3; /* Privileged Thread register.  */
+        uint64_t tpidr_el0; /* User RW Thread register.  */
+        uint64_t tpidrro_el0; /* User RO Thread register.  */
+        uint64_t tpidr_el1; /* Privileged Thread register.  */
         uint32_t c14_cntfrq; /* Counter Frequency register */
         uint32_t c14_cntkctl; /* Timer Control register */
         ARMGenericTimer c14_timer[NUM_GTIMERS];
