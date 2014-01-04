@@ -119,6 +119,22 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                 psr & PSTATE_C ? 'C' : '-',
                 psr & PSTATE_V ? 'V' : '-');
     cpu_fprintf(f, "\n");
+
+    if (flags & CPU_DUMP_FPU) {
+        int numvfpregs = 32;
+        for (i = 0; i < numvfpregs; i += 2) {
+            uint64_t vlo = float64_val(env->vfp.regs[i * 2]);
+            uint64_t vhi = float64_val(env->vfp.regs[(i * 2) + 1]);
+            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 " ",
+                        i, vhi, vlo);
+            vlo = float64_val(env->vfp.regs[(i + 1) * 2]);
+            vhi = float64_val(env->vfp.regs[((i + 1) * 2) + 1]);
+            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "\n",
+                        i + 1, vhi, vlo);
+        }
+        cpu_fprintf(f, "FPCR: %08x  FPSR: %08x\n",
+                    vfp_get_fpcr(env), vfp_get_fpsr(env));
+    }
 }
 
 static int get_mem_index(DisasContext *s)
