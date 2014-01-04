@@ -1765,18 +1765,6 @@ uint32_t HELPER(neon_qneg_s32)(CPUARMState *env, uint32_t x)
 }
 
 /* NEON Float helpers.  */
-uint32_t HELPER(neon_min_f32)(uint32_t a, uint32_t b, void *fpstp)
-{
-    float_status *fpst = fpstp;
-    return float32_val(float32_min(make_float32(a), make_float32(b), fpst));
-}
-
-uint32_t HELPER(neon_max_f32)(uint32_t a, uint32_t b, void *fpstp)
-{
-    float_status *fpst = fpstp;
-    return float32_val(float32_max(make_float32(a), make_float32(b), fpst));
-}
-
 uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
     float_status *fpst = fpstp;
