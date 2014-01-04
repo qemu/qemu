@@ -1938,7 +1938,8 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 }
 
 static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
-                                   void *opaque, int crm, int opc1, int opc2)
+                                   void *opaque, int state,
+                                   int crm, int opc1, int opc2)
 {
     /* Private utility function for define_one_arm_cp_reg_with_opaque():
      * add a single reginfo struct to the hash table.
@@ -1946,7 +1947,34 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
     uint32_t *key = g_new(uint32_t, 1);
     ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
     int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
-    *key = ENCODE_CP_REG(r->cp, is64, r->crn, crm, opc1, opc2);
+    if (r->state == ARM_CP_STATE_BOTH && state == ARM_CP_STATE_AA32) {
+        /* The AArch32 view of a shared register sees the lower 32 bits
+         * of a 64 bit backing field. It is not migratable as the AArch64
+         * view handles that. AArch64 also handles reset.
+         * We assume it is a cp15 register.
+         */
+        r2->cp = 15;
+        r2->type |= ARM_CP_NO_MIGRATE;
+        r2->resetfn = arm_cp_reset_ignore;
+#ifdef HOST_WORDS_BIGENDIAN
+        if (r2->fieldoffset) {
+            r2->fieldoffset += sizeof(uint32_t);
+        }
+#endif
+    }
+    if (state == ARM_CP_STATE_AA64) {
+        /* To allow abbreviation of ARMCPRegInfo
+         * definitions, we treat cp == 0 as equivalent to
+         * the value for "standard guest-visible sysreg".
+         */
+        if (r->cp == 0) {
+            r2->cp = CP_REG_ARM64_SYSREG_CP;
+        }
+        *key = ENCODE_AA64_CP_REG(r2->cp, r2->crn, crm,
+                                  r2->opc0, opc1, opc2);
+    } else {
+        *key = ENCODE_CP_REG(r2->cp, is64, r2->crn, crm, opc1, opc2);
+    }
     if (opaque) {
         r2->opaque = opaque;
     }
@@ -2002,8 +2030,19 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
      * At least one of the original and the second definition should
      * include ARM_CP_OVERRIDE in its type bits -- this is just a guard
      * against accidental use.
+     *
+     * The state field defines whether the register is to be
+     * visible in the AArch32 or AArch64 execution state. If the
+     * state is set to ARM_CP_STATE_BOTH then we synthesise a
+     * reginfo structure for the AArch32 view, which sees the lower
+     * 32 bits of the 64 bit register.
+     *
+     * Only registers visible in AArch64 may set r->opc0; opc0 cannot
+     * be wildcarded. AArch64 registers are always considered to be 64
+     * bits; the ARM_CP_64BIT* flag applies only to the AArch32 view of
+     * the register, if any.
      */
-    int crm, opc1, opc2;
+    int crm, opc1, opc2, state;
     int crmmin = (r->crm == CP_ANY) ? 0 : r->crm;
     int crmmax = (r->crm == CP_ANY) ? 15 : r->crm;
     int opc1min = (r->opc1 == CP_ANY) ? 0 : r->opc1;
@@ -2012,6 +2051,52 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     int opc2max = (r->opc2 == CP_ANY) ? 7 : r->opc2;
     /* 64 bit registers have only CRm and Opc1 fields */
     assert(!((r->type & ARM_CP_64BIT) && (r->opc2 || r->crn)));
+    /* op0 only exists in the AArch64 encodings */
+    assert((r->state != ARM_CP_STATE_AA32) || (r->opc0 == 0));
+    /* AArch64 regs are all 64 bit so ARM_CP_64BIT is meaningless */
+    assert((r->state != ARM_CP_STATE_AA64) || !(r->type & ARM_CP_64BIT));
+    /* The AArch64 pseudocode CheckSystemAccess() specifies that op1
+     * encodes a minimum access level for the register. We roll this
+     * runtime check into our general permission check code, so check
+     * here that the reginfo's specified permissions are strict enough
+     * to encompass the generic architectural permission check.
+     */
+    if (r->state != ARM_CP_STATE_AA32) {
+        int mask = 0;
+        switch (r->opc1) {
+        case 0: case 1: case 2:
+            /* min_EL EL1 */
+            mask = PL1_RW;
+            break;
+        case 3:
+            /* min_EL EL0 */
+            mask = PL0_RW;
+            break;
+        case 4:
+            /* min_EL EL2 */
+            mask = PL2_RW;
+            break;
+        case 5:
+            /* unallocated encoding, so not possible */
+            assert(false);
+            break;
+        case 6:
+            /* min_EL EL3 */
+            mask = PL3_RW;
+            break;
+        case 7:
+            /* min_EL EL1, secure mode only (we don't check the latter) */
+            mask = PL1_RW;
+            break;
+        default:
+            /* broken reginfo with out-of-range opc1 */
+            assert(false);
+            break;
+        }
+        /* assert our permissions are not too lax (stricter is fine) */
+        assert((r->access & ~mask) == 0);
+    }
+
     /* Check that the register definition has enough info to handle
      * reads and writes if they are permitted.
      */
@@ -2028,7 +2113,14 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     for (crm = crmmin; crm <= crmmax; crm++) {
         for (opc1 = opc1min; opc1 <= opc1max; opc1++) {
             for (opc2 = opc2min; opc2 <= opc2max; opc2++) {
-                add_cpreg_to_hashtable(cpu, r, opaque, crm, opc1, opc2);
+                for (state = ARM_CP_STATE_AA32;
+                     state <= ARM_CP_STATE_AA64; state++) {
+                    if (r->state != state && r->state != ARM_CP_STATE_BOTH) {
+                        continue;
+                    }
+                    add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                           crm, opc1, opc2);
+                }
             }
         }
     }
@@ -2061,6 +2153,11 @@ int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
     /* Helper coprocessor write function for read-as-zero registers */
     *value = 0;
     return 0;
+}
+
+void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque)
+{
+    /* Helper coprocessor reset function for do-nothing-on-reset registers */
 }
 
 static int bad_mode_switch(CPUARMState *env, int mode)
