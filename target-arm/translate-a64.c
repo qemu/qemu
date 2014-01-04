@@ -3479,7 +3479,37 @@ static void disas_fp_3src(DisasContext *s, uint32_t insn)
  */
 static void disas_fp_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int imm8 = extract32(insn, 13, 8);
+    int is_double = extract32(insn, 22, 2);
+    uint64_t imm;
+    TCGv_i64 tcg_res;
+
+    if (is_double > 1) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* The imm8 encodes the sign bit, enough bits to represent
+     * an exponent in the range 01....1xx to 10....0xx,
+     * and the most significant 4 bits of the mantissa; see
+     * VFPExpandImm() in the v8 ARM ARM.
+     */
+    if (is_double) {
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3fc0 : 0x4000) |
+            extract32(imm8, 0, 6);
+        imm <<= 48;
+    } else {
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3e00 : 0x4000) |
+            (extract32(imm8, 0, 6) << 3);
+        imm <<= 16;
+    }
+
+    tcg_res = tcg_const_i64(imm);
+    write_fp_dreg(s, rd, tcg_res);
+    tcg_temp_free_i64(tcg_res);
 }
 
 /* C3.6.29 Floating point <-> fixed point conversions
