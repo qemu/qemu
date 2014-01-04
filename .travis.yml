@@ -16,6 +16,7 @@ env:
   matrix:
   - TARGETS=alpha-softmmu,alpha-linux-user
   - TARGETS=arm-softmmu,arm-linux-user
+  - TARGETS=aarch64-softmmu,aarch64-linux-user
   - TARGETS=cris-softmmu
   - TARGETS=i386-softmmu,x86_64-softmmu
   - TARGETS=lm32-softmmu
