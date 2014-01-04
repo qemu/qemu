@@ -308,6 +308,26 @@ static TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
     return v;
 }
 
+/* Return the offset into CPUARMState of a slice (from
+ * the least significant end) of FP register Qn (ie
+ * Dn, Sn, Hn or Bn).
+ * (Note that this is not the same mapping as for A32; see cpu.h)
+ */
+static inline int fp_reg_offset(int regno, TCGMemOp size)
+{
+    int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
+#ifdef HOST_WORDS_BIGENDIAN
+    offs += (8 - (1 << size));
+#endif
+    return offs;
+}
+
+/* Offset of the high half of the 128 bit vector Qn */
+static inline int fp_reg_hi_offset(int regno)
+{
+    return offsetof(CPUARMState, vfp.regs[regno * 2 + 1]);
+}
+
 /* Set ZF and NF based on a 64 bit result. This is alas fiddlier
  * than the 32 bit equivalent.
  */
@@ -538,31 +558,15 @@ static void do_gpr_ld(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
 static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
 {
     /* This writes the bottom N bits of a 128 bit wide vector to memory */
-    int freg_offs = offsetof(CPUARMState, vfp.regs[srcidx * 2]);
     TCGv_i64 tmp = tcg_temp_new_i64();
-
+    tcg_gen_ld_i64(tmp, cpu_env, fp_reg_offset(srcidx, MO_64));
     if (size < 4) {
-        switch (size) {
-        case 0:
-            tcg_gen_ld8u_i64(tmp, cpu_env, freg_offs);
-            break;
-        case 1:
-            tcg_gen_ld16u_i64(tmp, cpu_env, freg_offs);
-            break;
-        case 2:
-            tcg_gen_ld32u_i64(tmp, cpu_env, freg_offs);
-            break;
-        case 3:
-            tcg_gen_ld_i64(tmp, cpu_env, freg_offs);
-            break;
-        }
         tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TE + size);
     } else {
         TCGv_i64 tcg_hiaddr = tcg_temp_new_i64();
-        tcg_gen_ld_i64(tmp, cpu_env, freg_offs);
         tcg_gen_qemu_st_i64(tmp, tcg_addr, get_mem_index(s), MO_TEQ);
         tcg_gen_qemu_st64(tmp, tcg_addr, get_mem_index(s));
-        tcg_gen_ld_i64(tmp, cpu_env, freg_offs + sizeof(float64));
+        tcg_gen_ld_i64(tmp, cpu_env, fp_reg_hi_offset(srcidx));
         tcg_gen_addi_i64(tcg_hiaddr, tcg_addr, 8);
         tcg_gen_qemu_st_i64(tmp, tcg_hiaddr, get_mem_index(s), MO_TEQ);
         tcg_temp_free_i64(tcg_hiaddr);
@@ -577,7 +581,6 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
 static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 {
     /* This always zero-extends and writes to a full 128 bit wide vector */
-    int freg_offs = offsetof(CPUARMState, vfp.regs[destidx * 2]);
     TCGv_i64 tmplo = tcg_temp_new_i64();
     TCGv_i64 tmphi;
 
@@ -596,8 +599,8 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
         tcg_temp_free_i64(tcg_hiaddr);
     }
 
-    tcg_gen_st_i64(tmplo, cpu_env, freg_offs);
-    tcg_gen_st_i64(tmphi, cpu_env, freg_offs + sizeof(float64));
+    tcg_gen_st_i64(tmplo, cpu_env, fp_reg_offset(destidx, MO_64));
+    tcg_gen_st_i64(tmphi, cpu_env, fp_reg_hi_offset(destidx));
 
     tcg_temp_free_i64(tmplo);
     tcg_temp_free_i64(tmphi);
@@ -3224,7 +3227,6 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
      */
 
     if (itof) {
-        int freg_offs = offsetof(CPUARMState, vfp.regs[rd * 2]);
         TCGv_i64 tcg_rn = cpu_reg(s, rn);
 
         switch (type) {
@@ -3233,9 +3235,9 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
             /* 32 bit */
             TCGv_i64 tmp = tcg_temp_new_i64();
             tcg_gen_ext32u_i64(tmp, tcg_rn);
-            tcg_gen_st_i64(tmp, cpu_env, freg_offs);
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_offset(rd, MO_64));
             tcg_gen_movi_i64(tmp, 0);
-            tcg_gen_st_i64(tmp, cpu_env, freg_offs + sizeof(float64));
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(rd));
             tcg_temp_free_i64(tmp);
             break;
         }
@@ -3243,32 +3245,31 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
         {
             /* 64 bit */
             TCGv_i64 tmp = tcg_const_i64(0);
-            tcg_gen_st_i64(tcg_rn, cpu_env, freg_offs);
-            tcg_gen_st_i64(tmp, cpu_env, freg_offs + sizeof(float64));
+            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_offset(rd, MO_64));
+            tcg_gen_st_i64(tmp, cpu_env, fp_reg_hi_offset(rd));
             tcg_temp_free_i64(tmp);
             break;
         }
         case 2:
             /* 64 bit to top half. */
-            tcg_gen_st_i64(tcg_rn, cpu_env, freg_offs + sizeof(float64));
+            tcg_gen_st_i64(tcg_rn, cpu_env, fp_reg_hi_offset(rd));
             break;
         }
     } else {
-        int freg_offs = offsetof(CPUARMState, vfp.regs[rn * 2]);
         TCGv_i64 tcg_rd = cpu_reg(s, rd);
 
         switch (type) {
         case 0:
             /* 32 bit */
-            tcg_gen_ld32u_i64(tcg_rd, cpu_env, freg_offs);
+            tcg_gen_ld32u_i64(tcg_rd, cpu_env, fp_reg_offset(rn, MO_32));
+            break;
+        case 1:
+            /* 64 bit */
+            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_offset(rn, MO_64));
             break;
         case 2:
             /* 64 bits from top half */
-            freg_offs += sizeof(float64);
-            /* fall through */
-        case 1:
-            /* 64 bit */
-            tcg_gen_ld_i64(tcg_rd, cpu_env, freg_offs);
+            tcg_gen_ld_i64(tcg_rd, cpu_env, fp_reg_hi_offset(rn));
             break;
         }
     }
