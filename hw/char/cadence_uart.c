@@ -403,6 +403,7 @@ static void uart_write(void *opaque, hwaddr offset,
         uart_parameters_setup(s);
         break;
     }
+    uart_update_status(s);
 }
 
 static uint64_t uart_read(void *opaque, hwaddr offset,
