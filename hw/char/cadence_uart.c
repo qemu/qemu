@@ -438,8 +438,6 @@ static void cadence_uart_reset(DeviceState *dev)
     uart_rx_reset(s);
     uart_tx_reset(s);
 
-    s->rx_count = 0;
-    s->rx_wpos = 0;
     uart_update_status(s);
 }
 
