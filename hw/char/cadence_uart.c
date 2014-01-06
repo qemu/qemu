@@ -128,6 +128,13 @@ typedef struct {
 
 static void uart_update_status(UartState *s)
 {
+    s->r[R_SR] = 0;
+
+    s->r[R_SR] |= s->rx_count == RX_FIFO_SIZE ? UART_SR_INTR_RFUL : 0;
+    s->r[R_SR] |= !s->rx_count ? UART_SR_INTR_REMPTY : 0;
+    s->r[R_SR] |= s->rx_count >= s->r[R_RTRIG] ? UART_SR_INTR_RTRIG : 0;
+
+    s->r[R_SR] |= UART_SR_INTR_TEMPTY;
     s->r[R_CISR] |= s->r[R_SR] & UART_SR_TO_CISR_MASK;
     qemu_set_irq(s->irq, !!(s->r[R_IMR] & s->r[R_CISR]));
 }
@@ -166,15 +173,10 @@ static void uart_rx_reset(UartState *s)
     if (s->chr) {
         qemu_chr_accept_input(s->chr);
     }
-
-    s->r[R_SR] |= UART_SR_INTR_REMPTY;
-    s->r[R_SR] &= ~UART_SR_INTR_RFUL;
 }
 
 static void uart_tx_reset(UartState *s)
 {
-    s->r[R_SR] |= UART_SR_INTR_TEMPTY;
-    s->r[R_SR] &= ~UART_SR_INTR_TFUL;
 }
 
 static void uart_send_breaks(UartState *s)
@@ -274,8 +276,6 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    s->r[R_SR] &= ~UART_SR_INTR_REMPTY;
-
     if (s->rx_count == RX_FIFO_SIZE) {
         s->r[R_CISR] |= UART_INTR_ROVR;
     } else {
@@ -283,15 +283,6 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
             s->rx_fifo[s->rx_wpos] = buf[i];
             s->rx_wpos = (s->rx_wpos + 1) % RX_FIFO_SIZE;
             s->rx_count++;
-
-            if (s->rx_count == RX_FIFO_SIZE) {
-                s->r[R_SR] |= UART_SR_INTR_RFUL;
-                break;
-            }
-
-            if (s->rx_count >= s->r[R_RTRIG]) {
-                s->r[R_SR] |= UART_SR_INTR_RTRIG;
-            }
         }
         timer_mod(s->fifo_trigger_handle, new_rx_time +
                                                 (s->char_tx_time * 4));
@@ -339,26 +330,17 @@ static void uart_read_rx_fifo(UartState *s, uint32_t *c)
         return;
     }
 
-    s->r[R_SR] &= ~UART_SR_INTR_RFUL;
-
     if (s->rx_count) {
         uint32_t rx_rpos =
                 (RX_FIFO_SIZE + s->rx_wpos - s->rx_count) % RX_FIFO_SIZE;
         *c = s->rx_fifo[rx_rpos];
         s->rx_count--;
 
-        if (!s->rx_count) {
-            s->r[R_SR] |= UART_SR_INTR_REMPTY;
-        }
         qemu_chr_accept_input(s->chr);
     } else {
         *c = 0;
-        s->r[R_SR] |= UART_SR_INTR_REMPTY;
     }
 
-    if (s->rx_count < s->r[R_RTRIG]) {
-        s->r[R_SR] &= ~UART_SR_INTR_RTRIG;
-    }
     uart_update_status(s);
 }
 
@@ -447,6 +429,7 @@ static void cadence_uart_reset(DeviceState *dev)
 
     s->rx_count = 0;
     s->rx_wpos = 0;
+    uart_update_status(s);
 }
 
 static int cadence_uart_init(SysBusDevice *dev)
