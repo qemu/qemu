@@ -292,7 +292,22 @@ static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
         return;
     }
 
-    qemu_chr_fe_write_all(s->chr, buf, size);
+    if (size > TX_FIFO_SIZE - s->tx_count) {
+        size = TX_FIFO_SIZE - s->tx_count;
+        /*
+         * This can only be a guest error via a bad tx fifo register push,
+         * as can_receive() should stop remote loop and echo modes ever getting
+         * us to here.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "cadence_uart: TxFIFO overflow");
+        s->r[R_CISR] |= UART_INTR_ROVR;
+    }
+
+    memcpy(s->tx_fifo + s->tx_count, buf, size);
+    s->tx_count += size;
+
+    qemu_chr_fe_write_all(s->chr, s->tx_fifo, s->tx_count);
+    s->tx_count = 0;
 }
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
