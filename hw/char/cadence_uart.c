@@ -286,6 +286,34 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
     uart_update_status(s);
 }
 
+static gboolean cadence_uart_xmit(GIOChannel *chan, GIOCondition cond,
+                                  void *opaque)
+{
+    UartState *s = opaque;
+    int ret;
+
+    /* instant drain the fifo when there's no back-end */
+    if (!s->chr) {
+        s->tx_count = 0;
+    }
+
+    if (!s->tx_count) {
+        return FALSE;
+    }
+
+    ret = qemu_chr_fe_write(s->chr, s->tx_fifo, s->tx_count);
+    s->tx_count -= ret;
+    memmove(s->tx_fifo, s->tx_fifo + ret, s->tx_count);
+
+    if (s->tx_count) {
+        int r = qemu_chr_fe_add_watch(s->chr, G_IO_OUT, cadence_uart_xmit, s);
+        assert(r);
+    }
+
+    uart_update_status(s);
+    return FALSE;
+}
+
 static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
 {
     if ((s->r[R_CR] & UART_CR_TX_DIS) || !(s->r[R_CR] & UART_CR_TX_EN)) {
@@ -306,8 +334,7 @@ static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
     memcpy(s->tx_fifo + s->tx_count, buf, size);
     s->tx_count += size;
 
-    qemu_chr_fe_write_all(s->chr, s->tx_fifo, s->tx_count);
-    s->tx_count = 0;
+    cadence_uart_xmit(NULL, G_IO_OUT, s);
 }
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
