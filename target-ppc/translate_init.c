@@ -628,6 +628,9 @@ static inline void _spr_register(CPUPPCState *env, int num,
     spr->oea_read = oea_read;
     spr->oea_write = oea_write;
 #endif
+#if defined(CONFIG_KVM)
+    spr->one_reg_id = one_reg_id,
+#endif
     env->spr[num] = initial_value;
 }
 
