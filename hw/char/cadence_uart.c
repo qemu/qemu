@@ -431,8 +431,10 @@ static const MemoryRegionOps uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void cadence_uart_reset(UartState *s)
+static void cadence_uart_reset(DeviceState *dev)
 {
+    UartState *s = CADENCE_UART(dev);
+
     s->r[R_CR] = 0x00000128;
     s->r[R_IMR] = 0;
     s->r[R_CISR] = 0;
@@ -464,8 +466,6 @@ static int cadence_uart_init(SysBusDevice *dev)
     s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;
 
     s->chr = qemu_char_get_next_serial();
-
-    cadence_uart_reset(s);
 
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
@@ -508,6 +508,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
 
     sdc->init = cadence_uart_init;
     dc->vmsd = &vmstate_cadence_uart;
+    dc->reset = cadence_uart_reset;
 }
 
 static const TypeInfo cadence_uart_info = {
