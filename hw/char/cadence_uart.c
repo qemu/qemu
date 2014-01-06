@@ -110,7 +110,9 @@
 #define CADENCE_UART(obj) OBJECT_CHECK(UartState, (obj), TYPE_CADENCE_UART)
 
 typedef struct {
+    /*< private >*/
     SysBusDevice parent_obj;
+    /*< public >*/
 
     MemoryRegion iomem;
     uint32_t r[R_MAX];
