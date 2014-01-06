@@ -233,8 +233,16 @@ static void uart_parameters_setup(UartState *s)
 static int uart_can_receive(void *opaque)
 {
     UartState *s = (UartState *)opaque;
+    int ret = MAX(RX_FIFO_SIZE, TX_FIFO_SIZE);
+    uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
-    return RX_FIFO_SIZE - s->rx_count;
+    if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
+        ret = MIN(ret, RX_FIFO_SIZE - s->rx_count);
+    }
+    if (ch_mode == REMOTE_LOOPBACK || ch_mode == ECHO_MODE) {
+        ret = MIN(ret, TX_FIFO_SIZE - s->tx_count);
+    }
+    return ret;
 }
 
 static void uart_ctrl_update(UartState *s)
