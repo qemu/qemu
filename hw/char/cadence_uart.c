@@ -116,7 +116,7 @@ typedef struct {
 
     MemoryRegion iomem;
     uint32_t r[R_MAX];
-    uint8_t r_fifo[RX_FIFO_SIZE];
+    uint8_t rx_fifo[RX_FIFO_SIZE];
     uint32_t rx_wpos;
     uint32_t rx_count;
     uint64_t char_tx_time;
@@ -280,7 +280,7 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
         s->r[R_CISR] |= UART_INTR_ROVR;
     } else {
         for (i = 0; i < size; i++) {
-            s->r_fifo[s->rx_wpos] = buf[i];
+            s->rx_fifo[s->rx_wpos] = buf[i];
             s->rx_wpos = (s->rx_wpos + 1) % RX_FIFO_SIZE;
             s->rx_count++;
 
@@ -344,7 +344,7 @@ static void uart_read_rx_fifo(UartState *s, uint32_t *c)
     if (s->rx_count) {
         uint32_t rx_rpos =
                 (RX_FIFO_SIZE + s->rx_wpos - s->rx_count) % RX_FIFO_SIZE;
-        *c = s->r_fifo[rx_rpos];
+        *c = s->rx_fifo[rx_rpos];
         s->rx_count--;
 
         if (!s->rx_count) {
@@ -492,7 +492,7 @@ static const VMStateDescription vmstate_cadence_uart = {
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, UartState, R_MAX),
-        VMSTATE_UINT8_ARRAY(r_fifo, UartState, RX_FIFO_SIZE),
+        VMSTATE_UINT8_ARRAY(rx_fifo, UartState, RX_FIFO_SIZE),
         VMSTATE_UINT32(rx_count, UartState),
         VMSTATE_UINT32(rx_wpos, UartState),
         VMSTATE_TIMER(fifo_trigger_handle, UartState),
