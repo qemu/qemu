@@ -3046,6 +3046,10 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     uint32_t mask;
     uint32_t increment;
     int8 roundingMode;
+    int maxexp = ieee ? 15 : 16;
+    bool rounding_bumps_exp;
+    bool is_tiny = false;
+
     a = float32_squash_input_denormal(a STATUS_VAR);
 
     aSig = extractFloat32Frac( a );
@@ -3054,11 +3058,12 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     if ( aExp == 0xFF ) {
         if (aSig) {
             /* Input is a NaN */
-            float16 r = commonNaNToFloat16( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
             if (!ieee) {
+                float_raise(float_flag_invalid STATUS_VAR);
                 return packFloat16(aSign, 0, 0);
             }
-            return r;
+            return commonNaNToFloat16(
+                float32ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
         /* Infinity */
         if (!ieee) {
@@ -3070,58 +3075,80 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     if (aExp == 0 && aSig == 0) {
         return packFloat16(aSign, 0, 0);
     }
-    /* Decimal point between bits 22 and 23.  */
+    /* Decimal point between bits 22 and 23. Note that we add the 1 bit
+     * even if the input is denormal; however this is harmless because
+     * the largest possible single-precision denormal is still smaller
+     * than the smallest representable half-precision denormal, and so we
+     * will end up ignoring aSig and returning via the "always return zero"
+     * codepath.
+     */
     aSig |= 0x00800000;
     aExp -= 0x7f;
+    /* Calculate the mask of bits of the mantissa which are not
+     * representable in half-precision and will be lost.
+     */
     if (aExp < -14) {
+        /* Will be denormal in halfprec */
         mask = 0x00ffffff;
         if (aExp >= -24) {
             mask >>= 25 + aExp;
         }
     } else {
+        /* Normal number in halfprec */
         mask = 0x00001fff;
     }
-    if (aSig & mask) {
-        float_raise( float_flag_underflow STATUS_VAR );
-        roundingMode = STATUS(float_rounding_mode);
-        switch (roundingMode) {
-        case float_round_nearest_even:
-            increment = (mask + 1) >> 1;
-            if ((aSig & mask) == increment) {
-                increment = aSig & (increment << 1);
-            }
-            break;
-        case float_round_up:
-            increment = aSign ? 0 : mask;
-            break;
-        case float_round_down:
-            increment = aSign ? mask : 0;
-            break;
-        default: /* round_to_zero */
-            increment = 0;
-            break;
+
+    roundingMode = STATUS(float_rounding_mode);
+    switch (roundingMode) {
+    case float_round_nearest_even:
+        increment = (mask + 1) >> 1;
+        if ((aSig & mask) == increment) {
+            increment = aSig & (increment << 1);
         }
-        aSig += increment;
-        if (aSig >= 0x01000000) {
-            aSig >>= 1;
-            aExp++;
-        }
-    } else if (aExp < -14
-          && STATUS(float_detect_tininess) == float_tininess_before_rounding) {
-        float_raise( float_flag_underflow STATUS_VAR);
+        break;
+    case float_round_up:
+        increment = aSign ? 0 : mask;
+        break;
+    case float_round_down:
+        increment = aSign ? mask : 0;
+        break;
+    default: /* round_to_zero */
+        increment = 0;
+        break;
     }
 
-    if (ieee) {
-        if (aExp > 15) {
-            float_raise( float_flag_overflow | float_flag_inexact STATUS_VAR);
+    rounding_bumps_exp = (aSig + increment >= 0x01000000);
+
+    if (aExp > maxexp || (aExp == maxexp && rounding_bumps_exp)) {
+        if (ieee) {
+            float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
             return packFloat16(aSign, 0x1f, 0);
-        }
-    } else {
-        if (aExp > 16) {
-            float_raise(float_flag_invalid | float_flag_inexact STATUS_VAR);
+        } else {
+            float_raise(float_flag_invalid STATUS_VAR);
             return packFloat16(aSign, 0x1f, 0x3ff);
         }
     }
+
+    if (aExp < -14) {
+        /* Note that flush-to-zero does not affect half-precision results */
+        is_tiny =
+            (STATUS(float_detect_tininess) == float_tininess_before_rounding)
+            || (aExp < -15)
+            || (!rounding_bumps_exp);
+    }
+    if (aSig & mask) {
+        float_raise(float_flag_inexact STATUS_VAR);
+        if (is_tiny) {
+            float_raise(float_flag_underflow STATUS_VAR);
+        }
+    }
+
+    aSig += increment;
+    if (rounding_bumps_exp) {
+        aSig >>= 1;
+        aExp++;
+    }
+
     if (aExp < -24) {
         return packFloat16(aSign, 0, 0);
     }
