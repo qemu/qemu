@@ -121,13 +121,14 @@ typedef struct {
     MemoryRegion iomem;
     uint32_t r[R_MAX];
     uint8_t rx_fifo[RX_FIFO_SIZE];
+    uint8_t tx_fifo[TX_FIFO_SIZE];
     uint32_t rx_wpos;
     uint32_t rx_count;
+    uint32_t tx_count;
     uint64_t char_tx_time;
     CharDriverState *chr;
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
-    QEMUTimer *tx_time_handle;
 } UartState;
 
 static void uart_update_status(UartState *s)
@@ -138,8 +139,12 @@ static void uart_update_status(UartState *s)
     s->r[R_SR] |= !s->rx_count ? UART_SR_INTR_REMPTY : 0;
     s->r[R_SR] |= s->rx_count >= s->r[R_RTRIG] ? UART_SR_INTR_RTRIG : 0;
 
-    s->r[R_SR] |= UART_SR_INTR_TEMPTY;
+    s->r[R_SR] |= s->tx_count == TX_FIFO_SIZE ? UART_SR_INTR_TFUL : 0;
+    s->r[R_SR] |= !s->tx_count ? UART_SR_INTR_TEMPTY : 0;
+    s->r[R_SR] |= s->tx_count >= s->r[R_TTRIG] ? UART_SR_TTRIG : 0;
+
     s->r[R_CISR] |= s->r[R_SR] & UART_SR_TO_CISR_MASK;
+    s->r[R_CISR] |= s->r[R_SR] & UART_SR_TTRIG ? UART_INTR_TTRIG : 0;
     qemu_set_irq(s->irq, !!(s->r[R_IMR] & s->r[R_CISR]));
 }
 
@@ -150,24 +155,6 @@ static void fifo_trigger_update(void *opaque)
     s->r[R_CISR] |= UART_INTR_TIMEOUT;
 
     uart_update_status(s);
-}
-
-static void uart_tx_redo(UartState *s)
-{
-    uint64_t new_tx_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-    timer_mod(s->tx_time_handle, new_tx_time + s->char_tx_time);
-
-    s->r[R_SR] |= UART_SR_INTR_TEMPTY;
-
-    uart_update_status(s);
-}
-
-static void uart_tx_write(void *opaque)
-{
-    UartState *s = (UartState *)opaque;
-
-    uart_tx_redo(s);
 }
 
 static void uart_rx_reset(UartState *s)
@@ -181,6 +168,7 @@ static void uart_rx_reset(UartState *s)
 
 static void uart_tx_reset(UartState *s)
 {
+    s->tx_count = 0;
 }
 
 static void uart_send_breaks(UartState *s)
@@ -260,10 +248,6 @@ static void uart_ctrl_update(UartState *s)
     }
 
     s->r[R_CR] &= ~(UART_CR_TXRST | UART_CR_RXRST);
-
-    if ((s->r[R_CR] & UART_CR_TX_EN) && !(s->r[R_CR] & UART_CR_TX_DIS)) {
-            uart_tx_redo(s);
-    }
 
     if (s->r[R_CR] & UART_CR_STARTBRK && !(s->r[R_CR] & UART_CR_STOPBRK)) {
         uart_send_breaks(s);
@@ -447,9 +431,6 @@ static int cadence_uart_init(SysBusDevice *dev)
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
             (QEMUTimerCB *)fifo_trigger_update, s);
 
-    s->tx_time_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-            (QEMUTimerCB *)uart_tx_write, s);
-
     s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;
 
     s->chr = qemu_char_get_next_serial();
@@ -473,17 +454,18 @@ static int cadence_uart_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_cadence_uart = {
     .name = "cadence_uart",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, UartState, R_MAX),
         VMSTATE_UINT8_ARRAY(rx_fifo, UartState, RX_FIFO_SIZE),
+        VMSTATE_UINT8_ARRAY(tx_fifo, UartState, RX_FIFO_SIZE),
         VMSTATE_UINT32(rx_count, UartState),
+        VMSTATE_UINT32(tx_count, UartState),
         VMSTATE_UINT32(rx_wpos, UartState),
         VMSTATE_TIMER(fifo_trigger_handle, UartState),
-        VMSTATE_TIMER(tx_time_handle, UartState),
         VMSTATE_END_OF_LIST()
     }
 };
