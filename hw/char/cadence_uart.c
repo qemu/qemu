@@ -34,6 +34,9 @@
 #define UART_SR_INTR_RFUL      0x00000004
 #define UART_SR_INTR_TEMPTY    0x00000008
 #define UART_SR_INTR_TFUL      0x00000010
+/* somewhat awkwardly, TTRIG is misaligned between SR and ISR */
+#define UART_SR_TTRIG          0x00002000
+#define UART_INTR_TTRIG        0x00000400
 /* bits fields in CSR that correlate to CISR. If any of these bits are set in
  * SR, then the same bit in CISR is set high too */
 #define UART_SR_TO_CISR_MASK   0x0000001F
@@ -43,6 +46,7 @@
 #define UART_INTR_PARE         0x00000080
 #define UART_INTR_TIMEOUT      0x00000100
 #define UART_INTR_DMSI         0x00000200
+#define UART_INTR_TOVR         0x00001000
 
 #define UART_SR_RACTIVE    0x00000400
 #define UART_SR_TACTIVE    0x00000800
