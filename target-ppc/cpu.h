@@ -1883,11 +1883,14 @@ enum {
     PPC2_DIVE_ISA206   = 0x0000000000000100ULL,
     /* ISA 2.06B larx/stcx. instructions                                     */
     PPC2_ATOMIC_ISA206 = 0x0000000000000200ULL,
+    /* ISA 2.06B floating point integer conversion                           */
+    PPC2_FP_CVT_ISA206 = 0x0000000000000400ULL,
 
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
-                        PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206)
+                        PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
+                        PPC2_FP_CVT_ISA206)
 };
 
 /*****************************************************************************/
