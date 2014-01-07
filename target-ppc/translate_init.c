@@ -7071,7 +7071,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
-                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206;
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206;
     pcc->msr_mask = 0x800000000284FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
@@ -7112,7 +7113,8 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
-                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206;
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206;
     pcc->msr_mask = 0x800000000204FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
@@ -7153,7 +7155,8 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_VSX207 | PPC2_DFP | PPC2_DBRX |
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
-                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206;
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206;
     pcc->msr_mask = 0x800000000284FF36ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
