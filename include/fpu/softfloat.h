@@ -298,6 +298,8 @@ INLINE float64 uint16_to_float64(uint16_t v STATUS_PARAM)
 *----------------------------------------------------------------------------*/
 float16 float32_to_float16( float32, flag STATUS_PARAM );
 float32 float16_to_float32( float16, flag STATUS_PARAM );
+float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM);
+float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM);
 
 /*----------------------------------------------------------------------------
 | Software half-precision operations.

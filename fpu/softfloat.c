@@ -3281,6 +3281,81 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     return roundAndPackFloat16(aSign, aExp, aSig, ieee STATUS_VAR);
 }
 
+float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM)
+{
+    flag aSign;
+    int_fast16_t aExp;
+    uint32_t aSig;
+
+    aSign = extractFloat16Sign(a);
+    aExp = extractFloat16Exp(a);
+    aSig = extractFloat16Frac(a);
+
+    if (aExp == 0x1f && ieee) {
+        if (aSig) {
+            return commonNaNToFloat64(
+                float16ToCommonNaN(a STATUS_VAR) STATUS_VAR);
+        }
+        return packFloat64(aSign, 0x7ff, 0);
+    }
+    if (aExp == 0) {
+        if (aSig == 0) {
+            return packFloat64(aSign, 0, 0);
+        }
+
+        normalizeFloat16Subnormal(aSig, &aExp, &aSig);
+        aExp--;
+    }
+    return packFloat64(aSign, aExp + 0x3f0, ((uint64_t)aSig) << 42);
+}
+
+float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM)
+{
+    flag aSign;
+    int_fast16_t aExp;
+    uint64_t aSig;
+    uint32_t zSig;
+
+    a = float64_squash_input_denormal(a STATUS_VAR);
+
+    aSig = extractFloat64Frac(a);
+    aExp = extractFloat64Exp(a);
+    aSign = extractFloat64Sign(a);
+    if (aExp == 0x7FF) {
+        if (aSig) {
+            /* Input is a NaN */
+            if (!ieee) {
+                float_raise(float_flag_invalid STATUS_VAR);
+                return packFloat16(aSign, 0, 0);
+            }
+            return commonNaNToFloat16(
+                float64ToCommonNaN(a STATUS_VAR) STATUS_VAR);
+        }
+        /* Infinity */
+        if (!ieee) {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return packFloat16(aSign, 0x1f, 0x3ff);
+        }
+        return packFloat16(aSign, 0x1f, 0);
+    }
+    shift64RightJamming(aSig, 29, &aSig);
+    zSig = aSig;
+    if (aExp == 0 && zSig == 0) {
+        return packFloat16(aSign, 0, 0);
+    }
+    /* Decimal point between bits 22 and 23. Note that we add the 1 bit
+     * even if the input is denormal; however this is harmless because
+     * the largest possible single-precision denormal is still smaller
+     * than the smallest representable half-precision denormal, and so we
+     * will end up ignoring aSig and returning via the "always return zero"
+     * codepath.
+     */
+    zSig |= 0x00800000;
+    aExp -= 0x3F1;
+
+    return roundAndPackFloat16(aSign, aExp, zSig, ieee STATUS_VAR);
+}
+
 /*----------------------------------------------------------------------------
 | Returns the result of converting the double-precision floating-point value
 | `a' to the extended double-precision floating-point format.  The conversion
