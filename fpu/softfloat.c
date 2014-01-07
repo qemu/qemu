@@ -6991,10 +6991,13 @@ float32 float32_scalbn( float32 a, int n STATUS_PARAM )
         }
         return a;
     }
-    if ( aExp != 0 )
+    if (aExp != 0) {
         aSig |= 0x00800000;
-    else if ( aSig == 0 )
+    } else if (aSig == 0) {
         return a;
+    } else {
+        aExp++;
+    }
 
     if (n > 0x200) {
         n = 0x200;
@@ -7024,10 +7027,13 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
         }
         return a;
     }
-    if ( aExp != 0 )
+    if (aExp != 0) {
         aSig |= LIT64( 0x0010000000000000 );
-    else if ( aSig == 0 )
+    } else if (aSig == 0) {
         return a;
+    } else {
+        aExp++;
+    }
 
     if (n > 0x1000) {
         n = 0x1000;
@@ -7057,8 +7063,12 @@ floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
         return a;
     }
 
-    if (aExp == 0 && aSig == 0)
-        return a;
+    if (aExp == 0) {
+        if (aSig == 0) {
+            return a;
+        }
+        aExp++;
+    }
 
     if (n > 0x10000) {
         n = 0x10000;
@@ -7087,10 +7097,13 @@ float128 float128_scalbn( float128 a, int n STATUS_PARAM )
         }
         return a;
     }
-    if ( aExp != 0 )
+    if (aExp != 0) {
         aSig0 |= LIT64( 0x0001000000000000 );
-    else if ( aSig0 == 0 && aSig1 == 0 )
+    } else if (aSig0 == 0 && aSig1 == 0) {
         return a;
+    } else {
+        aExp++;
+    }
 
     if (n > 0x10000) {
         n = 0x10000;
