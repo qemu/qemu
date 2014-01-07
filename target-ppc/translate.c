@@ -2238,6 +2238,18 @@ GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT);
 /* frim */
 GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
 
+static void gen_ftdiv(DisasContext *ctx)
+{
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_helper_ftdiv(cpu_crf[crfD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
+                     cpu_fpr[rB(ctx->opcode)]);
+}
+
+
+
 /***                         Floating-Point compare                        ***/
 
 /* fcmpo */
@@ -9856,6 +9868,7 @@ GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT),
 GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT),
 GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT),
 GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT),
+GEN_HANDLER_E(ftdiv, 0x3F, 0x00, 0x04, 1, PPC_NONE, PPC2_FP_TST_ISA206),
 GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT),
 GEN_HANDLER_E(fctiwu, 0x3F, 0x0E, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT),

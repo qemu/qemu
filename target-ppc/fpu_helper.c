@@ -50,6 +50,16 @@ static inline int isden(float64 d)
     return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
+static inline int ppc_float32_get_unbiased_exp(float32 f)
+{
+    return ((f >> 23) & 0xFF) - 127;
+}
+
+static inline int ppc_float64_get_unbiased_exp(float64 f)
+{
+    return ((f >> 52) & 0x7FF) - 1023;
+}
+
 uint32_t helper_compute_fprf(CPUPPCState *env, uint64_t arg, uint32_t set_fprf)
 {
     CPU_DoubleU farg;
@@ -991,6 +1001,42 @@ uint64_t helper_fsel(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     } else {
         return arg3;
     }
+}
+
+uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
+{
+    int fe_flag = 0;
+    int fg_flag = 0;
+
+    if (unlikely(float64_is_infinity(fra) ||
+                 float64_is_infinity(frb) ||
+                 float64_is_zero(frb))) {
+        fe_flag = 1;
+        fg_flag = 1;
+    } else {
+        int e_a = ppc_float64_get_unbiased_exp(fra);
+        int e_b = ppc_float64_get_unbiased_exp(frb);
+
+        if (unlikely(float64_is_any_nan(fra) ||
+                     float64_is_any_nan(frb))) {
+            fe_flag = 1;
+        } else if ((e_b <= -1022) || (e_b >= 1021)) {
+            fe_flag = 1;
+        } else if (!float64_is_zero(fra) &&
+                   (((e_a - e_b) >= 1023) ||
+                    ((e_a - e_b) <= -1021) ||
+                    (e_a <= -970))) {
+            fe_flag = 1;
+        }
+
+        if (unlikely(float64_is_zero_or_denormal(frb))) {
+            /* XB is not zero because of the above check and */
+            /* so must be denormalized.                      */
+            fg_flag = 1;
+        }
+    }
+
+    return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
 void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
@@ -2020,16 +2066,6 @@ VSX_RSQRTE(xsrsqrtedp, 1, float64, f64, 1, 0)
 VSX_RSQRTE(xsrsqrtesp, 1, float64, f64, 1, 1)
 VSX_RSQRTE(xvrsqrtedp, 2, float64, f64, 0, 0)
 VSX_RSQRTE(xvrsqrtesp, 4, float32, f32, 0, 0)
-
-static inline int ppc_float32_get_unbiased_exp(float32 f)
-{
-    return ((f >> 23) & 0xFF) - 127;
-}
-
-static inline int ppc_float64_get_unbiased_exp(float64 f)
-{
-    return ((f >> 52) & 0x7FF) - 1023;
-}
 
 /* VSX_TDIV - VSX floating point test for divide
  *   op    - instruction mnemonic

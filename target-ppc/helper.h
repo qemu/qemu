@@ -99,6 +99,8 @@ DEF_HELPER_2(fres, i64, env, i64)
 DEF_HELPER_2(frsqrte, i64, env, i64)
 DEF_HELPER_4(fsel, i64, env, i64, i64, i64)
 
+DEF_HELPER_FLAGS_2(ftdiv, TCG_CALL_NO_RWG_SE, i32, i64, i64)
+
 #define dh_alias_avr ptr
 #define dh_ctype_avr ppc_avr_t *
 #define dh_is_signed_avr dh_is_signed_ptr
