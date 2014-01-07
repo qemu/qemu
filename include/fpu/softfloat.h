@@ -225,19 +225,19 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
-float32 int32_to_float32( int32 STATUS_PARAM );
-float64 int32_to_float64( int32 STATUS_PARAM );
-float32 uint32_to_float32( uint32 STATUS_PARAM );
-float64 uint32_to_float64( uint32 STATUS_PARAM );
-floatx80 int32_to_floatx80( int32 STATUS_PARAM );
-float128 int32_to_float128( int32 STATUS_PARAM );
-float32 int64_to_float32( int64 STATUS_PARAM );
-float32 uint64_to_float32( uint64 STATUS_PARAM );
-float64 int64_to_float64( int64 STATUS_PARAM );
-float64 uint64_to_float64( uint64 STATUS_PARAM );
-floatx80 int64_to_floatx80( int64 STATUS_PARAM );
-float128 int64_to_float128( int64 STATUS_PARAM );
-float128 uint64_to_float128( uint64 STATUS_PARAM );
+float32 int32_to_float32(int32_t STATUS_PARAM);
+float64 int32_to_float64(int32_t STATUS_PARAM);
+float32 uint32_to_float32(uint32_t STATUS_PARAM);
+float64 uint32_to_float64(uint32_t STATUS_PARAM);
+floatx80 int32_to_floatx80(int32_t STATUS_PARAM);
+float128 int32_to_float128(int32_t STATUS_PARAM);
+float32 int64_to_float32(int64_t STATUS_PARAM);
+float32 uint64_to_float32(uint64_t STATUS_PARAM);
+float64 int64_to_float64(int64_t STATUS_PARAM);
+float64 uint64_to_float64(uint64_t STATUS_PARAM);
+floatx80 int64_to_floatx80(int64_t STATUS_PARAM);
+float128 int64_to_float128(int64_t STATUS_PARAM);
+float128 uint64_to_float128(uint64_t STATUS_PARAM);
 
 /* We provide the int16 versions for symmetry of API with float-to-int */
 INLINE float32 int16_to_float32(int16_t v STATUS_PARAM)
