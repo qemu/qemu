@@ -669,24 +669,28 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN round */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
-                                        POWERPC_EXCP_FP_VXCVI, 1);
-    } else if (unlikely(float64_is_quiet_nan(farg.d) ||
-                        float64_is_infinity(farg.d))) {
-        /* qNan / infinity round */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);
+        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+        farg.ll = arg | 0x0008000000000000ul;
     } else {
+        int inexact = get_float_exception_flags(&env->fp_status) &
+                      float_flag_inexact;
         set_float_rounding_mode(rounding_mode, &env->fp_status);
         farg.ll = float64_round_to_int(farg.d, &env->fp_status);
         /* Restore rounding mode from FPSCR */
         fpscr_set_rounding_mode(env);
+
+        /* fri* does not set FPSCR[XX] */
+        if (!inexact) {
+            env->fp_status.float_exception_flags &= ~float_flag_inexact;
+        }
     }
+    helper_float_check_status(env);
     return farg.ll;
 }
 
 uint64_t helper_frin(CPUPPCState *env, uint64_t arg)
 {
-    return do_fri(env, arg, float_round_nearest_even);
+    return do_fri(env, arg, float_round_ties_away);
 }
 
 uint64_t helper_friz(CPUPPCState *env, uint64_t arg)
