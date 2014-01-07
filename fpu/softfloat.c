@@ -6667,19 +6667,18 @@ uint32 float64_to_uint32( float64 a STATUS_PARAM )
 
 uint32 float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
 {
-    int64_t v;
+    uint64_t v;
     uint32 res;
+    int old_exc_flags = get_float_exception_flags(status);
 
-    v = float64_to_int64_round_to_zero(a STATUS_VAR);
-    if (v < 0) {
-        res = 0;
-        float_raise( float_flag_invalid STATUS_VAR);
-    } else if (v > 0xffffffff) {
+    v = float64_to_uint64_round_to_zero(a STATUS_VAR);
+    if (v > 0xffffffff) {
         res = 0xffffffff;
-        float_raise( float_flag_invalid STATUS_VAR);
     } else {
-        res = v;
+        return v;
     }
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid STATUS_VAR);
     return res;
 }
 
