@@ -3207,20 +3207,28 @@ static void gen_isync(DisasContext *ctx)
     gen_stop_exception(ctx);
 }
 
-/* lwarx */
-static void gen_lwarx(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
-    gen_set_access_type(ctx, ACCESS_RES);
-    t0 = tcg_temp_local_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x03);
-    gen_qemu_ld32u(ctx, gpr, t0);
-    tcg_gen_mov_tl(cpu_reserve, t0);
-    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUPPCState, reserve_val));
-    tcg_temp_free(t0);
+#define LARX(name, len, loadop)                                      \
+static void gen_##name(DisasContext *ctx)                            \
+{                                                                    \
+    TCGv t0;                                                         \
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];                             \
+    gen_set_access_type(ctx, ACCESS_RES);                            \
+    t0 = tcg_temp_local_new();                                       \
+    gen_addr_reg_index(ctx, t0);                                     \
+    if ((len) > 1) {                                                 \
+        gen_check_align(ctx, t0, (len)-1);                           \
+    }                                                                \
+    gen_qemu_##loadop(ctx, gpr, t0);                                 \
+    tcg_gen_mov_tl(cpu_reserve, t0);                                 \
+    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUPPCState, reserve_val)); \
+    tcg_temp_free(t0);                                               \
 }
+
+/* lwarx */
+LARX(lbarx, 1, ld8u);
+LARX(lharx, 2, ld16u);
+LARX(lwarx, 4, ld32u);
+
 
 #if defined(CONFIG_USER_ONLY)
 static void gen_conditional_store (DisasContext *ctx, TCGv EA,
@@ -3268,19 +3276,7 @@ static void gen_stwcx_(DisasContext *ctx)
 
 #if defined(TARGET_PPC64)
 /* ldarx */
-static void gen_ldarx(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
-    gen_set_access_type(ctx, ACCESS_RES);
-    t0 = tcg_temp_local_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x07);
-    gen_qemu_ld64(ctx, gpr, t0);
-    tcg_gen_mov_tl(cpu_reserve, t0);
-    tcg_gen_st_tl(gpr, cpu_env, offsetof(CPUPPCState, reserve_val));
-    tcg_temp_free(t0);
-}
+LARX(ldarx, 8, ld64);
 
 /* stdcx. */
 static void gen_stdcx_(DisasContext *ctx)
@@ -9513,6 +9509,8 @@ GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING),
 GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
 GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x03FFF801, PPC_MEM_EIEIO),
 GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM),
+GEN_HANDLER_E(lbarx, 0x1F, 0x14, 0x01, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
+GEN_HANDLER_E(lharx, 0x1F, 0x14, 0x03, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000000, PPC_RES),
 GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
 #if defined(TARGET_PPC64)
