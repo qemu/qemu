@@ -2202,8 +2202,12 @@ GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT);
 /***                     Floating-Point round & convert                    ***/
 /* fctiw */
 GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT);
+/* fctiwu */
+GEN_FLOAT_B(ctiwu, 0x0E, 0x04, 0, PPC2_FP_CVT_ISA206);
 /* fctiwz */
 GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT);
+/* fctiwuz */
+GEN_FLOAT_B(ctiwuz, 0x0F, 0x04, 0, PPC2_FP_CVT_ISA206);
 /* frsp */
 GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
 #if defined(TARGET_PPC64)
@@ -2211,8 +2215,12 @@ GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
 GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B);
 /* fctid */
 GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B);
+/* fctidu */
+GEN_FLOAT_B(ctidu, 0x0E, 0x1D, 0, PPC2_FP_CVT_ISA206);
 /* fctidz */
 GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B);
+/* fctidu */
+GEN_FLOAT_B(ctiduz, 0x0F, 0x1D, 0, PPC2_FP_CVT_ISA206);
 #endif
 
 /* frin */
@@ -9843,12 +9851,16 @@ GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT),
 GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT),
 GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT),
 GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT),
+GEN_HANDLER_E(fctiwu, 0x3F, 0x0E, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT),
+GEN_HANDLER_E(fctiwuz, 0x3F, 0x0F, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT),
 #if defined(TARGET_PPC64)
 GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B),
 GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B),
+GEN_HANDLER_E(fctidu, 0x3F, 0x0E, 0x1D, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B),
+GEN_HANDLER_E(fctiduz, 0x3F, 0x0F, 0x1D, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 #endif
 GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT),
 GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT),

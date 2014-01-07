@@ -600,55 +600,41 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     return farg1.ll;
 }
 
-/* fctiw - fctiw. */
-uint64_t helper_fctiw(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
 
-    farg.ll = arg;
+#define FPU_FCTI(op, cvt, nanval)                                      \
+uint64_t helper_##op(CPUPPCState *env, uint64_t arg)                   \
+{                                                                      \
+    CPU_DoubleU farg;                                                  \
+                                                                       \
+    farg.ll = arg;                                                     \
+    farg.ll = float64_to_##cvt(farg.d, &env->fp_status);               \
+                                                                       \
+    if (unlikely(env->fp_status.float_exception_flags)) {              \
+        if (float64_is_any_nan(arg)) {                                 \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
+            if (float64_is_signaling_nan(arg)) {                       \
+                fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1); \
+            }                                                          \
+            farg.ll = nanval;                                          \
+        } else if (env->fp_status.float_exception_flags &              \
+                   float_flag_invalid) {                               \
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);      \
+        }                                                              \
+        helper_float_check_status(env);                                \
+    }                                                                  \
+    return farg.ll;                                                    \
+ }
 
-    if (unlikely(float64_is_signaling_nan(farg.d))) {
-        /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
-                                        POWERPC_EXCP_FP_VXCVI, 1);
-    } else if (unlikely(float64_is_quiet_nan(farg.d) ||
-                        float64_is_infinity(farg.d))) {
-        /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);
-    } else {
-        farg.ll = float64_to_int32(farg.d, &env->fp_status);
-        /* XXX: higher bits are not supposed to be significant.
-         *     to make tests easier, return the same as a real PowerPC 750
-         */
-        farg.ll |= 0xFFF80000ULL << 32;
-    }
-    return farg.ll;
-}
-
-/* fctiwz - fctiwz. */
-uint64_t helper_fctiwz(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-
-    if (unlikely(float64_is_signaling_nan(farg.d))) {
-        /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
-                                        POWERPC_EXCP_FP_VXCVI, 1);
-    } else if (unlikely(float64_is_quiet_nan(farg.d) ||
-                        float64_is_infinity(farg.d))) {
-        /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);
-    } else {
-        farg.ll = float64_to_int32_round_to_zero(farg.d, &env->fp_status);
-        /* XXX: higher bits are not supposed to be significant.
-         *     to make tests easier, return the same as a real PowerPC 750
-         */
-        farg.ll |= 0xFFF80000ULL << 32;
-    }
-    return farg.ll;
-}
+FPU_FCTI(fctiw, int32, 0x80000000)
+FPU_FCTI(fctiwz, int32_round_to_zero, 0x80000000)
+FPU_FCTI(fctiwu, uint32, 0x00000000)
+FPU_FCTI(fctiwuz, uint32_round_to_zero, 0x00000000)
+#if defined(TARGET_PPC64)
+FPU_FCTI(fctid, int64, 0x8000000000000000)
+FPU_FCTI(fctidz, int64_round_to_zero, 0x8000000000000000)
+FPU_FCTI(fctidu, uint64, 0x0000000000000000)
+FPU_FCTI(fctiduz, uint64_round_to_zero, 0x0000000000000000)
+#endif
 
 #if defined(TARGET_PPC64)
 /* fcfid - fcfid. */
@@ -660,47 +646,7 @@ uint64_t helper_fcfid(CPUPPCState *env, uint64_t arg)
     return farg.ll;
 }
 
-/* fctid - fctid. */
-uint64_t helper_fctid(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
 
-    farg.ll = arg;
-
-    if (unlikely(float64_is_signaling_nan(farg.d))) {
-        /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
-                                        POWERPC_EXCP_FP_VXCVI, 1);
-    } else if (unlikely(float64_is_quiet_nan(farg.d) ||
-                        float64_is_infinity(farg.d))) {
-        /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);
-    } else {
-        farg.ll = float64_to_int64(farg.d, &env->fp_status);
-    }
-    return farg.ll;
-}
-
-/* fctidz - fctidz. */
-uint64_t helper_fctidz(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-
-    if (unlikely(float64_is_signaling_nan(farg.d))) {
-        /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
-                                        POWERPC_EXCP_FP_VXCVI, 1);
-    } else if (unlikely(float64_is_quiet_nan(farg.d) ||
-                        float64_is_infinity(farg.d))) {
-        /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI, 1);
-    } else {
-        farg.ll = float64_to_int64_round_to_zero(farg.d, &env->fp_status);
-    }
-    return farg.ll;
-}
 
 #endif
 
