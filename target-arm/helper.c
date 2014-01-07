@@ -3986,18 +3986,27 @@ float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
     return float##fsz##_scalbn(tmp, -(int)shift, fpst); \
 }
 
+/* Notice that we want only input-denormal exception flags from the
+ * scalbn operation: the other possible flags (overflow+inexact if
+ * we overflow to infinity, output-denormal) aren't correct for the
+ * complete scale-and-convert operation.
+ */
 #define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, round) \
 uint##isz##_t HELPER(vfp_to##name##p##round)(float##fsz x, \
                                              uint32_t shift, \
                                              void *fpstp) \
 { \
     float_status *fpst = fpstp; \
+    int old_exc_flags = get_float_exception_flags(fpst); \
     float##fsz tmp; \
     if (float##fsz##_is_any_nan(x)) { \
         float_raise(float_flag_invalid, fpst); \
         return 0; \
     } \
     tmp = float##fsz##_scalbn(x, shift, fpst); \
+    old_exc_flags |= get_float_exception_flags(fpst) \
+        & float_flag_input_denormal; \
+    set_float_exception_flags(old_exc_flags, fpst); \
     return float##fsz##_to_##itype##round(tmp, fpst); \
 }
 
