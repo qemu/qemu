@@ -154,6 +154,8 @@ DEF_HELPER_2(vfp_fcvt_f16_to_f32, f32, i32, env)
 DEF_HELPER_2(vfp_fcvt_f32_to_f16, i32, f32, env)
 DEF_HELPER_2(neon_fcvt_f16_to_f32, f32, i32, env)
 DEF_HELPER_2(neon_fcvt_f32_to_f16, i32, f32, env)
+DEF_HELPER_FLAGS_2(vfp_fcvt_f16_to_f64, TCG_CALL_NO_RWG, f64, i32, env)
+DEF_HELPER_FLAGS_2(vfp_fcvt_f64_to_f16, TCG_CALL_NO_RWG, i32, f64, env)
 
 DEF_HELPER_4(vfp_muladdd, f64, f64, f64, f64, ptr)
 DEF_HELPER_4(vfp_muladds, f32, f32, f32, f32, ptr)

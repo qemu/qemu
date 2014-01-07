@@ -3498,6 +3498,72 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
     tcg_temp_free_i64(tcg_res);
 }
 
+static void handle_fp_fcvt(DisasContext *s, int opcode,
+                           int rd, int rn, int dtype, int ntype)
+{
+    switch (ntype) {
+    case 0x0:
+    {
+        TCGv_i32 tcg_rn = read_fp_sreg(s, rn);
+        if (dtype == 1) {
+            /* Single to double */
+            TCGv_i64 tcg_rd = tcg_temp_new_i64();
+            gen_helper_vfp_fcvtds(tcg_rd, tcg_rn, cpu_env);
+            write_fp_dreg(s, rd, tcg_rd);
+            tcg_temp_free_i64(tcg_rd);
+        } else {
+            /* Single to half */
+            TCGv_i32 tcg_rd = tcg_temp_new_i32();
+            gen_helper_vfp_fcvt_f32_to_f16(tcg_rd, tcg_rn, cpu_env);
+            /* write_fp_sreg is OK here because top half of tcg_rd is zero */
+            write_fp_sreg(s, rd, tcg_rd);
+            tcg_temp_free_i32(tcg_rd);
+        }
+        tcg_temp_free_i32(tcg_rn);
+        break;
+    }
+    case 0x1:
+    {
+        TCGv_i64 tcg_rn = read_fp_dreg(s, rn);
+        TCGv_i32 tcg_rd = tcg_temp_new_i32();
+        if (dtype == 0) {
+            /* Double to single */
+            gen_helper_vfp_fcvtsd(tcg_rd, tcg_rn, cpu_env);
+        } else {
+            /* Double to half */
+            gen_helper_vfp_fcvt_f64_to_f16(tcg_rd, tcg_rn, cpu_env);
+            /* write_fp_sreg is OK here because top half of tcg_rd is zero */
+        }
+        write_fp_sreg(s, rd, tcg_rd);
+        tcg_temp_free_i32(tcg_rd);
+        tcg_temp_free_i64(tcg_rn);
+        break;
+    }
+    case 0x3:
+    {
+        TCGv_i32 tcg_rn = read_fp_sreg(s, rn);
+        tcg_gen_ext16u_i32(tcg_rn, tcg_rn);
+        if (dtype == 0) {
+            /* Half to single */
+            TCGv_i32 tcg_rd = tcg_temp_new_i32();
+            gen_helper_vfp_fcvt_f16_to_f32(tcg_rd, tcg_rn, cpu_env);
+            write_fp_sreg(s, rd, tcg_rd);
+            tcg_temp_free_i32(tcg_rd);
+        } else {
+            /* Half to double */
+            TCGv_i64 tcg_rd = tcg_temp_new_i64();
+            gen_helper_vfp_fcvt_f16_to_f64(tcg_rd, tcg_rn, cpu_env);
+            write_fp_dreg(s, rd, tcg_rd);
+            tcg_temp_free_i64(tcg_rd);
+        }
+        tcg_temp_free_i32(tcg_rn);
+        break;
+    }
+    default:
+        abort();
+    }
+}
+
 /* C3.6.25 Floating point data-processing (1 source)
  *   31  30  29 28       24 23  22  21 20    15 14       10 9    5 4    0
  * +---+---+---+-----------+------+---+--------+-----------+------+------+
@@ -3513,9 +3579,16 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
 
     switch (opcode) {
     case 0x4: case 0x5: case 0x7:
+    {
         /* FCVT between half, single and double precision */
-        unsupported_encoding(s, insn);
+        int dtype = extract32(opcode, 0, 2);
+        if (type == 2 || dtype == type) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_fp_fcvt(s, opcode, rd, rn, dtype, type);
         break;
+    }
     case 0x0 ... 0x3:
     case 0x8 ... 0xc:
     case 0xe ... 0xf:
