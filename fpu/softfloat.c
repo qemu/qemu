@@ -1559,6 +1559,52 @@ int64 float32_to_int64( float32 a STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
+| `a' to the 64-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic---which means in particular that the conversion is rounded
+| according to the current rounding mode.  If `a' is a NaN, the largest
+| unsigned integer is returned.  Otherwise, if the conversion overflows, the
+| largest unsigned integer is returned.  If the 'a' is negative, the result
+| is rounded and zero is returned; values that do not round to zero will
+| raise the inexact exception flag.
+*----------------------------------------------------------------------------*/
+
+uint64 float32_to_uint64(float32 a STATUS_PARAM)
+{
+    flag aSign;
+    int_fast16_t aExp, shiftCount;
+    uint32_t aSig;
+    uint64_t aSig64, aSigExtra;
+    a = float32_squash_input_denormal(a STATUS_VAR);
+
+    aSig = extractFloat32Frac(a);
+    aExp = extractFloat32Exp(a);
+    aSign = extractFloat32Sign(a);
+    if ((aSign) && (aExp > 126)) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        if (float32_is_any_nan(a)) {
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        } else {
+            return 0;
+        }
+    }
+    shiftCount = 0xBE - aExp;
+    if (aExp) {
+        aSig |= 0x00800000;
+    }
+    if (shiftCount < 0) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return LIT64(0xFFFFFFFFFFFFFFFF);
+    }
+
+    aSig64 = aSig;
+    aSig64 <<= 40;
+    shift64ExtraRightJamming(aSig64, 0, shiftCount, &aSig64, &aSigExtra);
+    return roundAndPackUint64(aSign, aSig64, aSigExtra STATUS_VAR);
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the single-precision floating-point value
 | `a' to the 64-bit two's complement integer format.  The conversion is
 | performed according to the IEC/IEEE Standard for Binary Floating-Point
 | Arithmetic, except that the conversion is always rounded toward zero.  If
