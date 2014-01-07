@@ -239,6 +239,27 @@ floatx80 int64_to_floatx80( int64 STATUS_PARAM );
 float128 int64_to_float128( int64 STATUS_PARAM );
 float128 uint64_to_float128( uint64 STATUS_PARAM );
 
+/* We provide the int16 versions for symmetry of API with float-to-int */
+INLINE float32 int16_to_float32(int16_t v STATUS_PARAM)
+{
+    return int32_to_float32(v STATUS_VAR);
+}
+
+INLINE float32 uint16_to_float32(uint16_t v STATUS_PARAM)
+{
+    return uint32_to_float32(v STATUS_VAR);
+}
+
+INLINE float64 int16_to_float64(int16_t v STATUS_PARAM)
+{
+    return int32_to_float64(v STATUS_VAR);
+}
+
+INLINE float64 uint16_to_float64(uint16_t v STATUS_PARAM)
+{
+    return uint32_to_float64(v STATUS_VAR);
+}
+
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
