@@ -3904,7 +3904,7 @@ static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
 /* C3.6.30 Floating point <-> integer conversions
  *   31   30  29 28       24 23  22  21 20   19 18 16 15         10 9  5 4  0
  * +----+---+---+-----------+------+---+-------+-----+-------------+----+----+
- * | sf | 0 | S | 1 1 1 1 0 | type | 0 | rmode | opc | 0 0 0 0 0 0 | Rn | Rd |
+ * | sf | 0 | S | 1 1 1 1 0 | type | 1 | rmode | opc | 0 0 0 0 0 0 | Rn | Rd |
  * +----+---+---+-----------+------+---+-------+-----+-------------+----+----+
  */
 static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
@@ -3917,9 +3917,19 @@ static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
     bool sbit = extract32(insn, 29, 1);
     bool sf = extract32(insn, 31, 1);
 
-    if (!sbit && (rmode < 2) && (opcode > 5)) {
+    if (sbit) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (opcode > 5) {
         /* FMOV */
         bool itof = opcode & 1;
+
+        if (rmode >= 2) {
+            unallocated_encoding(s);
+            return;
+        }
 
         switch (sf << 3 | type << 1 | rmode) {
         case 0x0: /* 32 bit */
@@ -3935,7 +3945,14 @@ static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
         handle_fmov(s, rd, rn, type, itof);
     } else {
         /* actual FP conversions */
-        unsupported_encoding(s, insn);
+        bool itof = extract32(opcode, 1, 1);
+
+        if (type > 1 || (rmode != 0 && opcode > 1)) {
+            unallocated_encoding(s);
+            return;
+        }
+
+        handle_fpfpcvt(s, rd, rn, opcode, itof, rmode, 64, sf, type);
     }
 }
 
