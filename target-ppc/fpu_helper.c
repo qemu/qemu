@@ -1039,6 +1039,37 @@ uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
     return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
+uint32_t helper_ftsqrt(uint64_t frb)
+{
+    int fe_flag = 0;
+    int fg_flag = 0;
+
+    if (unlikely(float64_is_infinity(frb) || float64_is_zero(frb))) {
+        fe_flag = 1;
+        fg_flag = 1;
+    } else {
+        int e_b = ppc_float64_get_unbiased_exp(frb);
+
+        if (unlikely(float64_is_any_nan(frb))) {
+            fe_flag = 1;
+        } else if (unlikely(float64_is_zero(frb))) {
+            fe_flag = 1;
+        } else if (unlikely(float64_is_neg(frb))) {
+            fe_flag = 1;
+        } else if (!float64_is_zero(frb) && (e_b <= (-1022+52))) {
+            fe_flag = 1;
+        }
+
+        if (unlikely(float64_is_zero_or_denormal(frb))) {
+            /* XB is not zero because of the above check and */
+            /* therefore must be denormalized.               */
+            fg_flag = 1;
+        }
+    }
+
+    return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
+}
+
 void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                   uint32_t crfD)
 {
