@@ -53,6 +53,26 @@ target_ulong helper_cntlzd(target_ulong t)
 }
 #endif
 
+#if defined(TARGET_PPC64)
+
+uint64_t helper_bpermd(uint64_t rs, uint64_t rb)
+{
+    int i;
+    uint64_t ra = 0;
+
+    for (i = 0; i < 8; i++) {
+        int index = (rs >> (i*8)) & 0xFF;
+        if (index < 64) {
+            if (rb & (1ull << (63-index))) {
+                ra |= 1 << i;
+            }
+        }
+    }
+    return ra;
+}
+
+#endif
+
 target_ulong helper_cmpb(target_ulong rs, target_ulong rb)
 {
     target_ulong mask = 0xff;

@@ -41,6 +41,7 @@ DEF_HELPER_3(sraw, tl, env, tl, tl)
 #if defined(TARGET_PPC64)
 DEF_HELPER_FLAGS_1(cntlzd, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntd, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_2(bpermd, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 DEF_HELPER_3(srad, tl, env, tl, tl)
 #endif
 

@@ -1525,6 +1525,15 @@ static void gen_prtyd(DisasContext *ctx)
 #endif
 
 #if defined(TARGET_PPC64)
+/* bpermd */
+static void gen_bpermd(DisasContext *ctx)
+{
+    gen_helper_bpermd(cpu_gpr[rA(ctx->opcode)],
+                      cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+}
+#endif
+
+#if defined(TARGET_PPC64)
 /* extsw & extsw. */
 GEN_LOGICAL1(extsw, tcg_gen_ext32s_tl, 0x1E, PPC_64B);
 
@@ -9433,6 +9442,7 @@ GEN_HANDLER_E(prtyw, 0x1F, 0x1A, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
 GEN_HANDLER_E(prtyd, 0x1F, 0x1A, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(bpermd, 0x1F, 0x1C, 0x07, 0x00000001, PPC_NONE, PPC2_PERM_ISA206),
 #endif
 GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
