@@ -6491,6 +6491,46 @@ uint32 float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
     return res;
 }
 
+int_fast16_t float32_to_int16(float32 a STATUS_PARAM)
+{
+    int32_t v;
+    int_fast16_t res;
+    int old_exc_flags = get_float_exception_flags(status);
+
+    v = float32_to_int32(a STATUS_VAR);
+    if (v < -0x8000) {
+        res = -0x8000;
+    } else if (v > 0x7fff) {
+        res = 0x7fff;
+    } else {
+        return v;
+    }
+
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid STATUS_VAR);
+    return res;
+}
+
+uint_fast16_t float32_to_uint16(float32 a STATUS_PARAM)
+{
+    int32_t v;
+    uint_fast16_t res;
+    int old_exc_flags = get_float_exception_flags(status);
+
+    v = float32_to_int32(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffff) {
+        res = 0xffff;
+    } else {
+        return v;
+    }
+
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid STATUS_VAR);
+    return res;
+}
+
 uint_fast16_t float32_to_uint16_round_to_zero(float32 a STATUS_PARAM)
 {
     int64_t v;
@@ -6542,6 +6582,46 @@ uint32 float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
     } else {
         res = v;
     }
+    return res;
+}
+
+int_fast16_t float64_to_int16(float64 a STATUS_PARAM)
+{
+    int64_t v;
+    int_fast16_t res;
+    int old_exc_flags = get_float_exception_flags(status);
+
+    v = float64_to_int32(a STATUS_VAR);
+    if (v < -0x8000) {
+        res = -0x8000;
+    } else if (v > 0x7fff) {
+        res = 0x7fff;
+    } else {
+        return v;
+    }
+
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid STATUS_VAR);
+    return res;
+}
+
+uint_fast16_t float64_to_uint16(float64 a STATUS_PARAM)
+{
+    int64_t v;
+    uint_fast16_t res;
+    int old_exc_flags = get_float_exception_flags(status);
+
+    v = float64_to_int32(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+    } else if (v > 0xffff) {
+        res = 0xffff;
+    } else {
+        return v;
+    }
+
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid STATUS_VAR);
     return res;
 }
 
