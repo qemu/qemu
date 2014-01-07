@@ -59,21 +59,6 @@ these four paragraphs for those parts of this code that are retained.
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.h"
 
-void set_float_rounding_mode(int val STATUS_PARAM)
-{
-    STATUS(float_rounding_mode) = val;
-}
-
-void set_float_exception_flags(int val STATUS_PARAM)
-{
-    STATUS(float_exception_flags) = val;
-}
-
-void set_floatx80_rounding_precision(int val STATUS_PARAM)
-{
-    STATUS(floatx80_rounding_precision) = val;
-}
-
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the half-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
