@@ -3231,8 +3231,8 @@ LARX(lwarx, 4, ld32u);
 
 
 #if defined(CONFIG_USER_ONLY)
-static void gen_conditional_store (DisasContext *ctx, TCGv EA,
-                                   int reg, int size)
+static void gen_conditional_store(DisasContext *ctx, TCGv EA,
+                                  int reg, int size)
 {
     TCGv t0 = tcg_temp_new();
     uint32_t save_exception = ctx->exception;
@@ -3246,62 +3246,57 @@ static void gen_conditional_store (DisasContext *ctx, TCGv EA,
     gen_exception(ctx, POWERPC_EXCP_STCX);
     ctx->exception = save_exception;
 }
-#endif
-
-/* stwcx. */
-static void gen_stwcx_(DisasContext *ctx)
-{
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_RES);
-    t0 = tcg_temp_local_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x03);
-#if defined(CONFIG_USER_ONLY)
-    gen_conditional_store(ctx, t0, rS(ctx->opcode), 4);
 #else
-    {
-        int l1;
+static void gen_conditional_store(DisasContext *ctx, TCGv EA,
+                                  int reg, int size)
+{
+    int l1;
 
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-        l1 = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
-        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
-        gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], t0);
-        gen_set_label(l1);
-        tcg_gen_movi_tl(cpu_reserve, -1);
-    }
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+    l1 = gen_new_label();
+    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+#if defined(TARGET_PPC64)
+    if (size == 8) {
+        gen_qemu_st64(ctx, cpu_gpr[reg], EA);
+    } else
 #endif
-    tcg_temp_free(t0);
+    if (size == 4) {
+        gen_qemu_st32(ctx, cpu_gpr[reg], EA);
+    } else if (size == 2) {
+        gen_qemu_st16(ctx, cpu_gpr[reg], EA);
+    } else {
+        gen_qemu_st8(ctx, cpu_gpr[reg], EA);
+    }
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
 }
+#endif
+
+#define STCX(name, len)                                   \
+static void gen_##name(DisasContext *ctx)                 \
+{                                                         \
+    TCGv t0;                                              \
+    gen_set_access_type(ctx, ACCESS_RES);                 \
+    t0 = tcg_temp_local_new();                            \
+    gen_addr_reg_index(ctx, t0);                          \
+    if (len > 1) {                                        \
+        gen_check_align(ctx, t0, (len)-1);                \
+    }                                                     \
+    gen_conditional_store(ctx, t0, rS(ctx->opcode), len); \
+    tcg_temp_free(t0);                                    \
+}
+
+STCX(stbcx_, 1);
+STCX(sthcx_, 2);
+STCX(stwcx_, 4);
 
 #if defined(TARGET_PPC64)
 /* ldarx */
 LARX(ldarx, 8, ld64);
 
 /* stdcx. */
-static void gen_stdcx_(DisasContext *ctx)
-{
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_RES);
-    t0 = tcg_temp_local_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x07);
-#if defined(CONFIG_USER_ONLY)
-    gen_conditional_store(ctx, t0, rS(ctx->opcode), 8);
-#else
-    {
-        int l1;
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-        l1 = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
-        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
-        gen_qemu_st64(ctx, cpu_gpr[rS(ctx->opcode)], t0);
-        gen_set_label(l1);
-        tcg_gen_movi_tl(cpu_reserve, -1);
-    }
-#endif
-    tcg_temp_free(t0);
-}
+STCX(stdcx_, 8);
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
@@ -9512,6 +9507,8 @@ GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM),
 GEN_HANDLER_E(lbarx, 0x1F, 0x14, 0x01, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER_E(lharx, 0x1F, 0x14, 0x03, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000000, PPC_RES),
+GEN_HANDLER_E(stbcx_, 0x1F, 0x16, 0x15, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
+GEN_HANDLER_E(sthcx_, 0x1F, 0x16, 0x16, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000000, PPC_64B),
