@@ -6792,13 +6792,11 @@ uint64_t float64_to_uint64(float64 a STATUS_PARAM)
 
 uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
 {
-    int64_t v;
-
-    v = float64_val(int64_to_float64(INT64_MIN STATUS_VAR));
-    v += float64_val(a);
-    v = float64_to_int64_round_to_zero(make_float64(v) STATUS_VAR);
-
-    return v - INT64_MIN;
+    signed char current_rounding_mode = STATUS(float_rounding_mode);
+    set_float_rounding_mode(float_round_to_zero STATUS_VAR);
+    int64_t v = float64_to_uint64(a STATUS_VAR);
+    set_float_rounding_mode(current_rounding_mode STATUS_VAR);
+    return v;
 }
 
 #define COMPARE(s, nan_exp)                                                  \
