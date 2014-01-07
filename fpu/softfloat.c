@@ -204,6 +204,56 @@ static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATU
 }
 
 /*----------------------------------------------------------------------------
+| Takes the 128-bit fixed-point value formed by concatenating `absZ0' and
+| `absZ1', with binary point between bits 63 and 64 (between the input words),
+| and returns the properly rounded 64-bit unsigned integer corresponding to the
+| input.  Ordinarily, the fixed-point input is simply rounded to an integer,
+| with the inexact exception raised if the input cannot be represented exactly
+| as an integer.  However, if the fixed-point input is too large, the invalid
+| exception is raised and the largest unsigned integer is returned.
+*----------------------------------------------------------------------------*/
+
+static int64 roundAndPackUint64(flag zSign, uint64_t absZ0,
+                                uint64_t absZ1 STATUS_PARAM)
+{
+    int8 roundingMode;
+    flag roundNearestEven, increment;
+
+    roundingMode = STATUS(float_rounding_mode);
+    roundNearestEven = (roundingMode == float_round_nearest_even);
+    increment = ((int64_t)absZ1 < 0);
+    if (!roundNearestEven) {
+        if (roundingMode == float_round_to_zero) {
+            increment = 0;
+        } else if (absZ1) {
+            if (zSign) {
+                increment = (roundingMode == float_round_down) && absZ1;
+            } else {
+                increment = (roundingMode == float_round_up) && absZ1;
+            }
+        }
+    }
+    if (increment) {
+        ++absZ0;
+        if (absZ0 == 0) {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        }
+        absZ0 &= ~(((uint64_t)(absZ1<<1) == 0) & roundNearestEven);
+    }
+
+    if (zSign && absZ0) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return 0;
+    }
+
+    if (absZ1) {
+        STATUS(float_exception_flags) |= float_flag_inexact;
+    }
+    return absZ0;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the fraction bits of the single-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
@@ -6643,16 +6693,51 @@ uint_fast16_t float64_to_uint16_round_to_zero(float64 a STATUS_PARAM)
     return res;
 }
 
-/* FIXME: This looks broken.  */
-uint64_t float64_to_uint64 (float64 a STATUS_PARAM)
+/*----------------------------------------------------------------------------
+| Returns the result of converting the double-precision floating-point value
+| `a' to the 64-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic---which means in particular that the conversion is rounded
+| according to the current rounding mode.  If `a' is a NaN, the largest
+| positive integer is returned.  If the conversion overflows, the
+| largest unsigned integer is returned.  If 'a' is negative, the value is
+| rounded and zero is returned; negative values that do not round to zero
+| will raise the inexact exception.
+*----------------------------------------------------------------------------*/
+
+uint64_t float64_to_uint64(float64 a STATUS_PARAM)
 {
-    int64_t v;
+    flag aSign;
+    int_fast16_t aExp, shiftCount;
+    uint64_t aSig, aSigExtra;
+    a = float64_squash_input_denormal(a STATUS_VAR);
 
-    v = float64_val(int64_to_float64(INT64_MIN STATUS_VAR));
-    v += float64_val(a);
-    v = float64_to_int64(make_float64(v) STATUS_VAR);
-
-    return v - INT64_MIN;
+    aSig = extractFloat64Frac(a);
+    aExp = extractFloat64Exp(a);
+    aSign = extractFloat64Sign(a);
+    if (aSign && (aExp > 1022)) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        if (float64_is_any_nan(a)) {
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        } else {
+            return 0;
+        }
+    }
+    if (aExp) {
+        aSig |= LIT64(0x0010000000000000);
+    }
+    shiftCount = 0x433 - aExp;
+    if (shiftCount <= 0) {
+        if (0x43E < aExp) {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return LIT64(0xFFFFFFFFFFFFFFFF);
+        }
+        aSigExtra = 0;
+        aSig <<= -shiftCount;
+    } else {
+        shift64ExtraRightJamming(aSig, 0, shiftCount, &aSig, &aSigExtra);
+    }
+    return roundAndPackUint64(aSign, aSig, aSigExtra STATUS_VAR);
 }
 
 uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
