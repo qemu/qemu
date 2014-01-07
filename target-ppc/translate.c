@@ -2213,6 +2213,12 @@ GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
 #if defined(TARGET_PPC64)
 /* fcfid */
 GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B);
+/* fcfids */
+GEN_FLOAT_B(cfids, 0x0E, 0x1A, 0, PPC2_FP_CVT_ISA206);
+/* fcfidu */
+GEN_FLOAT_B(cfidu, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
+/* fcfidus */
+GEN_FLOAT_B(cfidus, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
 /* fctid */
 GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B);
 /* fctidu */
@@ -9857,6 +9863,9 @@ GEN_HANDLER_E(fctiwuz, 0x3F, 0x0F, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT),
 #if defined(TARGET_PPC64)
 GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC_64B),
+GEN_HANDLER_E(fcfids, 0x3B, 0x0E, 0x1A, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
+GEN_HANDLER_E(fcfidu, 0x3F, 0x0E, 0x1E, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
+GEN_HANDLER_E(fcfidus, 0x3B, 0x0E, 0x1E, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC_64B),
 GEN_HANDLER_E(fctidu, 0x3F, 0x0E, 0x1D, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC_64B),

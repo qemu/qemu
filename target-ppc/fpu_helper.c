@@ -637,16 +637,26 @@ FPU_FCTI(fctiduz, uint64_round_to_zero, 0x0000000000000000)
 #endif
 
 #if defined(TARGET_PPC64)
-/* fcfid - fcfid. */
-uint64_t helper_fcfid(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
 
-    farg.d = int64_to_float64(arg, &env->fp_status);
-    return farg.ll;
+#define FPU_FCFI(op, cvtr, is_single)                      \
+uint64_t helper_##op(CPUPPCState *env, uint64_t arg)       \
+{                                                          \
+    CPU_DoubleU farg;                                      \
+                                                           \
+    if (is_single) {                                       \
+        float32 tmp = cvtr(arg, &env->fp_status);          \
+        farg.d = float32_to_float64(tmp, &env->fp_status); \
+    } else {                                               \
+        farg.d = cvtr(arg, &env->fp_status);               \
+    }                                                      \
+    helper_float_check_status(env);                        \
+    return farg.ll;                                        \
 }
 
-
+FPU_FCFI(fcfid, int64_to_float64, 0)
+FPU_FCFI(fcfids, int64_to_float32, 1)
+FPU_FCFI(fcfidu, uint64_to_float64, 0)
+FPU_FCFI(fcfidus, uint64_to_float32, 1)
 
 #endif
 
