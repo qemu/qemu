@@ -1098,27 +1098,29 @@ VFP_GEN_FTOI(tosi)
 VFP_GEN_FTOI(tosiz)
 #undef VFP_GEN_FTOI
 
-#define VFP_GEN_FIX(name) \
+#define VFP_GEN_FIX(name, round) \
 static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
     TCGv_i32 tmp_shift = tcg_const_i32(shift); \
     TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
     if (dp) { \
-        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, statusptr); \
+        gen_helper_vfp_##name##d##round(cpu_F0d, cpu_F0d, tmp_shift, \
+                                        statusptr); \
     } else { \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tmp_shift, statusptr); \
+        gen_helper_vfp_##name##s##round(cpu_F0s, cpu_F0s, tmp_shift, \
+                                        statusptr); \
     } \
     tcg_temp_free_i32(tmp_shift); \
     tcg_temp_free_ptr(statusptr); \
 }
-VFP_GEN_FIX(tosh)
-VFP_GEN_FIX(tosl)
-VFP_GEN_FIX(touh)
-VFP_GEN_FIX(toul)
-VFP_GEN_FIX(shto)
-VFP_GEN_FIX(slto)
-VFP_GEN_FIX(uhto)
-VFP_GEN_FIX(ulto)
+VFP_GEN_FIX(tosh, _round_to_zero)
+VFP_GEN_FIX(tosl, _round_to_zero)
+VFP_GEN_FIX(touh, _round_to_zero)
+VFP_GEN_FIX(toul, _round_to_zero)
+VFP_GEN_FIX(shto, )
+VFP_GEN_FIX(slto, )
+VFP_GEN_FIX(uhto, )
+VFP_GEN_FIX(ulto, )
 #undef VFP_GEN_FIX
 
 static inline void gen_vfp_ld(DisasContext *s, int dp, TCGv_i32 addr)
