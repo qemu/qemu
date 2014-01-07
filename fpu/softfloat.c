@@ -1121,7 +1121,7 @@ static float128
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 int32_to_float32( int32 a STATUS_PARAM )
+float32 int32_to_float32(int32_t a STATUS_PARAM)
 {
     flag zSign;
 
@@ -1138,7 +1138,7 @@ float32 int32_to_float32( int32 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 int32_to_float64( int32 a STATUS_PARAM )
+float64 int32_to_float64(int32_t a STATUS_PARAM)
 {
     flag zSign;
     uint32 absA;
@@ -1161,7 +1161,7 @@ float64 int32_to_float64( int32 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 int32_to_floatx80( int32 a STATUS_PARAM )
+floatx80 int32_to_floatx80(int32_t a STATUS_PARAM)
 {
     flag zSign;
     uint32 absA;
@@ -1183,7 +1183,7 @@ floatx80 int32_to_floatx80( int32 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 int32_to_float128( int32 a STATUS_PARAM )
+float128 int32_to_float128(int32_t a STATUS_PARAM)
 {
     flag zSign;
     uint32 absA;
@@ -1205,7 +1205,7 @@ float128 int32_to_float128( int32 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 int64_to_float32( int64 a STATUS_PARAM )
+float32 int64_to_float32(int64_t a STATUS_PARAM)
 {
     flag zSign;
     uint64 absA;
@@ -1231,7 +1231,7 @@ float32 int64_to_float32( int64 a STATUS_PARAM )
 
 }
 
-float32 uint64_to_float32( uint64 a STATUS_PARAM )
+float32 uint64_to_float32(uint64_t a STATUS_PARAM)
 {
     int8 shiftCount;
 
@@ -1258,7 +1258,7 @@ float32 uint64_to_float32( uint64 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 int64_to_float64( int64 a STATUS_PARAM )
+float64 int64_to_float64(int64_t a STATUS_PARAM)
 {
     flag zSign;
 
@@ -1271,7 +1271,7 @@ float64 int64_to_float64( int64 a STATUS_PARAM )
 
 }
 
-float64 uint64_to_float64(uint64 a STATUS_PARAM)
+float64 uint64_to_float64(uint64_t a STATUS_PARAM)
 {
     int exp =  0x43C;
 
@@ -1292,7 +1292,7 @@ float64 uint64_to_float64(uint64 a STATUS_PARAM)
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 int64_to_floatx80( int64 a STATUS_PARAM )
+floatx80 int64_to_floatx80(int64_t a STATUS_PARAM)
 {
     flag zSign;
     uint64 absA;
@@ -1312,7 +1312,7 @@ floatx80 int64_to_floatx80( int64 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 int64_to_float128( int64 a STATUS_PARAM )
+float128 int64_to_float128(int64_t a STATUS_PARAM)
 {
     flag zSign;
     uint64 absA;
@@ -1339,7 +1339,7 @@ float128 int64_to_float128( int64 a STATUS_PARAM )
 
 }
 
-float128 uint64_to_float128(uint64 a STATUS_PARAM)
+float128 uint64_to_float128(uint64_t a STATUS_PARAM)
 {
     if (a == 0) {
         return float128_zero;
@@ -6445,12 +6445,12 @@ int float128_unordered_quiet( float128 a, float128 b STATUS_PARAM )
 }
 
 /* misc functions */
-float32 uint32_to_float32( uint32 a STATUS_PARAM )
+float32 uint32_to_float32(uint32_t a STATUS_PARAM)
 {
     return int64_to_float32(a STATUS_VAR);
 }
 
-float64 uint32_to_float64( uint32 a STATUS_PARAM )
+float64 uint32_to_float64(uint32_t a STATUS_PARAM)
 {
     return int64_to_float64(a STATUS_VAR);
 }
