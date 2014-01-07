@@ -72,6 +72,38 @@ target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
     return (target_ulong)rt;
 }
 
+target_ulong helper_divwe(CPUPPCState *env, target_ulong ra, target_ulong rb,
+                          uint32_t oe)
+{
+    int64_t rt = 0;
+    int overflow = 0;
+
+    int64_t dividend = (int64_t)ra << 32;
+    int64_t divisor = (int64_t)((int32_t)rb);
+
+    if (unlikely((divisor == 0) ||
+                 ((divisor == -1ull) && (dividend == INT64_MIN)))) {
+        overflow = 1;
+    } else {
+        rt = dividend / divisor;
+        overflow = rt != (int32_t)rt;
+    }
+
+    if (unlikely(overflow)) {
+        rt = 0; /* Undefined */
+    }
+
+    if (oe) {
+        if (unlikely(overflow)) {
+            env->so = env->ov = 1;
+        } else {
+            env->ov = 0;
+        }
+    }
+
+    return (target_ulong)rt;
+}
+
 #if defined(TARGET_PPC64)
 
 uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
