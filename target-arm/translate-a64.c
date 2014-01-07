@@ -3186,6 +3186,34 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
     }
 }
 
+/* Convert ARM rounding mode to softfloat */
+static inline int arm_rmode_to_sf(int rmode)
+{
+    switch (rmode) {
+    case FPROUNDING_TIEAWAY:
+        rmode = float_round_ties_away;
+        break;
+    case FPROUNDING_ODD:
+        /* FIXME: add support for TIEAWAY and ODD */
+        qemu_log_mask(LOG_UNIMP, "arm: unimplemented rounding mode: %d\n",
+                      rmode);
+    case FPROUNDING_TIEEVEN:
+    default:
+        rmode = float_round_nearest_even;
+        break;
+    case FPROUNDING_POSINF:
+        rmode = float_round_up;
+        break;
+    case FPROUNDING_NEGINF:
+        rmode = float_round_down;
+        break;
+    case FPROUNDING_ZERO:
+        rmode = float_round_to_zero;
+        break;
+    }
+    return rmode;
+}
+
 static void handle_fp_compare(DisasContext *s, bool is_double,
                               unsigned int rn, unsigned int rm,
                               bool cmp_with_zero, bool signal_all_nans)
@@ -3651,6 +3679,132 @@ static void disas_fp_imm(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_res);
 }
 
+/* Handle floating point <=> fixed point conversions. Note that we can
+ * also deal with fp <=> integer conversions as a special case (scale == 64)
+ * OPTME: consider handling that special case specially or at least skipping
+ * the call to scalbn in the helpers for zero shifts.
+ */
+static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
+                           bool itof, int rmode, int scale, int sf, int type)
+{
+    bool is_signed = !(opcode & 1);
+    bool is_double = type;
+    TCGv_ptr tcg_fpstatus;
+    TCGv_i32 tcg_shift;
+
+    tcg_fpstatus = get_fpstatus_ptr();
+
+    tcg_shift = tcg_const_i32(64 - scale);
+
+    if (itof) {
+        TCGv_i64 tcg_int = cpu_reg(s, rn);
+        if (!sf) {
+            TCGv_i64 tcg_extend = new_tmp_a64(s);
+
+            if (is_signed) {
+                tcg_gen_ext32s_i64(tcg_extend, tcg_int);
+            } else {
+                tcg_gen_ext32u_i64(tcg_extend, tcg_int);
+            }
+
+            tcg_int = tcg_extend;
+        }
+
+        if (is_double) {
+            TCGv_i64 tcg_double = tcg_temp_new_i64();
+            if (is_signed) {
+                gen_helper_vfp_sqtod(tcg_double, tcg_int,
+                                     tcg_shift, tcg_fpstatus);
+            } else {
+                gen_helper_vfp_uqtod(tcg_double, tcg_int,
+                                     tcg_shift, tcg_fpstatus);
+            }
+            write_fp_dreg(s, rd, tcg_double);
+            tcg_temp_free_i64(tcg_double);
+        } else {
+            TCGv_i32 tcg_single = tcg_temp_new_i32();
+            if (is_signed) {
+                gen_helper_vfp_sqtos(tcg_single, tcg_int,
+                                     tcg_shift, tcg_fpstatus);
+            } else {
+                gen_helper_vfp_uqtos(tcg_single, tcg_int,
+                                     tcg_shift, tcg_fpstatus);
+            }
+            write_fp_sreg(s, rd, tcg_single);
+            tcg_temp_free_i32(tcg_single);
+        }
+    } else {
+        TCGv_i64 tcg_int = cpu_reg(s, rd);
+        TCGv_i32 tcg_rmode;
+
+        if (extract32(opcode, 2, 1)) {
+            /* There are too many rounding modes to all fit into rmode,
+             * so FCVTA[US] is a special case.
+             */
+            rmode = FPROUNDING_TIEAWAY;
+        }
+
+        tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+        if (is_double) {
+            TCGv_i64 tcg_double = read_fp_dreg(s, rn);
+            if (is_signed) {
+                if (!sf) {
+                    gen_helper_vfp_tosld(tcg_int, tcg_double,
+                                         tcg_shift, tcg_fpstatus);
+                } else {
+                    gen_helper_vfp_tosqd(tcg_int, tcg_double,
+                                         tcg_shift, tcg_fpstatus);
+                }
+            } else {
+                if (!sf) {
+                    gen_helper_vfp_tould(tcg_int, tcg_double,
+                                         tcg_shift, tcg_fpstatus);
+                } else {
+                    gen_helper_vfp_touqd(tcg_int, tcg_double,
+                                         tcg_shift, tcg_fpstatus);
+                }
+            }
+            tcg_temp_free_i64(tcg_double);
+        } else {
+            TCGv_i32 tcg_single = read_fp_sreg(s, rn);
+            if (sf) {
+                if (is_signed) {
+                    gen_helper_vfp_tosqs(tcg_int, tcg_single,
+                                         tcg_shift, tcg_fpstatus);
+                } else {
+                    gen_helper_vfp_touqs(tcg_int, tcg_single,
+                                         tcg_shift, tcg_fpstatus);
+                }
+            } else {
+                TCGv_i32 tcg_dest = tcg_temp_new_i32();
+                if (is_signed) {
+                    gen_helper_vfp_tosls(tcg_dest, tcg_single,
+                                         tcg_shift, tcg_fpstatus);
+                } else {
+                    gen_helper_vfp_touls(tcg_dest, tcg_single,
+                                         tcg_shift, tcg_fpstatus);
+                }
+                tcg_gen_extu_i32_i64(tcg_int, tcg_dest);
+                tcg_temp_free_i32(tcg_dest);
+            }
+            tcg_temp_free_i32(tcg_single);
+        }
+
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        tcg_temp_free_i32(tcg_rmode);
+
+        if (!sf) {
+            tcg_gen_ext32u_i64(tcg_int, tcg_int);
+        }
+    }
+
+    tcg_temp_free_ptr(tcg_fpstatus);
+    tcg_temp_free_i32(tcg_shift);
+}
+
 /* C3.6.29 Floating point <-> fixed point conversions
  *   31   30  29 28       24 23  22  21 20   19 18    16 15   10 9    5 4    0
  * +----+---+---+-----------+------+---+-------+--------+-------+------+------+
@@ -3659,7 +3813,37 @@ static void disas_fp_imm(DisasContext *s, uint32_t insn)
  */
 static void disas_fp_fixed_conv(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int scale = extract32(insn, 10, 6);
+    int opcode = extract32(insn, 16, 3);
+    int rmode = extract32(insn, 19, 2);
+    int type = extract32(insn, 22, 2);
+    bool sbit = extract32(insn, 29, 1);
+    bool sf = extract32(insn, 31, 1);
+    bool itof;
+
+    if (sbit || (type > 1)
+        || (!sf && scale < 32)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch ((rmode << 3) | opcode) {
+    case 0x2: /* SCVTF */
+    case 0x3: /* UCVTF */
+        itof = true;
+        break;
+    case 0x18: /* FCVTZS */
+    case 0x19: /* FCVTZU */
+        itof = false;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    handle_fpfpcvt(s, rd, rn, opcode, itof, FPROUNDING_ZERO, scale, sf, type);
 }
 
 static void handle_fmov(DisasContext *s, int rd, int rn, int type, bool itof)
