@@ -984,6 +984,20 @@ GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1);
 /* divw  divw.  divwo  divwo.   */
 GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0);
 GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1);
+
+/* div[wd]eu[o][.] */
+#define GEN_DIVE(name, hlpr, compute_ov)                                      \
+static void gen_##name(DisasContext *ctx)                                     \
+{                                                                             \
+    TCGv_i32 t0 = tcg_const_i32(compute_ov);                                  \
+    gen_helper_##hlpr(cpu_gpr[rD(ctx->opcode)], cpu_env,                      \
+                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0); \
+    tcg_temp_free_i32(t0);                                                    \
+    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
+        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);                           \
+    }                                                                         \
+}
+
 #if defined(TARGET_PPC64)
 static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
@@ -1032,6 +1046,10 @@ GEN_INT_ARITH_DIVD(divduo, 0x1E, 0, 1);
 /* divw  divw.  divwo  divwo.   */
 GEN_INT_ARITH_DIVD(divd, 0x0F, 1, 0);
 GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1);
+
+GEN_DIVE(divdeu, divdeu, 0);
+GEN_DIVE(divdeuo, divdeu, 1);
+
 #endif
 
 /* mulhw  mulhw. */
@@ -9706,6 +9724,9 @@ GEN_INT_ARITH_DIVD(divdu, 0x0E, 0, 0),
 GEN_INT_ARITH_DIVD(divduo, 0x1E, 0, 1),
 GEN_INT_ARITH_DIVD(divd, 0x0F, 1, 0),
 GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1),
+
+GEN_HANDLER_E(divdeu, 0x1F, 0x09, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(divdeuo, 0x1F, 0x09, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 
 #undef GEN_INT_ARITH_MUL_HELPER
 #define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \

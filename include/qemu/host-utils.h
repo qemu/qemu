@@ -44,9 +44,23 @@ static inline void muls64(uint64_t *plow, uint64_t *phigh,
     *plow = r;
     *phigh = r >> 64;
 }
+
+static inline int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
+{
+    if (divisor == 0) {
+        return 1;
+    } else {
+        __uint128_t dividend = ((__uint128_t)*phigh << 64) | *plow;
+        __uint128_t result = dividend / divisor;
+        *plow = result;
+        *phigh = dividend % divisor;
+        return result > UINT64_MAX;
+    }
+}
 #else
 void muls64(uint64_t *phigh, uint64_t *plow, int64_t a, int64_t b);
 void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b);
+int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor);
 #endif
 
 /**

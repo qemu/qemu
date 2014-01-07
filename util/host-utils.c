@@ -86,4 +86,42 @@ void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
     }
     *phigh = rh;
 }
+
+/* Unsigned 128x64 division.  Returns 1 if overflow (divide by zero or */
+/* quotient exceeds 64 bits).  Otherwise returns quotient via plow and */
+/* remainder via phigh. */
+int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
+{
+    uint64_t dhi = *phigh;
+    uint64_t dlo = *plow;
+    unsigned i;
+    uint64_t carry = 0;
+
+    if (divisor == 0) {
+        return 1;
+    } else if (dhi == 0) {
+        *plow  = dlo / divisor;
+        *phigh = dlo % divisor;
+        return 0;
+    } else if (dhi > divisor) {
+        return 1;
+    } else {
+
+        for (i = 0; i < 64; i++) {
+            carry = dhi >> 63;
+            dhi = (dhi << 1) | (dlo >> 63);
+            if (carry || (dhi >= divisor)) {
+                dhi -= divisor;
+                carry = 1;
+            } else {
+                carry = 0;
+            }
+            dlo = (dlo << 1) | carry;
+        }
+
+        *plow = dlo;
+        *phigh = dhi;
+        return 0;
+    }
+}
 #endif /* !CONFIG_INT128 */
