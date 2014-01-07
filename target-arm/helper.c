@@ -4089,6 +4089,26 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
     return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
 }
 
+float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, CPUARMState *env)
+{
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    float64 r = float16_to_float64(make_float16(a), ieee, &env->vfp.fp_status);
+    if (ieee) {
+        return float64_maybe_silence_nan(r);
+    }
+    return r;
+}
+
+uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, CPUARMState *env)
+{
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    float16 r = float64_to_float16(a, ieee, &env->vfp.fp_status);
+    if (ieee) {
+        r = float16_maybe_silence_nan(r);
+    }
+    return float16_val(r);
+}
+
 #define float32_two make_float32(0x40000000)
 #define float32_three make_float32(0x40400000)
 #define float32_one_point_five make_float32(0x3fc00000)
