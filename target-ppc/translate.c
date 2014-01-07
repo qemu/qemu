@@ -1049,7 +1049,8 @@ GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1);
 
 GEN_DIVE(divdeu, divdeu, 0);
 GEN_DIVE(divdeuo, divdeu, 1);
-
+GEN_DIVE(divde, divde, 0);
+GEN_DIVE(divdeo, divde, 1);
 #endif
 
 /* mulhw  mulhw. */
@@ -9727,6 +9728,8 @@ GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1),
 
 GEN_HANDLER_E(divdeu, 0x1F, 0x09, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeuo, 0x1F, 0x09, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(divde, 0x1F, 0x09, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(divdeo, 0x1F, 0x09, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 
 #undef GEN_INT_ARITH_MUL_HELPER
 #define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \

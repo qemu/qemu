@@ -65,6 +65,29 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
     return rt;
 }
 
+uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
+{
+    int64_t rt = 0;
+    int64_t ra = (int64_t)rau;
+    int64_t rb = (int64_t)rbu;
+    int overflow = divs128(&rt, &ra, rb);
+
+    if (unlikely(overflow)) {
+        rt = 0; /* Undefined */
+    }
+
+    if (oe) {
+
+        if (unlikely(overflow)) {
+            env->so = env->ov = 1;
+        } else {
+            env->ov = 0;
+        }
+    }
+
+    return rt;
+}
+
 #endif
 
 

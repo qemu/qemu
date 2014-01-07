@@ -124,4 +124,41 @@ int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
         return 0;
     }
 }
+
+int divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
+{
+    int sgn_dvdnd = *phigh < 0;
+    int sgn_divsr = divisor < 0;
+    int overflow = 0;
+
+    if (sgn_dvdnd) {
+        *plow = ~(*plow);
+        *phigh = ~(*phigh);
+        if (*plow == (int64_t)-1) {
+            *plow = 0;
+            (*phigh)++;
+         } else {
+            (*plow)++;
+         }
+    }
+
+    if (sgn_divsr) {
+        divisor = 0 - divisor;
+    }
+
+    overflow = divu128((uint64_t *)plow, (uint64_t *)phigh, (uint64_t)divisor);
+
+    if (sgn_dvdnd  ^ sgn_divsr) {
+        *plow = 0 - *plow;
+    }
+
+    if (!overflow) {
+        if ((*plow < 0) ^ (sgn_dvdnd ^ sgn_divsr)) {
+            overflow = 1;
+        }
+    }
+
+    return overflow;
+}
+
 #endif /* !CONFIG_INT128 */
