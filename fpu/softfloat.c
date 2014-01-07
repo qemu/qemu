@@ -111,6 +111,7 @@ static int32 roundAndPackInt32( flag zSign, uint64_t absZ STATUS_PARAM)
     roundNearestEven = ( roundingMode == float_round_nearest_even );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         roundIncrement = 0x40;
         break;
     case float_round_to_zero:
@@ -161,6 +162,7 @@ static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATU
     roundNearestEven = ( roundingMode == float_round_nearest_even );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         increment = ((int64_t) absZ1 < 0);
         break;
     case float_round_to_zero:
@@ -214,6 +216,7 @@ static int64 roundAndPackUint64(flag zSign, uint64_t absZ0,
     roundNearestEven = (roundingMode == float_round_nearest_even);
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         increment = ((int64_t)absZ1 < 0);
         break;
     case float_round_to_zero:
@@ -366,6 +369,7 @@ static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig 
     roundNearestEven = ( roundingMode == float_round_nearest_even );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         roundIncrement = 0x40;
         break;
     case float_round_to_zero:
@@ -550,6 +554,7 @@ static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig 
     roundNearestEven = ( roundingMode == float_round_nearest_even );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         roundIncrement = 0x200;
         break;
     case float_round_to_zero:
@@ -734,6 +739,7 @@ static floatx80
     zSig0 |= ( zSig1 != 0 );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         break;
     case float_round_to_zero:
         roundIncrement = 0;
@@ -794,6 +800,7 @@ static floatx80
  precision80:
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         increment = ((int64_t)zSig1 < 0);
         break;
     case float_round_to_zero:
@@ -838,6 +845,7 @@ static floatx80
             if ( zSig1 ) STATUS(float_exception_flags) |= float_flag_inexact;
             switch (roundingMode) {
             case float_round_nearest_even:
+            case float_round_ties_away:
                 increment = ((int64_t)zSig1 < 0);
                 break;
             case float_round_to_zero:
@@ -1052,6 +1060,7 @@ static float128
     roundNearestEven = ( roundingMode == float_round_nearest_even );
     switch (roundingMode) {
     case float_round_nearest_even:
+    case float_round_ties_away:
         increment = ((int64_t)zSig2 < 0);
         break;
     case float_round_to_zero:
@@ -1114,6 +1123,7 @@ static float128
             if ( isTiny && zSig2 ) float_raise( float_flag_underflow STATUS_VAR);
             switch (roundingMode) {
             case float_round_nearest_even:
+            case float_round_ties_away:
                 increment = ((int64_t)zSig2 < 0);
                 break;
             case float_round_to_zero:
@@ -1785,6 +1795,11 @@ float32 float32_round_to_int( float32 a STATUS_PARAM)
                 return packFloat32( aSign, 0x7F, 0 );
             }
             break;
+        case float_round_ties_away:
+            if (aExp == 0x7E) {
+                return packFloat32(aSign, 0x7F, 0);
+            }
+            break;
          case float_round_down:
             return make_float32(aSign ? 0xBF800000 : 0);
          case float_round_up:
@@ -1802,6 +1817,9 @@ float32 float32_round_to_int( float32 a STATUS_PARAM)
         if ((z & roundBitsMask) == 0) {
             z &= ~lastBitMask;
         }
+        break;
+    case float_round_ties_away:
+        z += lastBitMask >> 1;
         break;
     case float_round_to_zero:
         break;
@@ -3183,6 +3201,9 @@ static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
             increment = zSig & (increment << 1);
         }
         break;
+    case float_round_ties_away:
+        increment = (mask + 1) >> 1;
+        break;
     case float_round_up:
         increment = zSign ? 0 : mask;
         break;
@@ -3487,6 +3508,11 @@ float64 float64_round_to_int( float64 a STATUS_PARAM )
                 return packFloat64( aSign, 0x3FF, 0 );
             }
             break;
+        case float_round_ties_away:
+            if (aExp == 0x3FE) {
+                return packFloat64(aSign, 0x3ff, 0);
+            }
+            break;
          case float_round_down:
             return make_float64(aSign ? LIT64( 0xBFF0000000000000 ) : 0);
          case float_round_up:
@@ -3505,6 +3531,9 @@ float64 float64_round_to_int( float64 a STATUS_PARAM )
         if ((z & roundBitsMask) == 0) {
             z &= ~lastBitMask;
         }
+        break;
+    case float_round_ties_away:
+        z += lastBitMask >> 1;
         break;
     case float_round_to_zero:
         break;
@@ -4771,6 +4800,11 @@ floatx80 floatx80_round_to_int( floatx80 a STATUS_PARAM )
                     packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
             }
             break;
+        case float_round_ties_away:
+            if (aExp == 0x3FFE) {
+                return packFloatx80(aSign, 0x3FFF, LIT64(0x8000000000000000));
+            }
+            break;
          case float_round_down:
             return
                   aSign ?
@@ -4793,6 +4827,9 @@ floatx80 floatx80_round_to_int( floatx80 a STATUS_PARAM )
         if ((z.low & roundBitsMask) == 0) {
             z.low &= ~lastBitMask;
         }
+        break;
+    case float_round_ties_away:
+        z.low += lastBitMask >> 1;
         break;
     case float_round_to_zero:
         break;
@@ -5862,6 +5899,15 @@ float128 float128_round_to_int( float128 a STATUS_PARAM )
                 }
             }
             break;
+        case float_round_ties_away:
+            if (lastBitMask) {
+                add128(z.high, z.low, 0, lastBitMask >> 1, &z.high, &z.low);
+            } else {
+                if ((int64_t) z.low < 0) {
+                    ++z.high;
+                }
+            }
+            break;
         case float_round_to_zero:
             break;
         case float_round_up:
@@ -5893,6 +5939,11 @@ float128 float128_round_to_int( float128 a STATUS_PARAM )
                     return packFloat128( aSign, 0x3FFF, 0, 0 );
                 }
                 break;
+            case float_round_ties_away:
+                if (aExp == 0x3FFE) {
+                    return packFloat128(aSign, 0x3FFF, 0, 0);
+                }
+                break;
              case float_round_down:
                 return
                       aSign ? packFloat128( 1, 0x3FFF, 0, 0 )
@@ -5915,6 +5966,9 @@ float128 float128_round_to_int( float128 a STATUS_PARAM )
             if ( ( ( z.high & roundBitsMask ) | a.low ) == 0 ) {
                 z.high &= ~ lastBitMask;
             }
+            break;
+        case float_round_ties_away:
+            z.high += lastBitMask>>1;
             break;
         case float_round_to_zero:
             break;
