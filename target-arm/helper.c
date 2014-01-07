@@ -4012,16 +4012,25 @@ uint##isz##_t HELPER(vfp_to##name##p##round)(float##fsz x, \
 
 #define VFP_CONV_FIX(name, p, fsz, isz, itype)                   \
 VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
-VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, _round_to_zero)
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, _round_to_zero) \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, )
+
+#define VFP_CONV_FIX_A64(name, p, fsz, isz, itype)               \
+VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, )
 
 VFP_CONV_FIX(sh, d, 64, 64, int16)
 VFP_CONV_FIX(sl, d, 64, 64, int32)
+VFP_CONV_FIX_A64(sq, d, 64, 64, int64)
 VFP_CONV_FIX(uh, d, 64, 64, uint16)
 VFP_CONV_FIX(ul, d, 64, 64, uint32)
+VFP_CONV_FIX_A64(uq, d, 64, 64, uint64)
 VFP_CONV_FIX(sh, s, 32, 32, int16)
 VFP_CONV_FIX(sl, s, 32, 32, int32)
+VFP_CONV_FIX_A64(sq, s, 32, 64, int64)
 VFP_CONV_FIX(uh, s, 32, 32, uint16)
 VFP_CONV_FIX(ul, s, 32, 32, uint32)
+VFP_CONV_FIX_A64(uq, s, 32, 64, uint64)
 #undef VFP_CONV_FIX
 #undef VFP_CONV_FIX_FLOAT
 #undef VFP_CONV_FLOAT_FIX_ROUND
