@@ -180,11 +180,21 @@ typedef struct float_status {
     flag default_nan_mode;
 } float_status;
 
-void set_float_rounding_mode(int val STATUS_PARAM);
-void set_float_exception_flags(int val STATUS_PARAM);
 INLINE void set_float_detect_tininess(int val STATUS_PARAM)
 {
     STATUS(float_detect_tininess) = val;
+}
+INLINE void set_float_rounding_mode(int val STATUS_PARAM)
+{
+    STATUS(float_rounding_mode) = val;
+}
+INLINE void set_float_exception_flags(int val STATUS_PARAM)
+{
+    STATUS(float_exception_flags) = val;
+}
+INLINE void set_floatx80_rounding_precision(int val STATUS_PARAM)
+{
+    STATUS(floatx80_rounding_precision) = val;
 }
 INLINE void set_flush_to_zero(flag val STATUS_PARAM)
 {
@@ -198,11 +208,34 @@ INLINE void set_default_nan_mode(flag val STATUS_PARAM)
 {
     STATUS(default_nan_mode) = val;
 }
+INLINE int get_float_detect_tininess(float_status *status)
+{
+    return STATUS(float_detect_tininess);
+}
+INLINE int get_float_rounding_mode(float_status *status)
+{
+    return STATUS(float_rounding_mode);
+}
 INLINE int get_float_exception_flags(float_status *status)
 {
     return STATUS(float_exception_flags);
 }
-void set_floatx80_rounding_precision(int val STATUS_PARAM);
+INLINE int get_floatx80_rounding_precision(float_status *status)
+{
+    return STATUS(floatx80_rounding_precision);
+}
+INLINE flag get_flush_to_zero(float_status *status)
+{
+    return STATUS(flush_to_zero);
+}
+INLINE flag get_flush_inputs_to_zero(float_status *status)
+{
+    return STATUS(flush_inputs_to_zero);
+}
+INLINE flag get_default_nan_mode(float_status *status)
+{
+    return STATUS(default_nan_mode);
+}
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point
