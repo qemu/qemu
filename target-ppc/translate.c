@@ -998,6 +998,9 @@ static void gen_##name(DisasContext *ctx)                                     \
     }                                                                         \
 }
 
+GEN_DIVE(divweu, divweu, 0);
+GEN_DIVE(divweuo, divweu, 1);
+
 #if defined(TARGET_PPC64)
 static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
@@ -9716,6 +9719,8 @@ GEN_INT_ARITH_DIVW(divwu, 0x0E, 0, 0),
 GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1),
 GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0),
 GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1),
+GEN_HANDLER_E(divweu, 0x1F, 0x0B, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(divweuo, 0x1F, 0x0B, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 
 #if defined(TARGET_PPC64)
 #undef GEN_INT_ARITH_DIVD

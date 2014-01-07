@@ -34,6 +34,7 @@ DEF_HELPER_3(mulldo, i64, env, i64, i64)
 DEF_HELPER_4(divdeu, i64, env, i64, i64, i32)
 DEF_HELPER_4(divde, i64, env, i64, i64, i32)
 #endif
+DEF_HELPER_4(divweu, tl, env, tl, tl, i32)
 
 DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_NO_RWG_SE, tl, tl)

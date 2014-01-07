@@ -41,6 +41,37 @@ uint64_t helper_mulldo(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 }
 #endif
 
+target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
+                           uint32_t oe)
+{
+    uint64_t rt = 0;
+    int overflow = 0;
+
+    uint64_t dividend = (uint64_t)ra << 32;
+    uint64_t divisor = (uint32_t)rb;
+
+    if (unlikely(divisor == 0)) {
+        overflow = 1;
+    } else {
+        rt = dividend / divisor;
+        overflow = rt > UINT32_MAX;
+    }
+
+    if (unlikely(overflow)) {
+        rt = 0; /* Undefined */
+    }
+
+    if (oe) {
+        if (unlikely(overflow)) {
+            env->so = env->ov = 1;
+        } else {
+            env->ov = 0;
+        }
+    }
+
+    return (target_ulong)rt;
+}
+
 #if defined(TARGET_PPC64)
 
 uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
