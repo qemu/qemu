@@ -3086,6 +3086,127 @@ static float16 packFloat16(flag zSign, int_fast16_t zExp, uint16_t zSig)
         (((uint32_t)zSign) << 15) + (((uint32_t)zExp) << 10) + zSig);
 }
 
+/*----------------------------------------------------------------------------
+| Takes an abstract floating-point value having sign `zSign', exponent `zExp',
+| and significand `zSig', and returns the proper half-precision floating-
+| point value corresponding to the abstract input.  Ordinarily, the abstract
+| value is simply rounded and packed into the half-precision format, with
+| the inexact exception raised if the abstract input cannot be represented
+| exactly.  However, if the abstract value is too large, the overflow and
+| inexact exceptions are raised and an infinity or maximal finite value is
+| returned.  If the abstract value is too small, the input value is rounded to
+| a subnormal number, and the underflow and inexact exceptions are raised if
+| the abstract input cannot be represented exactly as a subnormal half-
+| precision floating-point number.
+| The `ieee' flag indicates whether to use IEEE standard half precision, or
+| ARM-style "alternative representation", which omits the NaN and Inf
+| encodings in order to raise the maximum representable exponent by one.
+|     The input significand `zSig' has its binary point between bits 22
+| and 23, which is 13 bits to the left of the usual location.  This shifted
+| significand must be normalized or smaller.  If `zSig' is not normalized,
+| `zExp' must be 0; in that case, the result returned is a subnormal number,
+| and it must not require rounding.  In the usual case that `zSig' is
+| normalized, `zExp' must be 1 less than the ``true'' floating-point exponent.
+| Note the slightly odd position of the binary point in zSig compared with the
+| other roundAndPackFloat functions. This should probably be fixed if we
+| need to implement more float16 routines than just conversion.
+| The handling of underflow and overflow follows the IEC/IEEE Standard for
+| Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
+                                   uint32_t zSig, flag ieee STATUS_PARAM)
+{
+    int maxexp = ieee ? 29 : 30;
+    uint32_t mask;
+    uint32_t increment;
+    int8 roundingMode;
+    bool rounding_bumps_exp;
+    bool is_tiny = false;
+
+    /* Calculate the mask of bits of the mantissa which are not
+     * representable in half-precision and will be lost.
+     */
+    if (zExp < 1) {
+        /* Will be denormal in halfprec */
+        mask = 0x00ffffff;
+        if (zExp >= -11) {
+            mask >>= 11 + zExp;
+        }
+    } else {
+        /* Normal number in halfprec */
+        mask = 0x00001fff;
+    }
+
+    roundingMode = STATUS(float_rounding_mode);
+    switch (roundingMode) {
+    case float_round_nearest_even:
+        increment = (mask + 1) >> 1;
+        if ((zSig & mask) == increment) {
+            increment = zSig & (increment << 1);
+        }
+        break;
+    case float_round_up:
+        increment = zSign ? 0 : mask;
+        break;
+    case float_round_down:
+        increment = zSign ? mask : 0;
+        break;
+    default: /* round_to_zero */
+        increment = 0;
+        break;
+    }
+
+    rounding_bumps_exp = (zSig + increment >= 0x01000000);
+
+    if (zExp > maxexp || (zExp == maxexp && rounding_bumps_exp)) {
+        if (ieee) {
+            float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+            return packFloat16(zSign, 0x1f, 0);
+        } else {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return packFloat16(zSign, 0x1f, 0x3ff);
+        }
+    }
+
+    if (zExp < 0) {
+        /* Note that flush-to-zero does not affect half-precision results */
+        is_tiny =
+            (STATUS(float_detect_tininess) == float_tininess_before_rounding)
+            || (zExp < -1)
+            || (!rounding_bumps_exp);
+    }
+    if (zSig & mask) {
+        float_raise(float_flag_inexact STATUS_VAR);
+        if (is_tiny) {
+            float_raise(float_flag_underflow STATUS_VAR);
+        }
+    }
+
+    zSig += increment;
+    if (rounding_bumps_exp) {
+        zSig >>= 1;
+        zExp++;
+    }
+
+    if (zExp < -10) {
+        return packFloat16(zSign, 0, 0);
+    }
+    if (zExp < 0) {
+        zSig >>= -zExp;
+        zExp = 0;
+    }
+    return packFloat16(zSign, zExp, zSig >> 13);
+}
+
+static void normalizeFloat16Subnormal(uint32_t aSig, int_fast16_t *zExpPtr,
+                                      uint32_t *zSigPtr)
+{
+    int8_t shiftCount = countLeadingZeros32(aSig) - 21;
+    *zSigPtr = aSig << shiftCount;
+    *zExpPtr = 1 - shiftCount;
+}
+
 /* Half precision floats come in two formats: standard IEEE and "ARM" format.
    The latter gains extra exponent range by omitting the NaN/Inf encodings.  */
 
@@ -3106,15 +3227,12 @@ float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
         return packFloat32(aSign, 0xff, 0);
     }
     if (aExp == 0) {
-        int8 shiftCount;
-
         if (aSig == 0) {
             return packFloat32(aSign, 0, 0);
         }
 
-        shiftCount = countLeadingZeros32( aSig ) - 21;
-        aSig = aSig << shiftCount;
-        aExp = -shiftCount;
+        normalizeFloat16Subnormal(aSig, &aExp, &aSig);
+        aExp--;
     }
     return packFloat32( aSign, aExp + 0x70, aSig << 13);
 }
@@ -3124,12 +3242,6 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     flag aSign;
     int_fast16_t aExp;
     uint32_t aSig;
-    uint32_t mask;
-    uint32_t increment;
-    int8 roundingMode;
-    int maxexp = ieee ? 15 : 16;
-    bool rounding_bumps_exp;
-    bool is_tiny = false;
 
     a = float32_squash_input_denormal(a STATUS_VAR);
 
@@ -3164,80 +3276,9 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
      * codepath.
      */
     aSig |= 0x00800000;
-    aExp -= 0x7f;
-    /* Calculate the mask of bits of the mantissa which are not
-     * representable in half-precision and will be lost.
-     */
-    if (aExp < -14) {
-        /* Will be denormal in halfprec */
-        mask = 0x00ffffff;
-        if (aExp >= -24) {
-            mask >>= 25 + aExp;
-        }
-    } else {
-        /* Normal number in halfprec */
-        mask = 0x00001fff;
-    }
+    aExp -= 0x71;
 
-    roundingMode = STATUS(float_rounding_mode);
-    switch (roundingMode) {
-    case float_round_nearest_even:
-        increment = (mask + 1) >> 1;
-        if ((aSig & mask) == increment) {
-            increment = aSig & (increment << 1);
-        }
-        break;
-    case float_round_up:
-        increment = aSign ? 0 : mask;
-        break;
-    case float_round_down:
-        increment = aSign ? mask : 0;
-        break;
-    default: /* round_to_zero */
-        increment = 0;
-        break;
-    }
-
-    rounding_bumps_exp = (aSig + increment >= 0x01000000);
-
-    if (aExp > maxexp || (aExp == maxexp && rounding_bumps_exp)) {
-        if (ieee) {
-            float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
-            return packFloat16(aSign, 0x1f, 0);
-        } else {
-            float_raise(float_flag_invalid STATUS_VAR);
-            return packFloat16(aSign, 0x1f, 0x3ff);
-        }
-    }
-
-    if (aExp < -14) {
-        /* Note that flush-to-zero does not affect half-precision results */
-        is_tiny =
-            (STATUS(float_detect_tininess) == float_tininess_before_rounding)
-            || (aExp < -15)
-            || (!rounding_bumps_exp);
-    }
-    if (aSig & mask) {
-        float_raise(float_flag_inexact STATUS_VAR);
-        if (is_tiny) {
-            float_raise(float_flag_underflow STATUS_VAR);
-        }
-    }
-
-    aSig += increment;
-    if (rounding_bumps_exp) {
-        aSig >>= 1;
-        aExp++;
-    }
-
-    if (aExp < -24) {
-        return packFloat16(aSign, 0, 0);
-    }
-    if (aExp < -14) {
-        aSig >>= -14 - aExp;
-        aExp = -14;
-    }
-    return packFloat16(aSign, aExp + 14, aSig >> 13);
+    return roundAndPackFloat16(aSign, aExp, aSig, ieee STATUS_VAR);
 }
 
 /*----------------------------------------------------------------------------
