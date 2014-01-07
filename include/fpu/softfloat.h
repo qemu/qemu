@@ -152,7 +152,8 @@ enum {
     float_round_nearest_even = 0,
     float_round_down         = 1,
     float_round_up           = 2,
-    float_round_to_zero      = 3
+    float_round_to_zero      = 3,
+    float_round_ties_away    = 4,
 };
 
 /*----------------------------------------------------------------------------
