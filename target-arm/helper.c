@@ -3976,17 +3976,17 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 }
 
 /* VFP3 fixed point conversion.  */
-#define VFP_CONV_FIX(name, p, fsz, itype, sign) \
-float##fsz HELPER(vfp_##name##to##p)(uint##fsz##_t  x, uint32_t shift, \
-                                    void *fpstp) \
+#define VFP_CONV_FIX(name, p, fsz, isz, itype)                         \
+float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
+                                     void *fpstp) \
 { \
     float_status *fpst = fpstp; \
     float##fsz tmp; \
-    tmp = sign##int32_to_##float##fsz((itype##_t)x, fpst); \
+    tmp = itype##_to_##float##fsz(x, fpst); \
     return float##fsz##_scalbn(tmp, -(int)shift, fpst); \
 } \
-uint##fsz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
-                                       void *fpstp) \
+uint##isz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
+                                      void *fpstp) \
 { \
     float_status *fpst = fpstp; \
     float##fsz tmp; \
@@ -3998,14 +3998,14 @@ uint##fsz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
     return float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
 }
 
-VFP_CONV_FIX(sh, d, 64, int16, )
-VFP_CONV_FIX(sl, d, 64, int32, )
-VFP_CONV_FIX(uh, d, 64, uint16, u)
-VFP_CONV_FIX(ul, d, 64, uint32, u)
-VFP_CONV_FIX(sh, s, 32, int16, )
-VFP_CONV_FIX(sl, s, 32, int32, )
-VFP_CONV_FIX(uh, s, 32, uint16, u)
-VFP_CONV_FIX(ul, s, 32, uint32, u)
+VFP_CONV_FIX(sh, d, 64, 64, int16)
+VFP_CONV_FIX(sl, d, 64, 64, int32)
+VFP_CONV_FIX(uh, d, 64, 64, uint16)
+VFP_CONV_FIX(ul, d, 64, 64, uint32)
+VFP_CONV_FIX(sh, s, 32, 32, int16)
+VFP_CONV_FIX(sl, s, 32, 32, int32)
+VFP_CONV_FIX(uh, s, 32, 32, uint16)
+VFP_CONV_FIX(ul, s, 32, 32, uint32)
 #undef VFP_CONV_FIX
 
 /* Half precision conversions.  */
