@@ -2679,7 +2679,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
      * Check and copy modified bits from guest to server surface.
      * Update server dirty map.
      */
-    cmp_bytes = 64;
+    cmp_bytes = VNC_DIRTY_PIXELS_PER_BIT * VNC_SERVER_FB_BYTES;
     if (cmp_bytes > vnc_server_fb_stride(vd)) {
         cmp_bytes = vnc_server_fb_stride(vd);
     }
