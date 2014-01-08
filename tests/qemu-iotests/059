@@ -102,6 +102,13 @@ echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info
 
+echo
+echo "=== Testing 4TB monolithicFlat creation and IO ==="
+IMGOPTS="subformat=monolithicFlat" _make_test_img 4T
+_img_info
+$QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

@@ -1325,8 +1325,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
-    int n, ret;
-    int64_t index_in_cluster;
+    int ret;
+    int64_t index_in_cluster, n;
     uint64_t extent_begin_sector, extent_relative_sector_num;
     uint64_t cluster_offset;
     VmdkMetaData m_data;
