@@ -3150,7 +3150,9 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
             acl = 1;
 #endif
         } else if (strncmp(options, "lossy", 5) == 0) {
+#ifdef CONFIG_VNC_JPEG
             vs->lossy = true;
+#endif
         } else if (strncmp(options, "non-adaptive", 12) == 0) {
             vs->non_adaptive = true;
         } else if (strncmp(options, "share=", 6) == 0) {
@@ -3165,6 +3167,13 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
                 goto fail;
             }
         }
+    }
+
+    /* adaptive updates are only used with tight encoding and
+     * if lossy updates are enabled so we can disable all the
+     * calculations otherwise */
+    if (!vs->lossy) {
+        vs->non_adaptive = true;
     }
 
 #ifdef CONFIG_VNC_TLS
