@@ -88,6 +88,10 @@ typedef void VncSendHextileTile(VncState *vs,
 /* VNC_DIRTY_BITS is the number of bits in the dirty bitmap. */
 #define VNC_DIRTY_BITS (VNC_MAX_WIDTH / VNC_DIRTY_PIXELS_PER_BIT)
 
+/* VNC_DIRTY_BPL (BPL = bits per line) might be greater than
+ * VNC_DIRTY_BITS due to alignment */
+#define VNC_DIRTY_BPL(x) (sizeof((x)->dirty) / VNC_MAX_HEIGHT * BITS_PER_BYTE)
+
 #define VNC_STAT_RECT  64
 #define VNC_STAT_COLS (VNC_MAX_WIDTH / VNC_STAT_RECT)
 #define VNC_STAT_ROWS (VNC_MAX_HEIGHT / VNC_STAT_RECT)
