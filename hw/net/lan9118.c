@@ -763,7 +763,7 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
         if (s->txp->buffer_size <= 0 && s->txp->pad != 0) {
             s->txp->pad--;
         } else {
-            n = 4;
+            n = MIN(4, s->txp->buffer_size + s->txp->offset);
             while (s->txp->offset) {
                 val >>= 8;
                 n--;
