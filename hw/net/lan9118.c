@@ -727,14 +727,14 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
         s->txp->cmd_a = val & 0x831f37ff;
         s->txp->fifo_used++;
         s->txp->state = TX_B;
+        s->txp->buffer_size = extract32(s->txp->cmd_a, 0, 11);
+        s->txp->offset = extract32(s->txp->cmd_a, 16, 5);
         break;
     case TX_B:
         if (s->txp->cmd_a & 0x2000) {
             /* First segment */
             s->txp->cmd_b = val;
             s->txp->fifo_used++;
-            s->txp->buffer_size = s->txp->cmd_a & 0x7ff;
-            s->txp->offset = (s->txp->cmd_a >> 16) & 0x1f;
             /* End alignment does not include command words.  */
             n = (s->txp->buffer_size + s->txp->offset + 3) >> 2;
             switch ((n >> 24) & 3) {
