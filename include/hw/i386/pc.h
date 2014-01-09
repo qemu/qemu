@@ -35,7 +35,7 @@ typedef struct PcPciInfo {
 struct PcGuestInfo {
     bool has_pci_info;
     bool isapc_ram_fw;
-    hwaddr ram_size;
+    hwaddr ram_size, ram_size_below_4g;
     unsigned apic_id_limit;
     bool apic_xrupt_override;
     uint64_t numa_nodes;
