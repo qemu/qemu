@@ -51,8 +51,6 @@
 #define PCI_EJ_BASE 0xae08
 #define PCI_RMV_BASE 0xae0c
 
-#define PIIX4_PROC_BASE 0xaf00
-
 #define PIIX4_PCI_HOTPLUG_STATUS 2
 
 struct pci_status {
@@ -706,7 +704,8 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
         pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
     }
 
-    AcpiCpuHotplug_init(parent, OBJECT(s), &s->gpe_cpu, PIIX4_PROC_BASE);
+    AcpiCpuHotplug_init(parent, OBJECT(s), &s->gpe_cpu,
+                        PIIX4_CPU_HOTPLUG_IO_BASE);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;
     qemu_register_cpu_added_notifier(&s->cpu_added_notifier);
 }

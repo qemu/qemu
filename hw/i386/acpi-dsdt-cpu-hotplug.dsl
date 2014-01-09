@@ -53,7 +53,7 @@ Scope(\_SB) {
         Sleep(200)
     }
 
-#define CPU_STATUS_LEN 32
+#define CPU_STATUS_LEN ACPI_GPE_PROC_LEN
     OperationRegion(PRST, SystemIO, CPU_STATUS_BASE, CPU_STATUS_LEN)
     Field(PRST, ByteAcc, NoLock, Preserve) {
         PRS, 256
