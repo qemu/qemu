@@ -16,6 +16,7 @@
 /****************************************************************
  * CPU hotplug
  ****************************************************************/
+#define CPU_HOTPLUG_RESOURCE_DEVICE PRES
 
 Scope(\_SB) {
     /* Objects filled in by run-time generated SSDT */
@@ -52,7 +53,8 @@ Scope(\_SB) {
         Sleep(200)
     }
 
-    OperationRegion(PRST, SystemIO, CPU_STATUS_BASE, 32)
+#define CPU_STATUS_LEN 32
+    OperationRegion(PRST, SystemIO, CPU_STATUS_BASE, CPU_STATUS_LEN)
     Field(PRST, ByteAcc, NoLock, Preserve) {
         PRS, 256
     }
@@ -88,5 +90,15 @@ Scope(\_SB) {
             }
             Increment(Local0)
         }
+    }
+
+    Device(CPU_HOTPLUG_RESOURCE_DEVICE) {
+        Name(_HID, "ACPI0004")
+
+        Name(_CRS, ResourceTemplate() {
+            IO(Decode16, CPU_STATUS_BASE, CPU_STATUS_BASE, 0, CPU_STATUS_LEN)
+        })
+
+        Name(_STA, 0xB) /* present, functioning, decoding, not shown in UI */
     }
 }
