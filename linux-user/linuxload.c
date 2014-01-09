@@ -154,13 +154,13 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
                 && bprm->buf[1] == 'E'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'F') {
-            retval = load_elf_binary(bprm, regs, infop);
+            retval = load_elf_binary(bprm, infop);
 #if defined(TARGET_HAS_BFLT)
         } else if (bprm->buf[0] == 'b'
                 && bprm->buf[1] == 'F'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'T') {
-            retval = load_flt_binary(bprm,regs,infop);
+            retval = load_flt_binary(bprm, infop);
 #endif
         } else {
             return -ENOEXEC;
