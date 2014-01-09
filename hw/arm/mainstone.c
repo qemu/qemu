@@ -45,7 +45,7 @@
 #define S1_STSCHG_IRQ 14
 #define S1_IRQ        15
 
-static struct keymap map[0xE0] = {
+static const struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },
     [0x1e] = {0,0}, /* a */
     [0x30] = {0,1}, /* b */
@@ -75,9 +75,18 @@ static struct keymap map[0xE0] = {
     [0x2c] = {4,3}, /* z */
     [0xc7] = {5,0}, /* Home */
     [0x2a] = {5,1}, /* shift */
-    [0x39] = {5,2}, /* space */
+    /*
+     * There are two matrix positions which map to space,
+     * but QEMU can only use one of them for the reverse
+     * mapping, so simply use the second one.
+     */
+    /* [0x39] = {5,2}, space */
     [0x39] = {5,3}, /* space */
-    [0x1c] = {5,5}, /*  enter */
+    /*
+     * Matrix position {5,4} and other keys are missing here.
+     * TODO: Compare with Linux code and test real hardware.
+     */
+    [0x1c] = {5,5}, /* enter (TODO: might be wrong) */
     [0xc8] = {6,0}, /* up */
     [0xd0] = {6,1}, /* down */
     [0xcb] = {6,2}, /* left */

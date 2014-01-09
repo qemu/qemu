@@ -230,7 +230,7 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
-bool boot_strict;
+static bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
@@ -461,7 +461,7 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "strict",
-            .type = QEMU_OPT_STRING,
+            .type = QEMU_OPT_BOOL,
         },
         { /*End of list */ }
     },
@@ -4081,6 +4081,7 @@ int main(int argc, char **argv, char **envp)
         }
 
         boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
+        boot_strict = qemu_opt_get_bool(opts, "strict", false);
     }
 
     if (!kernel_cmdline) {
