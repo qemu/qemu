@@ -544,9 +544,13 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     k->revision = 0x03;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     dc->desc = "PM";
-    dc->no_user = 1;
     dc->vmsd = &vmstate_acpi;
     dc->props = piix4_pm_properties;
+    /*
+     * Reason: part of PIIX4 southbridge, needs to be wired up,
+     * e.g. by mips_malta_init()
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo piix4_pm_info = {

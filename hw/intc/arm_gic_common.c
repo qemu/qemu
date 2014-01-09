@@ -156,7 +156,6 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
     dc->realize = arm_gic_common_realize;
     dc->props = arm_gic_common_properties;
     dc->vmsd = &vmstate_gic;
-    dc->no_user = 1;
 }
 
 static const TypeInfo arm_gic_common_type = {

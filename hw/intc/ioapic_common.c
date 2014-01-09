@@ -23,6 +23,14 @@
 #include "hw/i386/ioapic_internal.h"
 #include "hw/sysbus.h"
 
+/* ioapic_no count start from 0 to MAX_IOAPICS,
+ * remove as static variable from ioapic_common_init.
+ * now as a global variable, let child to increase the counter
+ * then we can drop the 'instance_no' argument
+ * and convert to our QOM's realize function
+ */
+int ioapic_no;
+
 void ioapic_reset_common(DeviceState *dev)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
@@ -61,7 +69,6 @@ static void ioapic_common_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
     IOAPICCommonClass *info;
-    static int ioapic_no;
 
     if (ioapic_no >= MAX_IOAPICS) {
         error_setg(errp, "Only %d ioapics allowed", MAX_IOAPICS);
@@ -69,7 +76,7 @@ static void ioapic_common_realize(DeviceState *dev, Error **errp)
     }
 
     info = IOAPIC_COMMON_GET_CLASS(s);
-    info->init(s, ioapic_no);
+    info->realize(dev, errp);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->io_memory);
     ioapic_no++;
@@ -98,7 +105,6 @@ static void ioapic_common_class_init(ObjectClass *klass, void *data)
 
     dc->realize = ioapic_common_realize;
     dc->vmsd = &vmstate_ioapic_common;
-    dc->no_user = 1;
 }
 
 static const TypeInfo ioapic_common_type = {
@@ -110,9 +116,9 @@ static const TypeInfo ioapic_common_type = {
     .abstract = true,
 };
 
-static void register_types(void)
+static void ioapic_common_register_types(void)
 {
     type_register_static(&ioapic_common_type);
 }
 
-type_init(register_types)
+type_init(ioapic_common_register_types)

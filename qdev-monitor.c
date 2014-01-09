@@ -87,7 +87,7 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
     }
-    if (dc->no_user) {
+    if (dc->cannot_instantiate_with_device_add_yet) {
         error_printf(", no-user");
     }
     error_printf("\n");
@@ -127,7 +127,8 @@ static void qdev_print_devinfos(bool show_no_user)
             if ((i < DEVICE_CATEGORY_MAX
                  ? !test_bit(i, dc->categories)
                  : !bitmap_empty(dc->categories, DEVICE_CATEGORY_MAX))
-                || (!show_no_user && dc->no_user)) {
+                || (!show_no_user
+                    && dc->cannot_instantiate_with_device_add_yet)) {
                 continue;
             }
             if (!cat_printed) {
@@ -477,8 +478,9 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         }
     }
 
-    if (!oc) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
+    if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "'%s' is not a valid device model name", driver);
         return NULL;
     }
 
@@ -489,6 +491,11 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     dc = DEVICE_CLASS(oc);
+    if (dc->cannot_instantiate_with_device_add_yet) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
+                      "pluggable device type");
+        return NULL;
+    }
 
     /* find bus */
     path = qemu_opt_get(opts, "bus");

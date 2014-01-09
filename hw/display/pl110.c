@@ -496,7 +496,6 @@ static void pl110_class_init(ObjectClass *klass, void *data)
 
     k->init = pl110_initfn;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->no_user = 1;
     dc->vmsd = &vmstate_pl110;
 }
 

@@ -380,6 +380,11 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
     k->vendor_id    = PCI_VENDOR_ID_IBM;
     k->device_id    = PCI_DEVICE_ID_IBM_440GX;
     k->class_id     = PCI_CLASS_BRIDGE_OTHER;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo ppc4xx_host_bridge_info = {

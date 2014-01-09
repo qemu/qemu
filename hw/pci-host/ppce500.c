@@ -387,6 +387,11 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_MPC8533E;
     k->class_id = PCI_CLASS_PROCESSOR_POWERPC;
     dc->desc = "Host bridge";
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo e500_host_bridge_info = {

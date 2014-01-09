@@ -80,7 +80,7 @@ typedef struct APICCommonClass
 {
     ICCDeviceClass parent_class;
 
-    void (*init)(APICCommonState *s);
+    DeviceRealize realize;
     void (*set_base)(APICCommonState *s, uint64_t val);
     void (*set_tpr)(APICCommonState *s, uint8_t val);
     uint8_t (*get_tpr)(APICCommonState *s);

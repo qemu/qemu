@@ -66,7 +66,7 @@ typedef struct ICCDeviceClass {
     DeviceClass parent_class;
     /*< public >*/
 
-    int (*init)(ICCDevice *dev); /* TODO replace with QOM realize */
+    DeviceRealize realize;
 } ICCDeviceClass;
 
 #define TYPE_ICC_DEVICE "icc-device"

@@ -481,11 +481,6 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
     return bus;
 }
 
-void qbus_free(BusState *bus)
-{
-    object_unparent(OBJECT(bus));
-}
-
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
 {
     BusClass *bc = BUS_GET_CLASS(bus);
@@ -794,7 +789,7 @@ static void device_unparent(Object *obj)
 
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
-        qbus_free(bus);
+        object_unparent(OBJECT(bus));
     }
     if (dev->realized) {
         object_property_set_bool(obj, false, "realized", NULL);
