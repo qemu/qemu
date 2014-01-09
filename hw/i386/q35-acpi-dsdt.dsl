@@ -51,6 +51,14 @@ DefinitionBlock (
 #define BOARD_SPECIFIC_PCI_RESOURSES \
      WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
          0x0000, \
+         0x0000, \
+         0x0CD7, \
+         0x0000, \
+         0x0CD8, \
+         ,, , TypeStatic) \
+     /* 0xcd8-0xcf7 hole for CPU hotplug, hw/acpi/ich9.c:ICH9_PROC_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
          0x0D00, \
          0xFFFF, \
          0x0000, \

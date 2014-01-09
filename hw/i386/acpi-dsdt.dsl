@@ -38,6 +38,13 @@ DefinitionBlock (
 #define BOARD_SPECIFIC_PCI_RESOURSES \
      WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
          0x0000, \
+         0x0000, \
+         0x0CF7, \
+         0x0000, \
+         0x0CF8, \
+         ,, , TypeStatic) \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
          0x0D00, \
          0xADFF, \
          0x0000, \
