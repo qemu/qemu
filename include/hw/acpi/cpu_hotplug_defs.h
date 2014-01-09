@@ -18,5 +18,6 @@
  */
 #define ACPI_CPU_HOTPLUG_STATUS 4
 #define ACPI_GPE_PROC_LEN 32
+#define ICH9_CPU_HOTPLUG_IO_BASE 0x0CD8
 
 #endif
