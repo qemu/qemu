@@ -24,6 +24,8 @@ typedef struct DisasContext {
     int vec_len;
     int vec_stride;
     int aarch64;
+    int current_pl;
+    GHashTable *cp_regs;
 #define TMP_A64_MAX 16
     int tmp_a64_count;
     TCGv_i64 tmp_a64[TMP_A64_MAX];

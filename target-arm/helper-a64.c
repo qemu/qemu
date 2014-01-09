@@ -77,3 +77,48 @@ uint64_t HELPER(rbit64)(uint64_t x)
 
     return x;
 }
+
+/* Convert a softfloat float_relation_ (as returned by
+ * the float*_compare functions) to the correct ARM
+ * NZCV flag state.
+ */
+static inline uint32_t float_rel_to_flags(int res)
+{
+    uint64_t flags;
+    switch (res) {
+    case float_relation_equal:
+        flags = PSTATE_Z | PSTATE_C;
+        break;
+    case float_relation_less:
+        flags = PSTATE_N;
+        break;
+    case float_relation_greater:
+        flags = PSTATE_C;
+        break;
+    case float_relation_unordered:
+    default:
+        flags = PSTATE_C | PSTATE_V;
+        break;
+    }
+    return flags;
+}
+
+uint64_t HELPER(vfp_cmps_a64)(float32 x, float32 y, void *fp_status)
+{
+    return float_rel_to_flags(float32_compare_quiet(x, y, fp_status));
+}
+
+uint64_t HELPER(vfp_cmpes_a64)(float32 x, float32 y, void *fp_status)
+{
+    return float_rel_to_flags(float32_compare(x, y, fp_status));
+}
+
+uint64_t HELPER(vfp_cmpd_a64)(float64 x, float64 y, void *fp_status)
+{
+    return float_rel_to_flags(float64_compare_quiet(x, y, fp_status));
+}
+
+uint64_t HELPER(vfp_cmped_a64)(float64 x, float64 y, void *fp_status)
+{
+    return float_rel_to_flags(float64_compare(x, y, fp_status));
+}

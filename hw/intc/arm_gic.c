@@ -128,7 +128,7 @@ static void gic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         GIC_SET_LEVEL(irq, cm);
-        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
             DPRINTF("Set %d pending mask %x\n", irq, target);
             GIC_SET_PENDING(irq, target);
         }
@@ -168,6 +168,15 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu)
     return new_irq;
 }
 
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val)
+{
+    if (irq < GIC_INTERNAL) {
+        s->priority1[irq][cpu] = val;
+    } else {
+        s->priority2[(irq) - GIC_INTERNAL] = val;
+    }
+}
+
 void gic_complete_irq(GICState *s, int cpu, int irq)
 {
     int update = 0;
@@ -188,7 +197,7 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
         return; /* No active IRQ.  */
     /* Mark level triggered interrupts as pending if they are still
        raised.  */
-    if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
+    if (!GIC_TEST_EDGE_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
         && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
         DPRINTF("Set %d pending mask %x\n", irq, cm);
         GIC_SET_PENDING(irq, cm);
@@ -311,7 +320,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         for (i = 0; i < 4; i++) {
             if (GIC_TEST_MODEL(irq + i))
                 res |= (1 << (i * 2));
-            if (GIC_TEST_TRIGGER(irq + i))
+            if (GIC_TEST_EDGE_TRIGGER(irq + i))
                 res |= (2 << (i * 2));
         }
     } else if (offset < 0xfe0) {
@@ -386,7 +395,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 /* If a raised level triggered IRQ enabled then mark
                    is as pending.  */
                 if (GIC_TEST_LEVEL(irq + i, mask)
-                        && !GIC_TEST_TRIGGER(irq + i)) {
+                        && !GIC_TEST_EDGE_TRIGGER(irq + i)) {
                     DPRINTF("Set %d pending mask %x\n", irq + i, mask);
                     GIC_SET_PENDING(irq + i, mask);
                 }
@@ -443,11 +452,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x400) + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < GIC_INTERNAL) {
-            s->priority1[irq][cpu] = value;
-        } else {
-            s->priority2[irq - GIC_INTERNAL] = value;
-        }
+        gic_set_priority(s, cpu, irq, value);
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target. RAZ/WI on uniprocessor GICs, with the
          * annoying exception of the 11MPCore's GIC.
@@ -478,9 +483,9 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 GIC_CLEAR_MODEL(irq + i);
             }
             if (value & (2 << (i * 2))) {
-                GIC_SET_TRIGGER(irq + i);
+                GIC_SET_EDGE_TRIGGER(irq + i);
             } else {
-                GIC_CLEAR_TRIGGER(irq + i);
+                GIC_CLEAR_EDGE_TRIGGER(irq + i);
             }
         }
     } else {

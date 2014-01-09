@@ -142,11 +142,7 @@ static bool read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else if (ri->readfn) {
         return (ri->readfn(env, ri, v) == 0);
     } else {
-        if (ri->type & ARM_CP_64BIT) {
-            *v = CPREG_FIELD64(env, ri);
-        } else {
-            *v = CPREG_FIELD32(env, ri);
-        }
+        raw_read(env, ri, v);
     }
     return true;
 }
@@ -167,11 +163,7 @@ static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else if (ri->writefn) {
         return (ri->writefn(env, ri, v) == 0);
     } else {
-        if (ri->type & ARM_CP_64BIT) {
-            CPREG_FIELD64(env, ri) = v;
-        } else {
-            CPREG_FIELD32(env, ri) = v;
-        }
+        raw_write(env, ri, v);
     }
     return true;
 }
@@ -186,7 +178,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
         uint64_t v;
-        ri = get_arm_cp_reginfo(cpu, regidx);
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
             continue;
@@ -214,7 +206,7 @@ bool write_list_to_cpustate(ARMCPU *cpu)
         uint64_t readback;
         const ARMCPRegInfo *ri;
 
-        ri = get_arm_cp_reginfo(cpu, regidx);
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
             continue;
@@ -242,7 +234,7 @@ static void add_cpreg_to_list(gpointer key, gpointer opaque)
     const ARMCPRegInfo *ri;
 
     regidx = *(uint32_t *)key;
-    ri = get_arm_cp_reginfo(cpu, regidx);
+    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
 
     if (!(ri->type & ARM_CP_NO_MIGRATE)) {
         cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
@@ -258,7 +250,7 @@ static void count_cpreg(gpointer key, gpointer opaque)
     const ARMCPRegInfo *ri;
 
     regidx = *(uint32_t *)key;
-    ri = get_arm_cp_reginfo(cpu, regidx);
+    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
 
     if (!(ri->type & ARM_CP_NO_MIGRATE)) {
         cpu->cpreg_array_len++;
@@ -397,7 +389,7 @@ static const ARMCPRegInfo cp_reginfo[] = {
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
       .resetvalue = 0, .writefn = fcse_write, .raw_writefn = raw_write, },
     { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_context),
       .resetvalue = 0, .writefn = contextidr_write, .raw_writefn = raw_write, },
     /* ??? This covers not just the impdef TLB lockdown registers but also
      * some v7VMSA registers relating to TEX remap, so it is overly broad.
@@ -740,18 +732,26 @@ static const ARMCPRegInfo t2ee_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo v6k_cp_reginfo[] = {
+    { .name = "TPIDR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 2, .crn = 13, .crm = 0,
+      .access = PL0_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.tpidr_el0), .resetvalue = 0 },
     { .name = "TPIDRURW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL0_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls1),
-      .resetvalue = 0 },
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.tpidr_el0),
+      .resetfn = arm_cp_reset_ignore },
+    { .name = "TPIDRRO_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 3, .crn = 13, .crm = 0,
+      .access = PL0_R|PL1_W,
+      .fieldoffset = offsetof(CPUARMState, cp15.tpidrro_el0), .resetvalue = 0 },
     { .name = "TPIDRURO", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 3,
       .access = PL0_R|PL1_W,
-      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls2),
-      .resetvalue = 0 },
-    { .name = "TPIDRPRW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.tpidrro_el0),
+      .resetfn = arm_cp_reset_ignore },
+    { .name = "TPIDR_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .opc2 = 4, .crn = 13, .crm = 0,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls3),
-      .resetvalue = 0 },
+      .fieldoffset = offsetof(CPUARMState, cp15.tpidr_el1), .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -1560,6 +1560,64 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    *value = vfp_get_fpcr(env);
+    return 0;
+}
+
+static int aa64_fpcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    vfp_set_fpcr(env, value);
+    return 0;
+}
+
+static int aa64_fpsr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    *value = vfp_get_fpsr(env);
+    return 0;
+}
+
+static int aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
+{
+    vfp_set_fpsr(env, value);
+    return 0;
+}
+
+static const ARMCPRegInfo v8_cp_reginfo[] = {
+    /* Minimal set of EL0-visible registers. This will need to be expanded
+     * significantly for system emulation of AArch64 CPUs.
+     */
+    { .name = "NZCV", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 2,
+      .access = PL0_RW, .type = ARM_CP_NZCV },
+    { .name = "FPCR", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
+      .access = PL0_RW, .readfn = aa64_fpcr_read, .writefn = aa64_fpcr_write },
+    { .name = "FPSR", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 4,
+      .access = PL0_RW, .readfn = aa64_fpsr_read, .writefn = aa64_fpsr_write },
+    /* This claims a 32 byte cacheline size for icache and dcache, VIPT icache.
+     * It will eventually need to have a CPU-specified reset value.
+     */
+    { .name = "CTR_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 0, .crm = 0,
+      .access = PL0_R, .type = ARM_CP_CONST,
+      .resetvalue = 0x80030003 },
+    /* Prohibit use of DC ZVA. OPTME: implement DC ZVA and allow its use.
+     * For system mode the DZP bit here will need to be computed, not constant.
+     */
+    { .name = "DCZID_EL0", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
+      .access = PL0_R, .type = ARM_CP_CONST,
+      .resetvalue = 0x10 },
+    REGINFO_SENTINEL
+};
+
 static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c1_sys = value;
@@ -1661,6 +1719,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new
@@ -1937,6 +1998,85 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
+static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
+                                   void *opaque, int state,
+                                   int crm, int opc1, int opc2)
+{
+    /* Private utility function for define_one_arm_cp_reg_with_opaque():
+     * add a single reginfo struct to the hash table.
+     */
+    uint32_t *key = g_new(uint32_t, 1);
+    ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
+    int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
+    if (r->state == ARM_CP_STATE_BOTH && state == ARM_CP_STATE_AA32) {
+        /* The AArch32 view of a shared register sees the lower 32 bits
+         * of a 64 bit backing field. It is not migratable as the AArch64
+         * view handles that. AArch64 also handles reset.
+         * We assume it is a cp15 register.
+         */
+        r2->cp = 15;
+        r2->type |= ARM_CP_NO_MIGRATE;
+        r2->resetfn = arm_cp_reset_ignore;
+#ifdef HOST_WORDS_BIGENDIAN
+        if (r2->fieldoffset) {
+            r2->fieldoffset += sizeof(uint32_t);
+        }
+#endif
+    }
+    if (state == ARM_CP_STATE_AA64) {
+        /* To allow abbreviation of ARMCPRegInfo
+         * definitions, we treat cp == 0 as equivalent to
+         * the value for "standard guest-visible sysreg".
+         */
+        if (r->cp == 0) {
+            r2->cp = CP_REG_ARM64_SYSREG_CP;
+        }
+        *key = ENCODE_AA64_CP_REG(r2->cp, r2->crn, crm,
+                                  r2->opc0, opc1, opc2);
+    } else {
+        *key = ENCODE_CP_REG(r2->cp, is64, r2->crn, crm, opc1, opc2);
+    }
+    if (opaque) {
+        r2->opaque = opaque;
+    }
+    /* Make sure reginfo passed to helpers for wildcarded regs
+     * has the correct crm/opc1/opc2 for this reg, not CP_ANY:
+     */
+    r2->crm = crm;
+    r2->opc1 = opc1;
+    r2->opc2 = opc2;
+    /* By convention, for wildcarded registers only the first
+     * entry is used for migration; the others are marked as
+     * NO_MIGRATE so we don't try to transfer the register
+     * multiple times. Special registers (ie NOP/WFI) are
+     * never migratable.
+     */
+    if ((r->type & ARM_CP_SPECIAL) ||
+        ((r->crm == CP_ANY) && crm != 0) ||
+        ((r->opc1 == CP_ANY) && opc1 != 0) ||
+        ((r->opc2 == CP_ANY) && opc2 != 0)) {
+        r2->type |= ARM_CP_NO_MIGRATE;
+    }
+
+    /* Overriding of an existing definition must be explicitly
+     * requested.
+     */
+    if (!(r->type & ARM_CP_OVERRIDE)) {
+        ARMCPRegInfo *oldreg;
+        oldreg = g_hash_table_lookup(cpu->cp_regs, key);
+        if (oldreg && !(oldreg->type & ARM_CP_OVERRIDE)) {
+            fprintf(stderr, "Register redefined: cp=%d %d bit "
+                    "crn=%d crm=%d opc1=%d opc2=%d, "
+                    "was %s, now %s\n", r2->cp, 32 + 32 * is64,
+                    r2->crn, r2->crm, r2->opc1, r2->opc2,
+                    oldreg->name, r2->name);
+            g_assert_not_reached();
+        }
+    }
+    g_hash_table_insert(cpu->cp_regs, key, r2);
+}
+
+
 void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                                        const ARMCPRegInfo *r, void *opaque)
 {
@@ -1951,8 +2091,19 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
      * At least one of the original and the second definition should
      * include ARM_CP_OVERRIDE in its type bits -- this is just a guard
      * against accidental use.
+     *
+     * The state field defines whether the register is to be
+     * visible in the AArch32 or AArch64 execution state. If the
+     * state is set to ARM_CP_STATE_BOTH then we synthesise a
+     * reginfo structure for the AArch32 view, which sees the lower
+     * 32 bits of the 64 bit register.
+     *
+     * Only registers visible in AArch64 may set r->opc0; opc0 cannot
+     * be wildcarded. AArch64 registers are always considered to be 64
+     * bits; the ARM_CP_64BIT* flag applies only to the AArch32 view of
+     * the register, if any.
      */
-    int crm, opc1, opc2;
+    int crm, opc1, opc2, state;
     int crmmin = (r->crm == CP_ANY) ? 0 : r->crm;
     int crmmax = (r->crm == CP_ANY) ? 15 : r->crm;
     int opc1min = (r->opc1 == CP_ANY) ? 0 : r->opc1;
@@ -1961,6 +2112,52 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     int opc2max = (r->opc2 == CP_ANY) ? 7 : r->opc2;
     /* 64 bit registers have only CRm and Opc1 fields */
     assert(!((r->type & ARM_CP_64BIT) && (r->opc2 || r->crn)));
+    /* op0 only exists in the AArch64 encodings */
+    assert((r->state != ARM_CP_STATE_AA32) || (r->opc0 == 0));
+    /* AArch64 regs are all 64 bit so ARM_CP_64BIT is meaningless */
+    assert((r->state != ARM_CP_STATE_AA64) || !(r->type & ARM_CP_64BIT));
+    /* The AArch64 pseudocode CheckSystemAccess() specifies that op1
+     * encodes a minimum access level for the register. We roll this
+     * runtime check into our general permission check code, so check
+     * here that the reginfo's specified permissions are strict enough
+     * to encompass the generic architectural permission check.
+     */
+    if (r->state != ARM_CP_STATE_AA32) {
+        int mask = 0;
+        switch (r->opc1) {
+        case 0: case 1: case 2:
+            /* min_EL EL1 */
+            mask = PL1_RW;
+            break;
+        case 3:
+            /* min_EL EL0 */
+            mask = PL0_RW;
+            break;
+        case 4:
+            /* min_EL EL2 */
+            mask = PL2_RW;
+            break;
+        case 5:
+            /* unallocated encoding, so not possible */
+            assert(false);
+            break;
+        case 6:
+            /* min_EL EL3 */
+            mask = PL3_RW;
+            break;
+        case 7:
+            /* min_EL EL1, secure mode only (we don't check the latter) */
+            mask = PL1_RW;
+            break;
+        default:
+            /* broken reginfo with out-of-range opc1 */
+            assert(false);
+            break;
+        }
+        /* assert our permissions are not too lax (stricter is fine) */
+        assert((r->access & ~mask) == 0);
+    }
+
     /* Check that the register definition has enough info to handle
      * reads and writes if they are permitted.
      */
@@ -1977,48 +2174,14 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     for (crm = crmmin; crm <= crmmax; crm++) {
         for (opc1 = opc1min; opc1 <= opc1max; opc1++) {
             for (opc2 = opc2min; opc2 <= opc2max; opc2++) {
-                uint32_t *key = g_new(uint32_t, 1);
-                ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
-                int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
-                *key = ENCODE_CP_REG(r->cp, is64, r->crn, crm, opc1, opc2);
-                if (opaque) {
-                    r2->opaque = opaque;
-                }
-                /* Make sure reginfo passed to helpers for wildcarded regs
-                 * has the correct crm/opc1/opc2 for this reg, not CP_ANY:
-                 */
-                r2->crm = crm;
-                r2->opc1 = opc1;
-                r2->opc2 = opc2;
-                /* By convention, for wildcarded registers only the first
-                 * entry is used for migration; the others are marked as
-                 * NO_MIGRATE so we don't try to transfer the register
-                 * multiple times. Special registers (ie NOP/WFI) are
-                 * never migratable.
-                 */
-                if ((r->type & ARM_CP_SPECIAL) ||
-                    ((r->crm == CP_ANY) && crm != 0) ||
-                    ((r->opc1 == CP_ANY) && opc1 != 0) ||
-                    ((r->opc2 == CP_ANY) && opc2 != 0)) {
-                    r2->type |= ARM_CP_NO_MIGRATE;
-                }
-
-                /* Overriding of an existing definition must be explicitly
-                 * requested.
-                 */
-                if (!(r->type & ARM_CP_OVERRIDE)) {
-                    ARMCPRegInfo *oldreg;
-                    oldreg = g_hash_table_lookup(cpu->cp_regs, key);
-                    if (oldreg && !(oldreg->type & ARM_CP_OVERRIDE)) {
-                        fprintf(stderr, "Register redefined: cp=%d %d bit "
-                                "crn=%d crm=%d opc1=%d opc2=%d, "
-                                "was %s, now %s\n", r2->cp, 32 + 32 * is64,
-                                r2->crn, r2->crm, r2->opc1, r2->opc2,
-                                oldreg->name, r2->name);
-                        g_assert_not_reached();
+                for (state = ARM_CP_STATE_AA32;
+                     state <= ARM_CP_STATE_AA64; state++) {
+                    if (r->state != state && r->state != ARM_CP_STATE_BOTH) {
+                        continue;
                     }
+                    add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                           crm, opc1, opc2);
                 }
-                g_hash_table_insert(cpu->cp_regs, key, r2);
             }
         }
     }
@@ -2034,9 +2197,9 @@ void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
     }
 }
 
-const ARMCPRegInfo *get_arm_cp_reginfo(ARMCPU *cpu, uint32_t encoded_cp)
+const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp)
 {
-    return g_hash_table_lookup(cpu->cp_regs, &encoded_cp);
+    return g_hash_table_lookup(cpregs, &encoded_cp);
 }
 
 int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2051,6 +2214,11 @@ int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
     /* Helper coprocessor write function for read-as-zero registers */
     *value = 0;
     return 0;
+}
+
+void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque)
+{
+    /* Helper coprocessor reset function for do-nothing-on-reset registers */
 }
 
 static int bad_mode_switch(CPUARMState *env, int mode)
@@ -3639,16 +3807,16 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
     if (changed & (3 << 22)) {
         i = (val >> 22) & 3;
         switch (i) {
-        case 0:
+        case FPROUNDING_TIEEVEN:
             i = float_round_nearest_even;
             break;
-        case 1:
+        case FPROUNDING_POSINF:
             i = float_round_up;
             break;
-        case 2:
+        case FPROUNDING_NEGINF:
             i = float_round_down;
             break;
-        case 3:
+        case FPROUNDING_ZERO:
             i = float_round_to_zero;
             break;
         }
@@ -3688,6 +3856,10 @@ VFP_BINOP(add)
 VFP_BINOP(sub)
 VFP_BINOP(mul)
 VFP_BINOP(div)
+VFP_BINOP(min)
+VFP_BINOP(max)
+VFP_BINOP(minnum)
+VFP_BINOP(maxnum)
 #undef VFP_BINOP
 
 float32 VFP_HELPER(neg, s)(float32 a)
@@ -3804,37 +3976,77 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 }
 
 /* VFP3 fixed point conversion.  */
-#define VFP_CONV_FIX(name, p, fsz, itype, sign) \
-float##fsz HELPER(vfp_##name##to##p)(uint##fsz##_t  x, uint32_t shift, \
-                                    void *fpstp) \
+#define VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype) \
+float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
+                                     void *fpstp) \
 { \
     float_status *fpst = fpstp; \
     float##fsz tmp; \
-    tmp = sign##int32_to_##float##fsz((itype##_t)x, fpst); \
+    tmp = itype##_to_##float##fsz(x, fpst); \
     return float##fsz##_scalbn(tmp, -(int)shift, fpst); \
-} \
-uint##fsz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
-                                       void *fpstp) \
+}
+
+/* Notice that we want only input-denormal exception flags from the
+ * scalbn operation: the other possible flags (overflow+inexact if
+ * we overflow to infinity, output-denormal) aren't correct for the
+ * complete scale-and-convert operation.
+ */
+#define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, round) \
+uint##isz##_t HELPER(vfp_to##name##p##round)(float##fsz x, \
+                                             uint32_t shift, \
+                                             void *fpstp) \
 { \
     float_status *fpst = fpstp; \
+    int old_exc_flags = get_float_exception_flags(fpst); \
     float##fsz tmp; \
     if (float##fsz##_is_any_nan(x)) { \
         float_raise(float_flag_invalid, fpst); \
         return 0; \
     } \
     tmp = float##fsz##_scalbn(x, shift, fpst); \
-    return float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
+    old_exc_flags |= get_float_exception_flags(fpst) \
+        & float_flag_input_denormal; \
+    set_float_exception_flags(old_exc_flags, fpst); \
+    return float##fsz##_to_##itype##round(tmp, fpst); \
 }
 
-VFP_CONV_FIX(sh, d, 64, int16, )
-VFP_CONV_FIX(sl, d, 64, int32, )
-VFP_CONV_FIX(uh, d, 64, uint16, u)
-VFP_CONV_FIX(ul, d, 64, uint32, u)
-VFP_CONV_FIX(sh, s, 32, int16, )
-VFP_CONV_FIX(sl, s, 32, int32, )
-VFP_CONV_FIX(uh, s, 32, uint16, u)
-VFP_CONV_FIX(ul, s, 32, uint32, u)
+#define VFP_CONV_FIX(name, p, fsz, isz, itype)                   \
+VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, _round_to_zero) \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, )
+
+#define VFP_CONV_FIX_A64(name, p, fsz, isz, itype)               \
+VFP_CONV_FIX_FLOAT(name, p, fsz, isz, itype)                     \
+VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, isz, itype, )
+
+VFP_CONV_FIX(sh, d, 64, 64, int16)
+VFP_CONV_FIX(sl, d, 64, 64, int32)
+VFP_CONV_FIX_A64(sq, d, 64, 64, int64)
+VFP_CONV_FIX(uh, d, 64, 64, uint16)
+VFP_CONV_FIX(ul, d, 64, 64, uint32)
+VFP_CONV_FIX_A64(uq, d, 64, 64, uint64)
+VFP_CONV_FIX(sh, s, 32, 32, int16)
+VFP_CONV_FIX(sl, s, 32, 32, int32)
+VFP_CONV_FIX_A64(sq, s, 32, 64, int64)
+VFP_CONV_FIX(uh, s, 32, 32, uint16)
+VFP_CONV_FIX(ul, s, 32, 32, uint32)
+VFP_CONV_FIX_A64(uq, s, 32, 64, uint64)
 #undef VFP_CONV_FIX
+#undef VFP_CONV_FIX_FLOAT
+#undef VFP_CONV_FLOAT_FIX_ROUND
+
+/* Set the current fp rounding mode and return the old one.
+ * The argument is a softfloat float_round_ value.
+ */
+uint32_t HELPER(set_rmode)(uint32_t rmode, CPUARMState *env)
+{
+    float_status *fp_status = &env->vfp.fp_status;
+
+    uint32_t prev_rmode = get_float_rounding_mode(fp_status);
+    set_float_rounding_mode(rmode, fp_status);
+
+    return prev_rmode;
+}
 
 /* Half precision conversions.  */
 static float32 do_fcvt_f16_to_f32(uint32_t a, CPUARMState *env, float_status *s)
@@ -3875,6 +4087,26 @@ float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
 uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
 {
     return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
+}
+
+float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, CPUARMState *env)
+{
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    float64 r = float16_to_float64(make_float16(a), ieee, &env->vfp.fp_status);
+    if (ieee) {
+        return float64_maybe_silence_nan(r);
+    }
+    return r;
+}
+
+uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, CPUARMState *env)
+{
+    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
+    float16 r = float64_to_float16(a, ieee, &env->vfp.fp_status);
+    if (ieee) {
+        r = float16_maybe_silence_nan(r);
+    }
+    return float16_val(r);
 }
 
 #define float32_two make_float32(0x40000000)
@@ -4142,27 +4374,47 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
     return float64_muladd(a, b, c, 0, fpst);
 }
 
-/* ARMv8 VMAXNM/VMINNM */
-float32 VFP_HELPER(maxnm, s)(float32 a, float32 b, void *fpstp)
+/* ARMv8 round to integral */
+float32 HELPER(rints_exact)(float32 x, void *fp_status)
 {
-    float_status *fpst = fpstp;
-    return float32_maxnum(a, b, fpst);
+    return float32_round_to_int(x, fp_status);
 }
 
-float64 VFP_HELPER(maxnm, d)(float64 a, float64 b, void *fpstp)
+float64 HELPER(rintd_exact)(float64 x, void *fp_status)
 {
-    float_status *fpst = fpstp;
-    return float64_maxnum(a, b, fpst);
+    return float64_round_to_int(x, fp_status);
 }
 
-float32 VFP_HELPER(minnm, s)(float32 a, float32 b, void *fpstp)
+float32 HELPER(rints)(float32 x, void *fp_status)
 {
-    float_status *fpst = fpstp;
-    return float32_minnum(a, b, fpst);
+    int old_flags = get_float_exception_flags(fp_status), new_flags;
+    float32 ret;
+
+    ret = float32_round_to_int(x, fp_status);
+
+    /* Suppress any inexact exceptions the conversion produced */
+    if (!(old_flags & float_flag_inexact)) {
+        new_flags = get_float_exception_flags(fp_status);
+        set_float_exception_flags(new_flags & ~float_flag_inexact, fp_status);
+    }
+
+    return ret;
 }
 
-float64 VFP_HELPER(minnm, d)(float64 a, float64 b, void *fpstp)
+float64 HELPER(rintd)(float64 x, void *fp_status)
 {
-    float_status *fpst = fpstp;
-    return float64_minnum(a, b, fpst);
+    int old_flags = get_float_exception_flags(fp_status), new_flags;
+    float64 ret;
+
+    ret = float64_round_to_int(x, fp_status);
+
+    new_flags = get_float_exception_flags(fp_status);
+
+    /* Suppress any inexact exceptions the conversion produced */
+    if (!(old_flags & float_flag_inexact)) {
+        new_flags = get_float_exception_flags(fp_status);
+        set_float_exception_flags(new_flags & ~float_flag_inexact, fp_status);
+    }
+
+    return ret;
 }

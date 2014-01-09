@@ -58,6 +58,7 @@ static const ARMCPUInfo aarch64_cpus[] = {
 #ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = aarch64_any_initfn },
 #endif
+    { .name = NULL } /* TODO: drop when we support more CPUs */
 };
 
 static void aarch64_cpu_initfn(Object *obj)
@@ -99,6 +100,11 @@ static void aarch64_cpu_register(const ARMCPUInfo *info)
         .class_size = sizeof(ARMCPUClass),
         .class_init = info->class_init,
     };
+
+    /* TODO: drop when we support more CPUs - all entries will have name set */
+    if (!info->name) {
+        return;
+    }
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
     type_register(&type_info);
