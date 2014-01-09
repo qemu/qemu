@@ -31,6 +31,7 @@
 #include "exec/address-spaces.h"
 #include "hw/acpi/piix4.h"
 #include "hw/acpi/pcihp.h"
+#include "hw/acpi/cpu_hotplug.h"
 
 //#define DEBUG
 
@@ -51,19 +52,13 @@
 #define PCI_RMV_BASE 0xae0c
 
 #define PIIX4_PROC_BASE 0xaf00
-#define PIIX4_PROC_LEN 32
 
 #define PIIX4_PCI_HOTPLUG_STATUS 2
-#define PIIX4_CPU_HOTPLUG_STATUS 4
 
 struct pci_status {
     uint32_t up; /* deprecated, maintained for migration compatibility */
     uint32_t down;
 };
-
-typedef struct CPUStatus {
-    uint8_t sts[PIIX4_PROC_LEN];
-} CPUStatus;
 
 typedef struct PIIX4PMState {
     /*< private >*/
@@ -74,7 +69,6 @@ typedef struct PIIX4PMState {
     uint32_t io_base;
 
     MemoryRegion io_gpe;
-    MemoryRegion io_cpu;
     ACPIREGS ar;
 
     APMState apm;
@@ -102,7 +96,7 @@ typedef struct PIIX4PMState {
     uint8_t disable_s4;
     uint8_t s4_val;
 
-    CPUStatus gpe_cpu;
+    AcpiCpuHotplug gpe_cpu;
     Notifier cpu_added_notifier;
 } PIIX4PMState;
 
@@ -683,61 +677,13 @@ static const MemoryRegionOps piix4_pci_ops = {
     },
 };
 
-static uint64_t cpu_status_read(void *opaque, hwaddr addr, unsigned int size)
-{
-    PIIX4PMState *s = opaque;
-    CPUStatus *cpus = &s->gpe_cpu;
-    uint64_t val = cpus->sts[addr];
-
-    return val;
-}
-
-static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
-                             unsigned int size)
-{
-    /* TODO: implement VCPU removal on guest signal that CPU can be removed */
-}
-
-static const MemoryRegionOps cpu_hotplug_ops = {
-    .read = cpu_status_read,
-    .write = cpu_status_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-};
-
-typedef enum {
-    PLUG,
-    UNPLUG,
-} HotplugEventType;
-
-static void piix4_cpu_hotplug_req(PIIX4PMState *s, CPUState *cpu,
-                                  HotplugEventType action)
-{
-    CPUStatus *g = &s->gpe_cpu;
-    ACPIGPE *gpe = &s->ar.gpe;
-    CPUClass *k = CPU_GET_CLASS(cpu);
-    int64_t cpu_id;
-
-    assert(s != NULL);
-
-    *gpe->sts = *gpe->sts | PIIX4_CPU_HOTPLUG_STATUS;
-    cpu_id = k->get_arch_id(CPU(cpu));
-    if (action == PLUG) {
-        g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
-    } else {
-        g->sts[cpu_id / 8] &= ~(1 << (cpu_id % 8));
-    }
-    acpi_update_sci(&s->ar, s->irq);
-}
-
 static void piix4_cpu_added_req(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, cpu_added_notifier);
 
-    piix4_cpu_hotplug_req(s, CPU(opaque), PLUG);
+    assert(s != NULL);
+    AcpiCpuHotplug_add(&s->ar.gpe, &s->gpe_cpu, CPU(opaque));
+    acpi_update_sci(&s->ar, s->irq);
 }
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
@@ -746,8 +692,6 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s)
 {
-    CPUState *cpu;
-
     memory_region_init_io(&s->io_gpe, OBJECT(s), &piix4_gpe_ops, s,
                           "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
@@ -762,16 +706,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
         pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
     }
 
-    CPU_FOREACH(cpu) {
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        int64_t id = cc->get_arch_id(cpu);
-
-        g_assert((id / 8) < PIIX4_PROC_LEN);
-        s->gpe_cpu.sts[id / 8] |= (1 << (id % 8));
-    }
-    memory_region_init_io(&s->io_cpu, OBJECT(s), &cpu_hotplug_ops, s,
-                          "acpi-cpu-hotplug", PIIX4_PROC_LEN);
-    memory_region_add_subregion(parent, PIIX4_PROC_BASE, &s->io_cpu);
+    AcpiCpuHotplug_init(parent, OBJECT(s), &s->gpe_cpu, PIIX4_PROC_BASE);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;
     qemu_register_cpu_added_notifier(&s->cpu_added_notifier);
 }
