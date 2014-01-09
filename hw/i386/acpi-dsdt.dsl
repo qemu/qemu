@@ -290,6 +290,7 @@ DefinitionBlock (
         }
     }
 
+#define CPU_STATUS_BASE 0xaf00
 #include "acpi-dsdt-cpu-hotplug.dsl"
 
 

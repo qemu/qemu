@@ -405,6 +405,7 @@ DefinitionBlock (
         define_gsi_link(GSIH, 0, 0x17)
     }
 
+#define CPU_STATUS_BASE 0x0CD8
 #include "acpi-dsdt-cpu-hotplug.dsl"
 
 

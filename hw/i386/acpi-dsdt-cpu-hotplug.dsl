@@ -52,7 +52,7 @@ Scope(\_SB) {
         Sleep(200)
     }
 
-    OperationRegion(PRST, SystemIO, 0xaf00, 32)
+    OperationRegion(PRST, SystemIO, CPU_STATUS_BASE, 32)
     Field(PRST, ByteAcc, NoLock, Preserve) {
         PRS, 256
     }
