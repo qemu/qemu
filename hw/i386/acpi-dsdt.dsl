@@ -35,6 +35,38 @@ DefinitionBlock (
 /****************************************************************
  * PCI Bus definition
  ****************************************************************/
+#define BOARD_SPECIFIC_PCI_RESOURSES \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0D00, \
+         0xADFF, \
+         0x0000, \
+         0xA100, \
+         ,, , TypeStatic) \
+     /* 0xae00-0xae0e hole for PCI hotplug, hw/acpi/piix4.c:PCI_HOTPLUG_ADDR */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAE0F, \
+         0xAEFF, \
+         0x0000, \
+         0x00F1, \
+         ,, , TypeStatic) \
+     /* 0xaf00-0xaf1f hole for CPU hotplug, hw/acpi/piix4.c:PIIX4_PROC_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAF20, \
+         0xAFDF, \
+         0x0000, \
+         0x00C0, \
+         ,, , TypeStatic) \
+     /* 0xafe0-0xafe3 hole for ACPI.GPE0, hw/acpi/piix4.c:GPE_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0xAFE4, \
+         0xFFFF, \
+         0x0000, \
+         0x501C, \
+         ,, , TypeStatic)
 
     Scope(\_SB) {
         Device(PCI0) {

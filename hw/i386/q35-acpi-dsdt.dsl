@@ -48,6 +48,14 @@ DefinitionBlock (
 /****************************************************************
  * PCI Bus definition
  ****************************************************************/
+#define BOARD_SPECIFIC_PCI_RESOURSES \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0D00, \
+         0xFFFF, \
+         0x0000, \
+         0xF300, \
+         ,, , TypeStatic)
 
     Scope(\_SB) {
         Device(PCI0) {

@@ -37,13 +37,7 @@ Scope(\_SB.PCI0) {
             0x0000,             // Address Translation Offset
             0x0CF8,             // Address Length
             ,, , TypeStatic)
-        WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
-            0x0000,             // Address Space Granularity
-            0x0D00,             // Address Range Minimum
-            0xFFFF,             // Address Range Maximum
-            0x0000,             // Address Translation Offset
-            0xF300,             // Address Length
-            ,, , TypeStatic)
+        BOARD_SPECIFIC_PCI_RESOURSES
         DWordMemory(ResourceProducer, PosDecode, MinFixed, MaxFixed, Cacheable, ReadWrite,
             0x00000000,         // Address Space Granularity
             0x000A0000,         // Address Range Minimum
