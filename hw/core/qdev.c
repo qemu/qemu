@@ -233,19 +233,19 @@ static int qbus_reset_one(BusState *bus, void *opaque)
 {
     BusClass *bc = BUS_GET_CLASS(bus);
     if (bc->reset) {
-        return bc->reset(bus);
+        bc->reset(bus);
     }
     return 0;
 }
 
 void qdev_reset_all(DeviceState *dev)
 {
-    qdev_walk_children(dev, qdev_reset_one, qbus_reset_one, NULL);
+    qdev_walk_children(dev, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
 }
 
 void qbus_reset_all(BusState *bus)
 {
-    qbus_walk_children(bus, qdev_reset_one, qbus_reset_one, NULL);
+    qbus_walk_children(bus, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
 }
 
 void qbus_reset_all_fn(void *opaque)
@@ -337,22 +337,33 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
     return NULL;
 }
 
-int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
-                       qbus_walkerfn *busfn, void *opaque)
+int qbus_walk_children(BusState *bus,
+                       qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
+                       qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
+                       void *opaque)
 {
     BusChild *kid;
     int err;
 
-    if (busfn) {
-        err = busfn(bus, opaque);
+    if (pre_busfn) {
+        err = pre_busfn(bus, opaque);
         if (err) {
             return err;
         }
     }
 
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        err = qdev_walk_children(kid->child, devfn, busfn, opaque);
+        err = qdev_walk_children(kid->child,
+                                 pre_devfn, pre_busfn,
+                                 post_devfn, post_busfn, opaque);
         if (err < 0) {
+            return err;
+        }
+    }
+
+    if (post_busfn) {
+        err = post_busfn(bus, opaque);
+        if (err) {
             return err;
         }
     }
@@ -360,22 +371,32 @@ int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
     return 0;
 }
 
-int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
-                       qbus_walkerfn *busfn, void *opaque)
+int qdev_walk_children(DeviceState *dev,
+                       qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
+                       qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
+                       void *opaque)
 {
     BusState *bus;
     int err;
 
-    if (devfn) {
-        err = devfn(dev, opaque);
+    if (pre_devfn) {
+        err = pre_devfn(dev, opaque);
         if (err) {
             return err;
         }
     }
 
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
-        err = qbus_walk_children(bus, devfn, busfn, opaque);
+        err = qbus_walk_children(bus, pre_devfn, pre_busfn,
+                                 post_devfn, post_busfn, opaque);
         if (err < 0) {
+            return err;
+        }
+    }
+
+    if (post_devfn) {
+        err = post_devfn(dev, opaque);
+        if (err) {
             return err;
         }
     }
