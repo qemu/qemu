@@ -33,13 +33,6 @@
 /* statistics */
 int tlb_flush_count;
 
-static const CPUTLBEntry s_cputlb_empty_entry = {
-    .addr_read  = -1,
-    .addr_write = -1,
-    .addr_code  = -1,
-    .addend     = -1,
-};
-
 /* NOTE:
  * If flush_global is true (the usual case), flush all tlb entries.
  * If flush_global is false, flush (at least) all tlb entries not
@@ -55,7 +48,6 @@ static const CPUTLBEntry s_cputlb_empty_entry = {
 void tlb_flush(CPUArchState *env, int flush_global)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    int i;
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush:\n");
@@ -64,15 +56,8 @@ void tlb_flush(CPUArchState *env, int flush_global)
        links while we are modifying them */
     cpu->current_tb = NULL;
 
-    for (i = 0; i < CPU_TLB_SIZE; i++) {
-        int mmu_idx;
-
-        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
-        }
-    }
-
-    memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+    memset(env->tlb_table, -1, sizeof(env->tlb_table));
+    memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
 
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
@@ -87,7 +72,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
         addr == (tlb_entry->addr_code &
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        *tlb_entry = s_cputlb_empty_entry;
+        memset(tlb_entry, -1, sizeof(*tlb_entry));
     }
 }
 

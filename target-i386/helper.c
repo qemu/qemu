@@ -1247,14 +1247,16 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     if (kvm_enabled()) {
         env->tpr_access_type = access;
 
-        cpu_interrupt(CPU(x86_env_get_cpu(env)), CPU_INTERRUPT_TPR);
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TPR);
     } else {
         cpu_restore_state(env, env->mem_io_pc);
 
-        apic_handle_tpr_access_report(env->apic_state, env->eip, access);
+        apic_handle_tpr_access_report(cpu->apic_state, env->eip, access);
     }
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -1301,14 +1303,12 @@ void do_cpu_init(X86CPU *cpu)
     cpu_reset(cs);
     cs->interrupt_request = sipi;
     env->pat = pat;
-    apic_init_reset(env->apic_state);
+    apic_init_reset(cpu->apic_state);
 }
 
 void do_cpu_sipi(X86CPU *cpu)
 {
-    CPUX86State *env = &cpu->env;
-
-    apic_sipi(env->apic_state);
+    apic_sipi(cpu->apic_state);
 }
 #else
 void do_cpu_init(X86CPU *cpu)
