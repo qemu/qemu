@@ -42,17 +42,17 @@ static bool is_blacklisted(const char *arch, const char *mach)
     return false;
 }
 
-static void test_nop(gconstpointer data)
+static void test_machine(gconstpointer data)
 {
-    QTestState *s;
     const char *machine = data;
     char *args;
+    QDict *response;
 
     args = g_strdup_printf("-machine %s", machine);
-    s = qtest_start(args);
-    if (s) {
-        qtest_quit(s);
-    }
+    qtest_start(args);
+    response = qmp("{ 'execute': 'quit' }");
+    g_assert(qdict_haskey(response, "return"));
+    qtest_end();
     g_free(args);
 }
 
@@ -82,7 +82,7 @@ static void add_machine_test_cases(void)
         mname = qstring_get_str(qstr);
         if (!is_blacklisted(arch, mname)) {
             path = g_strdup_printf("/%s/qom/%s", arch, mname);
-            g_test_add_data_func(path, mname, test_nop);
+            g_test_add_data_func(path, mname, test_machine);
         }
     }
     qtest_end();
