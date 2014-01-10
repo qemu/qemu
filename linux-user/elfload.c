@@ -1998,8 +1998,7 @@ give_up:
     free(syms);
 }
 
-int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info)
+int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct image_info interp_info;
     struct elfhdr elf_ex;
