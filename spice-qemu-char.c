@@ -212,7 +212,7 @@ static void spice_chr_close(struct CharDriverState *chr)
     g_free(s);
 }
 
-static void spice_chr_set_fe_open(struct CharDriverState *chr, int fe_open)
+static void spice_vmc_set_fe_open(struct CharDriverState *chr, int fe_open)
 {
     SpiceCharDriver *s = chr->opaque;
     if (fe_open) {
@@ -220,6 +220,19 @@ static void spice_chr_set_fe_open(struct CharDriverState *chr, int fe_open)
     } else {
         vmc_unregister_interface(s);
     }
+}
+
+static void spice_port_set_fe_open(struct CharDriverState *chr, int fe_open)
+{
+#if SPICE_SERVER_VERSION >= 0x000c02
+    SpiceCharDriver *s = chr->opaque;
+
+    if (fe_open) {
+        spice_server_port_event(&s->sin, SPICE_PORT_EVENT_OPENED);
+    } else {
+        spice_server_port_event(&s->sin, SPICE_PORT_EVENT_CLOSED);
+    }
+#endif
 }
 
 static void spice_chr_fe_event(struct CharDriverState *chr, int event)
@@ -248,7 +261,9 @@ static void print_allowed_subtypes(void)
     fprintf(stderr, "\n");
 }
 
-static CharDriverState *chr_open(const char *subtype)
+static CharDriverState *chr_open(const char *subtype,
+    void (*set_fe_open)(struct CharDriverState *, int))
+
 {
     CharDriverState *chr;
     SpiceCharDriver *s;
@@ -262,7 +277,7 @@ static CharDriverState *chr_open(const char *subtype)
     chr->chr_write = spice_chr_write;
     chr->chr_add_watch = spice_chr_add_watch;
     chr->chr_close = spice_chr_close;
-    chr->chr_set_fe_open = spice_chr_set_fe_open;
+    chr->chr_set_fe_open = set_fe_open;
     chr->explicit_be_open = true;
     chr->chr_fe_event = spice_chr_fe_event;
 
@@ -291,7 +306,7 @@ CharDriverState *qemu_chr_open_spice_vmc(const char *type)
         return NULL;
     }
 
-    return chr_open(type);
+    return chr_open(type, spice_vmc_set_fe_open);
 }
 
 #if SPICE_SERVER_VERSION >= 0x000c02
@@ -305,7 +320,7 @@ CharDriverState *qemu_chr_open_spice_port(const char *name)
         return NULL;
     }
 
-    chr = chr_open("port");
+    chr = chr_open("port", spice_port_set_fe_open);
     s = chr->opaque;
     s->sin.portname = g_strdup(name);
 
