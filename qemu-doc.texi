@@ -654,6 +654,21 @@ Supported options:
 Specifies which VHD subformat to use. Valid options are
 @code{dynamic} (default) and @code{fixed}.
 @end table
+
+@item VHDX
+Hyper-V compatible image format (VHDX).
+Supported options:
+@table @code
+@item subformat
+Specifies which VHDX subformat to use. Valid options are
+@code{dynamic} (default) and @code{fixed}.
+@item block_state_zero
+Force use of payload blocks of type 'ZERO'.
+@item block_size
+Block size; min 1 MB, max 256 MB.  0 means auto-calculate based on image size.
+@item log_size
+Log size; min 1 MB.
+@end table
 @end table
 
 @subsubsection Read-only formats

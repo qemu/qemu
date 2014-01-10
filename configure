@@ -3078,6 +3078,21 @@ EOF
   fi
 fi
 
+# We also need to know the API version because there was an
+# API change from 1.4.0 to 1.5.0.
+if test "$libiscsi" = "yes"; then
+  cat >$TMPC <<EOF
+#include <iscsi/iscsi.h>
+int main(void)
+{
+  iscsi_read10_task(0, 0, 0, 0, 0, 0, 0);
+  return 0;
+}
+EOF
+  if compile_prog "" "-liscsi"; then
+    libiscsi_version="1.4.0"
+  fi
+fi
 
 ##########################################
 # Do we need libm
@@ -3805,7 +3820,11 @@ echo "nss used          $smartcard_nss"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "GLX support       $glx"
+if test "$libiscsi_version" = "1.4.0"; then
+echo "libiscsi support  $libiscsi (1.4.0)"
+else
 echo "libiscsi support  $libiscsi"
+fi
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
 echo "seccomp support   $seccomp"
@@ -4137,6 +4156,9 @@ fi
 
 if test "$libiscsi" = "yes" ; then
   echo "CONFIG_LIBISCSI=y" >> $config_host_mak
+  if test "$libiscsi_version" = "1.4.0"; then
+    echo "CONFIG_LIBISCSI_1_4=y" >> $config_host_mak
+  fi
 fi
 
 if test "$seccomp" = "yes"; then

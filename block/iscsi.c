@@ -359,7 +359,10 @@ retry:
     default:
         iTask.task = iscsi_read10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
-                                       iscsilun->block_size, 0, 0, 0, 0, 0,
+                                       iscsilun->block_size,
+#if !defined(CONFIG_LIBISCSI_1_4) /* API change from 1.4.0 to 1.5.0 */
+                                       0, 0, 0, 0, 0,
+#endif
                                        iscsi_co_generic_cb, &iTask);
         break;
     }

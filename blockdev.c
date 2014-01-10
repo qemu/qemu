@@ -1820,8 +1820,13 @@ void qmp_block_commit(const char *device,
         return;
     }
 
-    commit_start(bs, base_bs, top_bs, speed, on_error, block_job_cb, bs,
-                &local_err);
+    if (top_bs == bs) {
+        commit_active_start(bs, base_bs, speed, on_error, block_job_cb,
+                            bs, &local_err);
+    } else {
+        commit_start(bs, base_bs, top_bs, speed, on_error, block_job_cb, bs,
+                    &local_err);
+    }
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;

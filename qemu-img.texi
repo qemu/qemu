@@ -431,8 +431,8 @@ This option can only be enabled if @code{compat=1.1} is specified.
 
 @item Other
 QEMU also supports various other image file formats for compatibility with
-older QEMU versions or other hypervisors, including VMDK, VDI, VHD (vpc), qcow1
-and QED. For a full list of supported formats see @code{qemu-img --help}.
+older QEMU versions or other hypervisors, including VMDK, VDI, VHD (vpc), VHDX,
+qcow1 and QED. For a full list of supported formats see @code{qemu-img --help}.
 For a more detailed description of these formats, see the QEMU Emulation User
 Documentation.
 

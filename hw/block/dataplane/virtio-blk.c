@@ -35,7 +35,7 @@ enum {
 typedef struct {
     struct iocb iocb;               /* Linux AIO control block */
     QEMUIOVector *inhdr;            /* iovecs for virtio_blk_inhdr */
-    unsigned int head;              /* vring descriptor index */
+    VirtQueueElement *elem;         /* saved data from the virtqueue */
     struct iovec *bounce_iov;       /* used if guest buffers are unaligned */
     QEMUIOVector *read_qiov;        /* for read completion /w bounce buffer */
 } VirtIOBlockRequest;
@@ -96,7 +96,7 @@ static void complete_request(struct iocb *iocb, ssize_t ret, void *opaque)
         len = 0;
     }
 
-    trace_virtio_blk_data_plane_complete_request(s, req->head, ret);
+    trace_virtio_blk_data_plane_complete_request(s, req->elem->index, ret);
 
     if (req->read_qiov) {
         assert(req->bounce_iov);
@@ -118,12 +118,12 @@ static void complete_request(struct iocb *iocb, ssize_t ret, void *opaque)
      * written to, but for virtio-blk it seems to be the number of bytes
      * transferred plus the status bytes.
      */
-    vring_push(&s->vring, req->head, len + sizeof(hdr));
-
+    vring_push(&s->vring, req->elem, len + sizeof(hdr));
+    req->elem = NULL;
     s->num_reqs--;
 }
 
-static void complete_request_early(VirtIOBlockDataPlane *s, unsigned int head,
+static void complete_request_early(VirtIOBlockDataPlane *s, VirtQueueElement *elem,
                                    QEMUIOVector *inhdr, unsigned char status)
 {
     struct virtio_blk_inhdr hdr = {
@@ -134,26 +134,26 @@ static void complete_request_early(VirtIOBlockDataPlane *s, unsigned int head,
     qemu_iovec_destroy(inhdr);
     g_slice_free(QEMUIOVector, inhdr);
 
-    vring_push(&s->vring, head, sizeof(hdr));
+    vring_push(&s->vring, elem, sizeof(hdr));
     notify_guest(s);
 }
 
 /* Get disk serial number */
 static void do_get_id_cmd(VirtIOBlockDataPlane *s,
                           struct iovec *iov, unsigned int iov_cnt,
-                          unsigned int head, QEMUIOVector *inhdr)
+                          VirtQueueElement *elem, QEMUIOVector *inhdr)
 {
     char id[VIRTIO_BLK_ID_BYTES];
 
     /* Serial number not NUL-terminated when shorter than buffer */
     strncpy(id, s->blk->serial ? s->blk->serial : "", sizeof(id));
     iov_from_buf(iov, iov_cnt, 0, id, sizeof(id));
-    complete_request_early(s, head, inhdr, VIRTIO_BLK_S_OK);
+    complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
 }
 
 static int do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
-                       struct iovec *iov, unsigned int iov_cnt,
-                       long long offset, unsigned int head,
+                       struct iovec *iov, unsigned iov_cnt,
+                       long long offset, VirtQueueElement *elem,
                        QEMUIOVector *inhdr)
 {
     struct iocb *iocb;
@@ -186,19 +186,20 @@ static int do_rdwr_cmd(VirtIOBlockDataPlane *s, bool read,
 
     /* Fill in virtio block metadata needed for completion */
     VirtIOBlockRequest *req = container_of(iocb, VirtIOBlockRequest, iocb);
-    req->head = head;
+    req->elem = elem;
     req->inhdr = inhdr;
     req->bounce_iov = bounce_iov;
     req->read_qiov = read_qiov;
     return 0;
 }
 
-static int process_request(IOQueue *ioq, struct iovec iov[],
-                           unsigned int out_num, unsigned int in_num,
-                           unsigned int head)
+static int process_request(IOQueue *ioq, VirtQueueElement *elem)
 {
     VirtIOBlockDataPlane *s = container_of(ioq, VirtIOBlockDataPlane, ioqueue);
-    struct iovec *in_iov = &iov[out_num];
+    struct iovec *iov = elem->out_sg;
+    struct iovec *in_iov = elem->in_sg;
+    unsigned out_num = elem->out_num;
+    unsigned in_num = elem->in_num;
     struct virtio_blk_outhdr outhdr;
     QEMUIOVector *inhdr;
     size_t in_size;
@@ -229,29 +230,29 @@ static int process_request(IOQueue *ioq, struct iovec iov[],
 
     switch (outhdr.type) {
     case VIRTIO_BLK_T_IN:
-        do_rdwr_cmd(s, true, in_iov, in_num, outhdr.sector * 512, head, inhdr);
+        do_rdwr_cmd(s, true, in_iov, in_num, outhdr.sector * 512, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_OUT:
-        do_rdwr_cmd(s, false, iov, out_num, outhdr.sector * 512, head, inhdr);
+        do_rdwr_cmd(s, false, iov, out_num, outhdr.sector * 512, elem, inhdr);
         return 0;
 
     case VIRTIO_BLK_T_SCSI_CMD:
         /* TODO support SCSI commands */
-        complete_request_early(s, head, inhdr, VIRTIO_BLK_S_UNSUPP);
+        complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_UNSUPP);
         return 0;
 
     case VIRTIO_BLK_T_FLUSH:
         /* TODO fdsync not supported by Linux AIO, do it synchronously here! */
         if (qemu_fdatasync(s->fd) < 0) {
-            complete_request_early(s, head, inhdr, VIRTIO_BLK_S_IOERR);
+            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_IOERR);
         } else {
-            complete_request_early(s, head, inhdr, VIRTIO_BLK_S_OK);
+            complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
         }
         return 0;
 
     case VIRTIO_BLK_T_GET_ID:
-        do_get_id_cmd(s, in_iov, in_num, head, inhdr);
+        do_get_id_cmd(s, in_iov, in_num, elem, inhdr);
         return 0;
 
     default:
@@ -267,29 +268,8 @@ static void handle_notify(EventNotifier *e)
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
                                            host_notifier);
 
-    /* There is one array of iovecs into which all new requests are extracted
-     * from the vring.  Requests are read from the vring and the translated
-     * descriptors are written to the iovecs array.  The iovecs do not have to
-     * persist across handle_notify() calls because the kernel copies the
-     * iovecs on io_submit().
-     *
-     * Handling io_submit() EAGAIN may require storing the requests across
-     * handle_notify() calls until the kernel has sufficient resources to
-     * accept more I/O.  This is not implemented yet.
-     */
-    struct iovec iovec[VRING_MAX];
-    struct iovec *end = &iovec[VRING_MAX];
-    struct iovec *iov = iovec;
-
-    /* When a request is read from the vring, the index of the first descriptor
-     * (aka head) is returned so that the completed request can be pushed onto
-     * the vring later.
-     *
-     * The number of hypervisor read-only iovecs is out_num.  The number of
-     * hypervisor write-only iovecs is in_num.
-     */
-    int head;
-    unsigned int out_num = 0, in_num = 0;
+    VirtQueueElement *elem;
+    int ret;
     unsigned int num_queued;
 
     event_notifier_test_and_clear(&s->host_notifier);
@@ -298,29 +278,31 @@ static void handle_notify(EventNotifier *e)
         vring_disable_notification(s->vdev, &s->vring);
 
         for (;;) {
-            head = vring_pop(s->vdev, &s->vring, iov, end, &out_num, &in_num);
-            if (head < 0) {
+            ret = vring_pop(s->vdev, &s->vring, &elem);
+            if (ret < 0) {
+                assert(elem == NULL);
                 break; /* no more requests */
             }
 
-            trace_virtio_blk_data_plane_process_request(s, out_num, in_num,
-                                                        head);
+            trace_virtio_blk_data_plane_process_request(s, elem->out_num,
+                                                        elem->in_num, elem->index);
 
-            if (process_request(&s->ioqueue, iov, out_num, in_num, head) < 0) {
+            if (process_request(&s->ioqueue, elem) < 0) {
                 vring_set_broken(&s->vring);
+                vring_free_element(elem);
+                ret = -EFAULT;
                 break;
             }
-            iov += out_num + in_num;
         }
 
-        if (likely(head == -EAGAIN)) { /* vring emptied */
+        if (likely(ret == -EAGAIN)) { /* vring emptied */
             /* Re-enable guest->host notifies and stop processing the vring.
              * But if the guest has snuck in more descriptors, keep processing.
              */
             if (vring_enable_notification(s->vdev, &s->vring)) {
                 break;
             }
-        } else { /* head == -ENOBUFS or fatal error, iovecs[] is depleted */
+        } else { /* ret == -ENOBUFS or fatal error, iovecs[] is depleted */
             /* Since there are no iovecs[] left, stop processing for now.  Do
              * not re-enable guest->host notifies since the I/O completion
              * handler knows to check for more vring descriptors anyway.

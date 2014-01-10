@@ -39,6 +39,29 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
+    def run_commit_test(self, top, base):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'commit')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+                elif event['event'] == 'BLOCK_JOB_READY':
+                    self.assert_qmp(event, 'data/type', 'commit')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    self.vm.qmp('block-job-complete', device='drive0')
+
+        self.assert_no_active_commit()
+        self.vm.shutdown()
+
 class TestSingleDrive(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024
     test_len = 1 * 1024 * 256
@@ -59,23 +82,7 @@ class TestSingleDrive(ImageCommitTestCase):
         os.remove(backing_img)
 
     def test_commit(self):
-        self.assert_no_active_commit()
-        result = self.vm.qmp('block-commit', device='drive0', top='%s' % mid_img)
-        self.assert_qmp(result, 'return', {})
-
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'commit')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
-
-        self.assert_no_active_commit()
-        self.vm.shutdown()
-
+        self.run_commit_test(mid_img, backing_img)
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
 
@@ -102,10 +109,9 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
 
     def test_top_is_active(self):
-        self.assert_no_active_commit()
-        result = self.vm.qmp('block-commit', device='drive0', top='%s' % test_img, base='%s' % backing_img)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Top image as the active layer is currently unsupported')
+        self.run_commit_test(test_img, backing_img)
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
 
     def test_top_and_base_reversed(self):
         self.assert_no_active_commit()
@@ -166,23 +172,7 @@ class TestRelativePaths(ImageCommitTestCase):
                 raise
 
     def test_commit(self):
-        self.assert_no_active_commit()
-        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img)
-        self.assert_qmp(result, 'return', {})
-
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'commit')
-                    self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
-
-        self.assert_no_active_commit()
-        self.vm.shutdown()
-
+        self.run_commit_test(self.mid_img, self.backing_img)
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', self.backing_img_abs).find("verification failed"))
         self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', self.backing_img_abs).find("verification failed"))
 
@@ -209,10 +199,9 @@ class TestRelativePaths(ImageCommitTestCase):
         self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
 
     def test_top_is_active(self):
-        self.assert_no_active_commit()
-        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.test_img, base='%s' % self.backing_img)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Top image as the active layer is currently unsupported')
+        self.run_commit_test(self.test_img, self.backing_img)
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', self.backing_img_abs).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', self.backing_img_abs).find("verification failed"))
 
     def test_top_and_base_reversed(self):
         self.assert_no_active_commit()
@@ -229,6 +218,7 @@ class TestSetSpeed(ImageCommitTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-c', 'write -P 0x1 0 512', test_img)
+        qemu_io('-c', 'write -P 0xef 524288 524288', mid_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
