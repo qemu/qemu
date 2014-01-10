@@ -748,7 +748,7 @@ static void gen_compute_eflags(DisasContext *s)
         return;
     }
     if (s->cc_op == CC_OP_CLR) {
-        tcg_gen_movi_tl(cpu_cc_src, CC_Z);
+        tcg_gen_movi_tl(cpu_cc_src, CC_Z | CC_P);
         set_cc_op(s, CC_OP_EFLAGS);
         return;
     }
