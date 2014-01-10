@@ -420,8 +420,8 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
                               "xen-pci-pt-bar", r->size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
-        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%lx"PRIx64
-                   " base_addr=0x%lx"PRIx64" type: %#x)\n",
+        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
+                   " base_addr=0x%08"PRIx64" type: %#x)\n",
                    i, r->size, r->base_addr, type);
     }
 
