@@ -2406,7 +2406,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
             abi_ulong level;
             abi_ulong optname;
             abi_ulong optval;
-            socklen_t optlen;
+            abi_ulong optlen;
 
             if (get_user_ual(sockfd, vptr)
                 || get_user_ual(level, vptr + n)
