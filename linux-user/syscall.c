@@ -2340,7 +2340,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
             size_t len;
             abi_ulong flags;
             abi_ulong addr;
-            socklen_t addrlen;
+            abi_ulong addrlen;
 
             if (get_user_ual(sockfd, vptr)
                 || get_user_ual(msg, vptr + n)
