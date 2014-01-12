@@ -73,7 +73,7 @@
  * significant half of a uint64_t struct member.
  */
 #ifdef HOST_WORDS_BIGENDIAN
-#define offsetoflow32(S, M) offsetof(S, M + sizeof(uint32_t))
+#define offsetoflow32(S, M) (offsetof(S, M) + sizeof(uint32_t))
 #else
 #define offsetoflow32(S, M) offsetof(S, M)
 #endif
