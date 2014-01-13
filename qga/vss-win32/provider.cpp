@@ -342,18 +342,18 @@ STDMETHODIMP CQGAVssProvider::CommitSnapshots(VSS_ID SnapshotSetId)
     HANDLE hEventFrozen, hEventThaw, hEventTimeout;
 
     hEventFrozen = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_FROZEN);
-    if (hEventFrozen == INVALID_HANDLE_VALUE) {
+    if (!hEventFrozen) {
         return E_FAIL;
     }
 
     hEventThaw = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_THAW);
-    if (hEventThaw == INVALID_HANDLE_VALUE) {
+    if (!hEventThaw) {
         CloseHandle(hEventFrozen);
         return E_FAIL;
     }
 
     hEventTimeout = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_TIMEOUT);
-    if (hEventTimeout == INVALID_HANDLE_VALUE) {
+    if (!hEventTimeout) {
         CloseHandle(hEventFrozen);
         CloseHandle(hEventThaw);
         return E_FAIL;
