@@ -376,7 +376,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
         barrier();
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
-            int ret = get_indirect(vring, elem, &desc);
+            ret = get_indirect(vring, elem, &desc);
             if (ret < 0) {
                 goto out;
             }
