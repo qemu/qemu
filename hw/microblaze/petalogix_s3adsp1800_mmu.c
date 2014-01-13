@@ -35,7 +35,6 @@
 #include "exec/address-spaces.h"
 
 #include "boot.h"
-#include "pic_cpu.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)
@@ -63,13 +62,12 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     const char *cpu_model = args->cpu_model;
     DeviceState *dev;
     MicroBlazeCPU *cpu;
-    CPUMBState *env;
     DriveInfo *dinfo;
     int i;
     hwaddr ddr_base = MEMORY_BASEADDR;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
-    qemu_irq irq[32], *cpu_irq;
+    qemu_irq irq[32];
     MemoryRegion *sysmem = get_system_memory();
 
     /* init CPUs */
@@ -77,7 +75,6 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
         cpu_model = "microblaze";
     }
     cpu = cpu_mb_init(cpu_model);
-    env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL,
@@ -96,8 +93,8 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
                           FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
-    cpu_irq = microblaze_pic_init_cpu(env);
-    dev = xilinx_intc_create(INTC_BASEADDR, cpu_irq[0], 0xA);
+    dev = xilinx_intc_create(INTC_BASEADDR, qdev_get_gpio_in(DEVICE(cpu),
+                             MB_CPU_IRQ), 0xA);
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }

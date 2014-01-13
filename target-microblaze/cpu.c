@@ -4,6 +4,7 @@
  * Copyright (c) 2009 Edgar E. Iglesias
  * Copyright (c) 2009-2012 PetaLogix Qld Pty Ltd.
  * Copyright (c) 2012 SUSE LINUX Products GmbH
+ * Copyright (c) 2009 Edgar E. Iglesias, Axis Communications AB.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -32,6 +33,21 @@ static void mb_cpu_set_pc(CPUState *cs, vaddr value)
 
     cpu->env.sregs[SR_PC] = value;
 }
+
+#ifndef CONFIG_USER_ONLY
+static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
+{
+    MicroBlazeCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
+
+    if (level) {
+        cpu_interrupt(cs, type);
+    } else {
+        cpu_reset_interrupt(cs, type);
+    }
+}
+#endif
 
 /* CPUClass::reset() */
 static void mb_cpu_reset(CPUState *s)
@@ -110,6 +126,11 @@ static void mb_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
+#ifndef CONFIG_USER_ONLY
+    /* Inbound IRQ and FIR lines */
+    qdev_init_gpio_in(DEVICE(cpu), microblaze_cpu_set_irq, 2);
+#endif
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
