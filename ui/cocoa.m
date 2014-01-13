@@ -52,7 +52,7 @@
 #define COCOA_MOUSE_EVENT \
         if (isTabletEnabled) { \
             kbd_mouse_event((int)(p.x * 0x7FFF / (screen.width - 1)), (int)((screen.height - p.y) * 0x7FFF / (screen.height - 1)), 0, buttons); \
-        } else if (isMouseGrabed) { \
+        } else if (isMouseGrabbed) { \
             kbd_mouse_event((int)[event deltaX], (int)[event deltaY], 0, buttons); \
         } else { \
             [NSApp sendEvent:event]; \
@@ -129,8 +129,8 @@ int keymap[] =
     14, //  51      0x33    0x0e            BKSP    QZ_BACKSPACE
     0,  //  52      0x34    Undefined
     1,  //  53      0x35    0x01            ESC     QZ_ESCAPE
-    0,  //  54      0x36                            QZ_RMETA
-    0,  //  55      0x37                            QZ_LMETA
+    220, // 54      0x36    0xdc    E0,5C   R GUI   QZ_RMETA
+    219, // 55      0x37    0xdb    E0,5B   L GUI   QZ_LMETA
     42, //  56      0x38    0x2a            L SHFT  QZ_LSHIFT
     58, //  57      0x39    0x3a            CAPS    QZ_CAPSLOCK
     56, //  58      0x3A    0x38            L ALT   QZ_LALT
@@ -204,10 +204,8 @@ int keymap[] =
     200,//  126     0x7E    0xc8    E0,48   U ARROW QZ_UP
 /* completed according to http://www.libsdl.org/cgi/cvsweb.cgi/SDL12/src/video/quartz/SDL_QuartzKeys.h?rev=1.6&content-type=text/x-cvsweb-markup */
 
-/* Aditional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
+/* Additional 104 Key XP-Keyboard Scancodes from http://www.computer-engineering.org/ps2keyboard/scancodes1.html */
 /*
-    219 //          0xdb            e0,5b   L GUI
-    220 //          0xdc            e0,5c   R GUI
     221 //          0xdd            e0,5d   APPS
         //              E0,2A,E0,37         PRNT SCRN
         //              E1,1D,45,E1,9D,C5   PAUSE
@@ -241,7 +239,7 @@ int keymap[] =
 static int cocoa_keycode_to_qemu(int keycode)
 {
     if (ARRAY_SIZE(keymap) <= keycode) {
-        printf("(cocoa) warning unknown keycode 0x%x\n", keycode);
+        fprintf(stderr, "(cocoa) warning unknown keycode 0x%x\n", keycode);
         return 0;
     }
     return keymap[keycode];
@@ -261,7 +259,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     float cx,cy,cw,ch,cdx,cdy;
     CGDataProviderRef dataProviderRef;
     int modifiers_state[256];
-    BOOL isMouseGrabed;
+    BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
     BOOL isTabletEnabled;
@@ -272,7 +270,7 @@ static int cocoa_keycode_to_qemu(int keycode)
 - (void) toggleFullScreen:(id)sender;
 - (void) handleEvent:(NSEvent *)event;
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
-- (BOOL) isMouseGrabed;
+- (BOOL) isMouseGrabbed;
 - (BOOL) isAbsoluteEnabled;
 - (float) cdx;
 - (float) cdy;
@@ -323,7 +321,12 @@ QemuCocoaView *cocoaView;
     CGContextSetShouldAntialias (viewContextRef, NO);
 
     // draw screen bitmap directly to Core Graphics context
-    if (dataProviderRef) {
+    if (!dataProviderRef) {
+        // Draw request before any guest device has set up a framebuffer:
+        // just draw an opaque black rectangle
+        CGContextSetRGBFillColor(viewContextRef, 0, 0, 0, 1.0);
+        CGContextFillRect(viewContextRef, NSRectToCGRect(rect));
+    } else {
         CGImageRef imageRef = CGImageCreate(
             screen.width, //width
             screen.height, //height
@@ -407,31 +410,41 @@ QemuCocoaView *cocoaView;
 
     int w = surface_width(surface);
     int h = surface_height(surface);
+    bool isResize = (w != screen.width || h != screen.height);
+
+    int oldh = screen.height;
+    if (isResize) {
+        // Resize before we trigger the redraw, or we'll redraw at the wrong size
+        COCOA_DEBUG("switchSurface: new size %d x %d\n", w, h);
+        screen.width = w;
+        screen.height = h;
+        [self setContentDimensions];
+        [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+    }
 
     // update screenBuffer
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
 
     //sync host window color space with guests
-	screen.bitsPerPixel = surface_bits_per_pixel(surface);
-	screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
+    screen.bitsPerPixel = surface_bits_per_pixel(surface);
+    screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
 
     dataProviderRef = CGDataProviderCreateWithData(NULL, surface_data(surface), w * 4 * h, NULL);
 
     // update windows
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:NO animate:NO];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:NO animate:NO];
     } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
-        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + screen.height, w, h + [normalWindow frame].size.height - screen.height) display:YES animate:NO];
+        [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:YES animate:NO];
     }
-    screen.width = w;
-    screen.height = h;
-	[normalWindow center];
-    [self setContentDimensions];
-    [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+
+    if (isResize) {
+        [normalWindow center];
+    }
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -493,6 +506,12 @@ QemuCocoaView *cocoaView;
     switch ([event type]) {
         case NSFlagsChanged:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            if ((keycode == 219 || keycode == 220) && !isMouseGrabbed) {
+              /* Don't pass command key changes to guest unless mouse is grabbed */
+              keycode = 0;
+            }
+
             if (keycode) {
                 if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
                     kbd_put_keycode(keycode);
@@ -516,15 +535,15 @@ QemuCocoaView *cocoaView;
             }
             break;
         case NSKeyDown:
+            keycode = cocoa_keycode_to_qemu([event keyCode]);
 
-            // forward command Key Combos
-            if ([event modifierFlags] & NSCommandKeyMask) {
+            // forward command key combos to the host UI unless the mouse is grabbed
+            if (!isMouseGrabbed && ([event modifierFlags] & NSCommandKeyMask)) {
                 [NSApp sendEvent:event];
                 return;
             }
 
             // default
-            keycode = cocoa_keycode_to_qemu([event keyCode]);
 
             // handle control + alt Key Combos (ctrl+alt is reserved for QEMU)
             if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
@@ -580,6 +599,13 @@ QemuCocoaView *cocoaView;
             break;
         case NSKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            // don't pass the guest a spurious key-up if we treated this
+            // command-key combo as a host UI action
+            if (!isMouseGrabbed && ([event modifierFlags] & NSCommandKeyMask)) {
+                return;
+            }
+
             if (qemu_console_is_graphic(NULL)) {
                 if (keycode & 0x80)
                     kbd_put_keycode(0xe0);
@@ -637,7 +663,7 @@ QemuCocoaView *cocoaView;
         case NSLeftMouseUp:
             if (isTabletEnabled) {
                     COCOA_MOUSE_EVENT
-            } else if (!isMouseGrabed) {
+            } else if (!isMouseGrabbed) {
                 if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
                     [self grabMouse];
                 } else {
@@ -654,7 +680,7 @@ QemuCocoaView *cocoaView;
             COCOA_MOUSE_EVENT
             break;
         case NSScrollWheel:
-            if (isTabletEnabled || isMouseGrabed) {
+            if (isTabletEnabled || isMouseGrabbed) {
                 kbd_mouse_event(0, 0, -[event deltaY], 0);
             } else {
                 [NSApp sendEvent:event];
@@ -677,7 +703,7 @@ QemuCocoaView *cocoaView;
     }
     [NSCursor hide];
     CGAssociateMouseAndMouseCursorPosition(FALSE);
-    isMouseGrabed = TRUE; // while isMouseGrabed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
+    isMouseGrabbed = TRUE; // while isMouseGrabbed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
 }
 
 - (void) ungrabMouse
@@ -692,11 +718,11 @@ QemuCocoaView *cocoaView;
     }
     [NSCursor unhide];
     CGAssociateMouseAndMouseCursorPosition(TRUE);
-    isMouseGrabed = FALSE;
+    isMouseGrabbed = FALSE;
 }
 
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {isAbsoluteEnabled = tIsAbsoluteEnabled;}
-- (BOOL) isMouseGrabed {return isMouseGrabed;}
+- (BOOL) isMouseGrabbed {return isMouseGrabbed;}
 - (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
@@ -748,7 +774,7 @@ QemuCocoaView *cocoaView;
         [normalWindow setContentView:cocoaView];
         [normalWindow useOptimizedDrawing:YES];
         [normalWindow makeKeyAndOrderFront:self];
-		[normalWindow center];
+        [normalWindow center];
 
     }
     return self;
@@ -767,14 +793,14 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationDidFinishLaunching\n");
 
-    // Display an open dialog box if no argument were passed or
+    // Display an open dialog box if no arguments were passed or
     // if qemu was launched from the finder ( the Finder passes "-psn" )
     if( gArgc <= 1 || strncmp ((char *)gArgv[1], "-psn", 4) == 0) {
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
         [op setPrompt:@"Boot image"];
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
         NSArray *filetypes = [NSArray arrayWithObjects:@"img", @"iso", @"dmg",
-                                 @"qcow", @"cow", @"cloop", @"vmdk", nil];
+                                 @"qcow", @"qcow2", @"cow", @"cloop", @"vmdk", nil];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
         [op setAllowedFileTypes:filetypes];
         [op beginSheetModalForWindow:normalWindow
@@ -822,18 +848,18 @@ QemuCocoaView *cocoaView;
     if(returnCode == NSCancelButton) {
         exit(0);
     } else if(returnCode == NSOKButton) {
-        const char *bin = "qemu";
         char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
 
-        char **argv = (char**)malloc( sizeof(char*)*3 );
+        char **argv = g_new(char *, 4);
 
         [sheet close];
 
-        argv[0] = g_strdup_printf("%s", bin);
-        argv[1] = g_strdup_printf("-hda");
-        argv[2] = g_strdup_printf("%s", img);
+        argv[0] = g_strdup(gArgv[0]);
+        argv[1] = g_strdup("-hda");
+        argv[2] = g_strdup(img);
+        argv[3] = NULL;
 
-        printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
+        // printf("Using argc %d argv %s -hda %s\n", 3, gArgv[0], img);
 
         [self startEmulationWithArgc:3 argv:(char**)argv];
     }
@@ -999,7 +1025,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
 
     if (kbd_mouse_is_absolute()) {
         if (![cocoaView isAbsoluteEnabled]) {
-            if ([cocoaView isMouseGrabed]) {
+            if ([cocoaView isMouseGrabbed]) {
                 [cocoaView ungrabMouse];
             }
         }
