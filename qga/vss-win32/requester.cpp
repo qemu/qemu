@@ -50,10 +50,6 @@ static struct QGAVSSContext {
 
 STDAPI requester_init(void)
 {
-    vss_ctx.hEventFrozen =  INVALID_HANDLE_VALUE;
-    vss_ctx.hEventThaw = INVALID_HANDLE_VALUE;
-    vss_ctx.hEventTimeout = INVALID_HANDLE_VALUE;
-
     COMInitializer initializer; /* to call CoInitializeSecurity */
     HRESULT hr = CoInitializeSecurity(
         NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
@@ -94,17 +90,17 @@ STDAPI requester_init(void)
 
 static void requester_cleanup(void)
 {
-    if (vss_ctx.hEventFrozen != INVALID_HANDLE_VALUE) {
+    if (vss_ctx.hEventFrozen) {
         CloseHandle(vss_ctx.hEventFrozen);
-        vss_ctx.hEventFrozen = INVALID_HANDLE_VALUE;
+        vss_ctx.hEventFrozen = NULL;
     }
-    if (vss_ctx.hEventThaw != INVALID_HANDLE_VALUE) {
+    if (vss_ctx.hEventThaw) {
         CloseHandle(vss_ctx.hEventThaw);
-        vss_ctx.hEventThaw = INVALID_HANDLE_VALUE;
+        vss_ctx.hEventThaw = NULL;
     }
-    if (vss_ctx.hEventTimeout != INVALID_HANDLE_VALUE) {
+    if (vss_ctx.hEventTimeout) {
         CloseHandle(vss_ctx.hEventTimeout);
-        vss_ctx.hEventTimeout = INVALID_HANDLE_VALUE;
+        vss_ctx.hEventTimeout = NULL;
     }
     if (vss_ctx.pAsyncSnapshot) {
         vss_ctx.pAsyncSnapshot->Release();
@@ -374,19 +370,19 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
     sa.bInheritHandle = FALSE;
 
     vss_ctx.hEventFrozen = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_FROZEN);
-    if (vss_ctx.hEventFrozen == INVALID_HANDLE_VALUE) {
+    if (!vss_ctx.hEventFrozen) {
         err_set(errset, GetLastError(), "failed to create event %s",
                 EVENT_NAME_FROZEN);
         goto out;
     }
     vss_ctx.hEventThaw = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_THAW);
-    if (vss_ctx.hEventThaw == INVALID_HANDLE_VALUE) {
+    if (!vss_ctx.hEventThaw) {
         err_set(errset, GetLastError(), "failed to create event %s",
                 EVENT_NAME_THAW);
         goto out;
     }
     vss_ctx.hEventTimeout = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_TIMEOUT);
-    if (vss_ctx.hEventTimeout == INVALID_HANDLE_VALUE) {
+    if (!vss_ctx.hEventTimeout) {
         err_set(errset, GetLastError(), "failed to create event %s",
                 EVENT_NAME_TIMEOUT);
         goto out;
@@ -443,7 +439,7 @@ void requester_thaw(int *num_vols, ErrorSet *errset)
 {
     COMPointer<IVssAsync> pAsync;
 
-    if (vss_ctx.hEventThaw == INVALID_HANDLE_VALUE) {
+    if (!vss_ctx.hEventThaw) {
         /*
          * In this case, DoSnapshotSet is aborted or not started,
          * and no volumes must be frozen. We return without an error.
