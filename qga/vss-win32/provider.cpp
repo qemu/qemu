@@ -278,7 +278,9 @@ STDMETHODIMP CQGAVssProvider::DeleteSnapshots(
     VSS_ID SourceObjectId, VSS_OBJECT_TYPE eSourceObjectType,
     BOOL bForceDelete, LONG *plDeletedSnapshots, VSS_ID *pNondeletedSnapshotID)
 {
-    return E_NOTIMPL;
+    *plDeletedSnapshots = 0;
+    *pNondeletedSnapshotID = SourceObjectId;
+    return S_OK;
 }
 
 STDMETHODIMP CQGAVssProvider::BeginPrepareSnapshot(
