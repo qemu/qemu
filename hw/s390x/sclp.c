@@ -107,7 +107,7 @@ static void sclp_execute(SCCB *sccb, uint32_t code)
     }
 }
 
-int sclp_service_call(uint64_t sccb, uint32_t code)
+int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
     int r = 0;
     SCCB work_sccb;
@@ -115,11 +115,16 @@ int sclp_service_call(uint64_t sccb, uint32_t code)
     hwaddr sccb_len = sizeof(SCCB);
 
     /* first some basic checks on program checks */
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        r = -PGM_PRIVILEGED;
+        goto out;
+    }
     if (cpu_physical_memory_is_io(sccb)) {
         r = -PGM_ADDRESSING;
         goto out;
     }
-    if (sccb & ~0x7ffffff8ul) {
+    if ((sccb & ~0x1fffUL) == 0 || (sccb & ~0x1fffUL) == env->psa
+        || (sccb & ~0x7ffffff8UL) != 0) {
         r = -PGM_SPECIFICATION;
         goto out;
     }
