@@ -61,13 +61,13 @@ typedef struct {
             field = readb(addr);               \
             break;                             \
         case 2:                                \
-            field = le16_to_cpu(readw(addr));  \
+            field = readw(addr);               \
             break;                             \
         case 4:                                \
-            field = le32_to_cpu(readl(addr));  \
+            field = readl(addr);               \
             break;                             \
         case 8:                                \
-            field = le64_to_cpu(readq(addr));  \
+            field = readq(addr);               \
             break;                             \
         default:                               \
             g_assert(false);                   \
