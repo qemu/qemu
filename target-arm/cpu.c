@@ -980,6 +980,7 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "any",         .initfn = arm_any_initfn },
 #endif
 #endif
+    { .name = NULL }
 };
 
 static Property arm_cpu_properties[] = {
@@ -1043,11 +1044,13 @@ static const TypeInfo arm_cpu_type_info = {
 
 static void arm_cpu_register_types(void)
 {
-    int i;
+    const ARMCPUInfo *info = arm_cpus;
 
     type_register_static(&arm_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(arm_cpus); i++) {
-        cpu_register(&arm_cpus[i]);
+
+    while (info->name) {
+        cpu_register(info);
+        info++;
     }
 }
 
