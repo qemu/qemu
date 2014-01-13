@@ -291,8 +291,17 @@ STDMETHODIMP CQGAVssProvider::BeginPrepareSnapshot(
 STDMETHODIMP CQGAVssProvider::IsVolumeSupported(
     VSS_PWSZ pwszVolumeName, BOOL *pbSupportedByThisProvider)
 {
-    *pbSupportedByThisProvider = TRUE;
+    HANDLE hEventFrozen;
 
+    /* Check if a requester is qemu-ga by whether an event is created */
+    hEventFrozen = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_FROZEN);
+    if (!hEventFrozen) {
+        *pbSupportedByThisProvider = FALSE;
+        return S_OK;
+    }
+    CloseHandle(hEventFrozen);
+
+    *pbSupportedByThisProvider = TRUE;
     return S_OK;
 }
 

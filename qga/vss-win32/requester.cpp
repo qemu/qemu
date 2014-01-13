@@ -252,6 +252,32 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
 
     CoInitialize(NULL);
 
+    /* Allow unrestricted access to events */
+    InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = &sd;
+    sa.bInheritHandle = FALSE;
+
+    vss_ctx.hEventFrozen = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_FROZEN);
+    if (!vss_ctx.hEventFrozen) {
+        err_set(errset, GetLastError(), "failed to create event %s",
+                EVENT_NAME_FROZEN);
+        goto out;
+    }
+    vss_ctx.hEventThaw = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_THAW);
+    if (!vss_ctx.hEventThaw) {
+        err_set(errset, GetLastError(), "failed to create event %s",
+                EVENT_NAME_THAW);
+        goto out;
+    }
+    vss_ctx.hEventTimeout = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_TIMEOUT);
+    if (!vss_ctx.hEventTimeout) {
+        err_set(errset, GetLastError(), "failed to create event %s",
+                EVENT_NAME_TIMEOUT);
+        goto out;
+    }
+
     assert(pCreateVssBackupComponents != NULL);
     hr = pCreateVssBackupComponents(&vss_ctx.pVssbc);
     if (FAILED(hr)) {
@@ -359,32 +385,6 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
     }
     if (FAILED(hr)) {
         err_set(errset, hr, "failed to gather writer status");
-        goto out;
-    }
-
-    /* Allow unrestricted access to events */
-    InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
-    sa.nLength = sizeof(sa);
-    sa.lpSecurityDescriptor = &sd;
-    sa.bInheritHandle = FALSE;
-
-    vss_ctx.hEventFrozen = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_FROZEN);
-    if (!vss_ctx.hEventFrozen) {
-        err_set(errset, GetLastError(), "failed to create event %s",
-                EVENT_NAME_FROZEN);
-        goto out;
-    }
-    vss_ctx.hEventThaw = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_THAW);
-    if (!vss_ctx.hEventThaw) {
-        err_set(errset, GetLastError(), "failed to create event %s",
-                EVENT_NAME_THAW);
-        goto out;
-    }
-    vss_ctx.hEventTimeout = CreateEvent(&sa, TRUE, FALSE, EVENT_NAME_TIMEOUT);
-    if (!vss_ctx.hEventTimeout) {
-        err_set(errset, GetLastError(), "failed to create event %s",
-                EVENT_NAME_TIMEOUT);
         goto out;
     }
 
