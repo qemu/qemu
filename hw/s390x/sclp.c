@@ -89,7 +89,7 @@ static void sclp_read_cpu_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
-static void sclp_execute(SCCB *sccb, uint64_t code)
+static void sclp_execute(SCCB *sccb, uint32_t code)
 {
     S390SCLPDevice *sdev = get_event_facility();
 
@@ -107,7 +107,7 @@ static void sclp_execute(SCCB *sccb, uint64_t code)
     }
 }
 
-int sclp_service_call(uint32_t sccb, uint64_t code)
+int sclp_service_call(uint64_t sccb, uint32_t code)
 {
     int r = 0;
     SCCB work_sccb;
