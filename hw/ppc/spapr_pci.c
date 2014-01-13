@@ -728,6 +728,8 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->cannot_instantiate_with_device_add_yet = false;
 }
 
 static const TypeInfo spapr_phb_info = {
