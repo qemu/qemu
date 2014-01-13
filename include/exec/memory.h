@@ -16,6 +16,11 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#define DIRTY_MEMORY_VGA       0
+#define DIRTY_MEMORY_CODE      1
+#define DIRTY_MEMORY_MIGRATION 2
+#define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu-common.h"
@@ -32,13 +37,6 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
-
-/* Must match *_DIRTY_FLAGS in cpu-all.h.  To be replaced with dynamic
- * registration.
- */
-#define DIRTY_MEMORY_VGA       0
-#define DIRTY_MEMORY_CODE      1
-#define DIRTY_MEMORY_MIGRATION 3
 
 struct MemoryRegionMmio {
     CPUReadMemoryFunc *read[3];

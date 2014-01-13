@@ -31,6 +31,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/bswap.h"
 #include "exec/memory.h"
+#include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
 #include "trace.h"
@@ -379,31 +380,10 @@ static int kvm_set_migration_log(int enable)
 static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
                                          unsigned long *bitmap)
 {
-    unsigned int i, j;
-    unsigned long page_number, c;
-    hwaddr addr, addr1;
-    unsigned int pages = int128_get64(section->size) / getpagesize();
-    unsigned int len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
-    unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
+    ram_addr_t start = section->offset_within_region + section->mr->ram_addr;
+    ram_addr_t pages = int128_get64(section->size) / getpagesize();
 
-    /*
-     * bitmap-traveling is faster than memory-traveling (for addr...)
-     * especially when most of the memory is not dirty.
-     */
-    for (i = 0; i < len; i++) {
-        if (bitmap[i] != 0) {
-            c = leul_to_cpu(bitmap[i]);
-            do {
-                j = ffsl(c) - 1;
-                c &= ~(1ul << j);
-                page_number = (i * HOST_LONG_BITS + j) * hpratio;
-                addr1 = page_number * TARGET_PAGE_SIZE;
-                addr = section->offset_within_region + addr1;
-                memory_region_set_dirty(section->mr, addr,
-                                        TARGET_PAGE_SIZE * hpratio);
-            } while (c != 0);
-        }
-    }
+    cpu_physical_memory_set_dirty_lebitmap(bitmap, start, pages);
     return 0;
 }
 
