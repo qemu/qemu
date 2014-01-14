@@ -451,8 +451,9 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     r = sclp_service_call(env, sccb, code);
     if (r < 0) {
         enter_pgmcheck(cpu, -r);
+    } else {
+        setcc(cpu, r);
     }
-    setcc(cpu, r);
 
     return 0;
 }
