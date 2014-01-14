@@ -1326,6 +1326,14 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
+/* We have nothing to do for iSCSI reopen, stub just returns
+ * success */
+static int iscsi_reopen_prepare(BDRVReopenState *state,
+                                BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
+}
+
 static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
 {
     IscsiLun *iscsilun = bs->opaque;
@@ -1434,6 +1442,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_close      = iscsi_close,
     .bdrv_create     = iscsi_create,
     .create_options  = iscsi_create_options,
+    .bdrv_reopen_prepare  = iscsi_reopen_prepare,
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,
