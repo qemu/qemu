@@ -559,11 +559,16 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
 static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
 {
     CPUS390XState *env = &cpu->env;
+    int ret;
 
     cpu_synchronize_state(CPU(cpu));
-    env->regs[2] = s390_virtio_hypercall(env);
+    ret = s390_virtio_hypercall(env);
+    if (ret == -EINVAL) {
+        enter_pgmcheck(cpu, PGM_SPECIFICATION);
+        return 0;
+    }
 
-    return 0;
+    return ret;
 }
 
 static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)

@@ -31,7 +31,8 @@ int s390_virtio_hypercall(CPUS390XState *env)
     if (env->regs[1] < MAX_DIAG_SUBCODES) {
         fn = s390_diag500_table[env->regs[1]];
         if (fn) {
-            return fn(&env->regs[2]);
+            env->regs[2] = fn(&env->regs[2]);
+            return 0;
         }
     }
 
