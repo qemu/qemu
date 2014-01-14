@@ -4321,6 +4321,8 @@
 #
 # @config:          #optional filename of the configuration file
 #
+# @align:           #optional required alignment for requests in bytes
+#
 # @inject-error:    #optional array of error injection descriptions
 #
 # @set-state:       #optional array of state-change descriptions
@@ -4330,6 +4332,7 @@
 { 'type': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
             '*config': 'str',
+            '*align': 'int',
             '*inject-error': ['BlkdebugInjectErrorOptions'],
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
