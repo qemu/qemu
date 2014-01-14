@@ -306,6 +306,10 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
     VirtIOSCSIReq *req = r->hba_private;
     uint32_t sense_len;
 
+    if (r->io_canceled) {
+        return;
+    }
+
     req->resp.cmd->response = VIRTIO_SCSI_S_OK;
     req->resp.cmd->status = status;
     if (req->resp.cmd->status == GOOD) {
