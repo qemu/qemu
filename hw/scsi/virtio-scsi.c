@@ -520,7 +520,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     evt->event = event;
     evt->reason = reason;
     if (!dev) {
-        assert(event == VIRTIO_SCSI_T_NO_EVENT);
+        assert(event == VIRTIO_SCSI_T_EVENTS_MISSED);
     } else {
         evt->lun[0] = 1;
         evt->lun[1] = dev->id;
