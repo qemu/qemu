@@ -1637,7 +1637,6 @@ static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
                                 const char *name)
 {
     x86_def_t *def;
-    Error *err = NULL;
     int i;
 
     if (name == NULL) {
@@ -1645,8 +1644,7 @@ static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
     }
     if (kvm_enabled() && strcmp(name, "host") == 0) {
         kvm_cpu_fill_host(x86_cpu_def);
-        object_property_set_bool(OBJECT(cpu), true, "pmu", &err);
-        assert_no_error(err);
+        object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
         return 0;
     }
 

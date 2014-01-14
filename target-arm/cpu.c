@@ -252,18 +252,15 @@ static Property arm_cpu_reset_hivecs_property =
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
-    Error *err = NULL;
 
     if (arm_feature(&cpu->env, ARM_FEATURE_CBAR)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property,
-                                 &err);
-        assert_no_error(err);
+                                 &error_abort);
     }
 
     if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property,
-                                 &err);
-        assert_no_error(err);
+                                 &error_abort);
     }
 }
 

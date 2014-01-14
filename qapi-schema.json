@@ -2760,6 +2760,40 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
+# @object-add:
+#
+# Create a QOM object.
+#
+# @qom-type: the class name for the object to be created
+#
+# @id: the name of the new object
+#
+# @props: #optional a dictionary of properties to be passed to the backend
+#
+# Returns: Nothing on success
+#          Error if @qom-type is not a valid class name
+#
+# Since: 2.0
+##
+{ 'command': 'object-add',
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'dict'},
+  'gen': 'no' }
+
+##
+# @object-del:
+#
+# Remove a QOM object.
+#
+# @id: the name of the QOM object to remove
+#
+# Returns: Nothing on success
+#          Error if @id is not a valid id for a QOM object
+#
+# Since: 2.0
+##
+{ 'command': 'object-del', 'data': {'id': 'str'} }
+
+##
 # @NetdevNoneOptions
 #
 # Use it alone to have zero network devices.

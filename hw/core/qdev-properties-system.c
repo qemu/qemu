@@ -352,21 +352,17 @@ void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name,
 void qdev_prop_set_chr(DeviceState *dev, const char *name,
                        CharDriverState *value)
 {
-    Error *errp = NULL;
     assert(!value || value->label);
     object_property_set_str(OBJECT(dev),
-                            value ? value->label : "", name, &errp);
-    assert_no_error(errp);
+                            value ? value->label : "", name, &error_abort);
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name,
                           NetClientState *value)
 {
-    Error *errp = NULL;
     assert(!value || value->name);
     object_property_set_str(OBJECT(dev),
-                            value ? value->name : "", name, &errp);
-    assert_no_error(errp);
+                            value ? value->name : "", name, &error_abort);
 }
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)

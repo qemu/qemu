@@ -66,7 +66,8 @@ int select_watchdog(const char *p)
     QLIST_FOREACH(model, &watchdog_list, entry) {
         if (strcasecmp(model->wdt_name, p) == 0) {
             /* add the device */
-            opts = qemu_opts_create_nofail(qemu_find_opts("device"));
+            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                    &error_abort);
             qemu_opt_set(opts, "driver", p);
             return 0;
         }

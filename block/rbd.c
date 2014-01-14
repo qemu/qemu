@@ -461,7 +461,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     const char *filename;
     int r;
 
-    opts = qemu_opts_create_nofail(&runtime_opts);
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         qerror_report_err(local_err);

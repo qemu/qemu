@@ -311,7 +311,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 error_free(local_err);
                 goto out;
             }
-            opts = qemu_opts_create_nofail(list);
+            opts = qemu_opts_create(list, NULL, 0, &error_abort);
             continue;
         }
         if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {

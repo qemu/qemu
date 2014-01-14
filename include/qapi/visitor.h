@@ -13,6 +13,7 @@
 #ifndef QAPI_VISITOR_CORE_H
 #define QAPI_VISITOR_CORE_H
 
+#include "qemu/typedefs.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/error.h"
 #include <stdlib.h>
@@ -25,8 +26,6 @@ typedef struct GenericList
     };
     struct GenericList *next;
 } GenericList;
-
-typedef struct Visitor Visitor;
 
 void visit_start_handle(Visitor *v, void **obj, const char *kind,
                         const char *name, Error **errp);
