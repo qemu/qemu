@@ -186,6 +186,14 @@ static const char *event_names[BLKDBG_EVENT_MAX] = {
 
     [BLKDBG_FLUSH_TO_OS]                    = "flush_to_os",
     [BLKDBG_FLUSH_TO_DISK]                  = "flush_to_disk",
+
+    [BLKDBG_PWRITEV_RMW_HEAD]               = "pwritev_rmw.head",
+    [BLKDBG_PWRITEV_RMW_AFTER_HEAD]         = "pwritev_rmw.after_head",
+    [BLKDBG_PWRITEV_RMW_TAIL]               = "pwritev_rmw.tail",
+    [BLKDBG_PWRITEV_RMW_AFTER_TAIL]         = "pwritev_rmw.after_tail",
+    [BLKDBG_PWRITEV]                        = "pwritev",
+    [BLKDBG_PWRITEV_ZERO]                   = "pwritev_zero",
+    [BLKDBG_PWRITEV_DONE]                   = "pwritev_done",
 };
 
 static int get_event_by_name(const char *name, BlkDebugEvent *event)

@@ -3141,10 +3141,13 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     if (ret < 0) {
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors, flags);
     } else {
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV);
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
+    BLKDBG_EVENT(bs, BLKDBG_PWRITEV_DONE);
 
     if (ret == 0 && !bs->enable_write_cache) {
         ret = bdrv_co_flush(bs);
@@ -3215,11 +3218,13 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         };
         qemu_iovec_init_external(&head_qiov, &head_iov, 1);
 
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_HEAD);
         ret = bdrv_aligned_preadv(bs, &req, offset & ~(align - 1), align,
                                   align, &head_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
 
         qemu_iovec_init(&local_qiov, qiov->niov + 2);
         qemu_iovec_add(&local_qiov, head_buf, offset & (align - 1));
@@ -3247,11 +3252,13 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         };
         qemu_iovec_init_external(&tail_qiov, &tail_iov, 1);
 
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_TAIL);
         ret = bdrv_aligned_preadv(bs, &req, (offset + bytes) & ~(align - 1), align,
                                   align, &tail_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
 
         if (!use_local_qiov) {
             qemu_iovec_init(&local_qiov, qiov->niov + 1);
