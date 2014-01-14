@@ -93,9 +93,6 @@ def c(events):
 
 
 def h(events):
-    out('#include "trace/simple.h"',
-        '')
-
     for event in events:
         out('void trace_%(name)s(%(args)s);',
             name = event.name,

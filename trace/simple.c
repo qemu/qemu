@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "trace.h"
 #include "trace/control.h"
+#include "trace/simple.h"
 
 /** Trace file header event ID */
 #define HEADER_EVENT_ID (~(uint64_t)0) /* avoids conflicting with TraceEventIDs */
