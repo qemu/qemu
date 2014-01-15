@@ -2192,7 +2192,7 @@ VSX_TSQRT(xvtsqrtsp, 4, float32, f32, -126, 23)
  *   afrm  - A form (1=A, 0=M)
  *   sfprf - set FPRF
  */
-#define VSX_MADD(op, nels, tp, fld, maddflgs, afrm, sfprf)                    \
+#define VSX_MADD(op, nels, tp, fld, maddflgs, afrm, sfprf, r2sp)              \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 {                                                                             \
     ppc_vsr_t xt_in, xa, xb, xt_out;                                          \
@@ -2218,8 +2218,18 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     for (i = 0; i < nels; i++) {                                              \
         float_status tstat = env->fp_status;                                  \
         set_float_exception_flags(0, &tstat);                                 \
-        xt_out.fld[i] = tp##_muladd(xa.fld[i], b->fld[i], c->fld[i],          \
-                                     maddflgs, &tstat);                       \
+        if (r2sp && (tstat.float_rounding_mode == float_round_nearest_even)) {\
+            /* Avoid double rounding errors by rounding the intermediate */   \
+            /* result to odd.                                            */   \
+            set_float_rounding_mode(float_round_to_zero, &tstat);             \
+            xt_out.fld[i] = tp##_muladd(xa.fld[i], b->fld[i], c->fld[i],      \
+                                       maddflgs, &tstat);                     \
+            xt_out.fld[i] |= (get_float_exception_flags(&tstat) &             \
+                              float_flag_inexact) != 0;                       \
+        } else {                                                              \
+            xt_out.fld[i] = tp##_muladd(xa.fld[i], b->fld[i], c->fld[i],      \
+                                        maddflgs, &tstat);                    \
+        }                                                                     \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
@@ -2242,6 +2252,11 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, sfprf);     \
             }                                                                 \
         }                                                                     \
+                                                                              \
+        if (r2sp) {                                                           \
+            xt_out.fld[i] = helper_frsp(env, xt_out.fld[i]);                  \
+        }                                                                     \
+                                                                              \
         if (sfprf) {                                                          \
             helper_compute_fprf(env, xt_out.fld[i], sfprf);                   \
         }                                                                     \
@@ -2255,32 +2270,41 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 #define NMADD_FLGS float_muladd_negate_result
 #define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
 
-VSX_MADD(xsmaddadp, 1, float64, f64, MADD_FLGS, 1, 1)
-VSX_MADD(xsmaddmdp, 1, float64, f64, MADD_FLGS, 0, 1)
-VSX_MADD(xsmsubadp, 1, float64, f64, MSUB_FLGS, 1, 1)
-VSX_MADD(xsmsubmdp, 1, float64, f64, MSUB_FLGS, 0, 1)
-VSX_MADD(xsnmaddadp, 1, float64, f64, NMADD_FLGS, 1, 1)
-VSX_MADD(xsnmaddmdp, 1, float64, f64, NMADD_FLGS, 0, 1)
-VSX_MADD(xsnmsubadp, 1, float64, f64, NMSUB_FLGS, 1, 1)
-VSX_MADD(xsnmsubmdp, 1, float64, f64, NMSUB_FLGS, 0, 1)
+VSX_MADD(xsmaddadp, 1, float64, f64, MADD_FLGS, 1, 1, 0)
+VSX_MADD(xsmaddmdp, 1, float64, f64, MADD_FLGS, 0, 1, 0)
+VSX_MADD(xsmsubadp, 1, float64, f64, MSUB_FLGS, 1, 1, 0)
+VSX_MADD(xsmsubmdp, 1, float64, f64, MSUB_FLGS, 0, 1, 0)
+VSX_MADD(xsnmaddadp, 1, float64, f64, NMADD_FLGS, 1, 1, 0)
+VSX_MADD(xsnmaddmdp, 1, float64, f64, NMADD_FLGS, 0, 1, 0)
+VSX_MADD(xsnmsubadp, 1, float64, f64, NMSUB_FLGS, 1, 1, 0)
+VSX_MADD(xsnmsubmdp, 1, float64, f64, NMSUB_FLGS, 0, 1, 0)
 
-VSX_MADD(xvmaddadp, 2, float64, f64, MADD_FLGS, 1, 0)
-VSX_MADD(xvmaddmdp, 2, float64, f64, MADD_FLGS, 0, 0)
-VSX_MADD(xvmsubadp, 2, float64, f64, MSUB_FLGS, 1, 0)
-VSX_MADD(xvmsubmdp, 2, float64, f64, MSUB_FLGS, 0, 0)
-VSX_MADD(xvnmaddadp, 2, float64, f64, NMADD_FLGS, 1, 0)
-VSX_MADD(xvnmaddmdp, 2, float64, f64, NMADD_FLGS, 0, 0)
-VSX_MADD(xvnmsubadp, 2, float64, f64, NMSUB_FLGS, 1, 0)
-VSX_MADD(xvnmsubmdp, 2, float64, f64, NMSUB_FLGS, 0, 0)
+VSX_MADD(xsmaddasp, 1, float64, f64, MADD_FLGS, 1, 1, 1)
+VSX_MADD(xsmaddmsp, 1, float64, f64, MADD_FLGS, 0, 1, 1)
+VSX_MADD(xsmsubasp, 1, float64, f64, MSUB_FLGS, 1, 1, 1)
+VSX_MADD(xsmsubmsp, 1, float64, f64, MSUB_FLGS, 0, 1, 1)
+VSX_MADD(xsnmaddasp, 1, float64, f64, NMADD_FLGS, 1, 1, 1)
+VSX_MADD(xsnmaddmsp, 1, float64, f64, NMADD_FLGS, 0, 1, 1)
+VSX_MADD(xsnmsubasp, 1, float64, f64, NMSUB_FLGS, 1, 1, 1)
+VSX_MADD(xsnmsubmsp, 1, float64, f64, NMSUB_FLGS, 0, 1, 1)
 
-VSX_MADD(xvmaddasp, 4, float32, f32, MADD_FLGS, 1, 0)
-VSX_MADD(xvmaddmsp, 4, float32, f32, MADD_FLGS, 0, 0)
-VSX_MADD(xvmsubasp, 4, float32, f32, MSUB_FLGS, 1, 0)
-VSX_MADD(xvmsubmsp, 4, float32, f32, MSUB_FLGS, 0, 0)
-VSX_MADD(xvnmaddasp, 4, float32, f32, NMADD_FLGS, 1, 0)
-VSX_MADD(xvnmaddmsp, 4, float32, f32, NMADD_FLGS, 0, 0)
-VSX_MADD(xvnmsubasp, 4, float32, f32, NMSUB_FLGS, 1, 0)
-VSX_MADD(xvnmsubmsp, 4, float32, f32, NMSUB_FLGS, 0, 0)
+VSX_MADD(xvmaddadp, 2, float64, f64, MADD_FLGS, 1, 0, 0)
+VSX_MADD(xvmaddmdp, 2, float64, f64, MADD_FLGS, 0, 0, 0)
+VSX_MADD(xvmsubadp, 2, float64, f64, MSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvmsubmdp, 2, float64, f64, MSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvnmaddadp, 2, float64, f64, NMADD_FLGS, 1, 0, 0)
+VSX_MADD(xvnmaddmdp, 2, float64, f64, NMADD_FLGS, 0, 0, 0)
+VSX_MADD(xvnmsubadp, 2, float64, f64, NMSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvnmsubmdp, 2, float64, f64, NMSUB_FLGS, 0, 0, 0)
+
+VSX_MADD(xvmaddasp, 4, float32, f32, MADD_FLGS, 1, 0, 0)
+VSX_MADD(xvmaddmsp, 4, float32, f32, MADD_FLGS, 0, 0, 0)
+VSX_MADD(xvmsubasp, 4, float32, f32, MSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvmsubmsp, 4, float32, f32, MSUB_FLGS, 0, 0, 0)
+VSX_MADD(xvnmaddasp, 4, float32, f32, NMADD_FLGS, 1, 0, 0)
+VSX_MADD(xvnmaddmsp, 4, float32, f32, NMADD_FLGS, 0, 0, 0)
+VSX_MADD(xvnmsubasp, 4, float32, f32, NMSUB_FLGS, 1, 0, 0)
+VSX_MADD(xvnmsubmsp, 4, float32, f32, NMSUB_FLGS, 0, 0, 0)
 
 #define VSX_SCALAR_CMP(op, ordered)                                      \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
