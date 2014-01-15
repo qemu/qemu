@@ -1125,6 +1125,13 @@ static void vfio_pci_load_rom(VFIODevice *vdev)
     vdev->rom_offset = reg_info.offset;
 
     if (!vdev->rom_size) {
+        error_report("vfio-pci: Cannot read device rom at "
+                    "%04x:%02x:%02x.%x\n",
+                    vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                    vdev->host.function);
+        error_printf("Device option ROM contents are probably invalid "
+                    "(check dmesg).\nSkip option ROM probe with rombar=0, "
+                    "or load from file with romfile=\n");
         return;
     }
 
