@@ -7022,20 +7022,23 @@ static inline TCGv_i64 cpu_vsrl(int n)
     }
 }
 
-static void gen_lxsdx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64(ctx, cpu_vsrh(xT(ctx->opcode)), EA);
-    /* NOTE: cpu_vsrl is undefined */
-    tcg_temp_free(EA);
+#define VSX_LOAD_SCALAR(name, operation)                      \
+static void gen_##name(DisasContext *ctx)                     \
+{                                                             \
+    TCGv EA;                                                  \
+    if (unlikely(!ctx->vsx_enabled)) {                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
+        return;                                               \
+    }                                                         \
+    gen_set_access_type(ctx, ACCESS_INT);                     \
+    EA = tcg_temp_new();                                      \
+    gen_addr_reg_index(ctx, EA);                              \
+    gen_qemu_##operation(ctx, cpu_vsrh(xT(ctx->opcode)), EA); \
+    /* NOTE: cpu_vsrl is undefined */                         \
+    tcg_temp_free(EA);                                        \
 }
+
+VSX_LOAD_SCALAR(lxsdx, ld64)
 
 static void gen_lxvd2x(DisasContext *ctx)
 {
