@@ -2558,7 +2558,7 @@ VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, f32[j], u32[i], i, 0)
  *   jdef  - definition of the j index (i or 2*i)
  *   sfprf - set FPRF
  */
-#define VSX_CVT_INT_TO_FP(op, nels, stp, ttp, sfld, tfld, jdef, sfprf)  \
+#define VSX_CVT_INT_TO_FP(op, nels, stp, ttp, sfld, tfld, jdef, sfprf, r2sp) \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
 {                                                                       \
     ppc_vsr_t xt, xb;                                                   \
@@ -2570,6 +2570,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     for (i = 0; i < nels; i++) {                                        \
         int j = jdef;                                                   \
         xt.tfld = stp##_to_##ttp(xb.sfld, &env->fp_status);             \
+        if (r2sp) {                                                     \
+            xt.tfld = helper_frsp(env, xt.tfld);                        \
+        }                                                               \
         if (sfprf) {                                                    \
             helper_compute_fprf(env, xt.tfld, sfprf);                   \
         }                                                               \
@@ -2579,20 +2582,22 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
     helper_float_check_status(env);                                     \
 }
 
-VSX_CVT_INT_TO_FP(xscvsxddp, 1, int64, float64, u64[j], f64[i], i, 1)
-VSX_CVT_INT_TO_FP(xscvuxddp, 1, uint64, float64, u64[j], f64[i], i, 1)
-VSX_CVT_INT_TO_FP(xvcvsxddp, 2, int64, float64, u64[j], f64[i], i, 0)
-VSX_CVT_INT_TO_FP(xvcvuxddp, 2, uint64, float64, u64[j], f64[i], i, 0)
+VSX_CVT_INT_TO_FP(xscvsxddp, 1, int64, float64, u64[j], f64[i], i, 1, 0)
+VSX_CVT_INT_TO_FP(xscvuxddp, 1, uint64, float64, u64[j], f64[i], i, 1, 0)
+VSX_CVT_INT_TO_FP(xscvsxdsp, 1, int64, float64, u64[j], f64[i], i, 1, 1)
+VSX_CVT_INT_TO_FP(xscvuxdsp, 1, uint64, float64, u64[j], f64[i], i, 1, 1)
+VSX_CVT_INT_TO_FP(xvcvsxddp, 2, int64, float64, u64[j], f64[i], i, 0, 0)
+VSX_CVT_INT_TO_FP(xvcvuxddp, 2, uint64, float64, u64[j], f64[i], i, 0, 0)
 VSX_CVT_INT_TO_FP(xvcvsxwdp, 2, int32, float64, u32[j], f64[i], \
-                  2*i + JOFFSET, 0)
+                  2*i + JOFFSET, 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxwdp, 2, uint64, float64, u32[j], f64[i], \
-                  2*i + JOFFSET, 0)
+                  2*i + JOFFSET, 0, 0)
 VSX_CVT_INT_TO_FP(xvcvsxdsp, 2, int64, float32, u64[i], f32[j], \
-                  2*i + JOFFSET, 0)
+                  2*i + JOFFSET, 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxdsp, 2, uint64, float32, u64[i], f32[j], \
-                  2*i + JOFFSET, 0)
-VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, u32[j], f32[i], i, 0)
-VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, u32[j], f32[i], i, 0)
+                  2*i + JOFFSET, 0, 0)
+VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, u32[j], f32[i], i, 0, 0)
+VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, u32[j], f32[i], i, 0, 0)
 
 /* For "use current rounding mode", define a value that will not be one of
  * the existing rounding model enums.
