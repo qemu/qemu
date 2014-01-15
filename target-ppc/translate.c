@@ -7175,6 +7175,57 @@ static void gen_stxvw4x(DisasContext *ctx)
     tcg_temp_free_i64(tmp);
 }
 
+#define MV_VSRW(name, tcgop1, tcgop2, target, source)           \
+static void gen_##name(DisasContext *ctx)                       \
+{                                                               \
+    if (xS(ctx->opcode) < 32) {                                 \
+        if (unlikely(!ctx->fpu_enabled)) {                      \
+            gen_exception(ctx, POWERPC_EXCP_FPU);               \
+            return;                                             \
+        }                                                       \
+    } else {                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                  \
+            gen_exception(ctx, POWERPC_EXCP_VPU);               \
+            return;                                             \
+        }                                                       \
+    }                                                           \
+    TCGv_i64 tmp = tcg_temp_new_i64();                          \
+    tcg_gen_##tcgop1(tmp, source);                              \
+    tcg_gen_##tcgop2(target, tmp);                              \
+    tcg_temp_free_i64(tmp);                                     \
+}
+
+
+MV_VSRW(mfvsrwz, ext32u_i64, trunc_i64_tl, cpu_gpr[rA(ctx->opcode)], \
+        cpu_vsrh(xS(ctx->opcode)))
+MV_VSRW(mtvsrwa, extu_tl_i64, ext32s_i64, cpu_vsrh(xT(ctx->opcode)), \
+        cpu_gpr[rA(ctx->opcode)])
+MV_VSRW(mtvsrwz, extu_tl_i64, ext32u_i64, cpu_vsrh(xT(ctx->opcode)), \
+        cpu_gpr[rA(ctx->opcode)])
+
+#if defined(TARGET_PPC64)
+#define MV_VSRD(name, target, source)                           \
+static void gen_##name(DisasContext *ctx)                       \
+{                                                               \
+    if (xS(ctx->opcode) < 32) {                                 \
+        if (unlikely(!ctx->fpu_enabled)) {                      \
+            gen_exception(ctx, POWERPC_EXCP_FPU);               \
+            return;                                             \
+        }                                                       \
+    } else {                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                  \
+            gen_exception(ctx, POWERPC_EXCP_VPU);               \
+            return;                                             \
+        }                                                       \
+    }                                                           \
+    tcg_gen_mov_i64(target, source);                            \
+}
+
+MV_VSRD(mfvsrd, cpu_gpr[rA(ctx->opcode)], cpu_vsrh(xS(ctx->opcode)))
+MV_VSRD(mtvsrd, cpu_vsrh(xT(ctx->opcode)), cpu_gpr[rA(ctx->opcode)])
+
+#endif
+
 static void gen_xxpermdi(DisasContext *ctx)
 {
     if (unlikely(!ctx->vsx_enabled)) {
@@ -10093,6 +10144,14 @@ GEN_HANDLER_E(stxsiwx, 0x1F, 0xC, 0x04, 0, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER_E(stxsspx, 0x1F, 0xC, 0x14, 0, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(stxvw4x, 0x1F, 0xC, 0x1C, 0, PPC_NONE, PPC2_VSX),
+
+GEN_HANDLER_E(mfvsrwz, 0x1F, 0x13, 0x03, 0x0000F800, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(mtvsrwa, 0x1F, 0x13, 0x06, 0x0000F800, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(mtvsrwz, 0x1F, 0x13, 0x07, 0x0000F800, PPC_NONE, PPC2_VSX207),
+#if defined(TARGET_PPC64)
+GEN_HANDLER_E(mfvsrd, 0x1F, 0x13, 0x01, 0x0000F800, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(mtvsrd, 0x1F, 0x13, 0x05, 0x0000F800, PPC_NONE, PPC2_VSX207),
+#endif
 
 #undef GEN_XX2FORM
 #define GEN_XX2FORM(name, opc2, opc3, fl2)                           \
