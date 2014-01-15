@@ -56,7 +56,7 @@ def c(events):
 
 
         out('',
-            '    TraceEvent *eventp = trace_event_id(%(event_id)s);',
+            '    TraceEvent *eventp = trace_event_id(%(event_enum)s);',
             '    bool _state = trace_event_get_state_dynamic(eventp);',
             '    if (!_state) {',
             '        return;',
@@ -65,6 +65,7 @@ def c(events):
             '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
             '        return; /* Trace Buffer Full, Event Dropped ! */',
             '    }',
+            event_enum = 'TRACE_' + event.name.upper(),
             event_id = num,
             size_str = sizestr,
             )
