@@ -2487,6 +2487,22 @@ VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, f32[j], f64[i], 1)
 VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, f64[i], f32[j], 0)
 VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, f32[j], f64[i], 0)
 
+uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
+{
+    float_status tstat = env->fp_status;
+    set_float_exception_flags(0, &tstat);
+
+    return (uint64_t)float64_to_float32(xb, &tstat) << 32;
+}
+
+uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
+{
+    float_status tstat = env->fp_status;
+    set_float_exception_flags(0, &tstat);
+
+    return float32_to_float64(xb >> 32, &tstat);
+}
+
 /* VSX_CVT_FP_TO_INT - VSX floating point to integer conversion
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
