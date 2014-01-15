@@ -7400,6 +7400,21 @@ static void gen_##name(DisasContext * ctx)                                    \
     tcg_temp_free_i32(opc);                                                   \
 }
 
+#define GEN_VSX_HELPER_XT_XB_ENV(name, op1, op2, inval, type) \
+static void gen_##name(DisasContext * ctx)                    \
+{                                                             \
+    if (unlikely(!ctx->vsx_enabled)) {                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
+        return;                                               \
+    }                                                         \
+    /* NIP cannot be restored if the exception comes */       \
+    /* from a helper. */                                      \
+    gen_update_nip(ctx, ctx->nip - 4);                        \
+                                                              \
+    gen_helper_##name(cpu_vsrh(xT(ctx->opcode)), cpu_env,     \
+                      cpu_vsrh(xB(ctx->opcode)));             \
+}
+
 GEN_VSX_HELPER_2(xsadddp, 0x00, 0x04, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xssubdp, 0x00, 0x05, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsmuldp, 0x00, 0x06, 0, PPC2_VSX)
@@ -7434,6 +7449,7 @@ GEN_VSX_HELPER_2(xsrdpic, 0x16, 0x06, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsrdpim, 0x12, 0x07, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsrdpip, 0x12, 0x06, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xsrdpiz, 0x12, 0x05, 0, PPC2_VSX)
+GEN_VSX_HELPER_XT_XB_ENV(xsrsp, 0x12, 0x11, 0, PPC2_VSX207)
 
 GEN_VSX_HELPER_2(xsaddsp, 0x00, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_2(xssubsp, 0x00, 0x01, 0, PPC2_VSX207)
@@ -10277,6 +10293,7 @@ GEN_XX3FORM(xssubsp, 0x00, 0x01, PPC2_VSX207),
 GEN_XX3FORM(xsmulsp, 0x00, 0x02, PPC2_VSX207),
 GEN_XX3FORM(xsdivsp, 0x00, 0x03, PPC2_VSX207),
 GEN_XX2FORM(xsresp,  0x14, 0x01, PPC2_VSX207),
+GEN_XX2FORM(xsrsp, 0x12, 0x11, PPC2_VSX207),
 GEN_XX2FORM(xssqrtsp,  0x16, 0x00, PPC2_VSX207),
 GEN_XX2FORM(xsrsqrtesp,  0x14, 0x00, PPC2_VSX207),
 GEN_XX3FORM(xsmaddasp, 0x04, 0x00, PPC2_VSX207),

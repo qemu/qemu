@@ -2666,3 +2666,14 @@ VSX_ROUND(xvrspic, 4, float32, f32, FLOAT_ROUND_CURRENT, 0)
 VSX_ROUND(xvrspim, 4, float32, f32, float_round_down, 0)
 VSX_ROUND(xvrspip, 4, float32, f32, float_round_up, 0)
 VSX_ROUND(xvrspiz, 4, float32, f32, float_round_to_zero, 0)
+
+uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
+{
+    helper_reset_fpstatus(env);
+
+    uint64_t xt = helper_frsp(env, xb);
+
+    helper_compute_fprf(env, xt, 1);
+    helper_float_check_status(env);
+    return xt;
+}
