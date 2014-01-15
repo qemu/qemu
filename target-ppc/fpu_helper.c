@@ -1874,7 +1874,7 @@ VSX_MUL(xvmulsp, 4, float32, f32, 0, 0)
  *   fld   - vsr_t field (f32 or f64)
  *   sfprf - set FPRF
  */
-#define VSX_DIV(op, nels, tp, fld, sfprf)                                     \
+#define VSX_DIV(op, nels, tp, fld, sfprf, r2sp)                               \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 {                                                                             \
     ppc_vsr_t xt, xa, xb;                                                     \
@@ -1903,6 +1903,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
             }                                                                 \
         }                                                                     \
                                                                               \
+        if (r2sp) {                                                           \
+            xt.fld[i] = helper_frsp(env, xt.fld[i]);                          \
+        }                                                                     \
+                                                                              \
         if (sfprf) {                                                          \
             helper_compute_fprf(env, xt.fld[i], sfprf);                       \
         }                                                                     \
@@ -1912,9 +1916,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     helper_float_check_status(env);                                           \
 }
 
-VSX_DIV(xsdivdp, 1, float64, f64, 1)
-VSX_DIV(xvdivdp, 2, float64, f64, 0)
-VSX_DIV(xvdivsp, 4, float32, f32, 0)
+VSX_DIV(xsdivdp, 1, float64, f64, 1, 0)
+VSX_DIV(xsdivsp, 1, float64, f64, 1, 1)
+VSX_DIV(xvdivdp, 2, float64, f64, 0, 0)
+VSX_DIV(xvdivsp, 4, float32, f32, 0, 0)
 
 /* VSX_RE  - VSX floating point reciprocal estimate
  *   op    - instruction mnemonic
