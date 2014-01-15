@@ -7468,6 +7468,9 @@ VSX_LOGICAL(xxlandc, tcg_gen_andc_i64)
 VSX_LOGICAL(xxlor, tcg_gen_or_i64)
 VSX_LOGICAL(xxlxor, tcg_gen_xor_i64)
 VSX_LOGICAL(xxlnor, tcg_gen_nor_i64)
+VSX_LOGICAL(xxleqv, tcg_gen_eqv_i64)
+VSX_LOGICAL(xxlnand, tcg_gen_nand_i64)
+VSX_LOGICAL(xxlorc, tcg_gen_orc_i64)
 
 #define VSX_XXMRG(name, high)                               \
 static void glue(gen_, name)(DisasContext * ctx)            \
@@ -10283,6 +10286,9 @@ VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
 VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
 VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
 VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
+VSX_LOGICAL(xxleqv, 0x8, 0x17, PPC2_VSX207),
+VSX_LOGICAL(xxlnand, 0x8, 0x16, PPC2_VSX207),
+VSX_LOGICAL(xxlorc, 0x8, 0x15, PPC2_VSX207),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
 GEN_XX2FORM(xxspltw, 0x08, 0x0A, PPC2_VSX),
