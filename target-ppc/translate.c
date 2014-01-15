@@ -2294,6 +2294,32 @@ static void gen_fcpsgn(DisasContext *ctx)
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
 }
 
+static void gen_fmrgew(DisasContext *ctx)
+{
+    TCGv_i64 b0;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    b0 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(b0, cpu_fpr[rB(ctx->opcode)], 32);
+    tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
+                        b0, 0, 32);
+    tcg_temp_free_i64(b0);
+}
+
+static void gen_fmrgow(DisasContext *ctx)
+{
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)],
+                        cpu_fpr[rB(ctx->opcode)],
+                        cpu_fpr[rA(ctx->opcode)],
+                        32, 32);
+}
+
 /***                  Floating-Point status & ctrl register                ***/
 
 /* mcrfs */
@@ -9414,6 +9440,8 @@ GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT),
 GEN_HANDLER(fnabs, 0x3F, 0x08, 0x04, 0x001F0000, PPC_FLOAT),
 GEN_HANDLER(fneg, 0x3F, 0x08, 0x01, 0x001F0000, PPC_FLOAT),
 GEN_HANDLER_E(fcpsgn, 0x3F, 0x08, 0x00, 0x00000000, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(fmrgew, 0x3F, 0x06, 0x1E, 0x00000001, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(fmrgow, 0x3F, 0x06, 0x1A, 0x00000001, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT),
 GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT),
 GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT),
