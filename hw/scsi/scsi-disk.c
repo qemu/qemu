@@ -2306,6 +2306,7 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .send_command = scsi_disk_emulate_command,
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
+    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
 };
 
