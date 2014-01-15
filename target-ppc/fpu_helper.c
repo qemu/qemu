@@ -1969,7 +1969,7 @@ VSX_RE(xvresp, 4, float32, f32, 0, 0)
  *   fld   - vsr_t field (f32 or f64)
  *   sfprf - set FPRF
  */
-#define VSX_SQRT(op, nels, tp, fld, sfprf)                                   \
+#define VSX_SQRT(op, nels, tp, fld, sfprf, r2sp)                             \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
 {                                                                            \
     ppc_vsr_t xt, xb;                                                        \
@@ -1993,6 +1993,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
             }                                                                \
         }                                                                    \
                                                                              \
+        if (r2sp) {                                                          \
+            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+        }                                                                    \
+                                                                             \
         if (sfprf) {                                                         \
             helper_compute_fprf(env, xt.fld[i], sfprf);                      \
         }                                                                    \
@@ -2002,9 +2006,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
     helper_float_check_status(env);                                          \
 }
 
-VSX_SQRT(xssqrtdp, 1, float64, f64, 1)
-VSX_SQRT(xvsqrtdp, 2, float64, f64, 0)
-VSX_SQRT(xvsqrtsp, 4, float32, f32, 0)
+VSX_SQRT(xssqrtdp, 1, float64, f64, 1, 0)
+VSX_SQRT(xssqrtsp, 1, float64, f64, 1, 1)
+VSX_SQRT(xvsqrtdp, 2, float64, f64, 0, 0)
+VSX_SQRT(xvsqrtsp, 4, float32, f32, 0, 0)
 
 /* VSX_RSQRTE - VSX floating point reciprocal square root estimate
  *   op    - instruction mnemonic
