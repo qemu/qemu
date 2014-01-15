@@ -2585,6 +2585,14 @@ static inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
         tcg_gen_qemu_ld32s(arg1, arg2, ctx->mem_idx);
 }
 
+static void gen_qemu_ld32s_i64(DisasContext *ctx, TCGv_i64 val, TCGv addr)
+{
+    TCGv tmp = tcg_temp_new();
+    gen_qemu_ld32s(ctx, tmp, addr);
+    tcg_gen_ext_tl_i64(val, tmp);
+    tcg_temp_free(tmp);
+}
+
 static inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
     tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
@@ -7039,6 +7047,9 @@ static void gen_##name(DisasContext *ctx)                     \
 }
 
 VSX_LOAD_SCALAR(lxsdx, ld64)
+VSX_LOAD_SCALAR(lxsiwax, ld32s_i64)
+VSX_LOAD_SCALAR(lxsiwzx, ld32u_i64)
+VSX_LOAD_SCALAR(lxsspx, ld32fs)
 
 static void gen_lxvd2x(DisasContext *ctx)
 {
@@ -10044,6 +10055,9 @@ GEN_VAFORM_PAIRED(vsel, vperm, 21),
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
+GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(lxsiwzx, 0x1F, 0x0C, 0x00, 0, PPC_NONE, PPC2_VSX207),
+GEN_HANDLER_E(lxsspx, 0x1F, 0x0C, 0x10, 0, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxvdsx, 0x1F, 0x0C, 0x0A, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxvw4x, 0x1F, 0x0C, 0x18, 0, PPC_NONE, PPC2_VSX),
