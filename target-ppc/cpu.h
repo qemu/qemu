@@ -1875,9 +1875,11 @@ enum {
     PPC2_DBRX          = 0x0000000000000010ULL,
     /* Book I 2.05 PowerPC specification                                     */
     PPC2_ISA205        = 0x0000000000000020ULL,
+    /* VSX additions in ISA 2.07                                             */
+    PPC2_VSX207        = 0x0000000000000040ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
-  PPC2_ISA205)
+                        PPC2_ISA205 | PPC2_VSX207)
 };
 
 /*****************************************************************************/
