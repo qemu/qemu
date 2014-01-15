@@ -7112,19 +7112,22 @@ static void gen_lxvw4x(DisasContext *ctx)
     tcg_temp_free_i64(tmp);
 }
 
-static void gen_stxsdx(DisasContext *ctx)
-{
-    TCGv EA;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_st64(ctx, cpu_vsrh(xS(ctx->opcode)), EA);
-    tcg_temp_free(EA);
+#define VSX_STORE_SCALAR(name, operation)                     \
+static void gen_##name(DisasContext *ctx)                     \
+{                                                             \
+    TCGv EA;                                                  \
+    if (unlikely(!ctx->vsx_enabled)) {                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
+        return;                                               \
+    }                                                         \
+    gen_set_access_type(ctx, ACCESS_INT);                     \
+    EA = tcg_temp_new();                                      \
+    gen_addr_reg_index(ctx, EA);                              \
+    gen_qemu_##operation(ctx, cpu_vsrh(xS(ctx->opcode)), EA); \
+    tcg_temp_free(EA);                                        \
 }
+
+VSX_STORE_SCALAR(stxsdx, st64)
 
 static void gen_stxvd2x(DisasContext *ctx)
 {
