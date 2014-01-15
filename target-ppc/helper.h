@@ -286,6 +286,9 @@ DEF_HELPER_2(xsrdpim, void, env, i32)
 DEF_HELPER_2(xsrdpip, void, env, i32)
 DEF_HELPER_2(xsrdpiz, void, env, i32)
 
+DEF_HELPER_2(xsaddsp, void, env, i32)
+DEF_HELPER_2(xssubsp, void, env, i32)
+
 DEF_HELPER_2(xvadddp, void, env, i32)
 DEF_HELPER_2(xvsubdp, void, env, i32)
 DEF_HELPER_2(xvmuldp, void, env, i32)

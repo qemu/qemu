@@ -1768,7 +1768,7 @@ static void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
  *   fld   - vsr_t field (f32 or f64)
  *   sfprf - set FPRF
  */
-#define VSX_ADD_SUB(name, op, nels, tp, fld, sfprf)                          \
+#define VSX_ADD_SUB(name, op, nels, tp, fld, sfprf, r2sp)                    \
 void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
 {                                                                            \
     ppc_vsr_t xt, xa, xb;                                                    \
@@ -1794,6 +1794,10 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
             }                                                                \
         }                                                                    \
                                                                              \
+        if (r2sp) {                                                          \
+            xt.fld[i] = helper_frsp(env, xt.fld[i]);                         \
+        }                                                                    \
+                                                                             \
         if (sfprf) {                                                         \
             helper_compute_fprf(env, xt.fld[i], sfprf);                      \
         }                                                                    \
@@ -1802,12 +1806,14 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
     helper_float_check_status(env);                                          \
 }
 
-VSX_ADD_SUB(xsadddp, add, 1, float64, f64, 1)
-VSX_ADD_SUB(xvadddp, add, 2, float64, f64, 0)
-VSX_ADD_SUB(xvaddsp, add, 4, float32, f32, 0)
-VSX_ADD_SUB(xssubdp, sub, 1, float64, f64, 1)
-VSX_ADD_SUB(xvsubdp, sub, 2, float64, f64, 0)
-VSX_ADD_SUB(xvsubsp, sub, 4, float32, f32, 0)
+VSX_ADD_SUB(xsadddp, add, 1, float64, f64, 1, 0)
+VSX_ADD_SUB(xsaddsp, add, 1, float64, f64, 1, 1)
+VSX_ADD_SUB(xvadddp, add, 2, float64, f64, 0, 0)
+VSX_ADD_SUB(xvaddsp, add, 4, float32, f32, 0, 0)
+VSX_ADD_SUB(xssubdp, sub, 1, float64, f64, 1, 0)
+VSX_ADD_SUB(xssubsp, sub, 1, float64, f64, 1, 1)
+VSX_ADD_SUB(xvsubdp, sub, 2, float64, f64, 0, 0)
+VSX_ADD_SUB(xvsubsp, sub, 4, float32, f32, 0, 0)
 
 /* VSX_MUL - VSX floating point multiply
  *   op    - instruction mnemonic
