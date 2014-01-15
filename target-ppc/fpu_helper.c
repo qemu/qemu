@@ -1928,7 +1928,7 @@ VSX_DIV(xvdivsp, 4, float32, f32, 0, 0)
  *   fld   - vsr_t field (f32 or f64)
  *   sfprf - set FPRF
  */
-#define VSX_RE(op, nels, tp, fld, sfprf)                                      \
+#define VSX_RE(op, nels, tp, fld, sfprf, r2sp)                                \
 void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
 {                                                                             \
     ppc_vsr_t xt, xb;                                                         \
@@ -1943,6 +1943,11 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
                 fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, sfprf);    \
         }                                                                     \
         xt.fld[i] = tp##_div(tp##_one, xb.fld[i], &env->fp_status);           \
+                                                                              \
+        if (r2sp) {                                                           \
+            xt.fld[i] = helper_frsp(env, xt.fld[i]);                          \
+        }                                                                     \
+                                                                              \
         if (sfprf) {                                                          \
             helper_compute_fprf(env, xt.fld[0], sfprf);                       \
         }                                                                     \
@@ -1952,9 +1957,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     helper_float_check_status(env);                                           \
 }
 
-VSX_RE(xsredp, 1, float64, f64, 1)
-VSX_RE(xvredp, 2, float64, f64, 0)
-VSX_RE(xvresp, 4, float32, f32, 0)
+VSX_RE(xsredp, 1, float64, f64, 1, 0)
+VSX_RE(xsresp, 1, float64, f64, 1, 1)
+VSX_RE(xvredp, 2, float64, f64, 0, 0)
+VSX_RE(xvresp, 4, float32, f32, 0, 0)
 
 /* VSX_SQRT - VSX floating point square root
  *   op    - instruction mnemonic
