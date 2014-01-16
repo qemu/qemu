@@ -135,12 +135,18 @@ enum {
 
 struct VFIOGroup;
 
+typedef struct VFIOType1 {
+    MemoryListener listener;
+    int error;
+    bool initialized;
+} VFIOType1;
+
 typedef struct VFIOContainer {
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     struct {
         /* enable abstraction to support various iommu backends */
         union {
-            MemoryListener listener; /* Used by type1 iommu */
+            VFIOType1 type1;
         };
         void (*release)(struct VFIOContainer *);
     } iommu_data;
@@ -2170,7 +2176,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.listener);
+                                            iommu_data.type1.listener);
     hwaddr iova, end;
     void *vaddr;
     int ret;
@@ -2212,6 +2218,19 @@ static void vfio_listener_region_add(MemoryListener *listener,
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, end - iova, vaddr, ret);
+
+        /*
+         * On the initfn path, store the first error in the container so we
+         * can gracefully fail.  Runtime, there's not much we can do other
+         * than throw a hardware error.
+         */
+        if (!container->iommu_data.type1.initialized) {
+            if (!container->iommu_data.type1.error) {
+                container->iommu_data.type1.error = ret;
+            }
+        } else {
+            hw_error("vfio: DMA mapping failed, unable to continue\n");
+        }
     }
 }
 
@@ -2219,7 +2238,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.listener);
+                                            iommu_data.type1.listener);
     hwaddr iova, end;
     int ret;
 
@@ -2264,7 +2283,7 @@ static MemoryListener vfio_memory_listener = {
 
 static void vfio_listener_release(VFIOContainer *container)
 {
-    memory_listener_unregister(&container->iommu_data.listener);
+    memory_listener_unregister(&container->iommu_data.type1.listener);
 }
 
 /*
@@ -3236,10 +3255,23 @@ static int vfio_connect_container(VFIOGroup *group)
             return -errno;
         }
 
-        container->iommu_data.listener = vfio_memory_listener;
+        container->iommu_data.type1.listener = vfio_memory_listener;
         container->iommu_data.release = vfio_listener_release;
 
-        memory_listener_register(&container->iommu_data.listener, &address_space_memory);
+        memory_listener_register(&container->iommu_data.type1.listener,
+                                 &address_space_memory);
+
+        if (container->iommu_data.type1.error) {
+            ret = container->iommu_data.type1.error;
+            vfio_listener_release(container);
+            g_free(container);
+            close(fd);
+            error_report("vfio: memory listener initialization failed for container\n");
+            return ret;
+        }
+
+        container->iommu_data.type1.initialized = true;
+
     } else {
         error_report("vfio: No available IOMMU models");
         g_free(container);
