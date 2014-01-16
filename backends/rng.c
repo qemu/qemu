@@ -12,6 +12,7 @@
 
 #include "sysemu/rng.h"
 #include "qapi/qmp/qerror.h"
+#include "qom/object_interfaces.h"
 
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
@@ -83,6 +84,10 @@ static const TypeInfo rng_backend_info = {
     .instance_init = rng_backend_init,
     .class_size = sizeof(RngBackendClass),
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
 };
 
 static void register_types(void)

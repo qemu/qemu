@@ -170,6 +170,7 @@ int main(int argc, char **argv)
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
+#include "qom/object_interfaces.h"
 
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
@@ -2816,9 +2817,21 @@ static int object_create(QemuOpts *opts, void *opaque)
         return -1;
     }
 
+    if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
+        error_setg(&local_err, "object '%s' isn't supported by -object",
+                   id);
+        goto out;
+    }
+
+    user_creatable_complete(obj, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
     object_property_add_child(container_get(object_get_root(), "/objects"),
                               id, obj, &local_err);
 
+out:
     object_unref(obj);
     if (local_err) {
         qerror_report_err(local_err);
