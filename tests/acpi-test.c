@@ -23,6 +23,7 @@
 #define MACHINE_Q35 "q35"
 
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
+#define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 
 /* DSDT and SSDTs format */
 typedef struct {
@@ -403,6 +404,11 @@ static void dump_aml_files(test_data *data, bool rebuild)
     }
 }
 
+static bool compare_signature(AcpiSdtTable *sdt, uint32_t signature)
+{
+   return sdt->header.signature == signature;
+}
+
 static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
@@ -419,9 +425,15 @@ static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
 
     /* build command line */
     g_string_append_printf(command_line, " -p %s ", sdt->asl_file);
-    for (i = 0; i < 2; ++i) { /* reference DSDT and SSDT */
-        temp = &g_array_index(sdts, AcpiSdtTable, i);
-        g_string_append_printf(command_line, "-e %s ", temp->aml_file);
+    if (compare_signature(sdt, ACPI_DSDT_SIGNATURE) ||
+        compare_signature(sdt, ACPI_SSDT_SIGNATURE)) {
+        for (i = 0; i < sdts->len; ++i) {
+            temp = &g_array_index(sdts, AcpiSdtTable, i);
+            if (compare_signature(temp, ACPI_DSDT_SIGNATURE) ||
+                compare_signature(temp, ACPI_SSDT_SIGNATURE)) {
+                g_string_append_printf(command_line, "-e %s ", temp->aml_file);
+            }
+        }
     }
     g_string_append_printf(command_line, "-d %s", sdt->aml_file);
 
