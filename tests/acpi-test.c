@@ -44,7 +44,7 @@ typedef struct {
     AcpiFacsDescriptorRev1 facs_table;
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
-    GArray *ssdt_tables; /* first is DSDT */
+    GArray *tables;
 } test_data;
 
 #define LOW(x) ((x) & 0xff)
@@ -145,8 +145,8 @@ static void free_test_data(test_data *data)
         g_free(data->rsdt_tables_addr);
     }
 
-    for (i = 0; i < data->ssdt_tables->len; ++i) {
-        temp = &g_array_index(data->ssdt_tables, AcpiSdtTable, i);
+    for (i = 0; i < data->tables->len; ++i) {
+        temp = &g_array_index(data->tables, AcpiSdtTable, i);
         if (temp->aml) {
             g_free(temp->aml);
         }
@@ -167,7 +167,7 @@ static void free_test_data(test_data *data)
         }
     }
 
-    g_array_free(data->ssdt_tables, false);
+    g_array_free(data->tables, false);
 }
 
 static uint8_t acpi_checksum(const uint8_t *data, int len)
@@ -342,27 +342,27 @@ static void test_acpi_dsdt_table(test_data *data)
     uint32_t addr = data->fadt_table.dsdt;
 
     memset(&dsdt_table, 0, sizeof(dsdt_table));
-    data->ssdt_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
+    data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
 
     test_dst_table(&dsdt_table, addr);
     g_assert_cmphex(dsdt_table.header.signature, ==, ACPI_DSDT_SIGNATURE);
 
     /* Place DSDT first */
-    g_array_append_val(data->ssdt_tables, dsdt_table);
+    g_array_append_val(data->tables, dsdt_table);
 }
 
-static void test_acpi_ssdt_tables(test_data *data)
+static void test_acpi_tables(test_data *data)
 {
-    int ssdt_tables_nr = data->rsdt_tables_nr - 1; /* fadt is first */
+    int tables_nr = data->rsdt_tables_nr - 1; /* fadt is first */
     int i;
 
-    for (i = 0; i < ssdt_tables_nr; i++) {
+    for (i = 0; i < tables_nr; i++) {
         AcpiSdtTable ssdt_table;
 
         memset(&ssdt_table, 0 , sizeof(ssdt_table));
         uint32_t addr = data->rsdt_tables_addr[i + 1]; /* fadt is first */
         test_dst_table(&ssdt_table, addr);
-        g_array_append_val(data->ssdt_tables, ssdt_table);
+        g_array_append_val(data->tables, ssdt_table);
     }
 }
 
@@ -375,8 +375,8 @@ static void dump_aml_files(test_data *data, bool rebuild)
     ssize_t ret;
     int i;
 
-    for (i = 0; i < data->ssdt_tables->len; ++i) {
-        sdt = &g_array_index(data->ssdt_tables, AcpiSdtTable, i);
+    for (i = 0; i < data->tables->len; ++i) {
+        sdt = &g_array_index(data->tables, AcpiSdtTable, i);
         g_assert(sdt->aml);
 
         if (rebuild) {
@@ -474,10 +474,10 @@ static GArray *load_expected_aml(test_data *data)
     GError *error = NULL;
     gboolean ret;
 
-    GArray *exp_ssdt_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
-    for (i = 0; i < data->ssdt_tables->len; ++i) {
+    GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
+    for (i = 0; i < data->tables->len; ++i) {
         AcpiSdtTable exp_sdt;
-        sdt = &g_array_index(data->ssdt_tables, AcpiSdtTable, i);
+        sdt = &g_array_index(data->tables, AcpiSdtTable, i);
 
         memset(&exp_sdt, 0, sizeof(exp_sdt));
         exp_sdt.header.signature = sdt->header.signature;
@@ -493,10 +493,10 @@ static GArray *load_expected_aml(test_data *data)
         g_assert(exp_sdt.aml);
         g_assert(exp_sdt.aml_len);
 
-        g_array_append_val(exp_ssdt_tables, exp_sdt);
+        g_array_append_val(exp_tables, exp_sdt);
     }
 
-    return exp_ssdt_tables;
+    return exp_tables;
 }
 
 static void test_acpi_asl(test_data *data)
@@ -506,18 +506,18 @@ static void test_acpi_asl(test_data *data)
     test_data exp_data;
 
     memset(&exp_data, 0, sizeof(exp_data));
-    exp_data.ssdt_tables = load_expected_aml(data);
+    exp_data.tables = load_expected_aml(data);
     dump_aml_files(data, false);
-    for (i = 0; i < data->ssdt_tables->len; ++i) {
+    for (i = 0; i < data->tables->len; ++i) {
         GString *asl, *exp_asl;
 
-        sdt = &g_array_index(data->ssdt_tables, AcpiSdtTable, i);
-        exp_sdt = &g_array_index(exp_data.ssdt_tables, AcpiSdtTable, i);
+        sdt = &g_array_index(data->tables, AcpiSdtTable, i);
+        exp_sdt = &g_array_index(exp_data.tables, AcpiSdtTable, i);
 
-        load_asl(data->ssdt_tables, sdt);
+        load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
-        load_asl(exp_data.ssdt_tables, exp_sdt);
+        load_asl(exp_data.tables, exp_sdt);
         exp_asl = normalize_asl(exp_sdt->asl);
 
         g_assert(!g_strcmp0(asl->str, exp_asl->str));
@@ -570,7 +570,7 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_fadt_table(data);
     test_acpi_facs_table(data);
     test_acpi_dsdt_table(data);
-    test_acpi_ssdt_tables(data);
+    test_acpi_tables(data);
 
     if (iasl) {
         if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
