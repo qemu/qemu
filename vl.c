@@ -2800,6 +2800,7 @@ static int object_create(QemuOpts *opts, void *opaque)
 {
     const char *type = qemu_opt_get(opts, "qom-type");
     const char *id = qemu_opts_id(opts);
+    Error *local_err = NULL;
     Object *obj;
 
     g_assert(type != NULL);
@@ -2816,8 +2817,14 @@ static int object_create(QemuOpts *opts, void *opaque)
     }
 
     object_property_add_child(container_get(object_get_root(), "/objects"),
-                              id, obj, NULL);
+                              id, obj, &local_err);
+
     object_unref(obj);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
     return 0;
 }
 
