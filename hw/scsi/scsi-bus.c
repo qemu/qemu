@@ -469,6 +469,8 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
             r->req.dev->sense_is_ua = false;
         }
         break;
+    case TEST_UNIT_READY:
+        break;
     default:
         scsi_req_build_sense(req, SENSE_CODE(LUN_NOT_SUPPORTED));
         scsi_req_complete(req, CHECK_CONDITION);
