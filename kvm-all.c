@@ -1360,6 +1360,7 @@ int kvm_init(void)
      * page size for the system though.
      */
     assert(TARGET_PAGE_SIZE <= getpagesize());
+    page_size_init();
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
