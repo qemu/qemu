@@ -1495,6 +1495,12 @@ void helper_mtc0_config4(CPUMIPSState *env, target_ulong arg1)
                        (arg1 & env->CP0_Config4_rw_bitmask);
 }
 
+void helper_mtc0_config5(CPUMIPSState *env, target_ulong arg1)
+{
+    env->CP0_Config5 = (env->CP0_Config5 & (~env->CP0_Config5_rw_bitmask)) |
+                       (arg1 & env->CP0_Config5_rw_bitmask);
+}
+
 void helper_mtc0_lladdr(CPUMIPSState *env, target_ulong arg1)
 {
     target_long mask = env->CP0_LLAddr_rw_bitmask;

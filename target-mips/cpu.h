@@ -73,6 +73,7 @@ struct CPUMIPSFPUContext {
     float_status fp_status;
     /* fpu implementation/revision register (fir) */
     uint32_t fcr0;
+#define FCR0_UFRP 28
 #define FCR0_F64 22
 #define FCR0_L 21
 #define FCR0_W 20
@@ -371,6 +372,15 @@ struct CPUMIPSState {
     uint32_t CP0_Config4;
     uint32_t CP0_Config4_rw_bitmask;
 #define CP0C4_M    31
+    uint32_t CP0_Config5;
+    uint32_t CP0_Config5_rw_bitmask;
+#define CP0C5_M          31
+#define CP0C5_K          30
+#define CP0C5_CV         29
+#define CP0C5_EVA        28
+#define CP0C5_MSAEn      27
+#define CP0C5_UFR        2
+#define CP0C5_NFExists   0
     int32_t CP0_Config6;
     int32_t CP0_Config7;
     /* XXX: Maybe make LLAddr per-TC? */
