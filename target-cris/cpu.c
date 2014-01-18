@@ -66,6 +66,12 @@ static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
         return NULL;
     }
 
+#if defined(CONFIG_USER_ONLY)
+    if (strcasecmp(cpu_model, "any") == 0) {
+        return object_class_by_name("crisv32-" TYPE_CRIS_CPU);
+    }
+#endif
+
     typename = g_strdup_printf("%s-" TYPE_CRIS_CPU, cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
