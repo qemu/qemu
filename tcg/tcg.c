@@ -586,7 +586,7 @@ static void tcg_temp_free_internal(int idx)
     assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
 
-    k = ts->type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
+    k = ts->base_type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
     set_bit(idx, s->free_temps[k].l);
 }
 
