@@ -1383,7 +1383,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->bs = bs;
 
-    opts = qemu_opts_create_nofail(&runtime_opts);
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         qerror_report_err(local_err);
@@ -2048,13 +2048,14 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
 {
     SheepdogAIOCB *acb;
     int ret;
+    int64_t offset = (sector_num + nb_sectors) * BDRV_SECTOR_SIZE;
+    BDRVSheepdogState *s = bs->opaque;
 
-    if (bs->growable && sector_num + nb_sectors > bs->total_sectors) {
-        ret = sd_truncate(bs, (sector_num + nb_sectors) * BDRV_SECTOR_SIZE);
+    if (bs->growable && offset > s->inode.vdi_size) {
+        ret = sd_truncate(bs, offset);
         if (ret < 0) {
             return ret;
         }
-        bs->total_sectors = sector_num + nb_sectors;
     }
 
     acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors);

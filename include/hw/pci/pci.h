@@ -373,7 +373,6 @@ void pci_bus_fire_intx_routing_notifier(PCIBus *bus);
 void pci_device_set_intx_routing_notifier(PCIDevice *dev,
                                           PCIINTxRoutingNotifier notifier);
 void pci_device_reset(PCIDevice *dev);
-void pci_bus_reset(PCIBus *bus);
 
 PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
                         const char *default_model,

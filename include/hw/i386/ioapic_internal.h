@@ -83,7 +83,8 @@ typedef struct IOAPICCommonState IOAPICCommonState;
 
 typedef struct IOAPICCommonClass {
     SysBusDeviceClass parent_class;
-    void (*init)(IOAPICCommonState *s, int instance_no);
+
+    DeviceRealize realize;
     void (*pre_save)(IOAPICCommonState *s);
     void (*post_load)(IOAPICCommonState *s);
 } IOAPICCommonClass;

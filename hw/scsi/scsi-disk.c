@@ -47,6 +47,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define SCSI_MAX_MODE_LEN           256
 
 #define DEFAULT_DISCARD_GRANULARITY 4096
+#define DEFAULT_MAX_UNMAP_SIZE      (1 << 30)   /* 1 GB */
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -74,6 +75,7 @@ struct SCSIDiskState
     bool media_event;
     bool eject_request;
     uint64_t wwn;
+    uint64_t max_unmap_size;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -625,6 +627,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                     s->qdev.conf.min_io_size / s->qdev.blocksize;
             unsigned int opt_io_size =
                     s->qdev.conf.opt_io_size / s->qdev.blocksize;
+            unsigned int max_unmap_sectors =
+                    s->max_unmap_size / s->qdev.blocksize;
 
             if (s->qdev.type == TYPE_ROM) {
                 DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
@@ -646,6 +650,18 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[13] = (opt_io_size >> 16) & 0xff;
             outbuf[14] = (opt_io_size >> 8) & 0xff;
             outbuf[15] = opt_io_size & 0xff;
+
+            /* max unmap LBA count, default is 1GB */
+            outbuf[20] = (max_unmap_sectors >> 24) & 0xff;
+            outbuf[21] = (max_unmap_sectors >> 16) & 0xff;
+            outbuf[22] = (max_unmap_sectors >> 8) & 0xff;
+            outbuf[23] = max_unmap_sectors & 0xff;
+
+            /* max unmap descriptors, 255 fit in 4 kb with an 8-byte header.  */
+            outbuf[24] = 0;
+            outbuf[25] = 0;
+            outbuf[26] = 0;
+            outbuf[27] = 255;
 
             /* optimal unmap granularity */
             outbuf[28] = (unmap_sectors >> 24) & 0xff;
@@ -2519,6 +2535,8 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
+                       DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2628,6 +2646,8 @@ static Property scsi_disk_properties[] = {
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
+                       DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

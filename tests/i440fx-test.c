@@ -2,9 +2,11 @@
  * qtest I440FX test case
  *
  * Copyright IBM, Corp. 2012-2013
+ * Copyright Red Hat, Inc. 2013
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Laszlo Ersek      <lersek@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -18,6 +20,11 @@
 
 #include <glib.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <stdlib.h>
 
 #define BROKEN 1
 
@@ -26,16 +33,32 @@
 typedef struct TestData
 {
     int num_cpus;
-    QPCIBus *bus;
 } TestData;
+
+typedef struct FirmwareTestFixture {
+    /* decides whether we're testing -bios or -pflash */
+    bool is_bios;
+} FirmwareTestFixture;
+
+static QPCIBus *test_start_get_bus(const TestData *s)
+{
+    char *cmdline;
+
+    cmdline = g_strdup_printf("-smp %d", s->num_cpus);
+    qtest_start(cmdline);
+    g_free(cmdline);
+    return qpci_init_pc();
+}
 
 static void test_i440fx_defaults(gconstpointer opaque)
 {
     const TestData *s = opaque;
+    QPCIBus *bus;
     QPCIDevice *dev;
     uint32_t value;
 
-    dev = qpci_device_find(s->bus, QPCI_DEVFN(0, 0));
+    bus = test_start_get_bus(s);
+    dev = qpci_device_find(bus, QPCI_DEVFN(0, 0));
     g_assert(dev != NULL);
 
     /* 3.2.2 */
@@ -119,6 +142,8 @@ static void test_i440fx_defaults(gconstpointer opaque)
     g_assert_cmpint(qpci_config_readb(dev, 0x91), ==, 0x00); /* ERRSTS */
     /* 3.2.26 */
     g_assert_cmpint(qpci_config_readb(dev, 0x93), ==, 0x00); /* TRC */
+
+    qtest_end();
 }
 
 #define PAM_RE 1
@@ -177,6 +202,7 @@ static void write_area(uint32_t start, uint32_t end, uint8_t value)
 static void test_i440fx_pam(gconstpointer opaque)
 {
     const TestData *s = opaque;
+    QPCIBus *bus;
     QPCIDevice *dev;
     int i;
     static struct {
@@ -199,7 +225,8 @@ static void test_i440fx_pam(gconstpointer opaque)
         { 0xEC000, 0xEFFFF }, /* BIOS Extension */
     };
 
-    dev = qpci_device_find(s->bus, QPCI_DEVFN(0, 0));
+    bus = test_start_get_bus(s);
+    dev = qpci_device_find(bus, QPCI_DEVFN(0, 0));
     g_assert(dev != NULL);
 
     for (i = 0; i < ARRAY_SIZE(pam_area); i++) {
@@ -252,34 +279,140 @@ static void test_i440fx_pam(gconstpointer opaque)
         /* Verify the area is not our new mask */
         g_assert(!verify_area(pam_area[i].start, pam_area[i].end, 0x82));
     }
+    qtest_end();
+}
+
+#define BLOB_SIZE ((size_t)65536)
+#define ISA_BIOS_MAXSZ ((size_t)(128 * 1024))
+
+/* Create a blob file, and return its absolute pathname as a dynamically
+ * allocated string.
+ * The file is closed before the function returns.
+ * In case of error, NULL is returned. The function prints the error message.
+ */
+static char *create_blob_file(void)
+{
+    int ret, fd;
+    char *pathname;
+    GError *error = NULL;
+
+    ret = -1;
+    fd = g_file_open_tmp("blob_XXXXXX", &pathname, &error);
+    if (fd == -1) {
+        fprintf(stderr, "unable to create blob file: %s\n", error->message);
+        g_error_free(error);
+    } else {
+        if (ftruncate(fd, BLOB_SIZE) == -1) {
+            fprintf(stderr, "ftruncate(\"%s\", %zu): %s\n", pathname,
+                    BLOB_SIZE, strerror(errno));
+        } else {
+            void *buf;
+
+            buf = mmap(NULL, BLOB_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+            if (buf == MAP_FAILED) {
+                fprintf(stderr, "mmap(\"%s\", %zu): %s\n", pathname, BLOB_SIZE,
+                        strerror(errno));
+            } else {
+                size_t i;
+
+                for (i = 0; i < BLOB_SIZE; ++i) {
+                    ((uint8_t *)buf)[i] = i;
+                }
+                munmap(buf, BLOB_SIZE);
+                ret = 0;
+            }
+        }
+        close(fd);
+        if (ret == -1) {
+            unlink(pathname);
+            g_free(pathname);
+        }
+    }
+
+    return ret == -1 ? NULL : pathname;
+}
+
+static void test_i440fx_firmware(FirmwareTestFixture *fixture,
+                                 gconstpointer user_data)
+{
+    char *fw_pathname, *cmdline;
+    uint8_t *buf;
+    size_t i, isa_bios_size;
+
+    fw_pathname = create_blob_file();
+    g_assert(fw_pathname != NULL);
+
+    /* Better hope the user didn't put metacharacters in TMPDIR and co. */
+    cmdline = g_strdup_printf("-S %s %s",
+                              fixture->is_bios ? "-bios" : "-pflash",
+                              fw_pathname);
+    g_test_message("qemu cmdline: %s", cmdline);
+    qtest_start(cmdline);
+    g_free(cmdline);
+
+    /* Qemu has loaded the firmware (because qtest_start() only returns after
+     * the QMP handshake completes). We must unlink the firmware blob right
+     * here, because any assertion firing below would leak it in the
+     * filesystem. This is also the reason why we recreate the blob every time
+     * this function is invoked.
+     */
+    unlink(fw_pathname);
+    g_free(fw_pathname);
+
+    /* check below 4G */
+    buf = g_malloc0(BLOB_SIZE);
+    memread(0x100000000ULL - BLOB_SIZE, buf, BLOB_SIZE);
+    for (i = 0; i < BLOB_SIZE; ++i) {
+        g_assert_cmphex(buf[i], ==, (uint8_t)i);
+    }
+
+    /* check in ISA space too */
+    memset(buf, 0, BLOB_SIZE);
+    isa_bios_size = ISA_BIOS_MAXSZ < BLOB_SIZE ? ISA_BIOS_MAXSZ : BLOB_SIZE;
+    memread(0x100000 - isa_bios_size, buf, isa_bios_size);
+    for (i = 0; i < isa_bios_size; ++i) {
+        g_assert_cmphex(buf[i], ==,
+                        (uint8_t)((BLOB_SIZE - isa_bios_size) + i));
+    }
+
+    g_free(buf);
+    qtest_end();
+}
+
+static void add_firmware_test(const char *testpath,
+                              void (*setup_fixture)(FirmwareTestFixture *f,
+                                                    gconstpointer test_data))
+{
+    g_test_add(testpath, FirmwareTestFixture, NULL, setup_fixture,
+               test_i440fx_firmware, NULL);
+}
+
+static void request_bios(FirmwareTestFixture *fixture,
+                         gconstpointer user_data)
+{
+    fixture->is_bios = true;
+}
+
+static void request_pflash(FirmwareTestFixture *fixture,
+                           gconstpointer user_data)
+{
+    fixture->is_bios = false;
 }
 
 int main(int argc, char **argv)
 {
-    QTestState *s;
     TestData data;
-    char *cmdline;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
     data.num_cpus = 1;
 
-    cmdline = g_strdup_printf("-smp %d", data.num_cpus);
-    s = qtest_start(cmdline);
-    g_free(cmdline);
-
-    data.bus = qpci_init_pc();
-
     g_test_add_data_func("/i440fx/defaults", &data, test_i440fx_defaults);
     g_test_add_data_func("/i440fx/pam", &data, test_i440fx_pam);
-    
+    add_firmware_test("/i440fx/firmware/bios", request_bios);
+    add_firmware_test("/i440fx/firmware/pflash", request_pflash);
 
     ret = g_test_run();
-
-    if (s) {
-        qtest_quit(s);
-    }
-
     return ret;
 }

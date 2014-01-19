@@ -46,7 +46,7 @@
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
-static int pcibus_reset(BusState *qbus);
+static void pcibus_reset(BusState *qbus);
 static void pci_bus_finalize(Object *obj);
 
 static Property pci_props[] = {
@@ -167,15 +167,9 @@ void pci_device_deassert_intx(PCIDevice *dev)
     }
 }
 
-/*
- * This function is called on #RST and FLR.
- * FLR if PCI_EXP_DEVCTL_BCR_FLR is set
- */
-void pci_device_reset(PCIDevice *dev)
+static void pci_do_device_reset(PCIDevice *dev)
 {
     int r;
-
-    qdev_reset_all(&dev->qdev);
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
@@ -209,30 +203,34 @@ void pci_device_reset(PCIDevice *dev)
 }
 
 /*
- * Trigger pci bus reset under a given bus.
- * To be called on RST# assert.
+ * This function is called on #RST and FLR.
+ * FLR if PCI_EXP_DEVCTL_BCR_FLR is set
  */
-void pci_bus_reset(PCIBus *bus)
+void pci_device_reset(PCIDevice *dev)
 {
-    int i;
-
-    for (i = 0; i < bus->nirq; i++) {
-        bus->irq_count[i] = 0;
-    }
-    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
-        if (bus->devices[i]) {
-            pci_device_reset(bus->devices[i]);
-        }
-    }
+    qdev_reset_all(&dev->qdev);
+    pci_do_device_reset(dev);
 }
 
-static int pcibus_reset(BusState *qbus)
+/*
+ * Trigger pci bus reset under a given bus.
+ * Called via qbus_reset_all on RST# assert, after the devices
+ * have been reset qdev_reset_all-ed already.
+ */
+static void pcibus_reset(BusState *qbus)
 {
-    pci_bus_reset(DO_UPCAST(PCIBus, qbus, qbus));
+    PCIBus *bus = DO_UPCAST(PCIBus, qbus, qbus);
+    int i;
 
-    /* topology traverse is done by pci_bus_reset().
-       Tell qbus/qdev walker not to traverse the tree */
-    return 1;
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        if (bus->devices[i]) {
+            pci_do_device_reset(bus->devices[i]);
+        }
+    }
+
+    for (i = 0; i < bus->nirq; i++) {
+        assert(bus->irq_count[i] == 0);
+    }
 }
 
 static void pci_host_bus_register(PCIBus *bus, DeviceState *parent)

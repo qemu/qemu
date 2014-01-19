@@ -182,6 +182,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     ram_addr_t ram_size,
+                    ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_memory,
                     MemoryRegion *ram_memory);

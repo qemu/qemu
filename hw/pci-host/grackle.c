@@ -130,7 +130,11 @@ static void grackle_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_MOTOROLA_MPC106;
     k->revision  = 0x00;
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
-    dc->no_user = 1;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo grackle_pci_info = {
@@ -143,10 +147,8 @@ static const TypeInfo grackle_pci_info = {
 static void pci_grackle_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = pci_grackle_init_device;
-    dc->no_user = 1;
 }
 
 static const TypeInfo grackle_pci_host_info = {

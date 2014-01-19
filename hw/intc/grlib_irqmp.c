@@ -355,6 +355,8 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
     k->init = grlib_irqmp_init;
     dc->reset = grlib_irqmp_reset;
     dc->props = grlib_irqmp_properties;
+    /* Reason: pointer properties "set_pil_in", "set_pil_in_opaque" */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo grlib_irqmp_info = {

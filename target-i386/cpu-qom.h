@@ -69,6 +69,8 @@ typedef struct X86CPU {
     bool hyperv_vapic;
     bool hyperv_relaxed_timing;
     int hyperv_spinlock_attempts;
+    bool check_cpuid;
+    bool enforce_cpuid;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;
@@ -82,6 +84,10 @@ typedef struct X86CPU {
      * capabilities) directly to the guest.
      */
     bool enable_pmu;
+
+    /* in order to simplify APIC support, we leave this pointer to the
+       user */
+    struct DeviceState *apic_state;
 } X86CPU;
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)

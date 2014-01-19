@@ -1243,6 +1243,34 @@ STEXI
 Remove host network device.
 ETEXI
 
+    {
+        .name       = "object_add",
+        .args_type  = "object:O",
+        .params     = "[qom-type=]type,id=str[,prop=value][,...]",
+        .help       = "create QOM object",
+        .mhandler.cmd = hmp_object_add,
+    },
+
+STEXI
+@item object_add
+@findex object_add
+Create QOM object.
+ETEXI
+
+    {
+        .name       = "object_del",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "destroy QOM object",
+        .mhandler.cmd = hmp_object_del,
+    },
+
+STEXI
+@item object_del
+@findex object_del
+Destroy QOM object.
+ETEXI
+
 #ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_add",
@@ -1617,6 +1645,19 @@ STEXI
 
 Executes a qemu-io command on the given block device.
 
+ETEXI
+
+    {
+        .name       = "cpu-add",
+        .args_type  = "id:i",
+        .params     = "id",
+        .help       = "add cpu",
+        .mhandler.cmd  = hmp_cpu_add,
+    },
+
+STEXI
+@item cpu-add @var{id}
+Add CPU with id @var{id}
 ETEXI
 
     {

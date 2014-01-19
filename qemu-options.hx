@@ -2419,6 +2419,8 @@ vc:80Cx24C
 No device is allocated.
 @item null
 void device
+@item chardev:@var{id}
+Use a named character device defined with the @code{-chardev} option.
 @item /dev/XXX
 [Linux only] Use host tty, e.g. @file{/dev/ttyS0}. The host serial port
 parameters are set according to the emulated ones.

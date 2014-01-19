@@ -43,15 +43,13 @@ static const TypeInfo icc_bus_info = {
 
 static void icc_device_realize(DeviceState *dev, Error **errp)
 {
-    ICCDevice *id = ICC_DEVICE(dev);
-    ICCDeviceClass *idc = ICC_DEVICE_GET_CLASS(id);
+    ICCDeviceClass *idc = ICC_DEVICE_GET_CLASS(dev);
 
-    if (idc->init) {
-        if (idc->init(id) < 0) {
-            error_setg(errp, "%s initialization failed.",
-                       object_get_typename(OBJECT(dev)));
-        }
+    /* convert to QOM */
+    if (idc->realize) {
+        idc->realize(dev, errp);
     }
+
 }
 
 static void icc_device_class_init(ObjectClass *oc, void *data)

@@ -68,6 +68,7 @@ typedef struct IscsiTask {
     int do_retry;
     struct scsi_task *task;
     Coroutine *co;
+    QEMUBH *bh;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -123,6 +124,13 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
     qemu_bh_schedule(acb->bh);
 }
 
+static void iscsi_co_generic_bh_cb(void *opaque)
+{
+    struct IscsiTask *iTask = opaque;
+    qemu_bh_delete(iTask->bh);
+    qemu_coroutine_enter(iTask->co, NULL);
+}
+
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                         void *command_data, void *opaque)
@@ -147,7 +155,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
 out:
     if (iTask->co) {
-        qemu_coroutine_enter(iTask->co, NULL);
+        iTask->bh = qemu_bh_new(iscsi_co_generic_bh_cb, iTask);
+        qemu_bh_schedule(iTask->bh);
     }
 }
 
@@ -359,7 +368,10 @@ retry:
     default:
         iTask.task = iscsi_read10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
-                                       iscsilun->block_size, 0, 0, 0, 0, 0,
+                                       iscsilun->block_size,
+#if !defined(CONFIG_LIBISCSI_1_4) /* API change from 1.4.0 to 1.5.0 */
+                                       0, 0, 0, 0, 0,
+#endif
                                        iscsi_co_generic_cb, &iTask);
         break;
     }
@@ -1109,7 +1121,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    opts = qemu_opts_create_nofail(&runtime_opts);
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         qerror_report_err(local_err);

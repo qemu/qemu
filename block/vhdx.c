@@ -878,7 +878,6 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     int ret = 0;
     uint32_t i;
     uint64_t signature;
-    bool log_flushed = false;
 
 
     s->bat = NULL;
@@ -907,7 +906,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = vhdx_parse_log(bs, s, &log_flushed);
+    ret = vhdx_parse_log(bs, s, &s->log_replayed_on_open, errp);
     if (ret < 0) {
         goto fail;
     }
@@ -1854,6 +1853,24 @@ exit:
     return ret;
 }
 
+/* If opened r/w, the VHDX driver will automatically replay the log,
+ * if one is present, inside the vhdx_open() call.
+ *
+ * If qemu-img check -r all is called, the image is automatically opened
+ * r/w and any log has already been replayed, so there is nothing (currently)
+ * for us to do here
+ */
+static int vhdx_check(BlockDriverState *bs, BdrvCheckResult *result,
+                       BdrvCheckMode fix)
+{
+    BDRVVHDXState *s = bs->opaque;
+
+    if (s->log_replayed_on_open) {
+        result->corruptions_fixed++;
+    }
+    return 0;
+}
+
 static QEMUOptionParameter vhdx_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -1898,6 +1915,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_writev         = vhdx_co_writev,
     .bdrv_create            = vhdx_create,
     .bdrv_get_info          = vhdx_get_info,
+    .bdrv_check             = vhdx_check,
 
     .create_options         = vhdx_create_options,
 };

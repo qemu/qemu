@@ -53,7 +53,25 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
 static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
 {
     CPUArchState *env = cpu->env_ptr;
-    uintptr_t next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    uintptr_t next_tb;
+
+#if defined(DEBUG_DISAS)
+    if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
+#if defined(TARGET_I386)
+        log_cpu_state(cpu, CPU_DUMP_CCOP);
+#elif defined(TARGET_M68K)
+        /* ??? Should not modify env state for dumping.  */
+        cpu_m68k_flush_flags(env, env->cc_op);
+        env->cc_op = CC_OP_FLAGS;
+        env->sr = (env->sr & 0xffe0) | env->cc_dest | (env->cc_x << 4);
+        log_cpu_state(cpu, 0);
+#else
+        log_cpu_state(cpu, 0);
+#endif
+    }
+#endif /* DEBUG_DISAS */
+
+    next_tb = tcg_qemu_tb_exec(env, tb_ptr);
     if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
         /* We didn't start executing this TB (eg because the instruction
          * counter hit zero); we must restore the guest PC to the address
@@ -206,6 +224,9 @@ int cpu_exec(CPUArchState *env)
       (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
     CPUClass *cc = CPU_GET_CLASS(cpu);
 #endif
+#ifdef TARGET_I386
+    X86CPU *x86_cpu = X86_CPU(cpu);
+#endif
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -320,24 +341,24 @@ int cpu_exec(CPUArchState *env)
 #if !defined(CONFIG_USER_ONLY)
                     if (interrupt_request & CPU_INTERRUPT_POLL) {
                         cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-                        apic_poll_irq(env->apic_state);
+                        apic_poll_irq(x86_cpu->apic_state);
                     }
 #endif
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT,
                                                           0);
-                            do_cpu_init(x86_env_get_cpu(env));
+                            do_cpu_init(x86_cpu);
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
                     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
-                            do_cpu_sipi(x86_env_get_cpu(env));
+                            do_cpu_sipi(x86_cpu);
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
                                                           0);
                             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter(x86_env_get_cpu(env));
+                            do_smm_enter(x86_cpu);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
@@ -579,22 +600,6 @@ int cpu_exec(CPUArchState *env)
                     env->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit(env);
                 }
-#if defined(DEBUG_DISAS)
-                if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
-                    /* restore flags in standard format */
-#if defined(TARGET_I386)
-                    log_cpu_state(cpu, CPU_DUMP_CCOP);
-#elif defined(TARGET_M68K)
-                    cpu_m68k_flush_flags(env, env->cc_op);
-                    env->cc_op = CC_OP_FLAGS;
-                    env->sr = (env->sr & 0xffe0)
-                              | env->cc_dest | (env->cc_x << 4);
-                    log_cpu_state(cpu, 0);
-#else
-                    log_cpu_state(cpu, 0);
-#endif
-                }
-#endif /* DEBUG_DISAS */
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
@@ -685,6 +690,9 @@ int cpu_exec(CPUArchState *env)
 #if !(defined(CONFIG_USER_ONLY) && \
       (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
             g_assert(cc == CPU_GET_CLASS(cpu));
+#endif
+#ifdef TARGET_I386
+            x86_cpu = X86_CPU(cpu);
 #endif
         }
     } /* for(;;) */

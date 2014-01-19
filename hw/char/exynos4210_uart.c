@@ -192,10 +192,9 @@ typedef struct Exynos4210UartState {
 static const char *exynos4210_uart_regname(hwaddr  offset)
 {
 
-    int regs_number = sizeof(exynos4210_uart_regs) / sizeof(Exynos4210UartReg);
     int i;
 
-    for (i = 0; i < regs_number; i++) {
+    for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         if (offset == exynos4210_uart_regs[i].offset) {
             return exynos4210_uart_regs[i].name;
         }
@@ -544,10 +543,9 @@ static void exynos4210_uart_event(void *opaque, int event)
 static void exynos4210_uart_reset(DeviceState *dev)
 {
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
-    int regs_number = sizeof(exynos4210_uart_regs)/sizeof(Exynos4210UartReg);
     int i;
 
-    for (i = 0; i < regs_number; i++) {
+    for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         s->reg[I_(exynos4210_uart_regs[i].offset)] =
                 exynos4210_uart_regs[i].reset_value;
     }

@@ -417,10 +417,10 @@ DefinitionBlock (
         Method(_L00) {
         }
         Method(_L01) {
+        }
+        Method(_E02) {
             // CPU hotplug event
             \_SB.PRSC()
-        }
-        Method(_L02) {
         }
         Method(_L03) {
         }

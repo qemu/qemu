@@ -30,13 +30,10 @@
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
-static int virtual_css_bus_reset(BusState *qbus)
+static void virtual_css_bus_reset(BusState *qbus)
 {
     /* This should actually be modelled via the generic css */
     css_reset();
-
-    /* we dont traverse ourself, return 0 */
-    return 0;
 }
 
 
@@ -1283,11 +1280,9 @@ static int virtual_css_bridge_init(SysBusDevice *dev)
 
 static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = virtual_css_bridge_init;
-    dc->no_user = 1;
 }
 
 static const TypeInfo virtual_css_bridge_info = {

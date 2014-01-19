@@ -27,6 +27,7 @@
 #define SOCKOP_getsockopt       15
 #define SOCKOP_sendmsg          16
 #define SOCKOP_recvmsg          17
+#define SOCKOP_accept4          18
 
 #define IPCOP_semop		1
 #define IPCOP_semget		2

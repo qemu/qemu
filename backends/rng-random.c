@@ -123,15 +123,15 @@ static void rng_random_init(Object *obj)
                             NULL);
 
     s->filename = g_strdup("/dev/random");
+    s->fd = -1;
 }
 
 static void rng_random_finalize(Object *obj)
 {
     RndRandom *s = RNG_RANDOM(obj);
 
-    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-
     if (s->fd != -1) {
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         qemu_close(s->fd);
     }
 

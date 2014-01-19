@@ -20,6 +20,7 @@ test-qmp-commands
 test-qmp-input-strict
 test-qmp-marshal.c
 test-thread-pool
+test-vmstate
 test-x86-cpuid
 test-xbzrle
 *-test

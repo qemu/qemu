@@ -26,19 +26,13 @@
 #include "exec/cputlb.h"
 
 #include "exec/memory-internal.h"
+#include "exec/ram_addr.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK
 
 /* statistics */
 int tlb_flush_count;
-
-static const CPUTLBEntry s_cputlb_empty_entry = {
-    .addr_read  = -1,
-    .addr_write = -1,
-    .addr_code  = -1,
-    .addend     = -1,
-};
 
 /* NOTE:
  * If flush_global is true (the usual case), flush all tlb entries.
@@ -55,7 +49,6 @@ static const CPUTLBEntry s_cputlb_empty_entry = {
 void tlb_flush(CPUArchState *env, int flush_global)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    int i;
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush:\n");
@@ -64,15 +57,8 @@ void tlb_flush(CPUArchState *env, int flush_global)
        links while we are modifying them */
     cpu->current_tb = NULL;
 
-    for (i = 0; i < CPU_TLB_SIZE; i++) {
-        int mmu_idx;
-
-        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
-        }
-    }
-
-    memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+    memset(env->tlb_table, -1, sizeof(env->tlb_table));
+    memset(env->tb_jmp_cache, 0, sizeof(env->tb_jmp_cache));
 
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
@@ -87,7 +73,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK)) ||
         addr == (tlb_entry->addr_code &
                  (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        *tlb_entry = s_cputlb_empty_entry;
+        memset(tlb_entry, -1, sizeof(*tlb_entry));
     }
 }
 
@@ -127,9 +113,8 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
    can be detected */
 void tlb_protect_code(ram_addr_t ram_addr)
 {
-    cpu_physical_memory_reset_dirty(ram_addr,
-                                    ram_addr + TARGET_PAGE_SIZE,
-                                    CODE_DIRTY_FLAG);
+    cpu_physical_memory_reset_dirty(ram_addr, TARGET_PAGE_SIZE,
+                                    DIRTY_MEMORY_CODE);
 }
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
@@ -137,7 +122,7 @@ void tlb_protect_code(ram_addr_t ram_addr)
 void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
                              target_ulong vaddr)
 {
-    cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
+    cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_CODE);
 }
 
 static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe)
@@ -299,7 +284,8 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
             /* Write access calls the I/O callback.  */
             te->addr_write = address | TLB_MMIO;
         } else if (memory_region_is_ram(section->mr)
-                   && !cpu_physical_memory_is_dirty(section->mr->ram_addr + xlat)) {
+                   && cpu_physical_memory_is_clean(section->mr->ram_addr
+                                                   + xlat)) {
             te->addr_write = address | TLB_NOTDIRTY;
         } else {
             te->addr_write = address;

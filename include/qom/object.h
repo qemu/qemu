@@ -358,7 +358,8 @@ struct ObjectClass
     Type type;
     GSList *interfaces;
 
-    const char *cast_cache[OBJECT_CLASS_CAST_CACHE];
+    const char *object_cast_cache[OBJECT_CLASS_CAST_CACHE];
+    const char *class_cast_cache[OBJECT_CLASS_CAST_CACHE];
 
     ObjectUnparent *unparent;
 };
@@ -535,6 +536,7 @@ struct InterfaceClass
     ObjectClass parent_class;
     /*< private >*/
     ObjectClass *concrete_class;
+    Type interface_type;
 };
 
 #define TYPE_INTERFACE "interface"

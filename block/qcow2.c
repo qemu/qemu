@@ -669,7 +669,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Enable lazy_refcounts according to image and command line options */
-    opts = qemu_opts_create_nofail(&qcow2_runtime_opts);
+    opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);

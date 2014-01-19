@@ -116,6 +116,7 @@ static int dec_21154_pci_host_init(PCIDevice *d)
 static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = dec_21154_pci_host_init;
     k->vendor_id = PCI_VENDOR_ID_DEC;
@@ -123,6 +124,11 @@ static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
     k->revision = 0x02;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
     k->is_bridge = 1;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo dec_21154_pci_host_info = {

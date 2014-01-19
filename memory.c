@@ -22,6 +22,7 @@
 #include <assert.h>
 
 #include "exec/memory-internal.h"
+#include "exec/ram_addr.h"
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
@@ -1220,15 +1221,14 @@ bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size, unsigned client)
 {
     assert(mr->terminates);
-    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
-                                         1 << client);
+    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
     assert(mr->terminates);
-    return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
+    cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size);
 }
 
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
@@ -1236,12 +1236,9 @@ bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
 {
     bool ret;
     assert(mr->terminates);
-    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
-                                        1 << client);
+    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
     if (ret) {
-        cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                        mr->ram_addr + addr + size,
-                                        1 << client);
+        cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
     }
     return ret;
 }
@@ -1287,9 +1284,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
     assert(mr->terminates);
-    cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
-                                    mr->ram_addr + addr + size,
-                                    1 << client);
+    cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)

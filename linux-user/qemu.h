@@ -178,10 +178,8 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
              struct target_pt_regs * regs, struct image_info *infop,
              struct linux_binprm *);
 
-int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
-int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
+int load_elf_binary(struct linux_binprm *bprm, struct image_info *info);
+int load_flt_binary(struct linux_binprm *bprm, struct image_info *info);
 
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
                           unsigned long len);

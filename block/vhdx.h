@@ -398,6 +398,8 @@ typedef struct BDRVVHDXState {
 
     Error *migration_blocker;
 
+    bool log_replayed_on_open;
+
     QLIST_HEAD(VHDXRegionHead, VHDXRegionEntry) regions;
 } BDRVVHDXState;
 
@@ -412,7 +414,8 @@ uint32_t vhdx_checksum_calc(uint32_t crc, uint8_t *buf, size_t size,
 
 bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 
-int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed);
+int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
+                   Error **errp);
 
 int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
                              void *data, uint32_t length, uint64_t offset);

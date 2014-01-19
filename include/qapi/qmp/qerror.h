@@ -29,7 +29,6 @@ typedef struct QError {
 QString *qerror_human(const QError *qerror);
 void qerror_report(ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void qerror_report_err(Error *err);
-void assert_no_error(Error *err);
 
 /*
  * QError class list

@@ -1967,9 +1967,11 @@
 #
 # @top:              The file name of the backing image within the image chain,
 #                    which contains the topmost data to be committed down.
-#                    Note, the active layer as 'top' is currently unsupported.
 #
 #                    If top == base, that is an error.
+#                    If top == active, the job will not be completed by itself,
+#                    user needs to complete the job with the block-job-complete
+#                    command after getting the ready event. (Since 2.0)
 #
 #
 # @speed:  #optional the maximum speed, in bytes per second
@@ -1979,7 +1981,6 @@
 #          If @device does not exist, DeviceNotFound
 #          If image commit is not supported by this device, NotSupported
 #          If @base or @top is invalid, a generic error is returned
-#          If @top is the active layer, or omitted, a generic error is returned
 #          If @speed is invalid, InvalidParameter
 #
 # Since: 1.3
@@ -2759,6 +2760,40 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
+# @object-add:
+#
+# Create a QOM object.
+#
+# @qom-type: the class name for the object to be created
+#
+# @id: the name of the new object
+#
+# @props: #optional a dictionary of properties to be passed to the backend
+#
+# Returns: Nothing on success
+#          Error if @qom-type is not a valid class name
+#
+# Since: 2.0
+##
+{ 'command': 'object-add',
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'dict'},
+  'gen': 'no' }
+
+##
+# @object-del:
+#
+# Remove a QOM object.
+#
+# @id: the name of the QOM object to remove
+#
+# Returns: Nothing on success
+#          Error if @id is not a valid id for a QOM object
+#
+# Since: 2.0
+##
+{ 'command': 'object-del', 'data': {'id': 'str'} }
+
+##
 # @NetdevNoneOptions
 #
 # Use it alone to have zero network devices.
@@ -3022,7 +3057,7 @@
 #
 # @devname: #optional path of the netmap device (default: '/dev/netmap').
 #
-# Since 1.8
+# Since 2.0
 ##
 { 'type': 'NetdevNetmapOptions',
   'data': {

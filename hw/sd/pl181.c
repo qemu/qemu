@@ -506,7 +506,6 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     sdc->init = pl181_init;
     k->vmsd = &vmstate_pl181;
     k->reset = pl181_reset;
-    k->no_user = 1;
 }
 
 static const TypeInfo pl181_info = {

@@ -152,7 +152,8 @@ enum {
     float_round_nearest_even = 0,
     float_round_down         = 1,
     float_round_up           = 2,
-    float_round_to_zero      = 3
+    float_round_to_zero      = 3,
+    float_round_ties_away    = 4,
 };
 
 /*----------------------------------------------------------------------------
@@ -180,11 +181,21 @@ typedef struct float_status {
     flag default_nan_mode;
 } float_status;
 
-void set_float_rounding_mode(int val STATUS_PARAM);
-void set_float_exception_flags(int val STATUS_PARAM);
 INLINE void set_float_detect_tininess(int val STATUS_PARAM)
 {
     STATUS(float_detect_tininess) = val;
+}
+INLINE void set_float_rounding_mode(int val STATUS_PARAM)
+{
+    STATUS(float_rounding_mode) = val;
+}
+INLINE void set_float_exception_flags(int val STATUS_PARAM)
+{
+    STATUS(float_exception_flags) = val;
+}
+INLINE void set_floatx80_rounding_precision(int val STATUS_PARAM)
+{
+    STATUS(floatx80_rounding_precision) = val;
 }
 INLINE void set_flush_to_zero(flag val STATUS_PARAM)
 {
@@ -198,11 +209,34 @@ INLINE void set_default_nan_mode(flag val STATUS_PARAM)
 {
     STATUS(default_nan_mode) = val;
 }
+INLINE int get_float_detect_tininess(float_status *status)
+{
+    return STATUS(float_detect_tininess);
+}
+INLINE int get_float_rounding_mode(float_status *status)
+{
+    return STATUS(float_rounding_mode);
+}
 INLINE int get_float_exception_flags(float_status *status)
 {
     return STATUS(float_exception_flags);
 }
-void set_floatx80_rounding_precision(int val STATUS_PARAM);
+INLINE int get_floatx80_rounding_precision(float_status *status)
+{
+    return STATUS(floatx80_rounding_precision);
+}
+INLINE flag get_flush_to_zero(float_status *status)
+{
+    return STATUS(flush_to_zero);
+}
+INLINE flag get_flush_inputs_to_zero(float_status *status)
+{
+    return STATUS(flush_inputs_to_zero);
+}
+INLINE flag get_default_nan_mode(float_status *status)
+{
+    return STATUS(default_nan_mode);
+}
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point
@@ -225,25 +259,48 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
-float32 int32_to_float32( int32 STATUS_PARAM );
-float64 int32_to_float64( int32 STATUS_PARAM );
-float32 uint32_to_float32( uint32 STATUS_PARAM );
-float64 uint32_to_float64( uint32 STATUS_PARAM );
-floatx80 int32_to_floatx80( int32 STATUS_PARAM );
-float128 int32_to_float128( int32 STATUS_PARAM );
-float32 int64_to_float32( int64 STATUS_PARAM );
-float32 uint64_to_float32( uint64 STATUS_PARAM );
-float64 int64_to_float64( int64 STATUS_PARAM );
-float64 uint64_to_float64( uint64 STATUS_PARAM );
-floatx80 int64_to_floatx80( int64 STATUS_PARAM );
-float128 int64_to_float128( int64 STATUS_PARAM );
-float128 uint64_to_float128( uint64 STATUS_PARAM );
+float32 int32_to_float32(int32_t STATUS_PARAM);
+float64 int32_to_float64(int32_t STATUS_PARAM);
+float32 uint32_to_float32(uint32_t STATUS_PARAM);
+float64 uint32_to_float64(uint32_t STATUS_PARAM);
+floatx80 int32_to_floatx80(int32_t STATUS_PARAM);
+float128 int32_to_float128(int32_t STATUS_PARAM);
+float32 int64_to_float32(int64_t STATUS_PARAM);
+float32 uint64_to_float32(uint64_t STATUS_PARAM);
+float64 int64_to_float64(int64_t STATUS_PARAM);
+float64 uint64_to_float64(uint64_t STATUS_PARAM);
+floatx80 int64_to_floatx80(int64_t STATUS_PARAM);
+float128 int64_to_float128(int64_t STATUS_PARAM);
+float128 uint64_to_float128(uint64_t STATUS_PARAM);
+
+/* We provide the int16 versions for symmetry of API with float-to-int */
+INLINE float32 int16_to_float32(int16_t v STATUS_PARAM)
+{
+    return int32_to_float32(v STATUS_VAR);
+}
+
+INLINE float32 uint16_to_float32(uint16_t v STATUS_PARAM)
+{
+    return uint32_to_float32(v STATUS_VAR);
+}
+
+INLINE float64 int16_to_float64(int16_t v STATUS_PARAM)
+{
+    return int32_to_float64(v STATUS_VAR);
+}
+
+INLINE float64 uint16_to_float64(uint16_t v STATUS_PARAM)
+{
+    return uint32_to_float64(v STATUS_VAR);
+}
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
 float16 float32_to_float16( float32, flag STATUS_PARAM );
 float32 float16_to_float32( float16, flag STATUS_PARAM );
+float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM);
+float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM);
 
 /*----------------------------------------------------------------------------
 | Software half-precision operations.
@@ -265,6 +322,8 @@ extern const float16 float16_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
+int_fast16_t float32_to_int16(float32 STATUS_PARAM);
+uint_fast16_t float32_to_uint16(float32 STATUS_PARAM);
 int_fast16_t float32_to_int16_round_to_zero(float32 STATUS_PARAM);
 uint_fast16_t float32_to_uint16_round_to_zero(float32 STATUS_PARAM);
 int32 float32_to_int32( float32 STATUS_PARAM );
@@ -272,6 +331,7 @@ int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
 uint32 float32_to_uint32( float32 STATUS_PARAM );
 uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
 int64 float32_to_int64( float32 STATUS_PARAM );
+uint64 float32_to_uint64(float32 STATUS_PARAM);
 int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
 float64 float32_to_float64( float32 STATUS_PARAM );
 floatx80 float32_to_floatx80( float32 STATUS_PARAM );
@@ -371,6 +431,8 @@ extern const float32 float32_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
+int_fast16_t float64_to_int16(float64 STATUS_PARAM);
+uint_fast16_t float64_to_uint16(float64 STATUS_PARAM);
 int_fast16_t float64_to_int16_round_to_zero(float64 STATUS_PARAM);
 uint_fast16_t float64_to_uint16_round_to_zero(float64 STATUS_PARAM);
 int32 float64_to_int32( float64 STATUS_PARAM );

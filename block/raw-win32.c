@@ -248,7 +248,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->type = FTYPE_FILE;
 
-    opts = qemu_opts_create_nofail(&raw_runtime_opts);
+    opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
@@ -550,7 +550,8 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     const char *filename;
 
-    QemuOpts *opts = qemu_opts_create_nofail(&raw_runtime_opts);
+    QemuOpts *opts = qemu_opts_create(&raw_runtime_opts, NULL, 0,
+                                      &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);

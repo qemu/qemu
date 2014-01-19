@@ -97,7 +97,18 @@ typedef struct DeviceClass {
     const char *fw_name;
     const char *desc;
     Property *props;
-    int no_user;
+
+    /*
+     * Shall we hide this device model from -device / device_add?
+     * All devices should support instantiation with device_add, and
+     * this flag should not exist.  But we're not there, yet.  Some
+     * devices fail to instantiate with cryptic error messages.
+     * Others instantiate, but don't work.  Exposing users to such
+     * behavior would be cruel; this flag serves to protect them.  It
+     * should never be set without a comment explaining why it is set.
+     * TODO remove once we're there
+     */
+    bool cannot_instantiate_with_device_add_yet;
 
     /* callbacks */
     void (*reset)(DeviceState *dev);
@@ -158,7 +169,7 @@ struct BusClass {
      * bindings can be found at http://playground.sun.com/1275/bindings/.
      */
     char *(*get_fw_dev_path)(DeviceState *dev);
-    int (*reset)(BusState *bus);
+    void (*reset)(BusState *bus);
     /* maximum devices allowed on the bus, 0: no limit. */
     int max_dev;
 };
@@ -253,10 +264,15 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,
  *         < 0 if either devfn or busfn terminate walk somewhere in cursion,
  *           0 otherwise. */
-int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
-                       qbus_walkerfn *busfn, void *opaque);
-int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
-                       qbus_walkerfn *busfn, void *opaque);
+int qbus_walk_children(BusState *bus,
+                       qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
+                       qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
+                       void *opaque);
+int qdev_walk_children(DeviceState *dev,
+                       qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
+                       qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
+                       void *opaque);
+
 void qdev_reset_all(DeviceState *dev);
 
 /**
@@ -271,8 +287,6 @@ void qdev_reset_all(DeviceState *dev);
  */
 void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
-
-void qbus_free(BusState *bus);
 
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);

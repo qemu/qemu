@@ -234,7 +234,7 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
-bool boot_strict;
+static bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
@@ -468,7 +468,7 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "strict",
-            .type = QEMU_OPT_STRING,
+            .type = QEMU_OPT_BOOL,
         },
         { /*End of list */ }
     },
@@ -552,7 +552,7 @@ QemuOpts *qemu_get_machine_opts(void)
     assert(list);
     opts = qemu_opts_find(list, NULL);
     if (!opts) {
-        opts = qemu_opts_create_nofail(list);
+        opts = qemu_opts_create(list, NULL, 0, &error_abort);
     }
     return opts;
 }
@@ -598,6 +598,7 @@ typedef struct {
 static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
+    { RUN_STATE_DEBUG, RUN_STATE_FINISH_MIGRATE },
 
     { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_INMIGRATE, RUN_STATE_PAUSED },
@@ -2261,7 +2262,8 @@ static int balloon_parse(const char *arg)
                 return  -1;
         } else {
             /* create empty opts */
-            opts = qemu_opts_create_nofail(qemu_find_opts("device"));
+            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                    &error_abort);
         }
         qemu_opt_set(opts, "driver", "virtio-balloon");
         return 0;
@@ -2557,14 +2559,14 @@ static int virtcon_parse(const char *devname)
         exit(1);
     }
 
-    bus_opts = qemu_opts_create_nofail(device);
+    bus_opts = qemu_opts_create(device, NULL, 0, &error_abort);
     if (arch_type == QEMU_ARCH_S390X) {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
     } else {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
     }
 
-    dev_opts = qemu_opts_create_nofail(device);
+    dev_opts = qemu_opts_create(device, NULL, 0, &error_abort);
     qemu_opt_set(dev_opts, "driver", "virtconsole");
 
     snprintf(label, sizeof(label), "virtcon%d", index);
@@ -2852,12 +2854,13 @@ static int object_create(QemuOpts *opts, void *opaque)
 
     obj = object_new(type);
     if (qemu_opt_foreach(opts, object_set_property, obj, 1) < 0) {
+        object_unref(obj);
         return -1;
     }
 
     object_property_add_child(container_get(object_get_root(), "/objects"),
                               id, obj, NULL);
-
+    object_unref(obj);
     return 0;
 }
 
@@ -3429,7 +3432,8 @@ int main(int argc, char **argv)
 
                 qemu_opt_set_bool(fsdev, "readonly",
                                 qemu_opt_get_bool(opts, "readonly", 0));
-                device = qemu_opts_create_nofail(qemu_find_opts("device"));
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                          &error_abort);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev",
                              qemu_opt_get(opts, "mount_tag"));
@@ -3449,7 +3453,8 @@ int main(int argc, char **argv)
                 }
                 qemu_opt_set(fsdev, "fsdriver", "synth");
 
-                device = qemu_opts_create_nofail(qemu_find_opts("device"));
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                          &error_abort);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev", "v_synth");
                 qemu_opt_set(device, "mount_tag", "v_synth");
@@ -4133,6 +4138,7 @@ int main(int argc, char **argv)
         }
 
         boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
+        boot_strict = qemu_opt_get_bool(opts, "strict", false);
     }
 
     if (!kernel_cmdline) {
