@@ -1224,6 +1224,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
             }
             tcg_gen_xor_tl(t1, arg2, inv1);         /* add without carry */
             tcg_gen_add_tl(t0, t0, inv1);
+            tcg_temp_free(inv1);
             tcg_gen_xor_tl(cpu_ca, t0, t1);         /* bits changes w/ carry */
             tcg_temp_free(t1);
             tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);    /* extract bit 32 */
@@ -3920,6 +3921,9 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         gen_update_nip(ctx, ctx->nip);
         tcg_gen_exit_tb(0);
     }
+    if (type == BCOND_LR || type == BCOND_CTR) {
+        tcg_temp_free(target);
+    }
 }
 
 static void gen_bc(DisasContext *ctx)
@@ -4367,6 +4371,7 @@ static void gen_mtmsr(DisasContext *ctx)
         tcg_gen_mov_tl(msr, cpu_gpr[rS(ctx->opcode)]);
 #endif
         gen_helper_store_msr(cpu_env, msr);
+        tcg_temp_free(msr);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         gen_stop_exception(ctx);
@@ -6501,6 +6506,7 @@ static void gen_tlbsx_booke206(DisasContext *ctx)
 
     tcg_gen_add_tl(t0, t0, cpu_gpr[rB(ctx->opcode)]);
     gen_helper_booke206_tlbsx(cpu_env, t0);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -6534,6 +6540,7 @@ static void gen_tlbivax_booke206(DisasContext *ctx)
     gen_addr_reg_index(ctx, t0);
 
     gen_helper_booke206_tlbivax(cpu_env, t0);
+    tcg_temp_free(t0);
 #endif
 }
 
