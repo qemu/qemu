@@ -39,7 +39,6 @@
 
 #define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
-#define UIMAGE_LOAD_BASE           0
 #define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
 #define DTB_MAX_SIZE               (8 * 1024 * 1024)
@@ -408,7 +407,7 @@ typedef struct DeviceTreeParams {
 static void ppce500_reset_device_tree(void *opaque)
 {
     DeviceTreeParams *p = opaque;
-    ppce500_load_device_tree(&p->machine, &p->params, p->addr, p->initrd_base,
+    ppce500_load_device_tree(p->machine, &p->params, p->addr, p->initrd_base,
                              p->initrd_size, p->kernel_base, p->kernel_size,
                              false);
 }
@@ -620,15 +619,18 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
     CPUPPCState *env = NULL;
-    uint64_t elf_entry;
-    uint64_t elf_lowaddr;
-    hwaddr entry=0;
-    hwaddr loadaddr=UIMAGE_LOAD_BASE;
-    target_long kernel_size=0;
-    target_ulong dt_base = 0;
-    target_ulong initrd_base = 0;
-    target_long initrd_size = 0;
-    target_ulong cur_base = 0;
+    uint64_t loadaddr;
+    hwaddr kernel_base = -1LL;
+    int kernel_size = 0;
+    hwaddr dt_base = 0;
+    hwaddr initrd_base = 0;
+    int initrd_size = 0;
+    hwaddr cur_base = 0;
+    char *filename;
+    hwaddr bios_entry = 0;
+    target_long bios_size;
+    struct boot_info *boot_info;
+    int dt_size;
     int i;
     /* irq num for pin INTA, INTB, INTC and INTD is 1, 2, 3 and
      * 4 respectively */
@@ -758,29 +760,24 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* Register spinning region */
     sysbus_create_simple("e500-spin", MPC8544_SPIN_BASE, NULL);
 
+    if (cur_base < (32 * 1024 * 1024)) {
+        /* u-boot occupies memory up to 32MB, so load blobs above */
+        cur_base = (32 * 1024 * 1024);
+    }
+
     /* Load kernel. */
     if (machine->kernel_filename) {
-        kernel_size = load_uimage(machine->kernel_filename, &entry,
-                                  &loadaddr, NULL);
-        if (kernel_size < 0) {
-            kernel_size = load_elf(machine->kernel_filename, NULL, NULL,
-                                   &elf_entry, &elf_lowaddr, NULL, 1,
-                                   ELF_MACHINE, 0);
-            entry = elf_entry;
-            loadaddr = elf_lowaddr;
-        }
-        /* XXX try again as binary */
+        kernel_base = cur_base;
+        kernel_size = load_image_targphys(machine->kernel_filename,
+                                          cur_base,
+                                          ram_size - cur_base);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     machine->kernel_filename);
             exit(1);
         }
 
-        cur_base = loadaddr + kernel_size;
-
-        /* Reserve space for dtb */
-        dt_base = (cur_base + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
-        cur_base += DTB_MAX_SIZE;
+        cur_base += kernel_size;
     }
 
     /* Load initrd. */
@@ -798,25 +795,60 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         cur_base = initrd_base + initrd_size;
     }
 
-    /* If we're loading a kernel directly, we must load the device tree too. */
-    if (machine->kernel_filename) {
-        struct boot_info *boot_info;
-        int dt_size;
+    /*
+     * Smart firmware defaults ahead!
+     *
+     * We follow the following table to select which payload we execute.
+     *
+     *  -kernel | -bios | payload
+     * ---------+-------+---------
+     *     N    |   Y   | u-boot
+     *     N    |   N   | u-boot
+     *     Y    |   Y   | u-boot
+     *     Y    |   N   | kernel
+     *
+     * This ensures backwards compatibility with how we used to expose
+     * -kernel to users but allows them to run through u-boot as well.
+     */
+    if (bios_name == NULL) {
+        if (machine->kernel_filename) {
+            bios_name = machine->kernel_filename;
+        } else {
+            bios_name = "u-boot.e500";
+        }
+    }
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
-        dt_size = ppce500_prep_device_tree(machine, params, dt_base,
-                                           initrd_base, initrd_size,
-                                           loadaddr, kernel_size);
-        if (dt_size < 0) {
-            fprintf(stderr, "couldn't load device tree\n");
+    bios_size = load_elf(filename, NULL, NULL, &bios_entry, &loadaddr, NULL,
+                         1, ELF_MACHINE, 0);
+    if (bios_size < 0) {
+        /*
+         * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
+         * ePAPR compliant kernel
+         */
+        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load firmware '%s'\n", filename);
             exit(1);
         }
-        assert(dt_size < DTB_MAX_SIZE);
-
-        boot_info = env->load_info;
-        boot_info->entry = entry;
-        boot_info->dt_base = dt_base;
-        boot_info->dt_size = dt_size;
     }
+
+    /* Reserve space for dtb */
+    dt_base = (loadaddr + bios_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+
+    dt_size = ppce500_prep_device_tree(machine, params, dt_base,
+                                       initrd_base, initrd_size,
+                                       kernel_base, kernel_size);
+    if (dt_size < 0) {
+        fprintf(stderr, "couldn't load device tree\n");
+        exit(1);
+    }
+    assert(dt_size < DTB_MAX_SIZE);
+
+    boot_info = env->load_info;
+    boot_info->entry = bios_entry;
+    boot_info->dt_base = dt_base;
+    boot_info->dt_size = dt_size;
 
     if (kvm_enabled()) {
         kvmppc_init();
