@@ -31,6 +31,7 @@ find-cross-gcc = $(firstword $(wildcard $(patsubst %ld,%gcc,$(call find-cross-ld
 find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
 
 powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
+powerpc_cross_prefix := $(call find-cross-prefix,powerpc)
 x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
 
 #
@@ -55,6 +56,7 @@ default:
 	@echo "  efirom         -- update nic roms (bios+efi, this needs"
 	@echo "                    the EfiRom utility from edk2 / tianocore)"
 	@echo "  slof           -- update slof.bin"
+	@echo "  u-boot.e500    -- update u-boot.e500"
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
@@ -132,6 +134,12 @@ slof:
 	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
 	cp SLOF/boot_rom.bin ../pc-bios/slof.bin
 
+u-boot.e500:
+	$(MAKE) -C u-boot O=build.e500 qemu-ppce500_config
+	$(MAKE) -C u-boot CROSS_COMPILE=$(powerpc_cross_prefix) \
+		O=build.e500
+	$(powerpc_cross_prefix)strip u-boot/build.e500/u-boot -o \
+		../pc-bios/u-boot.e500
 
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
@@ -141,3 +149,4 @@ clean:
 	rm -f sgabios/.depend
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C SLOF clean
+	rm -rf u-boot/build.e500
