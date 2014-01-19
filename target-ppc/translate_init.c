@@ -1448,7 +1448,16 @@ static void spr_write_e500_l1csr0 (void *opaque, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
 
-    tcg_gen_andi_tl(t0, cpu_gpr[gprn], ~256);
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], L1CSR0_DCE | L1CSR0_CPE);
+    gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
+}
+
+static void spr_write_e500_l1csr1(void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], L1CSR1_ICE | L1CSR1_CPE);
     gen_store_spr(sprn, t0);
     tcg_temp_free(t0);
 }
@@ -4780,10 +4789,9 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_e500_l1csr0,
                  0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR1, "L1CSR1",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_e500_l1csr1,
                  0x00000000);
     spr_register(env, SPR_BOOKE_MCSRR0, "MCSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,

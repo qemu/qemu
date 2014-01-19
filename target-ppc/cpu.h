@@ -1716,6 +1716,18 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 /* External Input Interrupt Directed to Guest State */
 #define EPCR_EXTGS            (1 << 31)
 
+#define   L1CSR0_CPE		0x00010000	/* Data Cache Parity Enable */
+#define   L1CSR0_CUL		0x00000400	/* (D-)Cache Unable to Lock */
+#define   L1CSR0_DCLFR		0x00000100	/* D-Cache Lock Flash Reset */
+#define   L1CSR0_DCFI		0x00000002	/* Data Cache Flash Invalidate */
+#define   L1CSR0_DCE		0x00000001	/* Data Cache Enable */
+
+#define   L1CSR1_CPE		0x00010000	/* Instruction Cache Parity Enable */
+#define   L1CSR1_ICUL		0x00000400	/* I-Cache Unable to Lock */
+#define   L1CSR1_ICLFR		0x00000100	/* I-Cache Lock Flash Reset */
+#define   L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
+#define   L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
+
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
 enum {
