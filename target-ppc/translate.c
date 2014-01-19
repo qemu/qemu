@@ -11767,6 +11767,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         max_insns = CF_COUNT_MASK;
 
     gen_tb_start();
+    tcg_clear_temp_count();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE
             && tcg_ctx.gen_opc_ptr < gen_opc_end) {
@@ -11865,6 +11866,12 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
              * generation
              */
             break;
+        }
+        if (tcg_check_temp_count()) {
+            fprintf(stderr, "Opcode %02x %02x %02x (%08x) leaked temporaries\n",
+                    opc1(ctx.opcode), opc2(ctx.opcode), opc3(ctx.opcode),
+                    ctx.opcode);
+            exit(1);
         }
     }
     if (tb->cflags & CF_LAST_IO)
