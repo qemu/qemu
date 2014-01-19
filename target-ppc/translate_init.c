@@ -4651,6 +4651,8 @@ static void init_proc_e500 (CPUPPCState *env, int version)
     uint64_t ivpr_mask = 0xFFFF0000ULL;
     uint32_t l1cfg0 = 0x3800  /* 8 ways */
                     | 0x0020; /* 32 kb */
+    uint32_t l1cfg1 = 0x3800  /* 8 ways */
+                    | 0x0020; /* 32 kb */
 #if !defined(CONFIG_USER_ONLY)
     int i;
 #endif
@@ -4719,6 +4721,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
         env->dcache_line_size = 64;
         env->icache_line_size = 64;
         l1cfg0 |= 0x1000000; /* 64 byte cache block size */
+        l1cfg1 |= 0x1000000; /* 64 byte cache block size */
         break;
     default:
         cpu_abort(CPU(cpu), "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
@@ -4769,7 +4772,10 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  &spr_read_generic, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  l1cfg0);
-    /* XXX : not implemented */
+    spr_register(env, SPR_Exxx_L1CFG1, "L1CFG1",
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 l1cfg1);
     spr_register(env, SPR_Exxx_L1CSR0, "L1CSR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_e500_l1csr0,
