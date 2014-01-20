@@ -154,5 +154,6 @@ typedef struct S390SCLPDeviceClass {
 
 void s390_sclp_init(void);
 void sclp_service_interrupt(uint32_t sccb);
+void raise_irq_cpu_hotplug(void);
 
 #endif
