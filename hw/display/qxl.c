@@ -19,6 +19,7 @@
  */
 
 #include <zlib.h>
+#include <stdint.h>
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
@@ -1361,14 +1362,16 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
 {
     QXLDevSurfaceCreate surface;
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
-    int size;
-    int requested_height = le32_to_cpu(sc->height);
+    uint32_t requested_height = le32_to_cpu(sc->height);
     int requested_stride = le32_to_cpu(sc->stride);
 
-    size = abs(requested_stride) * requested_height;
-    if (size > qxl->vgamem_size) {
-        qxl_set_guest_bug(qxl, "%s: requested primary larger then framebuffer"
-                               " size", __func__);
+    if (requested_stride == INT32_MIN ||
+        abs(requested_stride) * (uint64_t)requested_height
+                                        > qxl->vgamem_size) {
+        qxl_set_guest_bug(qxl, "%s: requested primary larger than framebuffer"
+                               " stride %d x height %" PRIu32 " > %" PRIu32,
+                               __func__, requested_stride, requested_height,
+                               qxl->vgamem_size);
         return;
     }
 
