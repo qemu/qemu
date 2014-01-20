@@ -1201,48 +1201,23 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
  *
  * This function may be called only if KVM is enabled.
  */
-static int kvm_check_features_against_host(X86CPU *cpu)
+static int kvm_check_features_against_host(KVMState *s, X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    x86_def_t host_def;
-    uint32_t mask;
-    int rv, i;
-    struct model_features_t ft[] = {
-        {&env->features[FEAT_1_EDX],
-            &host_def.features[FEAT_1_EDX],
-            FEAT_1_EDX },
-        {&env->features[FEAT_1_ECX],
-            &host_def.features[FEAT_1_ECX],
-            FEAT_1_ECX },
-        {&env->features[FEAT_8000_0001_EDX],
-            &host_def.features[FEAT_8000_0001_EDX],
-            FEAT_8000_0001_EDX },
-        {&env->features[FEAT_8000_0001_ECX],
-            &host_def.features[FEAT_8000_0001_ECX],
-            FEAT_8000_0001_ECX },
-        {&env->features[FEAT_C000_0001_EDX],
-            &host_def.features[FEAT_C000_0001_EDX],
-            FEAT_C000_0001_EDX },
-        {&env->features[FEAT_7_0_EBX],
-            &host_def.features[FEAT_7_0_EBX],
-            FEAT_7_0_EBX },
-        {&env->features[FEAT_SVM],
-            &host_def.features[FEAT_SVM],
-            FEAT_SVM },
-        {&env->features[FEAT_KVM],
-            &host_def.features[FEAT_KVM],
-            FEAT_KVM },
-    };
+    int rv = 0;
+    FeatureWord w;
 
     assert(kvm_enabled());
 
-    kvm_cpu_fill_host(&host_def);
-    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i) {
-        FeatureWord w = ft[i].feat_word;
+    for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
+        uint32_t guest_feat = env->features[w];
+        uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
+                                                             wi->cpuid_ecx,
+                                                             wi->cpuid_reg);
+        uint32_t mask;
         for (mask = 1; mask; mask <<= 1) {
-            if (*ft[i].guest_feat & mask &&
-                !(*ft[i].host_feat & mask)) {
+            if (guest_feat & mask && !(host_feat & mask)) {
                 unavailable_host_feature(wi, mask);
                 rv = 1;
             }
@@ -2563,8 +2538,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->features[FEAT_8000_0001_ECX] &= TCG_EXT3_FEATURES;
         env->features[FEAT_SVM] &= TCG_SVM_FEATURES;
     } else {
+        KVMState *s = kvm_state;
         if ((cpu->check_cpuid || cpu->enforce_cpuid)
-            && kvm_check_features_against_host(cpu) && cpu->enforce_cpuid) {
+            && kvm_check_features_against_host(s, cpu) && cpu->enforce_cpuid) {
             error_setg(&local_err,
                        "Host's CPU doesn't support requested features");
             goto out;
