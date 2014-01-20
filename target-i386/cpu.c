@@ -1160,29 +1160,24 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     x86_cpu_def->stepping = eax & 0x0F;
 
     x86_cpu_def->level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
+    x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
+    x86_cpu_def->xlevel2 =
+        kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
+
+    cpu_x86_fill_model_id(x86_cpu_def->model_id);
+
     x86_cpu_def->features[FEAT_1_EDX] =
         kvm_arch_get_supported_cpuid(s, 0x1, 0, R_EDX);
     x86_cpu_def->features[FEAT_1_ECX] =
         kvm_arch_get_supported_cpuid(s, 0x1, 0, R_ECX);
-
     x86_cpu_def->features[FEAT_7_0_EBX] =
-                kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
-
-    x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
+        kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
     x86_cpu_def->features[FEAT_8000_0001_EDX] =
-                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
+        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
     x86_cpu_def->features[FEAT_8000_0001_ECX] =
-                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
-
-    cpu_x86_fill_model_id(x86_cpu_def->model_id);
-
-    /* Call Centaur's CPUID instruction. */
-    x86_cpu_def->xlevel2 =
-        kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
+        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
     x86_cpu_def->features[FEAT_C000_0001_EDX] =
         kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
-
-    /* Other KVM-specific feature fields: */
     x86_cpu_def->features[FEAT_SVM] =
         kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
     x86_cpu_def->features[FEAT_KVM] =
