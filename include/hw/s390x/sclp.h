@@ -17,6 +17,8 @@
 #include <hw/sysbus.h>
 #include <hw/qdev.h>
 
+#define SCLP_CMD_CODE_MASK                      0xffff00ff
+
 /* SCLP command codes */
 #define SCLP_CMDW_READ_SCP_INFO                 0x00020001
 #define SCLP_CMDW_READ_SCP_INFO_FORCED          0x00120001
@@ -25,6 +27,12 @@
 #define SCLP_CMD_READ_EVENT_DATA                0x00770005
 #define SCLP_CMD_WRITE_EVENT_DATA               0x00760005
 #define SCLP_CMD_WRITE_EVENT_MASK               0x00780005
+
+/* CPU hotplug SCLP codes */
+#define SCLP_HAS_CPU_INFO                       0x0C00000000000000ULL
+#define SCLP_CMDW_READ_CPU_INFO                 0x00010001
+#define SCLP_CMDW_CONFIGURE_CPU                 0x00110001
+#define SCLP_CMDW_DECONFIGURE_CPU               0x00100001
 
 /* SCLP response codes */
 #define SCLP_RC_NORMAL_READ_COMPLETION          0x0010

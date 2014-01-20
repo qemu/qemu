@@ -45,7 +45,7 @@ static void sclp_execute(SCCB *sccb, uint64_t code)
 {
     S390SCLPDevice *sdev = get_event_facility();
 
-    switch (code) {
+    switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMDW_READ_SCP_INFO:
     case SCLP_CMDW_READ_SCP_INFO_FORCED:
         read_SCP_info(sccb);
