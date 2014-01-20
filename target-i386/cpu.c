@@ -1166,22 +1166,13 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
 
-    x86_cpu_def->features[FEAT_1_EDX] =
-        kvm_arch_get_supported_cpuid(s, 0x1, 0, R_EDX);
-    x86_cpu_def->features[FEAT_1_ECX] =
-        kvm_arch_get_supported_cpuid(s, 0x1, 0, R_ECX);
-    x86_cpu_def->features[FEAT_7_0_EBX] =
-        kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
-    x86_cpu_def->features[FEAT_8000_0001_EDX] =
-        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
-    x86_cpu_def->features[FEAT_8000_0001_ECX] =
-        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
-    x86_cpu_def->features[FEAT_C000_0001_EDX] =
-        kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
-    x86_cpu_def->features[FEAT_SVM] =
-        kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
-    x86_cpu_def->features[FEAT_KVM] =
-        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+    FeatureWord w;
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        x86_cpu_def->features[w] =
+            kvm_arch_get_supported_cpuid(s, wi->cpuid_eax, wi->cpuid_ecx,
+                                         wi->cpuid_reg);
+    }
 
 #endif /* CONFIG_KVM */
 }
