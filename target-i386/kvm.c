@@ -1161,6 +1161,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_MISC_ENABLE,
                           env->msr_ia32_misc_enable);
     }
+    if (has_msr_bndcfgs) {
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_BNDCFGS, env->msr_bndcfgs);
+    }
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
         kvm_msr_entry_set(&msrs[n++], MSR_CSTAR, env->cstar);
@@ -1223,9 +1226,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
         if (cpu->hyperv_vapic) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
-        }
-        if (has_msr_bndcfgs) {
-            kvm_msr_entry_set(&msrs[n++], MSR_IA32_BNDCFGS, env->msr_bndcfgs);
         }
 
         /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
