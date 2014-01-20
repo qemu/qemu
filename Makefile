@@ -399,7 +399,7 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	for d in $(TARGET_DIRS); do \
-	$(MAKE) -C $$d $@ || exit 1 ; \
+	$(MAKE) $(SUBDIR_MAKEFLAGS) TARGET_DIR=$$d/ -C $$d $@ || exit 1 ; \
         done
 
 # various test targets
