@@ -1126,6 +1126,7 @@ static void qxl_reset_state(PCIQXLDevice *d)
     d->num_free_res = 0;
     d->last_release = NULL;
     memset(&d->ssd.dirty, 0, sizeof(d->ssd.dirty));
+    qxl_update_irq(d);
 }
 
 static void qxl_soft_reset(PCIQXLDevice *d)
