@@ -1177,13 +1177,10 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
 
     /* Call Centaur's CPUID instruction. */
-    eax = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
-    if (eax >= 0xC0000001) {
-        /* Support VIA max extended level */
-        x86_cpu_def->xlevel2 = eax;
-        x86_cpu_def->features[FEAT_C000_0001_EDX] =
-                kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
-    }
+    x86_cpu_def->xlevel2 =
+        kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
+    x86_cpu_def->features[FEAT_C000_0001_EDX] =
+        kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
 
     /* Other KVM-specific feature fields: */
     x86_cpu_def->features[FEAT_SVM] =
