@@ -79,11 +79,43 @@ typedef struct SCCBHeader {
 
 #define SCCB_DATA_LEN (SCCB_SIZE - sizeof(SCCBHeader))
 
+/* CPU information */
+typedef struct CPUEntry {
+    uint8_t address;
+    uint8_t reserved0[13];
+    uint8_t type;
+    uint8_t reserved1;
+} QEMU_PACKED CPUEntry;
+
 typedef struct ReadInfo {
     SCCBHeader h;
     uint16_t rnmax;
     uint8_t rnsize;
+    uint8_t  _reserved1[16 - 11];       /* 11-15 */
+    uint16_t entries_cpu;               /* 16-17 */
+    uint16_t offset_cpu;                /* 18-19 */
+    uint8_t  _reserved2[24 - 20];       /* 20-23 */
+    uint8_t  loadparm[8];               /* 24-31 */
+    uint8_t  _reserved3[48 - 32];       /* 32-47 */
+    uint64_t facilities;                /* 48-55 */
+    uint8_t  _reserved0[100 - 56];
+    uint32_t rnsize2;
+    uint64_t rnmax2;
+    uint8_t  _reserved4[120-112];       /* 112-119 */
+    uint16_t highest_cpu;
+    uint8_t  _reserved5[128 - 122];     /* 122-127 */
+    struct CPUEntry entries[0];
 } QEMU_PACKED ReadInfo;
+
+typedef struct ReadCpuInfo {
+    SCCBHeader h;
+    uint16_t nr_configured;         /* 8-9 */
+    uint16_t offset_configured;     /* 10-11 */
+    uint16_t nr_standby;            /* 12-13 */
+    uint16_t offset_standby;        /* 14-15 */
+    uint8_t reserved0[24-16];       /* 16-23 */
+    struct CPUEntry entries[0];
+} QEMU_PACKED ReadCpuInfo;
 
 typedef struct SCCB {
     SCCBHeader h;
