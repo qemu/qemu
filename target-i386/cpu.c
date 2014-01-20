@@ -1165,12 +1165,8 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     x86_cpu_def->features[FEAT_1_ECX] =
         kvm_arch_get_supported_cpuid(s, 0x1, 0, R_ECX);
 
-    if (x86_cpu_def->level >= 7) {
-        x86_cpu_def->features[FEAT_7_0_EBX] =
-                    kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
-    } else {
-        x86_cpu_def->features[FEAT_7_0_EBX] = 0;
-    }
+    x86_cpu_def->features[FEAT_7_0_EBX] =
+                kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
 
     x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
     x86_cpu_def->features[FEAT_8000_0001_EDX] =
