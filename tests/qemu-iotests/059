@@ -98,6 +98,12 @@ EOF
 _img_info
 
 echo
+echo "=== Testing truncated sparse ==="
+IMGOPTS="subformat=monolithicSparse" _make_test_img 100G
+truncate -s 10M $TEST_IMG
+_img_info
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info

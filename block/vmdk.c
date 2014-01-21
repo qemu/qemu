@@ -640,6 +640,13 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
+    if (bdrv_getlength(file) <
+            le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE) {
+        error_report("File truncated, expecting at least %lld bytes",
+                le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE);
+        return -EINVAL;
+    }
+
     ret = vmdk_add_extent(bs, file, false,
                           le64_to_cpu(header.capacity),
                           le64_to_cpu(header.gd_offset) << 9,
