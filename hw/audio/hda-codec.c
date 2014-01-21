@@ -157,6 +157,9 @@ struct HDAAudioStream {
     uint32_t bpos;
 };
 
+#define TYPE_HDA_AUDIO "hda-audio"
+#define HDA_AUDIO(obj) OBJECT_CHECK(HDAAudioState, (obj), TYPE_HDA_AUDIO)
+
 struct HDAAudioState {
     HDACodecDevice hda;
     const char *name;
@@ -288,7 +291,7 @@ static void hda_audio_setup(HDAAudioStream *st)
 
 static void hda_audio_command(HDACodecDevice *hda, uint32_t nid, uint32_t data)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
     HDAAudioStream *st;
     const desc_node *node = NULL;
     const desc_param *param;
@@ -448,7 +451,7 @@ fail:
 
 static void hda_audio_stream(HDACodecDevice *hda, uint32_t stnr, bool running, bool output)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
     int s;
 
     a->running_compat[stnr] = running;
@@ -469,7 +472,7 @@ static void hda_audio_stream(HDACodecDevice *hda, uint32_t stnr, bool running, b
 
 static int hda_audio_init(HDACodecDevice *hda, const struct desc_codec *desc)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
     HDAAudioStream *st;
     const desc_node *node;
     const desc_param *param;
@@ -514,7 +517,7 @@ static int hda_audio_init(HDACodecDevice *hda, const struct desc_codec *desc)
 
 static int hda_audio_exit(HDACodecDevice *hda)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
     HDAAudioStream *st;
     int i;
 
@@ -561,7 +564,7 @@ static int hda_audio_post_load(void *opaque, int version)
 
 static void hda_audio_reset(DeviceState *dev)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda.qdev, dev);
+    HDAAudioState *a = HDA_AUDIO(dev);
     HDAAudioStream *st;
     int i;
 
@@ -613,7 +616,7 @@ static Property hda_audio_properties[] = {
 
 static int hda_audio_init_output(HDACodecDevice *hda)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
 
     if (!a->mixer) {
         return hda_audio_init(hda, &output_nomixemu);
@@ -624,7 +627,7 @@ static int hda_audio_init_output(HDACodecDevice *hda)
 
 static int hda_audio_init_duplex(HDACodecDevice *hda)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
 
     if (!a->mixer) {
         return hda_audio_init(hda, &duplex_nomixemu);
@@ -635,7 +638,7 @@ static int hda_audio_init_duplex(HDACodecDevice *hda)
 
 static int hda_audio_init_micro(HDACodecDevice *hda)
 {
-    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioState *a = HDA_AUDIO(hda);
 
     if (!a->mixer) {
         return hda_audio_init(hda, &micro_nomixemu);
@@ -644,25 +647,39 @@ static int hda_audio_init_micro(HDACodecDevice *hda)
     }
 }
 
+static void hda_audio_base_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
+
+    k->exit = hda_audio_exit;
+    k->command = hda_audio_command;
+    k->stream = hda_audio_stream;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    dc->reset = hda_audio_reset;
+    dc->vmsd = &vmstate_hda_audio;
+    dc->props = hda_audio_properties;
+}
+
+static const TypeInfo hda_audio_info = {
+    .name          = TYPE_HDA_AUDIO,
+    .parent        = TYPE_HDA_CODEC_DEVICE,
+    .class_init    = hda_audio_base_class_init,
+    .abstract      = true,
+};
+
 static void hda_audio_output_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
     k->init = hda_audio_init_output;
-    k->exit = hda_audio_exit;
-    k->command = hda_audio_command;
-    k->stream = hda_audio_stream;
-    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, output-only (line-out)";
-    dc->reset = hda_audio_reset;
-    dc->vmsd = &vmstate_hda_audio;
-    dc->props = hda_audio_properties;
 }
 
 static const TypeInfo hda_audio_output_info = {
     .name          = "hda-output",
-    .parent        = TYPE_HDA_CODEC_DEVICE,
+    .parent        = TYPE_HDA_AUDIO,
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_output_class_init,
 };
@@ -673,19 +690,12 @@ static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
     k->init = hda_audio_init_duplex;
-    k->exit = hda_audio_exit;
-    k->command = hda_audio_command;
-    k->stream = hda_audio_stream;
-    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, duplex (line-out, line-in)";
-    dc->reset = hda_audio_reset;
-    dc->vmsd = &vmstate_hda_audio;
-    dc->props = hda_audio_properties;
 }
 
 static const TypeInfo hda_audio_duplex_info = {
     .name          = "hda-duplex",
-    .parent        = TYPE_HDA_CODEC_DEVICE,
+    .parent        = TYPE_HDA_AUDIO,
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_duplex_class_init,
 };
@@ -696,25 +706,19 @@ static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
     k->init = hda_audio_init_micro;
-    k->exit = hda_audio_exit;
-    k->command = hda_audio_command;
-    k->stream = hda_audio_stream;
-    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, duplex (speaker, microphone)";
-    dc->reset = hda_audio_reset;
-    dc->vmsd = &vmstate_hda_audio;
-    dc->props = hda_audio_properties;
 }
 
 static const TypeInfo hda_audio_micro_info = {
     .name          = "hda-micro",
-    .parent        = TYPE_HDA_CODEC_DEVICE,
+    .parent        = TYPE_HDA_AUDIO,
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_micro_class_init,
 };
 
 static void hda_audio_register_types(void)
 {
+    type_register_static(&hda_audio_info);
     type_register_static(&hda_audio_output_info);
     type_register_static(&hda_audio_duplex_info);
     type_register_static(&hda_audio_micro_info);
