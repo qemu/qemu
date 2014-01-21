@@ -2442,11 +2442,12 @@ sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 {
     BDRVSheepdogState *s = bs->opaque;
     SheepdogInode *inode = &s->inode;
-    unsigned long start = sector_num * BDRV_SECTOR_SIZE / SD_DATA_OBJ_SIZE,
+    uint64_t offset = sector_num * BDRV_SECTOR_SIZE;
+    unsigned long start = offset / SD_DATA_OBJ_SIZE,
                   end = DIV_ROUND_UP((sector_num + nb_sectors) *
                                      BDRV_SECTOR_SIZE, SD_DATA_OBJ_SIZE);
     unsigned long idx;
-    int64_t ret = BDRV_BLOCK_DATA;
+    int64_t ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
 
     for (idx = start; idx < end; idx++) {
         if (inode->data_vdi_id[idx] == 0) {
