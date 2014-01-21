@@ -152,6 +152,21 @@ static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
     ccc->parent_realize(dev, errp);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void cris_cpu_set_irq(void *opaque, int irq, int level)
+{
+    CRISCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    int type = irq == CRIS_CPU_IRQ ? CPU_INTERRUPT_HARD : CPU_INTERRUPT_NMI;
+
+    if (level) {
+        cpu_interrupt(cs, type);
+    } else {
+        cpu_reset_interrupt(cs, type);
+    }
+}
+#endif
+
 static void cris_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -164,6 +179,11 @@ static void cris_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 
     env->pregs[PR_VR] = ccc->vr;
+
+#ifndef CONFIG_USER_ONLY
+    /* IRQ and NMI lines.  */
+    qdev_init_gpio_in(DEVICE(cpu), cris_cpu_set_irq, 2);
+#endif
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
