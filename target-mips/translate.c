@@ -6818,7 +6818,12 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
         break;
     case 3:
         /* XXX: For now we support only a single FPU context. */
-        gen_helper_0e1i(ctc1, t0, rd);
+        {
+            TCGv_i32 fs_tmp = tcg_const_i32(rd);
+
+            gen_helper_0e2i(ctc1, t0, fs_tmp, rt);
+            tcg_temp_free_i32(fs_tmp);
+        }
         break;
     /* COP2: Not implemented. */
     case 4:
@@ -7254,7 +7259,12 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         break;
     case OPC_CTC1:
         gen_load_gpr(t0, rt);
-        gen_helper_0e1i(ctc1, t0, fs);
+        {
+            TCGv_i32 fs_tmp = tcg_const_i32(fs);
+
+            gen_helper_0e2i(ctc1, t0, fs_tmp, rt);
+            tcg_temp_free_i32(fs_tmp);
+        }
         opn = "ctc1";
         break;
 #if defined(TARGET_MIPS64)

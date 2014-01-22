@@ -358,18 +358,19 @@ static const mips_def_t mips_defs[] =
         .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_M),
         .CP0_Config4 = MIPS_CONFIG4 | (1 << CP0C4_M),
         .CP0_Config4_rw_bitmask = 0,
-        .CP0_Config5 = MIPS_CONFIG5,
+        .CP0_Config5 = MIPS_CONFIG5 | (1 << CP0C5_UFR),
         .CP0_Config5_rw_bitmask = (0 << CP0C5_M) | (1 << CP0C5_K) |
                                   (1 << CP0C5_CV) | (0 << CP0C5_EVA) |
-                                  (1 << CP0C5_MSAEn) | (0 << CP0C5_UFR) |
+                                  (1 << CP0C5_MSAEn) | (1 << CP0C5_UFR) |
                                   (0 << CP0C5_NFExists),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 4,
         .SYNCI_Step = 32,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x3778FF1F,
-        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
-                    (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
+        .CP1_fcr0 = (1 << FCR0_UFRP) | (1 << FCR0_F64) | (1 << FCR0_L) |
+                    (1 << FCR0_W) | (1 << FCR0_D) | (1 << FCR0_S) |
+                    (0x93 << FCR0_PRID),
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R5 | ASE_MIPS16 | ASE_DSP | ASE_DSPR2,
