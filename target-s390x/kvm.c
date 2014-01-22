@@ -676,8 +676,10 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         cc = kvm_s390_cpu_restart(target_cpu);
         break;
     case SIGP_SET_ARCH:
-        /* make the caller panic */
-        return -1;
+        *statusreg &= 0xffffffff00000000UL;
+        *statusreg |= SIGP_STAT_INVALID_PARAMETER;
+        cc = 1;   /* status stored */
+        break;
     case SIGP_INITIAL_CPU_RESET:
         cc = s390_cpu_initial_reset(target_cpu);
         break;
