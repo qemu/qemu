@@ -7960,6 +7960,17 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
     return 0;
 }
 
+static inline bool ppc_cpu_is_valid(PowerPCCPUClass *pcc)
+{
+#ifdef TARGET_PPCEMB
+    return pcc->mmu_model == POWERPC_MMU_BOOKE ||
+           pcc->mmu_model == POWERPC_MMU_SOFT_4xx ||
+           pcc->mmu_model == POWERPC_MMU_SOFT_4xx_Z;
+#else
+    return true;
+#endif
+}
+
 static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -7991,8 +8002,8 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 #if defined(TARGET_PPCEMB)
-    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
-        error_setg(errp, "CPU does not possess a BookE MMU. "
+    if (!ppc_cpu_is_valid(pcc)) {
+        error_setg(errp, "CPU does not possess a BookE or 4xx MMU. "
                    "Please use qemu-system-ppc or qemu-system-ppc64 instead "
                    "or choose another CPU model.");
         return;
@@ -8209,11 +8220,9 @@ static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-#if defined(TARGET_PPCEMB)
-    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+    if (!ppc_cpu_is_valid(pcc)) {
         return -1;
     }
-#endif
 
     return pcc->pvr == pvr ? 0 : -1;
 }
@@ -8246,11 +8255,10 @@ static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-#if defined(TARGET_PPCEMB)
-    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+    if (!ppc_cpu_is_valid(pcc)) {
         return -1;
     }
-#endif
+
     ret = (((pcc->pvr & pcc->pvr_mask) == (pvr & pcc->pvr_mask)) ? 0 : -1);
 
     return ret;
@@ -8275,14 +8283,10 @@ static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
 {
     ObjectClass *oc = (ObjectClass *)a;
     const char *name = b;
-#if defined(TARGET_PPCEMB)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-#endif
 
     if (strncasecmp(name, object_class_get_name(oc), strlen(name)) == 0 &&
-#if defined(TARGET_PPCEMB)
-        pcc->mmu_model == POWERPC_MMU_BOOKE &&
-#endif
+        ppc_cpu_is_valid(pcc) &&
         strcmp(object_class_get_name(oc) + strlen(name),
                "-" TYPE_POWERPC_CPU) == 0) {
         return 0;
@@ -8414,11 +8418,9 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     char *name;
     int i;
 
-#if defined(TARGET_PPCEMB)
-    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+    if (!ppc_cpu_is_valid(pcc)) {
         return;
     }
-#endif
     if (unlikely(strcmp(typename, TYPE_HOST_POWERPC_CPU) == 0)) {
         return;
     }
@@ -8466,13 +8468,11 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     const char *typename;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
-#if defined(TARGET_PPCEMB)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
-    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+    if (!ppc_cpu_is_valid(pcc)) {
         return;
     }
-#endif
 
     typename = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));

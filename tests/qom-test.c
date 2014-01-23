@@ -221,10 +221,7 @@ int main(int argc, char **argv)
     } else if (strcmp(arch, "or32") == 0) {
         ADD_MACHINE_TESTS(arch, openrisc_machines);
     } else if (strcmp(arch, "ppcemb") == 0) {
-#if 0
-        /* XXX Available in ppcemb but don't work */
         ADD_MACHINE_TESTS(arch, ppc405_machines);
-#endif
         ADD_MACHINE_TESTS(arch, ppc440_machines);
     } else if (strcmp(arch, "ppc") == 0) {
         ADD_MACHINE_TESTS(arch, ppc405_machines);
