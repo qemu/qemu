@@ -74,6 +74,7 @@ static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
 static bool has_msr_hv_hypercall;
 static bool has_msr_hv_vapic;
+static bool has_msr_hv_tsc;
 
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
@@ -442,6 +443,7 @@ static bool hyperv_enabled(X86CPU *cpu)
     CPUState *cs = CPU(cpu);
     return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
            (hyperv_hypercall_available(cpu) ||
+            cpu->hyperv_time  ||
             cpu->hyperv_relaxed_timing);
 }
 
@@ -499,7 +501,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
             c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
             has_msr_hv_vapic = true;
         }
-
+        if (cpu->hyperv_time &&
+            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+            c->eax |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
+            c->eax |= 0x200;
+            has_msr_hv_tsc = true;
+        }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
@@ -1239,6 +1247,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE,
                               env->msr_hv_vapic);
         }
+        if (has_msr_hv_tsc) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_REFERENCE_TSC,
+                              env->msr_hv_tsc);
+        }
 
         /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
          *       kvm_put_msr_feature_control. */
@@ -1530,6 +1542,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hv_vapic) {
         msrs[n++].index = HV_X64_MSR_APIC_ASSIST_PAGE;
     }
+    if (has_msr_hv_tsc) {
+        msrs[n++].index = HV_X64_MSR_REFERENCE_TSC;
+    }
 
     msr_data.info.nmsrs = n;
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
@@ -1646,6 +1661,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_APIC_ASSIST_PAGE:
             env->msr_hv_vapic = msrs[i].data;
+            break;
+        case HV_X64_MSR_REFERENCE_TSC:
+            env->msr_hv_tsc = msrs[i].data;
             break;
         }
     }

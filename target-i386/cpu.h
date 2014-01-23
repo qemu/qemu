@@ -865,6 +865,7 @@ typedef struct CPUX86State {
     uint64_t msr_hv_hypercall;
     uint64_t msr_hv_guest_os_id;
     uint64_t msr_hv_vapic;
+    uint64_t msr_hv_tsc;
 
     /* exception/interrupt handling */
     int error_code;

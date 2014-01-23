@@ -69,6 +69,7 @@ typedef struct X86CPU {
     bool hyperv_vapic;
     bool hyperv_relaxed_timing;
     int hyperv_spinlock_attempts;
+    bool hyperv_time;
     bool check_cpuid;
     bool enforce_cpuid;
 
