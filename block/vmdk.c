@@ -661,6 +661,10 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     extent->compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
+    if (extent->compressed) {
+        g_free(s->create_type);
+        s->create_type = g_strdup("streamOptimized");
+    }
     extent->has_marker = le32_to_cpu(header.flags) & VMDK4_FLAG_MARKER;
     extent->version = le32_to_cpu(header.version);
     extent->has_zero_grain = le32_to_cpu(header.flags) & VMDK4_FLAG_ZERO_GRAIN;
