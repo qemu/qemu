@@ -90,6 +90,9 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
 
+static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
+    QTAILQ_HEAD_INITIALIZER(graph_bdrv_states);
+
 static QLIST_HEAD(, BlockDriver) bdrv_drivers =
     QLIST_HEAD_INITIALIZER(bdrv_drivers);
 
@@ -327,7 +330,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     QLIST_INIT(&bs->dirty_bitmaps);
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
-        QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
+        QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
     }
     bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
@@ -1606,7 +1609,7 @@ void bdrv_close_all(void)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         bdrv_close(bs);
     }
 }
@@ -1635,7 +1638,7 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
 static bool bdrv_requests_pending_all(void)
 {
     BlockDriverState *bs;
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         if (bdrv_requests_pending(bs)) {
             return true;
         }
@@ -1662,7 +1665,7 @@ void bdrv_drain_all(void)
     BlockDriverState *bs;
 
     while (busy) {
-        QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
             bdrv_start_throttled_reqs(bs);
         }
 
@@ -1671,14 +1674,19 @@ void bdrv_drain_all(void)
     }
 }
 
-/* make a BlockDriverState anonymous by removing from bdrv_state list.
+/* make a BlockDriverState anonymous by removing from bdrv_state and
+ * graph_bdrv_state list.
    Also, NULL terminate the device_name to prevent double remove */
 void bdrv_make_anon(BlockDriverState *bs)
 {
     if (bs->device_name[0] != '\0') {
-        QTAILQ_REMOVE(&bdrv_states, bs, list);
+        QTAILQ_REMOVE(&bdrv_states, bs, device_list);
     }
     bs->device_name[0] = '\0';
+    if (bs->node_name[0] != '\0') {
+        QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
+    }
+    bs->node_name[0] = '\0';
 }
 
 static void bdrv_rebind(BlockDriverState *bs)
@@ -1732,7 +1740,12 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     /* keep the same entry in bdrv_states */
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
-    bs_dest->list = bs_src->list;
+    bs_dest->device_list = bs_src->device_list;
+
+    /* keep the same entry in graph_bdrv_states
+     * We do want to swap name but don't want to swap linked list entries
+     */
+    bs_dest->node_list   = bs_src->node_list;
 }
 
 /*
@@ -2057,7 +2070,7 @@ int bdrv_commit_all(void)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         if (bs->drv && bs->backing_hd) {
             int ret = bdrv_commit(bs);
             if (ret < 0) {
@@ -3215,12 +3228,28 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
     }
 }
 
+/* This function is to find block backend bs */
 BlockDriverState *bdrv_find(const char *name)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         if (!strcmp(name, bs->device_name)) {
+            return bs;
+        }
+    }
+    return NULL;
+}
+
+/* This function is to find a node in the bs graph */
+BlockDriverState *bdrv_find_node(const char *node_name)
+{
+    BlockDriverState *bs;
+
+    assert(node_name);
+
+    QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
+        if (!strcmp(node_name, bs->node_name)) {
             return bs;
         }
     }
@@ -3232,14 +3261,14 @@ BlockDriverState *bdrv_next(BlockDriverState *bs)
     if (!bs) {
         return QTAILQ_FIRST(&bdrv_states);
     }
-    return QTAILQ_NEXT(bs, list);
+    return QTAILQ_NEXT(bs, device_list);
 }
 
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         it(opaque, bs);
     }
 }
@@ -3259,7 +3288,7 @@ int bdrv_flush_all(void)
     BlockDriverState *bs;
     int result = 0;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         int ret = bdrv_flush(bs);
         if (ret < 0 && !result) {
             result = ret;
@@ -4383,7 +4412,7 @@ void bdrv_invalidate_cache_all(void)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         bdrv_invalidate_cache(bs);
     }
 }
@@ -4392,7 +4421,7 @@ void bdrv_clear_incoming_migration_all(void)
 {
     BlockDriverState *bs;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
     }
 }

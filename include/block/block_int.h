@@ -325,11 +325,18 @@ struct BlockDriverState {
     BlockdevOnError on_read_error, on_write_error;
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
+
+    /* the following member gives a name to every node on the bs graph. */
+    char node_name[32];
+    /* element of the list of named nodes building the graph */
+    QTAILQ_ENTRY(BlockDriverState) node_list;
+    /* Device name is the name associated with the "drive" the guest sees */
     char device_name[32];
+    /* element of the list of "drives" the guest sees */
+    QTAILQ_ENTRY(BlockDriverState) device_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
     int in_use; /* users other than guest access, eg. block migration */
-    QTAILQ_ENTRY(BlockDriverState) list;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 
