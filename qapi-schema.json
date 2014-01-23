@@ -1678,7 +1678,11 @@
 # determine which ones are encrypted, set the passwords with this command, and
 # then start the guest with the @cont command.
 #
-# @device:   the name of the device to set the password on
+# Either @device or @node-name must be set but not both.
+#
+# @device: #optional the name of the block backend device to set the password on
+#
+# @node-name: #optional graph node name to set the password on (Since 2.0)
 #
 # @password: the password to use for the device
 #
@@ -1692,7 +1696,8 @@
 #
 # Since: 0.14.0
 ##
-{ 'command': 'block_passwd', 'data': {'device': 'str', 'password': 'str'} }
+{ 'command': 'block_passwd', 'data': {'*device': 'str',
+                                      '*node-name': 'str', 'password': 'str'} }
 
 ##
 # @balloon:

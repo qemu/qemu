@@ -3309,6 +3309,38 @@ BlockDeviceInfoList *bdrv_named_nodes_list(void)
     return list;
 }
 
+BlockDriverState *bdrv_lookup_bs(const char *device,
+                                 const char *node_name,
+                                 Error **errp)
+{
+    BlockDriverState *bs = NULL;
+
+    if ((!device && !node_name) || (device && node_name)) {
+        error_setg(errp, "Use either device or node-name but not both");
+        return NULL;
+    }
+
+    if (device) {
+        bs = bdrv_find(device);
+
+        if (!bs) {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+            return NULL;
+        }
+
+        return bs;
+    }
+
+    bs = bdrv_find_node(node_name);
+
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, node_name);
+        return NULL;
+    }
+
+    return bs;
+}
+
 BlockDriverState *bdrv_next(BlockDriverState *bs)
 {
     if (!bs) {

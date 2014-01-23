@@ -1503,7 +1503,7 @@ EQMP
 
     {
         .name       = "block_passwd",
-        .args_type  = "device:B,password:s",
+        .args_type  = "device:s?,node-name:s?,password:s",
         .mhandler.cmd_new = qmp_marshal_input_block_passwd,
     },
 
@@ -1516,6 +1516,7 @@ Set the password of encrypted block devices.
 Arguments:
 
 - "device": device name (json-string)
+- "node-name": name in the block driver state graph (json-string)
 - "password": password (json-string)
 
 Example:

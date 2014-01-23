@@ -1481,14 +1481,19 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
     eject_device(bs, force, errp);
 }
 
-void qmp_block_passwd(const char *device, const char *password, Error **errp)
+void qmp_block_passwd(bool has_device, const char *device,
+                      bool has_node_name, const char *node_name,
+                      const char *password, Error **errp)
 {
+    Error *local_err = NULL;
     BlockDriverState *bs;
     int err;
 
-    bs = bdrv_find(device);
-    if (!bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+    bs = bdrv_lookup_bs(has_device ? device : NULL,
+                        has_node_name ? node_name : NULL,
+                        &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
         return;
     }
 

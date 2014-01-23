@@ -380,6 +380,9 @@ const char *bdrv_get_format_name(BlockDriverState *bs);
 BlockDriverState *bdrv_find(const char *name);
 BlockDriverState *bdrv_find_node(const char *node_name);
 BlockDeviceInfoList *bdrv_named_nodes_list(void);
+BlockDriverState *bdrv_lookup_bs(const char *device,
+                                 const char *node_name,
+                                 Error **errp);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
                   void *opaque);

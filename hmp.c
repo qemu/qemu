@@ -871,7 +871,7 @@ void hmp_block_passwd(Monitor *mon, const QDict *qdict)
     const char *password = qdict_get_str(qdict, "password");
     Error *errp = NULL;
 
-    qmp_block_passwd(device, password, &errp);
+    qmp_block_passwd(true, device, false, NULL, password, &errp);
     hmp_handle_error(mon, &errp);
 }
 
