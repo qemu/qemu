@@ -252,6 +252,8 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
         if (job->vs->csock == -1) {
             vnc_unlock_display(job->vs->vd);
+            /* Copy persistent encoding data */
+            vnc_async_encoding_end(job->vs, &vs);
             goto disconnected;
         }
 
@@ -278,6 +280,9 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
         vnc_async_encoding_end(job->vs, &vs);
 
 	qemu_bh_schedule(job->vs->bh);
+    }  else {
+        /* Copy persistent encoding data */
+        vnc_async_encoding_end(job->vs, &vs);
     }
     vnc_unlock_output(job->vs);
 
