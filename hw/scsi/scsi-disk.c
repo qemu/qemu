@@ -428,6 +428,9 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
         case EINVAL:
             scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
             break;
+        case ENOSPC:
+            scsi_check_condition(r, SENSE_CODE(SPACE_ALLOC_FAILED));
+            break;
         default:
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;

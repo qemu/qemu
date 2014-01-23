@@ -223,6 +223,8 @@ extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
 extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 /* Data Protection, Write Protected */
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
+/* Data Protection, Space Allocation Failed Write Protect */
+extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
