@@ -1761,9 +1761,15 @@
 ##
 # @BlockdevSnapshot
 #
-# @device:  the name of the device to generate the snapshot from.
+# Either @device or @node-name must be set but not both.
+#
+# @device: #optional the name of the device to generate the snapshot from.
+#
+# @node-name: #optional graph node name to generate the snapshot from (Since 2.0)
 #
 # @snapshot-file: the target of the new image. A new file will be created.
+#
+# @snapshot-node-name: #optional the graph node name of the new image (Since 2.0)
 #
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
@@ -1771,8 +1777,9 @@
 #        'absolute-paths'.
 ##
 { 'type': 'BlockdevSnapshot',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
-            '*mode': 'NewImageMode' } }
+  'data': { '*device': 'str', '*node-name': 'str',
+            'snapshot-file': 'str', '*snapshot-node-name': 'str',
+            '*format': 'str', '*mode': 'NewImageMode' } }
 
 ##
 # @BlockdevSnapshotInternal

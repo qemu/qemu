@@ -1089,7 +1089,9 @@ actions array:
     - "data": a dictionary.  The contents depend on the value
       of "type".  When "type" is "blockdev-snapshot-sync":
       - "device": device name to snapshot (json-string)
+      - "node-name": graph node name to snapshot (json-string)
       - "snapshot-file": name of new image file (json-string)
+      - "snapshot-node-name": graph node name of the new snapshot (json-string)
       - "format": format of new image (json-string, optional)
       - "mode": whether and how QEMU should create the snapshot file
         (NewImageMode, optional, default "absolute-paths")
@@ -1104,6 +1106,11 @@ Example:
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd0",
                                          "snapshot-file": "/some/place/my-image",
                                          "format": "qcow2" } },
+         { 'type': 'blockdev-snapshot-sync', 'data' : { "node-name": "myfile",
+                                         "snapshot-file": "/some/place/my-image2",
+                                         "snapshot-node-name": "node3432",
+                                         "mode": "existing",
+                                         "format": "qcow2" } },
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
                                          "mode": "existing",
@@ -1117,7 +1124,7 @@ EQMP
 
     {
         .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:B,snapshot-file:s,format:s?,mode:s?",
+        .args_type  = "device:s?,node-name:s?,snapshot-file:s,snapshot-node-name:s?,format:s?,mode:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
     },
 
@@ -1134,7 +1141,9 @@ snapshot image, default is qcow2.
 Arguments:
 
 - "device": device name to snapshot (json-string)
+- "node-name": graph node name to snapshot (json-string)
 - "snapshot-file": name of new image file (json-string)
+- "snapshot-node-name": graph node name of the new snapshot (json-string)
 - "mode": whether and how QEMU should create the snapshot file
   (NewImageMode, optional, default "absolute-paths")
 - "format": format of new image (json-string, optional)

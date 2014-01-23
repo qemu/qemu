@@ -947,14 +947,22 @@ static void blockdev_do_action(int kind, void *data, Error **errp)
     qmp_transaction(&list, errp);
 }
 
-void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
+void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
+                                bool has_node_name, const char *node_name,
+                                const char *snapshot_file,
+                                bool has_snapshot_node_name,
+                                const char *snapshot_node_name,
                                 bool has_format, const char *format,
-                                bool has_mode, enum NewImageMode mode,
-                                Error **errp)
+                                bool has_mode, NewImageMode mode, Error **errp)
 {
     BlockdevSnapshot snapshot = {
+        .has_device = has_device,
         .device = (char *) device,
+        .has_node_name = has_node_name,
+        .node_name = (char *) node_name,
         .snapshot_file = (char *) snapshot_file,
+        .has_snapshot_node_name = has_snapshot_node_name,
+        .snapshot_node_name = (char *) snapshot_node_name,
         .has_format = has_format,
         .format = (char *) format,
         .has_mode = has_mode,
@@ -1192,8 +1200,14 @@ static void external_snapshot_prepare(BlkTransactionState *common,
 {
     BlockDriver *drv;
     int flags, ret;
+    QDict *options = NULL;
     Error *local_err = NULL;
+    bool has_device = false;
     const char *device;
+    bool has_node_name = false;
+    const char *node_name;
+    bool has_snapshot_node_name = false;
+    const char *snapshot_node_name;
     const char *new_image_file;
     const char *format = "qcow2";
     enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
@@ -1204,7 +1218,14 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* get parameters */
     g_assert(action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
 
+    has_device = action->blockdev_snapshot_sync->has_device;
     device = action->blockdev_snapshot_sync->device;
+    has_node_name = action->blockdev_snapshot_sync->has_node_name;
+    node_name = action->blockdev_snapshot_sync->node_name;
+    has_snapshot_node_name =
+        action->blockdev_snapshot_sync->has_snapshot_node_name;
+    snapshot_node_name = action->blockdev_snapshot_sync->snapshot_node_name;
+
     new_image_file = action->blockdev_snapshot_sync->snapshot_file;
     if (action->blockdev_snapshot_sync->has_format) {
         format = action->blockdev_snapshot_sync->format;
@@ -1220,9 +1241,21 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    state->old_bs = bdrv_find(device);
-    if (!state->old_bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+    state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
+                                   has_node_name ? node_name : NULL,
+                                   &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (has_node_name && !has_snapshot_node_name) {
+        error_setg(errp, "New snapshot node name missing");
+        return;
+    }
+
+    if (has_snapshot_node_name && bdrv_find_node(snapshot_node_name)) {
+        error_setg(errp, "New snapshot node name already existing");
         return;
     }
 
@@ -1262,15 +1295,23 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         }
     }
 
+    if (has_snapshot_node_name) {
+        options = qdict_new();
+        qdict_put(options, "node-name",
+                  qstring_from_str(snapshot_node_name));
+    }
+
     /* We will manually add the backing_hd field to the bs later */
     state->new_bs = bdrv_new("");
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
-    ret = bdrv_open(state->new_bs, new_image_file, NULL,
+    ret = bdrv_open(state->new_bs, new_image_file, options,
                     flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret != 0) {
         error_propagate(errp, local_err);
     }
+
+    QDECREF(options);
 }
 
 static void external_snapshot_commit(BlkTransactionState *common)
