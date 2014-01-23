@@ -1236,7 +1236,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                               env->msr_hv_hypercall);
         }
         if (has_msr_hv_vapic) {
-            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE,
+                              env->msr_hv_vapic);
         }
 
         /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
@@ -1526,6 +1527,10 @@ static int kvm_get_msrs(X86CPU *cpu)
         msrs[n++].index = HV_X64_MSR_HYPERCALL;
         msrs[n++].index = HV_X64_MSR_GUEST_OS_ID;
     }
+    if (has_msr_hv_vapic) {
+        msrs[n++].index = HV_X64_MSR_APIC_ASSIST_PAGE;
+    }
+
     msr_data.info.nmsrs = n;
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
     if (ret < 0) {
@@ -1638,6 +1643,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_GUEST_OS_ID:
             env->msr_hv_guest_os_id = msrs[i].data;
+            break;
+        case HV_X64_MSR_APIC_ASSIST_PAGE:
+            env->msr_hv_vapic = msrs[i].data;
             break;
         }
     }
