@@ -455,6 +455,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
+    int kvm_base = KVM_CPUID_SIGNATURE;
     int r;
 
     memset(&cpuid_data, 0, sizeof(cpuid_data));
@@ -462,26 +463,22 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_SIGNATURE;
-    if (!hyperv_enabled(cpu)) {
-        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-        c->eax = 0;
-    } else {
+    if (hyperv_enabled(cpu)) {
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
         memcpy(signature, "Microsoft Hv", 12);
         c->eax = HYPERV_CPUID_MIN;
-    }
-    c->ebx = signature[0];
-    c->ecx = signature[1];
-    c->edx = signature[2];
+        c->ebx = signature[0];
+        c->ecx = signature[1];
+        c->edx = signature[2];
 
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_FEATURES;
-    c->eax = env->features[FEAT_KVM];
-
-    if (hyperv_enabled(cpu)) {
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = HYPERV_CPUID_INTERFACE;
         memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
         c->eax = signature[0];
+        c->ebx = 0;
+        c->ecx = 0;
+        c->edx = 0;
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_VERSION;
@@ -513,14 +510,20 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->eax = 0x40;
         c->ebx = 0x40;
 
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = KVM_CPUID_SIGNATURE_NEXT;
-        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-        c->eax = 0;
-        c->ebx = signature[0];
-        c->ecx = signature[1];
-        c->edx = signature[2];
+        kvm_base = KVM_CPUID_SIGNATURE_NEXT;
     }
+
+    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+    c = &cpuid_data.entries[cpuid_i++];
+    c->function = KVM_CPUID_SIGNATURE | kvm_base;
+    c->eax = 0;
+    c->ebx = signature[0];
+    c->ecx = signature[1];
+    c->edx = signature[2];
+
+    c = &cpuid_data.entries[cpuid_i++];
+    c->function = KVM_CPUID_FEATURES | kvm_base;
+    c->eax = env->features[FEAT_KVM];
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
