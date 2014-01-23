@@ -4433,8 +4433,8 @@ static void init_proc_e200 (CPUPPCState *env)
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CFG0, "L1CFG0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR0, "L1CSR0",
@@ -4766,8 +4766,8 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CFG0, "L1CFG0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
                  l1cfg0);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR0, "L1CSR0",
