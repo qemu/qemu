@@ -4092,6 +4092,7 @@
 # @id:          #optional id by which the new block device can be referred to.
 #               This is a required option on the top level of blockdev-add, and
 #               currently not allowed on any other level.
+# @node-name:   #optional the name of a block driver state node (Since 2.0)
 # @discard:     #optional discard-related options (default: ignore)
 # @cache:       #optional cache-related options
 # @aio:         #optional AIO backend (default: threads)
@@ -4107,6 +4108,7 @@
 { 'type': 'BlockdevOptionsBase',
   'data': { 'driver': 'str',
             '*id': 'str',
+            '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
             '*aio': 'BlockdevAioOptions',

@@ -735,6 +735,33 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
     return open_flags;
 }
 
+static int bdrv_assign_node_name(BlockDriverState *bs,
+                                 const char *node_name,
+                                 Error **errp)
+{
+    if (!node_name) {
+        return 0;
+    }
+
+    /* empty string node name is invalid */
+    if (node_name[0] == '\0') {
+        error_setg(errp, "Empty node name");
+        return -EINVAL;
+    }
+
+    /* takes care of avoiding duplicates node names */
+    if (bdrv_find_node(node_name)) {
+        error_setg(errp, "Duplicate node name");
+        return -EINVAL;
+    }
+
+    /* copy node name into the bs and insert it into the graph list */
+    pstrcpy(bs->node_name, sizeof(bs->node_name), node_name);
+    QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs, node_list);
+
+    return 0;
+}
+
 /*
  * Common part for opening disk images and files
  *
@@ -745,6 +772,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 {
     int ret, open_flags;
     const char *filename;
+    const char *node_name = NULL;
     Error *local_err = NULL;
 
     assert(drv != NULL);
@@ -758,6 +786,13 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
 
     trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
+
+    node_name = qdict_get_try_str(options, "node-name");
+    ret = bdrv_assign_node_name(bs, node_name, errp);
+    if (ret < 0) {
+        return ret;
+    }
+    qdict_del(options, "node-name");
 
     /* bdrv_open() with directly using a protocol as drv. This layer is already
      * opened, so assign it to bs (while file becomes a closed BlockDriverState)
