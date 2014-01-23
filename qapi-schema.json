@@ -1724,7 +1724,11 @@
 #
 # Resize a block image while a guest is running.
 #
-# @device:  the name of the device to get the image resized
+# Either @device or @node-name must be set but not both.
+#
+# @device: #optional the name of the device to get the image resized
+#
+# @node-name: #optional graph node name to get the image resized (Since 2.0)
 #
 # @size:  new image size in bytes
 #
@@ -1733,7 +1737,9 @@
 #
 # Since: 0.14.0
 ##
-{ 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
+{ 'command': 'block_resize', 'data': { '*device': 'str',
+                                       '*node-name': 'str',
+                                       'size': 'int' }}
 
 ##
 # @NewImageMode

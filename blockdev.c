@@ -1683,14 +1683,24 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-void qmp_block_resize(const char *device, int64_t size, Error **errp)
+void qmp_block_resize(bool has_device, const char *device,
+                      bool has_node_name, const char *node_name,
+                      int64_t size, Error **errp)
 {
+    Error *local_err = NULL;
     BlockDriverState *bs;
     int ret;
 
-    bs = bdrv_find(device);
-    if (!bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+    bs = bdrv_lookup_bs(has_device ? device : NULL,
+                        has_node_name ? node_name : NULL,
+                        &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!bdrv_is_first_non_filter(bs)) {
+        error_set(errp, QERR_FEATURE_DISABLED, "resize");
         return;
     }
 

@@ -931,7 +931,7 @@ EQMP
 
     {
         .name       = "block_resize",
-        .args_type  = "device:B,size:o",
+        .args_type  = "device:s?,node-name:s?,size:o",
         .mhandler.cmd_new = qmp_marshal_input_block_resize,
     },
 
@@ -944,6 +944,7 @@ Resize a block image while a guest is running.
 Arguments:
 
 - "device": the device's ID, must be unique (json-string)
+- "node-name": the node name in the block driver state graph (json-string)
 - "size": new size
 
 Example:

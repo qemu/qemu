@@ -893,7 +893,7 @@ void hmp_block_resize(Monitor *mon, const QDict *qdict)
     int64_t size = qdict_get_int(qdict, "size");
     Error *errp = NULL;
 
-    qmp_block_resize(device, size, &errp);
+    qmp_block_resize(true, device, false, NULL, size, &errp);
     hmp_handle_error(mon, &errp);
 }
 
