@@ -1,5 +1,9 @@
 export SRC_PATH
 
+# Get the list of all supported sysemu targets
+SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
+   $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
+
 check-unit-y = tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
 check-unit-y += tests/check-qfloat$(EXESUF)
@@ -71,7 +75,6 @@ check-qtest-i386-y += tests/acpi-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
-check-qtest-i386-y += tests/qom-test$(EXESUF)
 check-qtest-i386-y += tests/blockdev-test$(EXESUF)
 check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
@@ -80,43 +83,25 @@ gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y)
 check-qtest-mips-y = tests/endianness-test$(EXESUF)
 check-qtest-mips64-y = tests/endianness-test$(EXESUF)
 check-qtest-mips64el-y = tests/endianness-test$(EXESUF)
-check-qtest-mips-y += tests/qom-test$(EXESUF)
-check-qtest-mipsel-y += tests/qom-test$(EXESUF)
-check-qtest-mips64-y += tests/qom-test$(EXESUF)
-check-qtest-mips64el-y += tests/qom-test$(EXESUF)
 check-qtest-ppc-y = tests/endianness-test$(EXESUF)
 check-qtest-ppc64-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4eb-y = tests/endianness-test$(EXESUF)
-check-qtest-sh4-y += tests/qom-test$(EXESUF)
-check-qtest-sh4eb-y += tests/qom-test$(EXESUF)
 check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
 #check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 #check-qtest-sparc64-y += tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y += hw/timer/m48t59.c
 gcov-files-sparc64-y += hw/timer/m48t59.c
-check-qtest-sparc-y += tests/qom-test$(EXESUF)
-check-qtest-sparc64-y += tests/qom-test$(EXESUF)
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
 gcov-files-arm-y += hw/misc/tmp105.c
-check-qtest-arm-y += tests/qom-test$(EXESUF)
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
-check-qtest-ppc-y += tests/qom-test$(EXESUF)
-check-qtest-ppc64-y += tests/qom-test$(EXESUF)
-check-qtest-ppcemb-y += tests/qom-test$(EXESUF)
-check-qtest-alpha-y += tests/qom-test$(EXESUF)
-check-qtest-cris-y += tests/qom-test$(EXESUF)
-check-qtest-lm32-y += tests/qom-test$(EXESUF)
-check-qtest-m68k-y += tests/qom-test$(EXESUF)
-check-qtest-microblaze-y += tests/qom-test$(EXESUF)
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
-check-qtest-moxie-y += tests/qom-test$(EXESUF)
-check-qtest-or32-y += tests/qom-test$(EXESUF)
-check-qtest-s390x-y += tests/qom-test$(EXESUF)
-check-qtest-unicore32-y += tests/qom-test$(EXESUF)
-check-qtest-xtensa-y += tests/qom-test$(EXESUF)
 check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
+
+# qom-test works for all sysemu architectures:
+$(foreach target,$(SYSEMU_TARGET_LIST), \
+    $(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF)))
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
         comments.json empty.json funny-char.json indented-expr.json \
