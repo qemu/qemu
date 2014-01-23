@@ -72,6 +72,8 @@ static bool has_msr_misc_enable;
 static bool has_msr_bndcfgs;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
+static bool has_msr_hv_hypercall;
+static bool has_msr_hv_vapic;
 
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
@@ -437,8 +439,10 @@ static bool hyperv_hypercall_available(X86CPU *cpu)
 
 static bool hyperv_enabled(X86CPU *cpu)
 {
-    return hyperv_hypercall_available(cpu) ||
-           cpu->hyperv_relaxed_timing;
+    CPUState *cs = CPU(cpu);
+    return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
+           (hyperv_hypercall_available(cpu) ||
+            cpu->hyperv_relaxed_timing);
 }
 
 #define KVM_MAX_CPUID_ENTRIES  100
@@ -493,6 +497,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_vapic) {
             c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
             c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+            has_msr_hv_vapic = true;
         }
 
         c = &cpuid_data.entries[cpuid_i++];
@@ -500,7 +505,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_relaxed_timing) {
             c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
         }
-        if (cpu->hyperv_vapic) {
+        if (has_msr_hv_vapic) {
             c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
         }
         c->ebx = cpu->hyperv_spinlock_attempts;
@@ -511,6 +516,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->ebx = 0x40;
 
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;
+        has_msr_hv_hypercall = true;
     }
 
     memcpy(signature, "KVMKVMKVM\0\0\0", 12);
@@ -1223,11 +1229,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_CTRL,
                               env->msr_global_ctrl);
         }
-        if (hyperv_hypercall_available(cpu)) {
+        if (has_msr_hv_hypercall) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
         }
-        if (cpu->hyperv_vapic) {
+        if (has_msr_hv_vapic) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
 
