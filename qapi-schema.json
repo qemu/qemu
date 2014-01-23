@@ -810,6 +810,8 @@
 #
 # @file: the filename of the backing device
 #
+# @node-name: #optional the name of the block driver node (Since 2.0)
+#
 # @ro: true if the backing device was open read-only
 #
 # @drv: the name of the block format used to open the backing device. As of
@@ -857,10 +859,9 @@
 #
 # Since: 0.14.0
 #
-# Notes: This interface is only found in @BlockInfo.
 ##
 { 'type': 'BlockDeviceInfo',
-  'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
+  'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
@@ -2009,6 +2010,17 @@
 # Since 1.6
 ##
 { 'command': 'drive-backup', 'data': 'DriveBackup' }
+
+##
+# @query-named-block-nodes
+#
+# Get the named block driver list
+#
+# Returns: the list of BlockDeviceInfo
+#
+# Since 2.0
+##
+{ 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
 
 ##
 # @drive-mirror

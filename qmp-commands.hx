@@ -3346,3 +3346,64 @@ Example (2):
 <- { "return": {} }
 
 EQMP
+
+    {
+        .name       = "query-named-block-nodes",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_named_block_nodes,
+    },
+
+SQMP
+@query-named-block-nodes
+------------------------
+
+Return a list of BlockDeviceInfo for all the named block driver nodes
+
+Example:
+
+-> { "execute": "query-named-block-nodes" }
+<- { "return": [ { "ro":false,
+                   "drv":"qcow2",
+                   "encrypted":false,
+                   "file":"disks/test.qcow2",
+                   "node-name": "my-node",
+                   "backing_file_depth":1,
+                   "bps":1000000,
+                   "bps_rd":0,
+                   "bps_wr":0,
+                   "iops":1000000,
+                   "iops_rd":0,
+                   "iops_wr":0,
+                   "bps_max": 8000000,
+                   "bps_rd_max": 0,
+                   "bps_wr_max": 0,
+                   "iops_max": 0,
+                   "iops_rd_max": 0,
+                   "iops_wr_max": 0,
+                   "iops_size": 0,
+                   "image":{
+                      "filename":"disks/test.qcow2",
+                      "format":"qcow2",
+                      "virtual-size":2048000,
+                      "backing_file":"base.qcow2",
+                      "full-backing-filename":"disks/base.qcow2",
+                      "backing-filename-format:"qcow2",
+                      "snapshots":[
+                         {
+                            "id": "1",
+                            "name": "snapshot1",
+                            "vm-state-size": 0,
+                            "date-sec": 10000200,
+                            "date-nsec": 12,
+                            "vm-clock-sec": 206,
+                            "vm-clock-nsec": 30
+                         }
+                      ],
+                      "backing-image":{
+                          "filename":"disks/base.qcow2",
+                          "format":"qcow2",
+                          "virtual-size":2048000
+                      }
+                   } } ] }
+
+EQMP

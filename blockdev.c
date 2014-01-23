@@ -1952,6 +1952,11 @@ void qmp_drive_backup(const char *device, const char *target,
     }
 }
 
+BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
+{
+    return bdrv_named_nodes_list();
+}
+
 #define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
 
 void qmp_drive_mirror(const char *device, const char *target,
