@@ -96,6 +96,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
         bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
     }
 
+    qemu_iovec_destroy(&op->qiov);
     g_slice_free(MirrorOp, op);
     qemu_coroutine_enter(s->common.co, NULL);
 }
