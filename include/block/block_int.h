@@ -69,10 +69,16 @@ struct BlockDriver {
     const char *format_name;
     int instance_size;
 
-    /* if not defined external snapshots are allowed
-     * future block filters will query their children to build the response
+    /* this table of boolean contains authorizations for the block operations */
+    bool authorizations[BS_AUTHORIZATION_COUNT];
+    /* for snapshots complex block filter like Quorum can implement the
+     * following recursive callback instead of BS_IS_A_FILTER.
+     * It's purpose is to recurse on the filter children while calling
+     * bdrv_recurse_is_first_non_filter on them.
+     * For a sample implementation look in the future Quorum block filter.
      */
-    ExtSnapshotPerm (*bdrv_check_ext_snapshot)(BlockDriverState *bs);
+    bool (*bdrv_recurse_is_first_non_filter)(BlockDriverState *bs,
+                                             BlockDriverState *candidate);
 
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);

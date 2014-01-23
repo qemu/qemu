@@ -5094,21 +5094,68 @@ int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
     return bs->drv->bdrv_amend_options(bs, options);
 }
 
-ExtSnapshotPerm bdrv_check_ext_snapshot(BlockDriverState *bs)
+/* Used to recurse on single child block filters.
+ * Single child block filter will store their child in bs->file.
+ */
+bool bdrv_generic_is_first_non_filter(BlockDriverState *bs,
+                                      BlockDriverState *candidate)
 {
-    if (bs->drv->bdrv_check_ext_snapshot) {
-        return bs->drv->bdrv_check_ext_snapshot(bs);
+    if (!bs->drv) {
+        return false;
     }
 
-    if (bs->file && bs->file->drv && bs->file->drv->bdrv_check_ext_snapshot) {
-        return bs->file->drv->bdrv_check_ext_snapshot(bs);
+    if (!bs->drv->authorizations[BS_IS_A_FILTER]) {
+        if (bs == candidate) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    /* external snapshots are allowed by default */
-    return EXT_SNAPSHOT_ALLOWED;
+    if (!bs->drv->authorizations[BS_FILTER_PASS_DOWN]) {
+        return false;
+    }
+
+    if (!bs->file) {
+        return false;
+    }
+
+    return bdrv_recurse_is_first_non_filter(bs->file, candidate);
 }
 
-ExtSnapshotPerm bdrv_check_ext_snapshot_forbidden(BlockDriverState *bs)
+bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
+                                      BlockDriverState *candidate)
 {
-    return EXT_SNAPSHOT_FORBIDDEN;
+    if (bs->drv && bs->drv->bdrv_recurse_is_first_non_filter) {
+        return bs->drv->bdrv_recurse_is_first_non_filter(bs, candidate);
+    }
+
+    return bdrv_generic_is_first_non_filter(bs, candidate);
+}
+
+/* This function checks if the candidate is the first non filter bs down it's
+ * bs chain. Since we don't have pointers to parents it explore all bs chains
+ * from the top. Some filters can choose not to pass down the recursion.
+ */
+bool bdrv_is_first_non_filter(BlockDriverState *candidate)
+{
+    BlockDriverState *bs;
+
+    /* walk down the bs forest recursively */
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        bool perm;
+
+        if (!bs->file) {
+            continue;
+        }
+
+        perm = bdrv_recurse_is_first_non_filter(bs->file, candidate);
+
+        /* candidate is the first non filter */
+        if (perm) {
+            return true;
+        }
+    }
+
+    return false;
 }

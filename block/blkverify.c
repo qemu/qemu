@@ -404,7 +404,7 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_aio_writev        = blkverify_aio_writev,
     .bdrv_aio_flush         = blkverify_aio_flush,
 
-    .bdrv_check_ext_snapshot = bdrv_check_ext_snapshot_forbidden,
+    .authorizations         = { true, false },
 };
 
 static void bdrv_blkverify_init(void)

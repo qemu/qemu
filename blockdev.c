@@ -1243,7 +1243,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         }
     }
 
-    if (bdrv_check_ext_snapshot(state->old_bs) != EXT_SNAPSHOT_ALLOWED) {
+    if (!bdrv_is_first_non_filter(state->old_bs)) {
         error_set(errp, QERR_FEATURE_DISABLED, "snapshot");
         return;
     }
