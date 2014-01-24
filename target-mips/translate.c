@@ -4405,7 +4405,11 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config3));
             rn = "Config3";
             break;
-        /* 4,5 are reserved */
+        case 4:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config4));
+            rn = "Config4";
+            break;
+        /* 5 is reserved */
         /* 6,7 are implementation dependent */
         case 6:
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config6));
@@ -4982,7 +4986,12 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* ignored, read only */
             rn = "Config3";
             break;
-        /* 4,5 are reserved */
+        case 4:
+            gen_helper_mtc0_config4(cpu_env, arg);
+            rn = "Config4";
+            ctx->bstate = BS_STOP;
+            break;
+        /* 5 is reserved */
         /* 6,7 are implementation dependent */
         case 6:
             /* ignored */
@@ -15916,6 +15925,8 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_Config1 = env->cpu_model->CP0_Config1;
     env->CP0_Config2 = env->cpu_model->CP0_Config2;
     env->CP0_Config3 = env->cpu_model->CP0_Config3;
+    env->CP0_Config4 = env->cpu_model->CP0_Config4;
+    env->CP0_Config4_rw_bitmask = env->cpu_model->CP0_Config4_rw_bitmask;
     env->CP0_Config6 = env->cpu_model->CP0_Config6;
     env->CP0_Config7 = env->cpu_model->CP0_Config7;
     env->CP0_LLAddr_rw_bitmask = env->cpu_model->CP0_LLAddr_rw_bitmask

@@ -368,6 +368,9 @@ struct CPUMIPSState {
 #define CP0C3_MT   2
 #define CP0C3_SM   1
 #define CP0C3_TL   0
+    uint32_t CP0_Config4;
+    uint32_t CP0_Config4_rw_bitmask;
+#define CP0C4_M    31
     int32_t CP0_Config6;
     int32_t CP0_Config7;
     /* XXX: Maybe make LLAddr per-TC? */
