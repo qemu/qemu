@@ -268,7 +268,7 @@ typedef struct GraphicHwOps {
     void (*update_interval)(void *opaque, uint64_t interval);
 } GraphicHwOps;
 
-QemuConsole *graphic_console_init(DeviceState *dev,
+QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *ops,
                                   void *opaque);
 
@@ -277,11 +277,12 @@ void graphic_hw_invalidate(QemuConsole *con);
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index);
-QemuConsole *qemu_console_lookup_by_device(DeviceState *dev);
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
 int qemu_console_get_index(QemuConsole *con);
+uint32_t qemu_console_get_head(QemuConsole *con);
 int qemu_console_get_width(QemuConsole *con, int fallback);
 int qemu_console_get_height(QemuConsole *con, int fallback);
 

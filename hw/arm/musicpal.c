@@ -630,7 +630,7 @@ static int musicpal_lcd_init(SysBusDevice *sbd)
                           "musicpal-lcd", MP_LCD_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    s->con = graphic_console_init(dev, &musicpal_gfx_ops, s);
+    s->con = graphic_console_init(dev, 0, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
     qdev_init_gpio_in(dev, musicpal_lcd_gpio_brightness_in, 3);

@@ -124,6 +124,7 @@ struct QemuConsole {
 
     /* Graphic console state.  */
     Object *device;
+    uint32_t head;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -1179,6 +1180,8 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
     s = QEMU_CONSOLE(obj);
     object_property_add_link(obj, "device", TYPE_DEVICE,
                              (Object **)&s->device, &local_err);
+    object_property_add_uint32_ptr(obj, "head",
+                                   &s->head, &local_err);
 
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
@@ -1569,7 +1572,7 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
-QemuConsole *graphic_console_init(DeviceState *dev,
+QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
@@ -1587,6 +1590,8 @@ QemuConsole *graphic_console_init(DeviceState *dev,
     if (dev) {
         object_property_set_link(OBJECT(s), OBJECT(dev),
                                  "device", &local_err);
+        object_property_set_int(OBJECT(s), head,
+                                "head", &local_err);
     }
 
     s->surface = qemu_create_displaysurface(width, height);
@@ -1601,10 +1606,11 @@ QemuConsole *qemu_console_lookup_by_index(unsigned int index)
     return consoles[index];
 }
 
-QemuConsole *qemu_console_lookup_by_device(DeviceState *dev)
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head)
 {
     Error *local_err = NULL;
     Object *obj;
+    uint32_t h;
     int i;
 
     for (i = 0; i < nb_consoles; i++) {
@@ -1613,9 +1619,15 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev)
         }
         obj = object_property_get_link(OBJECT(consoles[i]),
                                        "device", &local_err);
-        if (DEVICE(obj) == dev) {
-            return consoles[i];
+        if (DEVICE(obj) != dev) {
+            continue;
         }
+        h = object_property_get_int(OBJECT(consoles[i]),
+                                    "head", &local_err);
+        if (h != head) {
+            continue;
+        }
+        return consoles[i];
     }
     return NULL;
 }
@@ -1647,6 +1659,14 @@ int qemu_console_get_index(QemuConsole *con)
         con = active_console;
     }
     return con ? con->index : -1;
+}
+
+uint32_t qemu_console_get_head(QemuConsole *con)
+{
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con ? con->head : -1;
 }
 
 int qemu_console_get_width(QemuConsole *con, int fallback)

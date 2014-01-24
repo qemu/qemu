@@ -2069,7 +2069,7 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_set_flush_coalesced(qxl_vga_port_list);
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);
+    vga->con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
     qemu_spice_display_init_common(&qxl->ssd);
 
     rc = qxl_init_common(qxl);
@@ -2094,7 +2094,7 @@ static int qxl_init_secondary(PCIDevice *dev)
                            qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
-    qxl->vga.con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);
+    qxl->vga.con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
 
     return qxl_init_common(qxl);
 }

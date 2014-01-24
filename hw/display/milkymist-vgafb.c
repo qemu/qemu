@@ -290,7 +290,7 @@ static int milkymist_vgafb_init(SysBusDevice *dev)
             "milkymist-vgafb", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
-    s->con = graphic_console_init(DEVICE(dev), &vgafb_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &vgafb_ops, s);
 
     return 0;
 }
