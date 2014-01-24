@@ -543,10 +543,29 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 }
 
 static int interface_client_monitors_config(QXLInstance *sin,
-                                        VDAgentMonitorsConfig *monitors_config)
+                                            VDAgentMonitorsConfig *mc)
 {
-    dprint(3, "%s:\n", __func__);
-    return 0; /* == not supported by guest */
+    SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
+    QemuUIInfo info;
+    int rc;
+
+    /*
+     * FIXME: multihead is tricky due to the way
+     * spice has multihead implemented.
+     */
+    memset(&info, 0, sizeof(info));
+    if (mc->num_of_monitors > 0) {
+        info.width  = mc->monitors[0].width;
+        info.height = mc->monitors[0].height;
+    }
+    rc = dpy_set_ui_info(ssd->dcl.con, &info);
+    dprint(1, "%s/%d: size %dx%d, rc %d   <---   ==========================\n",
+           __func__, ssd->qxl.id, info.width, info.height, rc);
+    if (rc != 0) {
+        return 0; /* == not supported by guest */
+    } else {
+        return 1;
+    }
 }
 
 static const QXLInterface dpy_interface = {
