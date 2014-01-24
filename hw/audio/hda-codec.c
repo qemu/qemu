@@ -559,6 +559,21 @@ static int hda_audio_post_load(void *opaque, int version)
     return 0;
 }
 
+static void hda_audio_reset(DeviceState *dev)
+{
+    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda.qdev, dev);
+    HDAAudioStream *st;
+    int i;
+
+    dprint(a, 1, "%s\n", __func__);
+    for (i = 0; i < ARRAY_SIZE(a->st); i++) {
+        st = a->st + i;
+        if (st->node != NULL) {
+            hda_audio_set_running(st, false);
+        }
+    }
+}
+
 static const VMStateDescription vmstate_hda_audio_stream = {
     .name = "hda-audio-stream",
     .version_id = 1,
@@ -640,6 +655,7 @@ static void hda_audio_output_class_init(ObjectClass *klass, void *data)
     k->stream = hda_audio_stream;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, output-only (line-out)";
+    dc->reset = hda_audio_reset;
     dc->vmsd = &vmstate_hda_audio;
     dc->props = hda_audio_properties;
 }
@@ -662,6 +678,7 @@ static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
     k->stream = hda_audio_stream;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, duplex (line-out, line-in)";
+    dc->reset = hda_audio_reset;
     dc->vmsd = &vmstate_hda_audio;
     dc->props = hda_audio_properties;
 }
@@ -684,6 +701,7 @@ static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
     k->stream = hda_audio_stream;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "HDA Audio Codec, duplex (speaker, microphone)";
+    dc->reset = hda_audio_reset;
     dc->vmsd = &vmstate_hda_audio;
     dc->props = hda_audio_properties;
 }
