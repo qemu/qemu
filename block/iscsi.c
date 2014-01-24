@@ -1334,7 +1334,14 @@ static int iscsi_refresh_limits(BlockDriverState *bs)
         bs->bl.opt_transfer_length = sector_lun2qemu(iscsilun->bl.opt_xfer_len,
                                                      iscsilun);
     }
+    return 0;
+}
 
+/* We have nothing to do for iSCSI reopen, stub just returns
+ * success */
+static int iscsi_reopen_prepare(BDRVReopenState *state,
+                                BlockReopenQueue *queue, Error **errp)
+{
     return 0;
 }
 
@@ -1446,6 +1453,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_close      = iscsi_close,
     .bdrv_create     = iscsi_create,
     .create_options  = iscsi_create_options,
+    .bdrv_reopen_prepare  = iscsi_reopen_prepare,
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,
