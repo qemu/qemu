@@ -966,6 +966,45 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_block_commit,
     },
 
+SQMP
+block-commit
+------------
+
+Live commit of data from overlay image nodes into backing nodes - i.e., writes
+data between 'top' and 'base' into 'base'.
+
+Arguments:
+
+- "device": The device's ID, must be unique (json-string)
+- "base": The file name of the backing image to write data into.
+          If not specified, this is the deepest backing image
+          (json-string, optional)
+- "top":  The file name of the backing image within the image chain,
+          which contains the topmost data to be committed down.
+
+          If top == base, that is an error.
+          If top == active, the job will not be completed by itself,
+          user needs to complete the job with the block-job-complete
+          command after getting the ready event. (Since 2.0)
+
+          If the base image is smaller than top, then the base image
+          will be resized to be the same size as top.  If top is
+          smaller than the base image, the base will not be
+          truncated.  If you want the base image size to match the
+          size of the smaller top, you can safely truncate it
+          yourself once the commit operation successfully completes.
+          (json-string)
+- "speed":  the maximum speed, in bytes per second (json-int, optional)
+
+
+Example:
+
+-> { "execute": "block-commit", "arguments": { "device": "virtio0",
+                                              "top": "/tmp/snap1.qcow2" } }
+<- { "return": {} }
+
+EQMP
+
     {
         .name       = "drive-backup",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
