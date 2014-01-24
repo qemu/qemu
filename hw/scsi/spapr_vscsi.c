@@ -60,7 +60,6 @@
 #define VSCSI_MAX_SECTORS       4096
 #define VSCSI_REQ_LIMIT         24
 
-#define SCSI_SENSE_BUF_SIZE     96
 #define SRP_RSP_SENSE_DATA_LEN  18
 
 typedef union vscsi_crq {
