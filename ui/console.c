@@ -125,6 +125,7 @@ struct QemuConsole {
     /* Graphic console state.  */
     Object *device;
     uint32_t head;
+    QemuUIInfo ui_info;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -1347,6 +1348,16 @@ void unregister_displaychangelistener(DisplayChangeListener *dcl)
     gui_setup_refresh(ds);
 }
 
+int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
+{
+    assert(con != NULL);
+    con->ui_info = *info;
+    if (con->hw_ops->ui_info) {
+        return con->hw_ops->ui_info(con->hw, con->head, info);
+    }
+    return -1;
+}
+
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
 {
     DisplayState *s = con->ds;
@@ -1667,6 +1678,12 @@ uint32_t qemu_console_get_head(QemuConsole *con)
         con = active_console;
     }
     return con ? con->head : -1;
+}
+
+QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con)
+{
+    assert(con != NULL);
+    return &con->ui_info;
 }
 
 int qemu_console_get_width(QemuConsole *con, int fallback)

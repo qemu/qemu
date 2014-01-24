@@ -120,6 +120,14 @@ struct DisplaySurface {
     struct PixelFormat pf;
 };
 
+typedef struct QemuUIInfo {
+    /* geometry */
+    int       xoff;
+    int       yoff;
+    uint32_t  width;
+    uint32_t  height;
+} QemuUIInfo;
+
 /* cursor data format is 32bit RGBA */
 typedef struct QEMUCursor {
     int                 width, height;
@@ -204,6 +212,8 @@ void update_displaychangelistener(DisplayChangeListener *dcl,
                                   uint64_t interval);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
+int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info);
+
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface);
@@ -266,6 +276,7 @@ typedef struct GraphicHwOps {
     void (*gfx_update)(void *opaque);
     void (*text_update)(void *opaque, console_ch_t *text);
     void (*update_interval)(void *opaque, uint64_t interval);
+    int (*ui_info)(void *opaque, uint32_t head, QemuUIInfo *info);
 } GraphicHwOps;
 
 QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
@@ -283,6 +294,7 @@ bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
 int qemu_console_get_index(QemuConsole *con);
 uint32_t qemu_console_get_head(QemuConsole *con);
+QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con);
 int qemu_console_get_width(QemuConsole *con, int fallback);
 int qemu_console_get_height(QemuConsole *con, int fallback);
 
