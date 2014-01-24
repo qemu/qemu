@@ -402,6 +402,7 @@ usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, 
 usb_desc_other_speed_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
 usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
 usb_desc_bos(int addr, int len, int ret) "dev %d bos, len %d, ret %d"
+usb_desc_msos(int addr, int index, int len, int ret) "dev %d msos, index 0x%x, len %d, ret %d"
 usb_set_addr(int addr) "dev %d"
 usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
 usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, altsetting %d, ret %d"
