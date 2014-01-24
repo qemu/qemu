@@ -354,6 +354,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
                                DisplaySurface *surface)
 {
     SimpleSpiceUpdate *update;
+    bool need_destroy;
 
     dprint(1, "%s/%d:\n", __func__, ssd->qxl.id);
 
@@ -366,14 +367,19 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     }
 
     qemu_mutex_lock(&ssd->lock);
+    need_destroy = (ssd->ds != NULL);
     ssd->ds = surface;
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
         QTAILQ_REMOVE(&ssd->updates, update, next);
         qemu_spice_destroy_update(ssd, update);
     }
     qemu_mutex_unlock(&ssd->lock);
-    qemu_spice_destroy_host_primary(ssd);
-    qemu_spice_create_host_primary(ssd);
+    if (need_destroy) {
+        qemu_spice_destroy_host_primary(ssd);
+    }
+    if (ssd->ds) {
+        qemu_spice_create_host_primary(ssd);
+    }
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     ssd->notify++;
@@ -610,8 +616,6 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     ssd->dcl.ops = &display_listener_ops;
     ssd->dcl.con = con;
     register_displaychangelistener(&ssd->dcl);
-
-    qemu_spice_create_host_primary(ssd);
 }
 
 void qemu_spice_display_init(void)
