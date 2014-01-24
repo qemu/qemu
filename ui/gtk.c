@@ -34,6 +34,10 @@
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
 
+#ifdef _WIN32
+# define _WIN32_WINNT 0x0601 /* needed to get definition of MAPVK_VK_TO_VSC */
+#endif
+
 #include "qemu-common.h"
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
@@ -704,11 +708,18 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    int gdk_keycode;
-    int qemu_keycode;
+    int gdk_keycode = key->hardware_keycode;
     int i;
 
-    gdk_keycode = key->hardware_keycode;
+#ifdef _WIN32
+    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+    switch (qemu_keycode) {
+    case 103:   /* alt gr */
+        qemu_keycode = 56 | SCANCODE_GREY;
+        break;
+    }
+#else
+    int qemu_keycode;
 
     if (gdk_keycode < 9) {
         qemu_keycode = 0;
@@ -723,6 +734,7 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     } else {
         qemu_keycode = 0;
     }
+#endif
 
     trace_gd_key_event(gdk_keycode, qemu_keycode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
