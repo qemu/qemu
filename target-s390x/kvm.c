@@ -635,6 +635,15 @@ static void sigp_initial_cpu_reset(void *arg)
     scc->initial_cpu_reset(cpu);
 }
 
+static void sigp_cpu_reset(void *arg)
+{
+    CPUState *cpu = arg;
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+
+    cpu_synchronize_state(cpu);
+    scc->cpu_reset(cpu);
+}
+
 #define SIGP_ORDER_MASK 0x000000ff
 
 static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
@@ -672,6 +681,10 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     case SIGP_INITIAL_CPU_RESET:
         run_on_cpu(CPU(target_cpu), sigp_initial_cpu_reset, CPU(target_cpu));
+        cc = 0;
+        break;
+    case SIGP_CPU_RESET:
+        run_on_cpu(CPU(target_cpu), sigp_cpu_reset, CPU(target_cpu));
         cc = 0;
         break;
     default:
