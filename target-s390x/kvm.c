@@ -626,25 +626,13 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
     return 0;
 }
 
-static int s390_cpu_initial_reset(S390CPU *cpu)
+static void sigp_initial_cpu_reset(void *arg)
 {
-    CPUState *cs = CPU(cpu);
-    CPUS390XState *env = &cpu->env;
-    int i;
+    CPUState *cpu = arg;
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
 
-    s390_del_running_cpu(cpu);
-    if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL) < 0) {
-        perror("cannot init reset vcpu");
-    }
-
-    /* Manually zero out all registers */
-    cpu_synchronize_state(cs);
-    for (i = 0; i < 16; i++) {
-        env->regs[i] = 0;
-    }
-
-    DPRINTF("DONE: SIGP initial reset: %p\n", env);
-    return 0;
+    cpu_synchronize_state(cpu);
+    scc->initial_cpu_reset(cpu);
 }
 
 #define SIGP_ORDER_MASK 0x000000ff
@@ -683,7 +671,8 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         cc = 1;   /* status stored */
         break;
     case SIGP_INITIAL_CPU_RESET:
-        cc = s390_cpu_initial_reset(target_cpu);
+        run_on_cpu(CPU(target_cpu), sigp_initial_cpu_reset, CPU(target_cpu));
+        cc = 0;
         break;
     default:
         DPRINTF("KVM: unknown SIGP: 0x%x\n", order_code);
