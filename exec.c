@@ -1070,7 +1070,7 @@ static void *file_ram_alloc(RAMBlock *block,
         }
 
         /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < (memory/hpagesize)-1; i++) {
+        for (i = 0; i < (memory/hpagesize); i++) {
             memset(area + (hpagesize*i), 0, 1);
         }
 

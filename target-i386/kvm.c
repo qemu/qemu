@@ -69,6 +69,7 @@ static bool has_msr_feature_control;
 static bool has_msr_async_pf_en;
 static bool has_msr_pv_eoi_en;
 static bool has_msr_misc_enable;
+static bool has_msr_bndcfgs;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
 
@@ -772,6 +773,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                     has_msr_misc_enable = true;
                     continue;
                 }
+                if (kvm_msr_list->indices[i] == MSR_IA32_BNDCFGS) {
+                    has_msr_bndcfgs = true;
+                    continue;
+                }
             }
         }
 
@@ -975,6 +980,8 @@ static int kvm_put_fpu(X86CPU *cpu)
 #define XSAVE_XMM_SPACE   40
 #define XSAVE_XSTATE_BV   128
 #define XSAVE_YMMH_SPACE  144
+#define XSAVE_BNDREGS     240
+#define XSAVE_BNDCSR      256
 
 static int kvm_put_xsave(X86CPU *cpu)
 {
@@ -1007,6 +1014,10 @@ static int kvm_put_xsave(X86CPU *cpu)
     *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV] = env->xstate_bv;
     memcpy(&xsave->region[XSAVE_YMMH_SPACE], env->ymmh_regs,
             sizeof env->ymmh_regs);
+    memcpy(&xsave->region[XSAVE_BNDREGS], env->bnd_regs,
+            sizeof env->bnd_regs);
+    memcpy(&xsave->region[XSAVE_BNDCSR], &env->bndcs_regs,
+            sizeof(env->bndcs_regs));
     r = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
     return r;
 }
@@ -1104,6 +1115,25 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
 
+/*
+ * Provide a separate write service for the feature control MSR in order to
+ * kick the VCPU out of VMXON or even guest mode on reset. This has to be done
+ * before writing any other state because forcibly leaving nested mode
+ * invalidates the VCPU state.
+ */
+static int kvm_put_msr_feature_control(X86CPU *cpu)
+{
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entry;
+    } msr_data;
+
+    kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
+                      cpu->env.msr_ia32_feature_control);
+    msr_data.info.nmsrs = 1;
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+}
+
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
@@ -1131,6 +1161,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_MISC_ENABLE,
                           env->msr_ia32_misc_enable);
     }
+    if (has_msr_bndcfgs) {
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_BNDCFGS, env->msr_bndcfgs);
+    }
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
         kvm_msr_entry_set(&msrs[n++], MSR_CSTAR, env->cstar);
@@ -1139,22 +1172,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_LSTAR, env->lstar);
     }
 #endif
-    if (level == KVM_PUT_FULL_STATE) {
-        /*
-         * KVM is yet unable to synchronize TSC values of multiple VCPUs on
-         * writeback. Until this is fixed, we only write the offset to SMP
-         * guests after migration, desynchronizing the VCPUs, but avoiding
-         * huge jump-backs that would occur without any writeback at all.
-         */
-        if (smp_cpus == 1 || env->tsc != 0) {
-            kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
-        }
-    }
     /*
      * The following MSRs have side effects on the guest or are too heavy
      * for normal writeback. Limit them to reset or full state updates.
      */
     if (level >= KVM_PUT_RESET_STATE) {
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
@@ -1204,10 +1227,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (cpu->hyperv_vapic) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
-        if (has_msr_feature_control) {
-            kvm_msr_entry_set(&msrs[n++], MSR_IA32_FEATURE_CONTROL,
-                              env->msr_ia32_feature_control);
-        }
+
+        /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
+         *       kvm_put_msr_feature_control. */
     }
     if (env->mcg_cap) {
         int i;
@@ -1289,6 +1311,10 @@ static int kvm_get_xsave(X86CPU *cpu)
     env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
     memcpy(env->ymmh_regs, &xsave->region[XSAVE_YMMH_SPACE],
             sizeof env->ymmh_regs);
+    memcpy(env->bnd_regs, &xsave->region[XSAVE_BNDREGS],
+            sizeof env->bnd_regs);
+    memcpy(&env->bndcs_regs, &xsave->region[XSAVE_BNDCSR],
+            sizeof(env->bndcs_regs));
     return 0;
 }
 
@@ -1435,6 +1461,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_feature_control) {
         msrs[n++].index = MSR_IA32_FEATURE_CONTROL;
     }
+    if (has_msr_bndcfgs) {
+        msrs[n++].index = MSR_IA32_BNDCFGS;
+    }
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
@@ -1549,6 +1578,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_FEATURE_CONTROL:
             env->msr_ia32_feature_control = msrs[i].data;
+            break;
+        case MSR_IA32_BNDCFGS:
+            env->msr_bndcfgs = msrs[i].data;
             break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&
@@ -1798,6 +1830,13 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     int ret;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    if (level >= KVM_PUT_RESET_STATE && has_msr_feature_control) {
+        ret = kvm_put_msr_feature_control(x86_cpu);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     ret = kvm_getput_regs(x86_cpu, 1);
     if (ret < 0) {

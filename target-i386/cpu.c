@@ -336,6 +336,10 @@ typedef struct ExtSaveArea {
 static const ExtSaveArea ext_save_areas[] = {
     [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = 0x240, .size = 0x100 },
+    [3] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+            .offset = 0x3c0, .size = 0x40  },
+    [4] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
+            .offset = 0x400, .size = 0x10  },
 };
 
 const char *get_register_name_32(unsigned int reg)
@@ -2460,6 +2464,9 @@ static void x86_cpu_reset(CPUState *s)
     env->dr[7] = DR7_FIXED_1;
     cpu_breakpoint_remove_all(env, BP_CPU);
     cpu_watchpoint_remove_all(env, BP_CPU);
+
+    env->tsc_adjust = 0;
+    env->tsc = 0;
 
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */

@@ -499,7 +499,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
-static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val,
+static int kvm_set_ioeventfd_mmio(int fd, hwaddr addr, uint32_t val,
                                   bool assign, uint32_t size, bool datamatch)
 {
     int ret;
@@ -1422,16 +1422,22 @@ int kvm_init(void)
         nc++;
     }
 
-    s->vmfd = kvm_ioctl(s, KVM_CREATE_VM, 0);
-    if (s->vmfd < 0) {
+    do {
+        ret = kvm_ioctl(s, KVM_CREATE_VM, 0);
+    } while (ret == -EINTR);
+
+    if (ret < 0) {
+        fprintf(stderr, "ioctl(KVM_CREATE_VM) failed: %d %s\n", -s->vmfd,
+                strerror(-ret));
+
 #ifdef TARGET_S390X
         fprintf(stderr, "Please add the 'switch_amode' kernel parameter to "
                         "your host kernel command line\n");
 #endif
-        ret = s->vmfd;
         goto err;
     }
 
+    s->vmfd = ret;
     missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
     if (!missing_cap) {
         missing_cap =

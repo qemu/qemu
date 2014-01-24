@@ -380,9 +380,14 @@
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
-#define XSTATE_FP                       1
-#define XSTATE_SSE                      2
-#define XSTATE_YMM                      4
+#define MSR_IA32_BNDCFGS                0x00000d90
+
+#define XSTATE_FP                       (1ULL << 0)
+#define XSTATE_SSE                      (1ULL << 1)
+#define XSTATE_YMM                      (1ULL << 2)
+#define XSTATE_BNDREGS                  (1ULL << 3)
+#define XSTATE_BNDCSR                   (1ULL << 4)
+
 
 /* CPUID feature words */
 typedef enum FeatureWord {
@@ -545,6 +550,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_ERMS     (1 << 9)
 #define CPUID_7_0_EBX_INVPCID  (1 << 10)
 #define CPUID_7_0_EBX_RTM      (1 << 11)
+#define CPUID_7_0_EBX_MPX      (1 << 14)
 #define CPUID_7_0_EBX_RDSEED   (1 << 18)
 #define CPUID_7_0_EBX_ADX      (1 << 19)
 #define CPUID_7_0_EBX_SMAP     (1 << 20)
@@ -694,6 +700,16 @@ typedef union {
     float32 _s[2];
     uint64_t q;
 } MMXReg;
+
+typedef struct BNDReg {
+    uint64_t lb;
+    uint64_t ub;
+} BNDReg;
+
+typedef struct BNDCSReg {
+    uint64_t cfgu;
+    uint64_t sts;
+} BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
 #define XMM_B(n) _b[15 - (n)]
@@ -908,6 +924,9 @@ typedef struct CPUX86State {
 
     uint64_t xstate_bv;
     XMMReg ymmh_regs[CPU_NB_REGS];
+    BNDReg bnd_regs[4];
+    BNDCSReg bndcs_regs;
+    uint64_t msr_bndcfgs;
 
     uint64_t xcr0;
 
