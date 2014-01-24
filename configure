@@ -256,6 +256,7 @@ coroutine_pool=""
 seccomp=""
 glusterfs=""
 glusterfs_discard="no"
+glusterfs_zerofill="no"
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
@@ -2701,6 +2702,9 @@ if test "$glusterfs" != "no" ; then
     if $pkg_config --atleast-version=5 glusterfs-api; then
       glusterfs_discard="yes"
     fi
+    if $pkg_config --atleast-version=6 glusterfs-api; then
+      glusterfs_zerofill="yes"
+    fi
   else
     if test "$glusterfs" = "yes" ; then
       feature_not_found "GlusterFS backend support"
@@ -4227,6 +4231,10 @@ fi
 
 if test "$glusterfs_discard" = "yes" ; then
   echo "CONFIG_GLUSTERFS_DISCARD=y" >> $config_host_mak
+fi
+
+if test "$glusterfs_zerofill" = "yes" ; then
+  echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then

@@ -536,11 +536,11 @@ support of multiple VM snapshots.
 Supported options:
 @table @code
 @item compat
-Determines the qcow2 version to use. @code{compat=0.10} uses the traditional
-image format that can be read by any QEMU since 0.10 (this is the default).
+Determines the qcow2 version to use. @code{compat=0.10} uses the
+traditional image format that can be read by any QEMU since 0.10.
 @code{compat=1.1} enables image format extensions that only QEMU 1.1 and
-newer understand. Amongst others, this includes zero clusters, which allow
-efficient copy-on-read for sparse images.
+newer understand (this is the default). Amongst others, this includes
+zero clusters, which allow efficient copy-on-read for sparse images.
 
 @item backing_file
 File name of a base image (see @option{create} subcommand)

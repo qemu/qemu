@@ -931,7 +931,7 @@ EQMP
 
     {
         .name       = "block_resize",
-        .args_type  = "device:B,size:o",
+        .args_type  = "device:s?,node-name:s?,size:o",
         .mhandler.cmd_new = qmp_marshal_input_block_resize,
     },
 
@@ -944,6 +944,7 @@ Resize a block image while a guest is running.
 Arguments:
 
 - "device": the device's ID, must be unique (json-string)
+- "node-name": the node name in the block driver state graph (json-string)
 - "size": new size
 
 Example:
@@ -964,6 +965,45 @@ EQMP
         .args_type  = "device:B,base:s?,top:s,speed:o?",
         .mhandler.cmd_new = qmp_marshal_input_block_commit,
     },
+
+SQMP
+block-commit
+------------
+
+Live commit of data from overlay image nodes into backing nodes - i.e., writes
+data between 'top' and 'base' into 'base'.
+
+Arguments:
+
+- "device": The device's ID, must be unique (json-string)
+- "base": The file name of the backing image to write data into.
+          If not specified, this is the deepest backing image
+          (json-string, optional)
+- "top":  The file name of the backing image within the image chain,
+          which contains the topmost data to be committed down.
+
+          If top == base, that is an error.
+          If top == active, the job will not be completed by itself,
+          user needs to complete the job with the block-job-complete
+          command after getting the ready event. (Since 2.0)
+
+          If the base image is smaller than top, then the base image
+          will be resized to be the same size as top.  If top is
+          smaller than the base image, the base will not be
+          truncated.  If you want the base image size to match the
+          size of the smaller top, you can safely truncate it
+          yourself once the commit operation successfully completes.
+          (json-string)
+- "speed":  the maximum speed, in bytes per second (json-int, optional)
+
+
+Example:
+
+-> { "execute": "block-commit", "arguments": { "device": "virtio0",
+                                              "top": "/tmp/snap1.qcow2" } }
+<- { "return": {} }
+
+EQMP
 
     {
         .name       = "drive-backup",
@@ -1088,7 +1128,9 @@ actions array:
     - "data": a dictionary.  The contents depend on the value
       of "type".  When "type" is "blockdev-snapshot-sync":
       - "device": device name to snapshot (json-string)
+      - "node-name": graph node name to snapshot (json-string)
       - "snapshot-file": name of new image file (json-string)
+      - "snapshot-node-name": graph node name of the new snapshot (json-string)
       - "format": format of new image (json-string, optional)
       - "mode": whether and how QEMU should create the snapshot file
         (NewImageMode, optional, default "absolute-paths")
@@ -1103,6 +1145,11 @@ Example:
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd0",
                                          "snapshot-file": "/some/place/my-image",
                                          "format": "qcow2" } },
+         { 'type': 'blockdev-snapshot-sync', 'data' : { "node-name": "myfile",
+                                         "snapshot-file": "/some/place/my-image2",
+                                         "snapshot-node-name": "node3432",
+                                         "mode": "existing",
+                                         "format": "qcow2" } },
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
                                          "mode": "existing",
@@ -1116,7 +1163,7 @@ EQMP
 
     {
         .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:B,snapshot-file:s,format:s?,mode:s?",
+        .args_type  = "device:s?,node-name:s?,snapshot-file:s,snapshot-node-name:s?,format:s?,mode:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
     },
 
@@ -1133,7 +1180,9 @@ snapshot image, default is qcow2.
 Arguments:
 
 - "device": device name to snapshot (json-string)
+- "node-name": graph node name to snapshot (json-string)
 - "snapshot-file": name of new image file (json-string)
+- "snapshot-node-name": graph node name of the new snapshot (json-string)
 - "mode": whether and how QEMU should create the snapshot file
   (NewImageMode, optional, default "absolute-paths")
 - "format": format of new image (json-string, optional)
@@ -1503,7 +1552,7 @@ EQMP
 
     {
         .name       = "block_passwd",
-        .args_type  = "device:B,password:s",
+        .args_type  = "device:s?,node-name:s?,password:s",
         .mhandler.cmd_new = qmp_marshal_input_block_passwd,
     },
 
@@ -1516,6 +1565,7 @@ Set the password of encrypted block devices.
 Arguments:
 
 - "device": device name (json-string)
+- "node-name": name in the block driver state graph (json-string)
 - "password": password (json-string)
 
 Example:
@@ -3344,5 +3394,66 @@ Example (2):
      }
 
 <- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "query-named-block-nodes",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_named_block_nodes,
+    },
+
+SQMP
+@query-named-block-nodes
+------------------------
+
+Return a list of BlockDeviceInfo for all the named block driver nodes
+
+Example:
+
+-> { "execute": "query-named-block-nodes" }
+<- { "return": [ { "ro":false,
+                   "drv":"qcow2",
+                   "encrypted":false,
+                   "file":"disks/test.qcow2",
+                   "node-name": "my-node",
+                   "backing_file_depth":1,
+                   "bps":1000000,
+                   "bps_rd":0,
+                   "bps_wr":0,
+                   "iops":1000000,
+                   "iops_rd":0,
+                   "iops_wr":0,
+                   "bps_max": 8000000,
+                   "bps_rd_max": 0,
+                   "bps_wr_max": 0,
+                   "iops_max": 0,
+                   "iops_rd_max": 0,
+                   "iops_wr_max": 0,
+                   "iops_size": 0,
+                   "image":{
+                      "filename":"disks/test.qcow2",
+                      "format":"qcow2",
+                      "virtual-size":2048000,
+                      "backing_file":"base.qcow2",
+                      "full-backing-filename":"disks/base.qcow2",
+                      "backing-filename-format:"qcow2",
+                      "snapshots":[
+                         {
+                            "id": "1",
+                            "name": "snapshot1",
+                            "vm-state-size": 0,
+                            "date-sec": 10000200,
+                            "date-nsec": 12,
+                            "vm-clock-sec": 206,
+                            "vm-clock-nsec": 30
+                         }
+                      ],
+                      "backing-image":{
+                          "filename":"disks/base.qcow2",
+                          "format":"qcow2",
+                          "virtual-size":2048000
+                      }
+                   } } ] }
 
 EQMP

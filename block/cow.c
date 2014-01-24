@@ -351,7 +351,8 @@ static int cow_create(const char *filename, QEMUOptionParameter *options,
         return ret;
     }
 
-    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&cow_bs, filename, NULL, NULL, BDRV_O_RDWR,
+                         &local_err);
     if (ret < 0) {
         qerror_report_err(local_err);
         error_free(local_err);

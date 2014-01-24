@@ -12,6 +12,7 @@
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -92,6 +93,21 @@ static const cmdinfo_t *find_command(const char *cmd)
         }
     }
     return NULL;
+}
+
+/* Invoke fn() for commands with a matching prefix */
+void qemuio_complete_command(const char *input,
+                             void (*fn)(const char *cmd, void *opaque),
+                             void *opaque)
+{
+    cmdinfo_t *ct;
+    size_t input_len = strlen(input);
+
+    for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
+        if (strncmp(input, ct->name, input_len) == 0) {
+            fn(ct->name, opaque);
+        }
+    }
 }
 
 static char **breakline(char *input, int *count)
@@ -2038,6 +2054,46 @@ static const cmdinfo_t abort_cmd = {
        .oneline        = "simulate a program crash using abort(3)",
 };
 
+static void sleep_cb(void *opaque)
+{
+    bool *expired = opaque;
+    *expired = true;
+}
+
+static int sleep_f(BlockDriverState *bs, int argc, char **argv)
+{
+    char *endptr;
+    long ms;
+    struct QEMUTimer *timer;
+    bool expired = false;
+
+    ms = strtol(argv[1], &endptr, 0);
+    if (ms < 0 || *endptr != '\0') {
+        printf("%s is not a valid number\n", argv[1]);
+        return 0;
+    }
+
+    timer = timer_new_ns(QEMU_CLOCK_HOST, sleep_cb, &expired);
+    timer_mod(timer, qemu_clock_get_ns(QEMU_CLOCK_HOST) + SCALE_MS * ms);
+
+    while (!expired) {
+        main_loop_wait(false);
+    }
+
+    timer_free(timer);
+
+    return 0;
+}
+
+static const cmdinfo_t sleep_cmd = {
+       .name           = "sleep",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = sleep_f,
+       .flags          = CMD_NOFILE_OK,
+       .oneline        = "waits for the given value in milliseconds",
+};
+
 static void help_oneline(const char *cmd, const cmdinfo_t *ct)
 {
     if (cmd) {
@@ -2151,4 +2207,5 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&resume_cmd);
     qemuio_add_command(&wait_break_cmd);
     qemuio_add_command(&abort_cmd);
+    qemuio_add_command(&sleep_cmd);
 }

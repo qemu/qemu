@@ -37,7 +37,7 @@
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
-#include "monitor/readline.h"
+#include "qemu/readline.h"
 #include "ui/console.h"
 #include "sysemu/blockdev.h"
 #include "audio/audio.h"
@@ -217,8 +217,8 @@ static const mon_cmd_t qmp_cmds[];
 Monitor *cur_mon;
 Monitor *default_mon;
 
-static void monitor_command_cb(Monitor *mon, const char *cmdline,
-                               void *opaque);
+static void monitor_command_cb(void *opaque, const char *cmdline,
+                               void *readline_opaque);
 
 static inline int qmp_cmd_mode(const Monitor *mon)
 {
@@ -4338,9 +4338,10 @@ static void monitor_find_completion_by_table(Monitor *mon,
     }
 }
 
-static void monitor_find_completion(Monitor *mon,
+static void monitor_find_completion(void *opaque,
                                     const char *cmdline)
 {
+    Monitor *mon = opaque;
     char *args[MAX_ARGS];
     int nb_args, len;
 
@@ -4751,8 +4752,11 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
     cur_mon = old_mon;
 }
 
-static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
+static void monitor_command_cb(void *opaque, const char *cmdline,
+                               void *readline_opaque)
 {
+    Monitor *mon = opaque;
+
     monitor_suspend(mon);
     handle_user_command(mon, cmdline);
     monitor_resume(mon);
@@ -4881,6 +4885,22 @@ static void sortcmdlist(void)
  * End:
  */
 
+/* These functions just adapt the readline interface in a typesafe way.  We
+ * could cast function pointers but that discards compiler checks.
+ */
+static void monitor_readline_printf(void *opaque, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    monitor_vprintf(opaque, fmt, ap);
+    va_end(ap);
+}
+
+static void monitor_readline_flush(void *opaque)
+{
+    monitor_flush(opaque);
+}
+
 void monitor_init(CharDriverState *chr, int flags)
 {
     static int is_first_init = 1;
@@ -4898,7 +4918,10 @@ void monitor_init(CharDriverState *chr, int flags)
     mon->chr = chr;
     mon->flags = flags;
     if (flags & MONITOR_USE_READLINE) {
-        mon->rs = readline_init(mon, monitor_find_completion);
+        mon->rs = readline_init(monitor_readline_printf,
+                                monitor_readline_flush,
+                                mon,
+                                monitor_find_completion);
         monitor_read_command(mon, 0);
     }
 
@@ -4920,9 +4943,11 @@ void monitor_init(CharDriverState *chr, int flags)
         default_mon = mon;
 }
 
-static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
+static void bdrv_password_cb(void *opaque, const char *password,
+                             void *readline_opaque)
 {
-    BlockDriverState *bs = opaque;
+    Monitor *mon = opaque;
+    BlockDriverState *bs = readline_opaque;
     int ret = 0;
 
     if (bdrv_set_key(bs, password) != 0) {

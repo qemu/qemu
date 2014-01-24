@@ -57,22 +57,35 @@
 
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
-    int64_t sector_num;
-    int nb_sectors;
+    int64_t offset;
+    unsigned int bytes;
     bool is_write;
+
+    bool serialising;
+    int64_t overlap_offset;
+    unsigned int overlap_bytes;
+
     QLIST_ENTRY(BdrvTrackedRequest) list;
     Coroutine *co; /* owner, used for deadlock detection */
     CoQueue wait_queue; /* coroutines blocked on this request */
+
+    struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
 
 struct BlockDriver {
     const char *format_name;
     int instance_size;
 
-    /* if not defined external snapshots are allowed
-     * future block filters will query their children to build the response
+    /* this table of boolean contains authorizations for the block operations */
+    bool authorizations[BS_AUTHORIZATION_COUNT];
+    /* for snapshots complex block filter like Quorum can implement the
+     * following recursive callback instead of BS_IS_A_FILTER.
+     * It's purpose is to recurse on the filter children while calling
+     * bdrv_recurse_is_first_non_filter on them.
+     * For a sample implementation look in the future Quorum block filter.
      */
-    ExtSnapshotPerm (*bdrv_check_ext_snapshot)(BlockDriverState *bs);
+    bool (*bdrv_recurse_is_first_non_filter)(BlockDriverState *bs,
+                                             BlockDriverState *candidate);
 
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
@@ -226,6 +239,8 @@ struct BlockDriver {
     int (*bdrv_debug_resume)(BlockDriverState *bs, const char *tag);
     bool (*bdrv_debug_is_suspended)(BlockDriverState *bs, const char *tag);
 
+    int (*bdrv_refresh_limits)(BlockDriverState *bs);
+
     /*
      * Returns 1 if newly created images are guaranteed to contain only
      * zeros, 0 otherwise.
@@ -250,6 +265,9 @@ typedef struct BlockLimits {
 
     /* optimal transfer length in sectors */
     int opt_transfer_length;
+
+    /* memory alignment so that no bounce buffer is needed */
+    size_t opt_mem_alignment;
 } BlockLimits;
 
 /*
@@ -291,8 +309,8 @@ struct BlockDriverState {
     /* Callback before write request is processed */
     NotifierWithReturnList before_write_notifiers;
 
-    /* number of in-flight copy-on-read requests */
-    unsigned int copy_on_read_in_flight;
+    /* number of in-flight serialising requests */
+    unsigned int serialising_in_flight;
 
     /* I/O throttling */
     ThrottleState throttle_state;
@@ -314,8 +332,11 @@ struct BlockDriverState {
     /* Whether produces zeros when read beyond eof */
     bool zero_beyond_eof;
 
-    /* the memory alignment required for the buffers handled by this driver */
-    int buffer_alignment;
+    /* Alignment requirement for offset/length of I/O requests */
+    unsigned int request_alignment;
+
+    /* the block size for which the guest device expects atomicity */
+    int guest_block_size;
 
     /* do we need to tell the quest if we have a volatile write cache? */
     int enable_write_cache;
@@ -325,11 +346,18 @@ struct BlockDriverState {
     BlockdevOnError on_read_error, on_write_error;
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
+
+    /* the following member gives a name to every node on the bs graph. */
+    char node_name[32];
+    /* element of the list of named nodes building the graph */
+    QTAILQ_ENTRY(BlockDriverState) node_list;
+    /* Device name is the name associated with the "drive" the guest sees */
     char device_name[32];
+    /* element of the list of "drives" the guest sees */
+    QTAILQ_ENTRY(BlockDriverState) device_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
     int refcnt;
     int in_use; /* users other than guest access, eg. block migration */
-    QTAILQ_ENTRY(BlockDriverState) list;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 

@@ -871,7 +871,7 @@ void hmp_block_passwd(Monitor *mon, const QDict *qdict)
     const char *password = qdict_get_str(qdict, "password");
     Error *errp = NULL;
 
-    qmp_block_passwd(device, password, &errp);
+    qmp_block_passwd(true, device, false, NULL, password, &errp);
     hmp_handle_error(mon, &errp);
 }
 
@@ -893,7 +893,7 @@ void hmp_block_resize(Monitor *mon, const QDict *qdict)
     int64_t size = qdict_get_int(qdict, "size");
     Error *errp = NULL;
 
-    qmp_block_resize(device, size, &errp);
+    qmp_block_resize(true, device, false, NULL, size, &errp);
     hmp_handle_error(mon, &errp);
 }
 
@@ -972,7 +972,9 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     }
 
     mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    qmp_blockdev_snapshot_sync(device, filename, !!format, format,
+    qmp_blockdev_snapshot_sync(true, device, false, NULL,
+                               filename, false, NULL,
+                               !!format, format,
                                true, mode, &errp);
     hmp_handle_error(mon, &errp);
 }
@@ -1092,11 +1094,11 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-static void hmp_change_read_arg(Monitor *mon, const char *password,
-                                void *opaque)
+static void hmp_change_read_arg(void *opaque, const char *password,
+                                void *readline_opaque)
 {
     qmp_change_vnc_password(password, NULL);
-    monitor_read_command(mon, 1);
+    monitor_read_command(opaque, 1);
 }
 
 void hmp_change(Monitor *mon, const QDict *qdict)

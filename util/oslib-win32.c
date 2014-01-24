@@ -189,3 +189,22 @@ qemu_get_local_state_pathname(const char *relative_pathname)
     return g_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", base_path,
                            relative_pathname);
 }
+
+void qemu_set_tty_echo(int fd, bool echo)
+{
+    HANDLE handle = (HANDLE)_get_osfhandle(fd);
+    DWORD dwMode = 0;
+
+    if (handle == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    GetConsoleMode(handle, &dwMode);
+
+    if (echo) {
+        SetConsoleMode(handle, dwMode | ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+    } else {
+        SetConsoleMode(handle,
+                       dwMode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    }
+}

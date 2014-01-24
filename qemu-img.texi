@@ -57,7 +57,9 @@ indicates that target image must be compressed (qcow format only)
 @item -h
 with or without a command shows help and lists the supported formats
 @item -p
-display progress bar (convert and rebase commands only)
+display progress bar (compare, convert and rebase commands only).
+If the @var{-p} option is not used for a command that supports it, the
+progress is reported when the process receives a @code{SIGUSR1} signal.
 @item -q
 Quiet mode - do not print any output (except errors). There's no progress bar
 in case both @var{-q} and @var{-p} options are used.
@@ -140,7 +142,12 @@ it doesn't need to be specified separately in this case.
 
 @item commit [-f @var{fmt}] [-t @var{cache}] @var{filename}
 
-Commit the changes recorded in @var{filename} in its base image.
+Commit the changes recorded in @var{filename} in its base image or backing file.
+If the backing file is smaller than the snapshot, then the backing file will be
+resized to be the same size as the snapshot.  If the snapshot is smaller than
+the backing file, the backing file will not be truncated.  If you want the
+backing file to match the size of the smaller snapshot, you can safely truncate
+it yourself once the commit operation successfully completes.
 
 @item compare [-f @var{fmt}] [-F @var{fmt}] [-p] [-s] [-q] @var{filename1} @var{filename2}
 
@@ -391,11 +398,11 @@ support of multiple VM snapshots.
 Supported options:
 @table @code
 @item compat
-Determines the qcow2 version to use. @code{compat=0.10} uses the traditional
-image format that can be read by any QEMU since 0.10 (this is the default).
+Determines the qcow2 version to use. @code{compat=0.10} uses the
+traditional image format that can be read by any QEMU since 0.10.
 @code{compat=1.1} enables image format extensions that only QEMU 1.1 and
-newer understand. Amongst others, this includes zero clusters, which allow
-efficient copy-on-read for sparse images.
+newer understand (this is the default). Amongst others, this includes zero
+clusters, which allow efficient copy-on-read for sparse images.
 
 @item backing_file
 File name of a base image (see @option{create} subcommand)

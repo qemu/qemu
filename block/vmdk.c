@@ -428,10 +428,6 @@ static int vmdk_add_extent(BlockDriverState *bs,
     extent->l2_size = l2_size;
     extent->cluster_sectors = flat ? sectors : cluster_sectors;
 
-    if (!flat) {
-        bs->bl.write_zeroes_alignment =
-            MAX(bs->bl.write_zeroes_alignment, cluster_sectors);
-    }
     if (s->num_extents > 1) {
         extent->end_sector = (*(extent - 1)).end_sector + extent->sectors;
     } else {
@@ -640,6 +636,13 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (le32_to_cpu(header.flags) & VMDK4_FLAG_RGD) {
         l1_backup_offset = le64_to_cpu(header.rgd_offset) << 9;
     }
+    if (bdrv_getlength(file) <
+            le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE) {
+        error_report("File truncated, expecting at least %lld bytes",
+                le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE);
+        return -EINVAL;
+    }
+
     ret = vmdk_add_extent(bs, file, false,
                           le64_to_cpu(header.capacity),
                           le64_to_cpu(header.gd_offset) << 9,
@@ -654,6 +657,10 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     extent->compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
+    if (extent->compressed) {
+        g_free(s->create_type);
+        s->create_type = g_strdup("streamOptimized");
+    }
     extent->has_marker = le32_to_cpu(header.flags) & VMDK4_FLAG_MARKER;
     extent->version = le32_to_cpu(header.version);
     extent->has_zero_grain = le32_to_cpu(header.flags) & VMDK4_FLAG_ZERO_GRAIN;
@@ -769,8 +776,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
         path_combine(extent_path, sizeof(extent_path),
                 desc_file_path, fname);
-        ret = bdrv_file_open(&extent_file, extent_path, NULL, bs->open_flags,
-                             errp);
+        ret = bdrv_file_open(&extent_file, extent_path, NULL, NULL,
+                             bs->open_flags, errp);
         if (ret) {
             return ret;
         }
@@ -889,6 +896,23 @@ fail:
     s->create_type = NULL;
     vmdk_free_extents(bs);
     return ret;
+}
+
+
+static int vmdk_refresh_limits(BlockDriverState *bs)
+{
+    BDRVVmdkState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_extents; i++) {
+        if (!s->extents[i].flat) {
+            bs->bl.write_zeroes_alignment =
+                MAX(bs->bl.write_zeroes_alignment,
+                    s->extents[i].cluster_sectors);
+        }
+    }
+
+    return 0;
 }
 
 static int get_whole_cluster(BlockDriverState *bs,
@@ -1325,8 +1349,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
-    int n, ret;
-    int64_t index_in_cluster;
+    int ret;
+    int64_t index_in_cluster, n;
     uint64_t extent_begin_sector, extent_relative_sector_num;
     uint64_t cluster_offset;
     VmdkMetaData m_data;
@@ -1469,7 +1493,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
         goto exit;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1807,7 +1831,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
             goto exit;
         }
     }
-    ret = bdrv_file_open(&new_bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&new_bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write description");
         goto exit;
@@ -2002,6 +2026,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,
     .bdrv_has_zero_init           = vmdk_has_zero_init,
     .bdrv_get_specific_info       = vmdk_get_specific_info,
+    .bdrv_refresh_limits          = vmdk_refresh_limits,
 
     .create_options               = vmdk_create_options,
 };

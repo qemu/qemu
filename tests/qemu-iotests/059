@@ -42,6 +42,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt vmdk
 _supported_proto generic
 _supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" \
+                     "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
 
 capacity_offset=16
 granularity_offset=20
@@ -95,9 +98,22 @@ EOF
 _img_info
 
 echo
+echo "=== Testing truncated sparse ==="
+IMGOPTS="subformat=monolithicSparse" _make_test_img 100G
+truncate -s 10M $TEST_IMG
+_img_info
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info
+
+echo
+echo "=== Testing 4TB monolithicFlat creation and IO ==="
+IMGOPTS="subformat=monolithicFlat" _make_test_img 4T
+_img_info
+$QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

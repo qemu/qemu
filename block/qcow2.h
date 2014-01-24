@@ -340,11 +340,11 @@ typedef enum QCow2MetadataOverlap {
 #define QCOW2_OL_ALL \
     (QCOW2_OL_CACHED | QCOW2_OL_INACTIVE_L2)
 
-#define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
-#define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
+#define L1E_OFFSET_MASK 0x00fffffffffffe00ULL
+#define L2E_OFFSET_MASK 0x00fffffffffffe00ULL
 #define L2E_COMPRESSED_OFFSET_SIZE_MASK 0x3fffffffffffffffULL
 
-#define REFT_OFFSET_MASK 0xffffffffffffff00ULL
+#define REFT_OFFSET_MASK 0xfffffffffffffe00ULL
 
 static inline int64_t start_of_cluster(BDRVQcowState *s, int64_t offset)
 {
