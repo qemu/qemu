@@ -4888,7 +4888,8 @@ static void sortcmdlist(void)
 /* These functions just adapt the readline interface in a typesafe way.  We
  * could cast function pointers but that discards compiler checks.
  */
-static void monitor_readline_printf(void *opaque, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) monitor_readline_printf(void *opaque,
+                                                       const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

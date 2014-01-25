@@ -219,7 +219,8 @@ static char *get_prompt(void)
     return prompt;
 }
 
-static void readline_printf_func(void *opaque, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) readline_printf_func(void *opaque,
+                                                    const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
