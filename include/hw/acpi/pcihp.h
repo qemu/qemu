@@ -32,7 +32,7 @@
 #include "hw/pci/pci.h" /* for PCIHotplugState */
 
 typedef struct AcpiPciHpPciStatus {
-    uint32_t up; /* deprecated, maintained for migration compatibility */
+    uint32_t up;
     uint32_t down;
     uint32_t hotplug_enable;
     uint32_t device_present;

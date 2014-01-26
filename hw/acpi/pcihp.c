@@ -116,7 +116,6 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
 {
     BusChild *kid, *next;
     int slot = ffs(slots) - 1;
-    bool slot_free = true;
     PCIBus *bus = acpi_pcihp_find_hotplug_bus(s, bsel);
 
     if (!bus) {
@@ -125,20 +124,16 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
 
     /* Mark request as complete */
     s->acpi_pcihp_pci_status[bsel].down &= ~(1U << slot);
+    s->acpi_pcihp_pci_status[bsel].up &= ~(1U << slot);
 
     QTAILQ_FOREACH_SAFE(kid, &bus->qbus.children, sibling, next) {
         DeviceState *qdev = kid->child;
         PCIDevice *dev = PCI_DEVICE(qdev);
         if (PCI_SLOT(dev->devfn) == slot) {
-            if (acpi_pcihp_pc_no_hotplug(s, dev)) {
-                slot_free = false;
-            } else {
+            if (!acpi_pcihp_pc_no_hotplug(s, dev)) {
                 object_unparent(OBJECT(qdev));
             }
         }
-    }
-    if (slot_free) {
-        s->acpi_pcihp_pci_status[bsel].device_present &= ~(1U << slot);
     }
 }
 
@@ -153,7 +148,6 @@ static void acpi_pcihp_update_hotplug_bus(AcpiPciHpState *s, int bsel)
     }
 
     s->acpi_pcihp_pci_status[bsel].hotplug_enable = ~0;
-    s->acpi_pcihp_pci_status[bsel].device_present = 0;
 
     if (!bus) {
         return;
@@ -166,8 +160,6 @@ static void acpi_pcihp_update_hotplug_bus(AcpiPciHpState *s, int bsel)
         if (acpi_pcihp_pc_no_hotplug(s, pdev)) {
             s->acpi_pcihp_pci_status[bsel].hotplug_enable &= ~(1U << slot);
         }
-
-        s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
     }
 }
 
@@ -187,7 +179,7 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
 
 static void enable_device(AcpiPciHpState *s, unsigned bsel, int slot)
 {
-    s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
+    s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
 }
 
 static void disable_device(AcpiPciHpState *s, unsigned bsel, int slot)
@@ -208,7 +200,6 @@ int acpi_pcihp_device_hotplug(AcpiPciHpState *s, PCIDevice *dev,
      * it is present on boot, no hotplug event is necessary. We do send an
      * event when the device is disabled later. */
     if (state == PCI_COLDPLUG_ENABLED) {
-        s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
         return 0;
     }
 
@@ -233,10 +224,8 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
 
     switch (addr) {
     case PCI_UP_BASE - PCI_HOTPLUG_ADDR:
-        /* Manufacture an "up" value to cause a device check on any hotplug
-         * slot with a device.  Extra device checks are harmless. */
-        val = s->acpi_pcihp_pci_status[bsel].device_present &
-            s->acpi_pcihp_pci_status[bsel].hotplug_enable;
+        val = s->acpi_pcihp_pci_status[bsel].up;
+        s->acpi_pcihp_pci_status[bsel].up = 0;
         ACPI_PCIHP_DPRINTF("pci_up_read %" PRIu32 "\n", val);
         break;
     case PCI_DOWN_BASE - PCI_HOTPLUG_ADDR:
