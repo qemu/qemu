@@ -1000,7 +1000,6 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster;
-    int n_end;
     int ret;
     int cur_nr_sectors; /* number of sectors in current iteration */
     uint64_t cluster_offset;
@@ -1024,14 +1023,16 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        n_end = index_in_cluster + remaining_sectors;
+        cur_nr_sectors = remaining_sectors;
         if (s->crypt_method &&
-            n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors) {
-            n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
+            cur_nr_sectors >
+            QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster) {
+            cur_nr_sectors =
+                QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster;
         }
 
         ret = qcow2_alloc_cluster_offset(bs, sector_num << 9,
-            index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, &l2meta);
+            &cur_nr_sectors, &cluster_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
@@ -1408,7 +1409,7 @@ static int preallocate(BlockDriverState *bs)
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
-        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
+        ret = qcow2_alloc_cluster_offset(bs, offset, &num,
                                          &host_offset, &meta);
         if (ret < 0) {
             return ret;
