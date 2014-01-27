@@ -88,6 +88,10 @@ static const int tcg_target_call_oarg_regs[] = {
 #endif
 };
 
+/* Constants we accept.  */
+#define TCG_CT_CONST_S32 0x100
+#define TCG_CT_CONST_U32 0x200
+
 /* Registers used with L constraint, which are the first argument 
    registers on x86_64, and two random call clobbered registers on
    i386. */

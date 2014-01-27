@@ -64,9 +64,6 @@ typedef enum {
     TCG_REG_RDI = TCG_REG_EDI,
 } TCGReg;
 
-#define TCG_CT_CONST_S32 0x100
-#define TCG_CT_CONST_U32 0x200
-
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_ESP 
 #define TCG_TARGET_STACK_ALIGN 16
