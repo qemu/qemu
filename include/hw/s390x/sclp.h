@@ -22,11 +22,21 @@
 /* SCLP command codes */
 #define SCLP_CMDW_READ_SCP_INFO                 0x00020001
 #define SCLP_CMDW_READ_SCP_INFO_FORCED          0x00120001
+#define SCLP_READ_STORAGE_ELEMENT_INFO          0x00040001
+#define SCLP_ATTACH_STORAGE_ELEMENT             0x00080001
+#define SCLP_ASSIGN_STORAGE                     0x000D0001
+#define SCLP_UNASSIGN_STORAGE                   0x000C0001
 #define SCLP_CMD_READ_EVENT_DATA                0x00770005
 #define SCLP_CMD_WRITE_EVENT_DATA               0x00760005
 #define SCLP_CMD_READ_EVENT_DATA                0x00770005
 #define SCLP_CMD_WRITE_EVENT_DATA               0x00760005
 #define SCLP_CMD_WRITE_EVENT_MASK               0x00780005
+
+/* SCLP Memory hotplug codes */
+#define SCLP_FC_ASSIGN_ATTACH_READ_STOR         0xE00000000000ULL
+#define SCLP_STARTING_SUBINCREMENT_ID           0x10001
+#define SCLP_INCREMENT_UNIT                     0x10000
+#define MAX_AVAIL_SLOTS                         32
 
 /* CPU hotplug SCLP codes */
 #define SCLP_HAS_CPU_INFO                       0x0C00000000000000ULL
@@ -37,9 +47,11 @@
 /* SCLP response codes */
 #define SCLP_RC_NORMAL_READ_COMPLETION          0x0010
 #define SCLP_RC_NORMAL_COMPLETION               0x0020
+#define SCLP_RC_SCCB_BOUNDARY_VIOLATION         0x0100
 #define SCLP_RC_INVALID_SCLP_COMMAND            0x01f0
 #define SCLP_RC_CONTAINED_EQUIPMENT_CHECK       0x0340
 #define SCLP_RC_INSUFFICIENT_SCCB_LENGTH        0x0300
+#define SCLP_RC_STANDBY_READ_COMPLETION         0x0410
 #define SCLP_RC_INVALID_FUNCTION                0x40f0
 #define SCLP_RC_NO_EVENT_BUFFERS_STORED         0x60f0
 #define SCLP_RC_INVALID_SELECTION_MASK          0x70f0
@@ -116,6 +128,28 @@ typedef struct ReadCpuInfo {
     uint8_t reserved0[24-16];       /* 16-23 */
     struct CPUEntry entries[0];
 } QEMU_PACKED ReadCpuInfo;
+
+typedef struct ReadStorageElementInfo {
+    SCCBHeader h;
+    uint16_t max_id;
+    uint16_t assigned;
+    uint16_t standby;
+    uint8_t _reserved0[16 - 14]; /* 14-15 */
+    uint32_t entries[0];
+} QEMU_PACKED ReadStorageElementInfo;
+
+typedef struct AttachStorageElement {
+    SCCBHeader h;
+    uint8_t _reserved0[10 - 8];  /* 8-9 */
+    uint16_t assigned;
+    uint8_t _reserved1[16 - 12]; /* 12-15 */
+    uint32_t entries[0];
+} QEMU_PACKED AttachStorageElement;
+
+typedef struct AssignStorage {
+    SCCBHeader h;
+    uint16_t rn;
+} QEMU_PACKED AssignStorage;
 
 typedef struct SCCB {
     SCCBHeader h;
