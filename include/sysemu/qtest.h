@@ -16,6 +16,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "sysemu/qemumachine.h"
 
 extern bool qtest_allowed;
 

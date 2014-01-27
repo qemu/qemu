@@ -18,6 +18,7 @@
 #include "config-host.h"
 #include "qemu/queue.h"
 #include "qom/cpu.h"
+#include "sysemu/qemumachine.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
