@@ -1689,26 +1689,6 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options,
     return ret;
 }
 
-static int qcow2_make_empty(BlockDriverState *bs)
-{
-#if 0
-    /* XXX: not correct */
-    BDRVQcowState *s = bs->opaque;
-    uint32_t l1_length = s->l1_size * sizeof(uint64_t);
-    int ret;
-
-    memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite(bs->file, s->l1_table_offset, s->l1_table, l1_length) < 0)
-        return -1;
-    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length);
-    if (ret < 0)
-        return ret;
-
-    l2_cache_reset(bs);
-#endif
-    return 0;
-}
-
 static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
@@ -2252,7 +2232,6 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
     .bdrv_set_key       = qcow2_set_key,
-    .bdrv_make_empty    = qcow2_make_empty,
 
     .bdrv_co_readv          = qcow2_co_readv,
     .bdrv_co_writev         = qcow2_co_writev,
