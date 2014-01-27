@@ -731,11 +731,6 @@ static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
     return cb.status;
 }
 
-static int bdrv_qed_make_empty(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-
 static BDRVQEDState *acb_to_s(QEDAIOCB *acb)
 {
     return acb->common.bs->opaque;
@@ -1617,7 +1612,6 @@ static BlockDriver bdrv_qed = {
     .bdrv_create              = bdrv_qed_create,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = bdrv_qed_co_get_block_status,
-    .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,
     .bdrv_co_write_zeroes     = bdrv_qed_co_write_zeroes,
