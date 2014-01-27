@@ -1234,7 +1234,8 @@ static void hmp_migrate_status_cb(void *opaque)
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
-    if (!info->has_status || strcmp(info->status, "active") == 0) {
+    if (!info->has_status || strcmp(info->status, "active") == 0 ||
+        strcmp(info->status, "setup") == 0) {
         if (info->has_disk) {
             int progress;
 
