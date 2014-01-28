@@ -1068,8 +1068,8 @@ err_out:
 static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
 {
-    int err;
 #ifdef FS_IOC_GETVERSION
+    int err;
     V9fsFidOpenState fid_open;
 
     /*
@@ -1085,10 +1085,11 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
     }
     err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
     local_close(ctx, &fid_open);
-#else
-    err = -ENOTTY;
-#endif
     return err;
+#else
+    errno = ENOTTY;
+    return -1;
+#endif
 }
 
 static int local_init(FsContext *ctx)
