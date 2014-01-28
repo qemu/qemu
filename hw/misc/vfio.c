@@ -599,7 +599,7 @@ static void vfio_msi_interrupt(void *opaque)
         return;
     }
 
-#ifdef VFIO_DEBUG
+#ifdef DEBUG_VFIO
     MSIMessage msg;
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
