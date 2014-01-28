@@ -655,6 +655,63 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 }
             }
             break;
+        CASE_OP_32_64(xor):
+        CASE_OP_32_64(nand):
+            if (temps[args[1]].state != TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[2]].val == -1) {
+                i = 1;
+                goto try_not;
+            }
+            break;
+        CASE_OP_32_64(nor):
+            if (temps[args[1]].state != TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[2]].val == 0) {
+                i = 1;
+                goto try_not;
+            }
+            break;
+        CASE_OP_32_64(andc):
+            if (temps[args[2]].state != TCG_TEMP_CONST
+                && temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[1]].val == -1) {
+                i = 2;
+                goto try_not;
+            }
+            break;
+        CASE_OP_32_64(orc):
+        CASE_OP_32_64(eqv):
+            if (temps[args[2]].state != TCG_TEMP_CONST
+                && temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[1]].val == 0) {
+                i = 2;
+                goto try_not;
+            }
+            break;
+        try_not:
+            {
+                TCGOpcode not_op;
+                bool have_not;
+
+                if (def->flags & TCG_OPF_64BIT) {
+                    not_op = INDEX_op_not_i64;
+                    have_not = TCG_TARGET_HAS_not_i64;
+                } else {
+                    not_op = INDEX_op_not_i32;
+                    have_not = TCG_TARGET_HAS_not_i32;
+                }
+                if (!have_not) {
+                    break;
+                }
+                s->gen_opc_buf[op_index] = not_op;
+                reset_temp(args[0]);
+                gen_args[0] = args[0];
+                gen_args[1] = args[i];
+                args += 3;
+                gen_args += 2;
+                continue;
+            }
         default:
             break;
         }
