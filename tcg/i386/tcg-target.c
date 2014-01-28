@@ -91,6 +91,7 @@ static const int tcg_target_call_oarg_regs[] = {
 /* Constants we accept.  */
 #define TCG_CT_CONST_S32 0x100
 #define TCG_CT_CONST_U32 0x200
+#define TCG_CT_CONST_I32 0x400
 
 /* Registers used with L constraint, which are the first argument 
    registers on x86_64, and two random call clobbered registers on
@@ -127,6 +128,10 @@ static bool have_movbe;
 #else
 # define have_movbe 0
 #endif
+
+/* We need this symbol in tcg-target.h, and we can't properly conditionalize
+   it there.  Therefore we always define the variable.  */
+bool have_bmi1;
 
 static uint8_t *tb_ret_addr;
 
@@ -224,6 +229,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'Z':
         ct->ct |= TCG_CT_CONST_U32;
         break;
+    case 'I':
+        ct->ct |= TCG_CT_CONST_I32;
+        break;
 
     default:
         return -1;
@@ -245,6 +253,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
         return 1;
     }
     if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
         return 1;
     }
     return 0;
@@ -276,6 +287,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
 #define OPC_ARITH_GvEv	(0x03)		/* ... plus (ARITH_FOO << 3) */
+#define OPC_ANDN        (0xf2 | P_EXT38)
 #define OPC_ADD_GvEv	(OPC_ARITH_GvEv | (ARITH_ADD << 3))
 #define OPC_BSWAP	(0xc8 | P_EXT)
 #define OPC_CALL_Jz	(0xe8)
@@ -1813,6 +1825,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    OP_32_64(andc):
+        if (const_args[2]) {
+            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                        args[0], args[1]);
+            tgen_arithi(s, ARITH_AND + rexw, args[0], ~args[2], 0);
+        } else {
+            tcg_out_vex_modrm(s, OPC_ANDN + rexw, args[0], args[2], args[1]);
+        }
+        break;
+
     OP_32_64(mul):
         if (const_args[2]) {
             int32_t val;
@@ -2041,6 +2063,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_and_i32, { "r", "0", "ri" } },
     { INDEX_op_or_i32, { "r", "0", "ri" } },
     { INDEX_op_xor_i32, { "r", "0", "ri" } },
+    { INDEX_op_andc_i32, { "r", "r", "ri" } },
 
     { INDEX_op_shl_i32, { "r", "0", "ci" } },
     { INDEX_op_shr_i32, { "r", "0", "ci" } },
@@ -2098,6 +2121,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_and_i64, { "r", "0", "reZ" } },
     { INDEX_op_or_i64, { "r", "0", "re" } },
     { INDEX_op_xor_i64, { "r", "0", "re" } },
+    { INDEX_op_andc_i64, { "r", "r", "rI" } },
 
     { INDEX_op_shl_i64, { "r", "0", "ci" } },
     { INDEX_op_shr_i64, { "r", "0", "ci" } },
@@ -2235,25 +2259,31 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
-#if !(defined(have_cmov) && defined(have_movbe))
-    {
-        unsigned a, b, c, d;
-        int ret = __get_cpuid(1, &a, &b, &c, &d);
+    unsigned a, b, c, d;
+    int max = __get_cpuid_max(0, 0);
 
-# ifndef have_cmov
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+#ifndef have_cmov
         /* For 32-bit, 99% certainty that we're running on hardware that
            supports cmov, but we still need to check.  In case cmov is not
            available, we'll use a small forward branch.  */
-        have_cmov = ret && (d & bit_CMOV);
-# endif
-
-# ifndef have_movbe
+        have_cmov = (d & bit_CMOV) != 0;
+#endif
+#ifndef have_movbe
         /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
            need to probe for it.  */
-        have_movbe = ret && (c & bit_MOVBE);
-# endif
-    }
+        have_movbe = (c & bit_MOVBE) != 0;
 #endif
+    }
+
+    if (max >= 7) {
+        /* BMI1 is available on AMD Piledriver and Intel Haswell CPUs.  */
+        __cpuid_count(7, 0, a, b, c, d);
+#ifdef bit_BMI
+        have_bmi1 = (b & bit_BMI) != 0;
+#endif
+    }
 
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
