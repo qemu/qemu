@@ -947,6 +947,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         /* Simplify expression for "op r, a, a => movi r, 0" cases */
         switch (op) {
+        CASE_OP_32_64(andc):
         CASE_OP_32_64(sub):
         CASE_OP_32_64(xor):
             if (temps_are_copies(args[1], args[2])) {
