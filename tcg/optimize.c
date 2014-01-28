@@ -727,6 +727,17 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             mask = temps[args[1]].mask & mask;
             break;
 
+        CASE_OP_32_64(andc):
+            /* Known-zeros does not imply known-ones.  Therefore unless
+               args[2] is constant, we can't infer anything from it.  */
+            if (temps[args[2]].state == TCG_TEMP_CONST) {
+                mask = ~temps[args[2]].mask;
+                goto and_const;
+            }
+            /* But we certainly know nothing outside args[1] may be set. */
+            mask = temps[args[1]].mask;
+            break;
+
         case INDEX_op_sar_i32:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
                 mask = (int32_t)temps[args[1]].mask >> temps[args[2]].val;
