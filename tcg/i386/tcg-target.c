@@ -402,9 +402,9 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
 
     rex = 0;
     rex |= (opc & P_REXW) ? 0x8 : 0x0;  /* REX.W */
-    rex |= (r & 8) >> 1;		/* REX.R */
-    rex |= (x & 8) >> 2;		/* REX.X */
-    rex |= (rm & 8) >> 3;		/* REX.B */
+    rex |= (r & 8) >> 1;                /* REX.R */
+    rex |= (x & 8) >> 2;                /* REX.X */
+    rex |= (rm & 8) >> 3;               /* REX.B */
 
     /* P_REXB_{R,RM} indicates that the given register is the low byte.
        For %[abcd]l we need no REX prefix, but for %{si,di,bp,sp}l we do,
@@ -450,6 +450,41 @@ static void tcg_out_opc(TCGContext *s, int opc)
 static void tcg_out_modrm(TCGContext *s, int opc, int r, int rm)
 {
     tcg_out_opc(s, opc, r, rm, 0);
+    tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
+}
+
+static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
+{
+    int tmp;
+
+    if ((opc & (P_REXW | P_EXT | P_EXT38)) || (rm & 8)) {
+        /* Three byte VEX prefix.  */
+        tcg_out8(s, 0xc4);
+
+        /* VEX.m-mmmm */
+        if (opc & P_EXT38) {
+            tmp = 2;
+        } else if (opc & P_EXT) {
+            tmp = 1;
+        } else {
+            tcg_abort();
+        }
+        tmp |= 0x40;                       /* VEX.X */
+        tmp |= (r & 8 ? 0 : 0x80);         /* VEX.R */
+        tmp |= (rm & 8 ? 0 : 0x20);        /* VEX.B */
+        tcg_out8(s, tmp);
+
+        tmp = (opc & P_REXW ? 0x80 : 0);   /* VEX.W */
+    } else {
+        /* Two byte VEX prefix.  */
+        tcg_out8(s, 0xc5);
+
+        tmp = (r & 8 ? 0 : 0x80);          /* VEX.R */
+    }
+    tmp |= (opc & P_DATA16 ? 1 : 0);       /* VEX.pp */
+    tmp |= (~v & 15) << 3;                 /* VEX.vvvv */
+    tcg_out8(s, tmp);
+    tcg_out8(s, opc);
     tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
 }
 
