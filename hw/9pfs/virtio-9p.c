@@ -1080,10 +1080,18 @@ static void v9fs_getattr(void *opaque)
     /*  fill st_gen if requested and supported by underlying fs */
     if (request_mask & P9_STATS_GEN) {
         retval = v9fs_co_st_gen(pdu, &fidp->path, stbuf.st_mode, &v9stat_dotl);
-        if (retval < 0) {
+        switch (retval) {
+        case 0:
+            /* we have valid st_gen: update result mask */
+            v9stat_dotl.st_result_mask |= P9_STATS_GEN;
+            break;
+        case -EINTR:
+            /* request cancelled, e.g. by Tflush */
             goto out;
+        default:
+            /* failed to get st_gen: not fatal, ignore */
+            break;
         }
-        v9stat_dotl.st_result_mask |= P9_STATS_GEN;
     }
     retval = pdu_marshal(pdu, offset, "A", &v9stat_dotl);
     if (retval < 0) {
