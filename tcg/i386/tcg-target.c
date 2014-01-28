@@ -133,6 +133,12 @@ static bool have_movbe;
    it there.  Therefore we always define the variable.  */
 bool have_bmi1;
 
+#if defined(CONFIG_CPUID_H) && defined(bit_BMI2)
+static bool have_bmi2;
+#else
+# define have_bmi2 0
+#endif
+
 static uint8_t *tb_ret_addr;
 
 static void patch_reloc(uint8_t *code_ptr, int type,
@@ -175,6 +181,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set_reg(ct->u.regs, TCG_REG_EBX);
         break;
     case 'c':
+    case_c:
         ct->ct |= TCG_CT_REG;
         tcg_regset_set_reg(ct->u.regs, TCG_REG_ECX);
         break;
@@ -203,6 +210,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set32(ct->u.regs, 0, 0xf);
         break;
     case 'r':
+    case_r:
         ct->ct |= TCG_CT_REG;
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
@@ -210,6 +218,13 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
             tcg_regset_set32(ct->u.regs, 0, 0xff);
         }
         break;
+    case 'C':
+        /* With SHRX et al, we need not use ECX as shift count register.  */
+        if (have_bmi2) {
+            goto case_r;
+        } else {
+            goto case_c;
+        }
 
         /* qemu_ld/st address constraint */
     case 'L':
@@ -283,6 +298,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 # define P_REXB_RM	0
 # define P_GS           0
 #endif
+#define P_SIMDF3        0x10000         /* 0xf3 opcode prefix */
+#define P_SIMDF2        0x20000         /* 0xf2 opcode prefix */
 
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
@@ -325,6 +342,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_SHIFT_1	(0xd1)
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
+#define OPC_SARX        (0xf7 | P_EXT38 | P_SIMDF3)
+#define OPC_SHLX        (0xf7 | P_EXT38 | P_DATA16)
+#define OPC_SHRX        (0xf7 | P_EXT38 | P_SIMDF2)
 #define OPC_TESTL	(0x85)
 #define OPC_XCHG_ax_r32	(0x90)
 
@@ -493,7 +513,14 @@ static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
 
         tmp = (r & 8 ? 0 : 0x80);          /* VEX.R */
     }
-    tmp |= (opc & P_DATA16 ? 1 : 0);       /* VEX.pp */
+    /* VEX.pp */
+    if (opc & P_DATA16) {
+        tmp |= 1;                          /* 0x66 */
+    } else if (opc & P_SIMDF3) {
+        tmp |= 2;                          /* 0xf3 */
+    } else if (opc & P_SIMDF2) {
+        tmp |= 3;                          /* 0xf2 */
+    }
     tmp |= (~v & 15) << 3;                 /* VEX.vvvv */
     tcg_out8(s, tmp);
     tcg_out8(s, opc);
@@ -1689,7 +1716,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
-    int c, rexw = 0;
+    int c, vexop, rexw = 0;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
@@ -1860,19 +1887,28 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     OP_32_64(shl):
         c = SHIFT_SHL;
-        goto gen_shift;
+        vexop = OPC_SHLX;
+        goto gen_shift_maybe_vex;
     OP_32_64(shr):
         c = SHIFT_SHR;
-        goto gen_shift;
+        vexop = OPC_SHRX;
+        goto gen_shift_maybe_vex;
     OP_32_64(sar):
         c = SHIFT_SAR;
-        goto gen_shift;
+        vexop = OPC_SARX;
+        goto gen_shift_maybe_vex;
     OP_32_64(rotl):
         c = SHIFT_ROL;
         goto gen_shift;
     OP_32_64(rotr):
         c = SHIFT_ROR;
         goto gen_shift;
+    gen_shift_maybe_vex:
+        if (have_bmi2 && !const_args[2]) {
+            tcg_out_vex_modrm(s, vexop + rexw, args[0], args[2], args[1]);
+            break;
+        }
+        /* FALLTHRU */
     gen_shift:
         if (const_args[2]) {
             tcg_out_shifti(s, c + rexw, args[0], args[2]);
@@ -2065,9 +2101,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_xor_i32, { "r", "0", "ri" } },
     { INDEX_op_andc_i32, { "r", "r", "ri" } },
 
-    { INDEX_op_shl_i32, { "r", "0", "ci" } },
-    { INDEX_op_shr_i32, { "r", "0", "ci" } },
-    { INDEX_op_sar_i32, { "r", "0", "ci" } },
+    { INDEX_op_shl_i32, { "r", "0", "Ci" } },
+    { INDEX_op_shr_i32, { "r", "0", "Ci" } },
+    { INDEX_op_sar_i32, { "r", "0", "Ci" } },
     { INDEX_op_rotl_i32, { "r", "0", "ci" } },
     { INDEX_op_rotr_i32, { "r", "0", "ci" } },
 
@@ -2123,9 +2159,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_xor_i64, { "r", "0", "re" } },
     { INDEX_op_andc_i64, { "r", "r", "rI" } },
 
-    { INDEX_op_shl_i64, { "r", "0", "ci" } },
-    { INDEX_op_shr_i64, { "r", "0", "ci" } },
-    { INDEX_op_sar_i64, { "r", "0", "ci" } },
+    { INDEX_op_shl_i64, { "r", "0", "Ci" } },
+    { INDEX_op_shr_i64, { "r", "0", "Ci" } },
+    { INDEX_op_sar_i64, { "r", "0", "Ci" } },
     { INDEX_op_rotl_i64, { "r", "0", "ci" } },
     { INDEX_op_rotr_i64, { "r", "0", "ci" } },
 
@@ -2282,6 +2318,9 @@ static void tcg_target_init(TCGContext *s)
         __cpuid_count(7, 0, a, b, c, d);
 #ifdef bit_BMI
         have_bmi1 = (b & bit_BMI) != 0;
+#endif
+#ifndef have_bmi2
+        have_bmi2 = (b & bit_BMI2) != 0;
 #endif
     }
 
