@@ -1942,6 +1942,53 @@ static ImageInfo *vmdk_get_extent_info(VmdkExtent *extent)
     return info;
 }
 
+static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
+                      BdrvCheckMode fix)
+{
+    BDRVVmdkState *s = bs->opaque;
+    VmdkExtent *extent = NULL;
+    int64_t sector_num = 0;
+    int64_t total_sectors = bdrv_getlength(bs) / BDRV_SECTOR_SIZE;
+    int ret;
+    uint64_t cluster_offset;
+
+    if (fix) {
+        return -ENOTSUP;
+    }
+
+    for (;;) {
+        if (sector_num >= total_sectors) {
+            return 0;
+        }
+        extent = find_extent(s, sector_num, extent);
+        if (!extent) {
+            fprintf(stderr,
+                    "ERROR: could not find extent for sector %" PRId64 "\n",
+                    sector_num);
+            break;
+        }
+        ret = get_cluster_offset(bs, extent, NULL,
+                                 sector_num << BDRV_SECTOR_BITS,
+                                 0, &cluster_offset);
+        if (ret == VMDK_ERROR) {
+            fprintf(stderr,
+                    "ERROR: could not get cluster_offset for sector %"
+                    PRId64 "\n", sector_num);
+            break;
+        }
+        if (ret == VMDK_OK && cluster_offset >= bdrv_getlength(extent->file)) {
+            fprintf(stderr,
+                    "ERROR: cluster offset for sector %"
+                    PRId64 " points after EOF\n", sector_num);
+            break;
+        }
+        sector_num += extent->cluster_sectors;
+    }
+
+    result->corruptions++;
+    return 0;
+}
+
 static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs)
 {
     int i;
@@ -2015,6 +2062,7 @@ static BlockDriver bdrv_vmdk = {
     .instance_size                = sizeof(BDRVVmdkState),
     .bdrv_probe                   = vmdk_probe,
     .bdrv_open                    = vmdk_open,
+    .bdrv_check                   = vmdk_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
     .bdrv_read                    = vmdk_co_read,
     .bdrv_write                   = vmdk_co_write,
