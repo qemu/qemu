@@ -2214,25 +2214,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { -1 },
 };
 
-/* ??? Linux kernels provide an AUXV entry AT_HWCAP that provides most of
-   this information.  However, getting at that entry is not easy this far
-   away from main.  Our options are: start searching from environ, but
-   that fails as soon as someone does a setenv in between.  Read the data
-   from /proc/self/auxv.  Or do the probing ourselves.  The only thing
-   extra that AT_HWCAP gives us is HWCAP_S390_HIGH_GPRS, which indicates
-   that the kernel saves all 64-bits of the registers around traps while
-   in 31-bit mode.  But this is true of all "recent" kernels (ought to dig
-   back and see from when this might not be true).  */
-
-#include <signal.h>
-
-static volatile sig_atomic_t got_sigill;
-
-static void sigill_handler(int sig)
-{
-    got_sigill = 1;
-}
-
 static void query_facilities(void)
 {
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
