@@ -3636,7 +3636,7 @@ static int usb_xhci_post_load(void *opaque, int version_id)
         slot->uport = xhci_lookup_uport(xhci, slot_ctx);
         assert(slot->uport && slot->uport->dev);
 
-        for (epid = 1; epid <= 32; epid++) {
+        for (epid = 1; epid <= 31; epid++) {
             pctx = slot->ctx + 32 * epid;
             xhci_dma_read_u32s(xhci, pctx, ep_ctx, sizeof(ep_ctx));
             state = ep_ctx[0] & EP_STATE_MASK;
