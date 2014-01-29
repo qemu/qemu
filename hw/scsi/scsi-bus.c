@@ -909,7 +909,7 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case VERIFY_16:
         if ((buf[1] & 2) == 0) {
             cmd->xfer = 0;
-        } else if ((buf[1] & 4) == 1) {
+        } else if ((buf[1] & 4) != 0) {
             cmd->xfer = 1;
         }
         cmd->xfer *= dev->blocksize;
