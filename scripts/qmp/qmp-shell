@@ -31,6 +31,7 @@
 # (QEMU)
 
 import qmp
+import json
 import readline
 import sys
 import pprint
@@ -107,6 +108,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                     value = True
                 elif opt[1] == 'false':
                     value = False
+                elif opt[1].startswith('{'):
+                    value = json.loads(opt[1])
                 else:
                     value = opt[1]
             qmpcmd['arguments'][opt[0]] = value
