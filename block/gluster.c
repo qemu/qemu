@@ -9,7 +9,6 @@
  */
 #include <glusterfs/api/glfs.h>
 #include "block/block_int.h"
-#include "qemu/sockets.h"
 #include "qemu/uri.h"
 
 typedef struct GlusterAIOCB {
@@ -23,9 +22,6 @@ typedef struct BDRVGlusterState {
     struct glfs *glfs;
     struct glfs_fd *fd;
 } BDRVGlusterState;
-
-#define GLUSTER_FD_READ  0
-#define GLUSTER_FD_WRITE 1
 
 typedef struct GlusterConf {
     char *server;
