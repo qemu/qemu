@@ -358,7 +358,7 @@ static void start_data_plane_bh(void *opaque)
 
     qemu_bh_delete(s->start_bh);
     s->start_bh = NULL;
-    qemu_thread_create(&s->thread, data_plane_thread,
+    qemu_thread_create(&s->thread, "data_plane", data_plane_thread,
                        s, QEMU_THREAD_JOINABLE);
 }
 
