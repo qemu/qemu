@@ -374,7 +374,6 @@ void disable_kvm_pv_eoi(void)
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
-#if defined(CONFIG_KVM)
     uint32_t vec[4];
 
 #ifdef __x86_64__
@@ -382,7 +381,7 @@ void host_cpuid(uint32_t function, uint32_t count,
                  : "=a"(vec[0]), "=b"(vec[1]),
                    "=c"(vec[2]), "=d"(vec[3])
                  : "0"(function), "c"(count) : "cc");
-#else
+#elif defined(__i386__)
     asm volatile("pusha \n\t"
                  "cpuid \n\t"
                  "mov %%eax, 0(%2) \n\t"
@@ -392,6 +391,8 @@ void host_cpuid(uint32_t function, uint32_t count,
                  "popa"
                  : : "a"(function), "c"(count), "S"(vec)
                  : "memory", "cc");
+#else
+    abort();
 #endif
 
     if (eax)
@@ -402,7 +403,6 @@ void host_cpuid(uint32_t function, uint32_t count,
         *ecx = vec[2];
     if (edx)
         *edx = vec[3];
-#endif
 }
 
 #define iswhite(c) ((c) && ((c) <= ' ' || '~' < (c)))
@@ -1119,7 +1119,6 @@ void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
     }
 }
 
-#ifdef CONFIG_KVM
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -1134,7 +1133,6 @@ static int cpu_x86_fill_model_id(char *str)
     }
     return 0;
 }
-#endif
 
 /* Fill a x86_def_t struct with information about the host CPU, and
  * the CPU features supported by the host hardware + host kernel
@@ -1143,7 +1141,6 @@ static int cpu_x86_fill_model_id(char *str)
  */
 static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 {
-#ifdef CONFIG_KVM
     KVMState *s = kvm_state;
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
@@ -1173,8 +1170,6 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
             kvm_arch_get_supported_cpuid(s, wi->cpuid_eax, wi->cpuid_ecx,
                                          wi->cpuid_reg);
     }
-
-#endif /* CONFIG_KVM */
 }
 
 static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
@@ -1817,7 +1812,6 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-#ifdef CONFIG_KVM
 static void filter_features_for_kvm(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -1834,7 +1828,6 @@ static void filter_features_for_kvm(X86CPU *cpu)
         cpu->filtered_features[w] = requested_features & ~env->features[w];
     }
 }
-#endif
 
 static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
 {
@@ -2545,9 +2538,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                        "Host's CPU doesn't support requested features");
             goto out;
         }
-#ifdef CONFIG_KVM
         filter_features_for_kvm(cpu);
-#endif
     }
 
 #ifndef CONFIG_USER_ONLY
