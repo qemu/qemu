@@ -1,6 +1,30 @@
 # -*- mode: makefile -*-
 
 ######################################################################
+# Auto-generated event descriptions for LTTng ust code
+
+ifeq ($(TRACE_BACKEND),ust)
+$(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
+$(obj)/generated-ust-provider.h-timestamp: $(SRC_PATH)/trace-events
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-h \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-ust.c: $(obj)/generated-ust.c-timestamp $(BUILD_DIR)/config-host.mak
+$(obj)/generated-ust.c-timestamp: $(SRC_PATH)/trace-events
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-c \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-events.h: $(obj)/generated-ust-provider.h
+$(obj)/generated-events.c: $(obj)/generated-ust.c
+endif
+
+######################################################################
 # Auto-generated event descriptions
 
 $(obj)/generated-events.h: $(obj)/generated-events.h-timestamp
@@ -77,5 +101,6 @@ util-obj-$(CONFIG_TRACE_DEFAULT) += default.o
 util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
 util-obj-$(CONFIG_TRACE_STDERR) += stderr.o
 util-obj-$(CONFIG_TRACE_FTRACE) += ftrace.o
+util-obj-$(CONFIG_TRACE_UST) += generated-ust.o
 util-obj-y += control.o
 util-obj-y += generated-tracers.o
