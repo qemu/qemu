@@ -469,6 +469,7 @@ void qmp_migrate_cancel(Error **errp)
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 {
     MigrationState *s = migrate_get_current();
+    int64_t new_size;
 
     /* Check for truncation */
     if (value != (size_t)value) {
@@ -477,7 +478,14 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
         return;
     }
 
-    s->xbzrle_cache_size = xbzrle_cache_resize(value);
+    new_size = xbzrle_cache_resize(value);
+    if (new_size < 0) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                  "is smaller than page size");
+        return;
+    }
+
+    s->xbzrle_cache_size = new_size;
 }
 
 int64_t qmp_query_migrate_cache_size(Error **errp)
