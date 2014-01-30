@@ -1601,18 +1601,6 @@ static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
         def = &builtin_x86_defs[i];
         if (strcmp(name, def->name) == 0) {
             memcpy(x86_cpu_def, def, sizeof(*def));
-            /* sysenter isn't supported in compatibility mode on AMD,
-             * syscall isn't supported in compatibility mode on Intel.
-             * Normally we advertise the actual CPU vendor, but you can
-             * override this using the 'vendor' property if you want to use
-             * KVM's sysenter/syscall emulation in compatibility mode and
-             * when doing cross vendor migration
-             */
-            if (kvm_enabled()) {
-                uint32_t  ebx = 0, ecx = 0, edx = 0;
-                host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
-                x86_cpu_vendor_words2str(x86_cpu_def->vendor, ebx, edx, ecx);
-            }
             return 0;
         }
     }
@@ -1841,7 +1829,6 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
         return;
     }
 
-    object_property_set_str(OBJECT(cpu), def->vendor, "vendor", errp);
     object_property_set_int(OBJECT(cpu), def->level, "level", errp);
     object_property_set_int(OBJECT(cpu), def->family, "family", errp);
     object_property_set_int(OBJECT(cpu), def->model, "model", errp);
@@ -1865,6 +1852,25 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
         env->features[FEAT_KVM] |= kvm_default_features;
     }
     env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
+
+    /* sysenter isn't supported in compatibility mode on AMD,
+     * syscall isn't supported in compatibility mode on Intel.
+     * Normally we advertise the actual CPU vendor, but you can
+     * override this using the 'vendor' property if you want to use
+     * KVM's sysenter/syscall emulation in compatibility mode and
+     * when doing cross vendor migration
+     */
+    const char *vendor = def->vendor;
+    char host_vendor[CPUID_VENDOR_SZ + 1];
+    if (kvm_enabled()) {
+        uint32_t  ebx = 0, ecx = 0, edx = 0;
+        host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
+        x86_cpu_vendor_words2str(host_vendor, ebx, edx, ecx);
+        vendor = host_vendor;
+    }
+
+    object_property_set_str(OBJECT(cpu), vendor, "vendor", errp);
+
 }
 
 X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
