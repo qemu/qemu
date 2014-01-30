@@ -150,7 +150,7 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr)
     return cache_get_by_addr(cache, addr)->it_data;
 }
 
-void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
+int cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
 {
 
     CacheItem *it = NULL;
@@ -161,16 +161,22 @@ void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
     /* actual update of entry */
     it = cache_get_by_addr(cache, addr);
 
-    /* free old cached data if any */
-    g_free(it->it_data);
-
+    /* allocate page */
     if (!it->it_data) {
+        it->it_data = g_try_malloc(cache->page_size);
+        if (!it->it_data) {
+            DPRINTF("Error allocating page\n");
+            return -1;
+        }
         cache->num_items++;
     }
 
-    it->it_data = g_memdup(pdata, cache->page_size);
+    memcpy(it->it_data, pdata, cache->page_size);
+
     it->it_age = ++cache->max_item_age;
     it->it_addr = addr;
+
+    return 0;
 }
 
 int64_t cache_resize(PageCache *cache, int64_t new_num_pages)

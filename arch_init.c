@@ -284,7 +284,9 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
 
     if (!cache_is_cached(XBZRLE.cache, current_addr)) {
         if (!last_stage) {
-            cache_insert(XBZRLE.cache, current_addr, current_data);
+            if (cache_insert(XBZRLE.cache, current_addr, current_data) == -1) {
+                return -1;
+            }
         }
         acct_info.xbzrle_cache_miss++;
         return -1;
