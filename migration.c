@@ -105,6 +105,7 @@ static void process_incoming_migration_co(void *opaque)
 
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
+    free_xbzrle_decoded_buf();
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
         exit(EXIT_FAILURE);

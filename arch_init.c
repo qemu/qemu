@@ -164,17 +164,15 @@ static struct {
     uint8_t *encoded_buf;
     /* buffer for storing page content */
     uint8_t *current_buf;
-    /* buffer used for XBZRLE decoding */
-    uint8_t *decoded_buf;
     /* Cache for XBZRLE */
     PageCache *cache;
 } XBZRLE = {
     .encoded_buf = NULL,
     .current_buf = NULL,
-    .decoded_buf = NULL,
     .cache = NULL,
 };
-
+/* buffer used for XBZRLE decoding */
+static uint8_t *xbzrle_decoded_buf;
 
 int64_t xbzrle_cache_resize(int64_t new_size)
 {
@@ -606,6 +604,12 @@ uint64_t ram_bytes_total(void)
     return total;
 }
 
+void free_xbzrle_decoded_buf(void)
+{
+    g_free(xbzrle_decoded_buf);
+    xbzrle_decoded_buf = NULL;
+}
+
 static void migration_end(void)
 {
     if (migration_bitmap) {
@@ -619,11 +623,9 @@ static void migration_end(void)
         g_free(XBZRLE.cache);
         g_free(XBZRLE.encoded_buf);
         g_free(XBZRLE.current_buf);
-        g_free(XBZRLE.decoded_buf);
         XBZRLE.cache = NULL;
         XBZRLE.encoded_buf = NULL;
         XBZRLE.current_buf = NULL;
-        XBZRLE.decoded_buf = NULL;
     }
 }
 
@@ -814,8 +816,8 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     unsigned int xh_len;
     int xh_flags;
 
-    if (!XBZRLE.decoded_buf) {
-        XBZRLE.decoded_buf = g_malloc(TARGET_PAGE_SIZE);
+    if (!xbzrle_decoded_buf) {
+        xbzrle_decoded_buf = g_malloc(TARGET_PAGE_SIZE);
     }
 
     /* extract RLE header */
@@ -832,10 +834,10 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
         return -1;
     }
     /* load data and decode */
-    qemu_get_buffer(f, XBZRLE.decoded_buf, xh_len);
+    qemu_get_buffer(f, xbzrle_decoded_buf, xh_len);
 
     /* decode RLE */
-    ret = xbzrle_decode_buffer(XBZRLE.decoded_buf, xh_len, host,
+    ret = xbzrle_decode_buffer(xbzrle_decoded_buf, xh_len, host,
                                TARGET_PAGE_SIZE);
     if (ret == -1) {
         fprintf(stderr, "Failed to load XBZRLE page - decode error!\n");
