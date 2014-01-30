@@ -617,6 +617,9 @@ static void migration_end(void)
         g_free(XBZRLE.current_buf);
         g_free(XBZRLE.decoded_buf);
         XBZRLE.cache = NULL;
+        XBZRLE.encoded_buf = NULL;
+        XBZRLE.current_buf = NULL;
+        XBZRLE.decoded_buf = NULL;
     }
 }
 
