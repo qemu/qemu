@@ -325,7 +325,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
                                  hwaddr *plen, bool resolve_subpage)
 {
     MemoryRegionSection *section;
-    Int128 diff;
+    Int128 diff, diff_page;
 
     section = address_space_lookup_region(d, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
@@ -334,7 +334,9 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     /* Compute offset within MemoryRegion */
     *xlat = addr + section->offset_within_region;
 
+    diff_page = int128_make64(((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr);
     diff = int128_sub(section->mr->size, int128_make64(addr));
+    diff = int128_min(diff, diff_page);
     *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     return section;
 }
@@ -349,7 +351,7 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     hwaddr len = *plen;
 
     for (;;) {
-        section = address_space_translate_internal(as->dispatch, addr, &addr, plen, true);
+        section = address_space_translate_internal(as->dispatch, addr, &addr, &len, true);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
