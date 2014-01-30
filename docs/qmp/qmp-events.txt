@@ -479,7 +479,7 @@ Data: None.
 
 Example:
 
-{ "event": "WATCHDOG",
+{ "event": "WAKEUP",
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 
 WATCHDOG

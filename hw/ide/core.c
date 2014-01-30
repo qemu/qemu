@@ -1321,6 +1321,7 @@ static bool cmd_exec_dev_diagnostic(IDEState *s, uint8_t cmd)
         s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
                         * devices to return a clear status register
                         * with READY_STAT *not* set. */
+        s->error = 0x01;
     } else {
         s->status = READY_STAT | SEEK_STAT;
         /* The bits of the error register are not as usual for this command!

@@ -263,7 +263,7 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
 
-    memcpy(config_data, &config, 8);
+    memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
 }
 
 static void virtio_balloon_set_config(VirtIODevice *vdev,
@@ -272,7 +272,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     struct virtio_balloon_config config;
     uint32_t oldactual = dev->actual;
-    memcpy(&config, config_data, 8);
+    memcpy(&config, config_data, sizeof(struct virtio_balloon_config));
     dev->actual = le32_to_cpu(config.actual);
     if (dev->actual != oldactual) {
         qemu_balloon_changed(ram_size -
@@ -343,7 +343,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);
     int ret;
 
-    virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON, 8);
+    virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON,
+                sizeof(struct virtio_balloon_config));
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);

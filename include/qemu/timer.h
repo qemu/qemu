@@ -405,7 +405,7 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  * timer_init:
  * @ts: the timer to be initialised
  * @timer_list: the timer list to attach the timer to
- * @scale: the scale value for the tiemr
+ * @scale: the scale value for the timer
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
@@ -422,7 +422,7 @@ void timer_init(QEMUTimer *ts,
 /**
  * timer_new_tl:
  * @timer_list: the timer list to attach the timer to
- * @scale: the scale value for the tiemr
+ * @scale: the scale value for the timer
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
@@ -447,7 +447,7 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
 /**
  * timer_new:
  * @type: the clock type to use
- * @scale: the scale value for the tiemr
+ * @scale: the scale value for the timer
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *

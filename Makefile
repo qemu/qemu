@@ -290,7 +290,7 @@ common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr \
 bepo    cz
 
 ifdef INSTALL_BLOBS
-BLOBS=bios.bin sgabios.bin vgabios.bin vgabios-cirrus.bin \
+BLOBS=bios.bin bios-256k.bin sgabios.bin vgabios.bin vgabios-cirrus.bin \
 vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin \
 acpi-dsdt.aml q35-acpi-dsdt.aml \
 ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc QEMU,tcx.bin \
