@@ -99,16 +99,29 @@ static const int tcg_target_call_oarg_regs[] = {
 # define TCG_REG_L1 TCG_REG_EDX
 #endif
 
+/* The host compiler should supply <cpuid.h> to enable runtime features
+   detection, as we're not going to go so far as our own inline assembly.
+   If not available, default values will be assumed.  */
+#if defined(CONFIG_CPUID_H)
+#include <cpuid.h>
+#endif
+
 /* For 32-bit, we are going to attempt to determine at runtime whether cmov
-   is available.  However, the host compiler must supply <cpuid.h>, as we're
-   not going to go so far as our own inline assembly.  */
+   is available.  */
 #if TCG_TARGET_REG_BITS == 64
 # define have_cmov 1
 #elif defined(CONFIG_CPUID_H)
-#include <cpuid.h>
 static bool have_cmov;
 #else
 # define have_cmov 0
+#endif
+
+/* If bit_MOVBE is defined in cpuid.h (added in GCC version 4.6), we are
+   going to attempt to determine at runtime whether movbe is available.  */
+#if defined(CONFIG_CPUID_H) && defined(bit_MOVBE)
+static bool have_movbe;
+#else
+# define have_movbe 0
 #endif
 
 static uint8_t *tb_ret_addr;
@@ -240,13 +253,14 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #endif
 
 #define P_EXT		0x100		/* 0x0f opcode prefix */
-#define P_DATA16	0x200		/* 0x66 opcode prefix */
+#define P_EXT38         0x200           /* 0x0f 0x38 opcode prefix */
+#define P_DATA16        0x400           /* 0x66 opcode prefix */
 #if TCG_TARGET_REG_BITS == 64
-# define P_ADDR32	0x400		/* 0x67 opcode prefix */
-# define P_REXW		0x800		/* Set REX.W = 1 */
-# define P_REXB_R	0x1000		/* REG field as byte register */
-# define P_REXB_RM	0x2000		/* R/M field as byte register */
-# define P_GS           0x4000          /* gs segment override */
+# define P_ADDR32       0x800           /* 0x67 opcode prefix */
+# define P_REXW         0x1000          /* Set REX.W = 1 */
+# define P_REXB_R       0x2000          /* REG field as byte register */
+# define P_REXB_RM      0x4000          /* R/M field as byte register */
+# define P_GS           0x8000          /* gs segment override */
 #else
 # define P_ADDR32	0
 # define P_REXW		0
@@ -279,6 +293,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_MOVB_EvIz   (0xc6)
 #define OPC_MOVL_EvIz	(0xc7)
 #define OPC_MOVL_Iv     (0xb8)
+#define OPC_MOVBE_GyMy  (0xf0 | P_EXT38)
+#define OPC_MOVBE_MyGy  (0xf1 | P_EXT38)
 #define OPC_MOVSBL	(0xbe | P_EXT)
 #define OPC_MOVSWL	(0xbf | P_EXT)
 #define OPC_MOVSLQ	(0x63 | P_REXW)
@@ -381,7 +397,7 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     }
 
     rex = 0;
-    rex |= (opc & P_REXW) >> 8;		/* REX.W */
+    rex |= (opc & P_REXW) ? 0x8 : 0x0;  /* REX.W */
     rex |= (r & 8) >> 1;		/* REX.R */
     rex |= (x & 8) >> 2;		/* REX.X */
     rex |= (rm & 8) >> 3;		/* REX.B */
@@ -398,9 +414,13 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
         tcg_out8(s, (uint8_t)(rex | 0x40));
     }
 
-    if (opc & P_EXT) {
+    if (opc & (P_EXT | P_EXT38)) {
         tcg_out8(s, 0x0f);
+        if (opc & P_EXT38) {
+            tcg_out8(s, 0x38);
+        }
     }
+
     tcg_out8(s, opc);
 }
 #else
@@ -409,8 +429,11 @@ static void tcg_out_opc(TCGContext *s, int opc)
     if (opc & P_DATA16) {
         tcg_out8(s, 0x66);
     }
-    if (opc & P_EXT) {
+    if (opc & (P_EXT | P_EXT38)) {
         tcg_out8(s, 0x0f);
+        if (opc & P_EXT38) {
+            tcg_out8(s, 0x38);
+        }
     }
     tcg_out8(s, opc);
 }
@@ -1336,7 +1359,14 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, intptr_t ofs, int seg,
                                    TCGMemOp memop)
 {
-    const TCGMemOp bswap = memop & MO_BSWAP;
+    const TCGMemOp real_bswap = memop & MO_BSWAP;
+    TCGMemOp bswap = real_bswap;
+    int movop = OPC_MOVL_GvEv;
+
+    if (have_movbe && real_bswap) {
+        bswap = 0;
+        movop = OPC_MOVBE_GyMy;
+    }
 
     switch (memop & MO_SSIZE) {
     case MO_UB:
@@ -1347,14 +1377,19 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
         break;
     case MO_UW:
         tcg_out_modrm_offset(s, OPC_MOVZWL + seg, datalo, base, ofs);
-        if (bswap) {
+        if (real_bswap) {
             tcg_out_rolw_8(s, datalo);
         }
         break;
     case MO_SW:
-        if (bswap) {
-            tcg_out_modrm_offset(s, OPC_MOVZWL + seg, datalo, base, ofs);
-            tcg_out_rolw_8(s, datalo);
+        if (real_bswap) {
+            if (have_movbe) {
+                tcg_out_modrm_offset(s, OPC_MOVBE_GyMy + P_DATA16 + seg,
+                                     datalo, base, ofs);
+            } else {
+                tcg_out_modrm_offset(s, OPC_MOVZWL + seg, datalo, base, ofs);
+                tcg_out_rolw_8(s, datalo);
+            }
             tcg_out_modrm(s, OPC_MOVSWL + P_REXW, datalo, datalo);
         } else {
             tcg_out_modrm_offset(s, OPC_MOVSWL + P_REXW + seg,
@@ -1362,16 +1397,18 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
         }
         break;
     case MO_UL:
-        tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg, datalo, base, ofs);
+        tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
         if (bswap) {
             tcg_out_bswap32(s, datalo);
         }
         break;
 #if TCG_TARGET_REG_BITS == 64
     case MO_SL:
-        if (bswap) {
-            tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg, datalo, base, ofs);
-            tcg_out_bswap32(s, datalo);
+        if (real_bswap) {
+            tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
+            if (bswap) {
+                tcg_out_bswap32(s, datalo);
+            }
             tcg_out_ext32s(s, datalo, datalo);
         } else {
             tcg_out_modrm_offset(s, OPC_MOVSLQ + seg, datalo, base, ofs);
@@ -1380,27 +1417,22 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 #endif
     case MO_Q:
         if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_modrm_offset(s, OPC_MOVL_GvEv + P_REXW + seg,
-                                 datalo, base, ofs);
+            tcg_out_modrm_offset(s, movop + P_REXW + seg, datalo, base, ofs);
             if (bswap) {
                 tcg_out_bswap64(s, datalo);
             }
         } else {
-            if (bswap) {
+            if (real_bswap) {
                 int t = datalo;
                 datalo = datahi;
                 datahi = t;
             }
             if (base != datalo) {
-                tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg,
-                                     datalo, base, ofs);
-                tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg,
-                                     datahi, base, ofs + 4);
+                tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
+                tcg_out_modrm_offset(s, movop + seg, datahi, base, ofs + 4);
             } else {
-                tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg,
-                                     datahi, base, ofs + 4);
-                tcg_out_modrm_offset(s, OPC_MOVL_GvEv + seg,
-                                     datalo, base, ofs);
+                tcg_out_modrm_offset(s, movop + seg, datahi, base, ofs + 4);
+                tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
             }
             if (bswap) {
                 tcg_out_bswap32(s, datalo);
@@ -1476,13 +1508,19 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, intptr_t ofs, int seg,
                                    TCGMemOp memop)
 {
-    const TCGMemOp bswap = memop & MO_BSWAP;
-
     /* ??? Ideally we wouldn't need a scratch register.  For user-only,
        we could perform the bswap twice to restore the original value
        instead of moving to the scratch.  But as it is, the L constraint
        means that TCG_REG_L0 is definitely free here.  */
     const TCGReg scratch = TCG_REG_L0;
+    const TCGMemOp real_bswap = memop & MO_BSWAP;
+    TCGMemOp bswap = real_bswap;
+    int movop = OPC_MOVL_EvGv;
+
+    if (have_movbe && real_bswap) {
+        bswap = 0;
+        movop = OPC_MOVBE_MyGy;
+    }
 
     switch (memop & MO_SIZE) {
     case MO_8:
@@ -1501,8 +1539,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
             tcg_out_rolw_8(s, scratch);
             datalo = scratch;
         }
-        tcg_out_modrm_offset(s, OPC_MOVL_EvGv + P_DATA16 + seg,
-                             datalo, base, ofs);
+        tcg_out_modrm_offset(s, movop + P_DATA16 + seg, datalo, base, ofs);
         break;
     case MO_32:
         if (bswap) {
@@ -1510,7 +1547,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
             tcg_out_bswap32(s, scratch);
             datalo = scratch;
         }
-        tcg_out_modrm_offset(s, OPC_MOVL_EvGv + seg, datalo, base, ofs);
+        tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
         break;
     case MO_64:
         if (TCG_TARGET_REG_BITS == 64) {
@@ -1519,8 +1556,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                 tcg_out_bswap64(s, scratch);
                 datalo = scratch;
             }
-            tcg_out_modrm_offset(s, OPC_MOVL_EvGv + P_REXW + seg,
-                                 datalo, base, ofs);
+            tcg_out_modrm_offset(s, movop + P_REXW + seg, datalo, base, ofs);
         } else if (bswap) {
             tcg_out_mov(s, TCG_TYPE_I32, scratch, datahi);
             tcg_out_bswap32(s, scratch);
@@ -1529,8 +1565,13 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
             tcg_out_bswap32(s, scratch);
             tcg_out_modrm_offset(s, OPC_MOVL_EvGv + seg, scratch, base, ofs+4);
         } else {
-            tcg_out_modrm_offset(s, OPC_MOVL_EvGv + seg, datalo, base, ofs);
-            tcg_out_modrm_offset(s, OPC_MOVL_EvGv + seg, datahi, base, ofs+4);
+            if (real_bswap) {
+                int t = datalo;
+                datalo = datahi;
+                datahi = t;
+            }
+            tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
+            tcg_out_modrm_offset(s, movop + seg, datahi, base, ofs+4);
         }
         break;
     default:
@@ -1985,9 +2026,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_setcond_i32, { "q", "r", "ri" } },
 
     { INDEX_op_deposit_i32, { "Q", "0", "Q" } },
-#if TCG_TARGET_HAS_movcond_i32
     { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "0" } },
-#endif
 
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
     { INDEX_op_muls2_i32, { "a", "d", "a", "r" } },
@@ -2157,13 +2196,23 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
-    /* For 32-bit, 99% certainty that we're running on hardware that supports
-       cmov, but we still need to check.  In case cmov is not available, we'll
-       use a small forward branch.  */
-#ifndef have_cmov
+#if !(defined(have_cmov) && defined(have_movbe))
     {
         unsigned a, b, c, d;
-        have_cmov = (__get_cpuid(1, &a, &b, &c, &d) && (d & bit_CMOV));
+        int ret = __get_cpuid(1, &a, &b, &c, &d);
+
+# ifndef have_cmov
+        /* For 32-bit, 99% certainty that we're running on hardware that
+           supports cmov, but we still need to check.  In case cmov is not
+           available, we'll use a small forward branch.  */
+        have_cmov = ret && (d & bit_CMOV);
+# endif
+
+# ifndef have_movbe
+        /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
+           need to probe for it.  */
+        have_movbe = ret && (c & bit_MOVBE);
+# endif
     }
 #endif
 

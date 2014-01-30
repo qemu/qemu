@@ -2632,17 +2632,17 @@ static const struct dis386 prefix_user_table[][4] = {
 
   /* PREGRP87 */
   {
+    { "movbe",	{ Gv, Ev } },
     { "(bad)",	{ XX } },
-    { "(bad)",	{ XX } },
-    { "(bad)",	{ XX } },
+    { "movbe",	{ Gv, Ev } },
     { "crc32",	{ Gdq, { CRC32_Fixup, b_mode } } },
   },
 
   /* PREGRP88 */
   {
+    { "movbe",	{ Ev, Gv } },
     { "(bad)",	{ XX } },
-    { "(bad)",	{ XX } },
-    { "(bad)",	{ XX } },
+    { "movbe",	{ Ev, Gv } },
     { "crc32",	{ Gdq, { CRC32_Fixup, v_mode } } },
   },
 
