@@ -664,8 +664,22 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
             DPRINTF("Error creating cache\n");
             return -1;
         }
-        XBZRLE.encoded_buf = g_malloc0(TARGET_PAGE_SIZE);
-        XBZRLE.current_buf = g_malloc(TARGET_PAGE_SIZE);
+
+        /* We prefer not to abort if there is no memory */
+        XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
+        if (!XBZRLE.encoded_buf) {
+            DPRINTF("Error allocating encoded_buf\n");
+            return -1;
+        }
+
+        XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
+        if (!XBZRLE.current_buf) {
+            DPRINTF("Error allocating current_buf\n");
+            g_free(XBZRLE.encoded_buf);
+            XBZRLE.encoded_buf = NULL;
+            return -1;
+        }
+
         acct_clear();
     }
 
