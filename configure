@@ -3379,15 +3379,25 @@ fi
 # For 'ust' backend, test if ust headers are present
 if test "$trace_backend" = "ust"; then
   cat > $TMPC << EOF
-#include <ust/tracepoint.h>
-#include <ust/marker.h>
+#include <lttng/tracepoint.h>
 int main(void) { return 0; }
 EOF
   if compile_prog "" "" ; then
-    LIBS="-lust -lurcu-bp $LIBS"
-    libs_qga="-lust -lurcu-bp $libs_qga"
+    if $pkg_config lttng-ust --exists; then
+      lttng_ust_libs=`$pkg_config --libs lttng-ust`
+    else
+      lttng_ust_libs="-llttng-ust"
+    fi
+    if $pkg_config liburcu-bp --exists; then
+      urcu_bp_libs=`$pkg_config --libs liburcu-bp`
+    else
+      urcu_bp_libs="-lurcu-bp"
+    fi
+
+    LIBS="$lttng_ust_libs $urcu_bp_libs $LIBS"
+    libs_qga="$lttng_ust_libs $urcu_bp_libs $libs_qga"
   else
-    error_exit "Trace backend 'ust' missing libust header files"
+    error_exit "Trace backend 'ust' missing lttng-ust header files"
   fi
 fi
 
