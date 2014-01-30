@@ -60,7 +60,7 @@ static void test_visitor_in_int(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "-42");
 
     visit_type_int(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, value);
 }
 
@@ -74,42 +74,42 @@ static void test_visitor_in_bool(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "true");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "yes");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "on");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, true);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "false");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, false);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "no");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, false);
     visitor_input_teardown(data, unused);
 
     v = visitor_input_test_init(data, "off");
 
     visit_type_bool(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpint(res, ==, false);
 }
 
@@ -123,7 +123,7 @@ static void test_visitor_in_number(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "3.14");
 
     visit_type_number(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpfloat(res, ==, value);
 }
 
@@ -137,7 +137,7 @@ static void test_visitor_in_string(TestInputVisitorData *data,
     v = visitor_input_test_init(data, value);
 
     visit_type_str(v, &res, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_assert_cmpstr(res, ==, value);
 
     g_free(res);
@@ -156,7 +156,7 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
         v = visitor_input_test_init(data, EnumOne_lookup[i]);
 
         visit_type_EnumOne(v, &res, NULL, &errp);
-        g_assert(!error_is_set(&errp));
+        g_assert(!errp);
         g_assert_cmpint(i, ==, res);
 
         visitor_input_teardown(data, NULL);

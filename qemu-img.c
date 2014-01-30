@@ -419,7 +419,7 @@ static int img_create(int argc, char **argv)
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, BDRV_O_FLAGS, &local_err, quiet);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("%s: %s", filename, error_get_pretty(local_err));
         error_free(local_err);
         return 1;
@@ -1289,7 +1289,7 @@ static int img_convert(int argc, char **argv)
 
         bdrv_snapshot_load_tmp_by_id_or_name(bs[0], snapshot_name, &local_err);
     }
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("Failed to load snapshot: %s",
                      error_get_pretty(local_err));
         error_free(local_err);
@@ -1775,7 +1775,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
 
         bdrv_query_image_info(bs, &info, &err);
-        if (error_is_set(&err)) {
+        if (err) {
             error_report("%s", error_get_pretty(err));
             error_free(err);
             goto err;
@@ -2184,7 +2184,7 @@ static int img_snapshot(int argc, char **argv)
 
     case SNAPSHOT_DELETE:
         bdrv_snapshot_delete_by_id_or_name(bs, snapshot_name, &err);
-        if (error_is_set(&err)) {
+        if (err) {
             error_report("Could not delete snapshot '%s': (%s)",
                          snapshot_name, error_get_pretty(err));
             error_free(err);

@@ -2725,7 +2725,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 
     chr = qemu_chr_open_socket_fd(fd, do_nodelay, is_listen, is_telnet,
                                   is_waitconnect, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         goto fail;
     }
     return chr;
@@ -2938,7 +2938,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     Error *local_err = NULL;
 
     opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return NULL;
@@ -3323,7 +3323,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
         return NULL;
 
     chr = qemu_chr_new_from_opts(opts, init, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         error_report("%s", error_get_pretty(err));
         error_free(err);
     }

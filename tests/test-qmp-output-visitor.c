@@ -49,7 +49,7 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
     QObject *obj;
 
     visit_type_int(data->ov, &value, NULL, &errp);
-    g_assert(error_is_set(&errp) == 0);
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -67,7 +67,7 @@ static void test_visitor_out_bool(TestOutputVisitorData *data,
     QObject *obj;
 
     visit_type_bool(data->ov, &value, NULL, &errp);
-    g_assert(error_is_set(&errp) == 0);
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -85,7 +85,7 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
     QObject *obj;
 
     visit_type_number(data->ov, &value, NULL, &errp);
-    g_assert(error_is_set(&errp) == 0);
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -103,7 +103,7 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
     QObject *obj;
 
     visit_type_str(data->ov, &string, NULL, &errp);
-    g_assert(error_is_set(&errp) == 0);
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -122,7 +122,7 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
 
     /* A null string should return "" */
     visit_type_str(data->ov, &string, NULL, &errp);
-    g_assert(error_is_set(&errp) == 0);
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -141,7 +141,7 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
 
     for (i = 0; i < ENUM_ONE_MAX; i++) {
         visit_type_EnumOne(data->ov, &i, "unused", &errp);
-        g_assert(!error_is_set(&errp));
+        g_assert(!errp);
 
         obj = qmp_output_get_qobject(data->qov);
         g_assert(obj != NULL);
@@ -161,7 +161,7 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
     for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
         errp = NULL;
         visit_type_EnumOne(data->ov, &bad_values[i], "unused", &errp);
-        g_assert(error_is_set(&errp) == true);
+        g_assert(errp);
         error_free(errp);
     }
 }
@@ -198,7 +198,7 @@ static void test_visitor_out_struct(TestOutputVisitorData *data,
     QDict *qdict;
 
     visit_type_TestStruct(data->ov, &p, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -241,7 +241,7 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->dict1.dict3.string3 = g_strdup(strings[3]);
 
     visit_type_UserDefNested(data->ov, &ud2, "unused", &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -288,7 +288,7 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
         u.has_enum1 = true;
         u.enum1 = bad_values[i];
         visit_type_UserDefOne(data->ov, &pu, "unused", &errp);
-        g_assert(error_is_set(&errp) == true);
+        g_assert(errp);
         error_free(errp);
     }
 }
@@ -343,7 +343,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     }
 
     visit_type_TestStructList(data->ov, &head, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);

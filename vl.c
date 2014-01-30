@@ -2321,7 +2321,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
     Error *local_err = NULL;
 
     qemu_chr_new_from_opts(opts, NULL, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return -1;
