@@ -164,7 +164,6 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 static char *assign_name(NetClientState *nc1, const char *model)
 {
     NetClientState *nc;
-    char buf[256];
     int id = 0;
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
@@ -176,9 +175,7 @@ static char *assign_name(NetClientState *nc1, const char *model)
         }
     }
 
-    snprintf(buf, sizeof(buf), "%s.%d", model, id);
-
-    return g_strdup(buf);
+    return g_strdup_printf("%s.%d", model, id);
 }
 
 static void qemu_net_client_destructor(NetClientState *nc)
