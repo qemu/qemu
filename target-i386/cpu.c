@@ -1893,6 +1893,11 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     features = model_pieces[1];
 
     cpu = X86_CPU(object_new(TYPE_X86_CPU));
+    x86_cpu_load_def(cpu, name, &error);
+    if (error) {
+        goto out;
+    }
+
 #ifndef CONFIG_USER_ONLY
     if (icc_bridge == NULL) {
         error_setg(&error, "Invalid icc-bridge value");
@@ -1901,11 +1906,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
     object_unref(OBJECT(cpu));
 #endif
-
-    x86_cpu_load_def(cpu, name, &error);
-    if (error) {
-        goto out;
-    }
 
     /* Emulate per-model subclasses for global properties */
     typename = g_strdup_printf("%s-" TYPE_X86_CPU, name);
