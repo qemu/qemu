@@ -89,6 +89,7 @@ const uint8_t *fifo8_pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *num)
 void fifo8_reset(Fifo8 *fifo)
 {
     fifo->num = 0;
+    fifo->head = 0;
 }
 
 bool fifo8_is_empty(Fifo8 *fifo)
