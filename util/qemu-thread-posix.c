@@ -27,6 +27,13 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 
+static bool name_threads;
+
+void qemu_thread_naming(bool enable)
+{
+    name_threads = enable;
+}
+
 static void error_exit(int err, const char *msg)
 {
     fprintf(stderr, "qemu: %s: %s\n", msg, strerror(err));

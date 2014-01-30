@@ -495,6 +495,12 @@ static QemuOptsList qemu_name_opts = {
             .name = "process",
             .type = QEMU_OPT_STRING,
             .help = "Sets the name of the QEMU process, as shown in top etc",
+        }, {
+            .name = "debug-threads",
+            .type = QEMU_OPT_BOOL,
+            .help = "When enabled, name the individual threads; defaults off.\n"
+                    "NOTE: The thread names are for debugging and not a\n"
+                    "stable API.",
         },
         { /* End of list */ }
     },
@@ -954,6 +960,9 @@ static void parse_name(QemuOpts *opts)
 {
     const char *proc_name;
 
+    if (qemu_opt_get(opts, "debug-threads")) {
+        qemu_thread_naming(qemu_opt_get_bool(opts, "debug-threads", false));
+    }
     qemu_name = qemu_opt_get(opts, "guest");
 
     proc_name = qemu_opt_get(opts, "process");
