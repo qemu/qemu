@@ -1841,11 +1841,6 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
         return;
     }
 
-    if (kvm_enabled()) {
-        def->features[FEAT_KVM] |= kvm_default_features;
-    }
-    def->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
-
     object_property_set_str(OBJECT(cpu), def->vendor, "vendor", errp);
     object_property_set_int(OBJECT(cpu), def->level, "level", errp);
     object_property_set_int(OBJECT(cpu), def->family, "family", errp);
@@ -1864,6 +1859,12 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
     cpu->cache_info_passthrough = def->cache_info_passthrough;
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
+
+    /* Special cases not set in the x86_def_t structs: */
+    if (kvm_enabled()) {
+        env->features[FEAT_KVM] |= kvm_default_features;
+    }
+    env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
 }
 
 X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
