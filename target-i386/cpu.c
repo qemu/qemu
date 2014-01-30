@@ -1817,7 +1817,9 @@ static void filter_features_for_kvm(X86CPU *cpu)
     }
 }
 
-static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
+/* Load CPU definition for a given CPU model name
+ */
+static void x86_cpu_load_def(X86CPU *cpu, const char *name, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     x86_def_t def1, *def = &def1;
@@ -1900,7 +1902,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     object_unref(OBJECT(cpu));
 #endif
 
-    cpu_x86_register(cpu, name, &error);
+    x86_cpu_load_def(cpu, name, &error);
     if (error) {
         goto out;
     }
