@@ -5577,6 +5577,131 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
     }
 }
 
+/* Handle the 3-same-operands float operations; shared by the scalar
+ * and vector encodings. The caller must filter out any encodings
+ * not allocated for the encoding it is dealing with.
+ */
+static void handle_3same_float(DisasContext *s, int size, int elements,
+                               int fpopcode, int rd, int rn, int rm)
+{
+    int pass;
+    TCGv_ptr fpst = get_fpstatus_ptr();
+
+    for (pass = 0; pass < elements; pass++) {
+        if (size) {
+            /* Double */
+            TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+            TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+            TCGv_i64 tcg_res = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op1, rn, pass, MO_64);
+            read_vec_element(s, tcg_op2, rm, pass, MO_64);
+
+            switch (fpopcode) {
+            case 0x18: /* FMAXNM */
+                gen_helper_vfp_maxnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1a: /* FADD */
+                gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1e: /* FMAX */
+                gen_helper_vfp_maxd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x38: /* FMINNM */
+                gen_helper_vfp_minnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x3a: /* FSUB */
+                gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x3e: /* FMIN */
+                gen_helper_vfp_mind(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5b: /* FMUL */
+                gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5f: /* FDIV */
+                gen_helper_vfp_divd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7a: /* FABD */
+                gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
+                gen_helper_vfp_absd(tcg_res, tcg_res);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            write_vec_element(s, tcg_res, rd, pass, MO_64);
+
+            tcg_temp_free_i64(tcg_res);
+            tcg_temp_free_i64(tcg_op1);
+            tcg_temp_free_i64(tcg_op2);
+        } else {
+            /* Single */
+            TCGv_i32 tcg_op1 = tcg_temp_new_i32();
+            TCGv_i32 tcg_op2 = tcg_temp_new_i32();
+            TCGv_i32 tcg_res = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, tcg_op1, rn, pass, MO_32);
+            read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
+
+            switch (fpopcode) {
+            case 0x1a: /* FADD */
+                gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1e: /* FMAX */
+                gen_helper_vfp_maxs(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x18: /* FMAXNM */
+                gen_helper_vfp_maxnums(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x38: /* FMINNM */
+                gen_helper_vfp_minnums(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x3a: /* FSUB */
+                gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x3e: /* FMIN */
+                gen_helper_vfp_mins(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5b: /* FMUL */
+                gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5f: /* FDIV */
+                gen_helper_vfp_divs(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7a: /* FABD */
+                gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
+                gen_helper_vfp_abss(tcg_res, tcg_res);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            if (elements == 1) {
+                /* scalar single so clear high part */
+                TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+
+                tcg_gen_extu_i32_i64(tcg_tmp, tcg_res);
+                write_vec_element(s, tcg_tmp, rd, pass, MO_64);
+                tcg_temp_free_i64(tcg_tmp);
+            } else {
+                write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+            }
+
+            tcg_temp_free_i32(tcg_res);
+            tcg_temp_free_i32(tcg_op1);
+            tcg_temp_free_i32(tcg_op2);
+        }
+    }
+
+    tcg_temp_free_ptr(fpst);
+
+    if ((elements << size) < 4) {
+        /* scalar, or non-quad vector op */
+        clear_vec_high(s, rd);
+    }
+}
+
 /* C3.6.11 AdvSIMD scalar three same
  *  31 30  29 28       24 23  22  21 20  16 15    11  10 9    5 4    0
  * +-----+---+-----------+------+---+------+--------+---+------+------+
@@ -5605,15 +5730,19 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
         case 0x3f: /* FRSQRTS */
         case 0x5c: /* FCMGE */
         case 0x5d: /* FACGE */
-        case 0x7a: /* FABD  */
         case 0x7c: /* FCMGT */
         case 0x7d: /* FACGT */
             unsupported_encoding(s, insn);
             return;
+        case 0x7a: /* FABD */
+            break;
         default:
             unallocated_encoding(s);
             return;
         }
+
+        handle_3same_float(s, extract32(size, 0, 1), 1, fpopcode, rd, rn, rm);
+        return;
     }
 
     switch (opcode) {
@@ -6028,7 +6157,64 @@ static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
 /* Floating point op subgroup of C3.6.16. */
 static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    /* For floating point ops, the U, size[1] and opcode bits
+     * together indicate the operation. size[0] indicates single
+     * or double.
+     */
+    int fpopcode = extract32(insn, 11, 5)
+        | (extract32(insn, 23, 1) << 5)
+        | (extract32(insn, 29, 1) << 6);
+    int is_q = extract32(insn, 30, 1);
+    int size = extract32(insn, 22, 1);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+
+    int datasize = is_q ? 128 : 64;
+    int esize = 32 << size;
+    int elements = datasize / esize;
+
+    if (size == 1 && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (fpopcode) {
+    case 0x58: /* FMAXNMP */
+    case 0x5a: /* FADDP */
+    case 0x5e: /* FMAXP */
+    case 0x78: /* FMINNMP */
+    case 0x7e: /* FMINP */
+        /* pairwise ops */
+        unsupported_encoding(s, insn);
+        return;
+    case 0x1b: /* FMULX */
+    case 0x1c: /* FCMEQ */
+    case 0x1f: /* FRECPS */
+    case 0x3f: /* FRSQRTS */
+    case 0x5c: /* FCMGE */
+    case 0x5d: /* FACGE */
+    case 0x7c: /* FCMGT */
+    case 0x7d: /* FACGT */
+    case 0x19: /* FMLA */
+    case 0x39: /* FMLS */
+        unsupported_encoding(s, insn);
+        return;
+    case 0x18: /* FMAXNM */
+    case 0x1a: /* FADD */
+    case 0x1e: /* FMAX */
+    case 0x38: /* FMINNM */
+    case 0x3a: /* FSUB */
+    case 0x3e: /* FMIN */
+    case 0x5b: /* FMUL */
+    case 0x5f: /* FDIV */
+    case 0x7a: /* FABD */
+        handle_3same_float(s, size, elements, fpopcode, rd, rn, rm);
+        return;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
 }
 
 /* Integer op subgroup of C3.6.16. */
