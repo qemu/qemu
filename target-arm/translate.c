@@ -2759,6 +2759,56 @@ static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
     return 0;
 }
 
+static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                        int rounding)
+{
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode;
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_op;
+        TCGv_i64 tcg_res;
+        tcg_op = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_gen_ld_f64(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rintd(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f64(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(tcg_op);
+        tcg_temp_free_i64(tcg_res);
+    } else {
+        TCGv_i32 tcg_op;
+        TCGv_i32 tcg_res;
+        tcg_op = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rints(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(tcg_op);
+        tcg_temp_free_i32(tcg_res);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
+
+/* Table for converting the most common AArch32 encoding of
+ * rounding mode to arm_fprounding order (which matches the
+ * common AArch64 order); see ARM ARM pseudocode FPDecodeRM().
+ */
+static const uint8_t fp_decode_rm[] = {
+    FPROUNDING_TIEAWAY,
+    FPROUNDING_TIEEVEN,
+    FPROUNDING_POSINF,
+    FPROUNDING_NEGINF,
+};
+
 static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
@@ -2781,6 +2831,10 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         return handle_vsel(insn, rd, rn, rm, dp);
     } else if ((insn & 0x0fb00e10) == 0x0e800a00) {
         return handle_vminmaxnm(insn, rd, rn, rm, dp);
+    } else if ((insn & 0x0fbc0ed0) == 0x0eb80a40) {
+        /* VRINTA, VRINTN, VRINTP, VRINTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vrint(insn, rd, rm, dp, rounding);
     }
     return 1;
 }
