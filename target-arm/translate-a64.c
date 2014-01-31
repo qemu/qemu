@@ -5503,15 +5503,216 @@ static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
+/*
+ * Common SSHR[RA]/USHR[RA] - Shift right (optional rounding/accumulate)
+ *
+ * This code is handles the common shifting code and is used by both
+ * the vector and scalar code.
+ */
+static void handle_shri_with_rndacc(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
+                                    TCGv_i64 tcg_rnd, bool accumulate,
+                                    bool is_u, int size, int shift)
+{
+    bool extended_result = false;
+    bool round = !TCGV_IS_UNUSED_I64(tcg_rnd);
+    int ext_lshift = 0;
+    TCGv_i64 tcg_src_hi;
+
+    if (round && size == 3) {
+        extended_result = true;
+        ext_lshift = 64 - shift;
+        tcg_src_hi = tcg_temp_new_i64();
+    } else if (shift == 64) {
+        if (!accumulate && is_u) {
+            /* result is zero */
+            tcg_gen_movi_i64(tcg_res, 0);
+            return;
+        }
+    }
+
+    /* Deal with the rounding step */
+    if (round) {
+        if (extended_result) {
+            TCGv_i64 tcg_zero = tcg_const_i64(0);
+            if (!is_u) {
+                /* take care of sign extending tcg_res */
+                tcg_gen_sari_i64(tcg_src_hi, tcg_src, 63);
+                tcg_gen_add2_i64(tcg_src, tcg_src_hi,
+                                 tcg_src, tcg_src_hi,
+                                 tcg_rnd, tcg_zero);
+            } else {
+                tcg_gen_add2_i64(tcg_src, tcg_src_hi,
+                                 tcg_src, tcg_zero,
+                                 tcg_rnd, tcg_zero);
+            }
+            tcg_temp_free_i64(tcg_zero);
+        } else {
+            tcg_gen_add_i64(tcg_src, tcg_src, tcg_rnd);
+        }
+    }
+
+    /* Now do the shift right */
+    if (round && extended_result) {
+        /* extended case, >64 bit precision required */
+        if (ext_lshift == 0) {
+            /* special case, only high bits matter */
+            tcg_gen_mov_i64(tcg_src, tcg_src_hi);
+        } else {
+            tcg_gen_shri_i64(tcg_src, tcg_src, shift);
+            tcg_gen_shli_i64(tcg_src_hi, tcg_src_hi, ext_lshift);
+            tcg_gen_or_i64(tcg_src, tcg_src, tcg_src_hi);
+        }
+    } else {
+        if (is_u) {
+            if (shift == 64) {
+                /* essentially shifting in 64 zeros */
+                tcg_gen_movi_i64(tcg_src, 0);
+            } else {
+                tcg_gen_shri_i64(tcg_src, tcg_src, shift);
+            }
+        } else {
+            if (shift == 64) {
+                /* effectively extending the sign-bit */
+                tcg_gen_sari_i64(tcg_src, tcg_src, 63);
+            } else {
+                tcg_gen_sari_i64(tcg_src, tcg_src, shift);
+            }
+        }
+    }
+
+    if (accumulate) {
+        tcg_gen_add_i64(tcg_res, tcg_res, tcg_src);
+    } else {
+        tcg_gen_mov_i64(tcg_res, tcg_src);
+    }
+
+    if (extended_result) {
+        tcg_temp_free_i64(tcg_src_hi);
+    }
+}
+
+/* Common SHL/SLI - Shift left with an optional insert */
+static void handle_shli_with_ins(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
+                                 bool insert, int shift)
+{
+    if (insert) { /* SLI */
+        tcg_gen_deposit_i64(tcg_res, tcg_res, tcg_src, shift, 64 - shift);
+    } else { /* SHL */
+        tcg_gen_shli_i64(tcg_res, tcg_src, shift);
+    }
+}
+
+/* SSHR[RA]/USHR[RA] - Scalar shift right (optional rounding/accumulate) */
+static void handle_scalar_simd_shri(DisasContext *s,
+                                    bool is_u, int immh, int immb,
+                                    int opcode, int rn, int rd)
+{
+    const int size = 3;
+    int immhb = immh << 3 | immb;
+    int shift = 2 * (8 << size) - immhb;
+    bool accumulate = false;
+    bool round = false;
+    TCGv_i64 tcg_rn;
+    TCGv_i64 tcg_rd;
+    TCGv_i64 tcg_round;
+
+    if (!extract32(immh, 3, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0x02: /* SSRA / USRA (accumulate) */
+        accumulate = true;
+        break;
+    case 0x04: /* SRSHR / URSHR (rounding) */
+        round = true;
+        break;
+    case 0x06: /* SRSRA / URSRA (accum + rounding) */
+        accumulate = round = true;
+        break;
+    }
+
+    if (round) {
+        uint64_t round_const = 1ULL << (shift - 1);
+        tcg_round = tcg_const_i64(round_const);
+    } else {
+        TCGV_UNUSED_I64(tcg_round);
+    }
+
+    tcg_rn = read_fp_dreg(s, rn);
+    tcg_rd = accumulate ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
+
+    handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                               accumulate, is_u, size, shift);
+
+    write_fp_dreg(s, rd, tcg_rd);
+
+    tcg_temp_free_i64(tcg_rn);
+    tcg_temp_free_i64(tcg_rd);
+    if (round) {
+        tcg_temp_free_i64(tcg_round);
+    }
+}
+
+/* SHL/SLI - Scalar shift left */
+static void handle_scalar_simd_shli(DisasContext *s, bool insert,
+                                    int immh, int immb, int opcode,
+                                    int rn, int rd)
+{
+    int size = 32 - clz32(immh) - 1;
+    int immhb = immh << 3 | immb;
+    int shift = immhb - (8 << size);
+    TCGv_i64 tcg_rn = new_tmp_a64(s);
+    TCGv_i64 tcg_rd = new_tmp_a64(s);
+
+    if (!extract32(immh, 3, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rn = read_fp_dreg(s, rn);
+    tcg_rd = insert ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
+
+    handle_shli_with_ins(tcg_rd, tcg_rn, insert, shift);
+
+    write_fp_dreg(s, rd, tcg_rd);
+
+    tcg_temp_free_i64(tcg_rn);
+    tcg_temp_free_i64(tcg_rd);
+}
+
 /* C3.6.9 AdvSIMD scalar shift by immediate
  *  31 30  29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +-----+---+-------------+------+------+--------+---+------+------+
  * | 0 1 | U | 1 1 1 1 1 0 | immh | immb | opcode | 1 |  Rn  |  Rd  |
  * +-----+---+-------------+------+------+--------+---+------+------+
+ *
+ * This is the scalar version so it works on a fixed sized registers
  */
 static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 11, 5);
+    int immb = extract32(insn, 16, 3);
+    int immh = extract32(insn, 19, 4);
+    bool is_u = extract32(insn, 29, 1);
+
+    switch (opcode) {
+    case 0x00: /* SSHR / USHR */
+    case 0x02: /* SSRA / USRA */
+    case 0x04: /* SRSHR / URSHR */
+    case 0x06: /* SRSRA / URSRA */
+        handle_scalar_simd_shri(s, is_u, immh, immb, opcode, rn, rd);
+        break;
+    case 0x0a: /* SHL / SLI */
+        handle_scalar_simd_shli(s, is_u, immh, immb, opcode, rn, rd);
+        break;
+    default:
+        unsupported_encoding(s, insn);
+        break;
+    }
 }
 
 /* C3.6.10 AdvSIMD scalar three different
@@ -5816,6 +6017,148 @@ static void disas_simd_scalar_indexed(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
+/* SSHR[RA]/USHR[RA] - Vector shift right (optional rounding/accumulate) */
+static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
+                                 int immh, int immb, int opcode, int rn, int rd)
+{
+    int size = 32 - clz32(immh) - 1;
+    int immhb = immh << 3 | immb;
+    int shift = 2 * (8 << size) - immhb;
+    bool accumulate = false;
+    bool round = false;
+    int dsize = is_q ? 128 : 64;
+    int esize = 8 << size;
+    int elements = dsize/esize;
+    TCGMemOp memop = size | (is_u ? 0 : MO_SIGN);
+    TCGv_i64 tcg_rn = new_tmp_a64(s);
+    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    TCGv_i64 tcg_round;
+    int i;
+
+    if (extract32(immh, 3, 1) && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (size > 3 && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0x02: /* SSRA / USRA (accumulate) */
+        accumulate = true;
+        break;
+    case 0x04: /* SRSHR / URSHR (rounding) */
+        round = true;
+        break;
+    case 0x06: /* SRSRA / URSRA (accum + rounding) */
+        accumulate = round = true;
+        break;
+    }
+
+    if (round) {
+        uint64_t round_const = 1ULL << (shift - 1);
+        tcg_round = tcg_const_i64(round_const);
+    } else {
+        TCGV_UNUSED_I64(tcg_round);
+    }
+
+    for (i = 0; i < elements; i++) {
+        read_vec_element(s, tcg_rn, rn, i, memop);
+        if (accumulate) {
+            read_vec_element(s, tcg_rd, rd, i, memop);
+        }
+
+        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                accumulate, is_u, size, shift);
+
+        write_vec_element(s, tcg_rd, rd, i, size);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+
+    if (round) {
+        tcg_temp_free_i64(tcg_round);
+    }
+}
+
+/* SHL/SLI - Vector shift left */
+static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
+                                int immh, int immb, int opcode, int rn, int rd)
+{
+    int size = 32 - clz32(immh) - 1;
+    int immhb = immh << 3 | immb;
+    int shift = immhb - (8 << size);
+    int dsize = is_q ? 128 : 64;
+    int esize = 8 << size;
+    int elements = dsize/esize;
+    TCGv_i64 tcg_rn = new_tmp_a64(s);
+    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    int i;
+
+    if (extract32(immh, 3, 1) && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (size > 3 && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    for (i = 0; i < elements; i++) {
+        read_vec_element(s, tcg_rn, rn, i, size);
+        if (insert) {
+            read_vec_element(s, tcg_rd, rd, i, size);
+        }
+
+        handle_shli_with_ins(tcg_rd, tcg_rn, insert, shift);
+
+        write_vec_element(s, tcg_rd, rd, i, size);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+}
+
+/* USHLL/SHLL - Vector shift left with widening */
+static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
+                                 int immh, int immb, int opcode, int rn, int rd)
+{
+    int size = 32 - clz32(immh) - 1;
+    int immhb = immh << 3 | immb;
+    int shift = immhb - (8 << size);
+    int dsize = 64;
+    int esize = 8 << size;
+    int elements = dsize/esize;
+    TCGv_i64 tcg_rn = new_tmp_a64(s);
+    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    int i;
+
+    if (size >= 3) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* For the LL variants the store is larger than the load,
+     * so if rd == rn we would overwrite parts of our input.
+     * So load everything right now and use shifts in the main loop.
+     */
+    read_vec_element(s, tcg_rn, rn, is_q ? 1 : 0, MO_64);
+
+    for (i = 0; i < elements; i++) {
+        tcg_gen_shri_i64(tcg_rd, tcg_rn, i * esize);
+        ext_and_shift_reg(tcg_rd, tcg_rd, size | (!is_u << 2), 0);
+        tcg_gen_shli_i64(tcg_rd, tcg_rd, shift);
+        write_vec_element(s, tcg_rd, rd, i, size + 1);
+    }
+}
+
+
 /* C3.6.14 AdvSIMD shift by immediate
  *  31  30   29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +---+---+---+-------------+------+------+--------+---+------+------+
@@ -5824,7 +6167,35 @@ static void disas_simd_scalar_indexed(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 11, 5);
+    int immb = extract32(insn, 16, 3);
+    int immh = extract32(insn, 19, 4);
+    bool is_u = extract32(insn, 29, 1);
+    bool is_q = extract32(insn, 30, 1);
+
+    switch (opcode) {
+    case 0x00: /* SSHR / USHR */
+    case 0x02: /* SSRA / USRA (accumulate) */
+    case 0x04: /* SRSHR / URSHR (rounding) */
+    case 0x06: /* SRSRA / URSRA (accum + rounding) */
+        handle_vec_simd_shri(s, is_q, is_u, immh, immb, opcode, rn, rd);
+        break;
+    case 0x0a: /* SHL / SLI */
+        handle_vec_simd_shli(s, is_q, is_u, immh, immb, opcode, rn, rd);
+        break;
+    case 0x14: /* SSHLL / USHLL */
+        handle_vec_simd_wshli(s, is_q, is_u, immh, immb, opcode, rn, rd);
+        break;
+    default:
+        /* We don't currently implement any of the Narrow or saturating shifts;
+         * nor do we implement the fixed-point conversions in this
+         * encoding group (SCVTF, FCVTZS, UCVTF, FCVTZU).
+         */
+        unsupported_encoding(s, insn);
+        return;
+    }
 }
 
 static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
