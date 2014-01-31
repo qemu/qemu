@@ -2797,6 +2797,63 @@ static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
     return 0;
 }
 
+static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                       int rounding)
+{
+    bool is_signed = extract32(insn, 7, 1);
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode, tcg_shift;
+
+    tcg_shift = tcg_const_i32(0);
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_double, tcg_res;
+        TCGv_i32 tcg_tmp;
+        /* Rd is encoded as a single precision register even when the source
+         * is double precision.
+         */
+        rd = ((rd << 1) & 0x1e) | ((rd >> 4) & 0x1);
+        tcg_double = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_tmp = tcg_temp_new_i32();
+        tcg_gen_ld_f64(tcg_double, cpu_env, vfp_reg_offset(1, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosld(tcg_res, tcg_double, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_tould(tcg_res, tcg_double, tcg_shift, fpst);
+        }
+        tcg_gen_trunc_i64_i32(tcg_tmp, tcg_res);
+        tcg_gen_st_f32(tcg_tmp, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_tmp);
+        tcg_temp_free_i64(tcg_res);
+        tcg_temp_free_i64(tcg_double);
+    } else {
+        TCGv_i32 tcg_single, tcg_res;
+        tcg_single = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_single, cpu_env, vfp_reg_offset(0, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+        }
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_single);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_i32(tcg_shift);
+
+    tcg_temp_free_ptr(fpst);
+
+    return 0;
+}
 
 /* Table for converting the most common AArch32 encoding of
  * rounding mode to arm_fprounding order (which matches the
@@ -2835,6 +2892,10 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         /* VRINTA, VRINTN, VRINTP, VRINTM */
         int rounding = fp_decode_rm[extract32(insn, 16, 2)];
         return handle_vrint(insn, rd, rm, dp, rounding);
+    } else if ((insn & 0x0fbc0e50) == 0x0ebc0a40) {
+        /* VCVTA, VCVTN, VCVTP, VCVTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vcvt(insn, rd, rm, dp, rounding);
     }
     return 1;
 }
