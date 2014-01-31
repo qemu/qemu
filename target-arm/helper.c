@@ -4048,6 +4048,23 @@ uint32_t HELPER(set_rmode)(uint32_t rmode, CPUARMState *env)
     return prev_rmode;
 }
 
+/* Set the current fp rounding mode in the standard fp status and return
+ * the old one. This is for NEON instructions that need to change the
+ * rounding mode but wish to use the standard FPSCR values for everything
+ * else. Always set the rounding mode back to the correct value after
+ * modifying it.
+ * The argument is a softfloat float_round_ value.
+ */
+uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
+{
+    float_status *fp_status = &env->vfp.standard_fp_status;
+
+    uint32_t prev_rmode = get_float_rounding_mode(fp_status);
+    set_float_rounding_mode(rmode, fp_status);
+
+    return prev_rmode;
+}
+
 /* Half precision conversions.  */
 static float32 do_fcvt_f16_to_f32(uint32_t a, CPUARMState *env, float_status *s)
 {
