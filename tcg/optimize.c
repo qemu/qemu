@@ -716,7 +716,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* Simplify expression for "op r, a, 0 => mov r, a" cases */
+        /* Simplify expression for "op r, a, const => mov r, a" cases */
         switch (op) {
         CASE_OP_32_64(add):
         CASE_OP_32_64(sub):
@@ -727,23 +727,32 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(rotr):
         CASE_OP_32_64(or):
         CASE_OP_32_64(xor):
-            if (temps[args[1]].state == TCG_TEMP_CONST) {
-                /* Proceed with possible constant folding. */
-                break;
-            }
-            if (temps[args[2]].state == TCG_TEMP_CONST
+        CASE_OP_32_64(andc):
+            if (temps[args[1]].state != TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST
                 && temps[args[2]].val == 0) {
-                if (temps_are_copies(args[0], args[1])) {
-                    s->gen_opc_buf[op_index] = INDEX_op_nop;
-                } else {
-                    s->gen_opc_buf[op_index] = op_to_mov(op);
-                    tcg_opt_gen_mov(s, gen_args, args[0], args[1]);
-                    gen_args += 2;
-                }
-                args += 3;
-                continue;
+                goto do_mov3;
             }
             break;
+        CASE_OP_32_64(and):
+        CASE_OP_32_64(orc):
+        CASE_OP_32_64(eqv):
+            if (temps[args[1]].state != TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[2]].val == -1) {
+                goto do_mov3;
+            }
+            break;
+        do_mov3:
+            if (temps_are_copies(args[0], args[1])) {
+                s->gen_opc_buf[op_index] = INDEX_op_nop;
+            } else {
+                s->gen_opc_buf[op_index] = op_to_mov(op);
+                tcg_opt_gen_mov(s, gen_args, args[0], args[1]);
+                gen_args += 2;
+            }
+            args += 3;
+            continue;
         default:
             break;
         }
