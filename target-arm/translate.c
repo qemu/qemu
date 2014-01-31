@@ -4778,6 +4778,14 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VRINTM 45
 #define NEON_2RM_VCVT_F32_F16 46
 #define NEON_2RM_VRINTP 47
+#define NEON_2RM_VCVTAU 48
+#define NEON_2RM_VCVTAS 49
+#define NEON_2RM_VCVTNU 50
+#define NEON_2RM_VCVTNS 51
+#define NEON_2RM_VCVTPU 52
+#define NEON_2RM_VCVTPS 53
+#define NEON_2RM_VCVTMU 54
+#define NEON_2RM_VCVTMS 55
 #define NEON_2RM_VRECPE 56
 #define NEON_2RM_VRSQRTE 57
 #define NEON_2RM_VRECPE_F 58
@@ -4792,7 +4800,8 @@ static int neon_2rm_is_float_op(int op)
     /* Return true if this neon 2reg-misc op is float-to-float */
     return (op == NEON_2RM_VABS_F || op == NEON_2RM_VNEG_F ||
             (op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
-            op == NEON_2RM_VRINTM || op == NEON_2RM_VRINTP ||
+            op == NEON_2RM_VRINTM ||
+            (op >= NEON_2RM_VRINTP && op <= NEON_2RM_VCVTMS) ||
             op >= NEON_2RM_VRECPE_F);
 }
 
@@ -4845,6 +4854,14 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VRINTM] = 0x4,
     [NEON_2RM_VCVT_F32_F16] = 0x2,
     [NEON_2RM_VRINTP] = 0x4,
+    [NEON_2RM_VCVTAU] = 0x4,
+    [NEON_2RM_VCVTAS] = 0x4,
+    [NEON_2RM_VCVTNU] = 0x4,
+    [NEON_2RM_VCVTNS] = 0x4,
+    [NEON_2RM_VCVTPU] = 0x4,
+    [NEON_2RM_VCVTPS] = 0x4,
+    [NEON_2RM_VCVTMU] = 0x4,
+    [NEON_2RM_VCVTMS] = 0x4,
     [NEON_2RM_VRECPE] = 0x4,
     [NEON_2RM_VRSQRTE] = 0x4,
     [NEON_2RM_VRECPE_F] = 0x4,
@@ -6586,6 +6603,40 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpstatus);
                             tcg_temp_free_ptr(fpstatus);
+                            break;
+                        }
+                        case NEON_2RM_VCVTAU:
+                        case NEON_2RM_VCVTAS:
+                        case NEON_2RM_VCVTNU:
+                        case NEON_2RM_VCVTNS:
+                        case NEON_2RM_VCVTPU:
+                        case NEON_2RM_VCVTPS:
+                        case NEON_2RM_VCVTMU:
+                        case NEON_2RM_VCVTMS:
+                        {
+                            bool is_signed = !extract32(insn, 7, 1);
+                            TCGv_ptr fpst = get_fpstatus_ptr(1);
+                            TCGv_i32 tcg_rmode, tcg_shift;
+                            int rmode = fp_decode_rm[extract32(insn, 8, 2)];
+
+                            tcg_shift = tcg_const_i32(0);
+                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+
+                            if (is_signed) {
+                                gen_helper_vfp_tosls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            } else {
+                                gen_helper_vfp_touls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            }
+
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            tcg_temp_free_i32(tcg_rmode);
+                            tcg_temp_free_i32(tcg_shift);
+                            tcg_temp_free_ptr(fpst);
                             break;
                         }
                         case NEON_2RM_VRECPE:
