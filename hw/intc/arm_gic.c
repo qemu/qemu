@@ -428,7 +428,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS) {
-            irq = 0;
+            value = 0;
         }
 
         for (i = 0; i < 8; i++) {
@@ -441,6 +441,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x280) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
+
         for (i = 0; i < 8; i++) {
             /* ??? This currently clears the pending bit for all CPUs, even
                for per-CPU interrupts.  It's unclear whether this is the
