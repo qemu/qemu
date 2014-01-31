@@ -3390,6 +3390,22 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_ptr(fpst);
                         break;
                     }
+                    case 13: /* vrintz */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        TCGv_i32 tcg_rmode;
+                        tcg_rmode = tcg_const_i32(float_round_to_zero);
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        if (dp) {
+                            gen_helper_rintd(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        tcg_temp_free_i32(tcg_rmode);
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
                     case 15: /* single<->double conversion */
                         if (dp)
                             gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
