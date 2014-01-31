@@ -4709,6 +4709,7 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VMOVN 36 /* Includes VQMOVN, VQMOVUN */
 #define NEON_2RM_VQMOVN 37 /* Includes VQMOVUN */
 #define NEON_2RM_VSHLL 38
+#define NEON_2RM_VRINTX 41
 #define NEON_2RM_VCVT_F16_F32 44
 #define NEON_2RM_VCVT_F32_F16 46
 #define NEON_2RM_VRECPE 56
@@ -4724,7 +4725,7 @@ static int neon_2rm_is_float_op(int op)
 {
     /* Return true if this neon 2reg-misc op is float-to-float */
     return (op == NEON_2RM_VABS_F || op == NEON_2RM_VNEG_F ||
-            op >= NEON_2RM_VRECPE_F);
+            op == NEON_2RM_VRINTX || op >= NEON_2RM_VRECPE_F);
 }
 
 /* Each entry in this array has bit n set if the insn allows
@@ -4768,6 +4769,7 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VMOVN] = 0x7,
     [NEON_2RM_VQMOVN] = 0x7,
     [NEON_2RM_VSHLL] = 0x7,
+    [NEON_2RM_VRINTX] = 0x4,
     [NEON_2RM_VCVT_F16_F32] = 0x2,
     [NEON_2RM_VCVT_F32_F16] = 0x2,
     [NEON_2RM_VRECPE] = 0x4,
@@ -6480,6 +6482,13 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
+                        case NEON_2RM_VRINTX:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
+                            break;
+                        }
                         case NEON_2RM_VRECPE:
                             gen_helper_recpe_u32(tmp, tmp, cpu_env);
                             break;
