@@ -37,6 +37,7 @@
 #define IRQ_OFFSET 32 /* pic interrupts start from index 32 */
 
 #define MPCORE_PERIPHBASE 0xF8F00000
+#define ZYNQ_BOARD_MIDR 0x413FC090
 
 static const int dma_irqs[8] = {
     46, 47, 48, 49, 72, 73, 74, 75
@@ -124,6 +125,12 @@ static void zynq_init(QEMUMachineInitArgs *args)
     cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
 
     cpu = ARM_CPU(object_new(object_class_get_name(cpu_oc)));
+
+    object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
+        exit(1);
+    }
 
     object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
     if (err) {
