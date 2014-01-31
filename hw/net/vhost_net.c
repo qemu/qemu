@@ -321,7 +321,7 @@ void vhost_net_ack_features(struct vhost_net *net, unsigned features)
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 {
-    return -ENOSYS;
+    return false;
 }
 
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,

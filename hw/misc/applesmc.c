@@ -66,7 +66,6 @@ struct AppleSMCData {
     QLIST_ENTRY(AppleSMCData) node;
 };
 
-#define TYPE_APPLE_SMC "isa-applesmc"
 #define APPLE_SMC(obj) OBJECT_CHECK(AppleSMCState, (obj), TYPE_APPLE_SMC)
 
 typedef struct AppleSMCState AppleSMCState;

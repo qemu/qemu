@@ -793,6 +793,15 @@ static void pci_config_free(PCIDevice *pci_dev)
     g_free(pci_dev->used);
 }
 
+static void do_pci_unregister_device(PCIDevice *pci_dev)
+{
+    pci_dev->bus->devices[pci_dev->devfn] = NULL;
+    pci_config_free(pci_dev);
+
+    address_space_destroy(&pci_dev->bus_master_as);
+    memory_region_destroy(&pci_dev->bus_master_enable_region);
+}
+
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn)
@@ -858,7 +867,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         pci_init_mask_bridge(pci_dev);
     }
     if (pci_init_multifunction(bus, pci_dev)) {
-        pci_config_free(pci_dev);
+        do_pci_unregister_device(pci_dev);
         return NULL;
     }
 
@@ -871,15 +880,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     bus->devices[devfn] = pci_dev;
     pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
-}
-
-static void do_pci_unregister_device(PCIDevice *pci_dev)
-{
-    pci_dev->bus->devices[pci_dev->devfn] = NULL;
-    pci_config_free(pci_dev);
-
-    address_space_destroy(&pci_dev->bus_master_as);
-    memory_region_destroy(&pci_dev->bus_master_enable_region);
 }
 
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
@@ -1703,6 +1703,34 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
 
     return NULL;
 }
+
+void pci_for_each_bus_depth_first(PCIBus *bus,
+                                  void *(*begin)(PCIBus *bus, void *parent_state),
+                                  void (*end)(PCIBus *bus, void *state),
+                                  void *parent_state)
+{
+    PCIBus *sec;
+    void *state;
+
+    if (!bus) {
+        return;
+    }
+
+    if (begin) {
+        state = begin(bus, parent_state);
+    } else {
+        state = parent_state;
+    }
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        pci_for_each_bus_depth_first(sec, begin, end, state);
+    }
+
+    if (end) {
+        end(bus, state);
+    }
+}
+
 
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {

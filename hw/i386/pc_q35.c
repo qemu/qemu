@@ -51,6 +51,11 @@
 static bool has_pci_info;
 static bool has_acpi_build = true;
 static bool smbios_type1_defaults = true;
+/* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
+ * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
+ * pages in the host.
+ */
+static bool gigabyte_align = true;
 
 /* PC hardware initialisation */
 static void pc_q35_init(QEMUMachineInitArgs *args)
@@ -92,9 +97,19 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
     kvmclock_create();
 
+    /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
+     * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
+     * also known as MMCFG).
+     * If it doesn't, we need to split it in chunks below and above 4G.
+     * In any case, try to make sure that guest addresses aligned at
+     * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
+     * For old machine types, use whatever split we used historically to avoid
+     * breaking migration.
+     */
     if (args->ram_size >= 0xb0000000) {
-        above_4g_mem_size = args->ram_size - 0xb0000000;
-        below_4g_mem_size = 0xb0000000;
+        ram_addr_t lowmem = gigabyte_align ? 0x80000000 : 0xb0000000;
+        above_4g_mem_size = args->ram_size - lowmem;
+        below_4g_mem_size = lowmem;
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = args->ram_size;
@@ -228,6 +243,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
     smbios_type1_defaults = false;
+    gigabyte_align = false;
 }
 
 static void pc_compat_1_6(QEMUMachineInitArgs *args)

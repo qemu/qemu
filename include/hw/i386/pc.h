@@ -35,7 +35,7 @@ typedef struct PcPciInfo {
 struct PcGuestInfo {
     bool has_pci_info;
     bool isapc_ram_fw;
-    hwaddr ram_size;
+    hwaddr ram_size, ram_size_below_4g;
     unsigned apic_id_limit;
     bool apic_xrupt_override;
     uint64_t numa_nodes;
@@ -265,6 +265,11 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
             .value    = "no",\
+        },\
+        {\
+            .driver   = "PIIX4_PM",\
+            .property = "acpi-pci-hotplug-with-bridge-support",\
+            .value    = "off",\
         }
 
 #define PC_COMPAT_1_6 \
