@@ -5069,6 +5069,173 @@ static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_res);
 }
 
+/* C6.3.31 DUP (Element, Vector)
+ *
+ *  31  30   29              21 20    16 15        10  9    5 4    0
+ * +---+---+-------------------+--------+-------------+------+------+
+ * | 0 | Q | 0 0 1 1 1 0 0 0 0 |  imm5  | 0 0 0 0 0 1 |  Rn  |  Rd  |
+ * +---+---+-------------------+--------+-------------+------+------+
+ *
+ * size: encoded in imm5 (see ARM ARM LowestSetBit())
+ */
+static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
+                             int imm5)
+{
+    int size = ctz32(imm5);
+    int esize = 8 << size;
+    int elements = (is_q ? 128 : 64) / esize;
+    int index, i;
+    TCGv_i64 tmp;
+
+    if (size > 3 || (size == 3 && !is_q)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    index = imm5 >> (size + 1);
+
+    tmp = tcg_temp_new_i64();
+    read_vec_element(s, tmp, rn, index, size);
+
+    for (i = 0; i < elements; i++) {
+        write_vec_element(s, tmp, rd, i, size);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+
+    tcg_temp_free_i64(tmp);
+}
+
+/* C6.3.32 DUP (General)
+ *
+ *  31  30   29              21 20    16 15        10  9    5 4    0
+ * +---+---+-------------------+--------+-------------+------+------+
+ * | 0 | Q | 0 0 1 1 1 0 0 0 0 |  imm5  | 0 0 0 0 1 1 |  Rn  |  Rd  |
+ * +---+---+-------------------+--------+-------------+------+------+
+ *
+ * size: encoded in imm5 (see ARM ARM LowestSetBit())
+ */
+static void handle_simd_dupg(DisasContext *s, int is_q, int rd, int rn,
+                             int imm5)
+{
+    int size = ctz32(imm5);
+    int esize = 8 << size;
+    int elements = (is_q ? 128 : 64)/esize;
+    int i = 0;
+
+    if (size > 3 || ((size == 3) && !is_q)) {
+        unallocated_encoding(s);
+        return;
+    }
+    for (i = 0; i < elements; i++) {
+        write_vec_element(s, cpu_reg(s, rn), rd, i, size);
+    }
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+}
+
+/* C6.3.150 INS (Element)
+ *
+ *  31                   21 20    16 15  14    11  10 9    5 4    0
+ * +-----------------------+--------+------------+---+------+------+
+ * | 0 1 1 0 1 1 1 0 0 0 0 |  imm5  | 0 |  imm4  | 1 |  Rn  |  Rd  |
+ * +-----------------------+--------+------------+---+------+------+
+ *
+ * size: encoded in imm5 (see ARM ARM LowestSetBit())
+ * index: encoded in imm5<4:size+1>
+ */
+static void handle_simd_inse(DisasContext *s, int rd, int rn,
+                             int imm4, int imm5)
+{
+    int size = ctz32(imm5);
+    int src_index, dst_index;
+    TCGv_i64 tmp;
+
+    if (size > 3) {
+        unallocated_encoding(s);
+        return;
+    }
+    dst_index = extract32(imm5, 1+size, 5);
+    src_index = extract32(imm4, size, 4);
+
+    tmp = tcg_temp_new_i64();
+
+    read_vec_element(s, tmp, rn, src_index, size);
+    write_vec_element(s, tmp, rd, dst_index, size);
+
+    tcg_temp_free_i64(tmp);
+}
+
+
+/* C6.3.151 INS (General)
+ *
+ *  31                   21 20    16 15        10  9    5 4    0
+ * +-----------------------+--------+-------------+------+------+
+ * | 0 1 0 0 1 1 1 0 0 0 0 |  imm5  | 0 0 0 1 1 1 |  Rn  |  Rd  |
+ * +-----------------------+--------+-------------+------+------+
+ *
+ * size: encoded in imm5 (see ARM ARM LowestSetBit())
+ * index: encoded in imm5<4:size+1>
+ */
+static void handle_simd_insg(DisasContext *s, int rd, int rn, int imm5)
+{
+    int size = ctz32(imm5);
+    int idx;
+
+    if (size > 3) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    idx = extract32(imm5, 1 + size, 4 - size);
+    write_vec_element(s, cpu_reg(s, rn), rd, idx, size);
+}
+
+/*
+ * C6.3.321 UMOV (General)
+ * C6.3.237 SMOV (General)
+ *
+ *  31  30   29              21 20    16 15    12   10 9    5 4    0
+ * +---+---+-------------------+--------+-------------+------+------+
+ * | 0 | Q | 0 0 1 1 1 0 0 0 0 |  imm5  | 0 0 1 U 1 1 |  Rn  |  Rd  |
+ * +---+---+-------------------+--------+-------------+------+------+
+ *
+ * U: unsigned when set
+ * size: encoded in imm5 (see ARM ARM LowestSetBit())
+ */
+static void handle_simd_umov_smov(DisasContext *s, int is_q, int is_signed,
+                                  int rn, int rd, int imm5)
+{
+    int size = ctz32(imm5);
+    int element;
+    TCGv_i64 tcg_rd;
+
+    /* Check for UnallocatedEncodings */
+    if (is_signed) {
+        if (size > 2 || (size == 2 && !is_q)) {
+            unallocated_encoding(s);
+            return;
+        }
+    } else {
+        if (size > 3
+            || (size < 3 && is_q)
+            || (size == 3 && !is_q)) {
+            unallocated_encoding(s);
+            return;
+        }
+    }
+    element = extract32(imm5, 1+size, 4);
+
+    tcg_rd = cpu_reg(s, rd);
+    read_vec_element(s, tcg_rd, rn, element, size | (is_signed ? MO_SIGN : 0));
+    if (is_signed && !is_q) {
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+}
+
 /* C3.6.5 AdvSIMD copy
  *   31  30  29  28             21 20  16 15  14  11 10  9    5 4    0
  * +---+---+----+-----------------+------+---+------+---+------+------+
@@ -5077,7 +5244,48 @@ static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_copy(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int imm4 = extract32(insn, 11, 4);
+    int op = extract32(insn, 29, 1);
+    int is_q = extract32(insn, 30, 1);
+    int imm5 = extract32(insn, 16, 5);
+
+    if (op) {
+        if (is_q) {
+            /* INS (element) */
+            handle_simd_inse(s, rd, rn, imm4, imm5);
+        } else {
+            unallocated_encoding(s);
+        }
+    } else {
+        switch (imm4) {
+        case 0:
+            /* DUP (element - vector) */
+            handle_simd_dupe(s, is_q, rd, rn, imm5);
+            break;
+        case 1:
+            /* DUP (general) */
+            handle_simd_dupg(s, is_q, rd, rn, imm5);
+            break;
+        case 3:
+            if (is_q) {
+                /* INS (general) */
+                handle_simd_insg(s, rd, rn, imm5);
+            } else {
+                unallocated_encoding(s);
+            }
+            break;
+        case 5:
+        case 7:
+            /* UMOV/SMOV (is_q indicates 32/64; imm4 indicates signedness) */
+            handle_simd_umov_smov(s, is_q, (imm4 == 5), rn, rd, imm5);
+            break;
+        default:
+            unallocated_encoding(s);
+            break;
+        }
+    }
 }
 
 /* C3.6.6 AdvSIMD modified immediate
