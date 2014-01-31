@@ -4883,6 +4883,29 @@ static void disas_simd_zip_trn(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_resh);
 }
 
+static void do_minmaxop(DisasContext *s, TCGv_i32 tcg_elt1, TCGv_i32 tcg_elt2,
+                        int opc, bool is_min, TCGv_ptr fpst)
+{
+    /* Helper function for disas_simd_across_lanes: do a single precision
+     * min/max operation on the specified two inputs,
+     * and return the result in tcg_elt1.
+     */
+    if (opc == 0xc) {
+        if (is_min) {
+            gen_helper_vfp_minnums(tcg_elt1, tcg_elt1, tcg_elt2, fpst);
+        } else {
+            gen_helper_vfp_maxnums(tcg_elt1, tcg_elt1, tcg_elt2, fpst);
+        }
+    } else {
+        assert(opc == 0xf);
+        if (is_min) {
+            gen_helper_vfp_mins(tcg_elt1, tcg_elt1, tcg_elt2, fpst);
+        } else {
+            gen_helper_vfp_maxs(tcg_elt1, tcg_elt1, tcg_elt2, fpst);
+        }
+    }
+}
+
 /* C3.6.4 AdvSIMD across lanes
  *   31  30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+-----------+--------+-----+------+------+
@@ -4891,7 +4914,159 @@ static void disas_simd_zip_trn(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    bool is_q = extract32(insn, 30, 1);
+    bool is_u = extract32(insn, 29, 1);
+    bool is_fp = false;
+    bool is_min = false;
+    int esize;
+    int elements;
+    int i;
+    TCGv_i64 tcg_res, tcg_elt;
+
+    switch (opcode) {
+    case 0x1b: /* ADDV */
+        if (is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x3: /* SADDLV, UADDLV */
+    case 0xa: /* SMAXV, UMAXV */
+    case 0x1a: /* SMINV, UMINV */
+        if (size == 3 || (size == 2 && !is_q)) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0xc: /* FMAXNMV, FMINNMV */
+    case 0xf: /* FMAXV, FMINV */
+        if (!is_u || !is_q || extract32(size, 0, 1)) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* Bit 1 of size field encodes min vs max, and actual size is always
+         * 32 bits: adjust the size variable so following code can rely on it
+         */
+        is_min = extract32(size, 1, 1);
+        is_fp = true;
+        size = 2;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    esize = 8 << size;
+    elements = (is_q ? 128 : 64) / esize;
+
+    tcg_res = tcg_temp_new_i64();
+    tcg_elt = tcg_temp_new_i64();
+
+    /* These instructions operate across all lanes of a vector
+     * to produce a single result. We can guarantee that a 64
+     * bit intermediate is sufficient:
+     *  + for [US]ADDLV the maximum element size is 32 bits, and
+     *    the result type is 64 bits
+     *  + for FMAX*V, FMIN*V, ADDV the intermediate type is the
+     *    same as the element size, which is 32 bits at most
+     * For the integer operations we can choose to work at 64
+     * or 32 bits and truncate at the end; for simplicity
+     * we use 64 bits always. The floating point
+     * ops do require 32 bit intermediates, though.
+     */
+    if (!is_fp) {
+        read_vec_element(s, tcg_res, rn, 0, size | (is_u ? 0 : MO_SIGN));
+
+        for (i = 1; i < elements; i++) {
+            read_vec_element(s, tcg_elt, rn, i, size | (is_u ? 0 : MO_SIGN));
+
+            switch (opcode) {
+            case 0x03: /* SADDLV / UADDLV */
+            case 0x1b: /* ADDV */
+                tcg_gen_add_i64(tcg_res, tcg_res, tcg_elt);
+                break;
+            case 0x0a: /* SMAXV / UMAXV */
+                tcg_gen_movcond_i64(is_u ? TCG_COND_GEU : TCG_COND_GE,
+                                    tcg_res,
+                                    tcg_res, tcg_elt, tcg_res, tcg_elt);
+                break;
+            case 0x1a: /* SMINV / UMINV */
+                tcg_gen_movcond_i64(is_u ? TCG_COND_LEU : TCG_COND_LE,
+                                    tcg_res,
+                                    tcg_res, tcg_elt, tcg_res, tcg_elt);
+                break;
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+        }
+    } else {
+        /* Floating point ops which work on 32 bit (single) intermediates.
+         * Note that correct NaN propagation requires that we do these
+         * operations in exactly the order specified by the pseudocode.
+         */
+        TCGv_i32 tcg_elt1 = tcg_temp_new_i32();
+        TCGv_i32 tcg_elt2 = tcg_temp_new_i32();
+        TCGv_i32 tcg_elt3 = tcg_temp_new_i32();
+        TCGv_ptr fpst = get_fpstatus_ptr();
+
+        assert(esize == 32);
+        assert(elements == 4);
+
+        read_vec_element(s, tcg_elt, rn, 0, MO_32);
+        tcg_gen_trunc_i64_i32(tcg_elt1, tcg_elt);
+        read_vec_element(s, tcg_elt, rn, 1, MO_32);
+        tcg_gen_trunc_i64_i32(tcg_elt2, tcg_elt);
+
+        do_minmaxop(s, tcg_elt1, tcg_elt2, opcode, is_min, fpst);
+
+        read_vec_element(s, tcg_elt, rn, 2, MO_32);
+        tcg_gen_trunc_i64_i32(tcg_elt2, tcg_elt);
+        read_vec_element(s, tcg_elt, rn, 3, MO_32);
+        tcg_gen_trunc_i64_i32(tcg_elt3, tcg_elt);
+
+        do_minmaxop(s, tcg_elt2, tcg_elt3, opcode, is_min, fpst);
+
+        do_minmaxop(s, tcg_elt1, tcg_elt2, opcode, is_min, fpst);
+
+        tcg_gen_extu_i32_i64(tcg_res, tcg_elt1);
+        tcg_temp_free_i32(tcg_elt1);
+        tcg_temp_free_i32(tcg_elt2);
+        tcg_temp_free_i32(tcg_elt3);
+        tcg_temp_free_ptr(fpst);
+    }
+
+    tcg_temp_free_i64(tcg_elt);
+
+    /* Now truncate the result to the width required for the final output */
+    if (opcode == 0x03) {
+        /* SADDLV, UADDLV: result is 2*esize */
+        size++;
+    }
+
+    switch (size) {
+    case 0:
+        tcg_gen_ext8u_i64(tcg_res, tcg_res);
+        break;
+    case 1:
+        tcg_gen_ext16u_i64(tcg_res, tcg_res);
+        break;
+    case 2:
+        tcg_gen_ext32u_i64(tcg_res, tcg_res);
+        break;
+    case 3:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    write_fp_dreg(s, rd, tcg_res);
+    tcg_temp_free_i64(tcg_res);
 }
 
 /* C3.6.5 AdvSIMD copy
