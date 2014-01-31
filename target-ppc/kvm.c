@@ -820,6 +820,9 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 #ifdef TARGET_PPC64
         for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
+            if (env->slb[i].esid & SLB_ESID_V) {
+                sregs.u.s.ppc64.slb[i].slbe |= i;
+            }
             sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
         }
 #endif
