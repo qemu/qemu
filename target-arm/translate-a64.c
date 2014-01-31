@@ -5108,6 +5108,35 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
     tcg_temp_free_i64(tmp);
 }
 
+/* C6.3.31 DUP (element, scalar)
+ *  31                   21 20    16 15        10  9    5 4    0
+ * +-----------------------+--------+-------------+------+------+
+ * | 0 1 0 1 1 1 1 0 0 0 0 |  imm5  | 0 0 0 0 0 1 |  Rn  |  Rd  |
+ * +-----------------------+--------+-------------+------+------+
+ */
+static void handle_simd_dupes(DisasContext *s, int rd, int rn,
+                              int imm5)
+{
+    int size = ctz32(imm5);
+    int index;
+    TCGv_i64 tmp;
+
+    if (size > 3) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    index = imm5 >> (size + 1);
+
+    /* This instruction just extracts the specified element and
+     * zero-extends it into the bottom of the destination register.
+     */
+    tmp = tcg_temp_new_i64();
+    read_vec_element(s, tmp, rn, index, size);
+    write_fp_dreg(s, rd, tmp);
+    tcg_temp_free_i64(tmp);
+}
+
 /* C6.3.32 DUP (General)
  *
  *  31  30   29              21 20    16 15        10  9    5 4    0
@@ -5425,7 +5454,19 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_scalar_copy(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int imm4 = extract32(insn, 11, 4);
+    int imm5 = extract32(insn, 16, 5);
+    int op = extract32(insn, 29, 1);
+
+    if (op != 0 || imm4 != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* DUP (element, scalar) */
+    handle_simd_dupes(s, rd, rn, imm5);
 }
 
 /* C3.6.8 AdvSIMD scalar pairwise
