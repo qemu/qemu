@@ -4646,6 +4646,25 @@ static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
     }
 }
 
+static void do_ext64(DisasContext *s, TCGv_i64 tcg_left, TCGv_i64 tcg_right,
+                     int pos)
+{
+    /* Extract 64 bits from the middle of two concatenated 64 bit
+     * vector register slices left:right. The extracted bits start
+     * at 'pos' bits into the right (least significant) side.
+     * We return the result in tcg_right, and guarantee not to
+     * trash tcg_left.
+     */
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+    assert(pos > 0 && pos < 64);
+
+    tcg_gen_shri_i64(tcg_right, tcg_right, pos);
+    tcg_gen_shli_i64(tcg_tmp, tcg_left, 64 - pos);
+    tcg_gen_or_i64(tcg_right, tcg_right, tcg_tmp);
+
+    tcg_temp_free_i64(tcg_tmp);
+}
+
 /* C3.6.1 EXT
  *   31  30 29         24 23 22  21 20  16 15  14  11 10  9    5 4    0
  * +---+---+-------------+-----+---+------+---+------+---+------+------+
@@ -4654,7 +4673,65 @@ static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_ext(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int is_q = extract32(insn, 30, 1);
+    int op2 = extract32(insn, 22, 2);
+    int imm4 = extract32(insn, 11, 4);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    int pos = imm4 << 3;
+    TCGv_i64 tcg_resl, tcg_resh;
+
+    if (op2 != 0 || (!is_q && extract32(imm4, 3, 1))) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_resh = tcg_temp_new_i64();
+    tcg_resl = tcg_temp_new_i64();
+
+    /* Vd gets bits starting at pos bits into Vm:Vn. This is
+     * either extracting 128 bits from a 128:128 concatenation, or
+     * extracting 64 bits from a 64:64 concatenation.
+     */
+    if (!is_q) {
+        read_vec_element(s, tcg_resl, rn, 0, MO_64);
+        if (pos != 0) {
+            read_vec_element(s, tcg_resh, rm, 0, MO_64);
+            do_ext64(s, tcg_resh, tcg_resl, pos);
+        }
+        tcg_gen_movi_i64(tcg_resh, 0);
+    } else {
+        TCGv_i64 tcg_hh;
+        typedef struct {
+            int reg;
+            int elt;
+        } EltPosns;
+        EltPosns eltposns[] = { {rn, 0}, {rn, 1}, {rm, 0}, {rm, 1} };
+        EltPosns *elt = eltposns;
+
+        if (pos >= 64) {
+            elt++;
+            pos -= 64;
+        }
+
+        read_vec_element(s, tcg_resl, elt->reg, elt->elt, MO_64);
+        elt++;
+        read_vec_element(s, tcg_resh, elt->reg, elt->elt, MO_64);
+        elt++;
+        if (pos != 0) {
+            do_ext64(s, tcg_resh, tcg_resl, pos);
+            tcg_hh = tcg_temp_new_i64();
+            read_vec_element(s, tcg_hh, elt->reg, elt->elt, MO_64);
+            do_ext64(s, tcg_hh, tcg_resh, pos);
+            tcg_temp_free_i64(tcg_hh);
+        }
+    }
+
+    write_vec_element(s, tcg_resl, rd, 0, MO_64);
+    tcg_temp_free_i64(tcg_resl);
+    write_vec_element(s, tcg_resh, rd, 1, MO_64);
+    tcg_temp_free_i64(tcg_resh);
 }
 
 /* C3.6.2 TBL/TBX
