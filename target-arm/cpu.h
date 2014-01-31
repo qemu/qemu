@@ -496,6 +496,8 @@ enum arm_fprounding {
     FPROUNDING_ODD
 };
 
+int arm_rmode_to_sf(int rmode);
+
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,
   ARM_CPU_MODE_FIQ = 0x11,
