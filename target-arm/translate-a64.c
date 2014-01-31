@@ -5920,6 +5920,30 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
     }
 }
 
+/* Logic op (opcode == 3) subgroup of C3.6.16. */
+static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* Pairwise op subgroup of C3.6.16. */
+static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* Floating point op subgroup of C3.6.16. */
+static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* Integer op subgroup of C3.6.16. */
+static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
 /* C3.6.16 AdvSIMD three same
  *  31  30  29  28       24 23  22  21 20  16 15    11  10 9    5 4    0
  * +---+---+---+-----------+------+---+------+--------+---+------+------+
@@ -5928,7 +5952,26 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int opcode = extract32(insn, 11, 5);
+
+    switch (opcode) {
+    case 0x3: /* logic ops */
+        disas_simd_3same_logic(s, insn);
+        break;
+    case 0x17: /* ADDP */
+    case 0x14: /* SMAXP, UMAXP */
+    case 0x15: /* SMINP, UMINP */
+        /* Pairwise operations */
+        disas_simd_3same_pair(s, insn);
+        break;
+    case 0x18 ... 0x31:
+        /* floating point ops, sz[1] and U are part of opcode */
+        disas_simd_3same_float(s, insn);
+        break;
+    default:
+        disas_simd_3same_int(s, insn);
+        break;
+    }
 }
 
 /* C3.6.17 AdvSIMD two reg misc
