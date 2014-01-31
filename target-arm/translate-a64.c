@@ -61,6 +61,17 @@ enum a64_shift_type {
     A64_SHIFT_TYPE_ROR = 3
 };
 
+/* Table based decoder typedefs - used when the relevant bits for decode
+ * are too awkwardly scattered across the instruction (eg SIMD).
+ */
+typedef void AArch64DecodeFn(DisasContext *s, uint32_t insn);
+
+typedef struct AArch64DecodeTable {
+    uint32_t pattern;
+    uint32_t mask;
+    AArch64DecodeFn *disas_fn;
+} AArch64DecodeTable;
+
 /* initialize TCG globals.  */
 void a64_translate_init(void)
 {
@@ -843,6 +854,31 @@ static inline void gen_check_sp_alignment(DisasContext *s)
      * checks in future (possibly as a "favour catching guest program bugs
      * over speed" user selectable option).
      */
+}
+
+/*
+ * This provides a simple table based table lookup decoder. It is
+ * intended to be used when the relevant bits for decode are too
+ * awkwardly placed and switch/if based logic would be confusing and
+ * deeply nested. Since it's a linear search through the table, tables
+ * should be kept small.
+ *
+ * It returns the first handler where insn & mask == pattern, or
+ * NULL if there is no match.
+ * The table is terminated by an empty mask (i.e. 0)
+ */
+static inline AArch64DecodeFn *lookup_disas_fn(const AArch64DecodeTable *table,
+                                               uint32_t insn)
+{
+    const AArch64DecodeTable *tptr = table;
+
+    while (tptr->mask) {
+        if ((insn & tptr->mask) == tptr->pattern) {
+            return tptr->disas_fn;
+        }
+        tptr++;
+    }
+    return NULL;
 }
 
 /*
@@ -4610,13 +4646,281 @@ static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
     }
 }
 
+/* C3.6.1 EXT
+ *   31  30 29         24 23 22  21 20  16 15  14  11 10  9    5 4    0
+ * +---+---+-------------+-----+---+------+---+------+---+------+------+
+ * | 0 | Q | 1 0 1 1 1 0 | op2 | 0 |  Rm  | 0 | imm4 | 0 |  Rn  |  Rd  |
+ * +---+---+-------------+-----+---+------+---+------+---+------+------+
+ */
+static void disas_simd_ext(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.2 TBL/TBX
+ *   31  30 29         24 23 22  21 20  16 15  14 13  12  11 10 9    5 4    0
+ * +---+---+-------------+-----+---+------+---+-----+----+-----+------+------+
+ * | 0 | Q | 0 0 1 1 1 0 | op2 | 0 |  Rm  | 0 | len | op | 0 0 |  Rn  |  Rd  |
+ * +---+---+-------------+-----+---+------+---+-----+----+-----+------+------+
+ */
+static void disas_simd_tb(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.3 ZIP/UZP/TRN
+ *   31  30 29         24 23  22  21 20   16 15 14 12 11 10 9    5 4    0
+ * +---+---+-------------+------+---+------+---+------------------+------+
+ * | 0 | Q | 0 0 1 1 1 0 | size | 0 |  Rm  | 0 | opc | 1 0 |  Rn  |  Rd  |
+ * +---+---+-------------+------+---+------+---+------------------+------+
+ */
+static void disas_simd_zip_trn(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.4 AdvSIMD across lanes
+ *   31  30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +---+---+---+-----------+------+-----------+--------+-----+------+------+
+ * | 0 | Q | U | 0 1 1 1 0 | size | 1 1 0 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+-----------+--------+-----+------+------+
+ */
+static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.5 AdvSIMD copy
+ *   31  30  29  28             21 20  16 15  14  11 10  9    5 4    0
+ * +---+---+----+-----------------+------+---+------+---+------+------+
+ * | 0 | Q | op | 0 1 1 1 0 0 0 0 | imm5 | 0 | imm4 | 1 |  Rn  |  Rd  |
+ * +---+---+----+-----------------+------+---+------+---+------+------+
+ */
+static void disas_simd_copy(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.6 AdvSIMD modified immediate
+ *  31  30   29  28                 19 18 16 15   12  11  10  9     5 4    0
+ * +---+---+----+---------------------+-----+-------+----+---+-------+------+
+ * | 0 | Q | op | 0 1 1 1 1 0 0 0 0 0 | abc | cmode | o2 | 1 | defgh |  Rd  |
+ * +---+---+----+---------------------+-----+-------+----+---+-------+------+
+ */
+static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.7 AdvSIMD scalar copy
+ *  31 30  29  28             21 20  16 15  14  11 10  9    5 4    0
+ * +-----+----+-----------------+------+---+------+---+------+------+
+ * | 0 1 | op | 1 1 1 1 0 0 0 0 | imm5 | 0 | imm4 | 1 |  Rn  |  Rd  |
+ * +-----+----+-----------------+------+---+------+---+------+------+
+ */
+static void disas_simd_scalar_copy(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.8 AdvSIMD scalar pairwise
+ *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +-----+---+-----------+------+-----------+--------+-----+------+------+
+ * | 0 1 | U | 1 1 1 1 0 | size | 1 1 0 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+-----------+--------+-----+------+------+
+ */
+static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.9 AdvSIMD scalar shift by immediate
+ *  31 30  29 28         23 22  19 18  16 15    11  10 9    5 4    0
+ * +-----+---+-------------+------+------+--------+---+------+------+
+ * | 0 1 | U | 1 1 1 1 1 0 | immh | immb | opcode | 1 |  Rn  |  Rd  |
+ * +-----+---+-------------+------+------+--------+---+------+------+
+ */
+static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.10 AdvSIMD scalar three different
+ *  31 30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
+ * +-----+---+-----------+------+---+------+--------+-----+------+------+
+ * | 0 1 | U | 1 1 1 1 0 | size | 1 |  Rm  | opcode | 0 0 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+---+------+--------+-----+------+------+
+ */
+static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.11 AdvSIMD scalar three same
+ *  31 30  29 28       24 23  22  21 20  16 15    11  10 9    5 4    0
+ * +-----+---+-----------+------+---+------+--------+---+------+------+
+ * | 0 1 | U | 1 1 1 1 0 | size | 1 |  Rm  | opcode | 1 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+---+------+--------+---+------+------+
+ */
+static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.12 AdvSIMD scalar two reg misc
+ *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +-----+---+-----------+------+-----------+--------+-----+------+------+
+ * | 0 1 | U | 1 1 1 1 0 | size | 1 0 0 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+-----------+--------+-----+------+------+
+ */
+static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.13 AdvSIMD scalar x indexed element
+ *  31 30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
+ * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
+ * | 0 1 | U | 1 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
+ */
+static void disas_simd_scalar_indexed(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.14 AdvSIMD shift by immediate
+ *  31  30   29 28         23 22  19 18  16 15    11  10 9    5 4    0
+ * +---+---+---+-------------+------+------+--------+---+------+------+
+ * | 0 | Q | U | 0 1 1 1 1 0 | immh | immb | opcode | 1 |  Rn  |  Rd  |
+ * +---+---+---+-------------+------+------+--------+---+------+------+
+ */
+static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.15 AdvSIMD three different
+ *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
+ * +---+---+---+-----------+------+---+------+--------+-----+------+------+
+ * | 0 | Q | U | 0 1 1 1 0 | size | 1 |  Rm  | opcode | 0 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+------+--------+-----+------+------+
+ */
+static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.16 AdvSIMD three same
+ *  31  30  29  28       24 23  22  21 20  16 15    11  10 9    5 4    0
+ * +---+---+---+-----------+------+---+------+--------+---+------+------+
+ * | 0 | Q | U | 0 1 1 1 0 | size | 1 |  Rm  | opcode | 1 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+------+--------+---+------+------+
+ */
+static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.17 AdvSIMD two reg misc
+ *   31  30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +---+---+---+-----------+------+-----------+--------+-----+------+------+
+ * | 0 | Q | U | 0 1 1 1 0 | size | 1 0 0 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+-----------+--------+-----+------+------+
+ */
+static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.18 AdvSIMD vector x indexed element
+ *   31  30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
+ * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
+ * | 0 | Q | U | 0 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
+ * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
+ */
+static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.19 Crypto AES
+ *  31             24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +-----------------+------+-----------+--------+-----+------+------+
+ * | 0 1 0 0 1 1 1 0 | size | 1 0 1 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +-----------------+------+-----------+--------+-----+------+------+
+ */
+static void disas_crypto_aes(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.20 Crypto three-reg SHA
+ *  31             24 23  22  21 20  16  15 14    12 11 10 9    5 4    0
+ * +-----------------+------+---+------+---+--------+-----+------+------+
+ * | 0 1 0 1 1 1 1 0 | size | 0 |  Rm  | 0 | opcode | 0 0 |  Rn  |  Rd  |
+ * +-----------------+------+---+------+---+--------+-----+------+------+
+ */
+static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6.21 Crypto two-reg SHA
+ *  31             24 23  22 21       17 16    12 11 10 9    5 4    0
+ * +-----------------+------+-----------+--------+-----+------+------+
+ * | 0 1 0 1 1 1 1 0 | size | 1 0 1 0 0 | opcode | 1 0 |  Rn  |  Rd  |
+ * +-----------------+------+-----------+--------+-----+------+------+
+ */
+static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
+{
+    unsupported_encoding(s, insn);
+}
+
+/* C3.6 Data processing - SIMD, inc Crypto
+ *
+ * As the decode gets a little complex we are using a table based
+ * approach for this part of the decode.
+ */
+static const AArch64DecodeTable data_proc_simd[] = {
+    /* pattern  ,  mask     ,  fn                        */
+    { 0x0e200400, 0x9f200400, disas_simd_three_reg_same },
+    { 0x0e200000, 0x9f200c00, disas_simd_three_reg_diff },
+    { 0x0e200800, 0x9f3e0c00, disas_simd_two_reg_misc },
+    { 0x0e300800, 0x9f3e0c00, disas_simd_across_lanes },
+    { 0x0e000400, 0x9fe08400, disas_simd_copy },
+    { 0x0f000000, 0x9f000400, disas_simd_indexed_vector },
+    /* simd_mod_imm decode is a subset of simd_shift_imm, so must precede it */
+    { 0x0f000400, 0x9ff80400, disas_simd_mod_imm },
+    { 0x0f000400, 0x9f800400, disas_simd_shift_imm },
+    { 0x0e000000, 0xbf208c00, disas_simd_tb },
+    { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
+    { 0x2e000000, 0xbf208400, disas_simd_ext },
+    { 0x5e200400, 0xdf200400, disas_simd_scalar_three_reg_same },
+    { 0x5e200000, 0xdf200c00, disas_simd_scalar_three_reg_diff },
+    { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
+    { 0x5e300800, 0xdf3e0c00, disas_simd_scalar_pairwise },
+    { 0x5e000400, 0xdfe08400, disas_simd_scalar_copy },
+    { 0x5f000000, 0xdf000400, disas_simd_scalar_indexed },
+    { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
+    { 0x4e280800, 0xff3e0c00, disas_crypto_aes },
+    { 0x5e000000, 0xff208c00, disas_crypto_three_reg_sha },
+    { 0x5e280800, 0xff3e0c00, disas_crypto_two_reg_sha },
+    { 0x00000000, 0x00000000, NULL }
+};
+
 static void disas_data_proc_simd(DisasContext *s, uint32_t insn)
 {
     /* Note that this is called with all non-FP cases from
      * table C3-6 so it must UNDEF for entries not specifically
      * allocated to instructions in that table.
      */
-    unsupported_encoding(s, insn);
+    AArch64DecodeFn *fn = lookup_disas_fn(&data_proc_simd[0], insn);
+    if (fn) {
+        fn(s, insn);
+    } else {
+        unallocated_encoding(s);
+    }
 }
 
 /* C3.6 Data processing - SIMD and floating point */
