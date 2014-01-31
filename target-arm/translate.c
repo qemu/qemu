@@ -3406,6 +3406,17 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_ptr(fpst);
                         break;
                     }
+                    case 14: /* vrintx */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        if (dp) {
+                            gen_helper_rintd_exact(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
                     case 15: /* single<->double conversion */
                         if (dp)
                             gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
