@@ -5503,6 +5503,58 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
     unsupported_encoding(s, insn);
 }
 
+static void handle_3same_64(DisasContext *s, int opcode, bool u,
+                            TCGv_i64 tcg_rd, TCGv_i64 tcg_rn, TCGv_i64 tcg_rm)
+{
+    /* Handle 64x64->64 opcodes which are shared between the scalar
+     * and vector 3-same groups. We cover every opcode where size == 3
+     * is valid in either the three-reg-same (integer, not pairwise)
+     * or scalar-three-reg-same groups. (Some opcodes are not yet
+     * implemented.)
+     */
+    TCGCond cond;
+
+    switch (opcode) {
+    case 0x6: /* CMGT, CMHI */
+        /* 64 bit integer comparison, result = test ? (2^64 - 1) : 0.
+         * We implement this using setcond (test) and then negating.
+         */
+        cond = u ? TCG_COND_GTU : TCG_COND_GT;
+    do_cmop:
+        tcg_gen_setcond_i64(cond, tcg_rd, tcg_rn, tcg_rm);
+        tcg_gen_neg_i64(tcg_rd, tcg_rd);
+        break;
+    case 0x7: /* CMGE, CMHS */
+        cond = u ? TCG_COND_GEU : TCG_COND_GE;
+        goto do_cmop;
+    case 0x11: /* CMTST, CMEQ */
+        if (u) {
+            cond = TCG_COND_EQ;
+            goto do_cmop;
+        }
+        /* CMTST : test is "if (X & Y != 0)". */
+        tcg_gen_and_i64(tcg_rd, tcg_rn, tcg_rm);
+        tcg_gen_setcondi_i64(TCG_COND_NE, tcg_rd, tcg_rd, 0);
+        tcg_gen_neg_i64(tcg_rd, tcg_rd);
+        break;
+    case 0x10: /* ADD, SUB */
+        if (u) {
+            tcg_gen_sub_i64(tcg_rd, tcg_rn, tcg_rm);
+        } else {
+            tcg_gen_add_i64(tcg_rd, tcg_rn, tcg_rm);
+        }
+        break;
+    case 0x1: /* SQADD */
+    case 0x5: /* SQSUB */
+    case 0x8: /* SSHL, USHL */
+    case 0x9: /* SQSHL, UQSHL */
+    case 0xa: /* SRSHL, URSHL */
+    case 0xb: /* SQRSHL, UQRSHL */
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* C3.6.11 AdvSIMD scalar three same
  *  31 30  29 28       24 23  22  21 20  16 15    11  10 9    5 4    0
  * +-----+---+-----------+------+---+------+--------+---+------+------+
@@ -5511,7 +5563,84 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 11, 5);
+    int rm = extract32(insn, 16, 5);
+    int size = extract32(insn, 22, 2);
+    bool u = extract32(insn, 29, 1);
+    TCGv_i64 tcg_rn;
+    TCGv_i64 tcg_rm;
+    TCGv_i64 tcg_rd;
+
+    if (opcode >= 0x18) {
+        /* Floating point: U, size[1] and opcode indicate operation */
+        int fpopcode = opcode | (extract32(size, 1, 1) << 5) | (u << 6);
+        switch (fpopcode) {
+        case 0x1b: /* FMULX */
+        case 0x1c: /* FCMEQ */
+        case 0x1f: /* FRECPS */
+        case 0x3f: /* FRSQRTS */
+        case 0x5c: /* FCMGE */
+        case 0x5d: /* FACGE */
+        case 0x7a: /* FABD  */
+        case 0x7c: /* FCMGT */
+        case 0x7d: /* FACGT */
+            unsupported_encoding(s, insn);
+            return;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
+    }
+
+    switch (opcode) {
+    case 0x1: /* SQADD, UQADD */
+    case 0x5: /* SQSUB, UQSUB */
+    case 0x8: /* SSHL, USHL */
+    case 0xa: /* SRSHL, URSHL */
+        unsupported_encoding(s, insn);
+        return;
+    case 0x6: /* CMGT, CMHI */
+    case 0x7: /* CMGE, CMHS */
+    case 0x11: /* CMTST, CMEQ */
+    case 0x10: /* ADD, SUB (vector) */
+        if (size != 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x9: /* SQSHL, UQSHL */
+    case 0xb: /* SQRSHL, UQRSHL */
+        unsupported_encoding(s, insn);
+        return;
+    case 0x16: /* SQDMULH, SQRDMULH (vector) */
+        if (size != 1 && size != 2) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        return;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rn = read_fp_dreg(s, rn);       /* op1 */
+    tcg_rm = read_fp_dreg(s, rm);       /* op2 */
+    tcg_rd = tcg_temp_new_i64();
+
+    /* For the moment we only support the opcodes which are
+     * 64-bit-width only. The size != 3 cases will
+     * be handled later when the relevant ops are implemented.
+     */
+    handle_3same_64(s, opcode, u, tcg_rd, tcg_rn, tcg_rm);
+
+    write_fp_dreg(s, rd, tcg_rd);
+
+    tcg_temp_free_i64(tcg_rn);
+    tcg_temp_free_i64(tcg_rm);
+    tcg_temp_free_i64(tcg_rd);
 }
 
 /* C3.6.12 AdvSIMD scalar two reg misc
