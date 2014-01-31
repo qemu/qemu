@@ -308,6 +308,28 @@ static TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
     return v;
 }
 
+/* Return the offset into CPUARMState of an element of specified
+ * size, 'element' places in from the least significant end of
+ * the FP/vector register Qn.
+ */
+static inline int vec_reg_offset(int regno, int element, TCGMemOp size)
+{
+    int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
+#ifdef HOST_WORDS_BIGENDIAN
+    /* This is complicated slightly because vfp.regs[2n] is
+     * still the low half and  vfp.regs[2n+1] the high half
+     * of the 128 bit vector, even on big endian systems.
+     * Calculate the offset assuming a fully bigendian 128 bits,
+     * then XOR to account for the order of the two 64 bit halves.
+     */
+    offs += (16 - ((element + 1) * (1 << size)));
+    offs ^= 8;
+#else
+    offs += element * (1 << size);
+#endif
+    return offs;
+}
+
 /* Return the offset into CPUARMState of a slice (from
  * the least significant end) of FP register Qn (ie
  * Dn, Sn, Hn or Bn).
@@ -658,6 +680,108 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 
     tcg_temp_free_i64(tmplo);
     tcg_temp_free_i64(tmphi);
+}
+
+/*
+ * Vector load/store helpers.
+ *
+ * The principal difference between this and a FP load is that we don't
+ * zero extend as we are filling a partial chunk of the vector register.
+ * These functions don't support 128 bit loads/stores, which would be
+ * normal load/store operations.
+ */
+
+/* Get value of an element within a vector register */
+static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
+                             int element, TCGMemOp memop)
+{
+    int vect_off = vec_reg_offset(srcidx, element, memop & MO_SIZE);
+    switch (memop) {
+    case MO_8:
+        tcg_gen_ld8u_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_16:
+        tcg_gen_ld16u_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_32:
+        tcg_gen_ld32u_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_8|MO_SIGN:
+        tcg_gen_ld8s_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_16|MO_SIGN:
+        tcg_gen_ld16s_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_32|MO_SIGN:
+        tcg_gen_ld32s_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    case MO_64:
+    case MO_64|MO_SIGN:
+        tcg_gen_ld_i64(tcg_dest, cpu_env, vect_off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* Set value of an element within a vector register */
+static void write_vec_element(DisasContext *s, TCGv_i64 tcg_src, int destidx,
+                              int element, TCGMemOp memop)
+{
+    int vect_off = vec_reg_offset(destidx, element, memop & MO_SIZE);
+    switch (memop) {
+    case MO_8:
+        tcg_gen_st8_i64(tcg_src, cpu_env, vect_off);
+        break;
+    case MO_16:
+        tcg_gen_st16_i64(tcg_src, cpu_env, vect_off);
+        break;
+    case MO_32:
+        tcg_gen_st32_i64(tcg_src, cpu_env, vect_off);
+        break;
+    case MO_64:
+        tcg_gen_st_i64(tcg_src, cpu_env, vect_off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* Clear the high 64 bits of a 128 bit vector (in general non-quad
+ * vector ops all need to do this).
+ */
+static void clear_vec_high(DisasContext *s, int rd)
+{
+    TCGv_i64 tcg_zero = tcg_const_i64(0);
+
+    write_vec_element(s, tcg_zero, rd, 1, MO_64);
+    tcg_temp_free_i64(tcg_zero);
+}
+
+/* Store from vector register to memory */
+static void do_vec_st(DisasContext *s, int srcidx, int element,
+                      TCGv_i64 tcg_addr, int size)
+{
+    TCGMemOp memop = MO_TE + size;
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+
+    read_vec_element(s, tcg_tmp, srcidx, element, size);
+    tcg_gen_qemu_st_i64(tcg_tmp, tcg_addr, get_mem_index(s), memop);
+
+    tcg_temp_free_i64(tcg_tmp);
+}
+
+/* Load from memory to vector register */
+static void do_vec_ld(DisasContext *s, int destidx, int element,
+                      TCGv_i64 tcg_addr, int size)
+{
+    TCGMemOp memop = MO_TE + size;
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+
+    tcg_gen_qemu_ld_i64(tcg_tmp, tcg_addr, get_mem_index(s), memop);
+    write_vec_element(s, tcg_tmp, destidx, element, size);
+
+    tcg_temp_free_i64(tcg_tmp);
 }
 
 /*
@@ -1835,10 +1959,132 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD load/store multiple structures */
+/* C3.3.1 AdvSIMD load/store multiple structures
+ *
+ *  31  30  29           23 22  21         16 15    12 11  10 9    5 4    0
+ * +---+---+---------------+---+-------------+--------+------+------+------+
+ * | 0 | Q | 0 0 1 1 0 0 0 | L | 0 0 0 0 0 0 | opcode | size |  Rn  |  Rt  |
+ * +---+---+---------------+---+-------------+--------+------+------+------+
+ *
+ * C3.3.2 AdvSIMD load/store multiple structures (post-indexed)
+ *
+ *  31  30  29           23 22  21  20     16 15    12 11  10 9    5 4    0
+ * +---+---+---------------+---+---+---------+--------+------+------+------+
+ * | 0 | Q | 0 0 1 1 0 0 1 | L | 0 |   Rm    | opcode | size |  Rn  |  Rt  |
+ * +---+---+---------------+---+---+---------+--------+------+------+------+
+ *
+ * Rt: first (or only) SIMD&FP register to be transferred
+ * Rn: base address or SP
+ * Rm (post-index only): post-index register (when !31) or size dependent #imm
+ */
 static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rt = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int size = extract32(insn, 10, 2);
+    int opcode = extract32(insn, 12, 4);
+    bool is_store = !extract32(insn, 22, 1);
+    bool is_postidx = extract32(insn, 23, 1);
+    bool is_q = extract32(insn, 30, 1);
+    TCGv_i64 tcg_addr, tcg_rn;
+
+    int ebytes = 1 << size;
+    int elements = (is_q ? 128 : 64) / (8 << size);
+    int rpt;    /* num iterations */
+    int selem;  /* structure elements */
+    int r;
+
+    if (extract32(insn, 31, 1) || extract32(insn, 21, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* From the shared decode logic */
+    switch (opcode) {
+    case 0x0:
+        rpt = 1;
+        selem = 4;
+        break;
+    case 0x2:
+        rpt = 4;
+        selem = 1;
+        break;
+    case 0x4:
+        rpt = 1;
+        selem = 3;
+        break;
+    case 0x6:
+        rpt = 3;
+        selem = 1;
+        break;
+    case 0x7:
+        rpt = 1;
+        selem = 1;
+        break;
+    case 0x8:
+        rpt = 1;
+        selem = 2;
+        break;
+    case 0xa:
+        rpt = 2;
+        selem = 1;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (size == 3 && !is_q && selem != 1) {
+        /* reserved */
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+
+    tcg_rn = cpu_reg_sp(s, rn);
+    tcg_addr = tcg_temp_new_i64();
+    tcg_gen_mov_i64(tcg_addr, tcg_rn);
+
+    for (r = 0; r < rpt; r++) {
+        int e;
+        for (e = 0; e < elements; e++) {
+            int tt = (rt + r) % 32;
+            int xs;
+            for (xs = 0; xs < selem; xs++) {
+                if (is_store) {
+                    do_vec_st(s, tt, e, tcg_addr, size);
+                } else {
+                    do_vec_ld(s, tt, e, tcg_addr, size);
+
+                    /* For non-quad operations, setting a slice of the low
+                     * 64 bits of the register clears the high 64 bits (in
+                     * the ARM ARM pseudocode this is implicit in the fact
+                     * that 'rval' is a 64 bit wide variable). We optimize
+                     * by noticing that we only need to do this the first
+                     * time we touch a register.
+                     */
+                    if (!is_q && e == 0 && (r == 0 || xs == selem - 1)) {
+                        clear_vec_high(s, tt);
+                    }
+                }
+                tcg_gen_addi_i64(tcg_addr, tcg_addr, ebytes);
+                tt = (tt + 1) % 32;
+            }
+        }
+    }
+
+    if (is_postidx) {
+        int rm = extract32(insn, 16, 5);
+        if (rm == 31) {
+            tcg_gen_mov_i64(tcg_rn, tcg_addr);
+        } else {
+            tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, rm));
+        }
+    }
+    tcg_temp_free_i64(tcg_addr);
 }
 
 /* AdvSIMD load/store single structure */
