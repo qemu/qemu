@@ -370,25 +370,37 @@ int64_t qmp_guest_get_time(Error **errp)
     return time_ns;
 }
 
-void qmp_guest_set_time(int64_t time_ns, Error **errp)
+void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
     SYSTEMTIME ts;
     FILETIME tf;
     LONGLONG time;
 
-    if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
-        error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
-        return;
-    }
+    if (has_time) {
+        /* Okay, user passed a time to set. Validate it. */
+        if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
+            error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
+            return;
+        }
 
-    time = time_ns / 100 + W32_FT_OFFSET;
+        time = time_ns / 100 + W32_FT_OFFSET;
 
-    tf.dwLowDateTime = (DWORD) time;
-    tf.dwHighDateTime = (DWORD) (time >> 32);
+        tf.dwLowDateTime = (DWORD) time;
+        tf.dwHighDateTime = (DWORD) (time >> 32);
 
-    if (!FileTimeToSystemTime(&tf, &ts)) {
-        error_setg(errp, "Failed to convert system time %d", (int)GetLastError());
-        return;
+        if (!FileTimeToSystemTime(&tf, &ts)) {
+            error_setg(errp, "Failed to convert system time %d",
+                       (int)GetLastError());
+            return;
+        }
+    } else {
+        /* Otherwise read the time from RTC which contains the correct value.
+         * Hopefully. */
+        GetSystemTime(&ts);
+        if (ts.wYear < 1601 || ts.wYear > 30827) {
+            error_setg(errp, "Failed to get time");
+            return;
+        }
     }
 
     acquire_privilege(SE_SYSTEMTIME_NAME, errp);
