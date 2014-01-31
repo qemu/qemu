@@ -4806,7 +4806,81 @@ static void disas_simd_tb(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_zip_trn(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int rm = extract32(insn, 16, 5);
+    int size = extract32(insn, 22, 2);
+    /* opc field bits [1:0] indicate ZIP/UZP/TRN;
+     * bit 2 indicates 1 vs 2 variant of the insn.
+     */
+    int opcode = extract32(insn, 12, 2);
+    bool part = extract32(insn, 14, 1);
+    bool is_q = extract32(insn, 30, 1);
+    int esize = 8 << size;
+    int i, ofs;
+    int datasize = is_q ? 128 : 64;
+    int elements = datasize / esize;
+    TCGv_i64 tcg_res, tcg_resl, tcg_resh;
+
+    if (opcode == 0 || (size == 3 && !is_q)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_resl = tcg_const_i64(0);
+    tcg_resh = tcg_const_i64(0);
+    tcg_res = tcg_temp_new_i64();
+
+    for (i = 0; i < elements; i++) {
+        switch (opcode) {
+        case 1: /* UZP1/2 */
+        {
+            int midpoint = elements / 2;
+            if (i < midpoint) {
+                read_vec_element(s, tcg_res, rn, 2 * i + part, size);
+            } else {
+                read_vec_element(s, tcg_res, rm,
+                                 2 * (i - midpoint) + part, size);
+            }
+            break;
+        }
+        case 2: /* TRN1/2 */
+            if (i & 1) {
+                read_vec_element(s, tcg_res, rm, (i & ~1) + part, size);
+            } else {
+                read_vec_element(s, tcg_res, rn, (i & ~1) + part, size);
+            }
+            break;
+        case 3: /* ZIP1/2 */
+        {
+            int base = part * elements / 2;
+            if (i & 1) {
+                read_vec_element(s, tcg_res, rm, base + (i >> 1), size);
+            } else {
+                read_vec_element(s, tcg_res, rn, base + (i >> 1), size);
+            }
+            break;
+        }
+        default:
+            g_assert_not_reached();
+        }
+
+        ofs = i * esize;
+        if (ofs < 64) {
+            tcg_gen_shli_i64(tcg_res, tcg_res, ofs);
+            tcg_gen_or_i64(tcg_resl, tcg_resl, tcg_res);
+        } else {
+            tcg_gen_shli_i64(tcg_res, tcg_res, ofs - 64);
+            tcg_gen_or_i64(tcg_resh, tcg_resh, tcg_res);
+        }
+    }
+
+    tcg_temp_free_i64(tcg_res);
+
+    write_vec_element(s, tcg_resl, rd, 0, MO_64);
+    tcg_temp_free_i64(tcg_resl);
+    write_vec_element(s, tcg_resh, rd, 1, MO_64);
+    tcg_temp_free_i64(tcg_resh);
 }
 
 /* C3.6.4 AdvSIMD across lanes
