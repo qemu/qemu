@@ -27,6 +27,7 @@
 #define GIC_MAXIRQ 1020
 /* First 32 are private to each CPU (SGIs and PPIs). */
 #define GIC_INTERNAL 32
+#define GIC_NR_SGIS 16
 /* Maximum number of possible CPU interfaces, determined by GIC architecture */
 #define GIC_NCPU 8
 
