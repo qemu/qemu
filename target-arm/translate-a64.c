@@ -5602,6 +5602,21 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
+            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
+            {
+                TCGv_i64 tcg_tmp1 = tcg_temp_new_i64();
+                TCGv_i64 tcg_tmp2 = tcg_temp_new_i64();
+
+                tcg_gen_sub_i64(tcg_tmp1, tcg_op1, tcg_op2);
+                tcg_gen_sub_i64(tcg_tmp2, tcg_op2, tcg_op1);
+                tcg_gen_movcond_i64(is_u ? TCG_COND_GEU : TCG_COND_GE,
+                                    tcg_passres,
+                                    tcg_op1, tcg_op2, tcg_tmp1, tcg_tmp2);
+                tcg_temp_free_i64(tcg_tmp1);
+                tcg_temp_free_i64(tcg_tmp2);
+                break;
+            }
             case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
             case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
             case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
@@ -5640,6 +5655,22 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
+            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
+                if (size == 0) {
+                    if (is_u) {
+                        gen_helper_neon_abdl_u16(tcg_passres, tcg_op1, tcg_op2);
+                    } else {
+                        gen_helper_neon_abdl_s16(tcg_passres, tcg_op1, tcg_op2);
+                    }
+                } else {
+                    if (is_u) {
+                        gen_helper_neon_abdl_u32(tcg_passres, tcg_op1, tcg_op2);
+                    } else {
+                        gen_helper_neon_abdl_s32(tcg_passres, tcg_op1, tcg_op2);
+                    }
+                }
+                break;
             case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
             case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
             case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
@@ -5739,10 +5770,10 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
         /* fall through */
     case 0:
     case 2:
-    case 5:
-    case 7:
         unsupported_encoding(s, insn);
         break;
+    case 5:
+    case 7:
     case 8:
     case 10:
     case 12:
