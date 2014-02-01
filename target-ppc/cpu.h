@@ -2183,4 +2183,22 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 
+/**
+ * ppc_get_vcpu_dt_id:
+ * @cs: a PowerPCCPU struct.
+ *
+ * Returns a device-tree ID for a CPU.
+ */
+int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
+
+/**
+ * ppc_get_vcpu_by_dt_id:
+ * @cpu_dt_id: a device tree id
+ *
+ * Searches for a CPU by @cpu_dt_id.
+ *
+ * Returns: a PowerPCCPU struct
+ */
+PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
+
 #endif /* !defined (__CPU_PPC_H__) */

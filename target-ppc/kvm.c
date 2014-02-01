@@ -1770,19 +1770,6 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     }
 }
 
-int kvmppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int smt;
-
-    /* Adjust cpu index for SMT */
-    smt = kvmppc_smt_threads();
-    cs->cpu_index = (cs->cpu_index / smp_threads) * smt
-        + (cs->cpu_index % smp_threads);
-
-    return 0;
-}
-
 bool kvmppc_has_cap_epr(void)
 {
     return cap_epr;

@@ -7847,14 +7847,12 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
                    max_smt, kvm_enabled() ? "KVM" : "TCG");
         return;
     }
+
+    cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt
+        + (cs->cpu_index % smp_threads);
 #endif
 
-    if (kvm_enabled()) {
-        if (kvmppc_fixup_cpu(cpu) != 0) {
-            error_setg(errp, "Unable to virtualize selected CPU with KVM");
-            return;
-        }
-    } else if (tcg_enabled()) {
+    if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
             return;
