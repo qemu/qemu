@@ -289,17 +289,15 @@ static inline void map_exec(void *addr, long size)
 }
 #endif
 
-static void page_init(void)
+void page_size_init(void)
 {
     /* NOTE: we can always suppose that qemu_host_page_size >=
        TARGET_PAGE_SIZE */
 #ifdef _WIN32
-    {
-        SYSTEM_INFO system_info;
+    SYSTEM_INFO system_info;
 
-        GetSystemInfo(&system_info);
-        qemu_real_host_page_size = system_info.dwPageSize;
-    }
+    GetSystemInfo(&system_info);
+    qemu_real_host_page_size = system_info.dwPageSize;
 #else
     qemu_real_host_page_size = getpagesize();
 #endif
@@ -310,7 +308,11 @@ static void page_init(void)
         qemu_host_page_size = TARGET_PAGE_SIZE;
     }
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
+}
 
+static void page_init(void)
+{
+    page_size_init();
 #if defined(CONFIG_BSD) && defined(CONFIG_USER_ONLY)
     {
 #ifdef HAVE_KINFO_GETVMMAP
