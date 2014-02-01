@@ -79,15 +79,4 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
  * to stop tracking any request.
  */
 void rng_backend_cancel_requests(RngBackend *s);
-
-/**
- * rng_backend_open:
- * @s: the backend to open
- * @errp: a pointer to return the #Error object if an error occurs.
- *
- * This function will open the backend if it is not already open.  Calling this
- * function on an already opened backend will not result in an error.
- */
-void rng_backend_open(RngBackend *s, Error **errp);
-
 #endif

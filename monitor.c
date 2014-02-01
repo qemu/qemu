@@ -288,8 +288,8 @@ void monitor_flush(Monitor *mon)
 
     if (len && !mon->mux_out) {
         rc = qemu_chr_fe_write(mon->chr, (const uint8_t *) buf, len);
-        if (rc == len) {
-            /* all flushed */
+        if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
+            /* all flushed or error */
             QDECREF(mon->outbuf);
             mon->outbuf = qstring_new();
             return;
