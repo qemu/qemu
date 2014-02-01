@@ -1924,6 +1924,47 @@ EQMP
     },
 
 SQMP
+query-chardev-backends
+-------------
+
+List available character device backends.
+
+Each backend is represented by a json-object, the returned value is a json-array
+of all backends.
+
+Each json-object contains:
+
+- "name": backend name (json-string)
+
+Example:
+
+-> { "execute": "query-chardev-backends" }
+<- {
+      "return":[
+         {
+            "name":"udp"
+         },
+         {
+            "name":"tcp"
+         },
+         {
+            "name":"unix"
+         },
+         {
+            "name":"spiceport"
+         }
+      ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-chardev-backends",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_chardev_backends,
+    },
+
+SQMP
 query-block
 -----------
 

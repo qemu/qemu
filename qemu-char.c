@@ -3432,6 +3432,25 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
     return chr_list;
 }
 
+ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
+{
+    ChardevBackendInfoList *backend_list = NULL;
+    CharDriver *c = NULL;
+    GSList *i = NULL;
+
+    for (i = backends; i; i = i->next) {
+        ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
+        c = i->data;
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(c->name);
+
+        info->next = backend_list;
+        backend_list = info;
+    }
+
+    return backend_list;
+}
+
 CharDriverState *qemu_chr_find(const char *name)
 {
     CharDriverState *chr;
