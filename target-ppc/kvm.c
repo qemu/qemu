@@ -402,7 +402,7 @@ static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
-    return cpu->cpu_index;
+    return ppc_get_vcpu_dt_id(POWERPC_CPU(cpu));
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)

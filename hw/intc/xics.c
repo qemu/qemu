@@ -33,6 +33,17 @@
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
 
+static int get_cpu_index_by_dt_id(int cpu_dt_id)
+{
+    PowerPCCPU *cpu = ppc_get_vcpu_by_dt_id(cpu_dt_id);
+
+    if (cpu) {
+        return cpu->parent_obj.cpu_index;
+    }
+
+    return -1;
+}
+
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -659,7 +670,7 @@ static target_ulong h_cppr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong h_ipi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
-    target_ulong server = args[0];
+    target_ulong server = get_cpu_index_by_dt_id(args[0]);
     target_ulong mfrr = args[1];
 
     if (server >= spapr->icp->nr_servers) {
@@ -728,7 +739,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     nr = rtas_ld(args, 0);
-    server = rtas_ld(args, 1);
+    server = get_cpu_index_by_dt_id(rtas_ld(args, 1));
     priority = rtas_ld(args, 2);
 
     if (!ics_valid_irq(ics, nr) || (server >= ics->icp->nr_servers)

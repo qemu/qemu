@@ -207,19 +207,20 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 
     CPU_FOREACH(cpu) {
         DeviceClass *dc = DEVICE_GET_CLASS(cpu);
+        int index = ppc_get_vcpu_dt_id(POWERPC_CPU(cpu));
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(cpu->numa_node),
-                                    cpu_to_be32(cpu->cpu_index)};
+                                    cpu_to_be32(index)};
 
-        if ((cpu->cpu_index % smt) != 0) {
+        if ((index % smt) != 0) {
             continue;
         }
 
         snprintf(cpu_model, 32, "/cpus/%s@%x", dc->fw_name,
-                 cpu->cpu_index);
+                 index);
 
         offset = fdt_path_offset(fdt, cpu_model);
         if (offset < 0) {
@@ -368,7 +369,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
         CPUPPCState *env = &cpu->env;
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
-        int index = cs->cpu_index;
+        int index = ppc_get_vcpu_dt_id(cpu);
         uint32_t servers_prop[smp_threads];
         uint32_t gservers_prop[smp_threads * 2];
         char *nodename;

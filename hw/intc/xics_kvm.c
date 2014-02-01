@@ -65,7 +65,7 @@ static void icp_get_kvm_state(ICPState *ss)
     ret = kvm_vcpu_ioctl(ss->cs, KVM_GET_ONE_REG, &reg);
     if (ret != 0) {
         error_report("Unable to retrieve KVM interrupt controller state"
-                " for CPU %d: %s", ss->cs->cpu_index, strerror(errno));
+                " for CPU %ld: %s", kvm_arch_vcpu_id(ss->cs), strerror(errno));
         exit(1);
     }
 
@@ -97,7 +97,7 @@ static int icp_set_kvm_state(ICPState *ss, int version_id)
     ret = kvm_vcpu_ioctl(ss->cs, KVM_SET_ONE_REG, &reg);
     if (ret != 0) {
         error_report("Unable to restore KVM interrupt controller state (0x%"
-                PRIx64 ") for CPU %d: %s", state, ss->cs->cpu_index,
+                PRIx64 ") for CPU %ld: %s", state, kvm_arch_vcpu_id(ss->cs),
                 strerror(errno));
         return ret;
     }
@@ -325,15 +325,15 @@ static void xics_kvm_cpu_setup(XICSState *icp, PowerPCCPU *cpu)
         struct kvm_enable_cap xics_enable_cap = {
             .cap = KVM_CAP_IRQ_XICS,
             .flags = 0,
-            .args = {icpkvm->kernel_xics_fd, cs->cpu_index, 0, 0},
+            .args = {icpkvm->kernel_xics_fd, kvm_arch_vcpu_id(cs), 0, 0},
         };
 
         ss->cs = cs;
 
         ret = kvm_vcpu_ioctl(ss->cs, KVM_ENABLE_CAP, &xics_enable_cap);
         if (ret < 0) {
-            error_report("Unable to connect CPU%d to kernel XICS: %s",
-                    cs->cpu_index, strerror(errno));
+            error_report("Unable to connect CPU%ld to kernel XICS: %s",
+                    kvm_arch_vcpu_id(cs), strerror(errno));
             exit(1);
         }
     }

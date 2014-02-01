@@ -131,7 +131,7 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
                                          uint32_t nret, target_ulong rets)
 {
     target_ulong id;
-    CPUState *cpu;
+    PowerPCCPU *cpu;
 
     if (nargs != 1 || nret != 2) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -139,9 +139,9 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
     }
 
     id = rtas_ld(args, 0);
-    cpu = qemu_get_cpu(id);
+    cpu = ppc_get_vcpu_by_dt_id(id);
     if (cpu != NULL) {
-        if (cpu->halted) {
+        if (CPU(cpu)->halted) {
             rtas_st(rets, 1, 0);
         } else {
             rtas_st(rets, 1, 2);
@@ -161,7 +161,7 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
                            uint32_t nret, target_ulong rets)
 {
     target_ulong id, start, r3;
-    CPUState *cs;
+    PowerPCCPU *cpu;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -172,9 +172,9 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
     start = rtas_ld(args, 1);
     r3 = rtas_ld(args, 2);
 
-    cs = qemu_get_cpu(id);
-    if (cs != NULL) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
+    cpu = ppc_get_vcpu_by_dt_id(id);
+    if (cpu != NULL) {
+        CPUState *cs = CPU(cpu);
         CPUPPCState *env = &cpu->env;
 
         if (!cs->halted) {
