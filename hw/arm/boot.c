@@ -173,6 +173,11 @@ static void default_reset_secondary(ARMCPU *cpu,
     env->regs[15] = info->smp_loader_start;
 }
 
+static inline bool have_dtb(const struct arm_boot_info *info)
+{
+    return info->dtb_filename || info->get_dtb;
+}
+
 #define WRITE_WORD(p, value) do { \
     stl_phys_notdirty(p, value);  \
     p += 4;                       \
@@ -421,7 +426,7 @@ static void do_cpu_reset(void *opaque)
                     env->regs[15] = info->loader_start;
                 }
 
-                if (!info->dtb_filename) {
+                if (!have_dtb(info)) {
                     if (old_param) {
                         set_kernel_args_old(info);
                     } else {
@@ -542,7 +547,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         /* for device tree boot, we pass the DTB directly in r2. Otherwise
          * we point to the kernel args.
          */
-        if (info->dtb_filename || info->get_dtb) {
+        if (have_dtb(info)) {
             /* Place the DTB after the initrd in memory. Note that some
              * kernels will trash anything in the 4K page the initrd
              * ends in, so make sure the DTB isn't caught up in that.

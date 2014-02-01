@@ -2759,6 +2759,113 @@ static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
     return 0;
 }
 
+static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                        int rounding)
+{
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode;
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_op;
+        TCGv_i64 tcg_res;
+        tcg_op = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_gen_ld_f64(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rintd(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f64(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(tcg_op);
+        tcg_temp_free_i64(tcg_res);
+    } else {
+        TCGv_i32 tcg_op;
+        TCGv_i32 tcg_res;
+        tcg_op = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rints(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(tcg_op);
+        tcg_temp_free_i32(tcg_res);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
+static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
+                       int rounding)
+{
+    bool is_signed = extract32(insn, 7, 1);
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    TCGv_i32 tcg_rmode, tcg_shift;
+
+    tcg_shift = tcg_const_i32(0);
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+
+    if (dp) {
+        TCGv_i64 tcg_double, tcg_res;
+        TCGv_i32 tcg_tmp;
+        /* Rd is encoded as a single precision register even when the source
+         * is double precision.
+         */
+        rd = ((rd << 1) & 0x1e) | ((rd >> 4) & 0x1);
+        tcg_double = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_tmp = tcg_temp_new_i32();
+        tcg_gen_ld_f64(tcg_double, cpu_env, vfp_reg_offset(1, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosld(tcg_res, tcg_double, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_tould(tcg_res, tcg_double, tcg_shift, fpst);
+        }
+        tcg_gen_trunc_i64_i32(tcg_tmp, tcg_res);
+        tcg_gen_st_f32(tcg_tmp, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_tmp);
+        tcg_temp_free_i64(tcg_res);
+        tcg_temp_free_i64(tcg_double);
+    } else {
+        TCGv_i32 tcg_single, tcg_res;
+        tcg_single = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_single, cpu_env, vfp_reg_offset(0, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+        }
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_single);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_i32(tcg_shift);
+
+    tcg_temp_free_ptr(fpst);
+
+    return 0;
+}
+
+/* Table for converting the most common AArch32 encoding of
+ * rounding mode to arm_fprounding order (which matches the
+ * common AArch64 order); see ARM ARM pseudocode FPDecodeRM().
+ */
+static const uint8_t fp_decode_rm[] = {
+    FPROUNDING_TIEAWAY,
+    FPROUNDING_TIEEVEN,
+    FPROUNDING_POSINF,
+    FPROUNDING_NEGINF,
+};
+
 static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
@@ -2781,6 +2888,14 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         return handle_vsel(insn, rd, rn, rm, dp);
     } else if ((insn & 0x0fb00e10) == 0x0e800a00) {
         return handle_vminmaxnm(insn, rd, rn, rm, dp);
+    } else if ((insn & 0x0fbc0ed0) == 0x0eb80a40) {
+        /* VRINTA, VRINTN, VRINTP, VRINTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vrint(insn, rd, rm, dp, rounding);
+    } else if ((insn & 0x0fbc0e50) == 0x0ebc0a40) {
+        /* VCVTA, VCVTN, VCVTP, VCVTM */
+        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
+        return handle_vcvt(insn, rd, rm, dp, rounding);
     }
     return 1;
 }
@@ -3325,6 +3440,44 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_F1_ld0(dp);
                         gen_vfp_cmpe(dp);
                         break;
+                    case 12: /* vrintr */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        if (dp) {
+                            gen_helper_rintd(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
+                    case 13: /* vrintz */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        TCGv_i32 tcg_rmode;
+                        tcg_rmode = tcg_const_i32(float_round_to_zero);
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        if (dp) {
+                            gen_helper_rintd(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+                        tcg_temp_free_i32(tcg_rmode);
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
+                    case 14: /* vrintx */
+                    {
+                        TCGv_ptr fpst = get_fpstatus_ptr(0);
+                        if (dp) {
+                            gen_helper_rintd_exact(cpu_F0d, cpu_F0d, fpst);
+                        } else {
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpst);
+                        }
+                        tcg_temp_free_ptr(fpst);
+                        break;
+                    }
                     case 15: /* single<->double conversion */
                         if (dp)
                             gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
@@ -4617,8 +4770,22 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VMOVN 36 /* Includes VQMOVN, VQMOVUN */
 #define NEON_2RM_VQMOVN 37 /* Includes VQMOVUN */
 #define NEON_2RM_VSHLL 38
+#define NEON_2RM_VRINTN 40
+#define NEON_2RM_VRINTX 41
+#define NEON_2RM_VRINTA 42
+#define NEON_2RM_VRINTZ 43
 #define NEON_2RM_VCVT_F16_F32 44
+#define NEON_2RM_VRINTM 45
 #define NEON_2RM_VCVT_F32_F16 46
+#define NEON_2RM_VRINTP 47
+#define NEON_2RM_VCVTAU 48
+#define NEON_2RM_VCVTAS 49
+#define NEON_2RM_VCVTNU 50
+#define NEON_2RM_VCVTNS 51
+#define NEON_2RM_VCVTPU 52
+#define NEON_2RM_VCVTPS 53
+#define NEON_2RM_VCVTMU 54
+#define NEON_2RM_VCVTMS 55
 #define NEON_2RM_VRECPE 56
 #define NEON_2RM_VRSQRTE 57
 #define NEON_2RM_VRECPE_F 58
@@ -4632,6 +4799,9 @@ static int neon_2rm_is_float_op(int op)
 {
     /* Return true if this neon 2reg-misc op is float-to-float */
     return (op == NEON_2RM_VABS_F || op == NEON_2RM_VNEG_F ||
+            (op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
+            op == NEON_2RM_VRINTM ||
+            (op >= NEON_2RM_VRINTP && op <= NEON_2RM_VCVTMS) ||
             op >= NEON_2RM_VRECPE_F);
 }
 
@@ -4676,8 +4846,22 @@ static const uint8_t neon_2rm_sizes[] = {
     [NEON_2RM_VMOVN] = 0x7,
     [NEON_2RM_VQMOVN] = 0x7,
     [NEON_2RM_VSHLL] = 0x7,
+    [NEON_2RM_VRINTN] = 0x4,
+    [NEON_2RM_VRINTX] = 0x4,
+    [NEON_2RM_VRINTA] = 0x4,
+    [NEON_2RM_VRINTZ] = 0x4,
     [NEON_2RM_VCVT_F16_F32] = 0x2,
+    [NEON_2RM_VRINTM] = 0x4,
     [NEON_2RM_VCVT_F32_F16] = 0x2,
+    [NEON_2RM_VRINTP] = 0x4,
+    [NEON_2RM_VCVTAU] = 0x4,
+    [NEON_2RM_VCVTAS] = 0x4,
+    [NEON_2RM_VCVTNU] = 0x4,
+    [NEON_2RM_VCVTNS] = 0x4,
+    [NEON_2RM_VCVTPU] = 0x4,
+    [NEON_2RM_VCVTPS] = 0x4,
+    [NEON_2RM_VCVTMU] = 0x4,
+    [NEON_2RM_VCVTMS] = 0x4,
     [NEON_2RM_VRECPE] = 0x4,
     [NEON_2RM_VRSQRTE] = 0x4,
     [NEON_2RM_VRECPE_F] = 0x4,
@@ -6388,6 +6572,73 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
+                        case NEON_2RM_VRINTN:
+                        case NEON_2RM_VRINTA:
+                        case NEON_2RM_VRINTM:
+                        case NEON_2RM_VRINTP:
+                        case NEON_2RM_VRINTZ:
+                        {
+                            TCGv_i32 tcg_rmode;
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            int rmode;
+
+                            if (op == NEON_2RM_VRINTZ) {
+                                rmode = FPROUNDING_ZERO;
+                            } else {
+                                rmode = fp_decode_rm[((op & 0x6) >> 1) ^ 1];
+                            }
+
+                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            gen_helper_rints(cpu_F0s, cpu_F0s, fpstatus);
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            tcg_temp_free_ptr(fpstatus);
+                            tcg_temp_free_i32(tcg_rmode);
+                            break;
+                        }
+                        case NEON_2RM_VRINTX:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
+                            break;
+                        }
+                        case NEON_2RM_VCVTAU:
+                        case NEON_2RM_VCVTAS:
+                        case NEON_2RM_VCVTNU:
+                        case NEON_2RM_VCVTNS:
+                        case NEON_2RM_VCVTPU:
+                        case NEON_2RM_VCVTPS:
+                        case NEON_2RM_VCVTMU:
+                        case NEON_2RM_VCVTMS:
+                        {
+                            bool is_signed = !extract32(insn, 7, 1);
+                            TCGv_ptr fpst = get_fpstatus_ptr(1);
+                            TCGv_i32 tcg_rmode, tcg_shift;
+                            int rmode = fp_decode_rm[extract32(insn, 8, 2)];
+
+                            tcg_shift = tcg_const_i32(0);
+                            tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+
+                            if (is_signed) {
+                                gen_helper_vfp_tosls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            } else {
+                                gen_helper_vfp_touls(cpu_F0s, cpu_F0s,
+                                                     tcg_shift, fpst);
+                            }
+
+                            gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
+                                                      cpu_env);
+                            tcg_temp_free_i32(tcg_rmode);
+                            tcg_temp_free_i32(tcg_shift);
+                            tcg_temp_free_ptr(fpst);
+                            break;
+                        }
                         case NEON_2RM_VRECPE:
                             gen_helper_recpe_u32(tmp, tmp, cpu_env);
                             break;

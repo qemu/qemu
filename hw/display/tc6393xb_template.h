@@ -22,14 +22,18 @@
  */
 
 #if BITS == 8
-# define SET_PIXEL(addr, color)	*(uint8_t*)addr = color;
+# define SET_PIXEL(addr, color)  (*(uint8_t *)addr = color)
 #elif BITS == 15 || BITS == 16
-# define SET_PIXEL(addr, color)	*(uint16_t*)addr = color;
+# define SET_PIXEL(addr, color)  (*(uint16_t *)addr = color)
 #elif BITS == 24
-# define SET_PIXEL(addr, color)	\
-    addr[0] = color; addr[1] = (color) >> 8; addr[2] = (color) >> 16;
+# define SET_PIXEL(addr, color)  \
+    do {                         \
+        addr[0] = color;         \
+        addr[1] = (color) >> 8;  \
+        addr[2] = (color) >> 16; \
+    } while (0)
 #elif BITS == 32
-# define SET_PIXEL(addr, color)	*(uint32_t*)addr = color;
+# define SET_PIXEL(addr, color)  (*(uint32_t *)addr = color)
 #else
 # error unknown bit depth
 #endif
