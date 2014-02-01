@@ -3659,7 +3659,7 @@ struct target_sigcontext {
 struct target_signal_frame {
         struct target_sigcontext sc;
         uint32_t extramask[TARGET_NSIG_WORDS - 1];
-        uint8_t retcode[8];       /* Trampoline code. */
+        uint16_t retcode[4];      /* Trampoline code. */
 };
 
 struct rt_signal_frame {
@@ -3667,7 +3667,7 @@ struct rt_signal_frame {
         void *puc;
         siginfo_t info;
         struct ucontext uc;
-        uint8_t retcode[8];       /* Trampoline code. */
+        uint16_t retcode[4];      /* Trampoline code. */
 };
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUCRISState *env)
@@ -3745,8 +3745,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 	 */
 	err |= __put_user(0x9c5f, frame->retcode+0);
 	err |= __put_user(TARGET_NR_sigreturn, 
-			  frame->retcode+2);
-	err |= __put_user(0xe93d, frame->retcode+4);
+			  frame->retcode + 1);
+	err |= __put_user(0xe93d, frame->retcode + 2);
 
 	/* Save the mask.  */
 	err |= __put_user(set->sig[0], &frame->sc.oldmask);
