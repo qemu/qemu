@@ -177,16 +177,6 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     acpi_pcihp_update(s);
 }
 
-static void enable_device(AcpiPciHpState *s, unsigned bsel, int slot)
-{
-    s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
-}
-
-static void disable_device(AcpiPciHpState *s, unsigned bsel, int slot)
-{
-    s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
-}
-
 int acpi_pcihp_device_hotplug(AcpiPciHpState *s, PCIDevice *dev,
                               PCIHotplugState state)
 {
@@ -204,9 +194,9 @@ int acpi_pcihp_device_hotplug(AcpiPciHpState *s, PCIDevice *dev,
     }
 
     if (state == PCI_HOTPLUG_ENABLED) {
-        enable_device(s, bsel, slot);
+        s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
     } else {
-        disable_device(s, bsel, slot);
+        s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
     }
 
     return 0;
