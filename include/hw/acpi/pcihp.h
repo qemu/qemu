@@ -46,10 +46,11 @@ typedef struct AcpiPciHpState {
     uint32_t hotplug_select;
     PCIBus *root;
     MemoryRegion io;
+    bool legacy_piix;
 } AcpiPciHpState;
 
 void acpi_pcihp_init(AcpiPciHpState *, PCIBus *root,
-                     MemoryRegion *address_space_io);
+                     MemoryRegion *address_space_io, bool bridges_enabled);
 
 /* Invoke on device hotplug */
 int acpi_pcihp_device_hotplug(AcpiPciHpState *, PCIDevice *,

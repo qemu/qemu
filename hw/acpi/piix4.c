@@ -695,7 +695,8 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
     if (s->use_acpi_pci_hotplug) {
-        acpi_pcihp_init(&s->acpi_pci_hotplug, bus, parent);
+        acpi_pcihp_init(&s->acpi_pci_hotplug, bus, parent,
+                        s->use_acpi_pci_hotplug);
     } else {
         memory_region_init_io(&s->io_pci, OBJECT(s), &piix4_pci_ops, s,
                               "acpi-pci-hotplug", PCI_HOTPLUG_SIZE);

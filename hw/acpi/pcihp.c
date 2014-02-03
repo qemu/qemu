@@ -215,7 +215,9 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
     switch (addr) {
     case PCI_UP_BASE:
         val = s->acpi_pcihp_pci_status[bsel].up;
-        s->acpi_pcihp_pci_status[bsel].up = 0;
+        if (!s->legacy_piix) {
+            s->acpi_pcihp_pci_status[bsel].up = 0;
+        }
         ACPI_PCIHP_DPRINTF("pci_up_read %" PRIu32 "\n", val);
         break;
     case PCI_DOWN_BASE:
@@ -273,9 +275,10 @@ static const MemoryRegionOps acpi_pcihp_io_ops = {
 };
 
 void acpi_pcihp_init(AcpiPciHpState *s, PCIBus *root_bus,
-                     MemoryRegion *address_space_io)
+                     MemoryRegion *address_space_io, bool bridges_enabled)
 {
     s->root= root_bus;
+    s->legacy_piix = !bridges_enabled;
     memory_region_init_io(&s->io, NULL, &acpi_pcihp_io_ops, s,
                           "acpi-pci-hotplug",
                           PCI_HOTPLUG_SIZE);
