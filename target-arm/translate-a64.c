@@ -6222,6 +6222,12 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     TCGCond cond;
 
     switch (opcode) {
+    case 0x5: /* NOT */
+        /* This opcode is shared with CNT and RBIT but we have earlier
+         * enforced that size == 3 if and only if this is the NOT insn.
+         */
+        tcg_gen_not_i64(tcg_rd, tcg_rn);
+        break;
     case 0xa: /* CMLT */
         /* 64 bit integer comparison against zero, result is
          * test ? (2^64 - 1) : 0. We implement via setcond(!test) and
@@ -7385,13 +7391,19 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     case 0x1: /* REV16 */
         unsupported_encoding(s, insn);
         return;
-    case 0x5: /* CNT, NOT, RBIT  */
-        if ((u == 0 && size > 0) ||
-            (u == 1 && size > 1)) {
-            unallocated_encoding(s);
-            return;
+    case 0x5: /* CNT, NOT, RBIT */
+        if (u && size == 0) {
+            /* NOT: adjust size so we can use the 64-bits-at-a-time loop. */
+            size = 3;
+            break;
+        } else if (u && size == 1) {
+            /* RBIT */
+            break;
+        } else if (!u && size == 0) {
+            /* CNT */
+            break;
         }
-        unsupported_encoding(s, insn);
+        unallocated_encoding(s);
         return;
     case 0x2: /* SADDLP, UADDLP */
     case 0x4: /* CLS, CLZ */
@@ -7553,6 +7565,16 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             } else {
                 /* Use helpers for 8 and 16 bit elements */
                 switch (opcode) {
+                case 0x5: /* CNT, RBIT */
+                    /* For these two insns size is part of the opcode specifier
+                     * (handled earlier); they always operate on byte elements.
+                     */
+                    if (u) {
+                        gen_helper_neon_rbit_u8(tcg_res, tcg_op);
+                    } else {
+                        gen_helper_neon_cnt_u8(tcg_res, tcg_op);
+                    }
+                    break;
                 case 0x8: /* CMGT, CMGE */
                 case 0x9: /* CMEQ, CMLE */
                 case 0xa: /* CMLT */
