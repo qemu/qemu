@@ -35,7 +35,6 @@ typedef struct AcpiPciHpPciStatus {
     uint32_t up;
     uint32_t down;
     uint32_t hotplug_enable;
-    uint32_t device_present;
 } AcpiPciHpPciStatus;
 
 #define ACPI_PCIHP_PROP_BSEL "acpi-pcihp-bsel"
