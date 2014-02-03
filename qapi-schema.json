@@ -4371,6 +4371,7 @@
 # TODO gluster: Wait for structured options
 # TODO iscsi: Wait for structured options
 # TODO nbd: Should take InetSocketAddress for 'host'?
+# TODO nfs: Wait for structured options
 # TODO rbd: Wait for structured options
 # TODO sheepdog: Wait for structured options
 # TODO ssh: Should take InetSocketAddress for 'host'?

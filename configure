@@ -251,6 +251,7 @@ vss_win32_sdk=""
 win_sdk="no"
 want_tools="yes"
 libiscsi=""
+libnfs=""
 coroutine=""
 coroutine_pool=""
 seccomp=""
@@ -840,6 +841,10 @@ for opt do
   ;;
   --enable-libiscsi) libiscsi="yes"
   ;;
+  --disable-libnfs) libnfs="no"
+  ;;
+  --enable-libnfs) libnfs="yes"
+  ;;
   --enable-profiler) profiler="yes"
   ;;
   --disable-cocoa) cocoa="no"
@@ -1229,6 +1234,8 @@ Advanced options (experts only):
   --enable-rbd             enable building the rados block device (rbd)
   --disable-libiscsi       disable iscsi support
   --enable-libiscsi        enable iscsi support
+  --disable-libnfs         disable nfs support
+  --enable-libnfs          enable nfs support
   --disable-smartcard-nss  disable smartcard nss support
   --enable-smartcard-nss   enable smartcard nss support
   --disable-libusb         disable libusb (for usb passthrough)
@@ -3600,6 +3607,20 @@ elif test "$debug" = "no" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
 fi
 
+##########################################
+# Do we have libnfs
+if test "$libnfs" != "no" ; then
+  if $pkg_config --atleast-version=1.9.2 libnfs; then
+    libnfs="yes"
+    libnfs_libs=$($pkg_config --libs libnfs)
+    LIBS="$LIBS $libnfs_libs"
+  else
+    if test "$libnfs" = "yes" ; then
+      feature_not_found "libnfs"
+    fi
+    libnfs="no"
+  fi
+fi
 
 # Disable zero malloc errors for official releases unless explicitly told to
 # enable/disable
@@ -3829,6 +3850,7 @@ echo "libiscsi support  $libiscsi (1.4.0)"
 else
 echo "libiscsi support  $libiscsi"
 fi
+echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
 echo "seccomp support   $seccomp"
@@ -4163,6 +4185,10 @@ if test "$libiscsi" = "yes" ; then
   if test "$libiscsi_version" = "1.4.0"; then
     echo "CONFIG_LIBISCSI_1_4=y" >> $config_host_mak
   fi
+fi
+
+if test "$libnfs" = "yes" ; then
+  echo "CONFIG_LIBNFS=y" >> $config_host_mak
 fi
 
 if test "$seccomp" = "yes"; then
