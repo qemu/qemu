@@ -225,6 +225,30 @@ Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
 
 
+=== Leaving out required options ===
+
+Testing: -drive driver=file
+QEMU_PROG: -drive driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive driver=nbd
+QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: Could not open image: Invalid argument
+
+Testing: -drive driver=raw
+QEMU_PROG: -drive driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive file.driver=file
+QEMU_PROG: -drive file.driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+
+Testing: -drive file.driver=nbd
+QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: Could not open image: Invalid argument
+
+Testing: -drive file.driver=raw
+QEMU_PROG: -drive file.driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+
+Testing: -drive foo=bar
+QEMU_PROG: -drive foo=bar: could not open disk image ide0-hd0: Must specify either driver or file
+
+
 === Parsing protocol from file name ===
 
 Testing: -hda foo:bar

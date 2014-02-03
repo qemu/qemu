@@ -832,6 +832,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         filename = qdict_get_try_str(options, "filename");
     }
 
+    if (drv->bdrv_needs_filename && !filename) {
+        error_setg(errp, "The '%s' block driver requires a file name",
+                   drv->format_name);
+        return -EINVAL;
+    }
+
     trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
 
     node_name = qdict_get_try_str(options, "node-name");
@@ -1031,11 +1037,6 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             goto fail;
         }
         qdict_del(options, "filename");
-    } else if (drv->bdrv_needs_filename && !filename) {
-        error_setg(errp, "The '%s' block driver requires a file name",
-                   drv->format_name);
-        ret = -EINVAL;
-        goto fail;
     }
 
     if (!drv->bdrv_file_open) {
