@@ -2254,7 +2254,7 @@ static int scsi_initfn(SCSIDevice *dev)
     } else {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_disk_block_ops, s);
     }
-    bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
+    bdrv_set_guest_block_size(s->qdev.conf.bs, s->qdev.blocksize);
 
     bdrv_iostatus_enable(s->qdev.conf.bs);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, NULL);
@@ -2306,6 +2306,7 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .send_command = scsi_disk_emulate_command,
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
+    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
 };
 

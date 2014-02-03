@@ -35,7 +35,7 @@ typedef struct PcPciInfo {
 struct PcGuestInfo {
     bool has_pci_info;
     bool isapc_ram_fw;
-    hwaddr ram_size;
+    hwaddr ram_size, ram_size_below_4g;
     unsigned apic_id_limit;
     bool apic_xrupt_override;
     uint64_t numa_nodes;
@@ -241,6 +241,7 @@ uint16_t pvpanic_port(void);
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
 
 #define PC_Q35_COMPAT_1_7 \
+        PC_COMPAT_1_7, \
         {\
             .driver   = "hpet",\
             .property = HPET_INTCAP,\
@@ -259,7 +260,20 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
         PC_COMPAT_1_4, \
         PC_Q35_COMPAT_1_5
 
+#define PC_COMPAT_1_7 \
+        {\
+            .driver   = TYPE_USB_DEVICE,\
+            .property = "msos-desc",\
+            .value    = "no",\
+        },\
+        {\
+            .driver   = "PIIX4_PM",\
+            .property = "acpi-pci-hotplug-with-bridge-support",\
+            .value    = "off",\
+        }
+
 #define PC_COMPAT_1_6 \
+        PC_COMPAT_1_7, \
         {\
             .driver   = "e1000",\
             .property = "mitigation",\

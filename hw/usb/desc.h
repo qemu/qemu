@@ -2,6 +2,7 @@
 #define QEMU_HW_USB_DESC_H
 
 #include <inttypes.h>
+#include <wchar.h>
 
 /* binary representation */
 typedef struct USBDescriptor {
@@ -182,6 +183,11 @@ struct USBDescOther {
     const uint8_t             *data;
 };
 
+struct USBDescMSOS {
+    const wchar_t             *Label;
+    bool                      SelectiveSuspendEnabled;
+};
+
 typedef const char *USBDescStrings[256];
 
 struct USBDesc {
@@ -190,6 +196,7 @@ struct USBDesc {
     const USBDescDevice       *high;
     const USBDescDevice       *super;
     const char* const         *str;
+    const USBDescMSOS         *msos;
 };
 
 #define USB_DESC_FLAG_SUPER (1 << 1)
@@ -207,7 +214,7 @@ static inline uint8_t usb_hi(uint16_t val)
 
 /* generate usb packages from structs */
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
-                    uint8_t *dest, size_t len);
+                    bool msos, uint8_t *dest, size_t len);
 int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len);
 int usb_desc_config(const USBDescConfig *conf, int flags,
@@ -219,6 +226,8 @@ int usb_desc_iface(const USBDescIface *iface, int flags,
 int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
                       uint8_t *dest, size_t len);
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len);
+int usb_desc_msos(const USBDesc *desc, USBPacket *p,
+                  int index, uint8_t *dest, size_t len);
 
 /* control message emulation helpers */
 void usb_desc_init(USBDevice *dev);

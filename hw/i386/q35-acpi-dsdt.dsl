@@ -48,6 +48,22 @@ DefinitionBlock (
 /****************************************************************
  * PCI Bus definition
  ****************************************************************/
+#define BOARD_SPECIFIC_PCI_RESOURSES \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0000, \
+         0x0CD7, \
+         0x0000, \
+         0x0CD8, \
+         ,, , TypeStatic) \
+     /* 0xcd8-0xcf7 hole for CPU hotplug, hw/acpi/ich9.c:ICH9_PROC_BASE */ \
+     WordIO(ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange, \
+         0x0000, \
+         0x0D00, \
+         0xFFFF, \
+         0x0000, \
+         0xF300, \
+         ,, , TypeStatic)
 
     Scope(\_SB) {
         Device(PCI0) {
@@ -171,6 +187,7 @@ DefinitionBlock (
         }
     }
 
+#define DSDT_APPLESMC_STA q35_dsdt_applesmc_sta
 #include "acpi-dsdt-isa.dsl"
 
 
@@ -404,6 +421,8 @@ DefinitionBlock (
         define_gsi_link(GSIH, 0, 0x17)
     }
 
+#include "hw/acpi/cpu_hotplug_defs.h"
+#define CPU_STATUS_BASE ICH9_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
 
 

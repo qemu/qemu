@@ -1,2 +1,1 @@
-common-obj-$(CONFIG_ACPI) += core.o piix4.o ich9.o
-
+common-obj-$(CONFIG_ACPI) += core.o piix4.o ich9.o pcihp.o cpu_hotplug.o

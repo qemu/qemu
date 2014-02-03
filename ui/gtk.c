@@ -714,10 +714,18 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    int gdk_keycode;
+    int gdk_keycode = key->hardware_keycode;
     int i;
 
-    gdk_keycode = key->hardware_keycode;
+#ifdef _WIN32
+    UINT qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
+    switch (qemu_keycode) {
+    case 103:   /* alt gr */
+        qemu_keycode = 56 | SCANCODE_GREY;
+        break;
+    }
+#else
+    int qemu_keycode;
 
 #ifdef _WIN32
     /* MapVirtualKey doesn't return scancode with needed higher byte */

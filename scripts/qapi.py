@@ -247,7 +247,7 @@ def c_var(name, protect=True):
                      'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
                      'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
-    polluted_words = set(['unix'])
+    polluted_words = set(['unix', 'errno'])
     if protect and (name in c89_words | c99_words | c11_words | gcc_words | cpp_words | polluted_words):
         return "q_" + name
     return name.replace('-', '_').lstrip("*")

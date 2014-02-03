@@ -393,6 +393,10 @@ static QEMUMachine pc_i440fx_machine_v1_7 = {
     PC_I440FX_1_7_MACHINE_OPTIONS,
     .name = "pc-i440fx-1.7",
     .init = pc_init_pci_1_7,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_7,
+        { /* end of list */ }
+    },
 };
 
 #define PC_I440FX_1_6_MACHINE_OPTIONS PC_I440FX_MACHINE_OPTIONS

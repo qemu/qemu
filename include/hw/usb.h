@@ -182,6 +182,7 @@ typedef struct USBDescIface USBDescIface;
 typedef struct USBDescEndpoint USBDescEndpoint;
 typedef struct USBDescOther USBDescOther;
 typedef struct USBDescString USBDescString;
+typedef struct USBDescMSOS USBDescMSOS;
 
 struct USBDescString {
     uint8_t index;
@@ -208,6 +209,8 @@ struct USBEndpoint {
 enum USBDeviceFlags {
     USB_DEV_FLAG_FULL_PATH,
     USB_DEV_FLAG_IS_HOST,
+    USB_DEV_FLAG_MSOS_DESC_ENABLE,
+    USB_DEV_FLAG_MSOS_DESC_IN_USE,
 };
 
 /* definition of a USB device */

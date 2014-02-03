@@ -35,6 +35,11 @@ STEXI
 @item commit
 @findex commit
 Commit changes to the disk images (if -snapshot is used) or backing files.
+If the backing file is smaller than the snapshot, then the backing file will be
+resized to be the same size as the snapshot.  If the snapshot is smaller than
+the backing file, the backing file will not be truncated.  If you want the
+backing file to match the size of the smaller snapshot, you can safely truncate
+it yourself once the commit operation successfully completes.
 ETEXI
 
     {

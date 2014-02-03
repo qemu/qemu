@@ -380,8 +380,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x100) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          value = 0xff;
+        if (irq < GIC_NR_SGIS) {
+            value = 0xff;
+        }
+
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
                 int mask =
@@ -406,8 +408,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x180) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          value = 0;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
+
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
@@ -423,8 +427,9 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x200) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        if (irq < 16)
-          irq = 0;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
@@ -436,6 +441,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x280) * 8 + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
+        if (irq < GIC_NR_SGIS) {
+            value = 0;
+        }
+
         for (i = 0; i < 8; i++) {
             /* ??? This currently clears the pending bit for all CPUs, even
                for per-CPU interrupts.  It's unclear whether this is the

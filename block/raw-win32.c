@@ -202,6 +202,35 @@ static int set_sparse(int fd)
 				 NULL, 0, NULL, 0, &returned, NULL);
 }
 
+static void raw_probe_alignment(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    DWORD sectorsPerCluster, freeClusters, totalClusters, count;
+    DISK_GEOMETRY_EX dg;
+    BOOL status;
+
+    if (s->type == FTYPE_CD) {
+        bs->request_alignment = 2048;
+        return;
+    }
+    if (s->type == FTYPE_HARDDISK) {
+        status = DeviceIoControl(s->hfile, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
+                                 NULL, 0, &dg, sizeof(dg), &count, NULL);
+        if (status != 0) {
+            bs->request_alignment = dg.Geometry.BytesPerSector;
+            return;
+        }
+        /* try GetDiskFreeSpace too */
+    }
+
+    if (s->drive_path[0]) {
+        GetDiskFreeSpace(s->drive_path, &sectorsPerCluster,
+                         &dg.Geometry.BytesPerSector,
+                         &freeClusters, &totalClusters);
+        bs->request_alignment = dg.Geometry.BytesPerSector;
+    }
+}
+
 static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
 {
     assert(access_flags != NULL);
@@ -269,6 +298,17 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    if (filename[0] && filename[1] == ':') {
+        snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", filename[0]);
+    } else if (filename[0] == '\\' && filename[1] == '\\') {
+        s->drive_path[0] = 0;
+    } else {
+        /* Relative path.  */
+        char buf[MAX_PATH];
+        GetCurrentDirectory(MAX_PATH, buf);
+        snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", buf[0]);
+    }
+
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
                           OPEN_EXISTING, overlapped, NULL);
@@ -293,6 +333,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         s->aio = aio;
     }
 
+    raw_probe_alignment(bs);
     ret = 0;
 fail:
     qemu_opts_del(opts);

@@ -27,6 +27,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
+#include "qom/object_interfaces.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -549,15 +550,28 @@ void object_add(const char *type, const char *id, const QDict *qdict,
         for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
             object_property_set(obj, v, e->key, &local_err);
             if (local_err) {
-                error_propagate(errp, local_err);
-                object_unref(obj);
-                return;
+                goto out;
             }
         }
     }
 
+    if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
+        error_setg(&local_err, "object '%s' isn't supported by object-add",
+                   id);
+        goto out;
+    }
+
+    user_creatable_complete(obj, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
     object_property_add_child(container_get(object_get_root(), "/objects"),
-                              id, obj, errp);
+                              id, obj, &local_err);
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
     object_unref(obj);
 }
 

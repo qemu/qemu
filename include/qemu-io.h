@@ -42,5 +42,8 @@ bool qemuio_command(BlockDriverState *bs, const char *cmd);
 
 void qemuio_add_command(const cmdinfo_t *ci);
 int qemuio_command_usage(const cmdinfo_t *ci);
+void qemuio_complete_command(const char *input,
+                             void (*fn)(const char *cmd, void *opaque),
+                             void *opaque);
 
 #endif /* QEMU_IO_H */

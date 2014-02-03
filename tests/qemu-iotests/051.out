@@ -222,7 +222,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Can't use 'qcow2' as a block driver for the protocol level
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
 
 
 === Parsing protocol from file name ===

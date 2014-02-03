@@ -22,4 +22,4 @@ struct target_pt_regs {
 
 #define UNAME_MACHINE "s390x"
 
-#define TARGET_CLONE_BACKWARDS
+#define TARGET_CLONE_BACKWARDS2

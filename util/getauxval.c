@@ -48,10 +48,8 @@ typedef struct {
 
 static const ElfW_auxv_t *auxv;
 
-static void qemu_init_auxval(void)
+void qemu_init_auxval(char **envp)
 {
-    char **envp = __environ;
-
     /* The auxiliary vector is located just beyond the initial environment.  */
     while (*envp++ != NULL) {
         continue;
@@ -61,11 +59,6 @@ static void qemu_init_auxval(void)
 
 unsigned long qemu_getauxval(unsigned long type)
 {
-    if (!auxv) {
-        /* Try to find the auxiliary vector. */
-        qemu_init_auxval();
-    }
-
     /* If we were able to find the auxiliary vector, use it.  */
     if (auxv) {
         const ElfW_auxv_t *a;

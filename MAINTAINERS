@@ -610,6 +610,7 @@ F: hw/*/*vhost*
 
 virtio
 M: Anthony Liguori <aliguori@amazon.com>
+M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
 

@@ -261,6 +261,10 @@ static const USBDescDevice desc_device_keyboard = {
     },
 };
 
+static const USBDescMSOS desc_msos_suspend = {
+    .SelectiveSuspendEnabled = true,
+};
+
 static const USBDesc desc_mouse = {
     .id = {
         .idVendor          = 0x0627,
@@ -272,6 +276,7 @@ static const USBDesc desc_mouse = {
     },
     .full = &desc_device_mouse,
     .str  = desc_strings,
+    .msos = &desc_msos_suspend,
 };
 
 static const USBDesc desc_tablet = {
@@ -285,6 +290,7 @@ static const USBDesc desc_tablet = {
     },
     .full = &desc_device_tablet,
     .str  = desc_strings,
+    .msos = &desc_msos_suspend,
 };
 
 static const USBDesc desc_tablet2 = {
@@ -299,6 +305,7 @@ static const USBDesc desc_tablet2 = {
     .full = &desc_device_tablet,
     .high = &desc_device_tablet2,
     .str  = desc_strings,
+    .msos = &desc_msos_suspend,
 };
 
 static const USBDesc desc_keyboard = {
@@ -312,6 +319,7 @@ static const USBDesc desc_keyboard = {
     },
     .full = &desc_device_keyboard,
     .str  = desc_strings,
+    .msos = &desc_msos_suspend,
 };
 
 static const uint8_t qemu_mouse_hid_report_descriptor[] = {

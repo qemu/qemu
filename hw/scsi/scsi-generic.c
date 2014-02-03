@@ -210,7 +210,7 @@ static void scsi_read_complete(void * opaque, int ret)
             s->blocksize = ldl_be_p(&r->buf[8]);
             s->max_lba = ldq_be_p(&r->buf[0]);
         }
-        bdrv_set_buffer_alignment(s->conf.bs, s->blocksize);
+        bdrv_set_guest_block_size(s->conf.bs, s->blocksize);
 
         scsi_req_data(&r->req, len);
         if (!r->req.io_canceled) {

@@ -731,7 +731,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
-    bdrv_set_buffer_alignment(s->bs, s->conf->logical_block_size);
+    bdrv_set_guest_block_size(s->bs, s->conf->logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
 

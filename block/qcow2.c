@@ -718,7 +718,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     qemu_opts_del(opts);
-    bs->bl.write_zeroes_alignment = s->cluster_sectors;
 
     if (s->use_lazy_refcounts && s->qcow_version < 3) {
         error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
@@ -749,6 +748,15 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     return ret;
+}
+
+static int qcow2_refresh_limits(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    bs->bl.write_zeroes_alignment = s->cluster_sectors;
+
+    return 0;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)
@@ -1483,7 +1491,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -2268,6 +2276,7 @@ static BlockDriver bdrv_qcow2 = {
 
     .bdrv_change_backing_file   = qcow2_change_backing_file,
 
+    .bdrv_refresh_limits        = qcow2_refresh_limits,
     .bdrv_invalidate_cache      = qcow2_invalidate_cache,
 
     .create_options = qcow2_create_options,

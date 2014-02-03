@@ -495,7 +495,6 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    bs->bl.write_zeroes_alignment = s->header.cluster_size >> BDRV_SECTOR_BITS;
     s->need_check_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                             qed_need_check_timer_cb, s);
 
@@ -505,6 +504,15 @@ out:
         qemu_vfree(s->l1_table);
     }
     return ret;
+}
+
+static int bdrv_qed_refresh_limits(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    bs->bl.write_zeroes_alignment = s->header.cluster_size >> BDRV_SECTOR_BITS;
+
+    return 0;
 }
 
 /* We have nothing to do for QED reopen, stubs just return
@@ -563,8 +571,8 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB,
-                         &local_err);
+    ret = bdrv_file_open(&bs, filename, NULL, NULL,
+                         BDRV_O_RDWR | BDRV_O_CACHE_WB, &local_err);
     if (ret < 0) {
         qerror_report_err(local_err);
         error_free(local_err);
@@ -1616,6 +1624,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_truncate            = bdrv_qed_truncate,
     .bdrv_getlength           = bdrv_qed_getlength,
     .bdrv_get_info            = bdrv_qed_get_info,
+    .bdrv_refresh_limits      = bdrv_qed_refresh_limits,
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
     .bdrv_invalidate_cache    = bdrv_qed_invalidate_cache,
     .bdrv_check               = bdrv_qed_check,
