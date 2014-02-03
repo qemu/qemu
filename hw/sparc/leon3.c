@@ -45,6 +45,7 @@
 typedef struct ResetData {
     SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
+    target_ulong sp;            /* initial stack pointer */
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
@@ -58,6 +59,7 @@ static void main_cpu_reset(void *opaque)
     cpu->halted = 0;
     env->pc     = s->entry;
     env->npc    = s->entry + 4;
+    env->regbase[6] = s->sp;
 }
 
 void leon3_irq_ack(void *irq_manager, int intno)
@@ -133,6 +135,7 @@ static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
     /* Reset data */
     reset_info        = g_malloc0(sizeof(ResetData));
     reset_info->cpu   = cpu;
+    reset_info->sp    = 0x40000000 + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate IRQ manager */
