@@ -46,8 +46,9 @@
 # define ACPI_PCIHP_DPRINTF(format, ...)     do { } while (0)
 #endif
 
-#define PCI_HOTPLUG_ADDR 0xae00
-#define PCI_HOTPLUG_SIZE 0x0014
+#define ACPI_PCIHP_ADDR 0xae00
+#define ACPI_PCIHP_SIZE 0x0014
+#define ACPI_PCIHP_LEGACY_SIZE 0x000f
 #define PCI_UP_BASE 0x0000
 #define PCI_DOWN_BASE 0x0004
 #define PCI_EJ_BASE 0x0008
@@ -277,12 +278,24 @@ static const MemoryRegionOps acpi_pcihp_io_ops = {
 void acpi_pcihp_init(AcpiPciHpState *s, PCIBus *root_bus,
                      MemoryRegion *address_space_io, bool bridges_enabled)
 {
+    uint16_t io_size = ACPI_PCIHP_SIZE;
+
     s->root= root_bus;
     s->legacy_piix = !bridges_enabled;
+
+    if (s->legacy_piix) {
+        unsigned *bus_bsel = g_malloc(sizeof *bus_bsel);
+
+        io_size = ACPI_PCIHP_LEGACY_SIZE;
+
+        *bus_bsel = ACPI_PCIHP_BSEL_DEFAULT;
+        object_property_add_uint32_ptr(OBJECT(root_bus), ACPI_PCIHP_PROP_BSEL,
+                                       bus_bsel, NULL);
+    }
+
     memory_region_init_io(&s->io, NULL, &acpi_pcihp_io_ops, s,
-                          "acpi-pci-hotplug",
-                          PCI_HOTPLUG_SIZE);
-    memory_region_add_subregion(address_space_io, PCI_HOTPLUG_ADDR, &s->io);
+                          "acpi-pci-hotplug", io_size);
+    memory_region_add_subregion(address_space_io, ACPI_PCIHP_ADDR, &s->io);
 }
 
 const VMStateDescription vmstate_acpi_pcihp_pci_status = {

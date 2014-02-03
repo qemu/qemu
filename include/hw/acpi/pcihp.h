@@ -39,6 +39,7 @@ typedef struct AcpiPciHpPciStatus {
 
 #define ACPI_PCIHP_PROP_BSEL "acpi-pcihp-bsel"
 #define ACPI_PCIHP_MAX_HOTPLUG_BUS 256
+#define ACPI_PCIHP_BSEL_DEFAULT 0x0
 
 typedef struct AcpiPciHpState {
     AcpiPciHpPciStatus acpi_pcihp_pci_status[ACPI_PCIHP_MAX_HOTPLUG_BUS];
