@@ -6219,7 +6219,7 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
 {
     /* Handle 64->64 opcodes which are shared between the scalar and
      * vector 2-reg-misc groups. We cover every integer opcode where size == 3
-     * is valid in either group.
+     * is valid in either group and also the double-precision fp ops.
      */
     TCGCond cond;
 
@@ -6256,6 +6256,12 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
                                 tcg_rn, tcg_rd);
             tcg_temp_free_i64(tcg_zero);
         }
+        break;
+    case 0x2f: /* FABS */
+        gen_helper_vfp_absd(tcg_rd, tcg_rn);
+        break;
+    case 0x6f: /* FNEG */
+        gen_helper_vfp_negd(tcg_rd, tcg_rn);
         break;
     default:
         g_assert_not_reached();
@@ -7605,6 +7611,13 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         opcode |= (extract32(size, 1, 1) << 5) | (u << 6);
         size = extract32(size, 0, 1) ? 3 : 2;
         switch (opcode) {
+        case 0x2f: /* FABS */
+        case 0x6f: /* FNEG */
+            if (size == 3 && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
         case 0x16: /* FCVTN, FCVTN2 */
         case 0x17: /* FCVTL, FCVTL2 */
         case 0x18: /* FRINTN */
@@ -7616,7 +7629,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x2c: /* FCMGT (zero) */
         case 0x2d: /* FCMEQ (zero) */
         case 0x2e: /* FCMLT (zero) */
-        case 0x2f: /* FABS */
         case 0x38: /* FRINTP */
         case 0x39: /* FRINTZ */
         case 0x3a: /* FCVTPS */
@@ -7632,7 +7644,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x5d: /* UCVTF */
         case 0x6c: /* FCMGE (zero) */
         case 0x6d: /* FCMLE (zero) */
-        case 0x6f: /* FNEG */
         case 0x79: /* FRINTI */
         case 0x7a: /* FCVTPU */
         case 0x7b: /* FCVTZU */
@@ -7708,6 +7719,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                                             tcg_zero, tcg_op, tcg_res);
                         tcg_temp_free_i32(tcg_zero);
                     }
+                    break;
+                case 0x2f: /* FABS */
+                    gen_helper_vfp_abss(tcg_res, tcg_op);
+                    break;
+                case 0x6f: /* FNEG */
+                    gen_helper_vfp_negs(tcg_res, tcg_op);
                     break;
                 default:
                     g_assert_not_reached();
