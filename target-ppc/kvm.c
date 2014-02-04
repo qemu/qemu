@@ -36,6 +36,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "sysemu/watchdog.h"
+#include "trace.h"
 
 //#define DEBUG_KVM
 
@@ -480,8 +481,7 @@ static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to retrieve SPR %d from KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_get(spr, strerror(errno));
     } else {
         switch (id & KVM_REG_SIZE_MASK) {
         case KVM_REG_SIZE_U32:
@@ -529,8 +529,7 @@ static void kvm_put_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to set SPR %d to KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_set(spr, strerror(errno));
     }
 }
 
