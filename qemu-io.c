@@ -177,10 +177,6 @@ static int quit_f(BlockDriverState *bs, int argc, char **argv)
     return 1;
 }
 
-#if !defined(_WIN32)
-# include "qemu-io-sim.c"
-#endif
-
 static const cmdinfo_t quit_cmd = {
     .name       = "quit",
     .altname    = "q",

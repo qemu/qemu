@@ -452,7 +452,6 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
     if (ret >= 0) {
         return;
     }
-
     switch (request) {
         /* hid specific requests */
     case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:

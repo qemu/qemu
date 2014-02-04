@@ -188,9 +188,9 @@ static inline void tswap64s(uint64_t *s)
  * This allows the guest address space to be offset to a convenient location.
  */
 #if defined(CONFIG_USE_GUEST_BASE)
-extern uintptr_t guest_base;
+extern unsigned long guest_base;
 extern int have_guest_base;
-extern uintptr_t reserved_va;
+extern unsigned long reserved_va;
 #define GUEST_BASE guest_base
 #define RESERVED_VA reserved_va
 #else

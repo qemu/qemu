@@ -43,7 +43,7 @@ envlist_t *envlist;
 static const char *cpu_model;
 unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
-uintptr_t guest_base;
+unsigned long guest_base;
 int have_guest_base;
 #if (TARGET_LONG_BITS == 32) && (HOST_LONG_BITS == 64)
 /*
@@ -55,12 +55,12 @@ int have_guest_base;
  */
 # ifdef TARGET_MIPS
 /* MIPS only supports 31 bits of virtual address space for user space */
-uintptr_t reserved_va = 0x77000000;
+unsigned long reserved_va = 0x77000000;
 # else
-uintptr_t reserved_va = 0xf7000000;
+unsigned long reserved_va = 0xf7000000;
 # endif
 #else
-uintptr_t reserved_va;
+unsigned long reserved_va;
 #endif
 #endif
 
@@ -4048,7 +4048,7 @@ int main(int argc, char **argv)
 
     if (qemu_log_enabled()) {
 #if defined(CONFIG_USE_GUEST_BASE)
-        qemu_log("guest_base  0x%" PRIxPTR "\n", guest_base);
+        qemu_log("guest_base  0x%lx\n", guest_base);
 #endif
         log_page_dump();
 

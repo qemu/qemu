@@ -229,7 +229,6 @@ static void bcm2835_ic_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = bcm2835_ic_init;
-    dc->no_user = 1;
     dc->reset = bcm2835_ic_reset;
     dc->vmsd = &vmstate_bcm2835_ic;
 }
