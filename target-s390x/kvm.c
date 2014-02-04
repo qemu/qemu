@@ -152,33 +152,30 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    if (env->runtime_reg_dirty_mask == KVM_S390_RUNTIME_DIRTY_FULL) {
-        reg.id = KVM_REG_S390_CPU_TIMER;
-        reg.addr = (__u64)&(env->cputm);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
-        }
-
-        reg.id = KVM_REG_S390_CLOCK_COMP;
-        reg.addr = (__u64)&(env->ckc);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
-        }
-
-        reg.id = KVM_REG_S390_TODPR;
-        reg.addr = (__u64)&(env->todpr);
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret < 0) {
-            return ret;
-        }
-    }
-    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_NONE;
-
     /* Do we need to save more than that? */
     if (level == KVM_PUT_RUNTIME_STATE) {
         return 0;
+    }
+
+    reg.id = KVM_REG_S390_CPU_TIMER;
+    reg.addr = (__u64)&(env->cputm);
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    reg.id = KVM_REG_S390_CLOCK_COMP;
+    reg.addr = (__u64)&(env->ckc);
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    reg.id = KVM_REG_S390_TODPR;
+    reg.addr = (__u64)&(env->todpr);
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret < 0) {
+        return ret;
     }
 
     if (cap_sync_regs &&
@@ -216,13 +213,54 @@ int kvm_arch_get_registers(CPUState *cs)
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
     struct kvm_one_reg reg;
-    int r;
+    struct kvm_sregs sregs;
+    struct kvm_regs regs;
+    int i, r;
 
-    r = kvm_s390_get_registers_partial(cs);
-    if (r < 0) {
-        return r;
+    /* get the PSW */
+    env->psw.addr = cs->kvm_run->psw_addr;
+    env->psw.mask = cs->kvm_run->psw_mask;
+
+    /* the GPRS */
+    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
+        for (i = 0; i < 16; i++) {
+            env->regs[i] = cs->kvm_run->s.regs.gprs[i];
+        }
+    } else {
+        r = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
+        if (r < 0) {
+            return r;
+        }
+         for (i = 0; i < 16; i++) {
+            env->regs[i] = regs.gprs[i];
+        }
     }
 
+    /* The ACRS and CRS */
+    if (cap_sync_regs &&
+        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
+        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
+        for (i = 0; i < 16; i++) {
+            env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
+            env->cregs[i] = cs->kvm_run->s.regs.crs[i];
+        }
+    } else {
+        r = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
+        if (r < 0) {
+            return r;
+        }
+         for (i = 0; i < 16; i++) {
+            env->aregs[i] = sregs.acrs[i];
+            env->cregs[i] = sregs.crs[i];
+        }
+    }
+
+    /* The prefix */
+    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
+        env->psa = cs->kvm_run->s.regs.prefix;
+    }
+
+    /* One Regs */
     reg.id = KVM_REG_S390_CPU_TIMER;
     reg.addr = (__u64)&(env->cputm);
     r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
@@ -244,69 +282,6 @@ int kvm_arch_get_registers(CPUState *cs)
         return r;
     }
 
-    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_FULL;
-    return 0;
-}
-
-int kvm_s390_get_registers_partial(CPUState *cs)
-{
-    S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
-    struct kvm_sregs sregs;
-    struct kvm_regs regs;
-    int ret;
-    int i;
-
-    if (env->runtime_reg_dirty_mask) {
-        return 0;
-    }
-
-    /* get the PSW */
-    env->psw.addr = cs->kvm_run->psw_addr;
-    env->psw.mask = cs->kvm_run->psw_mask;
-
-    /* the GPRS */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
-        for (i = 0; i < 16; i++) {
-            env->regs[i] = cs->kvm_run->s.regs.gprs[i];
-        }
-    } else {
-        ret = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
-        if (ret < 0) {
-            return ret;
-        }
-         for (i = 0; i < 16; i++) {
-            env->regs[i] = regs.gprs[i];
-        }
-    }
-
-    /* The ACRS and CRS */
-    if (cap_sync_regs &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
-        for (i = 0; i < 16; i++) {
-            env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
-            env->cregs[i] = cs->kvm_run->s.regs.crs[i];
-        }
-    } else {
-        ret = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
-        if (ret < 0) {
-            return ret;
-        }
-         for (i = 0; i < 16; i++) {
-            env->aregs[i] = sregs.acrs[i];
-            env->cregs[i] = sregs.crs[i];
-        }
-    }
-
-    /* Finally the prefix */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
-        env->psa = cs->kvm_run->s.regs.prefix;
-    } else {
-        /* no prefix without sync regs */
-    }
-
-    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_PARTIAL;
     return 0;
 }
 
@@ -442,15 +417,13 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
                                uint8_t ipa0, uint8_t ipa1, uint8_t ipb)
 {
     CPUS390XState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
 
     if (ipa0 != 0xb2) {
         /* Not handled for now. */
         return -1;
     }
 
-    kvm_s390_get_registers_partial(cs);
-    cs->kvm_vcpu_dirty = true;
+    cpu_synchronize_state(CPU(cpu));
 
     switch (ipa1) {
     case PRIV_XSCH:
@@ -537,11 +510,9 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
 
 static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
 {
-    CPUState *cs = CPU(cpu);
     CPUS390XState *env = &cpu->env;
 
-    kvm_s390_get_registers_partial(cs);
-    cs->kvm_vcpu_dirty = true;
+    cpu_synchronize_state(CPU(cpu));
     env->regs[2] = s390_virtio_hypercall(env);
 
     return 0;
@@ -767,8 +738,7 @@ static int handle_tsch(S390CPU *cpu)
     struct kvm_run *run = cs->kvm_run;
     int ret;
 
-    kvm_s390_get_registers_partial(cs);
-    cs->kvm_vcpu_dirty = true;
+    cpu_synchronize_state(cs);
 
     ret = ioinst_handle_tsch(env, env->regs[1], run->s390_tsch.ipb);
     if (ret >= 0) {

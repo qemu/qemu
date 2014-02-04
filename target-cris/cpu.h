@@ -42,6 +42,10 @@
 /* CRIS-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
+/* CRUS CPU device objects interrupt lines.  */
+#define CRIS_CPU_IRQ 0
+#define CRIS_CPU_NMI 1
+
 /* Register aliases. R0 - R15 */
 #define R_FP  8
 #define R_SP  14

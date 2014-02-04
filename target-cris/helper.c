@@ -126,6 +126,11 @@ void crisv10_cpu_do_interrupt(CPUState *cs)
           env->exception_index,
           cs->interrupt_request);
 
+    if (env->dslot) {
+        /* CRISv10 never takes interrupts while in a delay-slot.  */
+        cpu_abort(env, "CRIS: Interrupt on delay-slot\n");
+    }
+
     assert(!(env->pregs[PR_CCS] & PFIX_FLAG));
     switch (env->exception_index) {
     case EXCP_BREAK:
