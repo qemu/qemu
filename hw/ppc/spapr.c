@@ -1306,15 +1306,15 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                NULL, &lowaddr, NULL, 1, ELF_MACHINE, 0);
-        if (kernel_size < 0) {
+        if (kernel_size == ELF_LOAD_WRONG_ENDIAN) {
             kernel_size = load_elf(kernel_filename,
                                    translate_kernel_address, NULL,
                                    NULL, &lowaddr, NULL, 0, ELF_MACHINE, 0);
             kernel_le = kernel_size > 0;
         }
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
+            fprintf(stderr, "qemu: error loading %s: %s\n",
+                    kernel_filename, load_elf_strerror(kernel_size));
             exit(1);
         }
 
