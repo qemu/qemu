@@ -278,12 +278,12 @@ static int ppc_hash64_pte_prot(CPUPPCState *env,
 static int ppc_hash64_amr_prot(CPUPPCState *env, ppc_hash_pte64_t pte)
 {
     int key, amrbits;
-    int prot = PAGE_EXEC;
+    int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 
 
     /* Only recent MMUs implement Virtual Page Class Key Protection */
     if (!(env->mmu_model & POWERPC_MMU_AMR)) {
-        return PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return prot;
     }
 
     key = HPTE64_R_KEY(pte.pte1);
@@ -292,11 +292,19 @@ static int ppc_hash64_amr_prot(CPUPPCState *env, ppc_hash_pte64_t pte)
     /* fprintf(stderr, "AMR protection: key=%d AMR=0x%" PRIx64 "\n", key, */
     /*         env->spr[SPR_AMR]); */
 
+    /*
+     * A store is permitted if the AMR bit is 0. Remove write
+     * protection if it is set.
+     */
     if (amrbits & 0x2) {
-        prot |= PAGE_WRITE;
+        prot &= ~PAGE_WRITE;
     }
+    /*
+     * A load is permitted if the AMR bit is 0. Remove read
+     * protection if it is set.
+     */
     if (amrbits & 0x1) {
-        prot |= PAGE_READ;
+        prot &= ~PAGE_READ;
     }
 
     return prot;
