@@ -23,6 +23,8 @@ static inline bool qtest_enabled(void)
     return qtest_allowed;
 }
 
+bool qtest_driver(void);
+
 int qtest_init_accel(void);
 void qtest_init(const char *qtest_chrdev, const char *qtest_log);
 
