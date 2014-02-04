@@ -643,6 +643,21 @@ static inline char acpi_get_hex(uint32_t val)
 #define ACPI_PCIHP_SIZEOF (*ssdt_pcihp_end - *ssdt_pcihp_start)
 #define ACPI_PCIHP_AML (ssdp_pcihp_aml + *ssdt_pcihp_start)
 
+#define ACPI_PCINOHP_OFFSET_HEX (*ssdt_pcinohp_name - *ssdt_pcinohp_start + 1)
+#define ACPI_PCINOHP_OFFSET_ADR (*ssdt_pcinohp_adr - *ssdt_pcinohp_start)
+#define ACPI_PCINOHP_SIZEOF (*ssdt_pcinohp_end - *ssdt_pcinohp_start)
+#define ACPI_PCINOHP_AML (ssdp_pcihp_aml + *ssdt_pcinohp_start)
+
+#define ACPI_PCIVGA_OFFSET_HEX (*ssdt_pcivga_name - *ssdt_pcivga_start + 1)
+#define ACPI_PCIVGA_OFFSET_ADR (*ssdt_pcivga_adr - *ssdt_pcivga_start)
+#define ACPI_PCIVGA_SIZEOF (*ssdt_pcivga_end - *ssdt_pcivga_start)
+#define ACPI_PCIVGA_AML (ssdp_pcihp_aml + *ssdt_pcivga_start)
+
+#define ACPI_PCIQXL_OFFSET_HEX (*ssdt_pciqxl_name - *ssdt_pciqxl_start + 1)
+#define ACPI_PCIQXL_OFFSET_ADR (*ssdt_pciqxl_adr - *ssdt_pciqxl_start)
+#define ACPI_PCIQXL_SIZEOF (*ssdt_pciqxl_end - *ssdt_pciqxl_start)
+#define ACPI_PCIQXL_AML (ssdp_pcihp_aml + *ssdt_pciqxl_start)
+
 #define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 #define ACPI_SSDT_HEADER_LENGTH 36
 
@@ -675,6 +690,33 @@ static void patch_pcihp(int slot, uint8_t *ssdt_ptr)
     ssdt_ptr[ACPI_PCIHP_OFFSET_HEX + 1] = acpi_get_hex(devfn);
     ssdt_ptr[ACPI_PCIHP_OFFSET_ID] = slot;
     ssdt_ptr[ACPI_PCIHP_OFFSET_ADR + 2] = slot;
+}
+
+static void patch_pcinohp(int slot, uint8_t *ssdt_ptr)
+{
+    unsigned devfn = PCI_DEVFN(slot, 0);
+
+    ssdt_ptr[ACPI_PCINOHP_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
+    ssdt_ptr[ACPI_PCINOHP_OFFSET_HEX + 1] = acpi_get_hex(devfn);
+    ssdt_ptr[ACPI_PCINOHP_OFFSET_ADR + 2] = slot;
+}
+
+static void patch_pcivga(int slot, uint8_t *ssdt_ptr)
+{
+    unsigned devfn = PCI_DEVFN(slot, 0);
+
+    ssdt_ptr[ACPI_PCIVGA_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
+    ssdt_ptr[ACPI_PCIVGA_OFFSET_HEX + 1] = acpi_get_hex(devfn);
+    ssdt_ptr[ACPI_PCIVGA_OFFSET_ADR + 2] = slot;
+}
+
+static void patch_pciqxl(int slot, uint8_t *ssdt_ptr)
+{
+    unsigned devfn = PCI_DEVFN(slot, 0);
+
+    ssdt_ptr[ACPI_PCIQXL_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
+    ssdt_ptr[ACPI_PCIQXL_OFFSET_HEX + 1] = acpi_get_hex(devfn);
+    ssdt_ptr[ACPI_PCIQXL_OFFSET_ADR + 2] = slot;
 }
 
 /* Assign BSEL property to all buses.  In the future, this can be changed
@@ -737,6 +779,10 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
     AcpiBuildPciBusHotplugState *parent = child->parent;
     GArray *bus_table = build_alloc_array();
     DECLARE_BITMAP(slot_hotplug_enable, PCI_SLOT_MAX);
+    DECLARE_BITMAP(slot_device_present, PCI_SLOT_MAX);
+    DECLARE_BITMAP(slot_device_system, PCI_SLOT_MAX);
+    DECLARE_BITMAP(slot_device_vga, PCI_SLOT_MAX);
+    DECLARE_BITMAP(slot_device_qxl, PCI_SLOT_MAX);
     uint8_t op;
     int i;
     QObject *bsel;
@@ -764,40 +810,82 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_nameseg(bus_table, "BSEL");
         build_append_int(bus_table, qint_get_int(qobject_to_qint(bsel)));
-
         memset(slot_hotplug_enable, 0xff, sizeof slot_hotplug_enable);
+    } else {
+        /* No bsel - no slots are hot-pluggable */
+        memset(slot_hotplug_enable, 0x00, sizeof slot_hotplug_enable);
+    }
 
-        for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
-            DeviceClass *dc;
-            PCIDeviceClass *pc;
-            PCIDevice *pdev = bus->devices[i];
+    memset(slot_device_present, 0x00, sizeof slot_device_present);
+    memset(slot_device_system, 0x00, sizeof slot_device_present);
+    memset(slot_device_vga, 0x00, sizeof slot_device_vga);
+    memset(slot_device_qxl, 0x00, sizeof slot_device_qxl);
 
-            if (!pdev) {
-                continue;
-            }
+    for (i = 0; i < ARRAY_SIZE(bus->devices); i += PCI_FUNC_MAX) {
+        DeviceClass *dc;
+        PCIDeviceClass *pc;
+        PCIDevice *pdev = bus->devices[i];
+        int slot = PCI_SLOT(i);
 
-            pc = PCI_DEVICE_GET_CLASS(pdev);
-            dc = DEVICE_GET_CLASS(pdev);
+        if (!pdev) {
+            continue;
+        }
 
-            if (!dc->hotpluggable || pc->is_bridge) {
-                int slot = PCI_SLOT(i);
+        set_bit(slot, slot_device_present);
+        pc = PCI_DEVICE_GET_CLASS(pdev);
+        dc = DEVICE_GET_CLASS(pdev);
 
-                clear_bit(slot, slot_hotplug_enable);
+        if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
+            set_bit(slot, slot_device_system);
+        }
+
+        if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
+            set_bit(slot, slot_device_vga);
+
+            if (object_dynamic_cast(OBJECT(pdev), "qxl-vga")) {
+                set_bit(slot, slot_device_qxl);
             }
         }
 
-        /* Append Device object for each slot which supports eject */
-        for (i = 0; i < PCI_SLOT_MAX; i++) {
-            bool can_eject = test_bit(i, slot_hotplug_enable);
-            if (can_eject) {
-                void *pcihp = acpi_data_push(bus_table,
-                                             ACPI_PCIHP_SIZEOF);
-                memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
-                patch_pcihp(i, pcihp);
-                bus_hotplug_support = true;
-            }
+        if (!dc->hotpluggable || pc->is_bridge) {
+            clear_bit(slot, slot_hotplug_enable);
         }
+    }
 
+    /* Append Device object for each slot */
+    for (i = 0; i < PCI_SLOT_MAX; i++) {
+        bool can_eject = test_bit(i, slot_hotplug_enable);
+        bool present = test_bit(i, slot_device_present);
+        bool vga = test_bit(i, slot_device_vga);
+        bool qxl = test_bit(i, slot_device_qxl);
+        bool system = test_bit(i, slot_device_system);
+        if (can_eject) {
+            void *pcihp = acpi_data_push(bus_table,
+                                         ACPI_PCIHP_SIZEOF);
+            memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
+            patch_pcihp(i, pcihp);
+            bus_hotplug_support = true;
+        } else if (qxl) {
+            void *pcihp = acpi_data_push(bus_table,
+                                         ACPI_PCIQXL_SIZEOF);
+            memcpy(pcihp, ACPI_PCIQXL_AML, ACPI_PCIQXL_SIZEOF);
+            patch_pciqxl(i, pcihp);
+        } else if (vga) {
+            void *pcihp = acpi_data_push(bus_table,
+                                         ACPI_PCIVGA_SIZEOF);
+            memcpy(pcihp, ACPI_PCIVGA_AML, ACPI_PCIVGA_SIZEOF);
+            patch_pcivga(i, pcihp);
+        } else if (system) {
+            /* Nothing to do: system devices are in DSDT. */
+        } else if (present) {
+            void *pcihp = acpi_data_push(bus_table,
+                                         ACPI_PCINOHP_SIZEOF);
+            memcpy(pcihp, ACPI_PCINOHP_AML, ACPI_PCINOHP_SIZEOF);
+            patch_pcinohp(i, pcihp);
+        }
+    }
+
+    if (bsel) {
         method = build_alloc_method("DVNT", 2);
 
         for (i = 0; i < PCI_SLOT_MAX; i++) {
@@ -976,7 +1064,14 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         {
             AcpiBuildPciBusHotplugState hotplug_state;
-            PCIBus *bus = find_i440fx(); /* TODO: Q35 support */
+            Object *pci_host;
+            PCIBus *bus = NULL;
+            bool ambiguous;
+
+            pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
+            if (!ambiguous && pci_host) {
+                bus = PCI_HOST_BRIDGE(pci_host)->bus;
+            }
 
             build_pci_bus_state_init(&hotplug_state, NULL);
 
