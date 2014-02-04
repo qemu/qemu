@@ -5416,11 +5416,7 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         bool perm;
 
-        if (!bs->file) {
-            continue;
-        }
-
-        perm = bdrv_recurse_is_first_non_filter(bs->file, candidate);
+        perm = bdrv_recurse_is_first_non_filter(bs, candidate);
 
         /* candidate is the first non filter */
         if (perm) {
