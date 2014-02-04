@@ -793,6 +793,17 @@ static QEMUMachine xenfv_machine = {
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
     .hot_add_cpu = pc_hot_add_cpu,
+    .compat_props = (GlobalProperty[]) {
+        /* xenfv has no fwcfg and so does not load acpi from QEMU.
+         * as such new acpi features don't work.
+         */
+        {
+            .driver   = "PIIX4_PM",
+            .property = "acpi-pci-hotplug-with-bridge-support",
+            .value    = "off",
+        },
+        { /* end of list */ }
+    },
 };
 #endif
 
