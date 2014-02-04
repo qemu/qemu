@@ -1313,11 +1313,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             kernel_le = kernel_size > 0;
         }
         if (kernel_size < 0) {
-            kernel_size = load_image_targphys(kernel_filename,
-                                              KERNEL_LOAD_ADDR,
-                                              load_limit - KERNEL_LOAD_ADDR);
-        }
-        if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
