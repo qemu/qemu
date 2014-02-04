@@ -21,7 +21,23 @@ typedef struct {
     uint8_t command;
     qemu_irq handler[8];
     qemu_irq *gpio_in;
+    uint8_t output;
 } MAX7310State;
+
+/*this function to update outputports level*/
+static void max7310_update(MAX7310State* s)
+{
+    uint8_t diff = 0;
+    uint8_t line = 0;
+    for (diff = (s->output ^ s->level) & ~s->direction; diff;
+                 diff &= ~(1 << line))
+        {   
+            line = ffs(diff) - 1;
+            if (s->handler[line])
+                qemu_set_irq(s->handler[line], (s->output >> line) & 1); 
+        }   
+    s->level = (s->level & s->direction) | (s->level & ~s->direction);
+}
 
 static void max7310_reset(DeviceState *dev)
 {
@@ -31,6 +47,8 @@ static void max7310_reset(DeviceState *dev)
     s->polarity = 0xf0;
     s->status = 0x01;
     s->command = 0x00;
+    s->output = 0x00;
+    max7310_update(s);
 }
 
 static int max7310_rx(I2CSlave *i2c)
@@ -43,7 +61,7 @@ static int max7310_rx(I2CSlave *i2c)
         break;
 
     case 0x01:	/* Output port */
-        return s->level & ~s->direction;
+        return s->output;
         break;
 
     case 0x02:	/* Polarity inversion */
@@ -89,13 +107,8 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
 
     switch (s->command) {
     case 0x01:	/* Output port */
-        for (diff = (data ^ s->level) & ~s->direction; diff;
-                        diff &= ~(1 << line)) {
-            line = ffs(diff) - 1;
-            if (s->handler[line])
-                qemu_set_irq(s->handler[line], (data >> line) & 1);
-        }
-        s->level = (s->level & s->direction) | (data & ~s->direction);
+        s->output = data;
+        max7310_update(s);
         break;
 
     case 0x02:	/* Polarity inversion */
@@ -103,8 +116,8 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
         break;
 
     case 0x03:	/* Configuration */
-        s->level &= ~(s->direction ^ data);
         s->direction = data;
+        max7310_update(s);
         break;
 
     case 0x04:	/* Timeout */
@@ -156,6 +169,7 @@ static const VMStateDescription vmstate_max7310 = {
         VMSTATE_UINT8(polarity, MAX7310State),
         VMSTATE_UINT8(status, MAX7310State),
         VMSTATE_UINT8(command, MAX7310State),
+        VMSTATE_UINT8(output, MAX7310State),
         VMSTATE_I2C_SLAVE(i2c, MAX7310State),
         VMSTATE_END_OF_LIST()
     }
