@@ -32,6 +32,8 @@ struct SCLPEventFacility {
     unsigned int receive_mask;
 };
 
+SCLPEvent cpu_hotplug;
+
 /* return true if any child has event pending set */
 static bool event_pending(SCLPEventFacility *ef)
 {
@@ -334,6 +336,10 @@ static int init_event_facility(S390SCLPDevice *sdev)
         return -1;
     }
     qdev_init_nofail(quiesce);
+
+    object_initialize(&cpu_hotplug, sizeof(cpu_hotplug), TYPE_SCLP_CPU_HOTPLUG);
+    qdev_set_parent_bus(DEVICE(&cpu_hotplug), BUS(&event_facility->sbus));
+    object_property_set_bool(OBJECT(&cpu_hotplug), true, "realized", NULL);
 
     return 0;
 }

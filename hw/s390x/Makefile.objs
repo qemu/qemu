@@ -3,6 +3,7 @@ obj-y += s390-virtio-hcall.o
 obj-y += sclp.o
 obj-y += event-facility.o
 obj-y += sclpquiesce.o
+obj-y += sclpcpu.o
 obj-y += ipl.o
 obj-y += css.o
 obj-y += s390-virtio-ccw.o

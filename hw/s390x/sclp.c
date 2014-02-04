@@ -15,6 +15,7 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "exec/memory.h"
+#include "sysemu/sysemu.h"
 
 #include "hw/s390x/sclp.h"
 
@@ -31,7 +32,26 @@ static inline S390SCLPDevice *get_event_facility(void)
 static void read_SCP_info(SCCB *sccb)
 {
     ReadInfo *read_info = (ReadInfo *) sccb;
+    CPUState *cpu;
     int shift = 0;
+    int cpu_count = 0;
+    int i = 0;
+
+    CPU_FOREACH(cpu) {
+        cpu_count++;
+    }
+
+    /* CPU information */
+    read_info->entries_cpu = cpu_to_be16(cpu_count);
+    read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
+    read_info->highest_cpu = cpu_to_be16(max_cpus);
+
+    for (i = 0; i < cpu_count; i++) {
+        read_info->entries[i].address = i;
+        read_info->entries[i].type = 0;
+    }
+
+    read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO);
 
     while ((ram_size >> (20 + shift)) > 65535) {
         shift++;
@@ -41,14 +61,45 @@ static void read_SCP_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
+/* Provide information about the CPU */
+static void sclp_read_cpu_info(SCCB *sccb)
+{
+    ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
+    CPUState *cpu;
+    int cpu_count = 0;
+    int i = 0;
+
+    CPU_FOREACH(cpu) {
+        cpu_count++;
+    }
+
+    cpu_info->nr_configured = cpu_to_be16(cpu_count);
+    cpu_info->offset_configured = cpu_to_be16(offsetof(ReadCpuInfo, entries));
+    cpu_info->nr_standby = cpu_to_be16(0);
+
+    /* The standby offset is 16-byte for each CPU */
+    cpu_info->offset_standby = cpu_to_be16(cpu_info->offset_configured
+        + cpu_info->nr_configured*sizeof(CPUEntry));
+
+    for (i = 0; i < cpu_count; i++) {
+        cpu_info->entries[i].address = i;
+        cpu_info->entries[i].type = 0;
+    }
+
+    sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
+}
+
 static void sclp_execute(SCCB *sccb, uint64_t code)
 {
     S390SCLPDevice *sdev = get_event_facility();
 
-    switch (code) {
+    switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMDW_READ_SCP_INFO:
     case SCLP_CMDW_READ_SCP_INFO_FORCED:
         read_SCP_info(sccb);
+        break;
+    case SCLP_CMDW_READ_CPU_INFO:
+        sclp_read_cpu_info(sccb);
         break;
     default:
         sdev->sclp_command_handler(sdev->ef, sccb, code);
