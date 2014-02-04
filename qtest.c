@@ -528,3 +528,8 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log)
 
     qtest_chr = chr;
 }
+
+bool qtest_driver(void)
+{
+    return qtest_chr;
+}
