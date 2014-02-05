@@ -213,7 +213,6 @@ void qdev_unplug(DeviceState *dev, Error **errp)
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }
-    assert(dc->unplug != NULL);
 
     if (!dc->hotpluggable) {
         error_set(errp, QERR_DEVICE_NO_HOTPLUG,
@@ -223,9 +222,13 @@ void qdev_unplug(DeviceState *dev, Error **errp)
 
     qdev_hot_removed = true;
 
-    if (dc->unplug(dev) < 0) {
-        error_set(errp, QERR_UNDEFINED_ERROR);
-        return;
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
+    } else {
+        assert(dc->unplug != NULL);
+        if (dc->unplug(dev) < 0) { /* legacy handler */
+            error_set(errp, QERR_UNDEFINED_ERROR);
+        }
     }
 }
 
@@ -718,6 +721,12 @@ static void device_set_realized(Object *obj, bool value, Error **err)
 
         if (dc->realize) {
             dc->realize(dev, &local_err);
+        }
+
+        if (dev->parent_bus && dev->parent_bus->hotplug_handler &&
+            local_err == NULL) {
+            hotplug_handler_plug(dev->parent_bus->hotplug_handler,
+                                 dev, &local_err);
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {

@@ -327,15 +327,6 @@ typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
-typedef enum {
-    PCI_HOTPLUG_DISABLED,
-    PCI_HOTPLUG_ENABLED,
-    PCI_COLDPLUG_ENABLED,
-} PCIHotplugState;
-
-typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
-                              PCIHotplugState state);
-
 #define TYPE_PCI_BUS "PCI"
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
@@ -354,7 +345,6 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
 int pci_bus_get_irq_level(PCIBus *bus, int irq_num);
-void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 /* 0 <= pin <= 3 0 = INTA, 1 = INTB, 2 = INTC, 3 = INTD */
 int pci_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
