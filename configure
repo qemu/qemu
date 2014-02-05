@@ -4641,6 +4641,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   arm)
     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
     echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
+    if test -n "${cxx}"; then
+      echo "CONFIG_ARM_A64_DIS=y"  >> $config_target_mak
+      echo "CONFIG_ARM_A64_DIS=y"  >> config-all-disas.mak
+    fi
   ;;
   cris)
     echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak

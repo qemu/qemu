@@ -8105,7 +8105,7 @@ done_generating:
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(env, pc_start, dc->pc - pc_start,
-                         dc->thumb | (dc->bswap_code << 1));
+                         4 | (dc->bswap_code << 1));
         qemu_log("\n");
     }
 #endif
