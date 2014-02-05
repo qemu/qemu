@@ -8,6 +8,7 @@
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
+#include "hw/hotplug.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -180,14 +181,18 @@ typedef struct BusChild {
     QTAILQ_ENTRY(BusChild) sibling;
 } BusChild;
 
+#define QDEV_HOTPLUG_HANDLER_PROPERTY "hotplug-handler"
+
 /**
  * BusState:
+ * @hotplug_device: link to a hotplug device associated with bus.
  */
 struct BusState {
     Object obj;
     DeviceState *parent;
     const char *name;
     int allow_hotplug;
+    HotplugHandler *hotplug_handler;
     int max_index;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
@@ -321,4 +326,11 @@ extern int qdev_hotplug;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
+static inline void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
+                                            Error **errp)
+{
+    object_property_set_link(OBJECT(bus), OBJECT(handler),
+                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
+    bus->allow_hotplug = 1;
+}
 #endif
