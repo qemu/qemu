@@ -201,9 +201,6 @@ typedef struct PCIDeviceClass {
     /* pcie stuff */
     int is_express;   /* is this device pci express? */
 
-    /* device isn't hot-pluggable */
-    int no_hotplug;
-
     /* rom bar */
     const char *romfile;
 } PCIDeviceClass;

@@ -2299,7 +2299,6 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = qxl_init_primary;
     k->romfile = "vgabios-qxl.bin";
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
@@ -2310,6 +2309,7 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     dc->reset = qxl_reset_handler;
     dc->vmsd = &qxl_vmstate;
     dc->props = qxl_properties;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo qxl_primary_info = {

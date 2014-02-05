@@ -123,7 +123,7 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     k->init = usb_ehci_pci_initfn;
     k->class_id = PCI_CLASS_SERIAL_USB;
     k->config_write = usb_ehci_pci_write_config;
-    k->no_hotplug = 1;
+    dc->hotpluggable = false;
     dc->vmsd = &vmstate_ehci_pci;
     dc->props = ehci_pci_properties;
 }

@@ -1761,11 +1761,7 @@ static int pci_qdev_init(DeviceState *qdev)
                                      pci_dev->devfn);
     if (pci_dev == NULL)
         return -1;
-    if (qdev->hotplugged && pc->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(pci_dev)));
-        do_pci_unregister_device(pci_dev);
-        return -1;
-    }
+
     if (pc->init) {
         rc = pc->init(pci_dev);
         if (rc != 0) {
@@ -1800,12 +1796,7 @@ static int pci_qdev_init(DeviceState *qdev)
 static int pci_unplug_device(DeviceState *qdev)
 {
     PCIDevice *dev = PCI_DEVICE(qdev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
 
-    if (pc->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(dev)));
-        return -1;
-    }
     return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
                              PCI_HOTPLUG_DISABLED);
 }

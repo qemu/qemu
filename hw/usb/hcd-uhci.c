@@ -1318,7 +1318,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->device_id = info->device_id;
     k->revision  = info->revision;
     k->class_id  = PCI_CLASS_SERIAL_USB;
-    k->no_hotplug = 1;
+    dc->hotpluggable = false;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
