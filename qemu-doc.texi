@@ -547,10 +547,27 @@ File name of a base image (see @option{create} subcommand)
 @item backing_fmt
 Image format of the base image
 @item encryption
-If this option is set to @code{on}, the image is encrypted.
+If this option is set to @code{on}, the image is encrypted with 128-bit AES-CBC.
 
-Encryption uses the AES format which is very secure (128 bit keys). Use
-a long password (16 characters) to get maximum protection.
+The use of encryption in qcow and qcow2 images is considered to be flawed by
+modern cryptography standards, suffering from a number of design problems:
+
+@itemize @minus
+@item The AES-CBC cipher is used with predictable initialization vectors based
+on the sector number. This makes it vulnerable to chosen plaintext attacks
+which can reveal the existence of encrypted data.
+@item The user passphrase is directly used as the encryption key. A poorly
+chosen or short passphrase will compromise the security of the encryption.
+@item In the event of the passphrase being compromised there is no way to
+change the passphrase to protect data in any qcow images. The files must
+be cloned, using a different encryption passphrase in the new file. The
+original file must then be securely erased using a program like shred,
+though even this is ineffective with many modern storage technologies.
+@end itemize
+
+Use of qcow / qcow2 encryption is thus strongly discouraged. Users are
+recommended to use an alternative encryption technology such as the
+Linux dm-crypt / LUKS system.
 
 @item cluster_size
 Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster

@@ -145,7 +145,7 @@ static void do_get_id_cmd(VirtIOBlockDataPlane *s,
 {
     char id[VIRTIO_BLK_ID_BYTES];
 
-    /* Serial number not NUL-terminated when shorter than buffer */
+    /* Serial number not NUL-terminated when longer than buffer */
     strncpy(id, s->blk->serial ? s->blk->serial : "", sizeof(id));
     iov_from_buf(iov, iov_cnt, 0, id, sizeof(id));
     complete_request_early(s, elem, inhdr, VIRTIO_BLK_S_OK);
