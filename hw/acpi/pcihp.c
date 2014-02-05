@@ -46,6 +46,7 @@
 # define ACPI_PCIHP_DPRINTF(format, ...)     do { } while (0)
 #endif
 
+#define ACPI_PCI_HOTPLUG_STATUS 2
 #define ACPI_PCIHP_ADDR 0xae00
 #define ACPI_PCIHP_SIZE 0x0014
 #define ACPI_PCIHP_LEGACY_SIZE 0x000f
@@ -179,29 +180,47 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     acpi_pcihp_update(s);
 }
 
-int acpi_pcihp_device_hotplug(AcpiPciHpState *s, PCIDevice *dev,
-                              PCIHotplugState state)
+void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                               DeviceState *dev, Error **errp)
 {
-    int slot = PCI_SLOT(dev->devfn);
-    int bsel = acpi_pcihp_get_bsel(dev->bus);
+    PCIDevice *pdev = PCI_DEVICE(dev);
+    int slot = PCI_SLOT(pdev->devfn);
+    int bsel = acpi_pcihp_get_bsel(pdev->bus);
     if (bsel < 0) {
-        return -1;
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
     }
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
      * event when the device is disabled later. */
-    if (state == PCI_COLDPLUG_ENABLED) {
-        return 0;
+    if (!dev->hotplugged) {
+        return;
     }
 
-    if (state == PCI_HOTPLUG_ENABLED) {
-        s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
-    } else {
-        s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
+    s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
+
+    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
+}
+
+void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                                 DeviceState *dev, Error **errp)
+{
+    PCIDevice *pdev = PCI_DEVICE(dev);
+    int slot = PCI_SLOT(pdev->devfn);
+    int bsel = acpi_pcihp_get_bsel(pdev->bus);
+    if (bsel < 0) {
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
     }
 
-    return 0;
+    s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
+
+    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
 }
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)

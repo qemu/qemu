@@ -24,6 +24,7 @@
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "exec/memory.h"
+#include "hw/irq.h"
 
 /* from linux include/acpi/actype.h */
 /* Default ACPI register widths */

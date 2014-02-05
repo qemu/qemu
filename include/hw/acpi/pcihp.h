@@ -29,7 +29,8 @@
 
 #include <inttypes.h>
 #include <qemu/typedefs.h>
-#include "hw/pci/pci.h" /* for PCIHotplugState */
+#include "hw/acpi/acpi.h"
+#include "migration/vmstate.h"
 
 typedef struct AcpiPciHpPciStatus {
     uint32_t up;
@@ -52,9 +53,10 @@ typedef struct AcpiPciHpState {
 void acpi_pcihp_init(AcpiPciHpState *, PCIBus *root,
                      MemoryRegion *address_space_io, bool bridges_enabled);
 
-/* Invoke on device hotplug */
-int acpi_pcihp_device_hotplug(AcpiPciHpState *, PCIDevice *,
-                              PCIHotplugState state);
+void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                               DeviceState *dev, Error **errp);
+void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                                 DeviceState *dev, Error **errp);
 
 /* Called on reset */
 void acpi_pcihp_reset(AcpiPciHpState *s);
