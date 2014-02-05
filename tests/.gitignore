@@ -4,6 +4,7 @@ check-qint
 check-qjson
 check-qlist
 check-qstring
+check-qom-interface
 test-aio
 test-bitops
 test-throttle

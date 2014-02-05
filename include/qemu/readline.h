@@ -5,7 +5,8 @@
 #define READLINE_MAX_CMDS 64
 #define READLINE_MAX_COMPLETIONS 256
 
-typedef void ReadLinePrintfFunc(void *opaque, const char *fmt, ...);
+typedef void GCC_FMT_ATTR(2, 3) ReadLinePrintfFunc(void *opaque,
+                                                   const char *fmt, ...);
 typedef void ReadLineFlushFunc(void *opaque);
 typedef void ReadLineFunc(void *opaque, const char *str,
                           void *readline_opaque);
