@@ -215,6 +215,12 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     }
     assert(dc->unplug != NULL);
 
+    if (!dc->hotpluggable) {
+        error_set(errp, QERR_DEVICE_NO_HOTPLUG,
+                  object_get_typename(OBJECT(dev)));
+        return;
+    }
+
     qdev_hot_removed = true;
 
     if (dc->unplug(dev) < 0) {
@@ -694,6 +700,11 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     Error *local_err = NULL;
 
+    if (dev->hotplugged && !dc->hotpluggable) {
+        error_set(err, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
+        return;
+    }
+
     if (value && !dev->realized) {
         if (!obj->parent && local_err == NULL) {
             static int unattached_count;
@@ -734,6 +745,14 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     dev->realized = value;
 }
 
+static bool device_get_hotpluggable(Object *obj, Error **err)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    return dc->hotpluggable && dev->parent_bus->allow_hotplug;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -750,6 +769,8 @@ static void device_initfn(Object *obj)
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
+    object_property_add_bool(obj, "hotpluggable",
+                             device_get_hotpluggable, NULL, NULL);
 
     class = object_get_class(OBJECT(dev));
     do {
@@ -786,6 +807,14 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
+
+    /* by default all devices were considered as hotpluggable,
+     * so with intent to check it in generic qdev_unplug() /
+     * device_set_realized() functions make every device
+     * hotpluggable. Devices that shouldn't be hotpluggable,
+     * should override it in their class_init()
+     */
+    klass->hotpluggable = true;
 }
 
 static void device_unparent(Object *obj)
