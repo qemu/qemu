@@ -53,19 +53,19 @@ const unsigned kSRegSizeInBytes = kSRegSize / 8;
 const unsigned kDRegSize = 64;
 const unsigned kDRegSizeLog2 = 6;
 const unsigned kDRegSizeInBytes = kDRegSize / 8;
-const int64_t kWRegMask = 0x00000000ffffffffL;
-const int64_t kXRegMask = 0xffffffffffffffffL;
-const int64_t kSRegMask = 0x00000000ffffffffL;
-const int64_t kDRegMask = 0xffffffffffffffffL;
-const int64_t kXSignMask = 0x1L << 63;
-const int64_t kWSignMask = 0x1L << 31;
+const int64_t kWRegMask = 0x00000000ffffffffLL;
+const int64_t kXRegMask = 0xffffffffffffffffLL;
+const int64_t kSRegMask = 0x00000000ffffffffLL;
+const int64_t kDRegMask = 0xffffffffffffffffLL;
+const int64_t kXSignMask = 0x1LL << 63;
+const int64_t kWSignMask = 0x1LL << 31;
 const int64_t kByteMask = 0xffL;
 const int64_t kHalfWordMask = 0xffffL;
-const int64_t kWordMask = 0xffffffffL;
-const uint64_t kXMaxUInt = 0xffffffffffffffffUL;
-const uint64_t kWMaxUInt = 0xffffffffUL;
-const int64_t kXMaxInt = 0x7fffffffffffffffL;
-const int64_t kXMinInt = 0x8000000000000000L;
+const int64_t kWordMask = 0xffffffffLL;
+const uint64_t kXMaxUInt = 0xffffffffffffffffULL;
+const uint64_t kWMaxUInt = 0xffffffffULL;
+const int64_t kXMaxInt = 0x7fffffffffffffffLL;
+const int64_t kXMinInt = 0x8000000000000000LL;
 const int32_t kWMaxInt = 0x7fffffff;
 const int32_t kWMinInt = 0x80000000;
 const unsigned kLinkRegCode = 30;
@@ -81,16 +81,16 @@ const unsigned kFloatExponentBits = 8;
 
 const float kFP32PositiveInfinity = rawbits_to_float(0x7f800000);
 const float kFP32NegativeInfinity = rawbits_to_float(0xff800000);
-const double kFP64PositiveInfinity = rawbits_to_double(0x7ff0000000000000UL);
-const double kFP64NegativeInfinity = rawbits_to_double(0xfff0000000000000UL);
+const double kFP64PositiveInfinity = rawbits_to_double(0x7ff0000000000000ULL);
+const double kFP64NegativeInfinity = rawbits_to_double(0xfff0000000000000ULL);
 
 // This value is a signalling NaN as both a double and as a float (taking the
 // least-significant word).
-static const double kFP64SignallingNaN = rawbits_to_double(0x7ff000007f800001);
+static const double kFP64SignallingNaN = rawbits_to_double(0x7ff000007f800001ULL);
 static const float kFP32SignallingNaN = rawbits_to_float(0x7f800001);
 
 // A similar value, but as a quiet NaN.
-static const double kFP64QuietNaN = rawbits_to_double(0x7ff800007fc00001);
+static const double kFP64QuietNaN = rawbits_to_double(0x7ff800007fc00001ULL);
 static const float kFP32QuietNaN = rawbits_to_float(0x7fc00001);
 
 enum LSDataSize {

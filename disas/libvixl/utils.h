@@ -36,7 +36,7 @@ namespace vixl {
 // Check number width.
 inline bool is_intn(unsigned n, int64_t x) {
   ASSERT((0 < n) && (n < 64));
-  int64_t limit = 1L << (n - 1);
+  int64_t limit = 1ULL << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
@@ -47,7 +47,7 @@ inline bool is_uintn(unsigned n, int64_t x) {
 
 inline unsigned truncate_to_intn(unsigned n, int64_t x) {
   ASSERT((0 < n) && (n < 64));
-  return (x & ((1L << n) - 1));
+  return (x & ((1ULL << n) - 1));
 }
 
 #define INT_1_TO_63_LIST(V)                                                    \

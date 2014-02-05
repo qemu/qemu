@@ -44,7 +44,6 @@ typedef uint8_t byte;
 
 const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
-const int GBytes = 1024 * MBytes;
 
   #define ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
 #ifdef DEBUG
