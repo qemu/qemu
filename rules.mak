@@ -27,8 +27,12 @@ QEMU_INCLUDES += -I$(<D) -I$(@D)
 %.o: %.rc
 	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
+# If we have a CXX we might have some C++ objects, in which case we
+# must link with the C++ compiler, not the plain C compiler.
+LINKPROG = $(or $(CXX),$(CC))
+
 ifeq ($(LIBTOOL),)
-LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
@@ -42,7 +46,7 @@ LIBTOOL += $(if $(V),,--quiet)
 
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
-       )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
        $(if $(filter %.lo %.la,$^),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
