@@ -727,9 +727,9 @@ bool tap_has_ufo(NetClientState *nc)
     return false;
 }
 
-int tap_has_vnet_hdr(NetClientState *nc)
+bool tap_has_vnet_hdr(NetClientState *nc)
 {
-    return 0;
+    return false;
 }
 
 int tap_probe_vnet_hdr_len(int fd, int len)
@@ -755,9 +755,9 @@ struct vhost_net *tap_get_vhost_net(NetClientState *nc)
     return NULL;
 }
 
-int tap_has_vnet_hdr_len(NetClientState *nc, int len)
+bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
 {
-    return 0;
+    return false;
 }
 
 void tap_set_vnet_hdr_len(NetClientState *nc, int len)

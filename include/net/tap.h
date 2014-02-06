@@ -30,8 +30,8 @@
 #include "qapi-types.h"
 
 bool tap_has_ufo(NetClientState *nc);
-int tap_has_vnet_hdr(NetClientState *nc);
-int tap_has_vnet_hdr_len(NetClientState *nc, int len);
+bool tap_has_vnet_hdr(NetClientState *nc);
+bool tap_has_vnet_hdr_len(NetClientState *nc, int len);
 void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr);
 void tap_set_offload(NetClientState *nc, int csum, int tso4, int tso6, int ecn, int ufo);
 void tap_set_vnet_hdr_len(NetClientState *nc, int len);

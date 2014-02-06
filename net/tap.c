@@ -219,7 +219,7 @@ bool tap_has_ufo(NetClientState *nc)
     return s->has_ufo;
 }
 
-int tap_has_vnet_hdr(NetClientState *nc)
+bool tap_has_vnet_hdr(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -228,13 +228,13 @@ int tap_has_vnet_hdr(NetClientState *nc)
     return !!s->host_vnet_hdr_len;
 }
 
-int tap_has_vnet_hdr_len(NetClientState *nc, int len)
+bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
 
-    return tap_probe_vnet_hdr_len(s->fd, len);
+    return !!tap_probe_vnet_hdr_len(s->fd, len);
 }
 
 void tap_set_vnet_hdr_len(NetClientState *nc, int len)
