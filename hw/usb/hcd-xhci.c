@@ -1974,8 +1974,8 @@ static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
             xfer->mfindex_kick = asap;
         }
     } else {
-        xfer->mfindex_kick = (xfer->trbs[0].control >> TRB_TR_FRAMEID_SHIFT)
-            & TRB_TR_FRAMEID_MASK;
+        xfer->mfindex_kick = ((xfer->trbs[0].control >> TRB_TR_FRAMEID_SHIFT)
+                              & TRB_TR_FRAMEID_MASK) << 3;
         xfer->mfindex_kick |= mfindex & ~0x3fff;
         if (xfer->mfindex_kick < mfindex) {
             xfer->mfindex_kick += 0x4000;
