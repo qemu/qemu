@@ -149,6 +149,9 @@
 /* MSR used to read the per-partition time reference counter */
 #define HV_X64_MSR_TIME_REF_COUNT		0x40000020
 
+/* A partition's reference time stamp counter (TSC) page */
+#define HV_X64_MSR_REFERENCE_TSC		0x40000021
+
 /* MSR used to retrieve the TSC frequency */
 #define HV_X64_MSR_TSC_FREQUENCY		0x40000022
 

@@ -72,6 +72,9 @@ static bool has_msr_misc_enable;
 static bool has_msr_bndcfgs;
 static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
+static bool has_msr_hv_hypercall;
+static bool has_msr_hv_vapic;
+static bool has_msr_hv_tsc;
 
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
@@ -437,8 +440,11 @@ static bool hyperv_hypercall_available(X86CPU *cpu)
 
 static bool hyperv_enabled(X86CPU *cpu)
 {
-    return hyperv_hypercall_available(cpu) ||
-           cpu->hyperv_relaxed_timing;
+    CPUState *cs = CPU(cpu);
+    return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
+           (hyperv_hypercall_available(cpu) ||
+            cpu->hyperv_time  ||
+            cpu->hyperv_relaxed_timing);
 }
 
 #define KVM_MAX_CPUID_ENTRIES  100
@@ -455,6 +461,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
+    int kvm_base = KVM_CPUID_SIGNATURE;
     int r;
 
     memset(&cpuid_data, 0, sizeof(cpuid_data));
@@ -462,26 +469,22 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_SIGNATURE;
-    if (!hyperv_enabled(cpu)) {
-        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-        c->eax = 0;
-    } else {
+    if (hyperv_enabled(cpu)) {
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
         memcpy(signature, "Microsoft Hv", 12);
         c->eax = HYPERV_CPUID_MIN;
-    }
-    c->ebx = signature[0];
-    c->ecx = signature[1];
-    c->edx = signature[2];
+        c->ebx = signature[0];
+        c->ecx = signature[1];
+        c->edx = signature[2];
 
-    c = &cpuid_data.entries[cpuid_i++];
-    c->function = KVM_CPUID_FEATURES;
-    c->eax = env->features[FEAT_KVM];
-
-    if (hyperv_enabled(cpu)) {
+        c = &cpuid_data.entries[cpuid_i++];
+        c->function = HYPERV_CPUID_INTERFACE;
         memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
         c->eax = signature[0];
+        c->ebx = 0;
+        c->ecx = 0;
+        c->edx = 0;
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_VERSION;
@@ -496,14 +499,21 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_vapic) {
             c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
             c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+            has_msr_hv_vapic = true;
         }
-
+        if (cpu->hyperv_time &&
+            kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+            c->eax |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
+            c->eax |= 0x200;
+            has_msr_hv_tsc = true;
+        }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
             c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
         }
-        if (cpu->hyperv_vapic) {
+        if (has_msr_hv_vapic) {
             c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
         }
         c->ebx = cpu->hyperv_spinlock_attempts;
@@ -513,14 +523,21 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->eax = 0x40;
         c->ebx = 0x40;
 
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = KVM_CPUID_SIGNATURE_NEXT;
-        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-        c->eax = 0;
-        c->ebx = signature[0];
-        c->ecx = signature[1];
-        c->edx = signature[2];
+        kvm_base = KVM_CPUID_SIGNATURE_NEXT;
+        has_msr_hv_hypercall = true;
     }
+
+    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+    c = &cpuid_data.entries[cpuid_i++];
+    c->function = KVM_CPUID_SIGNATURE | kvm_base;
+    c->eax = 0;
+    c->ebx = signature[0];
+    c->ecx = signature[1];
+    c->edx = signature[2];
+
+    c = &cpuid_data.entries[cpuid_i++];
+    c->function = KVM_CPUID_FEATURES | kvm_base;
+    c->eax = env->features[FEAT_KVM];
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
@@ -1220,12 +1237,19 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_CORE_PERF_GLOBAL_CTRL,
                               env->msr_global_ctrl);
         }
-        if (hyperv_hypercall_available(cpu)) {
-            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
-            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
+        if (has_msr_hv_hypercall) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID,
+                              env->msr_hv_guest_os_id);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL,
+                              env->msr_hv_hypercall);
         }
-        if (cpu->hyperv_vapic) {
-            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
+        if (has_msr_hv_vapic) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE,
+                              env->msr_hv_vapic);
+        }
+        if (has_msr_hv_tsc) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_REFERENCE_TSC,
+                              env->msr_hv_tsc);
         }
 
         /* Note: MSR_IA32_FEATURE_CONTROL is written separately, see
@@ -1511,6 +1535,17 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
+    if (has_msr_hv_hypercall) {
+        msrs[n++].index = HV_X64_MSR_HYPERCALL;
+        msrs[n++].index = HV_X64_MSR_GUEST_OS_ID;
+    }
+    if (has_msr_hv_vapic) {
+        msrs[n++].index = HV_X64_MSR_APIC_ASSIST_PAGE;
+    }
+    if (has_msr_hv_tsc) {
+        msrs[n++].index = HV_X64_MSR_REFERENCE_TSC;
+    }
+
     msr_data.info.nmsrs = n;
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
     if (ret < 0) {
@@ -1617,6 +1652,18 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_P6_EVNTSEL0 ... MSR_P6_EVNTSEL0 + MAX_GP_COUNTERS - 1:
             env->msr_gp_evtsel[index - MSR_P6_EVNTSEL0] = msrs[i].data;
+            break;
+        case HV_X64_MSR_HYPERCALL:
+            env->msr_hv_hypercall = msrs[i].data;
+            break;
+        case HV_X64_MSR_GUEST_OS_ID:
+            env->msr_hv_guest_os_id = msrs[i].data;
+            break;
+        case HV_X64_MSR_APIC_ASSIST_PAGE:
+            env->msr_hv_vapic = msrs[i].data;
+            break;
+        case HV_X64_MSR_REFERENCE_TSC:
+            env->msr_hv_tsc = msrs[i].data;
             break;
         }
     }

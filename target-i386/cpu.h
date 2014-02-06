@@ -862,6 +862,10 @@ typedef struct CPUX86State {
     uint64_t msr_fixed_counters[MAX_FIXED_COUNTERS];
     uint64_t msr_gp_counters[MAX_GP_COUNTERS];
     uint64_t msr_gp_evtsel[MAX_GP_COUNTERS];
+    uint64_t msr_hv_hypercall;
+    uint64_t msr_hv_guest_os_id;
+    uint64_t msr_hv_vapic;
+    uint64_t msr_hv_tsc;
 
     /* exception/interrupt handling */
     int error_code;
