@@ -314,6 +314,12 @@ static NetClientInfo net_tap_info = {
     .receive_iov = tap_receive_iov,
     .poll = tap_poll,
     .cleanup = tap_cleanup,
+    .has_ufo = tap_has_ufo,
+    .has_vnet_hdr = tap_has_vnet_hdr,
+    .has_vnet_hdr_len = tap_has_vnet_hdr_len,
+    .using_vnet_hdr = tap_using_vnet_hdr,
+    .set_offload = tap_set_offload,
+    .set_vnet_hdr_len = tap_set_vnet_hdr_len,
 };
 
 static TAPState *net_tap_fd_init(NetClientState *peer,
