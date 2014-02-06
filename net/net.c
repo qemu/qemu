@@ -378,6 +378,61 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
     }
 }
 
+bool qemu_peer_has_ufo(NetClientState *nc)
+{
+    if (!nc->peer || !nc->peer->info->has_ufo) {
+        return false;
+    }
+
+    return nc->peer->info->has_ufo(nc->peer);
+}
+
+bool qemu_peer_has_vnet_hdr(NetClientState *nc)
+{
+    if (!nc->peer || !nc->peer->info->has_vnet_hdr) {
+        return false;
+    }
+
+    return nc->peer->info->has_vnet_hdr(nc->peer);
+}
+
+bool qemu_peer_has_vnet_hdr_len(NetClientState *nc, int len)
+{
+    if (!nc->peer || !nc->peer->info->has_vnet_hdr_len) {
+        return false;
+    }
+
+    return nc->peer->info->has_vnet_hdr_len(nc->peer, len);
+}
+
+void qemu_peer_using_vnet_hdr(NetClientState *nc, bool enable)
+{
+    if (!nc->peer || !nc->peer->info->using_vnet_hdr) {
+        return;
+    }
+
+    nc->peer->info->using_vnet_hdr(nc->peer, enable);
+}
+
+void qemu_peer_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+                          int ecn, int ufo)
+{
+    if (!nc->peer || !nc->peer->info->set_offload) {
+        return;
+    }
+
+    nc->peer->info->set_offload(nc->peer, csum, tso4, tso6, ecn, ufo);
+}
+
+void qemu_peer_set_vnet_hdr_len(NetClientState *nc, int len)
+{
+    if (!nc->peer || !nc->peer->info->set_vnet_hdr_len) {
+        return;
+    }
+
+    nc->peer->info->set_vnet_hdr_len(nc->peer, len);
+}
+
 int qemu_can_send_packet(NetClientState *sender)
 {
     if (!sender->peer) {
