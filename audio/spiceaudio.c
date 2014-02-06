@@ -25,8 +25,17 @@
 #include "audio.h"
 #include "audio_int.h"
 
-#define LINE_IN_SAMPLES 1024
-#define LINE_OUT_SAMPLES 1024
+#if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
+#define LINE_OUT_SAMPLES (480 * 4)
+#else
+#define LINE_OUT_SAMPLES (256 * 4)
+#endif
+
+#if SPICE_INTERFACE_RECORD_MAJOR > 2 || SPICE_INTERFACE_RECORD_MINOR >= 3
+#define LINE_IN_SAMPLES (480 * 4)
+#else
+#define LINE_IN_SAMPLES (256 * 4)
+#endif
 
 typedef struct SpiceRateCtl {
     int64_t               start_ticks;
@@ -111,7 +120,11 @@ static int line_out_init (HWVoiceOut *hw, struct audsettings *as)
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
     struct audsettings settings;
 
+#if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
+    settings.freq       = spice_server_get_best_playback_rate(NULL);
+#else
     settings.freq       = SPICE_INTERFACE_PLAYBACK_FREQ;
+#endif
     settings.nchannels  = SPICE_INTERFACE_PLAYBACK_CHAN;
     settings.fmt        = AUD_FMT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
@@ -122,6 +135,9 @@ static int line_out_init (HWVoiceOut *hw, struct audsettings *as)
 
     out->sin.base.sif = &playback_sif.base;
     qemu_spice_add_interface (&out->sin.base);
+#if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
+    spice_server_set_playback_rate(&out->sin, settings.freq);
+#endif
     return 0;
 }
 
@@ -232,7 +248,11 @@ static int line_in_init (HWVoiceIn *hw, struct audsettings *as)
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
     struct audsettings settings;
 
+#if SPICE_INTERFACE_RECORD_MAJOR > 2 || SPICE_INTERFACE_RECORD_MINOR >= 3
+    settings.freq       = spice_server_get_best_record_rate(NULL);
+#else
     settings.freq       = SPICE_INTERFACE_RECORD_FREQ;
+#endif
     settings.nchannels  = SPICE_INTERFACE_RECORD_CHAN;
     settings.fmt        = AUD_FMT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
@@ -243,6 +263,9 @@ static int line_in_init (HWVoiceIn *hw, struct audsettings *as)
 
     in->sin.base.sif = &record_sif.base;
     qemu_spice_add_interface (&in->sin.base);
+#if SPICE_INTERFACE_RECORD_MAJOR > 2 || SPICE_INTERFACE_RECORD_MINOR >= 3
+    spice_server_set_record_rate(&in->sin, settings.freq);
+#endif
     return 0;
 }
 
