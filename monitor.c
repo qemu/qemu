@@ -4254,6 +4254,25 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void device_del_completion(ReadLineState *rs, BusState *bus,
+                                  const char *str, size_t len)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *dev_child;
+
+        if (dev->id && !strncmp(str, dev->id, len)) {
+            readline_add_completion(rs, dev->id);
+        }
+
+        QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
+            device_del_completion(rs, dev_child, str, len);
+        }
+    }
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
@@ -4330,6 +4349,10 @@ static void monitor_find_completion_by_table(Monitor *mon,
             } else if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
+            } else if (!strcmp(cmd->name, "device_del") && nb_args == 2) {
+                size_t len = strlen(str);
+                readline_set_completion_index(mon->rs, len);
+                device_del_completion(mon->rs, sysbus_get_default(), str, len);
             }
             break;
         default:
