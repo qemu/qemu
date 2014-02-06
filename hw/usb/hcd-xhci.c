@@ -2038,9 +2038,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         }
         break;
     default:
-        fprintf(stderr, "xhci: unknown or unhandled EP "
-                "(type %d, in %d, ep %02x)\n",
-                epctx->type, xfer->in_xfer, xfer->epid);
+        trace_usb_xhci_unimplemented("endpoint type", epctx->type);
         return -1;
     }
 
