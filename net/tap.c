@@ -210,7 +210,7 @@ static void tap_send(void *opaque)
     } while (size > 0 && qemu_can_send_packet(&s->nc));
 }
 
-bool tap_has_ufo(NetClientState *nc)
+static bool tap_has_ufo(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -219,7 +219,7 @@ bool tap_has_ufo(NetClientState *nc)
     return s->has_ufo;
 }
 
-bool tap_has_vnet_hdr(NetClientState *nc)
+static bool tap_has_vnet_hdr(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -228,7 +228,7 @@ bool tap_has_vnet_hdr(NetClientState *nc)
     return !!s->host_vnet_hdr_len;
 }
 
-bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
+static bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -237,7 +237,7 @@ bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
     return !!tap_probe_vnet_hdr_len(s->fd, len);
 }
 
-void tap_set_vnet_hdr_len(NetClientState *nc, int len)
+static void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -249,7 +249,7 @@ void tap_set_vnet_hdr_len(NetClientState *nc, int len)
     s->host_vnet_hdr_len = len;
 }
 
-void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
+static void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -259,7 +259,7 @@ void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
     s->using_vnet_hdr = using_vnet_hdr;
 }
 
-void tap_set_offload(NetClientState *nc, int csum, int tso4,
+static void tap_set_offload(NetClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
