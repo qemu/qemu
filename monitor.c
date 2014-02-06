@@ -4254,6 +4254,27 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void device_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_DEVICE, false);
+    while (elt) {
+        const char *name;
+        DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                             TYPE_DEVICE);
+        name = object_class_get_name(OBJECT_CLASS(dc));
+        if (!strncmp(name, str, len)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
 static void device_del_completion(ReadLineState *rs, BusState *bus,
                                   const char *str, size_t len)
 {
@@ -4335,6 +4356,11 @@ static void monitor_find_completion_by_table(Monitor *mon,
             mbs.input = str;
             readline_set_completion_index(mon->rs, strlen(str));
             bdrv_iterate(block_completion_it, &mbs);
+            break;
+        case 'O':
+            if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
+                device_add_completion(mon->rs, str);
+            }
             break;
         case 's':
         case 'S':
