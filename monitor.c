@@ -56,6 +56,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
+#include <qom/object_interfaces.h>
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "trace.h"
@@ -4275,6 +4276,26 @@ static void device_add_completion(ReadLineState *rs, const char *str)
     g_slist_free(list);
 }
 
+static void object_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_USER_CREATABLE, false);
+    while (elt) {
+        const char *name;
+
+        name = object_class_get_name(OBJECT_CLASS(elt->data));
+        if (!strncmp(name, str, len) && strcmp(name, TYPE_USER_CREATABLE)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
 static void device_del_completion(ReadLineState *rs, BusState *bus,
                                   const char *str, size_t len)
 {
@@ -4381,6 +4402,8 @@ static void monitor_find_completion_by_table(Monitor *mon,
         case 'O':
             if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
                 device_add_completion(mon->rs, str);
+            } else if (!strcmp(cmd->name, "object_add") && nb_args == 2) {
+                object_add_completion(mon->rs, str);
             }
             break;
         case 's':
