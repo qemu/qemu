@@ -176,6 +176,8 @@ struct BusClass {
     void (*reset)(BusState *bus);
     /* maximum devices allowed on the bus, 0: no limit. */
     int max_dev;
+    /* number of automatically allocated bus ids (e.g. ide.0) */
+    int automatic_ids;
 };
 
 typedef struct BusChild {

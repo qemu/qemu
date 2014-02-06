@@ -440,27 +440,33 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
 {
     const char *typename = object_get_typename(OBJECT(bus));
+    BusClass *bc;
     char *buf;
-    int i,len;
+    int i, len, bus_id;
 
     bus->parent = parent;
 
     if (name) {
         bus->name = g_strdup(name);
     } else if (bus->parent && bus->parent->id) {
-        /* parent device has id -> use it for bus name */
+        /* parent device has id -> use it plus parent-bus-id for bus name */
+        bus_id = bus->parent->num_child_bus;
+
         len = strlen(bus->parent->id) + 16;
         buf = g_malloc(len);
-        snprintf(buf, len, "%s.%d", bus->parent->id, bus->parent->num_child_bus);
+        snprintf(buf, len, "%s.%d", bus->parent->id, bus_id);
         bus->name = buf;
     } else {
-        /* no id -> use lowercase bus type for bus name */
+        /* no id -> use lowercase bus type plus global bus-id for bus name */
+        bc = BUS_GET_CLASS(bus);
+        bus_id = bc->automatic_ids++;
+
         len = strlen(typename) + 16;
         buf = g_malloc(len);
-        len = snprintf(buf, len, "%s.%d", typename,
-                       bus->parent ? bus->parent->num_child_bus : 0);
-        for (i = 0; i < len; i++)
+        len = snprintf(buf, len, "%s.%d", typename, bus_id);
+        for (i = 0; i < len; i++) {
             buf[i] = qemu_tolower(buf[i]);
+        }
         bus->name = buf;
     }
 
