@@ -4294,6 +4294,27 @@ static void device_del_completion(ReadLineState *rs, BusState *bus,
     }
 }
 
+static void object_del_completion(ReadLineState *rs, const char *str)
+{
+    ObjectPropertyInfoList *list, *start;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_qom_list("/objects", NULL);
+    while (list) {
+        ObjectPropertyInfo *info = list->value;
+
+        if (!strncmp(info->type, "child<", 5)
+            && !strncmp(info->name, str, len)) {
+            readline_add_completion(rs, info->name);
+        }
+        list = list->next;
+    }
+    qapi_free_ObjectPropertyInfoList(start);
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
@@ -4379,6 +4400,8 @@ static void monitor_find_completion_by_table(Monitor *mon,
                 size_t len = strlen(str);
                 readline_set_completion_index(mon->rs, len);
                 device_del_completion(mon->rs, sysbus_get_default(), str, len);
+            } else if (!strcmp(cmd->name, "object_del") && nb_args == 2) {
+                object_del_completion(mon->rs, str);
             }
             break;
         default:
