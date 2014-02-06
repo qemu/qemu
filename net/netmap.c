@@ -31,6 +31,7 @@
 #include <net/netmap_user.h>
 
 #include "net/net.h"
+#include "net/tap.h"
 #include "clients.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
@@ -54,6 +55,7 @@ typedef struct NetmapState {
     bool                read_poll;
     bool                write_poll;
     struct iovec        iov[IOV_MAX];
+    int                 vnet_hdr_len;  /* Current virtio-net header length. */
 } NetmapState;
 
 #define D(format, ...)                                          \
@@ -274,7 +276,7 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
         return iov_size(iov, iovcnt);
     }
 
-    i = ring->cur;
+    last = i = ring->cur;
     avail = ring->avail;
 
     if (avail < iovcnt) {
@@ -394,6 +396,63 @@ static void netmap_cleanup(NetClientState *nc)
     s->me.fd = -1;
 }
 
+/* Offloading manipulation support callbacks. */
+static bool netmap_has_ufo(NetClientState *nc)
+{
+    return true;
+}
+
+static bool netmap_has_vnet_hdr(NetClientState *nc)
+{
+    return true;
+}
+
+static bool netmap_has_vnet_hdr_len(NetClientState *nc, int len)
+{
+    return len == 0 || len == sizeof(struct virtio_net_hdr) ||
+                len == sizeof(struct virtio_net_hdr_mrg_rxbuf);
+}
+
+static void netmap_using_vnet_hdr(NetClientState *nc, bool enable)
+{
+}
+
+static void netmap_set_vnet_hdr_len(NetClientState *nc, int len)
+{
+    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
+    int err;
+    struct nmreq req;
+
+    /* Issue a NETMAP_BDG_VNET_HDR command to change the virtio-net header
+     * length for the netmap adapter associated to 'me->ifname'.
+     */
+    memset(&req, 0, sizeof(req));
+    pstrcpy(req.nr_name, sizeof(req.nr_name), s->me.ifname);
+    req.nr_version = NETMAP_API;
+    req.nr_cmd = NETMAP_BDG_VNET_HDR;
+    req.nr_arg1 = len;
+    err = ioctl(s->me.fd, NIOCREGIF, &req);
+    if (err) {
+        error_report("Unable to execute NETMAP_BDG_VNET_HDR on %s: %s",
+                     s->me.ifname, strerror(errno));
+    } else {
+        /* Keep track of the current length. */
+        s->vnet_hdr_len = len;
+    }
+}
+
+static void netmap_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+                               int ecn, int ufo)
+{
+    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
+
+    /* Setting a virtio-net header length greater than zero automatically
+     * enables the offloadings.
+     */
+    if (!s->vnet_hdr_len) {
+        netmap_set_vnet_hdr_len(nc, sizeof(struct virtio_net_hdr));
+    }
+}
 
 /* NetClientInfo methods */
 static NetClientInfo net_netmap_info = {
@@ -403,6 +462,12 @@ static NetClientInfo net_netmap_info = {
     .receive_iov = netmap_receive_iov,
     .poll = netmap_poll,
     .cleanup = netmap_cleanup,
+    .has_ufo = netmap_has_ufo,
+    .has_vnet_hdr = netmap_has_vnet_hdr,
+    .has_vnet_hdr_len = netmap_has_vnet_hdr_len,
+    .using_vnet_hdr = netmap_using_vnet_hdr,
+    .set_offload = netmap_set_offload,
+    .set_vnet_hdr_len = netmap_set_vnet_hdr_len,
 };
 
 /* The exported init function
@@ -428,6 +493,7 @@ int net_init_netmap(const NetClientOptions *opts,
     nc = qemu_new_net_client(&net_netmap_info, peer, "netmap", name);
     s = DO_UPCAST(NetmapState, nc, nc);
     s->me = me;
+    s->vnet_hdr_len = 0;
     netmap_read_poll(s, true); /* Initially only poll for reads. */
 
     return 0;
