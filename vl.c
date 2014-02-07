@@ -27,62 +27,11 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/time.h>
-#include <zlib.h>
-#include "qemu/bitmap.h"
 
-/* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-
-#ifndef _WIN32
-#include <libgen.h>
-#include <sys/times.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/select.h>
-
-#ifdef CONFIG_BSD
-#include <sys/stat.h>
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <sys/sysctl.h>
-#else
-#include <util.h>
-#endif
-#else
-#ifdef __linux__
-#include <malloc.h>
-
-#include <linux/ppdev.h>
-#include <linux/parport.h>
-#endif
 
 #ifdef CONFIG_SECCOMP
 #include "sysemu/seccomp.h"
-#endif
-
-#ifdef __sun__
-#include <sys/stat.h>
-#include <sys/ethernet.h>
-#include <sys/sockio.h>
-#include <netinet/arp.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h> // must come after ip.h
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <net/if.h>
-#include <syslog.h>
-#include <stropts.h>
-#endif
-#endif
 #endif
 
 #if defined(CONFIG_VDE)
@@ -135,6 +84,7 @@ int main(int argc, char **argv)
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
+#include "qemu/bitmap.h"
 #include "qemu/cache-utils.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
