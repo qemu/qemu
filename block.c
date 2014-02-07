@@ -3134,6 +3134,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
+    assert(req->overlap_offset <= offset);
+    assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
