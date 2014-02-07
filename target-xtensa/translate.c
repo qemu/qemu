@@ -2235,6 +2235,20 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             gen_load_store(st32, 2);
             break;
 
+#define gen_dcache_hit_test(w, shift) do { \
+            TCGv_i32 addr = tcg_temp_new_i32(); \
+            TCGv_i32 res = tcg_temp_new_i32(); \
+            gen_window_check1(dc, RRI##w##_S); \
+            tcg_gen_addi_i32(addr, cpu_R[RRI##w##_S], \
+                             RRI##w##_IMM##w << shift); \
+            tcg_gen_qemu_ld8u(res, addr, dc->cring); \
+            tcg_temp_free(addr); \
+            tcg_temp_free(res); \
+        } while (0)
+
+#define gen_dcache_hit_test4() gen_dcache_hit_test(4, 4)
+#define gen_dcache_hit_test8() gen_dcache_hit_test(8, 2)
+
         case 7: /*CACHEc*/
             if (RRI8_T < 8) {
                 HAS_OPTION(XTENSA_OPTION_DCACHE);
@@ -2242,49 +2256,69 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             switch (RRI8_T) {
             case 0: /*DPFRc*/
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 1: /*DPFWc*/
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 2: /*DPFROc*/
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 3: /*DPFWOc*/
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 4: /*DHWBc*/
+                gen_dcache_hit_test8();
                 break;
 
             case 5: /*DHWBIc*/
+                gen_dcache_hit_test8();
                 break;
 
             case 6: /*DHIc*/
+                gen_check_privilege(dc);
+                gen_dcache_hit_test8();
                 break;
 
             case 7: /*DIIc*/
+                gen_check_privilege(dc);
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 8: /*DCEc*/
                 switch (OP1) {
                 case 0: /*DPFLl*/
                     HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_dcache_hit_test4();
                     break;
 
                 case 2: /*DHUl*/
                     HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_dcache_hit_test4();
                     break;
 
                 case 3: /*DIUl*/
                     HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_window_check1(dc, RRI4_S);
                     break;
 
                 case 4: /*DIWBc*/
                     HAS_OPTION(XTENSA_OPTION_DCACHE);
+                    gen_check_privilege(dc);
+                    gen_window_check1(dc, RRI4_S);
                     break;
 
                 case 5: /*DIWBIc*/
                     HAS_OPTION(XTENSA_OPTION_DCACHE);
+                    gen_check_privilege(dc);
+                    gen_window_check1(dc, RRI4_S);
                     break;
 
                 default: /*reserved*/
@@ -2293,6 +2327,10 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
                 }
                 break;
+
+#undef gen_dcache_hit_test
+#undef gen_dcache_hit_test4
+#undef gen_dcache_hit_test8
 
             case 12: /*IPFc*/
                 HAS_OPTION(XTENSA_OPTION_ICACHE);
