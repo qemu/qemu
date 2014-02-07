@@ -2915,8 +2915,8 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         }
 
         total_sectors = DIV_ROUND_UP(len, BDRV_SECTOR_SIZE);
-        max_nb_sectors = MAX(0, ROUND_UP(total_sectors - sector_num,
-                                         align >> BDRV_SECTOR_BITS));
+        max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
+                                  align >> BDRV_SECTOR_BITS);
         if (max_nb_sectors > 0) {
             ret = drv->bdrv_co_readv(bs, sector_num,
                                      MIN(nb_sectors, max_nb_sectors), qiov);
