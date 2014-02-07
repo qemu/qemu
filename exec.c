@@ -266,6 +266,18 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     return section;
 }
 
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (memory_region_is_ram(mr)) {
+        return !(is_write && mr->readonly);
+    }
+    if (memory_region_is_romd(mr)) {
+        return !is_write;
+    }
+
+    return false;
+}
+
 MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
                                       hwaddr *xlat, hwaddr *plen,
                                       bool is_write)
@@ -293,6 +305,11 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
         }
 
         as = iotlb.target_as;
+    }
+
+    if (memory_access_is_direct(mr, is_write)) {
+        hwaddr page = ((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr;
+        len = MIN(page, len);
     }
 
     *plen = len;
@@ -1813,18 +1830,6 @@ static void invalidate_and_set_dirty(hwaddr addr,
         cpu_physical_memory_set_dirty_flags(addr, (0xff & ~CODE_DIRTY_FLAG));
     }
     xen_modified_memory(addr, length);
-}
-
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
-{
-    if (memory_region_is_ram(mr)) {
-        return !(is_write && mr->readonly);
-    }
-    if (memory_region_is_romd(mr)) {
-        return !is_write;
-    }
-
-    return false;
 }
 
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
