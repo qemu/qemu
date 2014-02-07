@@ -575,23 +575,14 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->memwindow);
 
-    /* On ppc, we only have MMIO no specific IO space from the CPU
-     * perspective.  In theory we ought to be able to embed the PCI IO
-     * memory region direction in the system memory space.  However,
-     * if any of the IO BAR subregions use the old_portio mechanism,
-     * that won't be processed properly unless accessed from the
-     * system io address space.  This hack to bounce things via
-     * system_io works around the problem until all the users of
-     * old_portion are updated */
+    /* Initialize IO regions */
     sprintf(namebuf, "%s.io", sphb->dtbusname);
     memory_region_init(&sphb->iospace, OBJECT(sphb),
                        namebuf, SPAPR_PCI_IO_WIN_SIZE);
-    /* FIXME: fix to support multiple PHBs */
-    memory_region_add_subregion(get_system_io(), 0, &sphb->iospace);
 
     sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->iowindow, OBJECT(sphb), namebuf,
-                             get_system_io(), 0, SPAPR_PCI_IO_WIN_SIZE);
+                             &sphb->iospace, 0, SPAPR_PCI_IO_WIN_SIZE);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
