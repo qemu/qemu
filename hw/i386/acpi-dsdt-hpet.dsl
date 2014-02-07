@@ -39,9 +39,6 @@ Scope(\_SB) {
             Return (0x0F)
         }
         Name(_CRS, ResourceTemplate() {
-#if 0       /* This makes WinXP BSOD for not yet figured reasons. */
-            IRQNoFlags() {2, 8}
-#endif
             Memory32Fixed(ReadOnly,
                 0xFED00000,         // Address Base
                 0x00000400,         // Address Length
