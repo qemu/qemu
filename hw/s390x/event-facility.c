@@ -299,7 +299,7 @@ static const TypeInfo s390_sclp_events_bus_info = {
 
 static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
 {
-    switch (code) {
+    switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMD_READ_EVENT_DATA:
         read_event_data(ef, sccb);
         break;
