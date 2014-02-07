@@ -325,7 +325,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
                                  hwaddr *plen, bool resolve_subpage)
 {
     MemoryRegionSection *section;
-    Int128 diff, diff_page;
+    Int128 diff;
 
     section = address_space_lookup_region(d, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
@@ -334,11 +334,21 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     /* Compute offset within MemoryRegion */
     *xlat = addr + section->offset_within_region;
 
-    diff_page = int128_make64(((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr);
     diff = int128_sub(section->mr->size, int128_make64(addr));
-    diff = int128_min(diff, diff_page);
     *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     return section;
+}
+
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (memory_region_is_ram(mr)) {
+        return !(is_write && mr->readonly);
+    }
+    if (memory_region_is_romd(mr)) {
+        return !is_write;
+    }
+
+    return false;
 }
 
 MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
@@ -351,7 +361,7 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     hwaddr len = *plen;
 
     for (;;) {
-        section = address_space_translate_internal(as->dispatch, addr, &addr, &len, true);
+        section = address_space_translate_internal(as->dispatch, addr, &addr, plen, true);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
@@ -368,6 +378,11 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
         }
 
         as = iotlb.target_as;
+    }
+
+    if (memory_access_is_direct(mr, is_write)) {
+        hwaddr page = ((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr;
+        len = MIN(page, len);
     }
 
     *plen = len;
@@ -1923,18 +1938,6 @@ static void invalidate_and_set_dirty(hwaddr addr,
         cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
     }
     xen_modified_memory(addr, length);
-}
-
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
-{
-    if (memory_region_is_ram(mr)) {
-        return !(is_write && mr->readonly);
-    }
-    if (memory_region_is_romd(mr)) {
-        return !is_write;
-    }
-
-    return false;
 }
 
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
