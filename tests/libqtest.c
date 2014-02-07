@@ -43,9 +43,8 @@ struct QTestState
     int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    gchar *pid_file; /* QEMU PID file */
     int child_pid;   /* Child process created to execute QEMU */
-    char *socket_path, *qmp_socket_path;
+    pid_t qemu_pid;  /* QEMU process spawned by our child */
 };
 
 #define g_assert_no_errno(ret) do { \
@@ -90,13 +89,13 @@ static int socket_accept(int sock)
     return ret;
 }
 
-static pid_t qtest_qemu_pid(QTestState *s)
+static pid_t read_pid_file(const char *pid_file)
 {
     FILE *f;
     char buffer[1024];
     pid_t pid = -1;
 
-    f = fopen(s->pid_file, "r");
+    f = fopen(pid_file, "r");
     if (f) {
         if (fgets(buffer, sizeof(buffer), f)) {
             pid = atoi(buffer);
@@ -110,6 +109,8 @@ QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
     gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
@@ -120,12 +121,12 @@ QTestState *qtest_init(const char *extra_args)
 
     s = g_malloc(sizeof(*s));
 
-    s->socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    s->qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
     pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
 
-    sock = init_socket(s->socket_path);
-    qmpsock = init_socket(s->qmp_socket_path);
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
 
     pid = fork();
     if (pid == 0) {
@@ -136,8 +137,8 @@ QTestState *qtest_init(const char *extra_args)
                                   "-pidfile %s "
                                   "-machine accel=qtest "
                                   "-display none "
-                                  "%s", qemu_binary, s->socket_path,
-                                  s->qmp_socket_path, pid_file,
+                                  "%s", qemu_binary, socket_path,
+                                  qmp_socket_path, pid_file,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
@@ -145,9 +146,12 @@ QTestState *qtest_init(const char *extra_args)
 
     s->fd = socket_accept(sock);
     s->qmp_fd = socket_accept(qmpsock);
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+    g_free(socket_path);
+    g_free(qmp_socket_path);
 
     s->rx = g_string_new("");
-    s->pid_file = pid_file;
     s->child_pid = pid;
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
@@ -157,8 +161,12 @@ QTestState *qtest_init(const char *extra_args)
     qtest_qmp_discard_response(s, "");
     qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
 
+    s->qemu_pid = read_pid_file(pid_file);
+    unlink(pid_file);
+    g_free(pid_file);
+
     if (getenv("QTEST_STOP")) {
-        kill(qtest_qemu_pid(s), SIGSTOP);
+        kill(s->qemu_pid, SIGSTOP);
     }
 
     return s;
@@ -168,21 +176,14 @@ void qtest_quit(QTestState *s)
 {
     int status;
 
-    pid_t pid = qtest_qemu_pid(s);
-    if (pid != -1) {
-        kill(pid, SIGTERM);
-        waitpid(pid, &status, 0);
+    if (s->qemu_pid != -1) {
+        kill(s->qemu_pid, SIGTERM);
+        waitpid(s->qemu_pid, &status, 0);
     }
 
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
-    unlink(s->pid_file);
-    unlink(s->socket_path);
-    unlink(s->qmp_socket_path);
-    g_free(s->pid_file);
-    g_free(s->socket_path);
-    g_free(s->qmp_socket_path);
     g_free(s);
 }
 
