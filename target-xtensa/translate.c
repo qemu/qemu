@@ -2332,22 +2332,42 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 #undef gen_dcache_hit_test4
 #undef gen_dcache_hit_test8
 
+#define gen_icache_hit_test(w, shift) do { \
+            TCGv_i32 addr = tcg_temp_new_i32(); \
+            gen_window_check1(dc, RRI##w##_S); \
+            tcg_gen_movi_i32(cpu_pc, dc->pc); \
+            tcg_gen_addi_i32(addr, cpu_R[RRI##w##_S], \
+                             RRI##w##_IMM##w << shift); \
+            gen_helper_itlb_hit_test(cpu_env, addr); \
+            tcg_temp_free(addr); \
+        } while (0)
+
+#define gen_icache_hit_test4() gen_icache_hit_test(4, 4)
+#define gen_icache_hit_test8() gen_icache_hit_test(8, 2)
+
             case 12: /*IPFc*/
                 HAS_OPTION(XTENSA_OPTION_ICACHE);
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             case 13: /*ICEc*/
                 switch (OP1) {
                 case 0: /*IPFLl*/
                     HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_icache_hit_test4();
                     break;
 
                 case 2: /*IHUl*/
                     HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_icache_hit_test4();
                     break;
 
                 case 3: /*IIUl*/
                     HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    gen_check_privilege(dc);
+                    gen_window_check1(dc, RRI4_S);
                     break;
 
                 default: /*reserved*/
@@ -2358,10 +2378,13 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             case 14: /*IHIc*/
                 HAS_OPTION(XTENSA_OPTION_ICACHE);
+                gen_icache_hit_test8();
                 break;
 
             case 15: /*IIIc*/
                 HAS_OPTION(XTENSA_OPTION_ICACHE);
+                gen_check_privilege(dc);
+                gen_window_check1(dc, RRI8_S);
                 break;
 
             default: /*reserved*/
@@ -2369,6 +2392,10 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 break;
             }
             break;
+
+#undef gen_icache_hit_test
+#undef gen_icache_hit_test4
+#undef gen_icache_hit_test8
 
         case 9: /*L16SI*/
             gen_load_store(ld16s, 1);

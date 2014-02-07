@@ -415,6 +415,11 @@ void HELPER(check_interrupts)(CPUXtensaState *env)
     check_interrupts(env);
 }
 
+void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
+{
+    get_page_addr_code(env, vaddr);
+}
+
 /*!
  * Check vaddr accessibility/cache attributes and raise an exception if
  * specified by the ATOMCTL SR.
