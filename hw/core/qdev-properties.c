@@ -933,12 +933,6 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
     }
 }
 
-void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
-                     Error **errp)
-{
-    object_property_parse(OBJECT(dev), value, name, errp);
-}
-
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
     object_property_set_bool(OBJECT(dev), value, name, &error_abort);
@@ -1031,7 +1025,7 @@ void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
         if (strcmp(typename, prop->driver) != 0) {
             continue;
         }
-        qdev_prop_parse(dev, prop->property, prop->value, &err);
+        object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
