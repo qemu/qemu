@@ -107,7 +107,7 @@ static void prop_set_bit(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_bit = {
-    .name  = "boolean",
+    .name  = "bool",
     .legacy_name  = "on/off",
     .get   = prop_get_bit,
     .set   = prop_set_bit,
@@ -141,7 +141,7 @@ static void set_bool(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_bool = {
-    .name  = "boolean",
+    .name  = "bool",
     .get   = get_bool,
     .set   = set_bool,
 };
@@ -358,7 +358,7 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_string = {
-    .name  = "string",
+    .name  = "str",
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
@@ -442,7 +442,8 @@ inval:
 }
 
 PropertyInfo qdev_prop_macaddr = {
-    .name  = "macaddr",
+    .name  = "str",
+    .legacy_name  = "macaddr",
     .get   = get_mac,
     .set   = set_mac,
 };
@@ -463,7 +464,8 @@ PropertyInfo qdev_prop_losttickpolicy = {
 QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
 PropertyInfo qdev_prop_bios_chs_trans = {
-    .name = "bios-chs-trans",
+    .name = "BiosAtaTranslation",
+    .legacy_name = "bios-chs-trans",
     .enum_table = BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
@@ -582,7 +584,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_blocksize = {
-    .name  = "blocksize",
+    .name  = "uint16",
+    .legacy_name  = "blocksize",
     .get   = get_uint16,
     .set   = set_blocksize,
 };
@@ -689,7 +692,8 @@ inval:
 }
 
 PropertyInfo qdev_prop_pci_host_devaddr = {
-    .name = "pci-host-devaddr",
+    .name = "str",
+    .legacy_name = "pci-host-devaddr",
     .get = get_pci_host_devaddr,
     .set = set_pci_host_devaddr,
 };

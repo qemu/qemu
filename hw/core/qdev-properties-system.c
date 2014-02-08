@@ -109,7 +109,8 @@ static void set_drive(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_drive = {
-    .name  = "drive",
+    .name  = "str",
+    .legacy_name  = "drive",
     .get   = get_drive,
     .set   = set_drive,
     .release = release_drive,
@@ -164,7 +165,8 @@ static void set_chr(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_chr = {
-    .name  = "chr",
+    .name  = "str",
+    .legacy_name  = "chr",
     .get   = get_chr,
     .set   = set_chr,
     .release = release_chr,
@@ -242,7 +244,8 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_netdev = {
-    .name  = "netdev",
+    .name  = "str",
+    .legacy_name  = "netdev",
     .get   = get_netdev,
     .set   = set_netdev,
 };
@@ -321,7 +324,8 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_vlan = {
-    .name  = "vlan",
+    .name  = "int32",
+    .legacy_name  = "vlan",
     .print = print_vlan,
     .get   = get_vlan,
     .set   = set_vlan,
