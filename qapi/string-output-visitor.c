@@ -15,6 +15,7 @@
 #include "qapi/visitor-impl.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/host-utils.h"
+#include <math.h>
 
 struct StringOutputVisitor
 {
@@ -47,30 +48,30 @@ static void print_type_size(Visitor *v, uint64_t *obj, const char *name,
                            Error **errp)
 {
     StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
-    static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T' };
+    static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E' };
     uint64_t div, val;
     char *out;
     int i;
 
     if (!sov->human) {
-        out = g_strdup_printf("%llu", (long long) *obj);
+        out = g_strdup_printf("%"PRIu64, *obj);
         string_output_set(sov, out);
         return;
     }
 
     val = *obj;
 
-    /* Compute floor(log2(val)).  */
-    i = 64 - clz64(val);
-
-    /* Find the power of 1024 that we'll display as the units.  */
-    i /= 10;
-    if (i >= ARRAY_SIZE(suffixes)) {
-        i = ARRAY_SIZE(suffixes) - 1;
-    }
+    /* The exponent (returned in i) minus one gives us
+     * floor(log2(val * 1024 / 1000).  The correction makes us
+     * switch to the higher power when the integer part is >= 1000.
+     */
+    frexp(val / (1000.0 / 1024.0), &i);
+    i = (i - 1) / 10;
+    assert(i < ARRAY_SIZE(suffixes));
     div = 1ULL << (i * 10);
 
-    out = g_strdup_printf("%0.03f%c", (double)val/div, suffixes[i]);
+    out = g_strdup_printf("%"PRIu64" (%0.3g %c%s)", val,
+                          (double)val/div, suffixes[i], i ? "iB" : "");
     string_output_set(sov, out);
 }
 
