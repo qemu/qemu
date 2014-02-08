@@ -179,15 +179,6 @@ PropertyInfo qdev_prop_uint8 = {
     .set   = set_uint8,
 };
 
-/* --- 8bit hex value --- */
-
-PropertyInfo qdev_prop_hex8 = {
-    .name  = "uint8",
-    .legacy_name  = "hex8",
-    .get   = get_uint8,
-    .set   = set_uint8,
-};
-
 /* --- 16bit integer --- */
 
 static void get_uint16(Object *obj, Visitor *v, void *opaque,
@@ -285,15 +276,6 @@ PropertyInfo qdev_prop_int32 = {
     .set   = set_int32,
 };
 
-/* --- 32bit hex value --- */
-
-PropertyInfo qdev_prop_hex32 = {
-    .name  = "uint32",
-    .legacy_name  = "hex32",
-    .get   = get_uint32,
-    .set   = set_uint32,
-};
-
 /* --- 64bit integer --- */
 
 static void get_uint64(Object *obj, Visitor *v, void *opaque,
@@ -323,15 +305,6 @@ static void set_uint64(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
-    .get   = get_uint64,
-    .set   = set_uint64,
-};
-
-/* --- 64bit hex value --- */
-
-PropertyInfo qdev_prop_hex64 = {
-    .name  = "uint64",
-    .legacy_name  = "hex64",
     .get   = get_uint64,
     .set   = set_uint64,
 };

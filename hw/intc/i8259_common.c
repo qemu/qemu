@@ -123,9 +123,9 @@ static const VMStateDescription vmstate_pic_common = {
 };
 
 static Property pic_properties_common[] = {
-    DEFINE_PROP_HEX32("iobase", PICCommonState, iobase,  -1),
-    DEFINE_PROP_HEX32("elcr_addr", PICCommonState, elcr_addr,  -1),
-    DEFINE_PROP_HEX8("elcr_mask", PICCommonState, elcr_mask,  -1),
+    DEFINE_PROP_UINT32("iobase", PICCommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("elcr_addr", PICCommonState, elcr_addr,  -1),
+    DEFINE_PROP_UINT8("elcr_mask", PICCommonState, elcr_mask,  -1),
     DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
     DEFINE_PROP_END_OF_LIST(),
 };

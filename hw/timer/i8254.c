@@ -342,7 +342,7 @@ static void pit_realizefn(DeviceState *dev, Error **err)
 }
 
 static Property pit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", PITCommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

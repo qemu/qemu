@@ -362,7 +362,7 @@ static int iommu_init1(SysBusDevice *dev)
 }
 
 static Property iommu_properties[] = {
-    DEFINE_PROP_HEX32("version", IOMMUState, version, 0),
+    DEFINE_PROP_UINT32("version", IOMMUState, version, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

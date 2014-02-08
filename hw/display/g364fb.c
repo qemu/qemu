@@ -524,7 +524,7 @@ static void g364fb_sysbus_reset(DeviceState *d)
 }
 
 static Property g364fb_sysbus_properties[] = {
-    DEFINE_PROP_HEX32("vram_size", G364SysBusState, g364.vram_size,
+    DEFINE_PROP_UINT32("vram_size", G364SysBusState, g364.vram_size,
     8 * 1024 * 1024),
     DEFINE_PROP_END_OF_LIST(),
 };
