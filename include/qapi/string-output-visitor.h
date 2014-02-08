@@ -17,7 +17,7 @@
 
 typedef struct StringOutputVisitor StringOutputVisitor;
 
-StringOutputVisitor *string_output_visitor_new(void);
+StringOutputVisitor *string_output_visitor_new(bool human);
 void string_output_visitor_cleanup(StringOutputVisitor *v);
 
 char *string_output_get_string(StringOutputVisitor *v);

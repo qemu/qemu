@@ -577,7 +577,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
         if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
             value = object_property_get_str(OBJECT(dev), legacy_name, &err);
         } else {
-            value = object_property_print(OBJECT(dev), props->name, &err);
+            value = object_property_print(OBJECT(dev), props->name, false, &err);
         }
         g_free(legacy_name);
 

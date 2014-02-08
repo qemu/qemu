@@ -26,7 +26,7 @@ typedef struct TestOutputVisitorData {
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->sov = string_output_visitor_new();
+    data->sov = string_output_visitor_new(false);
     g_assert(data->sov != NULL);
 
     data->ov = string_output_get_visitor(data->sov);
