@@ -93,7 +93,8 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
     unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
 
     /* start address is aligned at the start of a word? */
-    if (((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) {
+    if ((((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) &&
+        (hpratio == 1)) {
         long k;
         long nr = BITS_TO_LONGS(pages);
 

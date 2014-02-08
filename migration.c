@@ -105,6 +105,7 @@ static void process_incoming_migration_co(void *opaque)
 
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
+    free_xbzrle_decoded_buf();
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
         exit(EXIT_FAILURE);
@@ -469,6 +470,7 @@ void qmp_migrate_cancel(Error **errp)
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 {
     MigrationState *s = migrate_get_current();
+    int64_t new_size;
 
     /* Check for truncation */
     if (value != (size_t)value) {
@@ -477,7 +479,21 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
         return;
     }
 
-    s->xbzrle_cache_size = xbzrle_cache_resize(value);
+    /* Cache should not be larger than guest ram size */
+    if (value > ram_bytes_total()) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                  "exceeds guest ram size ");
+        return;
+    }
+
+    new_size = xbzrle_cache_resize(value);
+    if (new_size < 0) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                  "is smaller than page size");
+        return;
+    }
+
+    s->xbzrle_cache_size = new_size;
 }
 
 int64_t qmp_query_migrate_cache_size(Error **errp)

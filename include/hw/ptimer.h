@@ -27,14 +27,8 @@ void ptimer_stop(ptimer_state *s);
 
 extern const VMStateDescription vmstate_ptimer;
 
-#define VMSTATE_PTIMER(_field, _state) {                             \
-    .name       = (stringify(_field)),                               \
-    .version_id = (1),                                               \
-    .vmsd       = &vmstate_ptimer,                                   \
-    .size       = sizeof(ptimer_state *),                            \
-    .flags      = VMS_STRUCT|VMS_POINTER,                            \
-    .offset     = vmstate_offset_pointer(_state, _field, ptimer_state), \
-}
+#define VMSTATE_PTIMER(_field, _state) \
+    VMSTATE_STRUCT_POINTER_V(_field, _state, 1, vmstate_ptimer, ptimer_state)
 
 #define VMSTATE_PTIMER_ARRAY(_f, _s, _n)                                \
     VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, 0,                   \

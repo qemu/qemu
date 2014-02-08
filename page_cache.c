@@ -60,8 +60,12 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
         return NULL;
     }
 
-    cache = g_malloc(sizeof(*cache));
-
+    /* We prefer not to abort if there is no memory */
+    cache = g_try_malloc(sizeof(*cache));
+    if (!cache) {
+        DPRINTF("Failed to allocate cache\n");
+        return NULL;
+    }
     /* round down to the nearest power of 2 */
     if (!is_power_of_2(num_pages)) {
         num_pages = pow2floor(num_pages);
@@ -74,8 +78,14 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
 
     DPRINTF("Setting cache buckets to %" PRId64 "\n", cache->max_num_items);
 
-    cache->page_cache = g_malloc((cache->max_num_items) *
-                                 sizeof(*cache->page_cache));
+    /* We prefer not to abort if there is no memory */
+    cache->page_cache = g_try_malloc((cache->max_num_items) *
+                                     sizeof(*cache->page_cache));
+    if (!cache->page_cache) {
+        DPRINTF("Failed to allocate cache->page_cache\n");
+        g_free(cache);
+        return NULL;
+    }
 
     for (i = 0; i < cache->max_num_items; i++) {
         cache->page_cache[i].it_data = NULL;
@@ -140,7 +150,7 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr)
     return cache_get_by_addr(cache, addr)->it_data;
 }
 
-void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
+int cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
 {
 
     CacheItem *it = NULL;
@@ -151,16 +161,22 @@ void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
     /* actual update of entry */
     it = cache_get_by_addr(cache, addr);
 
-    /* free old cached data if any */
-    g_free(it->it_data);
-
+    /* allocate page */
     if (!it->it_data) {
+        it->it_data = g_try_malloc(cache->page_size);
+        if (!it->it_data) {
+            DPRINTF("Error allocating page\n");
+            return -1;
+        }
         cache->num_items++;
     }
 
-    it->it_data = g_memdup(pdata, cache->page_size);
+    memcpy(it->it_data, pdata, cache->page_size);
+
     it->it_age = ++cache->max_item_age;
     it->it_addr = addr;
+
+    return 0;
 }
 
 int64_t cache_resize(PageCache *cache, int64_t new_num_pages)
