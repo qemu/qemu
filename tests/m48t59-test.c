@@ -11,13 +11,14 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#include "libqtest.h"
 
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "libqtest.h"
 
 #define RTC_SECONDS             0x9
 #define RTC_MINUTES             0xa

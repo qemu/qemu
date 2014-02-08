@@ -10,7 +10,6 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#include "libqtest.h"
 
 #include <glib.h>
 #include <stdio.h>
@@ -18,6 +17,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "libqtest.h"
 #include "qemu/bswap.h"
 
 typedef struct TestCase TestCase;
