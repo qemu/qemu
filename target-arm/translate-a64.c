@@ -6212,6 +6212,48 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_rd);
 }
 
+static void handle_2misc_64(DisasContext *s, int opcode, bool u,
+                            TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+{
+    /* Handle 64->64 opcodes which are shared between the scalar and
+     * vector 2-reg-misc groups. We cover every integer opcode where size == 3
+     * is valid in either group.
+     */
+    TCGCond cond;
+
+    switch (opcode) {
+    case 0xa: /* CMLT */
+        /* 64 bit integer comparison against zero, result is
+         * test ? (2^64 - 1) : 0. We implement via setcond(!test) and
+         * subtracting 1.
+         */
+        cond = TCG_COND_LT;
+    do_cmop:
+        tcg_gen_setcondi_i64(cond, tcg_rd, tcg_rn, 0);
+        tcg_gen_neg_i64(tcg_rd, tcg_rd);
+        break;
+    case 0x8: /* CMGT, CMGE */
+        cond = u ? TCG_COND_GE : TCG_COND_GT;
+        goto do_cmop;
+    case 0x9: /* CMEQ, CMLE */
+        cond = u ? TCG_COND_LE : TCG_COND_EQ;
+        goto do_cmop;
+    case 0xb: /* ABS, NEG */
+        if (u) {
+            tcg_gen_neg_i64(tcg_rd, tcg_rn);
+        } else {
+            TCGv_i64 tcg_zero = tcg_const_i64(0);
+            tcg_gen_neg_i64(tcg_rd, tcg_rn);
+            tcg_gen_movcond_i64(TCG_COND_GT, tcg_rd, tcg_rn, tcg_zero,
+                                tcg_rn, tcg_rd);
+            tcg_temp_free_i64(tcg_zero);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* C3.6.12 AdvSIMD scalar two reg misc
  *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
  * +-----+---+-----------+------+-----------+--------+-----+------+------+
@@ -6220,7 +6262,50 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 12, 5);
+    int size = extract32(insn, 22, 2);
+    bool u = extract32(insn, 29, 1);
+
+    switch (opcode) {
+    case 0xa: /* CMLT */
+        if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x8: /* CMGT, CMGE */
+    case 0x9: /* CMEQ, CMLE */
+    case 0xb: /* ABS, NEG */
+        if (size != 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    default:
+        /* Other categories of encoding in this class:
+         *  + floating point (single and double)
+         *  + SUQADD/USQADD/SQABS/SQNEG : size 8, 16, 32 or 64
+         *  + SQXTN/SQXTN2/SQXTUN/SQXTUN2/UQXTN/UQXTN2:
+         *    narrowing saturate ops: size 64/32/16 -> 32/16/8
+         */
+        unsupported_encoding(s, insn);
+        return;
+    }
+
+    if (size == 3) {
+        TCGv_i64 tcg_rn = read_fp_dreg(s, rn);
+        TCGv_i64 tcg_rd = tcg_temp_new_i64();
+
+        handle_2misc_64(s, opcode, u, tcg_rd, tcg_rn);
+        write_fp_dreg(s, rd, tcg_rd);
+        tcg_temp_free_i64(tcg_rd);
+        tcg_temp_free_i64(tcg_rn);
+    } else {
+        /* the 'size might not be 64' ops aren't implemented yet */
+        g_assert_not_reached();
+    }
 }
 
 /* C3.6.13 AdvSIMD scalar x indexed element
