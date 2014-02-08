@@ -5501,7 +5501,119 @@ static void disas_simd_scalar_copy(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int u = extract32(insn, 29, 1);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    TCGv_ptr fpst;
+
+    /* For some ops (the FP ones), size[1] is part of the encoding.
+     * For ADDP strictly it is not but size[1] is always 1 for valid
+     * encodings.
+     */
+    opcode |= (extract32(size, 1, 1) << 5);
+
+    switch (opcode) {
+    case 0x3b: /* ADDP */
+        if (u || size != 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        TCGV_UNUSED_PTR(fpst);
+        break;
+    case 0xc: /* FMAXNMP */
+    case 0xd: /* FADDP */
+    case 0xf: /* FMAXP */
+    case 0x2c: /* FMINNMP */
+    case 0x2f: /* FMINP */
+        /* FP op, size[0] is 32 or 64 bit */
+        if (!u) {
+            unallocated_encoding(s);
+            return;
+        }
+        size = extract32(size, 0, 1) ? 3 : 2;
+        fpst = get_fpstatus_ptr();
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (size == 3) {
+        TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+        TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+        TCGv_i64 tcg_res = tcg_temp_new_i64();
+
+        read_vec_element(s, tcg_op1, rn, 0, MO_64);
+        read_vec_element(s, tcg_op2, rn, 1, MO_64);
+
+        switch (opcode) {
+        case 0x3b: /* ADDP */
+            tcg_gen_add_i64(tcg_res, tcg_op1, tcg_op2);
+            break;
+        case 0xc: /* FMAXNMP */
+            gen_helper_vfp_maxnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0xd: /* FADDP */
+            gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0xf: /* FMAXP */
+            gen_helper_vfp_maxd(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x2c: /* FMINNMP */
+            gen_helper_vfp_minnumd(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x2f: /* FMINP */
+            gen_helper_vfp_mind(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        write_fp_dreg(s, rd, tcg_res);
+
+        tcg_temp_free_i64(tcg_op1);
+        tcg_temp_free_i64(tcg_op2);
+        tcg_temp_free_i64(tcg_res);
+    } else {
+        TCGv_i32 tcg_op1 = tcg_temp_new_i32();
+        TCGv_i32 tcg_op2 = tcg_temp_new_i32();
+        TCGv_i32 tcg_res = tcg_temp_new_i32();
+
+        read_vec_element_i32(s, tcg_op1, rn, 0, MO_32);
+        read_vec_element_i32(s, tcg_op2, rn, 1, MO_32);
+
+        switch (opcode) {
+        case 0xc: /* FMAXNMP */
+            gen_helper_vfp_maxnums(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0xd: /* FADDP */
+            gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0xf: /* FMAXP */
+            gen_helper_vfp_maxs(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x2c: /* FMINNMP */
+            gen_helper_vfp_minnums(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x2f: /* FMINP */
+            gen_helper_vfp_mins(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        write_fp_sreg(s, rd, tcg_res);
+
+        tcg_temp_free_i32(tcg_op1);
+        tcg_temp_free_i32(tcg_op2);
+        tcg_temp_free_i32(tcg_res);
+    }
+
+    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+        tcg_temp_free_ptr(fpst);
+    }
 }
 
 /*
