@@ -469,9 +469,11 @@ PropertyInfo qdev_prop_losttickpolicy = {
 /* --- BIOS CHS translation */
 
 static const char *bios_chs_trans_table[] = {
-    [BIOS_ATA_TRANSLATION_AUTO] = "auto",
-    [BIOS_ATA_TRANSLATION_NONE] = "none",
-    [BIOS_ATA_TRANSLATION_LBA]  = "lba",
+    [BIOS_ATA_TRANSLATION_AUTO]  = "auto",
+    [BIOS_ATA_TRANSLATION_NONE]  = "none",
+    [BIOS_ATA_TRANSLATION_LBA]   = "lba",
+    [BIOS_ATA_TRANSLATION_LARGE] = "large",
+    [BIOS_ATA_TRANSLATION_RECHS] = "rechs",
 };
 
 PropertyInfo qdev_prop_bios_chs_trans = {

@@ -3073,14 +3073,19 @@ int main(int argc, char **argv, char **envp)
                         goto chs_fail;
                     if (*p == ',') {
                         p++;
-                        if (!strcmp(p, "none"))
+                        if (!strcmp(p, "large")) {
+                            translation = BIOS_ATA_TRANSLATION_LARGE;
+                        } else if (!strcmp(p, "rechs")) {
+                            translation = BIOS_ATA_TRANSLATION_RECHS;
+                        } else if (!strcmp(p, "none")) {
                             translation = BIOS_ATA_TRANSLATION_NONE;
-                        else if (!strcmp(p, "lba"))
+                        } else if (!strcmp(p, "lba")) {
                             translation = BIOS_ATA_TRANSLATION_LBA;
-                        else if (!strcmp(p, "auto"))
+                        } else if (!strcmp(p, "auto")) {
                             translation = BIOS_ATA_TRANSLATION_AUTO;
-                        else
+                        } else {
                             goto chs_fail;
+                        }
                     } else if (*p != '\0') {
                     chs_fail:
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
@@ -3094,10 +3099,15 @@ int main(int argc, char **argv, char **envp)
                         qemu_opt_set(hda_opts, "heads", num);
                         snprintf(num, sizeof(num), "%d", secs);
                         qemu_opt_set(hda_opts, "secs", num);
-                        if (translation == BIOS_ATA_TRANSLATION_LBA)
+                        if (translation == BIOS_ATA_TRANSLATION_LARGE) {
+                            qemu_opt_set(hda_opts, "trans", "large");
+                        } else if (translation == BIOS_ATA_TRANSLATION_RECHS) {
+                            qemu_opt_set(hda_opts, "trans", "rechs");
+                        } else if (translation == BIOS_ATA_TRANSLATION_LBA) {
                             qemu_opt_set(hda_opts, "trans", "lba");
-                        if (translation == BIOS_ATA_TRANSLATION_NONE)
+                        } else if (translation == BIOS_ATA_TRANSLATION_NONE) {
                             qemu_opt_set(hda_opts, "trans", "none");
+                        }
                     }
                 }
                 break;
