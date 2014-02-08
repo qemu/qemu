@@ -6556,6 +6556,27 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
     tcg_temp_free_i64(tcg_res[1]);
 }
 
+/* Helper functions for 32 bit comparisons */
+static void gen_max_s32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
+{
+    tcg_gen_movcond_i32(TCG_COND_GE, res, op1, op2, op1, op2);
+}
+
+static void gen_max_u32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
+{
+    tcg_gen_movcond_i32(TCG_COND_GEU, res, op1, op2, op1, op2);
+}
+
+static void gen_min_s32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
+{
+    tcg_gen_movcond_i32(TCG_COND_LE, res, op1, op2, op1, op2);
+}
+
+static void gen_min_u32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
+{
+    tcg_gen_movcond_i32(TCG_COND_LEU, res, op1, op2, op1, op2);
+}
+
 /* Pairwise op subgroup of C3.6.16. */
 static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
 {
@@ -6656,15 +6677,13 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
-        return;
+        break;
     case 0x16: /* SQDMULH, SQRDMULH */
         if (size == 0 || size == 3) {
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
-        return;
+        break;
     default:
         if (size == 3 && !is_q) {
             unallocated_encoding(s);
@@ -6702,6 +6721,16 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
 
             switch (opcode) {
+            case 0x0: /* SHADD, UHADD */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_hadd_s8, gen_helper_neon_hadd_u8 },
+                    { gen_helper_neon_hadd_s16, gen_helper_neon_hadd_u16 },
+                    { gen_helper_neon_hadd_s32, gen_helper_neon_hadd_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
             case 0x1: /* SQADD, UQADD */
             {
                 static NeonGenTwoOpEnvFn * const fns[3][2] = {
@@ -6710,6 +6739,26 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                     { gen_helper_neon_qadd_s32, gen_helper_neon_qadd_u32 },
                 };
                 genenvfn = fns[size][u];
+                break;
+            }
+            case 0x2: /* SRHADD, URHADD */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_rhadd_s8, gen_helper_neon_rhadd_u8 },
+                    { gen_helper_neon_rhadd_s16, gen_helper_neon_rhadd_u16 },
+                    { gen_helper_neon_rhadd_s32, gen_helper_neon_rhadd_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            case 0x4: /* SHSUB, UHSUB */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_hsub_s8, gen_helper_neon_hsub_u8 },
+                    { gen_helper_neon_hsub_s16, gen_helper_neon_hsub_u16 },
+                    { gen_helper_neon_hsub_s32, gen_helper_neon_hsub_u32 },
+                };
+                genfn = fns[size][u];
                 break;
             }
             case 0x5: /* SQSUB, UQSUB */
@@ -6782,6 +6831,38 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genenvfn = fns[size][u];
                 break;
             }
+            case 0xc: /* SMAX, UMAX */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_max_s8, gen_helper_neon_max_u8 },
+                    { gen_helper_neon_max_s16, gen_helper_neon_max_u16 },
+                    { gen_max_s32, gen_max_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+
+            case 0xd: /* SMIN, UMIN */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_min_s8, gen_helper_neon_min_u8 },
+                    { gen_helper_neon_min_s16, gen_helper_neon_min_u16 },
+                    { gen_min_s32, gen_min_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            case 0xe: /* SABD, UABD */
+            case 0xf: /* SABA, UABA */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_abd_s8, gen_helper_neon_abd_u8 },
+                    { gen_helper_neon_abd_s16, gen_helper_neon_abd_u16 },
+                    { gen_helper_neon_abd_s32, gen_helper_neon_abd_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
             case 0x10: /* ADD, SUB */
             {
                 static NeonGenTwoOpFn * const fns[3][2] = {
@@ -6802,6 +6883,34 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn = fns[size][u];
                 break;
             }
+            case 0x13: /* MUL, PMUL */
+                if (u) {
+                    /* PMUL */
+                    assert(size == 0);
+                    genfn = gen_helper_neon_mul_p8;
+                    break;
+                }
+                /* fall through : MUL */
+            case 0x12: /* MLA, MLS */
+            {
+                static NeonGenTwoOpFn * const fns[3] = {
+                    gen_helper_neon_mul_u8,
+                    gen_helper_neon_mul_u16,
+                    tcg_gen_mul_i32,
+                };
+                genfn = fns[size];
+                break;
+            }
+            case 0x16: /* SQDMULH, SQRDMULH */
+            {
+                static NeonGenTwoOpEnvFn * const fns[2][2] = {
+                    { gen_helper_neon_qdmulh_s16, gen_helper_neon_qrdmulh_s16 },
+                    { gen_helper_neon_qdmulh_s32, gen_helper_neon_qrdmulh_s32 },
+                };
+                assert(size == 1 || size == 2);
+                genenvfn = fns[size - 1][u];
+                break;
+            }
             default:
                 g_assert_not_reached();
             }
@@ -6810,6 +6919,20 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genenvfn(tcg_res, cpu_env, tcg_op1, tcg_op2);
             } else {
                 genfn(tcg_res, tcg_op1, tcg_op2);
+            }
+
+            if (opcode == 0xf || opcode == 0x12) {
+                /* SABA, UABA, MLA, MLS: accumulating ops */
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_add_u8, gen_helper_neon_sub_u8 },
+                    { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
+                    { tcg_gen_add_i32, tcg_gen_sub_i32 },
+                };
+                bool is_sub = (opcode == 0x12 && u); /* MLS */
+
+                genfn = fns[size][is_sub];
+                read_vec_element_i32(s, tcg_op1, rd, pass, MO_32);
+                genfn(tcg_res, tcg_res, tcg_op1);
             }
 
             write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
