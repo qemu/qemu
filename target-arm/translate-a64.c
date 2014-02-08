@@ -74,6 +74,7 @@ typedef struct AArch64DecodeTable {
 
 /* Function prototype for gen_ functions for calling Neon helpers */
 typedef void NeonGenTwoOpFn(TCGv_i32, TCGv_i32, TCGv_i32);
+typedef void NeonGenTwoOpEnvFn(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -5738,6 +5739,20 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
     TCGCond cond;
 
     switch (opcode) {
+    case 0x1: /* SQADD */
+        if (u) {
+            gen_helper_neon_qadd_u64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_qadd_s64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        }
+        break;
+    case 0x5: /* SQSUB */
+        if (u) {
+            gen_helper_neon_qsub_u64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_qsub_s64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        }
+        break;
     case 0x6: /* CMGT, CMHI */
         /* 64 bit integer comparison, result = test ? (2^64 - 1) : 0.
          * We implement this using setcond (test) and then negating.
@@ -5760,6 +5775,34 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
         tcg_gen_setcondi_i64(TCG_COND_NE, tcg_rd, tcg_rd, 0);
         tcg_gen_neg_i64(tcg_rd, tcg_rd);
         break;
+    case 0x8: /* SSHL, USHL */
+        if (u) {
+            gen_helper_neon_shl_u64(tcg_rd, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_shl_s64(tcg_rd, tcg_rn, tcg_rm);
+        }
+        break;
+    case 0x9: /* SQSHL, UQSHL */
+        if (u) {
+            gen_helper_neon_qshl_u64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_qshl_s64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        }
+        break;
+    case 0xa: /* SRSHL, URSHL */
+        if (u) {
+            gen_helper_neon_rshl_u64(tcg_rd, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_rshl_s64(tcg_rd, tcg_rn, tcg_rm);
+        }
+        break;
+    case 0xb: /* SQRSHL, UQRSHL */
+        if (u) {
+            gen_helper_neon_qrshl_u64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        } else {
+            gen_helper_neon_qrshl_s64(tcg_rd, cpu_env, tcg_rn, tcg_rm);
+        }
+        break;
     case 0x10: /* ADD, SUB */
         if (u) {
             tcg_gen_sub_i64(tcg_rd, tcg_rn, tcg_rm);
@@ -5767,12 +5810,6 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
             tcg_gen_add_i64(tcg_rd, tcg_rn, tcg_rm);
         }
         break;
-    case 0x1: /* SQADD */
-    case 0x5: /* SQSUB */
-    case 0x8: /* SSHL, USHL */
-    case 0x9: /* SQSHL, UQSHL */
-    case 0xa: /* SRSHL, URSHL */
-    case 0xb: /* SQRSHL, UQRSHL */
     default:
         g_assert_not_reached();
     }
@@ -5949,10 +5986,10 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
     switch (opcode) {
     case 0x1: /* SQADD, UQADD */
     case 0x5: /* SQSUB, UQSUB */
-    case 0x8: /* SSHL, USHL */
-    case 0xa: /* SRSHL, URSHL */
         unsupported_encoding(s, insn);
         return;
+    case 0x8: /* SSHL, USHL */
+    case 0xa: /* SRSHL, URSHL */
     case 0x6: /* CMGT, CMHI */
     case 0x7: /* CMGE, CMHS */
     case 0x11: /* CMTST, CMEQ */
@@ -6621,18 +6658,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
         }
         unsupported_encoding(s, insn);
         return;
-    case 0x1: /* SQADD */
-    case 0x5: /* SQSUB */
-    case 0x8: /* SSHL, USHL */
-    case 0x9: /* SQSHL, UQSHL */
-    case 0xa: /* SRSHL, URSHL */
-    case 0xb: /* SQRSHL, UQRSHL */
-        if (size == 3 && !is_q) {
-            unallocated_encoding(s);
-            return;
-        }
-        unsupported_encoding(s, insn);
-        return;
     case 0x16: /* SQDMULH, SQRDMULH */
         if (size == 0 || size == 3) {
             unallocated_encoding(s);
@@ -6670,12 +6695,33 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
             TCGv_i32 tcg_op1 = tcg_temp_new_i32();
             TCGv_i32 tcg_op2 = tcg_temp_new_i32();
             TCGv_i32 tcg_res = tcg_temp_new_i32();
-            NeonGenTwoOpFn *genfn;
+            NeonGenTwoOpFn *genfn = NULL;
+            NeonGenTwoOpEnvFn *genenvfn = NULL;
 
             read_vec_element_i32(s, tcg_op1, rn, pass, MO_32);
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
 
             switch (opcode) {
+            case 0x1: /* SQADD, UQADD */
+            {
+                static NeonGenTwoOpEnvFn * const fns[3][2] = {
+                    { gen_helper_neon_qadd_s8, gen_helper_neon_qadd_u8 },
+                    { gen_helper_neon_qadd_s16, gen_helper_neon_qadd_u16 },
+                    { gen_helper_neon_qadd_s32, gen_helper_neon_qadd_u32 },
+                };
+                genenvfn = fns[size][u];
+                break;
+            }
+            case 0x5: /* SQSUB, UQSUB */
+            {
+                static NeonGenTwoOpEnvFn * const fns[3][2] = {
+                    { gen_helper_neon_qsub_s8, gen_helper_neon_qsub_u8 },
+                    { gen_helper_neon_qsub_s16, gen_helper_neon_qsub_u16 },
+                    { gen_helper_neon_qsub_s32, gen_helper_neon_qsub_u32 },
+                };
+                genenvfn = fns[size][u];
+                break;
+            }
             case 0x6: /* CMGT, CMHI */
             {
                 static NeonGenTwoOpFn * const fns[3][2] = {
@@ -6694,6 +6740,46 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                     { gen_helper_neon_cge_s32, gen_helper_neon_cge_u32 },
                 };
                 genfn = fns[size][u];
+                break;
+            }
+            case 0x8: /* SSHL, USHL */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_shl_s8, gen_helper_neon_shl_u8 },
+                    { gen_helper_neon_shl_s16, gen_helper_neon_shl_u16 },
+                    { gen_helper_neon_shl_s32, gen_helper_neon_shl_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            case 0x9: /* SQSHL, UQSHL */
+            {
+                static NeonGenTwoOpEnvFn * const fns[3][2] = {
+                    { gen_helper_neon_qshl_s8, gen_helper_neon_qshl_u8 },
+                    { gen_helper_neon_qshl_s16, gen_helper_neon_qshl_u16 },
+                    { gen_helper_neon_qshl_s32, gen_helper_neon_qshl_u32 },
+                };
+                genenvfn = fns[size][u];
+                break;
+            }
+            case 0xa: /* SRSHL, URSHL */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_rshl_s8, gen_helper_neon_rshl_u8 },
+                    { gen_helper_neon_rshl_s16, gen_helper_neon_rshl_u16 },
+                    { gen_helper_neon_rshl_s32, gen_helper_neon_rshl_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            case 0xb: /* SQRSHL, UQRSHL */
+            {
+                static NeonGenTwoOpEnvFn * const fns[3][2] = {
+                    { gen_helper_neon_qrshl_s8, gen_helper_neon_qrshl_u8 },
+                    { gen_helper_neon_qrshl_s16, gen_helper_neon_qrshl_u16 },
+                    { gen_helper_neon_qrshl_s32, gen_helper_neon_qrshl_u32 },
+                };
+                genenvfn = fns[size][u];
                 break;
             }
             case 0x10: /* ADD, SUB */
@@ -6720,7 +6806,11 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 g_assert_not_reached();
             }
 
-            genfn(tcg_res, tcg_op1, tcg_op2);
+            if (genenvfn) {
+                genenvfn(tcg_res, cpu_env, tcg_op1, tcg_op2);
+            } else {
+                genfn(tcg_res, tcg_op1, tcg_op2);
+            }
 
             write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
 
