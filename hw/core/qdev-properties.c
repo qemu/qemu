@@ -1140,16 +1140,6 @@ static void set_size(Object *obj, Visitor *v, void *opaque,
     visit_type_size(v, ptr, name, errp);
 }
 
-static int parse_size(DeviceState *dev, Property *prop, const char *str)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-
-    if (str != NULL) {
-        parse_option_size(prop->name, str, ptr, &error_abort);
-    }
-    return 0;
-}
-
 static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T' };
@@ -1171,7 +1161,6 @@ static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
 
 PropertyInfo qdev_prop_size = {
     .name  = "size",
-    .parse = parse_size,
     .print = print_size,
     .get = get_size,
     .set = set_size,
