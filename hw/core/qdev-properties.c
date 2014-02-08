@@ -936,15 +936,7 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
 void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
                      Error **errp)
 {
-    char *legacy_name;
-
-    legacy_name = g_strdup_printf("legacy-%s", name);
-    if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
-        object_property_parse(OBJECT(dev), value, legacy_name, errp);
-    } else {
-        object_property_parse(OBJECT(dev), value, name, errp);
-    }
-    g_free(legacy_name);
+    object_property_parse(OBJECT(dev), value, name, errp);
 }
 
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
