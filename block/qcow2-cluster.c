@@ -491,6 +491,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
         break;
     case QCOW2_CLUSTER_ZERO:
         if (s->qcow_version < 3) {
+            qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
             return -EIO;
         }
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
