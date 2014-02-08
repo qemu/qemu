@@ -2240,11 +2240,11 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
 }
 
-static void mark_request_serialising(BdrvTrackedRequest *req, size_t align)
+static void mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 {
     int64_t overlap_offset = req->offset & ~(align - 1);
-    int overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
-                      - overlap_offset;
+    unsigned int overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
+                               - overlap_offset;
 
     if (!req->serialising) {
         req->bs->serialising_in_flight++;
