@@ -74,13 +74,6 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
     }
 }
 
-static int prop_print_bit(DeviceState *dev, Property *prop, char *dest,
-                          size_t len)
-{
-    uint32_t *p = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
-}
-
 static void prop_get_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
@@ -116,7 +109,6 @@ static void prop_set_bit(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_bit = {
     .name  = "boolean",
     .legacy_name  = "on/off",
-    .print = prop_print_bit,
     .get   = prop_get_bit,
     .set   = prop_set_bit,
 };
@@ -189,16 +181,9 @@ PropertyInfo qdev_prop_uint8 = {
 
 /* --- 8bit hex value --- */
 
-static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx8, *ptr);
-}
-
 PropertyInfo qdev_prop_hex8 = {
     .name  = "uint8",
     .legacy_name  = "hex8",
-    .print = print_hex8,
     .get   = get_uint8,
     .set   = set_uint8,
 };
@@ -302,16 +287,9 @@ PropertyInfo qdev_prop_int32 = {
 
 /* --- 32bit hex value --- */
 
-static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx32, *ptr);
-}
-
 PropertyInfo qdev_prop_hex32 = {
     .name  = "uint32",
     .legacy_name  = "hex32",
-    .print = print_hex32,
     .get   = get_uint32,
     .set   = set_uint32,
 };
@@ -351,16 +329,9 @@ PropertyInfo qdev_prop_uint64 = {
 
 /* --- 64bit hex value --- */
 
-static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx64, *ptr);
-}
-
 PropertyInfo qdev_prop_hex64 = {
     .name  = "uint64",
     .legacy_name  = "hex64",
-    .print = print_hex64,
     .get   = get_uint64,
     .set   = set_uint64,
 };
@@ -371,16 +342,6 @@ static void release_string(Object *obj, const char *name, void *opaque)
 {
     Property *prop = opaque;
     g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
-}
-
-static int print_string(DeviceState *dev, Property *prop, char *dest,
-                        size_t len)
-{
-    char **ptr = qdev_get_prop_ptr(dev, prop);
-    if (!*ptr) {
-        return snprintf(dest, len, "<null>");
-    }
-    return snprintf(dest, len, "\"%s\"", *ptr);
 }
 
 static void get_string(Object *obj, Visitor *v, void *opaque,
@@ -425,7 +386,6 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_string = {
     .name  = "string",
-    .print = print_string,
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
@@ -1072,28 +1032,8 @@ static void set_size(Object *obj, Visitor *v, void *opaque,
     visit_type_size(v, ptr, name, errp);
 }
 
-static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T' };
-    uint64_t div, val = *(uint64_t *)qdev_get_prop_ptr(dev, prop);
-    int i;
-
-    /* Compute floor(log2(val)).  */
-    i = 64 - clz64(val);
-
-    /* Find the power of 1024 that we'll display as the units.  */
-    i /= 10;
-    if (i >= ARRAY_SIZE(suffixes)) {
-        i = ARRAY_SIZE(suffixes) - 1;
-    }
-    div = 1ULL << (i * 10);
-
-    return snprintf(dest, len, "%0.03f%c", (double)val/div, suffixes[i]);
-}
-
 PropertyInfo qdev_prop_size = {
     .name  = "size",
-    .print = print_size,
     .get = get_size,
     .set = set_size,
 };
