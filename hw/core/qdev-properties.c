@@ -189,23 +189,6 @@ PropertyInfo qdev_prop_uint8 = {
 
 /* --- 8bit hex value --- */
 
-static int parse_hex8(DeviceState *dev, Property *prop, const char *str)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoul(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
 static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
@@ -215,7 +198,6 @@ static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex8 = {
     .name  = "uint8",
     .legacy_name  = "hex8",
-    .parse = parse_hex8,
     .print = print_hex8,
     .get   = get_uint8,
     .set   = set_uint8,
@@ -320,23 +302,6 @@ PropertyInfo qdev_prop_int32 = {
 
 /* --- 32bit hex value --- */
 
-static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoul(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
 static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
@@ -346,7 +311,6 @@ static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex32 = {
     .name  = "uint32",
     .legacy_name  = "hex32",
-    .parse = parse_hex32,
     .print = print_hex32,
     .get   = get_uint32,
     .set   = set_uint32,
@@ -387,23 +351,6 @@ PropertyInfo qdev_prop_uint64 = {
 
 /* --- 64bit hex value --- */
 
-static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoull(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
 static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
@@ -413,7 +360,6 @@ static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex64 = {
     .name  = "uint64",
     .legacy_name  = "hex64",
-    .parse = parse_hex64,
     .print = print_hex64,
     .get   = get_uint64,
     .set   = set_uint64,
