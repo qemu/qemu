@@ -7373,7 +7373,115 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 12, 5);
+    bool u = extract32(insn, 29, 1);
+    bool is_q = extract32(insn, 30, 1);
+
+    switch (opcode) {
+    case 0x0: /* REV64, REV32 */
+    case 0x1: /* REV16 */
+        unsupported_encoding(s, insn);
+        return;
+    case 0x5: /* CNT, NOT, RBIT  */
+        if ((u == 0 && size > 0) ||
+            (u == 1 && size > 1)) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        return;
+    case 0x2: /* SADDLP, UADDLP */
+    case 0x4: /* CLS, CLZ */
+    case 0x6: /* SADALP, UADALP */
+    case 0x12: /* XTN, XTN2, SQXTUN, SQXTUN2 */
+    case 0x14: /* SQXTN, SQXTN2, UQXTN, UQXTN2 */
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        return;
+    case 0x13: /* SHLL, SHLL2 */
+        if (u == 0 || size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        return;
+    case 0xa: /* CMLT */
+        if (u == 1) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x3: /* SUQADD, USQADD */
+    case 0x7: /* SQABS, SQNEG */
+    case 0x8: /* CMGT, CMGE */
+    case 0x9: /* CMEQ, CMLE */
+    case 0xb: /* ABS, NEG */
+        if (size == 3 && !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        return;
+    case 0xc ... 0xf:
+    case 0x16 ... 0x1d:
+    case 0x1f:
+    {
+        /* Floating point: U, size[1] and opcode indicate operation;
+         * size[0] indicates single or double precision.
+         */
+        opcode |= (extract32(size, 1, 1) << 5) | (u << 6);
+        size = extract32(size, 0, 1) ? 3 : 2;
+        switch (opcode) {
+        case 0x16: /* FCVTN, FCVTN2 */
+        case 0x17: /* FCVTL, FCVTL2 */
+        case 0x18: /* FRINTN */
+        case 0x19: /* FRINTM */
+        case 0x1a: /* FCVTNS */
+        case 0x1b: /* FCVTMS */
+        case 0x1c: /* FCVTAS */
+        case 0x1d: /* SCVTF */
+        case 0x2c: /* FCMGT (zero) */
+        case 0x2d: /* FCMEQ (zero) */
+        case 0x2e: /* FCMLT (zero) */
+        case 0x2f: /* FABS */
+        case 0x38: /* FRINTP */
+        case 0x39: /* FRINTZ */
+        case 0x3a: /* FCVTPS */
+        case 0x3b: /* FCVTZS */
+        case 0x3c: /* URECPE */
+        case 0x3d: /* FRECPE */
+        case 0x56: /* FCVTXN, FCVTXN2 */
+        case 0x58: /* FRINTA */
+        case 0x59: /* FRINTX */
+        case 0x5a: /* FCVTNU */
+        case 0x5b: /* FCVTMU */
+        case 0x5c: /* FCVTAU */
+        case 0x5d: /* UCVTF */
+        case 0x6c: /* FCMGE (zero) */
+        case 0x6d: /* FCMLE (zero) */
+        case 0x6f: /* FNEG */
+        case 0x79: /* FRINTI */
+        case 0x7a: /* FCVTPU */
+        case 0x7b: /* FCVTZU */
+        case 0x7c: /* URSQRTE */
+        case 0x7d: /* FRSQRTE */
+        case 0x7f: /* FSQRT */
+            unsupported_encoding(s, insn);
+            return;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    }
+    default:
+        unallocated_encoding(s);
+        return;
+    }
 }
 
 /* C3.6.18 AdvSIMD vector x indexed element
