@@ -6580,7 +6580,129 @@ static void gen_min_u32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
 /* Pairwise op subgroup of C3.6.16. */
 static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    int is_q = extract32(insn, 30, 1);
+    int u = extract32(insn, 29, 1);
+    int size = extract32(insn, 22, 2);
+    int opcode = extract32(insn, 11, 5);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    int pass;
+
+    if (size == 3 && !is_q) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    switch (opcode) {
+    case 0x14: /* SMAXP, UMAXP */
+    case 0x15: /* SMINP, UMINP */
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x17:
+        if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* These operations work on the concatenated rm:rn, with each pair of
+     * adjacent elements being operated on to produce an element in the result.
+     */
+    if (size == 3) {
+        TCGv_i64 tcg_res[2];
+
+        for (pass = 0; pass < 2; pass++) {
+            TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+            TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+            int passreg = (pass == 0) ? rn : rm;
+
+            read_vec_element(s, tcg_op1, passreg, 0, MO_64);
+            read_vec_element(s, tcg_op2, passreg, 1, MO_64);
+            tcg_res[pass] = tcg_temp_new_i64();
+
+            /* The only 64 bit pairwise integer op is ADDP */
+            assert(opcode == 0x17);
+            tcg_gen_add_i64(tcg_res[pass], tcg_op1, tcg_op2);
+
+            tcg_temp_free_i64(tcg_op1);
+            tcg_temp_free_i64(tcg_op2);
+        }
+
+        for (pass = 0; pass < 2; pass++) {
+            write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+            tcg_temp_free_i64(tcg_res[pass]);
+        }
+    } else {
+        int maxpass = is_q ? 4 : 2;
+        TCGv_i32 tcg_res[4];
+
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i32 tcg_op1 = tcg_temp_new_i32();
+            TCGv_i32 tcg_op2 = tcg_temp_new_i32();
+            NeonGenTwoOpFn *genfn;
+            int passreg = pass < (maxpass / 2) ? rn : rm;
+            int passelt = (is_q && (pass & 1)) ? 2 : 0;
+
+            read_vec_element_i32(s, tcg_op1, passreg, passelt, MO_32);
+            read_vec_element_i32(s, tcg_op2, passreg, passelt + 1, MO_32);
+            tcg_res[pass] = tcg_temp_new_i32();
+
+            switch (opcode) {
+            case 0x17: /* ADDP */
+            {
+                static NeonGenTwoOpFn * const fns[3] = {
+                    gen_helper_neon_padd_u8,
+                    gen_helper_neon_padd_u16,
+                    tcg_gen_add_i32,
+                };
+                genfn = fns[size];
+                break;
+            }
+            case 0x14: /* SMAXP, UMAXP */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_pmax_s8, gen_helper_neon_pmax_u8 },
+                    { gen_helper_neon_pmax_s16, gen_helper_neon_pmax_u16 },
+                    { gen_max_s32, gen_max_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            case 0x15: /* SMINP, UMINP */
+            {
+                static NeonGenTwoOpFn * const fns[3][2] = {
+                    { gen_helper_neon_pmin_s8, gen_helper_neon_pmin_u8 },
+                    { gen_helper_neon_pmin_s16, gen_helper_neon_pmin_u16 },
+                    { gen_min_s32, gen_min_u32 },
+                };
+                genfn = fns[size][u];
+                break;
+            }
+            default:
+                g_assert_not_reached();
+            }
+
+            genfn(tcg_res[pass], tcg_op1, tcg_op2);
+
+            tcg_temp_free_i32(tcg_op1);
+            tcg_temp_free_i32(tcg_op2);
+        }
+
+        for (pass = 0; pass < maxpass; pass++) {
+            write_vec_element_i32(s, tcg_res[pass], rd, pass, MO_32);
+            tcg_temp_free_i32(tcg_res[pass]);
+        }
+        if (!is_q) {
+            clear_vec_high(s, rd);
+        }
+    }
 }
 
 /* Floating point op subgroup of C3.6.16. */
