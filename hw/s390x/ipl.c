@@ -95,7 +95,8 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         return 0;
     } else {
-        kernel_size = load_elf(ipl->kernel, NULL, NULL, NULL, NULL,
+        uint64_t pentry = KERN_IMAGE_START;
+        kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
                                NULL, 1, ELF_MACHINE, 0);
         if (kernel_size == -1) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
@@ -104,15 +105,19 @@ static int s390_ipl_init(SysBusDevice *dev)
             fprintf(stderr, "could not load kernel '%s'\n", ipl->kernel);
             return -1;
         }
-        /* we have to overwrite values in the kernel image, which are "rom" */
-        strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
-
         /*
-         * we can not rely on the ELF entry point, since up to 3.2 this
-         * value was 0x800 (the SALIPL loader) and it wont work. For
-         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
+         * Is it a Linux kernel (starting at 0x10000)? If yes, we fill in the
+         * kernel parameters here as well. Note: For old kernels (up to 3.2)
+         * we can not rely on the ELF entry point - it was 0x800 (the SALIPL
+         * loader) and it won't work. For this case we force it to 0x10000, too.
          */
-        ipl->start_addr = KERN_IMAGE_START;
+        if (pentry == KERN_IMAGE_START || pentry == 0x800) {
+            ipl->start_addr = KERN_IMAGE_START;
+            /* Overwrite parameters in the kernel image, which are "rom" */
+            strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
+        } else {
+            ipl->start_addr = pentry;
+        }
     }
     if (ipl->initrd) {
         ram_addr_t initrd_offset;
