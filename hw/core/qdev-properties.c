@@ -449,36 +449,22 @@ PropertyInfo qdev_prop_macaddr = {
 
 /* --- lost tick policy --- */
 
-static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
-    [LOST_TICK_DISCARD] = "discard",
-    [LOST_TICK_DELAY] = "delay",
-    [LOST_TICK_MERGE] = "merge",
-    [LOST_TICK_SLEW] = "slew",
-    [LOST_TICK_MAX] = NULL,
-};
-
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
-    .enum_table  = lost_tick_policy_table,
+    .enum_table  = LostTickPolicy_lookup,
     .get   = get_enum,
     .set   = set_enum,
 };
 
 /* --- BIOS CHS translation */
 
-static const char *bios_chs_trans_table[] = {
-    [BIOS_ATA_TRANSLATION_AUTO]  = "auto",
-    [BIOS_ATA_TRANSLATION_NONE]  = "none",
-    [BIOS_ATA_TRANSLATION_LBA]   = "lba",
-    [BIOS_ATA_TRANSLATION_LARGE] = "large",
-    [BIOS_ATA_TRANSLATION_RECHS] = "rechs",
-};
+QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
 PropertyInfo qdev_prop_bios_chs_trans = {
     .name = "bios-chs-trans",
-    .enum_table = bios_chs_trans_table,
+    .enum_table = BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
 };

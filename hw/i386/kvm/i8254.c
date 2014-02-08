@@ -268,9 +268,9 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
         return;
     }
     switch (s->lost_tick_policy) {
-    case LOST_TICK_DELAY:
+    case LOST_TICK_POLICY_DELAY:
         break; /* enabled by default */
-    case LOST_TICK_DISCARD:
+    case LOST_TICK_POLICY_DISCARD:
         if (kvm_check_extension(kvm_state, KVM_CAP_REINJECT_CONTROL)) {
             struct kvm_reinject_control control = { .pit_reinject = 0 };
 
@@ -300,7 +300,7 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
 static Property kvm_pit_properties[] = {
     DEFINE_PROP_UINT32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
-                               lost_tick_policy, LOST_TICK_DELAY),
+                               lost_tick_policy, LOST_TICK_POLICY_DELAY),
     DEFINE_PROP_END_OF_LIST(),
 };
 

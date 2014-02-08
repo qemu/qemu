@@ -261,14 +261,6 @@ typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size)
 
 typedef uint64_t pcibus_t;
 
-typedef enum LostTickPolicy {
-    LOST_TICK_DISCARD,
-    LOST_TICK_DELAY,
-    LOST_TICK_MERGE,
-    LOST_TICK_SLEW,
-    LOST_TICK_MAX
-} LostTickPolicy;
-
 typedef struct PCIHostDeviceAddress {
     unsigned int domain;
     unsigned int bus;
