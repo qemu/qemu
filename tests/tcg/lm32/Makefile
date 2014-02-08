@@ -96,10 +96,10 @@ all: build
 
 build: $(CRT) $(TESTCASES)
 
-check: $(CRT) $(SYS) $(TESTCASES)
-	@for case in $(TESTCASES); do \
-		$(SIM) $(SIMFLAGS) ./$$case; \
-	done
+check: $(TESTCASES:test_%.tst=check_%)
+
+check_%: test_%.tst $(CRT) $(SYS)
+	$(SIM) $(SIMFLAGS) $<
 
 clean:
 	$(RM) -fr $(TESTCASES) $(CRT)
