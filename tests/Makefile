@@ -65,6 +65,10 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
+gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio.c
+check-qtest-virtio-y += tests/virtio-net-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/net/virtio-net.c
+
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
 check-qtest-pci-y += tests/rtl8139-test$(EXESUF)
@@ -76,6 +80,8 @@ check-qtest-pci-y += tests/eepro100-test$(EXESUF)
 gcov-files-pci-y += hw/net/eepro100.c
 check-qtest-pci-y += tests/ne2000-test$(EXESUF)
 gcov-files-pci-y += hw/net/ne2000.c
+check-qtest-pci-y += $(check-qtest-virtio-y)
+gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -221,6 +227,7 @@ tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
+tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
