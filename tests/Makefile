@@ -82,6 +82,8 @@ check-qtest-pci-y += tests/ne2000-test$(EXESUF)
 gcov-files-pci-y += hw/net/ne2000.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
+check-qtest-pci-y += tests/tpci200-test$(EXESUF)
+gcov-files-pci-y += hw/char/tpci200.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -228,6 +230,7 @@ tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
+tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
