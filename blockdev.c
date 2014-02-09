@@ -308,7 +308,6 @@ typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
-                                BlockInterfaceType type,
                                 Error **errp)
 {
     const char *buf;
@@ -437,11 +436,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
-        if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
-            error_setg(errp, "werror is not supported by this bus type");
-            goto early_err;
-        }
-
         on_write_error = parse_block_error_action(buf, 0, &error);
         if (error_is_set(&error)) {
             error_propagate(errp, error);
@@ -451,11 +445,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
     on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
-        if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI && type != IF_NONE) {
-            error_report("rerror is not supported by this bus type");
-            goto early_err;
-        }
-
         on_read_error = parse_block_error_action(buf, 1, &error);
         if (error_is_set(&error)) {
             error_propagate(errp, error);
@@ -469,7 +458,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     dinfo->bdrv = bdrv_new(dinfo->id);
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
-    dinfo->type = type;
     dinfo->refcount = 1;
     if (serial != NULL) {
         dinfo->serial = g_strdup(serial);
@@ -609,6 +597,14 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
+            .name = "rerror",
+            .type = QEMU_OPT_STRING,
+            .help = "read error action",
+        },{
+            .name = "werror",
+            .type = QEMU_OPT_STRING,
+            .help = "write error action",
+        },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
@@ -629,6 +625,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     int cyls, heads, secs, translation;
     int max_devs, bus_id, unit_id, index;
     const char *devaddr;
+    const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
     const char *filename;
@@ -872,8 +869,29 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     filename = qemu_opt_get(legacy_opts, "file");
 
+    /* Check werror/rerror compatibility with if=... */
+    werror = qemu_opt_get(legacy_opts, "werror");
+    if (werror != NULL) {
+        if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO &&
+            type != IF_NONE) {
+            error_report("werror is not supported by this bus type");
+            goto fail;
+        }
+        qdict_put(bs_opts, "werror", qstring_from_str(werror));
+    }
+
+    rerror = qemu_opt_get(legacy_opts, "rerror");
+    if (rerror != NULL) {
+        if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI &&
+            type != IF_NONE) {
+            error_report("rerror is not supported by this bus type");
+            goto fail;
+        }
+        qdict_put(bs_opts, "rerror", qstring_from_str(rerror));
+    }
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(filename, bs_opts, type, &local_err);
+    dinfo = blockdev_init(filename, bs_opts, &local_err);
     if (dinfo == NULL) {
         if (error_is_set(&local_err)) {
             qerror_report_err(local_err);
@@ -893,6 +911,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->secs = secs;
     dinfo->trans = translation;
 
+    dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
@@ -2276,7 +2295,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    blockdev_init(NULL, qdict, IF_NONE, &local_err);
+    blockdev_init(NULL, qdict, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         goto fail;
