@@ -26,7 +26,6 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
-#include "block/block_int.h"
 #include "qemu/bitops.h"
 
 #include "sdhci.h"
