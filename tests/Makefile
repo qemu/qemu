@@ -65,6 +65,10 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
+gcov-files-ipack-y += hw/char/ipack.c
+check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
+gcov-files-ipack-y += hw/char/ipoctal232.c
+
 gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio.c
 check-qtest-virtio-y += tests/virtio-net-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/net/virtio-net.c
@@ -84,6 +88,8 @@ check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
 gcov-files-pci-y += hw/char/tpci200.c
+check-qtest-pci-y += $(check-qtest-ipack-y)
+gcov-files-pci-y += $(gcov-files-ipack-y) hw/char/tpci200.c
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -231,6 +237,7 @@ tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
+tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
