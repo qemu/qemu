@@ -72,6 +72,8 @@ gcov-files-ipack-y += hw/char/ipoctal232.c
 gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio.c
 check-qtest-virtio-y += tests/virtio-net-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/net/virtio-net.c
+check-qtest-virtio-y += tests/virtio-balloon-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio-balloon.c
 check-qtest-virtio-y += tests/virtio-blk-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/block/virtio-blk.c
 
@@ -241,6 +243,7 @@ tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
+tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
 tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
