@@ -7133,6 +7133,18 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
 }
 
+static void init_proc_POWER8(CPUPPCState *env)
+{
+    /* inherit P7 */
+    init_proc_POWER7(env);
+
+    /* P8 supports the TAR */
+    spr_register(env, SPR_TAR, "TAR",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -7142,7 +7154,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     dc->desc = "POWER8";
     pcc->pvr = CPU_POWERPC_POWER8_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
-    pcc->init_proc = init_proc_POWER7;
+    pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
