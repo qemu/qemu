@@ -122,6 +122,16 @@ defconfig:
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
+endif
+
+dummy := $(call unnest-vars,, \
+                stub-obj-y \
+                util-obj-y \
+                qga-obj-y \
+                block-obj-y \
+                common-obj-y)
+
+ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
 endif
 ifeq ($(CONFIG_SMARTCARD_NSS),y)
@@ -129,6 +139,10 @@ include $(SRC_PATH)/libcacard/Makefile
 endif
 
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
+
+vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
+
+vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak

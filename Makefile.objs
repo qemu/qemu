@@ -41,7 +41,7 @@ libcacard-y += libcacard/vcardt.o
 # single QEMU executable should support all CPUs and machines.
 
 ifeq ($(CONFIG_SOFTMMU),y)
-common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
+common-obj-y = blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
 common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
@@ -111,18 +111,3 @@ version-lobj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.lo
 # by libqemuutil.a.  These should be moved to a separate .json schema.
 qga-obj-y = qga/ qapi-types.o qapi-visit.o
 qga-vss-dll-obj-y = qga/
-
-vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
-
-vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-QEMU_CFLAGS+=$(GLIB_CFLAGS)
-
-nested-vars += \
-	stub-obj-y \
-	util-obj-y \
-	qga-obj-y \
-	qga-vss-dll-obj-y \
-	block-obj-y \
-	common-obj-y
-dummy := $(call unnest-vars)

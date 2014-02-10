@@ -146,9 +146,6 @@ clean: clean-timestamp
 
 # magic to descend into other directories
 
-obj := .
-old-nested-dirs :=
-
 define push-var
 $(eval save-$2-$1 = $(value $1))
 $(eval $1 :=)
@@ -162,9 +159,11 @@ endef
 
 define unnest-dir
 $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
-$(eval obj := $(obj)/$1)
+$(eval obj-parent-$1 := $(obj))
+$(eval obj := $(if $(obj),$(obj)/$1,$1))
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
-$(eval obj := $(patsubst %/$1,%,$(obj)))
+$(eval obj := $(obj-parent-$1))
+$(eval obj-parent-$1 := )
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
 endef
 
@@ -179,7 +178,12 @@ $(if $(nested-dirs),
 endef
 
 define unnest-vars
+$(eval obj := $1)
+$(eval nested-vars := $2)
+$(eval old-nested-dirs := )
 $(call unnest-vars-1)
+$(if $1,$(foreach v,$(nested-vars),$(eval \
+	$v := $(addprefix $1/,$($v)))))
 $(foreach var,$(nested-vars),$(eval $(var) := $(filter-out %/, $($(var)))))
 $(shell mkdir -p $(sort $(foreach var,$(nested-vars),$(dir $($(var))))))
 $(foreach var,$(nested-vars), $(eval \

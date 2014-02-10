@@ -139,13 +139,22 @@ endif # CONFIG_SOFTMMU
 # Workaround for http://gcc.gnu.org/PR55489, see configure.
 %/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
 
-nested-vars += obj-y
+dummy := $(call unnest-vars,,obj-y)
 
-# This resolves all nested paths, so it must come last
+# we are making another call to unnest-vars with different vars, protect obj-y,
+# it can be overriden in subdir Makefile.objs
+obj-y-save := $(obj-y)
+
+block-obj-y :=
+common-obj-y :=
 include $(SRC_PATH)/Makefile.objs
+dummy := $(call unnest-vars,..,block-obj-y common-obj-y)
 
-all-obj-y = $(obj-y)
-all-obj-y += $(addprefix ../, $(common-obj-y))
+# Now restore obj-y
+obj-y := $(obj-y-save)
+
+all-obj-y = $(obj-y) $(common-obj-y)
+all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
 ifndef CONFIG_HAIKU
 LIBS+=-lm
