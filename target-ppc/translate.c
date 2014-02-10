@@ -2995,34 +2995,41 @@ static void gen_std(DisasContext *ctx)
     TCGv EA;
 
     rs = rS(ctx->opcode);
-    if ((ctx->opcode & 0x3) == 0x2) {
-#if defined(CONFIG_USER_ONLY)
-        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
-#else
-        /* stq */
-        if (unlikely(ctx->mem_idx == 0)) {
+    if ((ctx->opcode & 0x3) == 0x2) { /* stq */
+
+        bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
+        bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
+
+        if (!legal_in_user_mode && is_user_mode(ctx)) {
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
             return;
         }
-        if (unlikely(rs & 1)) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+
+        if (!le_is_supported && ctx->le_mode) {
+            gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
             return;
         }
-        if (unlikely(ctx->le_mode)) {
-            /* Little-endian mode is not handled */
-            gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_LE);
+
+        if (unlikely(rs & 1)) {
+            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
             return;
         }
         gen_set_access_type(ctx, ACCESS_INT);
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
-        gen_qemu_st64(ctx, cpu_gpr[rs], EA);
-        gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
+
+        if (unlikely(ctx->le_mode)) {
+            gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
+            gen_addr_add(ctx, EA, EA, 8);
+            gen_qemu_st64(ctx, cpu_gpr[rs], EA);
+        } else {
+            gen_qemu_st64(ctx, cpu_gpr[rs], EA);
+            gen_addr_add(ctx, EA, EA, 8);
+            gen_qemu_st64(ctx, cpu_gpr[rs+1], EA);
+        }
         tcg_temp_free(EA);
-#endif
     } else {
-        /* std / stdu */
+        /* std / stdu*/
         if (Rc(ctx->opcode)) {
             if (unlikely(rA(ctx->opcode) == 0)) {
                 gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
