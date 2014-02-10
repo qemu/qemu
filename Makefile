@@ -201,6 +201,9 @@ Makefile: $(version-obj-y) $(version-lobj-y)
 libqemustub.a: $(stub-obj-y)
 libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o
 
+block-modules = $(foreach o,$(block-obj-m),"$(basename $(subst /,-,$o))",) NULL
+util/module.o-cflags = -D'CONFIG_BLOCK_MODULES=$(block-modules)'
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h

@@ -82,6 +82,8 @@ DSO_CFLAGS := -fPIC -DBUILD_DSO
 %$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
 %$(DSOSUF): %.mo libqemustub.a
 	$(call LINK,$^)
+	@# Copy to build root so modules can be loaded when program started without install
+	$(if $(findstring /,$@),$(call quiet-command,cp $@ $(subst /,-,$@), "  CP    $(subst /,-,$@)"))
 
 .PHONY: modules
 modules:
@@ -211,6 +213,7 @@ $(foreach o,$(filter %.o,$($1)),
 	$(eval $(patsubst %.o,%.mo,$o): $o) \
 	$(eval $(patsubst %.o,%.mo,$o)-objs := $o))
 $(foreach o,$(filter-out $(modules-m), $(patsubst %.o,%.mo,$($1))), \
+    $(eval $o-objs += module-common.o)
     $(eval $o: $($o-objs))
     $(eval modules-objs-m += $($o-objs))
     $(eval modules-m += $o)
