@@ -490,6 +490,15 @@ static void add_flagname_to_bitmaps(const char *flagname,
     }
 }
 
+static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
+{
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    return object_class_by_name(TYPE_X86_CPU);
+}
+
 typedef struct X86CPUDefinition {
     const char *name;
     uint32_t level;
@@ -1890,6 +1899,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
                        Error **errp)
 {
     X86CPU *cpu = NULL;
+    ObjectClass *oc;
     gchar **model_pieces;
     char *name, *features;
     char *typename;
@@ -1903,7 +1913,12 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     name = model_pieces[0];
     features = model_pieces[1];
 
-    cpu = X86_CPU(object_new(TYPE_X86_CPU));
+    oc = x86_cpu_class_by_name(name);
+    if (oc == NULL) {
+        error_setg(&error, "Unable to find CPU definition: %s", name);
+        goto out;
+    }
+    cpu = X86_CPU(object_new(object_class_get_name(oc)));
     x86_cpu_load_def(cpu, name, &error);
     if (error) {
         goto out;
@@ -1934,8 +1949,10 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
 out:
     if (error != NULL) {
         error_propagate(errp, error);
-        object_unref(OBJECT(cpu));
-        cpu = NULL;
+        if (cpu) {
+            object_unref(OBJECT(cpu));
+            cpu = NULL;
+        }
     }
     g_strfreev(model_pieces);
     return cpu;
@@ -2748,6 +2765,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
+    cc->class_by_name = x86_cpu_class_by_name;
     cc->has_work = x86_cpu_has_work;
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;
