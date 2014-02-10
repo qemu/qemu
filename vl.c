@@ -4078,7 +4078,13 @@ int main(int argc, char **argv, char **envp)
     configure_accelerator();
 
     if (qtest_chrdev) {
-        qtest_init(qtest_chrdev, qtest_log);
+        Error *local_err = NULL;
+        qtest_init(qtest_chrdev, qtest_log, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            exit(1);
+        }
     }
 
     machine_opts = qemu_get_machine_opts();
