@@ -3329,6 +3329,20 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
         gen_qemu_st32(ctx, cpu_gpr[reg], EA);
     } else if (size == 2) {
         gen_qemu_st16(ctx, cpu_gpr[reg], EA);
+#if defined(TARGET_PPC64)
+    } else if (size == 16) {
+        TCGv gpr1, gpr2;
+        if (unlikely(ctx->le_mode)) {
+            gpr1 = cpu_gpr[reg+1];
+            gpr2 = cpu_gpr[reg];
+        } else {
+            gpr1 = cpu_gpr[reg];
+            gpr2 = cpu_gpr[reg+1];
+        }
+        gen_qemu_st64(ctx, gpr1, EA);
+        gen_addr_add(ctx, EA, EA, 8);
+        gen_qemu_st64(ctx, gpr2, EA);
+#endif
     } else {
         gen_qemu_st8(ctx, cpu_gpr[reg], EA);
     }
@@ -3341,6 +3355,11 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
 static void gen_##name(DisasContext *ctx)                 \
 {                                                         \
     TCGv t0;                                              \
+    if (unlikely((len == 16) && (rD(ctx->opcode) & 1))) { \
+        gen_inval_exception(ctx,                          \
+                            POWERPC_EXCP_INVAL_INVAL);    \
+        return;                                           \
+    }                                                     \
     gen_set_access_type(ctx, ACCESS_RES);                 \
     t0 = tcg_temp_local_new();                            \
     gen_addr_reg_index(ctx, t0);                          \
@@ -3397,6 +3416,7 @@ static void gen_lqarx(DisasContext *ctx)
 
 /* stdcx. */
 STCX(stdcx_, 8);
+STCX(stqcx_, 16);
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
@@ -9661,6 +9681,7 @@ GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000000, PPC_64B),
 GEN_HANDLER_E(lqarx, 0x1F, 0x14, 0x08, 0, PPC_NONE, PPC2_LSQ_ISA207),
 GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B),
+GEN_HANDLER_E(stqcx_, 0x1F, 0x16, 0x05, 0, PPC_NONE, PPC2_LSQ_ISA207),
 #endif
 GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC),
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT),

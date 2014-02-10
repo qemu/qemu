@@ -1492,7 +1492,7 @@ static int do_store_exclusive(CPUPPCState *env)
 {
     target_ulong addr;
     target_ulong page_addr;
-    target_ulong val;
+    target_ulong val, val2 __attribute__((unused));
     int flags;
     int segv = 0;
 
@@ -1515,6 +1515,13 @@ static int do_store_exclusive(CPUPPCState *env)
             case 4: segv = get_user_u32(val, addr); break;
 #if defined(TARGET_PPC64)
             case 8: segv = get_user_u64(val, addr); break;
+            case 16: {
+                segv = get_user_u64(val, addr);
+                if (!segv) {
+                    segv = get_user_u64(val2, addr + 8);
+                }
+                break;
+            }
 #endif
             default: abort();
             }
@@ -1526,6 +1533,15 @@ static int do_store_exclusive(CPUPPCState *env)
                 case 4: segv = put_user_u32(val, addr); break;
 #if defined(TARGET_PPC64)
                 case 8: segv = put_user_u64(val, addr); break;
+                case 16: {
+                    if (val2 == env->reserve_val2) {
+                        segv = put_user_u64(val, addr);
+                        if (!segv) {
+                            segv = put_user_u64(val2, addr + 8);
+                        }
+                    }
+                    break;
+                }
 #endif
                 default: abort();
                 }
