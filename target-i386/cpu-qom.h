@@ -38,7 +38,17 @@
     OBJECT_GET_CLASS(X86CPUClass, (obj), TYPE_X86_CPU)
 
 /**
+ * X86CPUDefinition:
+ *
+ * CPU model definition data that was not converted to QOM per-subclass
+ * property defaults yet.
+ */
+typedef struct X86CPUDefinition X86CPUDefinition;
+
+/**
  * X86CPUClass:
+ * @cpu_def: CPU model definition
+ * @kvm_required: Whether CPU model requires KVM to be enabled.
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
@@ -48,6 +58,11 @@ typedef struct X86CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
+
+    /* Should be eventually replaced by subclass-specific property defaults. */
+    X86CPUDefinition *cpu_def;
+
+    bool kvm_required;
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
