@@ -368,6 +368,12 @@ install-datadir install-localstatedir
 ifneq ($(TOOLS),)
 	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
 endif
+ifneq ($(CONFIG_MODULES),)
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
+	for s in $(patsubst %.mo,%$(DSOSUF),$(modules-m)); do \
+		$(INSTALL_PROG) $(STRIP_OPT) $$s "$(DESTDIR)$(qemu_moddir)/$${s//\//-}"; \
+	done
+endif
 ifneq ($(HELPERS-y),)
 	$(INSTALL_DIR) "$(DESTDIR)$(libexecdir)"
 	$(INSTALL_PROG) $(STRIP_OPT) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
