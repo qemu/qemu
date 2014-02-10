@@ -22,8 +22,10 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
+extract-libs = $(strip $(foreach o,$1,$($o-libs)))
+
 %.o: %.c
-	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 %.o: %.rc
 	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
@@ -34,7 +36,7 @@ LINKPROG = $(or $(CXX),$(CC))
 ifeq ($(LIBTOOL),)
 LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
-       $(LIBS),"  LINK  $(TARGET_DIR)$@")
+       $(call extract-libs,$^) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
@@ -50,7 +52,7 @@ LINK = $(call quiet-command,\
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
        $(if $(filter %.lo %.la,$^),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
-       $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
+       $(call extract-libs,$^) $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
 %.asm: %.S
@@ -157,11 +159,22 @@ $(eval $1 = $(value save-$2-$1) $$(subdir-$2-$1))
 $(eval save-$2-$1 :=)
 endef
 
+define fix-obj-vars
+$(foreach v,$($1), \
+	$(if $($v-cflags), \
+		$(eval $2$v-cflags := $($v-cflags)) \
+		$(eval $v-cflags := )) \
+	$(if $($v-libs), \
+		$(eval $2$v-libs := $($v-libs)) \
+		$(eval $v-libs := )))
+endef
+
 define unnest-dir
 $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
 $(eval obj-parent-$1 := $(obj))
 $(eval obj := $(if $(obj),$(obj)/$1,$1))
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
 $(eval obj := $(obj-parent-$1))
 $(eval obj-parent-$1 := )
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
