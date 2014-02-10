@@ -518,8 +518,6 @@ Darwin)
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
-  else
-    QEMU_CFLAGS="-mdynamic-no-pic $QEMU_CFLAGS"
   fi
   cocoa="yes"
   audio_drv_list="coreaudio"
