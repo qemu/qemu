@@ -1890,12 +1890,14 @@ enum {
     PPC2_FP_TST_ISA206 = 0x0000000000000800ULL,
     /* ISA 2.07 bctar instruction                                            */
     PPC2_BCTAR_ISA207  = 0x0000000000001000ULL,
+    /* ISA 2.07 load/store quadword                                          */
+    PPC2_LSQ_ISA207    = 0x0000000000002000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
                         PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
-                        PPC2_BCTAR_ISA207)
+                        PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207)
 };
 
 /*****************************************************************************/
