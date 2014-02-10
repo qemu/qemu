@@ -24,4 +24,15 @@ common-obj-y += commit.o
 common-obj-y += mirror.o
 common-obj-y += backup.o
 
-$(obj)/curl.o: QEMU_CFLAGS+=$(CURL_CFLAGS)
+iscsi.o-cflags     := $(LIBISCSI_CFLAGS)
+iscsi.o-libs       := $(LIBISCSI_LIBS)
+curl.o-cflags      := $(CURL_CFLAGS)
+curl.o-libs        := $(CURL_LIBS)
+rbd.o-cflags       := $(RBD_CFLAGS)
+rbd.o-libs         := $(RBD_LIBS)
+gluster.o-cflags   := $(GLUSTERFS_CFLAGS)
+gluster.o-libs     := $(GLUSTERFS_LIBS)
+ssh.o-cflags       := $(LIBSSH2_CFLAGS)
+ssh.o-libs         := $(LIBSSH2_LIBS)
+qcow.o-libs        := -lz
+linux-aio.o-libs   := -laio
