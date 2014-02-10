@@ -3359,6 +3359,42 @@ STCX(stwcx_, 4);
 /* ldarx */
 LARX(ldarx, 8, ld64);
 
+/* lqarx */
+static void gen_lqarx(DisasContext *ctx)
+{
+    TCGv EA;
+    int rd = rD(ctx->opcode);
+    TCGv gpr1, gpr2;
+
+    if (unlikely((rd & 1) || (rd == rA(ctx->opcode)) ||
+                 (rd == rB(ctx->opcode)))) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
+
+    gen_set_access_type(ctx, ACCESS_RES);
+    EA = tcg_temp_local_new();
+    gen_addr_reg_index(ctx, EA);
+    gen_check_align(ctx, EA, 15);
+    if (unlikely(ctx->le_mode)) {
+        gpr1 = cpu_gpr[rd+1];
+        gpr2 = cpu_gpr[rd];
+    } else {
+        gpr1 = cpu_gpr[rd];
+        gpr2 = cpu_gpr[rd+1];
+    }
+    gen_qemu_ld64(ctx, gpr1, EA);
+    tcg_gen_mov_tl(cpu_reserve, EA);
+
+    gen_addr_add(ctx, EA, EA, 8);
+    gen_qemu_ld64(ctx, gpr2, EA);
+
+    tcg_gen_st_tl(gpr1, cpu_env, offsetof(CPUPPCState, reserve_val));
+    tcg_gen_st_tl(gpr2, cpu_env, offsetof(CPUPPCState, reserve_val2));
+
+    tcg_temp_free(EA);
+}
+
 /* stdcx. */
 STCX(stdcx_, 8);
 #endif /* defined(TARGET_PPC64) */
@@ -9623,6 +9659,7 @@ GEN_HANDLER_E(sthcx_, 0x1F, 0x16, 0x16, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000000, PPC_64B),
+GEN_HANDLER_E(lqarx, 0x1F, 0x14, 0x08, 0, PPC_NONE, PPC2_LSQ_ISA207),
 GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B),
 #endif
 GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC),

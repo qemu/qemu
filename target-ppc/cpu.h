@@ -926,6 +926,7 @@ struct CPUPPCState {
     target_ulong reserve_addr;
     /* Reservation value */
     target_ulong reserve_val;
+    target_ulong reserve_val2;
     /* Reservation store address */
     target_ulong reserve_ea;
     /* Reserved store source register and size */
