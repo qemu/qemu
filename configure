@@ -205,6 +205,9 @@ mingw32="no"
 gcov="no"
 gcov_tool="gcov"
 EXESUF=""
+DSOSUF=".so"
+LDFLAGS_SHARED="-shared"
+modules="no"
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
 datadir="\${prefix}/share"
@@ -515,6 +518,7 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
+  LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
@@ -608,6 +612,7 @@ fi
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
+  DSOSUF=".dll"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
@@ -673,6 +678,9 @@ for opt do
   --enable-debug-info)
   ;;
   --disable-debug-info)
+  ;;
+  --enable-modules)
+      modules="yes"
   ;;
   --cpu=*)
   ;;
@@ -1130,6 +1138,7 @@ Advanced options (experts only):
   --sysconfdir=PATH        install config in PATH$confsuffix
   --localstatedir=PATH     install local state in PATH (set at runtime on win32)
   --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]
+  --enable-modules         enable modules support
   --enable-debug-tcg       enable TCG debugging
   --disable-debug-tcg      disable TCG debugging (default)
   --enable-debug-info       enable debugging information (default)
@@ -3768,6 +3777,7 @@ echo "python            $python"
 if test "$slirp" = "yes" ; then
     echo "smbd              $smbd"
 fi
+echo "module support    $modules"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -4011,6 +4021,9 @@ echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
+fi
+if test "$modules" = "yes"; then
+  echo "CONFIG_MODULES=y" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
@@ -4396,6 +4409,8 @@ echo "LIBTOOLFLAGS=$LIBTOOLFLAGS" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
+echo "DSOSUF=$DSOSUF" >> $config_host_mak
+echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
 echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak

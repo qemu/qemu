@@ -138,7 +138,7 @@ ifeq ($(CONFIG_SMARTCARD_NSS),y)
 include $(SRC_PATH)/libcacard/Makefile
 endif
 
-all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
+all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
@@ -256,6 +256,8 @@ clean:
 	rm -f qemu-options.def
 	find . -name '*.[oda]' -type f -exec rm -f {} +
 	find . -name '*.l[oa]' -type f -exec rm -f {} +
+	find . -name '*$(DSOSUF)' -type f -exec rm -f {} +
+	find . -name '*.mo' -type f -exec rm -f {} +
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod
 	rm -rf .libs */.libs
