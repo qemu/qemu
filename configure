@@ -4120,7 +4120,7 @@ if test "$bswap_h" = "yes" ; then
   echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$curl" = "yes" ; then
-  echo "CONFIG_CURL=y" >> $config_host_mak
+  echo "CONFIG_CURL=m" >> $config_host_mak
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
   echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
@@ -4211,7 +4211,7 @@ if test "$glx" = "yes" ; then
 fi
 
 if test "$libiscsi" = "yes" ; then
-  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
+  echo "CONFIG_LIBISCSI=m" >> $config_host_mak
   if test "$libiscsi_version" = "1.4.0"; then
     echo "CONFIG_LIBISCSI_1_4=y" >> $config_host_mak
   fi
@@ -4241,7 +4241,7 @@ if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
-  echo "CONFIG_RBD=y" >> $config_host_mak
+  echo "CONFIG_RBD=m" >> $config_host_mak
   echo "RBD_CFLAGS=$rbd_cflags" >> $config_host_mak
   echo "RBD_LIBS=$rbd_libs" >> $config_host_mak
 fi
@@ -4286,7 +4286,7 @@ if test "$getauxval" = "yes" ; then
 fi
 
 if test "$glusterfs" = "yes" ; then
-  echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
+  echo "CONFIG_GLUSTERFS=m" >> $config_host_mak
   echo "GLUSTERFS_CFLAGS=$glusterfs_cflags" >> $config_host_mak
   echo "GLUSTERFS_LIBS=$glusterfs_libs" >> $config_host_mak
 fi
@@ -4300,7 +4300,7 @@ if test "$glusterfs_zerofill" = "yes" ; then
 fi
 
 if test "$libssh2" = "yes" ; then
-  echo "CONFIG_LIBSSH2=y" >> $config_host_mak
+  echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
 fi
