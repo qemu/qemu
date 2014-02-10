@@ -215,6 +215,15 @@ bool fips_get_state(void);
  */
 char *qemu_get_local_state_pathname(const char *relative_pathname);
 
+/* Find program directory, and save it for later usage with
+ * qemu_get_exec_dir().
+ * Try OS specific API first, if not working, parse from argv0. */
+void qemu_init_exec_dir(const char *argv0);
+
+/* Get the saved exec dir.
+ * Caller needs to release the returned string by g_free() */
+char *qemu_get_exec_dir(void);
+
 /**
  * qemu_getauxval:
  * @type: the auxiliary vector key to lookup
