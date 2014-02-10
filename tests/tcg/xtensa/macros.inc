@@ -1,3 +1,5 @@
+#include "core-isa.h"
+
 .macro test_suite name
 .data
 status: .word result
