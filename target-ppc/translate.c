@@ -622,6 +622,20 @@ static opc_handler_t invalid_handler = {
     .handler = gen_invalid,
 };
 
+#if defined(TARGET_PPC64)
+/* NOTE: as this time, the only use of is_user_mode() is in 64 bit code.  And */
+/*       so the function is wrapped in the standard 64-bit ifdef in order to  */
+/*       avoid compiler warnings in 32-bit implementations.                   */
+static bool is_user_mode(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    return true;
+#else
+    return ctx->mem_idx == 0;
+#endif
+}
+#endif
+
 /***                           Integer comparison                          ***/
 
 static inline void gen_op_cmp(TCGv arg0, TCGv arg1, int s, int crf)
