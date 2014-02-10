@@ -922,6 +922,15 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 #define RRRN_S RRR_S
 #define RRRN_T RRR_T
 
+#define RRI4_R RRR_R
+#define RRI4_S RRR_S
+#define RRI4_T RRR_T
+#ifdef TARGET_WORDS_BIGENDIAN
+#define RRI4_IMM4 ((b2) & 0xf)
+#else
+#define RRI4_IMM4 (((b2) & 0xf0) >> 4)
+#endif
+
 #define RRI8_R RRR_R
 #define RRI8_S RRR_S
 #define RRI8_T RRR_T
