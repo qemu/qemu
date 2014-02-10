@@ -3745,6 +3745,7 @@ static void gen_b(DisasContext *ctx)
 #define BCOND_IM  0
 #define BCOND_LR  1
 #define BCOND_CTR 2
+#define BCOND_TAR 3
 
 static inline void gen_bcond(DisasContext *ctx, int type)
 {
@@ -3753,10 +3754,12 @@ static inline void gen_bcond(DisasContext *ctx, int type)
     TCGv target;
 
     ctx->exception = POWERPC_EXCP_BRANCH;
-    if (type == BCOND_LR || type == BCOND_CTR) {
+    if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         target = tcg_temp_local_new();
         if (type == BCOND_CTR)
             tcg_gen_mov_tl(target, cpu_ctr);
+        else if (type == BCOND_TAR)
+            gen_load_spr(target, SPR_TAR);
         else
             tcg_gen_mov_tl(target, cpu_lr);
     } else {
@@ -3836,6 +3839,11 @@ static void gen_bcctr(DisasContext *ctx)
 static void gen_bclr(DisasContext *ctx)
 {
     gen_bcond(ctx, BCOND_LR);
+}
+
+static void gen_bctar(DisasContext *ctx)
+{
+    gen_bcond(ctx, BCOND_TAR);
 }
 
 /***                      Condition register logical                       ***/
@@ -9594,6 +9602,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW),
+GEN_HANDLER_E(bctar, 0x13, 0x10, 0x11, 0, PPC_NONE, PPC2_BCTAR_ISA207),
 GEN_HANDLER(mcrf, 0x13, 0x00, 0xFF, 0x00000001, PPC_INTEGER),
 GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW),
 #if defined(TARGET_PPC64)
