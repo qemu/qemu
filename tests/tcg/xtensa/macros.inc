@@ -43,8 +43,12 @@ main:
     simcall
 .endm
 
+.macro test_init
+.endm
+
 .macro test name
     //print test_\name
+    test_init
 test_\name:
 .global test_\name
 .endm

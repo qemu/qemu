@@ -2,9 +2,9 @@
 
 test_suite mmu
 
-.purgem test
+.purgem test_init
 
-.macro test name
+.macro test_init
     movi    a2, 0x00000004
     idtlb   a2
     movi    a2, 0x00100004
