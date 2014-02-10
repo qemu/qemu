@@ -7332,15 +7332,40 @@ static void gen_xxpermdi(DisasContext *ctx)
         return;
     }
 
-    if ((DM(ctx->opcode) & 2) == 0) {
-        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)));
+    if (unlikely((xT(ctx->opcode) == xA(ctx->opcode)) ||
+                 (xT(ctx->opcode) == xB(ctx->opcode)))) {
+        TCGv_i64 xh, xl;
+
+        xh = tcg_temp_new_i64();
+        xl = tcg_temp_new_i64();
+
+        if ((DM(ctx->opcode) & 2) == 0) {
+            tcg_gen_mov_i64(xh, cpu_vsrh(xA(ctx->opcode)));
+        } else {
+            tcg_gen_mov_i64(xh, cpu_vsrl(xA(ctx->opcode)));
+        }
+        if ((DM(ctx->opcode) & 1) == 0) {
+            tcg_gen_mov_i64(xl, cpu_vsrh(xB(ctx->opcode)));
+        } else {
+            tcg_gen_mov_i64(xl, cpu_vsrl(xB(ctx->opcode)));
+        }
+
+        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), xh);
+        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), xl);
+
+        tcg_temp_free_i64(xh);
+        tcg_temp_free_i64(xl);
     } else {
-        tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)));
-    }
-    if ((DM(ctx->opcode) & 1) == 0) {
-        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xB(ctx->opcode)));
-    } else {
-        tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xB(ctx->opcode)));
+        if ((DM(ctx->opcode) & 2) == 0) {
+            tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrh(xA(ctx->opcode)));
+        } else {
+            tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrl(xA(ctx->opcode)));
+        }
+        if ((DM(ctx->opcode) & 1) == 0) {
+            tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrh(xB(ctx->opcode)));
+        } else {
+            tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_vsrl(xB(ctx->opcode)));
+        }
     }
 }
 
