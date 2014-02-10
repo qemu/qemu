@@ -148,7 +148,11 @@ obj-y-save := $(obj-y)
 block-obj-y :=
 common-obj-y :=
 include $(SRC_PATH)/Makefile.objs
-dummy := $(call unnest-vars,..,block-obj-y common-obj-y)
+dummy := $(call unnest-vars,.., \
+               block-obj-y \
+               block-obj-m \
+               common-obj-y \
+               common-obj-m)
 
 # Now restore obj-y
 obj-y := $(obj-y-save)

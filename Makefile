@@ -129,7 +129,9 @@ dummy := $(call unnest-vars,, \
                 util-obj-y \
                 qga-obj-y \
                 block-obj-y \
-                common-obj-y)
+                block-obj-m \
+                common-obj-y \
+                common-obj-m)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
