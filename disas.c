@@ -190,7 +190,7 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
-    arm  - bit 0 = thumb, bit 1 = reverse endian
+    arm  - bit 0 = thumb, bit 1 = reverse endian, bit 2 = A64
     ppc  - nonzero means little endian
     other targets - unused
  */
@@ -225,7 +225,15 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
     }
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
-    if (flags & 1) {
+    if (flags & 4) {
+        /* We might not be compiled with the A64 disassembler
+         * because it needs a C++ compiler; in that case we will
+         * fall through to the default print_insn_od case.
+         */
+#if defined(CONFIG_ARM_A64_DIS)
+        print_insn = print_insn_arm_a64;
+#endif
+    } else if (flags & 1) {
         print_insn = print_insn_thumb1;
     } else {
         print_insn = print_insn_arm;
@@ -356,6 +364,8 @@ void disas(FILE *out, void *code, unsigned long size)
 #elif defined(_ARCH_PPC)
     s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
+#elif defined(__aarch64__) && defined(CONFIG_ARM_A64_DIS)
+    print_insn = print_insn_arm_a64;
 #elif defined(__alpha__)
     print_insn = print_insn_alpha;
 #elif defined(__sparc__)

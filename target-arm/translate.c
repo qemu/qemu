@@ -3142,16 +3142,19 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     VFP_DREG_N(rn, insn);
                 }
 
-                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18))) {
-                    /* Integer or single precision destination.  */
+                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18) ||
+                                 ((rn & 0x1e) == 0x6))) {
+                    /* Integer or single/half precision destination.  */
                     rd = VFP_SREG_D(insn);
                 } else {
                     VFP_DREG_D(rd, insn);
                 }
                 if (op == 15 &&
-                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14))) {
-                    /* VCVT from int is always from S reg regardless of dp bit.
-                     * VCVT with immediate frac_bits has same format as SREG_M
+                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14) ||
+                     ((rn & 0x1e) == 0x4))) {
+                    /* VCVT from int or half precision is always from S reg
+                     * regardless of dp bit. VCVT with immediate frac_bits
+                     * has same format as SREG_M.
                      */
                     rm = VFP_SREG_M(insn);
                 } else {
@@ -3241,11 +3244,18 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 case 5:
                 case 6:
                 case 7:
-                    /* VCVTB, VCVTT: only present with the halfprec extension,
-                     * UNPREDICTABLE if bit 8 is set (we choose to UNDEF)
+                    /* VCVTB, VCVTT: only present with the halfprec extension
+                     * UNPREDICTABLE if bit 8 is set prior to ARMv8
+                     * (we choose to UNDEF)
                      */
-                    if (dp || !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                    if ((dp && !arm_feature(env, ARM_FEATURE_V8)) ||
+                        !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
                         return 1;
+                    }
+                    if (!extract32(rn, 1, 1)) {
+                        /* Half precision source.  */
+                        gen_mov_F0_vreg(0, rm);
+                        break;
                     }
                     /* Otherwise fall through */
                 default:
@@ -3394,21 +3404,39 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     case 3: /* sqrt */
                         gen_vfp_sqrt(dp);
                         break;
-                    case 4: /* vcvtb.f32.f16 */
+                    case 4: /* vcvtb.f32.f16, vcvtb.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_ext16u_i32(tmp, tmp);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 5: /* vcvtt.f32.f16 */
+                    case 5: /* vcvtt.f32.f16, vcvtt.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_shri_i32(tmp, tmp, 16);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 6: /* vcvtb.f16.f32 */
+                    case 6: /* vcvtb.f16.f32, vcvtb.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
                         tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
@@ -3416,9 +3444,15 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_i32(tmp2);
                         gen_vfp_msr(tmp);
                         break;
-                    case 7: /* vcvtt.f16.f32 */
+                    case 7: /* vcvtt.f16.f32, vcvtt.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         tcg_gen_shli_i32(tmp, tmp, 16);
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
@@ -3551,16 +3585,21 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 }
 
                 /* Write back the result.  */
-                if (op == 15 && (rn >= 8 && rn <= 11))
-                    ; /* Comparison, do nothing.  */
-                else if (op == 15 && dp && ((rn & 0x1c) == 0x18))
-                    /* VCVT double to int: always integer result. */
+                if (op == 15 && (rn >= 8 && rn <= 11)) {
+                    /* Comparison, do nothing.  */
+                } else if (op == 15 && dp && ((rn & 0x1c) == 0x18 ||
+                                              (rn & 0x1e) == 0x6)) {
+                    /* VCVT double to int: always integer result.
+                     * VCVT double to half precision is always a single
+                     * precision result.
+                     */
                     gen_mov_vreg_F0(0, rd);
-                else if (op == 15 && rn == 15)
+                } else if (op == 15 && rn == 15) {
                     /* conversion */
                     gen_mov_vreg_F0(!dp, rd);
-                else
+                } else {
                     gen_mov_vreg_F0(dp, rd);
+                }
 
                 /* break out of the loop if we have finished  */
                 if (veclen == 0)

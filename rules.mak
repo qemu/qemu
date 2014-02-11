@@ -8,6 +8,7 @@ MAKEFLAGS += -rR
 %.d:
 %.h:
 %.c:
+%.cc:
 %.cpp:
 %.m:
 %.mak:
@@ -26,8 +27,12 @@ QEMU_INCLUDES += -I$(<D) -I$(@D)
 %.o: %.rc
 	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
+# If we have a CXX we might have some C++ objects, in which case we
+# must link with the C++ compiler, not the plain C compiler.
+LINKPROG = $(or $(CXX),$(CC))
+
 ifeq ($(LIBTOOL),)
-LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
@@ -41,7 +46,7 @@ LIBTOOL += $(if $(V),,--quiet)
 
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
-       )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
        $(if $(filter %.lo %.la,$^),$(version-lobj-y),$(version-obj-y)) \
        $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
@@ -53,6 +58,9 @@ endif
 
 %.o: %.asm
 	$(call quiet-command,$(AS) $(ASFLAGS) -o $@ $<,"  AS    $(TARGET_DIR)$@")
+
+%.o: %.cc
+	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
 
 %.o: %.cpp
 	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
@@ -77,7 +85,7 @@ quiet-command = $(if $(V),$1,$(if $(2),@echo $2 && $1, @$1))
 cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
               >/dev/null 2>&1 && echo OK), $2, $3)
 
-VPATH_SUFFIXES = %.c %.h %.S %.cpp %.m %.mak %.texi %.sh %.rc
+VPATH_SUFFIXES = %.c %.h %.S %.cc %.cpp %.m %.mak %.texi %.sh %.rc
 set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) $1)))
 
 # find-in-path

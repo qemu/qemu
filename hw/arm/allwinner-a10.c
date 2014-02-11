@@ -31,6 +31,13 @@ static void aw_a10_init(Object *obj)
 
     object_initialize(&s->timer, sizeof(s->timer), TYPE_AW_A10_PIT);
     qdev_set_parent_bus(DEVICE(&s->timer), sysbus_get_default());
+
+    object_initialize(&s->emac, sizeof(s->emac), TYPE_AW_EMAC);
+    qdev_set_parent_bus(DEVICE(&s->emac), sysbus_get_default());
+    if (nd_table[0].used) {
+        qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
+        qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
+    }
 }
 
 static void aw_a10_realize(DeviceState *dev, Error **errp)
@@ -75,6 +82,15 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(sysbusdev, 3, s->irq[25]);
     sysbus_connect_irq(sysbusdev, 4, s->irq[67]);
     sysbus_connect_irq(sysbusdev, 5, s->irq[68]);
+
+    object_property_set_bool(OBJECT(&s->emac), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbusdev = SYS_BUS_DEVICE(&s->emac);
+    sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
+    sysbus_connect_irq(sysbusdev, 0, s->irq[55]);
 
     serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],
                    115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
