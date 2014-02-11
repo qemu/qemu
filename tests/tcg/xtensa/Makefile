@@ -30,6 +30,7 @@ TESTCASES += test_bi.tst
 #TESTCASES += test_boolean.tst
 TESTCASES += test_break.tst
 TESTCASES += test_bz.tst
+TESTCASES += test_cache.tst
 TESTCASES += test_clamps.tst
 TESTCASES += test_extui.tst
 TESTCASES += test_fail.tst
