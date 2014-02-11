@@ -53,25 +53,28 @@
 #define IPA0_B9                         0xb900
 #define IPA0_EB                         0xeb00
 
-#define PRIV_SCLP_CALL                  0x20
-#define PRIV_CSCH                       0x30
-#define PRIV_HSCH                       0x31
-#define PRIV_MSCH                       0x32
-#define PRIV_SSCH                       0x33
-#define PRIV_STSCH                      0x34
-#define PRIV_TSCH                       0x35
-#define PRIV_TPI                        0x36
-#define PRIV_SAL                        0x37
-#define PRIV_RSCH                       0x38
-#define PRIV_STCRW                      0x39
-#define PRIV_STCPS                      0x3a
-#define PRIV_RCHP                       0x3b
-#define PRIV_SCHM                       0x3c
-#define PRIV_CHSC                       0x5f
-#define PRIV_SIGA                       0x74
-#define PRIV_XSCH                       0x76
-#define PRIV_SQBS                       0x8a
-#define PRIV_EQBS                       0x9c
+#define PRIV_B2_SCLP_CALL               0x20
+#define PRIV_B2_CSCH                    0x30
+#define PRIV_B2_HSCH                    0x31
+#define PRIV_B2_MSCH                    0x32
+#define PRIV_B2_SSCH                    0x33
+#define PRIV_B2_STSCH                   0x34
+#define PRIV_B2_TSCH                    0x35
+#define PRIV_B2_TPI                     0x36
+#define PRIV_B2_SAL                     0x37
+#define PRIV_B2_RSCH                    0x38
+#define PRIV_B2_STCRW                   0x39
+#define PRIV_B2_STCPS                   0x3a
+#define PRIV_B2_RCHP                    0x3b
+#define PRIV_B2_SCHM                    0x3c
+#define PRIV_B2_CHSC                    0x5f
+#define PRIV_B2_SIGA                    0x74
+#define PRIV_B2_XSCH                    0x76
+
+#define PRIV_EB_SQBS                    0x8a
+
+#define PRIV_B9_EQBS                    0x9c
+
 #define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
 #define DIAG_KVM_BREAKPOINT             0x501
@@ -458,96 +461,110 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     return 0;
 }
 
-static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
-                               uint8_t ipa0, uint8_t ipa1, uint8_t ipb)
+static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
-
-    if (ipa0 != 0xb2) {
-        /* Not handled for now. */
-        return -1;
-    }
+    int rc = 0;
+    uint16_t ipbh0 = (run->s390_sieic.ipb & 0xffff0000) >> 16;
 
     cpu_synchronize_state(CPU(cpu));
 
     switch (ipa1) {
-    case PRIV_XSCH:
+    case PRIV_B2_XSCH:
         ioinst_handle_xsch(cpu, env->regs[1]);
         break;
-    case PRIV_CSCH:
+    case PRIV_B2_CSCH:
         ioinst_handle_csch(cpu, env->regs[1]);
         break;
-    case PRIV_HSCH:
+    case PRIV_B2_HSCH:
         ioinst_handle_hsch(cpu, env->regs[1]);
         break;
-    case PRIV_MSCH:
+    case PRIV_B2_MSCH:
         ioinst_handle_msch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
-    case PRIV_SSCH:
+    case PRIV_B2_SSCH:
         ioinst_handle_ssch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
-    case PRIV_STCRW:
+    case PRIV_B2_STCRW:
         ioinst_handle_stcrw(cpu, run->s390_sieic.ipb);
         break;
-    case PRIV_STSCH:
+    case PRIV_B2_STSCH:
         ioinst_handle_stsch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
-    case PRIV_TSCH:
+    case PRIV_B2_TSCH:
         /* We should only get tsch via KVM_EXIT_S390_TSCH. */
         fprintf(stderr, "Spurious tsch intercept\n");
         break;
-    case PRIV_CHSC:
+    case PRIV_B2_CHSC:
         ioinst_handle_chsc(cpu, run->s390_sieic.ipb);
         break;
-    case PRIV_TPI:
+    case PRIV_B2_TPI:
         /* This should have been handled by kvm already. */
         fprintf(stderr, "Spurious tpi intercept\n");
         break;
-    case PRIV_SCHM:
+    case PRIV_B2_SCHM:
         ioinst_handle_schm(cpu, env->regs[1], env->regs[2],
                            run->s390_sieic.ipb);
         break;
-    case PRIV_RSCH:
+    case PRIV_B2_RSCH:
         ioinst_handle_rsch(cpu, env->regs[1]);
         break;
-    case PRIV_RCHP:
+    case PRIV_B2_RCHP:
         ioinst_handle_rchp(cpu, env->regs[1]);
         break;
-    case PRIV_STCPS:
+    case PRIV_B2_STCPS:
         /* We do not provide this instruction, it is suppressed. */
         break;
-    case PRIV_SAL:
+    case PRIV_B2_SAL:
         ioinst_handle_sal(cpu, env->regs[1]);
         break;
-    case PRIV_SIGA:
+    case PRIV_B2_SIGA:
         /* Not provided, set CC = 3 for subchannel not operational */
         setcc(cpu, 3);
         break;
+    case PRIV_B2_SCLP_CALL:
+        rc = kvm_sclp_service_call(cpu, run, ipbh0);
+        break;
     default:
-        return -1;
+        rc = -1;
+        DPRINTF("KVM: unhandled PRIV: 0xb2%x\n", ipa1);
+        break;
     }
 
-    return 0;
+    return rc;
 }
 
-static int handle_priv(S390CPU *cpu, struct kvm_run *run,
-                       uint8_t ipa0, uint8_t ipa1)
+static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     int r = 0;
-    uint16_t ipbh0 = (run->s390_sieic.ipb & 0xffff0000) >> 16;
-    uint8_t ipb = run->s390_sieic.ipb & 0xff;
 
-    DPRINTF("KVM: PRIV: %d\n", ipa1);
     switch (ipa1) {
-        case PRIV_SCLP_CALL:
-            r = kvm_sclp_service_call(cpu, run, ipbh0);
-            break;
-        default:
-            r = kvm_handle_css_inst(cpu, run, ipa0, ipa1, ipb);
-            if (r == -1) {
-                DPRINTF("KVM: unhandled PRIV: 0x%x\n", ipa1);
-            }
-            break;
+    case PRIV_B9_EQBS:
+        /* just inject exception */
+        r = -1;
+        break;
+    default:
+        r = -1;
+        DPRINTF("KVM: unhandled PRIV: 0xb9%x\n", ipa1);
+        break;
+    }
+
+    return r;
+}
+
+static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
+{
+    int r = 0;
+
+    switch (ipa1) {
+    case PRIV_EB_SQBS:
+        /* just inject exception */
+        r = -1;
+        break;
+    default:
+        r = -1;
+        DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipa1);
+        break;
     }
 
     return r;
@@ -710,9 +727,13 @@ static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
             run->s390_sieic.ipa, run->s390_sieic.ipb);
     switch (ipa0) {
     case IPA0_B2:
+        r = handle_b2(cpu, run, ipa1);
+        break;
     case IPA0_B9:
+        r = handle_b9(cpu, run, ipa1);
+        break;
     case IPA0_EB:
-        r = handle_priv(cpu, run, ipa0 >> 8, ipa1);
+        r = handle_eb(cpu, run, ipa1);
         break;
     case IPA0_DIAG:
         r = handle_diag(cpu, run, run->s390_sieic.ipb);
