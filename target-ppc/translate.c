@@ -10280,6 +10280,11 @@ GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20),
 #undef GEN_VXFORM
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+
+#undef GEN_VXFORM_207
+#define GEN_VXFORM_207(name, opc2, opc3) \
+GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
+
 #undef GEN_VXFORM_DUAL
 #define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
