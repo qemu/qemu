@@ -241,7 +241,8 @@ typedef enum {
 } CMDState;
 
 typedef struct Flash {
-    SSISlave ssidev;
+    SSISlave parent_obj;
+
     uint32_t r;
 
     BlockDriverState *bdrv;
@@ -545,7 +546,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
 static int m25p80_cs(SSISlave *ss, bool select)
 {
-    Flash *s = FROM_SSI_SLAVE(Flash, ss);
+    Flash *s = M25P80(ss);
 
     if (select) {
         s->len = 0;
@@ -561,7 +562,7 @@ static int m25p80_cs(SSISlave *ss, bool select)
 
 static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
 {
-    Flash *s = FROM_SSI_SLAVE(Flash, ss);
+    Flash *s = M25P80(ss);
     uint32_t r = 0;
 
     switch (s->state) {
@@ -610,7 +611,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
 static int m25p80_init(SSISlave *ss)
 {
     DriveInfo *dinfo;
-    Flash *s = FROM_SSI_SLAVE(Flash, ss);
+    Flash *s = M25P80(ss);
     M25P80Class *mc = M25P80_GET_CLASS(s);
 
     s->pi = mc->pi;
