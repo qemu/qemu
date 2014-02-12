@@ -1351,6 +1351,76 @@ void helper_vgbbd(ppc_avr_t *r, ppc_avr_t *b)
     r->u64[1] = t[1];
 }
 
+#define PMSUM(name, srcfld, trgfld, trgtyp)                   \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+{                                                             \
+    int i, j;                                                 \
+    trgtyp prod[sizeof(ppc_avr_t)/sizeof(a->srcfld[0])];      \
+                                                              \
+    VECTOR_FOR_INORDER_I(i, srcfld) {                         \
+        prod[i] = 0;                                          \
+        for (j = 0; j < sizeof(a->srcfld[0]) * 8; j++) {      \
+            if (a->srcfld[i] & (1ull<<j)) {                   \
+                prod[i] ^= ((trgtyp)b->srcfld[i] << j);       \
+            }                                                 \
+        }                                                     \
+    }                                                         \
+                                                              \
+    VECTOR_FOR_INORDER_I(i, trgfld) {                         \
+        r->trgfld[i] = prod[2*i] ^ prod[2*i+1];               \
+    }                                                         \
+}
+
+PMSUM(vpmsumb, u8, u16, uint16_t)
+PMSUM(vpmsumh, u16, u32, uint32_t)
+PMSUM(vpmsumw, u32, u64, uint64_t)
+
+void helper_vpmsumd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+
+#ifdef CONFIG_INT128
+    int i, j;
+    __uint128_t prod[2];
+
+    VECTOR_FOR_INORDER_I(i, u64) {
+        prod[i] = 0;
+        for (j = 0; j < 64; j++) {
+            if (a->u64[i] & (1ull<<j)) {
+                prod[i] ^= (((__uint128_t)b->u64[i]) << j);
+            }
+        }
+    }
+
+    r->u128 = prod[0] ^ prod[1];
+
+#else
+    int i, j;
+    ppc_avr_t prod[2];
+
+    VECTOR_FOR_INORDER_I(i, u64) {
+        prod[i].u64[LO_IDX] = prod[i].u64[HI_IDX] = 0;
+        for (j = 0; j < 64; j++) {
+            if (a->u64[i] & (1ull<<j)) {
+                ppc_avr_t bshift;
+                if (j == 0) {
+                    bshift.u64[HI_IDX] = 0;
+                    bshift.u64[LO_IDX] = b->u64[i];
+                } else {
+                    bshift.u64[HI_IDX] = b->u64[i] >> (64-j);
+                    bshift.u64[LO_IDX] = b->u64[i] << j;
+                }
+                prod[i].u64[LO_IDX] ^= bshift.u64[LO_IDX];
+                prod[i].u64[HI_IDX] ^= bshift.u64[HI_IDX];
+            }
+        }
+    }
+
+    r->u64[LO_IDX] = prod[0].u64[LO_IDX] ^ prod[1].u64[LO_IDX];
+    r->u64[HI_IDX] = prod[0].u64[HI_IDX] ^ prod[1].u64[HI_IDX];
+#endif
+}
+
+
 #if defined(HOST_WORDS_BIGENDIAN)
 #define PKBIG 1
 #else
