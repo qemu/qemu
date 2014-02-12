@@ -7438,6 +7438,27 @@ GEN_VXFORM_DUAL(vcipher, PPC_NONE, PPC2_ALTIVEC_207,
 GEN_VXFORM_DUAL(vncipher, PPC_NONE, PPC2_ALTIVEC_207,
                 vncipherlast, PPC_NONE, PPC2_ALTIVEC_207)
 
+#define VSHASIGMA(op)                         \
+static void gen_##op(DisasContext *ctx)       \
+{                                             \
+    TCGv_ptr ra, rd;                          \
+    TCGv_i32 st_six;                          \
+    if (unlikely(!ctx->altivec_enabled)) {    \
+        gen_exception(ctx, POWERPC_EXCP_VPU); \
+        return;                               \
+    }                                         \
+    ra = gen_avr_ptr(rA(ctx->opcode));        \
+    rd = gen_avr_ptr(rD(ctx->opcode));        \
+    st_six = tcg_const_i32(rB(ctx->opcode));  \
+    gen_helper_##op(rd, ra, st_six);          \
+    tcg_temp_free_ptr(ra);                    \
+    tcg_temp_free_ptr(rd);                    \
+    tcg_temp_free_i32(st_six);                \
+}
+
+VSHASIGMA(vshasigmaw)
+VSHASIGMA(vshasigmad)
+
 /***                           VSX extension                               ***/
 
 static inline TCGv_i64 cpu_vsrh(int n)
@@ -10697,6 +10718,9 @@ GEN_VXFORM_207(vsbox, 4, 23),
 
 GEN_VXFORM_DUAL(vcipher, vcipherlast, 4, 20, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL(vncipher, vncipherlast, 4, 21, PPC_NONE, PPC2_ALTIVEC_207),
+
+GEN_VXFORM_207(vshasigmaw, 1, 26),
+GEN_VXFORM_207(vshasigmad, 1, 27),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
