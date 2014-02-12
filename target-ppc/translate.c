@@ -6885,6 +6885,25 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     tcg_temp_free_ptr(rd);                                              \
 }
 
+#define GEN_VXFORM3(name, opc2, opc3)                                   \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    TCGv_ptr ra, rb, rc, rd;                                            \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
+    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
+    rc = gen_avr_ptr(rC(ctx->opcode));                                  \
+    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
+    gen_helper_##name(rd, ra, rb, rc);                                  \
+    tcg_temp_free_ptr(ra);                                              \
+    tcg_temp_free_ptr(rb);                                              \
+    tcg_temp_free_ptr(rc);                                              \
+    tcg_temp_free_ptr(rd);                                              \
+}
+
 GEN_VXFORM(vaddubm, 0, 0);
 GEN_VXFORM(vadduhm, 0, 1);
 GEN_VXFORM(vadduwm, 0, 2);
