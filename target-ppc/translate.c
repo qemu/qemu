@@ -7136,16 +7136,26 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
 GEN_VXRFORM(vcmpequb, 3, 0)
 GEN_VXRFORM(vcmpequh, 3, 1)
 GEN_VXRFORM(vcmpequw, 3, 2)
+GEN_VXRFORM(vcmpequd, 3, 3)
 GEN_VXRFORM(vcmpgtsb, 3, 12)
 GEN_VXRFORM(vcmpgtsh, 3, 13)
 GEN_VXRFORM(vcmpgtsw, 3, 14)
+GEN_VXRFORM(vcmpgtsd, 3, 15)
 GEN_VXRFORM(vcmpgtub, 3, 8)
 GEN_VXRFORM(vcmpgtuh, 3, 9)
 GEN_VXRFORM(vcmpgtuw, 3, 10)
+GEN_VXRFORM(vcmpgtud, 3, 11)
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
 GEN_VXRFORM(vcmpbfp, 3, 15)
+
+GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpgtsd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
+                 vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -10552,10 +10562,10 @@ GEN_VXRFORM(vcmpgtsw, 3, 14)
 GEN_VXRFORM(vcmpgtub, 3, 8)
 GEN_VXRFORM(vcmpgtuh, 3, 9)
 GEN_VXRFORM(vcmpgtuw, 3, 10)
-GEN_VXRFORM(vcmpeqfp, 3, 3)
+GEN_VXRFORM_DUAL(vcmpeqfp, vcmpequd, 3, 3, PPC_ALTIVEC, PPC_NONE)
 GEN_VXRFORM(vcmpgefp, 3, 7)
-GEN_VXRFORM(vcmpgtfp, 3, 11)
-GEN_VXRFORM(vcmpbfp, 3, 15)
+GEN_VXRFORM_DUAL(vcmpgtfp, vcmpgtud, 3, 11, PPC_ALTIVEC, PPC_NONE)
+GEN_VXRFORM_DUAL(vcmpbfp, vcmpgtsd, 3, 15, PPC_ALTIVEC, PPC_NONE)
 
 #undef GEN_VXFORM_SIMM
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \

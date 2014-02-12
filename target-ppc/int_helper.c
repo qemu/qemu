@@ -626,15 +626,18 @@ VCF(sx, int32_to_float32, s32)
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
                              ppc_avr_t *a, ppc_avr_t *b)                \
     {                                                                   \
-        uint32_t ones = (uint32_t)-1;                                   \
-        uint32_t all = ones;                                            \
-        uint32_t none = 0;                                              \
+        uint64_t ones = (uint64_t)-1;                                   \
+        uint64_t all = ones;                                            \
+        uint64_t none = 0;                                              \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            uint32_t result = (a->element[i] compare b->element[i] ?    \
+            uint64_t result = (a->element[i] compare b->element[i] ?    \
                                ones : 0x0);                             \
             switch (sizeof(a->element[0])) {                            \
+            case 8:                                                     \
+                r->u64[i] = result;                                     \
+                break;                                                  \
             case 4:                                                     \
                 r->u32[i] = result;                                     \
                 break;                                                  \
@@ -658,12 +661,15 @@ VCF(sx, int32_to_float32, s32)
 VCMP(equb, ==, u8)
 VCMP(equh, ==, u16)
 VCMP(equw, ==, u32)
+VCMP(equd, ==, u64)
 VCMP(gtub, >, u8)
 VCMP(gtuh, >, u16)
 VCMP(gtuw, >, u32)
+VCMP(gtud, >, u64)
 VCMP(gtsb, >, s8)
 VCMP(gtsh, >, s16)
 VCMP(gtsw, >, s32)
+VCMP(gtsd, >, s64)
 #undef VCMP_DO
 #undef VCMP
 
