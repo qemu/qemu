@@ -832,6 +832,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         filename = qdict_get_try_str(options, "filename");
     }
 
+    if (drv->bdrv_needs_filename && !filename) {
+        error_setg(errp, "The '%s' block driver requires a file name",
+                   drv->format_name);
+        return -EINVAL;
+    }
+
     trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
 
     node_name = qdict_get_try_str(options, "node-name");
@@ -1031,11 +1037,6 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             goto fail;
         }
         qdict_del(options, "filename");
-    } else if (drv->bdrv_needs_filename && !filename) {
-        error_setg(errp, "The '%s' block driver requires a file name",
-                   drv->format_name);
-        ret = -EINVAL;
-        goto fail;
     }
 
     if (!drv->bdrv_file_open) {
@@ -2239,11 +2240,11 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
 }
 
-static void mark_request_serialising(BdrvTrackedRequest *req, size_t align)
+static void mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 {
     int64_t overlap_offset = req->offset & ~(align - 1);
-    int overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
-                      - overlap_offset;
+    unsigned int overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
+                               - overlap_offset;
 
     if (!req->serialising) {
         req->bs->serialising_in_flight++;
@@ -2914,8 +2915,8 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         }
 
         total_sectors = DIV_ROUND_UP(len, BDRV_SECTOR_SIZE);
-        max_nb_sectors = MAX(0, ROUND_UP(total_sectors - sector_num,
-                                         align >> BDRV_SECTOR_BITS));
+        max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
+                                  align >> BDRV_SECTOR_BITS);
         if (max_nb_sectors > 0) {
             ret = drv->bdrv_co_readv(bs, sector_num,
                                      MIN(nb_sectors, max_nb_sectors), qiov);
@@ -3133,6 +3134,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
+    assert(req->overlap_offset <= offset);
+    assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
@@ -3278,9 +3281,9 @@ fail:
 
     if (use_local_qiov) {
         qemu_iovec_destroy(&local_qiov);
-        qemu_vfree(head_buf);
-        qemu_vfree(tail_buf);
     }
+    qemu_vfree(head_buf);
+    qemu_vfree(tail_buf);
 
     return ret;
 }

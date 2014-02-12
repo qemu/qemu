@@ -61,6 +61,9 @@ elif [ "$IMGPROTO" = "nbd" ]; then
 elif [ "$IMGPROTO" = "ssh" ]; then
     TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
     TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
+elif [ "$IMGPROTO" = "nfs" ]; then
+    TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
+    TEST_IMG=$TEST_DIR/t.$IMGFMT
 else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi

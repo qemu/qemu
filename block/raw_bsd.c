@@ -90,6 +90,12 @@ static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return bdrv_get_info(bs->file, bdi);
 }
 
+static int raw_refresh_limits(BlockDriverState *bs)
+{
+    bs->bl = bs->file->bl;
+    return 0;
+}
+
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     return bdrv_truncate(bs->file, offset);
@@ -150,7 +156,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     bs->sg = bs->file->sg;
-    bs->bl = bs->file->bl;
     return 0;
 }
 
@@ -182,6 +187,7 @@ static BlockDriver bdrv_raw = {
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
+    .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_is_inserted     = &raw_is_inserted,
     .bdrv_media_changed   = &raw_media_changed,
     .bdrv_eject           = &raw_eject,

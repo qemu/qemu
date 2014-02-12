@@ -396,14 +396,14 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
 
     /* Read rules from config file or command line options */
     config = qemu_opt_get(opts, "config");
     ret = read_config(s, config, options, errp);
     if (ret) {
-        goto fail;
+        goto out;
     }
 
     /* Set initial state */
@@ -414,7 +414,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
                           flags, true, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        goto fail;
+        goto out;
     }
 
     /* Set request alignment */
@@ -424,11 +424,15 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     } else {
         error_setg(errp, "Invalid alignment");
         ret = -EINVAL;
-        goto fail;
+        goto fail_unref;
     }
 
     ret = 0;
-fail:
+    goto out;
+
+fail_unref:
+    bdrv_unref(bs->file);
+out:
     qemu_opts_del(opts);
     return ret;
 }

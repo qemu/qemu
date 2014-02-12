@@ -1,11 +1,8 @@
 #!/bin/bash
 #
-# Test that qcow2 unknown autoclear feature bits are cleared
+# Test qcow2 preallocation with different cluster_sizes
 #
-# Copyright (C) 2011 Red Hat, Inc.
-# Copyright IBM, Corp. 2010
-#
-# Based on test 031.
+# Copyright (C) 2014 Fujitsu.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +19,7 @@
 #
 
 # creator
-owner=stefanha@linux.vnet.ibm.com
+owner=hutao@cn.fujitsu.com
 
 seq=`basename $0`
 echo "QA output created by $seq"
@@ -40,28 +37,25 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
-. ./common.pattern
 
-# This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 
-# Only qcow2v3 and later supports feature bits
-IMGOPTS="compat=1.1"
+function test_qemu_img()
+{
+    echo qemu-img "$@" | _filter_testdir
+    $QEMU_IMG "$@" 2>&1 | _filter_testdir
+    echo
+}
 
-echo === Create image with unknown autoclear feature bit ===
+echo "=== Check option preallocation and cluster_size ==="
 echo
-_make_test_img 64M
-./qcow2.py "$TEST_IMG" set-feature-bit autoclear 63
-./qcow2.py "$TEST_IMG" dump-header
+cluster_sizes="16384 32768 65536 131072 262144 524288 1048576 2097152 4194304"
 
-echo
-echo === Repair image ===
-echo
-_check_test_img -r all
-
-./qcow2.py "$TEST_IMG" dump-header
+for s in $cluster_sizes; do
+    test_qemu_img create -f $IMGFMT -o preallocation=metadata,cluster_size=$s "$TEST_IMG" 4G
+done
 
 # success, all done
 echo "*** done"

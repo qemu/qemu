@@ -1182,7 +1182,7 @@ fail:
  * Return 0 on success and -errno in error cases
  */
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m)
+    int *num, uint64_t *host_offset, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t start, remaining;
@@ -1190,15 +1190,13 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     uint64_t cur_bytes;
     int ret;
 
-    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
-                                      n_start, n_end);
+    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset, *num);
 
-    assert(n_start * BDRV_SECTOR_SIZE == offset_into_cluster(s, offset));
-    offset = start_of_cluster(s, offset);
+    assert((offset & ~BDRV_SECTOR_MASK) == 0);
 
 again:
-    start = offset + (n_start << BDRV_SECTOR_BITS);
-    remaining = (n_end - n_start) << BDRV_SECTOR_BITS;
+    start = offset;
+    remaining = *num << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
     cur_bytes = 0;
@@ -1284,7 +1282,7 @@ again:
         }
     }
 
-    *num = (n_end - n_start) - (remaining >> BDRV_SECTOR_BITS);
+    *num -= remaining >> BDRV_SECTOR_BITS;
     assert(*num > 0);
     assert(*host_offset != 0);
 

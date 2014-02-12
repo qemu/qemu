@@ -937,6 +937,11 @@ M: Peter Lieven <pl@kamp.de>
 S: Supported
 F: block/iscsi.c
 
+NFS
+M: Peter Lieven <pl@kamp.de>
+S: Maintained
+F: block/nfs.c
+
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>
 S: Supported

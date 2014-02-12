@@ -172,6 +172,18 @@ run_qemu -drive file="$TEST_IMG",file.driver=file
 run_qemu -drive file="$TEST_IMG",file.driver=qcow2
 
 echo
+echo === Leaving out required options ===
+echo
+
+run_qemu -drive driver=file
+run_qemu -drive driver=nbd
+run_qemu -drive driver=raw
+run_qemu -drive file.driver=file
+run_qemu -drive file.driver=nbd
+run_qemu -drive file.driver=raw
+run_qemu -drive foo=bar
+
+echo
 echo === Parsing protocol from file name ===
 echo
 
