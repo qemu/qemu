@@ -983,28 +983,30 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 }
 
-#define VMUL_DO(name, mul_element, prod_element, evenp)                 \
+#define VMUL_DO(name, mul_element, prod_element, cast, evenp)           \
     void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
         VECTOR_FOR_INORDER_I(i, prod_element) {                         \
             if (evenp) {                                                \
-                r->prod_element[i] = a->mul_element[i * 2 + HI_IDX] *   \
-                    b->mul_element[i * 2 + HI_IDX];                     \
+                r->prod_element[i] =                                    \
+                    (cast)a->mul_element[i * 2 + HI_IDX] *              \
+                    (cast)b->mul_element[i * 2 + HI_IDX];               \
             } else {                                                    \
-                r->prod_element[i] = a->mul_element[i * 2 + LO_IDX] *   \
-                    b->mul_element[i * 2 + LO_IDX];                     \
+                r->prod_element[i] =                                    \
+                    (cast)a->mul_element[i * 2 + LO_IDX] *              \
+                    (cast)b->mul_element[i * 2 + LO_IDX];               \
             }                                                           \
         }                                                               \
     }
-#define VMUL(suffix, mul_element, prod_element)         \
-    VMUL_DO(mule##suffix, mul_element, prod_element, 1) \
-    VMUL_DO(mulo##suffix, mul_element, prod_element, 0)
-VMUL(sb, s8, s16)
-VMUL(sh, s16, s32)
-VMUL(ub, u8, u16)
-VMUL(uh, u16, u32)
+#define VMUL(suffix, mul_element, prod_element, cast)            \
+    VMUL_DO(mule##suffix, mul_element, prod_element, cast, 1)    \
+    VMUL_DO(mulo##suffix, mul_element, prod_element, cast, 0)
+VMUL(sb, s8, s16, int16_t)
+VMUL(sh, s16, s32, int32_t)
+VMUL(ub, u8, u16, uint16_t)
+VMUL(uh, u16, u32, uint32_t)
 #undef VMUL_DO
 #undef VMUL
 
