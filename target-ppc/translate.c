@@ -7377,6 +7377,43 @@ GEN_VXFORM(vpmsumh, 4, 17)
 GEN_VXFORM(vpmsumw, 4, 18)
 GEN_VXFORM(vpmsumd, 4, 19)
 
+#define GEN_BCD(op)                                 \
+static void gen_##op(DisasContext *ctx)             \
+{                                                   \
+    TCGv_ptr ra, rb, rd;                            \
+    TCGv_i32 ps;                                    \
+                                                    \
+    if (unlikely(!ctx->altivec_enabled)) {          \
+        gen_exception(ctx, POWERPC_EXCP_VPU);       \
+        return;                                     \
+    }                                               \
+                                                    \
+    ra = gen_avr_ptr(rA(ctx->opcode));              \
+    rb = gen_avr_ptr(rB(ctx->opcode));              \
+    rd = gen_avr_ptr(rD(ctx->opcode));              \
+                                                    \
+    ps = tcg_const_i32((ctx->opcode & 0x200) != 0); \
+                                                    \
+    gen_helper_##op(cpu_crf[6], rd, ra, rb, ps);    \
+                                                    \
+    tcg_temp_free_ptr(ra);                          \
+    tcg_temp_free_ptr(rb);                          \
+    tcg_temp_free_ptr(rd);                          \
+    tcg_temp_free_i32(ps);                          \
+}
+
+GEN_BCD(bcdadd)
+GEN_BCD(bcdsub)
+
+GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
+                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM_DUAL(vsububs, PPC_ALTIVEC, PPC_NONE, \
+                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM_DUAL(vsubuhm, PPC_ALTIVEC, PPC_NONE, \
+                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM_DUAL(vsubuhs, PPC_ALTIVEC, PPC_NONE, \
+                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
+
 /***                           VSX extension                               ***/
 
 static inline TCGv_i64 cpu_vsrh(int n)
@@ -10442,8 +10479,8 @@ GEN_VXFORM(vaddubm, 0, 0),
 GEN_VXFORM(vadduhm, 0, 1),
 GEN_VXFORM(vadduwm, 0, 2),
 GEN_VXFORM_207(vaddudm, 0, 3),
-GEN_VXFORM(vsububm, 0, 16),
-GEN_VXFORM(vsubuhm, 0, 17),
+GEN_VXFORM_DUAL(vsububm, bcdadd, 0, 16, PPC_ALTIVEC, PPC_NONE),
+GEN_VXFORM_DUAL(vsubuhm, bcdsub, 0, 17, PPC_ALTIVEC, PPC_NONE),
 GEN_VXFORM(vsubuwm, 0, 18),
 GEN_VXFORM_207(vsubudm, 0, 19),
 GEN_VXFORM(vmaxub, 1, 0),
@@ -10510,8 +10547,8 @@ GEN_VXFORM(vadduws, 0, 10),
 GEN_VXFORM(vaddsbs, 0, 12),
 GEN_VXFORM(vaddshs, 0, 13),
 GEN_VXFORM(vaddsws, 0, 14),
-GEN_VXFORM(vsububs, 0, 24),
-GEN_VXFORM(vsubuhs, 0, 25),
+GEN_VXFORM_DUAL(vsububs, bcdadd, 0, 24, PPC_ALTIVEC, PPC_NONE),
+GEN_VXFORM_DUAL(vsubuhs, bcdsub, 0, 25, PPC_ALTIVEC, PPC_NONE),
 GEN_VXFORM(vsubuws, 0, 26),
 GEN_VXFORM(vsubsbs, 0, 28),
 GEN_VXFORM(vsubshs, 0, 29),

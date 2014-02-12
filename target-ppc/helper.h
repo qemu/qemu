@@ -316,6 +316,9 @@ DEF_HELPER_3(vpmsumh, void, avr, avr, avr)
 DEF_HELPER_3(vpmsumw, void, avr, avr, avr)
 DEF_HELPER_3(vpmsumd, void, avr, avr, avr)
 
+DEF_HELPER_4(bcdadd, i32, avr, avr, avr, i32)
+DEF_HELPER_4(bcdsub, i32, avr, avr, avr, i32)
+
 DEF_HELPER_2(xsadddp, void, env, i32)
 DEF_HELPER_2(xssubdp, void, env, i32)
 DEF_HELPER_2(xsmuldp, void, env, i32)
