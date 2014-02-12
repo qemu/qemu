@@ -7043,6 +7043,18 @@ GEN_VXFORM_ENV(vsubuws, 0, 26);
 GEN_VXFORM_ENV(vsubsbs, 0, 28);
 GEN_VXFORM_ENV(vsubshs, 0, 29);
 GEN_VXFORM_ENV(vsubsws, 0, 30);
+GEN_VXFORM(vadduqm, 0, 4);
+GEN_VXFORM(vaddcuq, 0, 5);
+GEN_VXFORM3(vaddeuqm, 30, 0);
+GEN_VXFORM3(vaddecuq, 30, 0);
+GEN_VXFORM_DUAL(vaddeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
+            vaddecuq, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM(vsubuqm, 0, 20);
+GEN_VXFORM(vsubcuq, 0, 21);
+GEN_VXFORM3(vsubeuqm, 31, 0);
+GEN_VXFORM3(vsubecuq, 31, 0);
+GEN_VXFORM_DUAL(vsubeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
+            vsubecuq, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
@@ -10488,6 +10500,12 @@ GEN_VXFORM(vsubuws, 0, 26),
 GEN_VXFORM(vsubsbs, 0, 28),
 GEN_VXFORM(vsubshs, 0, 29),
 GEN_VXFORM(vsubsws, 0, 30),
+GEN_VXFORM_207(vadduqm, 0, 4),
+GEN_VXFORM_207(vaddcuq, 0, 5),
+GEN_VXFORM_DUAL(vaddeuqm, vaddecuq, 30, 0xFF, PPC_NONE, PPC2_ALTIVEC_207),
+GEN_VXFORM_207(vsubuqm, 0, 20),
+GEN_VXFORM_207(vsubcuq, 0, 21),
+GEN_VXFORM_DUAL(vsubeuqm, vsubecuq, 31, 0xFF, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM(vrlb, 2, 0),
 GEN_VXFORM(vrlh, 2, 1),
 GEN_VXFORM(vrlw, 2, 2),
