@@ -56,7 +56,8 @@ _use_sample_img iotest-dirtylog-10G-4M.vhdx.bz2
 
 echo
 echo "=== Verify open image read-only fails, due to dirty log ==="
-$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | grep -o "Permission denied"
+$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
+                                                      | _filter_qemu_io
 
 echo "=== Verify open image replays log  ==="
 $QEMU_IO  -c "read -pP 0xa5 0 18M" "$TEST_IMG" | _filter_qemu_io
