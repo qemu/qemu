@@ -2700,6 +2700,20 @@ void helper_vshasigmad(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
 #undef ROTRu64
 #undef EL_IDX
 
+void helper_vpermxor(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    VECTOR_FOR_INORDER_I(i, u8) {
+        int indexA = c->u8[i] >> 4;
+        int indexB = c->u8[i] & 0xF;
+#if defined(HOST_WORDS_BIGENDIAN)
+        r->u8[i] = a->u8[indexA] ^ b->u8[indexB];
+#else
+        r->u8[i] = a->u8[15-indexA] ^ b->u8[15-indexB];
+#endif
+    }
+}
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX

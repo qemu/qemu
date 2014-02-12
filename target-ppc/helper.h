@@ -323,6 +323,7 @@ DEF_HELPER_3(vncipher, void, avr, avr, avr)
 DEF_HELPER_3(vncipherlast, void, avr, avr, avr)
 DEF_HELPER_3(vshasigmaw, void, avr, avr, i32)
 DEF_HELPER_3(vshasigmad, void, avr, avr, i32)
+DEF_HELPER_4(vpermxor, void, avr, avr, avr, avr)
 
 DEF_HELPER_4(bcdadd, i32, avr, avr, avr, i32)
 DEF_HELPER_4(bcdsub, i32, avr, avr, avr, i32)

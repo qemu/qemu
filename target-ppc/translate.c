@@ -7459,6 +7459,10 @@ static void gen_##op(DisasContext *ctx)       \
 VSHASIGMA(vshasigmaw)
 VSHASIGMA(vshasigmad)
 
+GEN_VXFORM3(vpermxor, 22, 0xFF)
+GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
+                vpermxor, PPC_NONE, PPC2_ALTIVEC_207)
+
 /***                           VSX extension                               ***/
 
 static inline TCGv_i64 cpu_vsrh(int n)
@@ -10111,7 +10115,6 @@ GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
-GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC),
 GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC),
 GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE),
 GEN_HANDLER2(evsel1, "evsel", 0x04, 0x1d, 0x09, 0x00000000, PPC_SPE),
@@ -10721,6 +10724,8 @@ GEN_VXFORM_DUAL(vncipher, vncipherlast, 4, 21, PPC_NONE, PPC2_ALTIVEC_207),
 
 GEN_VXFORM_207(vshasigmaw, 1, 26),
 GEN_VXFORM_207(vshasigmad, 1, 27),
+
+GEN_VXFORM_DUAL(vsldoi, vpermxor, 22, 0xFF, PPC_ALTIVEC, PPC_NONE),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
