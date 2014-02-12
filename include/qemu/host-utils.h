@@ -217,7 +217,7 @@ static inline int ctz64(uint64_t val)
 }
 
 /**
- * ctz64 - count trailing ones in a 64-bit value.
+ * cto64 - count trailing ones in a 64-bit value.
  * @val: The value to search
  *
  * Returns 64 if the value is -1.
