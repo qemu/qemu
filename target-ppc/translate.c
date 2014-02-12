@@ -6904,6 +6904,26 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     tcg_temp_free_ptr(rd);                                              \
 }
 
+/*
+ * Support for Altivec instruction pairs that use bit 31 (Rc) as
+ * an opcode bit.  In general, these pairs come from different
+ * versions of the ISA, so we must also support a pair of flags for
+ * each instruction.
+ */
+#define GEN_VXFORM_DUAL(name0, flg0, flg2_0, name1, flg1, flg2_1)          \
+static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
+{                                                                      \
+    if ((Rc(ctx->opcode) == 0) &&                                      \
+        ((ctx->insns_flags & flg0) || (ctx->insns_flags2 & flg2_0))) { \
+        gen_##name0(ctx);                                              \
+    } else if ((Rc(ctx->opcode) == 1) &&                               \
+        ((ctx->insns_flags & flg1) || (ctx->insns_flags2 & flg2_1))) { \
+        gen_##name1(ctx);                                              \
+    } else {                                                           \
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);            \
+    }                                                                  \
+}
+
 GEN_VXFORM(vaddubm, 0, 0);
 GEN_VXFORM(vadduhm, 0, 1);
 GEN_VXFORM(vadduwm, 0, 2);
@@ -10260,6 +10280,10 @@ GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20),
 #undef GEN_VXFORM
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
+#undef GEN_VXFORM_DUAL
+#define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
+GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
+
 GEN_VXFORM(vaddubm, 0, 0),
 GEN_VXFORM(vadduhm, 0, 1),
 GEN_VXFORM(vadduwm, 0, 2),
