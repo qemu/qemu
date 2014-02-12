@@ -1089,10 +1089,14 @@ VPK(shss, s16, s8, cvtshsb, 1)
 VPK(shus, s16, u8, cvtshub, 1)
 VPK(swss, s32, s16, cvtswsh, 1)
 VPK(swus, s32, u16, cvtswuh, 1)
+VPK(sdss, s64, s32, cvtsdsw, 1)
+VPK(sdus, s64, u32, cvtsduw, 1)
 VPK(uhus, u16, u8, cvtuhub, 1)
 VPK(uwus, u32, u16, cvtuwuh, 1)
+VPK(udus, u64, u32, cvtuduw, 1)
 VPK(uhum, u16, u8, I, 0)
 VPK(uwum, u32, u16, I, 0)
+VPK(udum, u64, u32, I, 0)
 #undef I
 #undef VPK
 #undef PKBIG
