@@ -387,6 +387,8 @@ EXTRACT_HELPER(opc2, 1, 5);
 EXTRACT_HELPER(opc3, 6, 5);
 /* Update Cr0 flags */
 EXTRACT_HELPER(Rc, 0, 1);
+/* Update Cr6 flags (Altivec) */
+EXTRACT_HELPER(Rc21, 10, 1);
 /* Destination */
 EXTRACT_HELPER(rD, 21, 5);
 /* Source */
@@ -7032,6 +7034,34 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
     GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
 
+/*
+ * Support for Altivec instructions that use bit 31 (Rc) as an opcode
+ * bit but also use bit 21 as an actual Rc bit.  In general, thse pairs
+ * come from different versions of the ISA, so we must also support a
+ * pair of flags for each instruction.
+ */
+#define GEN_VXRFORM_DUAL(name0, flg0, flg2_0, name1, flg1, flg2_1)     \
+static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
+{                                                                      \
+    if ((Rc(ctx->opcode) == 0) &&                                      \
+        ((ctx->insns_flags & flg0) || (ctx->insns_flags2 & flg2_0))) { \
+        if (Rc21(ctx->opcode) == 0) {                                  \
+            gen_##name0(ctx);                                          \
+        } else {                                                       \
+            gen_##name0##_(ctx);                                       \
+        }                                                              \
+    } else if ((Rc(ctx->opcode) == 1) &&                               \
+        ((ctx->insns_flags & flg1) || (ctx->insns_flags2 & flg2_1))) { \
+        if (Rc21(ctx->opcode) == 0) {                                  \
+            gen_##name1(ctx);                                          \
+        } else {                                                       \
+            gen_##name1##_(ctx);                                       \
+        }                                                              \
+    } else {                                                           \
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);            \
+    }                                                                  \
+}
+
 GEN_VXRFORM(vcmpequb, 3, 0)
 GEN_VXRFORM(vcmpequh, 3, 1)
 GEN_VXRFORM(vcmpequw, 3, 2)
@@ -10288,6 +10318,11 @@ GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
 #undef GEN_VXFORM_DUAL
 #define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
+
+#undef GEN_VXRFORM_DUAL
+#define GEN_VXRFORM_DUAL(name0, name1, opc2, opc3, tp0, tp1) \
+GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, tp0, tp1), \
+GEN_HANDLER_E(name0##_##name1, 0x4, opc2, (opc3 | 0x10), 0x00000000, tp0, tp1),
 
 GEN_VXFORM(vaddubm, 0, 0),
 GEN_VXFORM(vadduhm, 0, 1),
