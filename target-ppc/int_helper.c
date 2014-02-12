@@ -1128,23 +1128,20 @@ VRFI(p, float_round_up)
 VRFI(z, float_round_to_zero)
 #undef VRFI
 
-#define VROTATE(suffix, element)                                        \
+#define VROTATE(suffix, element, mask)                                  \
     void helper_vrl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int mask = ((1 <<                                  \
-                                  (3 + (sizeof(a->element[0]) >> 1)))   \
-                                 - 1);                                  \
             unsigned int shift = b->element[i] & mask;                  \
             r->element[i] = (a->element[i] << shift) |                  \
                 (a->element[i] >> (sizeof(a->element[0]) * 8 - shift)); \
         }                                                               \
     }
-VROTATE(b, u8)
-VROTATE(h, u16)
-VROTATE(w, u32)
+VROTATE(b, u8, 0x7)
+VROTATE(h, u16, 0xF)
+VROTATE(w, u32, 0x1F)
 #undef VROTATE
 
 void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
@@ -1225,23 +1222,20 @@ VSHIFT(r, RIGHT)
 #undef LEFT
 #undef RIGHT
 
-#define VSL(suffix, element)                                            \
+#define VSL(suffix, element, mask)                                      \
     void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int mask = ((1 <<                                  \
-                                  (3 + (sizeof(a->element[0]) >> 1)))   \
-                                 - 1);                                  \
             unsigned int shift = b->element[i] & mask;                  \
                                                                         \
             r->element[i] = a->element[i] << shift;                     \
         }                                                               \
     }
-VSL(b, u8)
-VSL(h, u16)
-VSL(w, u32)
+VSL(b, u8, 0x7)
+VSL(h, u16, 0x0F)
+VSL(w, u32, 0x1F)
 #undef VSL
 
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
@@ -1325,26 +1319,22 @@ VSPLTI(h, s16, int16_t)
 VSPLTI(w, s32, int32_t)
 #undef VSPLTI
 
-#define VSR(suffix, element)                                            \
+#define VSR(suffix, element, mask)                                      \
     void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int mask = ((1 <<                                  \
-                                  (3 + (sizeof(a->element[0]) >> 1)))   \
-                                 - 1);                                  \
             unsigned int shift = b->element[i] & mask;                  \
-                                                                        \
             r->element[i] = a->element[i] >> shift;                     \
         }                                                               \
     }
-VSR(ab, s8)
-VSR(ah, s16)
-VSR(aw, s32)
-VSR(b, u8)
-VSR(h, u16)
-VSR(w, u32)
+VSR(ab, s8, 0x7)
+VSR(ah, s16, 0xF)
+VSR(aw, s32, 0x1F)
+VSR(b, u8, 0x7)
+VSR(h, u16, 0xF)
+VSR(w, u32, 0x1F)
 #undef VSR
 
 void helper_vsro(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
