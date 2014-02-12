@@ -505,6 +505,7 @@ VARITH(ubm, u8)
 VARITH(uhm, u16)
 VARITH(uwm, u32)
 VARITH(udm, u64)
+VARITH_DO(muluwm, *, u32)
 #undef VARITH_DO
 #undef VARITH
 

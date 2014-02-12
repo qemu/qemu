@@ -6964,6 +6964,9 @@ GEN_VXFORM(vmrglw, 6, 6);
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
+GEN_VXFORM(vmuluwm, 4, 2);
+GEN_VXFORM_DUAL(vmulouw, PPC_ALTIVEC, PPC_NONE,
+                vmuluwm, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM(vmulosb, 4, 4);
 GEN_VXFORM(vmulosh, 4, 5);
 GEN_VXFORM(vmulosw, 4, 6);
@@ -10375,7 +10378,7 @@ GEN_VXFORM(vmrglh, 6, 5),
 GEN_VXFORM(vmrglw, 6, 6),
 GEN_VXFORM(vmuloub, 4, 0),
 GEN_VXFORM(vmulouh, 4, 1),
-GEN_VXFORM_207(vmulouw, 4, 2),
+GEN_VXFORM_DUAL(vmulouw, vmuluwm, 4, 2, PPC_ALTIVEC, PPC_NONE),
 GEN_VXFORM(vmulosb, 4, 4),
 GEN_VXFORM(vmulosh, 4, 5),
 GEN_VXFORM_207(vmulosw, 4, 6),
