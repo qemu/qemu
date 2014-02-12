@@ -22,6 +22,11 @@ typedef struct {
     int inputs, com;
 } MAX111xState;
 
+#define TYPE_MAX_111X "max111x"
+
+#define TYPE_MAX_1110 "max1110"
+#define TYPE_MAX_1111 "max1111"
+
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)
 #define CB_PD1		(1 << 1)
@@ -155,18 +160,31 @@ void max111x_set_input(DeviceState *dev, int line, uint8_t value)
     s->input[line] = value;
 }
 
+static void max111x_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->transfer = max111x_transfer;
+}
+
+static const TypeInfo max111x_info = {
+    .name          = TYPE_MAX_111X,
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(MAX111xState),
+    .class_init    = max111x_class_init,
+    .abstract      = true,
+};
+
 static void max1110_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->init = max1110_init;
-    k->transfer = max111x_transfer;
 }
 
 static const TypeInfo max1110_info = {
-    .name          = "max1110",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(MAX111xState),
+    .name          = TYPE_MAX_1110,
+    .parent        = TYPE_MAX_111X,
     .class_init    = max1110_class_init,
 };
 
@@ -175,18 +193,17 @@ static void max1111_class_init(ObjectClass *klass, void *data)
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
 
     k->init = max1111_init;
-    k->transfer = max111x_transfer;
 }
 
 static const TypeInfo max1111_info = {
-    .name          = "max1111",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(MAX111xState),
+    .name          = TYPE_MAX_1111,
+    .parent        = TYPE_MAX_111X,
     .class_init    = max1111_class_init,
 };
 
 static void max111x_register_types(void)
 {
+    type_register_static(&max111x_info);
     type_register_static(&max1110_info);
     type_register_static(&max1111_info);
 }
