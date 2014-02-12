@@ -1549,6 +1549,20 @@ VGENERIC_DO(clzd, u64)
 #undef clzw
 #undef clzd
 
+#define popcntb(v) ctpop8(v)
+#define popcnth(v) ctpop16(v)
+#define popcntw(v) ctpop32(v)
+#define popcntd(v) ctpop64(v)
+
+VGENERIC_DO(popcntb, u8)
+VGENERIC_DO(popcnth, u16)
+VGENERIC_DO(popcntw, u32)
+VGENERIC_DO(popcntd, u64)
+
+#undef popcntb
+#undef popcnth
+#undef popcntw
+#undef popcntd
 
 #undef VGENERIC_DO
 
