@@ -112,13 +112,29 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                     value = json.loads(opt[1])
                 else:
                     value = opt[1]
-            qmpcmd['arguments'][opt[0]] = value
+            optpath = opt[0].split('.')
+            parent = qmpcmd['arguments']
+            curpath = []
+            for p in optpath[:-1]:
+                curpath.append(p)
+                d = parent.get(p, {})
+                if type(d) is not dict:
+                    raise QMPShellError('Cannot use "%s" as both leaf and non-leaf key' % '.'.join(curpath))
+                parent[p] = d
+                parent = d
+            if optpath[-1] in parent:
+                if type(parent[optpath[-1]]) is dict:
+                    raise QMPShellError('Cannot use "%s" as both leaf and non-leaf key' % '.'.join(curpath))
+                else:
+                    raise QMPShellError('Cannot set "%s" multiple times' % opt[0])
+            parent[optpath[-1]] = value
         return qmpcmd
 
     def _execute_cmd(self, cmdline):
         try:
             qmpcmd = self.__build_cmd(cmdline)
-        except:
+        except Exception, e:
+            print 'Error while parsing command line: %s' % e
             print 'command format: <command-name> ',
             print '[arg-name1=arg1] ... [arg-nameN=argN]'
             return True
