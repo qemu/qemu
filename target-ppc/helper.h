@@ -316,6 +316,12 @@ DEF_HELPER_3(vpmsumh, void, avr, avr, avr)
 DEF_HELPER_3(vpmsumw, void, avr, avr, avr)
 DEF_HELPER_3(vpmsumd, void, avr, avr, avr)
 
+DEF_HELPER_2(vsbox, void, avr, avr)
+DEF_HELPER_3(vcipher, void, avr, avr, avr)
+DEF_HELPER_3(vcipherlast, void, avr, avr, avr)
+DEF_HELPER_3(vncipher, void, avr, avr, avr)
+DEF_HELPER_3(vncipherlast, void, avr, avr, avr)
+
 DEF_HELPER_4(bcdadd, i32, avr, avr, avr, i32)
 DEF_HELPER_4(bcdsub, i32, avr, avr, avr, i32)
 
