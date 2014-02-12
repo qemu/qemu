@@ -6965,6 +6965,41 @@ GEN_VXFORM(vmrghw, 6, 2);
 GEN_VXFORM(vmrglb, 6, 4);
 GEN_VXFORM(vmrglh, 6, 5);
 GEN_VXFORM(vmrglw, 6, 6);
+
+static void gen_vmrgew(DisasContext *ctx)
+{
+    TCGv_i64 tmp;
+    int VT, VA, VB;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    VT = rD(ctx->opcode);
+    VA = rA(ctx->opcode);
+    VB = rB(ctx->opcode);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_shri_i64(tmp, cpu_avrh[VB], 32);
+    tcg_gen_deposit_i64(cpu_avrh[VT], cpu_avrh[VA], tmp, 0, 32);
+    tcg_gen_shri_i64(tmp, cpu_avrl[VB], 32);
+    tcg_gen_deposit_i64(cpu_avrl[VT], cpu_avrl[VA], tmp, 0, 32);
+    tcg_temp_free_i64(tmp);
+}
+
+static void gen_vmrgow(DisasContext *ctx)
+{
+    int VT, VA, VB;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    VT = rD(ctx->opcode);
+    VA = rA(ctx->opcode);
+    VB = rB(ctx->opcode);
+
+    tcg_gen_deposit_i64(cpu_avrh[VT], cpu_avrh[VB], cpu_avrh[VA], 32, 32);
+    tcg_gen_deposit_i64(cpu_avrl[VT], cpu_avrl[VB], cpu_avrl[VA], 32, 32);
+}
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -10407,6 +10442,8 @@ GEN_VXFORM(vmrghw, 6, 2),
 GEN_VXFORM(vmrglb, 6, 4),
 GEN_VXFORM(vmrglh, 6, 5),
 GEN_VXFORM(vmrglw, 6, 6),
+GEN_VXFORM_207(vmrgew, 6, 30),
+GEN_VXFORM_207(vmrgow, 6, 26),
 GEN_VXFORM(vmuloub, 4, 0),
 GEN_VXFORM(vmulouh, 4, 1),
 GEN_VXFORM_DUAL(vmulouw, vmuluwm, 4, 2, PPC_ALTIVEC, PPC_NONE),
