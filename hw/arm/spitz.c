@@ -658,14 +658,15 @@ static void spitz_adc_temp_on(void *opaque, int line, int level)
         max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
 }
 
-static int corgi_ssp_init(SSISlave *dev)
+static int corgi_ssp_init(SSISlave *d)
 {
-    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
+    DeviceState *dev = DEVICE(d);
+    CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, d);
 
-    qdev_init_gpio_in(&dev->qdev, corgi_ssp_gpio_cs, 3);
-    s->bus[0] = ssi_create_bus(&dev->qdev, "ssi0");
-    s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
-    s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
+    qdev_init_gpio_in(dev, corgi_ssp_gpio_cs, 3);
+    s->bus[0] = ssi_create_bus(dev, "ssi0");
+    s->bus[1] = ssi_create_bus(dev, "ssi1");
+    s->bus[2] = ssi_create_bus(dev, "ssi2");
 
     return 0;
 }

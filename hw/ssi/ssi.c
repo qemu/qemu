@@ -60,7 +60,7 @@ static int ssi_slave_init(DeviceState *dev)
 
     if (ssc->transfer_raw == ssi_transfer_raw_default &&
             ssc->cs_polarity != SSI_CS_NONE) {
-        qdev_init_gpio_in(&s->qdev, ssi_cs_default, 1);
+        qdev_init_gpio_in(dev, ssi_cs_default, 1);
     }
 
     return ssc->init(s);

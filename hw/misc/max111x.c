@@ -115,11 +115,12 @@ static const VMStateDescription vmstate_max111x = {
     }
 };
 
-static int max111x_init(SSISlave *dev, int inputs)
+static int max111x_init(SSISlave *d, int inputs)
 {
-    MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, dev);
+    DeviceState *dev = DEVICE(d);
+    MAX111xState *s = FROM_SSI_SLAVE(MAX111xState, d);
 
-    qdev_init_gpio_out(&dev->qdev, &s->interrupt, 1);
+    qdev_init_gpio_out(dev, &s->interrupt, 1);
 
     s->inputs = inputs;
     /* TODO: add a user interface for setting these */
@@ -133,7 +134,7 @@ static int max111x_init(SSISlave *dev, int inputs)
     s->input[7] = 0x80;
     s->com = 0;
 
-    vmstate_register(&dev->qdev, -1, &vmstate_max111x, s);
+    vmstate_register(dev, -1, &vmstate_max111x, s);
     return 0;
 }
 
