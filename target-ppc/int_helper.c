@@ -1524,8 +1524,10 @@ VUPKPX(hpx, UPKHI)
     }
 VUPK(hsb, s16, s8, UPKHI)
 VUPK(hsh, s32, s16, UPKHI)
+VUPK(hsw, s64, s32, UPKHI)
 VUPK(lsb, s16, s8, UPKLO)
 VUPK(lsh, s32, s16, UPKLO)
+VUPK(lsw, s64, s32, UPKLO)
 #undef VUPK
 #undef UPKHI
 #undef UPKLO

@@ -7149,8 +7149,10 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
 
 GEN_VXFORM_NOA(vupkhsb, 7, 8);
 GEN_VXFORM_NOA(vupkhsh, 7, 9);
+GEN_VXFORM_NOA(vupkhsw, 7, 25);
 GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
+GEN_VXFORM_NOA(vupklsw, 7, 27);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
 GEN_VXFORM_NOA_ENV(vrefp, 5, 4);
@@ -10503,8 +10505,10 @@ GEN_VXFORM_SIMM(vspltisw, 6, 14),
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)
 GEN_VXFORM_NOA(vupkhsb, 7, 8),
 GEN_VXFORM_NOA(vupkhsh, 7, 9),
+GEN_VXFORM_207(vupkhsw, 7, 25),
 GEN_VXFORM_NOA(vupklsb, 7, 10),
 GEN_VXFORM_NOA(vupklsh, 7, 11),
+GEN_VXFORM_207(vupklsw, 7, 27),
 GEN_VXFORM_NOA(vupkhpx, 7, 13),
 GEN_VXFORM_NOA(vupklpx, 7, 15),
 GEN_VXFORM_NOA(vrefp, 5, 4),
