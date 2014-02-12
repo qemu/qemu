@@ -1142,6 +1142,7 @@ VRFI(z, float_round_to_zero)
 VROTATE(b, u8, 0x7)
 VROTATE(h, u16, 0xF)
 VROTATE(w, u32, 0x1F)
+VROTATE(d, u64, 0x3F)
 #undef VROTATE
 
 void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
@@ -1236,6 +1237,7 @@ VSHIFT(r, RIGHT)
 VSL(b, u8, 0x7)
 VSL(h, u16, 0x0F)
 VSL(w, u32, 0x1F)
+VSL(d, u64, 0x3F)
 #undef VSL
 
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
@@ -1332,9 +1334,11 @@ VSPLTI(w, s32, int32_t)
 VSR(ab, s8, 0x7)
 VSR(ah, s16, 0xF)
 VSR(aw, s32, 0x1F)
+VSR(ad, s64, 0x3F)
 VSR(b, u8, 0x7)
 VSR(h, u16, 0xF)
 VSR(w, u32, 0x1F)
+VSR(d, u64, 0x3F)
 #undef VSR
 
 void helper_vsro(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)

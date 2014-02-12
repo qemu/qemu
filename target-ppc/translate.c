@@ -7018,12 +7018,15 @@ GEN_VXFORM(vmulesw, 4, 14);
 GEN_VXFORM(vslb, 2, 4);
 GEN_VXFORM(vslh, 2, 5);
 GEN_VXFORM(vslw, 2, 6);
+GEN_VXFORM(vsld, 2, 23);
 GEN_VXFORM(vsrb, 2, 8);
 GEN_VXFORM(vsrh, 2, 9);
 GEN_VXFORM(vsrw, 2, 10);
+GEN_VXFORM(vsrd, 2, 27);
 GEN_VXFORM(vsrab, 2, 12);
 GEN_VXFORM(vsrah, 2, 13);
 GEN_VXFORM(vsraw, 2, 14);
+GEN_VXFORM(vsrad, 2, 15);
 GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
@@ -7043,6 +7046,7 @@ GEN_VXFORM_ENV(vsubsws, 0, 30);
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
+GEN_VXFORM(vrld, 2, 3);
 GEN_VXFORM(vsl, 2, 7);
 GEN_VXFORM(vsr, 2, 11);
 GEN_VXFORM_ENV(vpkuhum, 7, 0);
@@ -10459,12 +10463,15 @@ GEN_VXFORM_207(vmulesw, 4, 14),
 GEN_VXFORM(vslb, 2, 4),
 GEN_VXFORM(vslh, 2, 5),
 GEN_VXFORM(vslw, 2, 6),
+GEN_VXFORM_207(vsld, 2, 23),
 GEN_VXFORM(vsrb, 2, 8),
 GEN_VXFORM(vsrh, 2, 9),
 GEN_VXFORM(vsrw, 2, 10),
+GEN_VXFORM_207(vsrd, 2, 27),
 GEN_VXFORM(vsrab, 2, 12),
 GEN_VXFORM(vsrah, 2, 13),
 GEN_VXFORM(vsraw, 2, 14),
+GEN_VXFORM_207(vsrad, 2, 15),
 GEN_VXFORM(vslo, 6, 16),
 GEN_VXFORM(vsro, 6, 17),
 GEN_VXFORM(vaddcuw, 0, 6),
@@ -10484,6 +10491,7 @@ GEN_VXFORM(vsubsws, 0, 30),
 GEN_VXFORM(vrlb, 2, 0),
 GEN_VXFORM(vrlh, 2, 1),
 GEN_VXFORM(vrlw, 2, 2),
+GEN_VXFORM_207(vrld, 2, 3),
 GEN_VXFORM(vsl, 2, 7),
 GEN_VXFORM(vsr, 2, 11),
 GEN_VXFORM(vpkuhum, 7, 0),
