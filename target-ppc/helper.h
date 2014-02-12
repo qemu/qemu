@@ -303,6 +303,7 @@ DEF_HELPER_2(vpopcntb, void, avr, avr)
 DEF_HELPER_2(vpopcnth, void, avr, avr)
 DEF_HELPER_2(vpopcntw, void, avr, avr)
 DEF_HELPER_2(vpopcntd, void, avr, avr)
+DEF_HELPER_3(vbpermq, void, avr, avr, avr)
 
 DEF_HELPER_2(xsadddp, void, env, i32)
 DEF_HELPER_2(xssubdp, void, env, i32)

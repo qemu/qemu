@@ -1039,6 +1039,37 @@ void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
 }
 
 #if defined(HOST_WORDS_BIGENDIAN)
+#define VBPERMQ_INDEX(avr, i) ((avr)->u8[(i)])
+#define VBPERMQ_DW(index) (((index) & 0x40) != 0)
+#else
+#define VBPERMQ_INDEX(avr, i) ((avr)->u8[15-(i)])
+#define VBPERMQ_DW(index) (((index) & 0x40) == 0)
+#endif
+
+void helper_vbpermq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    uint64_t perm = 0;
+
+    VECTOR_FOR_INORDER_I(i, u8) {
+        int index = VBPERMQ_INDEX(b, i);
+
+        if (index < 128) {
+            uint64_t mask = (1ull << (63-(index & 0x3F)));
+            if (a->u64[VBPERMQ_DW(index)] & mask) {
+                perm |= (0x8000 >> i);
+            }
+        }
+    }
+
+    r->u64[HI_IDX] = perm;
+    r->u64[LO_IDX] = 0;
+}
+
+#undef VBPERMQ_INDEX
+#undef VBPERMQ_DW
+
+#if defined(HOST_WORDS_BIGENDIAN)
 #define PKBIG 1
 #else
 #define PKBIG 0

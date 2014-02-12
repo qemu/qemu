@@ -7360,6 +7360,7 @@ GEN_VXFORM_DUAL(vclzw, PPC_NONE, PPC2_ALTIVEC_207, \
                 vpopcntw, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM_DUAL(vclzd, PPC_NONE, PPC2_ALTIVEC_207, \
                 vpopcntd, PPC_NONE, PPC2_ALTIVEC_207)
+GEN_VXFORM(vbpermq, 6, 21);
 
 /***                           VSX extension                               ***/
 
@@ -10609,6 +10610,7 @@ GEN_VXFORM_DUAL(vclzh, vpopcnth, 1, 29, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL(vclzw, vpopcntw, 1, 30, PPC_NONE, PPC2_ALTIVEC_207),
 GEN_VXFORM_DUAL(vclzd, vpopcntd, 1, 31, PPC_NONE, PPC2_ALTIVEC_207),
 
+GEN_VXFORM_207(vbpermq, 6, 21),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
