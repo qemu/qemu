@@ -824,9 +824,11 @@ void helper_vmhraddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
 VMINMAX(sb, s8)
 VMINMAX(sh, s16)
 VMINMAX(sw, s32)
+VMINMAX(sd, s64)
 VMINMAX(ub, u8)
 VMINMAX(uh, u16)
 VMINMAX(uw, u32)
+VMINMAX(ud, u64)
 #undef VMINMAX_DO
 #undef VMINMAX
 
