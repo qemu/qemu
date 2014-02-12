@@ -3574,30 +3574,26 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
 {
     BlockDriverState *bs = NULL;
 
-    if ((!device && !node_name) || (device && node_name)) {
-        error_setg(errp, "Use either device or node-name but not both");
-        return NULL;
-    }
-
     if (device) {
         bs = bdrv_find(device);
 
-        if (!bs) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, device);
-            return NULL;
+        if (bs) {
+            return bs;
         }
-
-        return bs;
     }
 
-    bs = bdrv_find_node(node_name);
+    if (node_name) {
+        bs = bdrv_find_node(node_name);
 
-    if (!bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, node_name);
-        return NULL;
+        if (bs) {
+            return bs;
+        }
     }
 
-    return bs;
+    error_setg(errp, "Cannot find device=%s nor node_name=%s",
+                     device ? device : "",
+                     node_name ? node_name : "");
+    return NULL;
 }
 
 BlockDriverState *bdrv_next(BlockDriverState *bs)
