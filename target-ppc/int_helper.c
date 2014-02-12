@@ -1005,8 +1005,10 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     VMUL_DO(mulo##suffix, mul_element, prod_element, cast, 0)
 VMUL(sb, s8, s16, int16_t)
 VMUL(sh, s16, s32, int32_t)
+VMUL(sw, s32, s64, int64_t)
 VMUL(ub, u8, u16, uint16_t)
 VMUL(uh, u16, u32, uint32_t)
+VMUL(uw, u32, u64, uint64_t)
 #undef VMUL_DO
 #undef VMUL
 
