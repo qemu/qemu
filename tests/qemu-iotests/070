@@ -62,6 +62,16 @@ $QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
 echo "=== Verify open image replays log  ==="
 $QEMU_IO  -c "read -pP 0xa5 0 18M" "$TEST_IMG" | _filter_qemu_io
 
+# extract fresh sample image again
+_use_sample_img iotest-dirtylog-10G-4M.vhdx.bz2
+
+echo "=== Verify qemu-img check -r all replays log  ==="
+$QEMU_IMG check -r all "$TEST_IMG" 2>&1 | _filter_testdir | _filter_qemu
+
+echo "=== Verify open image read-only succeeds after log replay ==="
+$QEMU_IO -r -c "read -pP 0xa5 0 18M" "$TEST_IMG" 2>&1 | _filter_testdir \
+                                                      | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
