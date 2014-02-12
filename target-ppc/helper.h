@@ -273,6 +273,11 @@ DEF_HELPER_4(vcfsx, void, env, avr, avr, i32)
 DEF_HELPER_4(vctuxs, void, env, avr, avr, i32)
 DEF_HELPER_4(vctsxs, void, env, avr, avr, i32)
 
+DEF_HELPER_2(vclzb, void, avr, avr)
+DEF_HELPER_2(vclzh, void, avr, avr)
+DEF_HELPER_2(vclzw, void, avr, avr)
+DEF_HELPER_2(vclzd, void, avr, avr)
+
 DEF_HELPER_2(xsadddp, void, env, i32)
 DEF_HELPER_2(xssubdp, void, env, i32)
 DEF_HELPER_2(xsmuldp, void, env, i32)

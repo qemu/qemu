@@ -1524,6 +1524,35 @@ VUPK(lsh, s32, s16, UPKLO)
 #undef UPKHI
 #undef UPKLO
 
+#define VGENERIC_DO(name, element)                                      \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *b)                     \
+    {                                                                   \
+        int i;                                                          \
+                                                                        \
+        VECTOR_FOR_INORDER_I(i, element) {                              \
+            r->element[i] = name(b->element[i]);                        \
+        }                                                               \
+    }
+
+#define clzb(v) ((v) ? clz32((uint32_t)(v) << 24) : 8)
+#define clzh(v) ((v) ? clz32((uint32_t)(v) << 16) : 16)
+#define clzw(v) clz32((v))
+#define clzd(v) clz64((v))
+
+VGENERIC_DO(clzb, u8)
+VGENERIC_DO(clzh, u16)
+VGENERIC_DO(clzw, u32)
+VGENERIC_DO(clzd, u64)
+
+#undef clzb
+#undef clzh
+#undef clzw
+#undef clzd
+
+
+#undef VGENERIC_DO
+
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX

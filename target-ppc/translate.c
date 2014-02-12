@@ -7283,6 +7283,10 @@ GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
 GEN_VAFORM_PAIRED(vsel, vperm, 21)
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
 
+GEN_VXFORM_NOA(vclzb, 1, 28)
+GEN_VXFORM_NOA(vclzh, 1, 29)
+GEN_VXFORM_NOA(vclzw, 1, 30)
+GEN_VXFORM_NOA(vclzd, 1, 31)
 /***                           VSX extension                               ***/
 
 static inline TCGv_i64 cpu_vsrh(int n)
@@ -10503,6 +10507,11 @@ GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19),
 GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20),
 GEN_VAFORM_PAIRED(vsel, vperm, 21),
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23),
+
+GEN_VXFORM_207(vclzb, 1, 28),
+GEN_VXFORM_207(vclzh, 1, 29),
+GEN_VXFORM_207(vclzw, 1, 30),
+GEN_VXFORM_207(vclzd, 1, 31),
 
 GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
 GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
