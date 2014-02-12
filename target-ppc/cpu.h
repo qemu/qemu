@@ -352,6 +352,10 @@ union ppc_avr_t {
     int16_t s16[8];
     int32_t s32[4];
     uint64_t u64[2];
+    int64_t s64[2];
+#ifdef CONFIG_INT128
+    __uint128_t u128;
+#endif
 };
 
 #if !defined(CONFIG_USER_ONLY)
