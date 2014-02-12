@@ -6932,9 +6932,11 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
 GEN_VXFORM(vaddubm, 0, 0);
 GEN_VXFORM(vadduhm, 0, 1);
 GEN_VXFORM(vadduwm, 0, 2);
+GEN_VXFORM(vaddudm, 0, 3);
 GEN_VXFORM(vsububm, 0, 16);
 GEN_VXFORM(vsubuhm, 0, 17);
 GEN_VXFORM(vsubuwm, 0, 18);
+GEN_VXFORM(vsubudm, 0, 19);
 GEN_VXFORM(vmaxub, 1, 0);
 GEN_VXFORM(vmaxuh, 1, 1);
 GEN_VXFORM(vmaxuw, 1, 2);
@@ -10338,9 +10340,11 @@ GEN_HANDLER_E(name0##_##name1, 0x4, opc2, (opc3 | 0x10), 0x00000000, tp0, tp1),
 GEN_VXFORM(vaddubm, 0, 0),
 GEN_VXFORM(vadduhm, 0, 1),
 GEN_VXFORM(vadduwm, 0, 2),
+GEN_VXFORM_207(vaddudm, 0, 3),
 GEN_VXFORM(vsububm, 0, 16),
 GEN_VXFORM(vsubuhm, 0, 17),
 GEN_VXFORM(vsubuwm, 0, 18),
+GEN_VXFORM_207(vsubudm, 0, 19),
 GEN_VXFORM(vmaxub, 1, 0),
 GEN_VXFORM(vmaxuh, 1, 1),
 GEN_VXFORM(vmaxuw, 1, 2),

@@ -504,6 +504,7 @@ void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 VARITH(ubm, u8)
 VARITH(uhm, u16)
 VARITH(uwm, u32)
+VARITH(udm, u64)
 #undef VARITH_DO
 #undef VARITH
 
