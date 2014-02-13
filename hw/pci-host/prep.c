@@ -47,7 +47,7 @@ typedef struct PRePPCIState {
     PCIHostState parent_obj;
 
     MemoryRegion intack;
-    qemu_irq irq[4];
+    qemu_irq irq[PCI_NUM_PINS];
     PCIBus pci_bus;
     RavenPCIState pci_dev;
 } PREPPCIState;
@@ -121,11 +121,11 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     isa_mem_base = 0xc0000000;
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, 4);
+    pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, PCI_NUM_PINS);
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, s,
                           "pci-conf-idx", 1);
