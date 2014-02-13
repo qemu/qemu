@@ -35,6 +35,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "exec/address-spaces.h"
+#include "hw/hotplug.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -344,13 +345,6 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
-}
-
-void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *qdev)
-{
-    bus->qbus.allow_hotplug = 1;
-    bus->hotplug = hotplug;
-    bus->hotplug_qdev = qdev;
 }
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
@@ -1761,11 +1755,7 @@ static int pci_qdev_init(DeviceState *qdev)
                                      pci_dev->devfn);
     if (pci_dev == NULL)
         return -1;
-    if (qdev->hotplugged && pc->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(pci_dev)));
-        do_pci_unregister_device(pci_dev);
-        return -1;
-    }
+
     if (pc->init) {
         rc = pc->init(pci_dev);
         if (rc != 0) {
@@ -1782,32 +1772,7 @@ static int pci_qdev_init(DeviceState *qdev)
     }
     pci_add_option_rom(pci_dev, is_default_rom);
 
-    if (bus->hotplug) {
-        /* Let buses differentiate between hotplug and when device is
-         * enabled during qemu machine creation. */
-        rc = bus->hotplug(bus->hotplug_qdev, pci_dev,
-                          qdev->hotplugged ? PCI_HOTPLUG_ENABLED:
-                          PCI_COLDPLUG_ENABLED);
-        if (rc != 0) {
-            int r = pci_unregister_device(&pci_dev->qdev);
-            assert(!r);
-            return rc;
-        }
-    }
     return 0;
-}
-
-static int pci_unplug_device(DeviceState *qdev)
-{
-    PCIDevice *dev = PCI_DEVICE(qdev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
-
-    if (pc->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(dev)));
-        return -1;
-    }
-    return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
-                             PCI_HOTPLUG_DISABLED);
 }
 
 PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
@@ -2280,7 +2245,6 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = pci_qdev_init;
-    k->unplug = pci_unplug_device;
     k->exit = pci_unregister_device;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;

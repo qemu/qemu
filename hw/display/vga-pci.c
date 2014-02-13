@@ -190,7 +190,6 @@ static void vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = pci_std_vga_initfn;
     k->romfile = "vgabios-stdvga.bin";
     k->vendor_id = PCI_VENDOR_ID_QEMU;
@@ -198,6 +197,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     dc->vmsd = &vmstate_vga_pci;
     dc->props = vga_pci_properties;
+    dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 

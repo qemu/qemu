@@ -19,6 +19,7 @@
  */
 
 #include "hw/pci/pcie_port.h"
+#include "hw/hotplug.h"
 
 void pcie_port_init_reg(PCIDevice *d)
 {
@@ -149,8 +150,11 @@ static Property pcie_slot_props[] = {
 static void pcie_slot_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     dc->props = pcie_slot_props;
+    hc->plug = pcie_cap_slot_hotplug_cb;
+    hc->unplug = pcie_cap_slot_hot_unplug_cb;
 }
 
 static const TypeInfo pcie_slot_type_info = {
@@ -159,6 +163,10 @@ static const TypeInfo pcie_slot_type_info = {
     .instance_size = sizeof(PCIESlot),
     .abstract = true,
     .class_init = pcie_slot_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void pcie_port_register_types(void)

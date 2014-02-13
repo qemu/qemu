@@ -32,6 +32,7 @@
 #include "qapi/visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
+#include "hw/hotplug.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -212,13 +213,22 @@ void qdev_unplug(DeviceState *dev, Error **errp)
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }
-    assert(dc->unplug != NULL);
+
+    if (!dc->hotpluggable) {
+        error_set(errp, QERR_DEVICE_NO_HOTPLUG,
+                  object_get_typename(OBJECT(dev)));
+        return;
+    }
 
     qdev_hot_removed = true;
 
-    if (dc->unplug(dev) < 0) {
-        error_set(errp, QERR_UNDEFINED_ERROR);
-        return;
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
+    } else {
+        assert(dc->unplug != NULL);
+        if (dc->unplug(dev) < 0) { /* legacy handler */
+            error_set(errp, QERR_UNDEFINED_ERROR);
+        }
     }
 }
 
@@ -693,6 +703,11 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     Error *local_err = NULL;
 
+    if (dev->hotplugged && !dc->hotpluggable) {
+        error_set(err, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
+        return;
+    }
+
     if (value && !dev->realized) {
         if (!obj->parent && local_err == NULL) {
             static int unattached_count;
@@ -706,6 +721,12 @@ static void device_set_realized(Object *obj, bool value, Error **err)
 
         if (dc->realize) {
             dc->realize(dev, &local_err);
+        }
+
+        if (dev->parent_bus && dev->parent_bus->hotplug_handler &&
+            local_err == NULL) {
+            hotplug_handler_plug(dev->parent_bus->hotplug_handler,
+                                 dev, &local_err);
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {
@@ -733,6 +754,14 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     dev->realized = value;
 }
 
+static bool device_get_hotpluggable(Object *obj, Error **err)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    return dc->hotpluggable && dev->parent_bus->allow_hotplug;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -749,6 +778,8 @@ static void device_initfn(Object *obj)
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
+    object_property_add_bool(obj, "hotpluggable",
+                             device_get_hotpluggable, NULL, NULL);
 
     class = object_get_class(OBJECT(dev));
     do {
@@ -785,6 +816,14 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
+
+    /* by default all devices were considered as hotpluggable,
+     * so with intent to check it in generic qdev_unplug() /
+     * device_set_realized() functions make every device
+     * hotpluggable. Devices that shouldn't be hotpluggable,
+     * should override it in their class_init()
+     */
+    klass->hotpluggable = true;
 }
 
 static void device_unparent(Object *obj)
@@ -870,6 +909,9 @@ static void qbus_initfn(Object *obj)
     BusState *bus = BUS(obj);
 
     QTAILQ_INIT(&bus->children);
+    object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
+                             TYPE_HOTPLUG_HANDLER,
+                             (Object **)&bus->hotplug_handler, NULL);
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)

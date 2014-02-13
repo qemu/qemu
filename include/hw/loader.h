@@ -4,6 +4,13 @@
 #include "hw/nvram/fw_cfg.h"
 
 /* loader.c */
+/**
+ * get_image_size: retrieve size of an image file
+ * @filename: Path to the image file
+ *
+ * Returns the size of the image file on success, -1 otherwise.
+ * On error, errno is also set as appropriate.
+ */
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 int load_image_targphys(const char *filename, hwaddr,

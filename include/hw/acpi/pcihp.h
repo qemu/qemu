@@ -29,31 +29,34 @@
 
 #include <inttypes.h>
 #include <qemu/typedefs.h>
-#include "hw/pci/pci.h" /* for PCIHotplugState */
+#include "hw/acpi/acpi.h"
+#include "migration/vmstate.h"
 
 typedef struct AcpiPciHpPciStatus {
-    uint32_t up; /* deprecated, maintained for migration compatibility */
+    uint32_t up;
     uint32_t down;
     uint32_t hotplug_enable;
-    uint32_t device_present;
 } AcpiPciHpPciStatus;
 
 #define ACPI_PCIHP_PROP_BSEL "acpi-pcihp-bsel"
 #define ACPI_PCIHP_MAX_HOTPLUG_BUS 256
+#define ACPI_PCIHP_BSEL_DEFAULT 0x0
 
 typedef struct AcpiPciHpState {
     AcpiPciHpPciStatus acpi_pcihp_pci_status[ACPI_PCIHP_MAX_HOTPLUG_BUS];
     uint32_t hotplug_select;
     PCIBus *root;
     MemoryRegion io;
+    bool legacy_piix;
 } AcpiPciHpState;
 
 void acpi_pcihp_init(AcpiPciHpState *, PCIBus *root,
-                     MemoryRegion *address_space_io);
+                     MemoryRegion *address_space_io, bool bridges_enabled);
 
-/* Invoke on device hotplug */
-int acpi_pcihp_device_hotplug(AcpiPciHpState *, PCIDevice *,
-                              PCIHotplugState state);
+void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                               DeviceState *dev, Error **errp);
+void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                                 DeviceState *dev, Error **errp);
 
 /* Called on reset */
 void acpi_pcihp_reset(AcpiPciHpState *s);

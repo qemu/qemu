@@ -26,6 +26,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "qemu/range.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -216,28 +217,20 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
     hotplug_event_notify(dev);
 }
 
-static int pcie_cap_slot_hotplug(DeviceState *qdev,
-                                 PCIDevice *pci_dev, PCIHotplugState state)
+static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
+                                         DeviceState *dev,
+                                         uint8_t **exp_cap, Error **errp)
 {
-    PCIDevice *d = PCI_DEVICE(qdev);
-    uint8_t *exp_cap = d->config + d->exp.exp_cap;
-    uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
-
-    /* Don't send event when device is enabled during qemu machine creation:
-     * it is present on boot, no hotplug event is necessary. We do send an
-     * event when the device is disabled later. */
-    if (state == PCI_COLDPLUG_ENABLED) {
-        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                                   PCI_EXP_SLTSTA_PDS);
-        return 0;
-    }
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+    *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
+    uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
 
     PCIE_DEV_PRINTF(pci_dev, "hotplug state: %d\n", state);
     if (sltsta & PCI_EXP_SLTSTA_EIS) {
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
          */
-        return -EBUSY;
+        error_setg_errno(errp, -EBUSY, "slot is electromechanically locked");
     }
 
     /* TODO: multifunction hot-plug.
@@ -245,18 +238,40 @@ static int pcie_cap_slot_hotplug(DeviceState *qdev,
      * hot plugged/unplugged.
      */
     assert(PCI_FUNC(pci_dev->devfn) == 0);
+}
 
-    if (state == PCI_HOTPLUG_ENABLED) {
+void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
+{
+    uint8_t *exp_cap;
+
+    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+
+    /* Don't send event when device is enabled during qemu machine creation:
+     * it is present on boot, no hotplug event is necessary. We do send an
+     * event when the device is disabled later. */
+    if (!dev->hotplugged) {
         pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                    PCI_EXP_SLTSTA_PDS);
-        pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
-    } else {
-        object_unparent(OBJECT(pci_dev));
-        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                     PCI_EXP_SLTSTA_PDS);
-        pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
+        return;
     }
-    return 0;
+
+    pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                               PCI_EXP_SLTSTA_PDS);
+    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
+}
+
+void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp)
+{
+    uint8_t *exp_cap;
+
+    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+
+    object_unparent(OBJECT(dev));
+    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                 PCI_EXP_SLTSTA_PDS);
+    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev), PCI_EXP_HP_EV_PDC);
 }
 
 /* pci express slot for pci express root/downstream port
@@ -305,8 +320,8 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
 
     dev->exp.hpev_notified = false;
 
-    pci_bus_hotplug(pci_bridge_get_sec_bus(PCI_BRIDGE(dev)),
-                    pcie_cap_slot_hotplug, &dev->qdev);
+    qbus_set_hotplug_handler(BUS(pci_bridge_get_sec_bus(PCI_BRIDGE(dev))),
+                             DEVICE(dev), NULL);
 }
 
 void pcie_cap_slot_reset(PCIDevice *dev)

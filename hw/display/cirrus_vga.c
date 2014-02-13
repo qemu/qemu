@@ -2996,7 +2996,6 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = pci_cirrus_vga_initfn;
     k->romfile = VGABIOS_CIRRUS_FILENAME;
     k->vendor_id = PCI_VENDOR_ID_CIRRUS;
@@ -3006,6 +3005,7 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->desc = "Cirrus CLGD 54xx VGA";
     dc->vmsd = &vmstate_pci_cirrus_vga;
     dc->props = pci_vga_cirrus_properties;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo cirrus_vga_info = {

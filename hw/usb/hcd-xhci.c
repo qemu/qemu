@@ -3798,6 +3798,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     dc->vmsd    = &vmstate_xhci;
     dc->props   = xhci_properties;
     dc->reset   = xhci_reset;
+    dc->hotpluggable   = false;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     k->init         = usb_xhci_initfn;
     k->vendor_id    = PCI_VENDOR_ID_NEC;
@@ -3805,7 +3806,6 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_SERIAL_USB;
     k->revision     = 0x03;
     k->is_express   = 1;
-    k->no_hotplug   = 1;
 }
 
 static const TypeInfo xhci_info = {
