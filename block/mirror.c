@@ -634,6 +634,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
     int64_t length, base_length;
     int orig_base_flags;
     int ret;
+    Error *local_err = NULL;
 
     orig_base_flags = bdrv_get_flags(base);
 
@@ -668,9 +669,10 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 
     bdrv_ref(base);
     mirror_start_job(bs, base, speed, 0, 0,
-                     on_error, on_error, cb, opaque, errp,
+                     on_error, on_error, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
-    if (error_is_set(errp)) {
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
         goto error_restore_flags;
     }
 
