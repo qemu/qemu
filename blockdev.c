@@ -1329,8 +1329,6 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     if (ret != 0) {
         error_propagate(errp, local_err);
     }
-
-    QDECREF(options);
 }
 
 static void external_snapshot_commit(BlkTransactionState *common)
