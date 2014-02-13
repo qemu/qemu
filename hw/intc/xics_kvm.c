@@ -269,7 +269,16 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
 
 static void ics_kvm_reset(DeviceState *dev)
 {
-    ics_set_kvm_state(ICS(dev), 1);
+    ICSState *ics = ICS(dev);
+    int i;
+
+    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+    for (i = 0; i < ics->nr_irqs; i++) {
+        ics->irqs[i].priority = 0xff;
+        ics->irqs[i].saved_priority = 0xff;
+    }
+
+    ics_set_kvm_state(ics, 1);
 }
 
 static void ics_kvm_realize(DeviceState *dev, Error **errp)
