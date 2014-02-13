@@ -195,7 +195,6 @@ static void cpu_common_reset(CPUState *cpu)
         log_cpu_state(cpu, cc->reset_dump_flags);
     }
 
-    cpu->exit_request = 0;
     cpu->interrupt_request = 0;
     cpu->current_tb = NULL;
     cpu->halted = 0;
