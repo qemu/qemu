@@ -1321,7 +1321,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
                           bdrv_open_flags(bs, flags | BDRV_O_UNMAP) |
                           BDRV_O_PROTOCOL, true, &local_err);
     if (ret < 0) {
-        goto fail;
+        goto unlink_and_fail;
     }
 
     /* Find the right image format driver */
