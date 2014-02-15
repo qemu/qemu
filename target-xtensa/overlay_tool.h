@@ -319,6 +319,16 @@
     .nibreak = XCHAL_NUM_IBREAK, \
     .ndbreak = XCHAL_NUM_DBREAK
 
+#define DEFAULT_SECTIONS \
+    .options = XTENSA_OPTIONS, \
+    .nareg = XCHAL_NUM_AREGS, \
+    .ndepc = (XCHAL_XEA_VERSION >= 2), \
+    EXCEPTIONS_SECTION, \
+    INTERRUPTS_SECTION, \
+    TLB_SECTION, \
+    DEBUG_SECTION
+
+
 #if XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI + 1 <= 2
 #define XCHAL_INTLEVEL2_VECTOR_VADDR 0
 #endif
