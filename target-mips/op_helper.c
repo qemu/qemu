@@ -1489,6 +1489,18 @@ void helper_mtc0_config2(CPUMIPSState *env, target_ulong arg1)
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
 }
 
+void helper_mtc0_config4(CPUMIPSState *env, target_ulong arg1)
+{
+    env->CP0_Config4 = (env->CP0_Config4 & (~env->CP0_Config4_rw_bitmask)) |
+                       (arg1 & env->CP0_Config4_rw_bitmask);
+}
+
+void helper_mtc0_config5(CPUMIPSState *env, target_ulong arg1)
+{
+    env->CP0_Config5 = (env->CP0_Config5 & (~env->CP0_Config5_rw_bitmask)) |
+                       (arg1 & env->CP0_Config5_rw_bitmask);
+}
+
 void helper_mtc0_lladdr(CPUMIPSState *env, target_ulong arg1)
 {
     target_long mask = env->CP0_LLAddr_rw_bitmask;
@@ -2187,11 +2199,22 @@ static inline void restore_flush_mode(CPUMIPSState *env)
 
 target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
 {
-    target_ulong arg1;
+    target_ulong arg1 = 0;
 
     switch (reg) {
     case 0:
         arg1 = (int32_t)env->active_fpu.fcr0;
+        break;
+    case 1:
+        /* UFR Support - Read Status FR */
+        if (env->active_fpu.fcr0 & (1 << FCR0_UFRP)) {
+            if (env->CP0_Config5 & (1 << CP0C5_UFR)) {
+                arg1 = (int32_t)
+                       ((env->CP0_Status & (1  << CP0St_FR)) >> CP0St_FR);
+            } else {
+                helper_raise_exception(env, EXCP_RI);
+            }
+        }
         break;
     case 25:
         arg1 = ((env->active_fpu.fcr31 >> 24) & 0xfe) | ((env->active_fpu.fcr31 >> 23) & 0x1);
@@ -2210,9 +2233,33 @@ target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
     return arg1;
 }
 
-void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t reg)
+void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
 {
-    switch(reg) {
+    switch (fs) {
+    case 1:
+        /* UFR Alias - Reset Status FR */
+        if (!((env->active_fpu.fcr0 & (1 << FCR0_UFRP)) && (rt == 0))) {
+            return;
+        }
+        if (env->CP0_Config5 & (1 << CP0C5_UFR)) {
+            env->CP0_Status &= ~(1 << CP0St_FR);
+            compute_hflags(env);
+        } else {
+            helper_raise_exception(env, EXCP_RI);
+        }
+        break;
+    case 4:
+        /* UNFR Alias - Set Status FR */
+        if (!((env->active_fpu.fcr0 & (1 << FCR0_UFRP)) && (rt == 0))) {
+            return;
+        }
+        if (env->CP0_Config5 & (1 << CP0C5_UFR)) {
+            env->CP0_Status |= (1 << CP0St_FR);
+            compute_hflags(env);
+        } else {
+            helper_raise_exception(env, EXCP_RI);
+        }
+        break;
     case 25:
         if (arg1 & 0xffffff00)
             return;

@@ -134,6 +134,8 @@ DEF_HELPER_2(mtc0_ebase, void, env, tl)
 DEF_HELPER_2(mttc0_ebase, void, env, tl)
 DEF_HELPER_2(mtc0_config0, void, env, tl)
 DEF_HELPER_2(mtc0_config2, void, env, tl)
+DEF_HELPER_2(mtc0_config4, void, env, tl)
+DEF_HELPER_2(mtc0_config5, void, env, tl)
 DEF_HELPER_2(mtc0_lladdr, void, env, tl)
 DEF_HELPER_3(mtc0_watchlo, void, env, tl, i32)
 DEF_HELPER_3(mtc0_watchhi, void, env, tl, i32)
@@ -177,7 +179,7 @@ DEF_HELPER_2(yield, tl, env, tl)
 
 /* CP1 functions */
 DEF_HELPER_2(cfc1, tl, env, i32)
-DEF_HELPER_3(ctc1, void, env, tl, i32)
+DEF_HELPER_4(ctc1, void, env, tl, i32, i32)
 
 DEF_HELPER_2(float_cvtd_s, i64, env, i32)
 DEF_HELPER_2(float_cvtd_w, i64, env, i32)
