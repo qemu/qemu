@@ -95,7 +95,7 @@ int CountSetBits(uint64_t value, int width) {
   ASSERT((width == 32) || (width == 64));
 
   // Mask out unused bits to ensure that they are not counted.
-  value &= (0xffffffffffffffffUL >> (64-width));
+  value &= (0xffffffffffffffffULL >> (64-width));
 
   // Add up the set bits.
   // The algorithm works by adding pairs of bit fields together iteratively,
@@ -108,12 +108,18 @@ int CountSetBits(uint64_t value, int width) {
   // value =   h+g+f+e     d+c+b+a
   //                  \          |
   // value =       h+g+f+e+d+c+b+a
-  value = ((value >> 1) & 0x5555555555555555) + (value & 0x5555555555555555);
-  value = ((value >> 2) & 0x3333333333333333) + (value & 0x3333333333333333);
-  value = ((value >> 4) & 0x0f0f0f0f0f0f0f0f) + (value & 0x0f0f0f0f0f0f0f0f);
-  value = ((value >> 8) & 0x00ff00ff00ff00ff) + (value & 0x00ff00ff00ff00ff);
-  value = ((value >> 16) & 0x0000ffff0000ffff) + (value & 0x0000ffff0000ffff);
-  value = ((value >> 32) & 0x00000000ffffffff) + (value & 0x00000000ffffffff);
+  value = ((value >> 1) & 0x5555555555555555ULL) +
+           (value & 0x5555555555555555ULL);
+  value = ((value >> 2) & 0x3333333333333333ULL) +
+           (value & 0x3333333333333333ULL);
+  value = ((value >> 4) & 0x0f0f0f0f0f0f0f0fULL) +
+           (value & 0x0f0f0f0f0f0f0f0fULL);
+  value = ((value >> 8) & 0x00ff00ff00ff00ffULL) +
+           (value & 0x00ff00ff00ff00ffULL);
+  value = ((value >> 16) & 0x0000ffff0000ffffULL) +
+           (value & 0x0000ffff0000ffffULL);
+  value = ((value >> 32) & 0x00000000ffffffffULL) +
+           (value & 0x00000000ffffffffULL);
 
   return value;
 }
