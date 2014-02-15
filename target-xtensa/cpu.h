@@ -266,6 +266,7 @@ typedef enum {
     INTTYPE_TIMER,
     INTTYPE_DEBUG,
     INTTYPE_WRITE_ERR,
+    INTTYPE_PROFILING,
     INTTYPE_MAX
 } interrupt_type;
 
