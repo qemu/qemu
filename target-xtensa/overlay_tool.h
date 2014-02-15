@@ -319,6 +319,12 @@
     .nibreak = XCHAL_NUM_IBREAK, \
     .ndbreak = XCHAL_NUM_DBREAK
 
+#define CONFIG_SECTION \
+    .configid = { \
+        XCHAL_HW_CONFIGID0, \
+        XCHAL_HW_CONFIGID1, \
+    }
+
 #define DEFAULT_SECTIONS \
     .options = XTENSA_OPTIONS, \
     .nareg = XCHAL_NUM_AREGS, \
@@ -326,7 +332,8 @@
     EXCEPTIONS_SECTION, \
     INTERRUPTS_SECTION, \
     TLB_SECTION, \
-    DEBUG_SECTION
+    DEBUG_SECTION, \
+    CONFIG_SECTION
 
 
 #if XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI + 1 <= 2

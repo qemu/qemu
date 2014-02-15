@@ -98,11 +98,14 @@ typedef struct XtensaReg {
 
 #define XTENSA_REG(regname, opt) XTENSA_REG_ACCESS(regname, opt, SR_RWX)
 
-#define XTENSA_REG_BITS(regname, opt) { \
+#define XTENSA_REG_BITS_ACCESS(regname, opt, acc) { \
         .name = (regname), \
         .opt_bits = (opt), \
-        .access = SR_RWX, \
+        .access = (acc), \
     }
+
+#define XTENSA_REG_BITS(regname, opt) \
+    XTENSA_REG_BITS_ACCESS(regname, opt, SR_RWX)
 
 static const XtensaReg sregnames[256] = {
     [LBEG] = XTENSA_REG("LBEG", XTENSA_OPTION_LOOP),
@@ -134,6 +137,7 @@ static const XtensaReg sregnames[256] = {
     [DBREAKA + 1] = XTENSA_REG("DBREAKA1", XTENSA_OPTION_DEBUG),
     [DBREAKC] = XTENSA_REG("DBREAKC0", XTENSA_OPTION_DEBUG),
     [DBREAKC + 1] = XTENSA_REG("DBREAKC1", XTENSA_OPTION_DEBUG),
+    [CONFIGID0] = XTENSA_REG_BITS_ACCESS("CONFIGID0", XTENSA_OPTION_ALL, SR_R),
     [EPC1] = XTENSA_REG("EPC1", XTENSA_OPTION_EXCEPTION),
     [EPC1 + 1] = XTENSA_REG("EPC2", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
     [EPC1 + 2] = XTENSA_REG("EPC3", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
@@ -148,6 +152,7 @@ static const XtensaReg sregnames[256] = {
     [EPS2 + 3] = XTENSA_REG("EPS5", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
     [EPS2 + 4] = XTENSA_REG("EPS6", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
     [EPS2 + 5] = XTENSA_REG("EPS7", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [CONFIGID1] = XTENSA_REG_BITS_ACCESS("CONFIGID1", XTENSA_OPTION_ALL, SR_R),
     [EXCSAVE1] = XTENSA_REG("EXCSAVE1", XTENSA_OPTION_EXCEPTION),
     [EXCSAVE1 + 1] = XTENSA_REG("EXCSAVE2",
             XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
