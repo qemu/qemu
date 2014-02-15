@@ -1099,6 +1099,10 @@ fail:
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
+ *
+ * Note: flags are currently not used by iscsi_open.  If this function
+ * is changed such that flags are used, please examine iscsi_reopen_prepare()
+ * to see if needs to be changed as well.
  */
 static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
@@ -1336,11 +1340,13 @@ static int iscsi_refresh_limits(BlockDriverState *bs)
     return 0;
 }
 
-/* We have nothing to do for iSCSI reopen, stub just returns
- * success */
+/* Since iscsi_open() ignores bdrv_flags, there is nothing to do here in
+ * prepare.  Note that this will not re-establish a connection with an iSCSI
+ * target - it is effectively a NOP.  */
 static int iscsi_reopen_prepare(BDRVReopenState *state,
                                 BlockReopenQueue *queue, Error **errp)
 {
+    /* NOP */
     return 0;
 }
 

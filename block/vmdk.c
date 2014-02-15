@@ -1502,7 +1502,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     if (flat) {
         ret = bdrv_truncate(bs, filesize);
         if (ret < 0) {
-            error_setg(errp, "Could not truncate file");
+            error_setg_errno(errp, -ret, "Could not truncate file");
         }
         goto exit;
     }
@@ -1562,7 +1562,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     ret = bdrv_truncate(bs, le64_to_cpu(header.grain_offset) << 9);
     if (ret < 0) {
-        error_setg(errp, "Could not truncate file");
+        error_setg_errno(errp, -ret, "Could not truncate file");
         goto exit;
     }
 
@@ -1846,7 +1846,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options,
     if (desc_offset == 0) {
         ret = bdrv_truncate(new_bs, desc_len);
         if (ret < 0) {
-            error_setg(errp, "Could not truncate file");
+            error_setg_errno(errp, -ret, "Could not truncate file");
         }
     }
 exit:

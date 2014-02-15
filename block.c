@@ -796,6 +796,13 @@ static int bdrv_assign_node_name(BlockDriverState *bs,
         return -EINVAL;
     }
 
+    /* takes care of avoiding namespaces collisions */
+    if (bdrv_find(node_name)) {
+        error_setg(errp, "node-name=%s is conflicting with a device id",
+                   node_name);
+        return -EINVAL;
+    }
+
     /* takes care of avoiding duplicates node names */
     if (bdrv_find_node(node_name)) {
         error_setg(errp, "Duplicate node name");
@@ -977,9 +984,8 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         }
         QDECREF(options);
 
-        bs = bdrv_find(reference);
+        bs = bdrv_lookup_bs(reference, reference, errp);
         if (!bs) {
-            error_setg(errp, "Cannot find block device '%s'", reference);
             return -ENODEV;
         }
         bdrv_ref(bs);
@@ -3574,30 +3580,26 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
 {
     BlockDriverState *bs = NULL;
 
-    if ((!device && !node_name) || (device && node_name)) {
-        error_setg(errp, "Use either device or node-name but not both");
-        return NULL;
-    }
-
     if (device) {
         bs = bdrv_find(device);
 
-        if (!bs) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, device);
-            return NULL;
+        if (bs) {
+            return bs;
         }
-
-        return bs;
     }
 
-    bs = bdrv_find_node(node_name);
+    if (node_name) {
+        bs = bdrv_find_node(node_name);
 
-    if (!bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, node_name);
-        return NULL;
+        if (bs) {
+            return bs;
+        }
     }
 
-    return bs;
+    error_setg(errp, "Cannot find device=%s nor node_name=%s",
+                     device ? device : "",
+                     node_name ? node_name : "");
+    return NULL;
 }
 
 BlockDriverState *bdrv_next(BlockDriverState *bs)

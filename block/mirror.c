@@ -633,6 +633,8 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 {
     int64_t length, base_length;
     int orig_base_flags;
+    int ret;
+    Error *local_err = NULL;
 
     orig_base_flags = bdrv_get_flags(base);
 
@@ -642,19 +644,23 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 
     length = bdrv_getlength(bs);
     if (length < 0) {
-        error_setg(errp, "Unable to determine length of %s", bs->filename);
+        error_setg_errno(errp, -length,
+                         "Unable to determine length of %s", bs->filename);
         goto error_restore_flags;
     }
 
     base_length = bdrv_getlength(base);
     if (base_length < 0) {
-        error_setg(errp, "Unable to determine length of %s", base->filename);
+        error_setg_errno(errp, -base_length,
+                         "Unable to determine length of %s", base->filename);
         goto error_restore_flags;
     }
 
     if (length > base_length) {
-        if (bdrv_truncate(base, length) < 0) {
-            error_setg(errp, "Top image %s is larger than base image %s, and "
+        ret = bdrv_truncate(base, length);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                            "Top image %s is larger than base image %s, and "
                              "resize of base image failed",
                              bs->filename, base->filename);
             goto error_restore_flags;
@@ -663,9 +669,10 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 
     bdrv_ref(base);
     mirror_start_job(bs, base, speed, 0, 0,
-                     on_error, on_error, cb, opaque, errp,
+                     on_error, on_error, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
-    if (error_is_set(errp)) {
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
         goto error_restore_flags;
     }
 
