@@ -106,9 +106,9 @@ static void grlib_gptimer_enable(GPTimer *timer)
     /* ptimer is triggered when the counter reach 0 but GPTimer is triggered at
        underflow. Set count + 1 to simulate the GPTimer behavior. */
 
-    trace_grlib_gptimer_enable(timer->id, timer->counter + 1);
+    trace_grlib_gptimer_enable(timer->id, timer->counter);
 
-    ptimer_set_count(timer->ptimer, timer->counter + 1);
+    ptimer_set_count(timer->ptimer, (uint64_t)timer->counter + 1);
     ptimer_run(timer->ptimer, 1);
 }
 
