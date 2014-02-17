@@ -526,8 +526,8 @@ static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
     return ret;
 }
 
-static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
-                               uint64_t desc_offset, Error **errp);
+static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
+                               Error **errp);
 
 static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
                             Error **errp)
@@ -576,7 +576,13 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (header.capacity == 0) {
         uint64_t desc_offset = le64_to_cpu(header.desc_offset);
         if (desc_offset) {
-            return vmdk_open_desc_file(bs, flags, desc_offset << 9, errp);
+            char *buf = vmdk_read_desc(file, desc_offset << 9, errp);
+            if (!buf) {
+                return -EINVAL;
+            }
+            ret = vmdk_open_desc_file(bs, flags, buf, errp);
+            g_free(buf);
+            return ret;
         }
     }
 
@@ -727,16 +733,12 @@ static int vmdk_parse_description(const char *desc, const char *opt_name,
 
 /* Open an extent file and append to bs array */
 static int vmdk_open_sparse(BlockDriverState *bs,
-                            BlockDriverState *file,
-                            int flags, Error **errp)
+                            BlockDriverState *file, int flags,
+                            char *buf, Error **errp)
 {
     uint32_t magic;
 
-    if (bdrv_pread(file, 0, &magic, sizeof(magic)) != sizeof(magic)) {
-        return -EIO;
-    }
-
-    magic = be32_to_cpu(magic);
+    magic = ldl_be_p(buf);
     switch (magic) {
         case VMDK3_MAGIC:
             return vmdk_open_vmfs_sparse(bs, file, flags, errp);
@@ -821,8 +823,14 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             extent->flat_start_offset = flat_offset << 9;
         } else if (!strcmp(type, "SPARSE") || !strcmp(type, "VMFSSPARSE")) {
             /* SPARSE extent and VMFSSPARSE extent are both "COWD" sparse file*/
-            ret = vmdk_open_sparse(bs, extent_file, bs->open_flags, errp);
+            char *buf = vmdk_read_desc(extent_file, 0, errp);
+            if (!buf) {
+                ret = -EINVAL;
+            } else {
+                ret = vmdk_open_sparse(bs, extent_file, bs->open_flags, buf, errp);
+            }
             if (ret) {
+                g_free(buf);
                 bdrv_unref(extent_file);
                 return ret;
             }
@@ -845,19 +853,12 @@ next_line:
     return 0;
 }
 
-static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
-                               uint64_t desc_offset, Error **errp)
+static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
+                               Error **errp)
 {
     int ret;
-    char *buf;
     char ct[128];
     BDRVVmdkState *s = bs->opaque;
-
-    buf = vmdk_read_desc(bs->file, desc_offset, errp);
-    if (!buf) {
-        return -EINVAL;
-        goto exit;
-    }
 
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
         ret = -EMEDIUMTYPE;
@@ -876,20 +877,25 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     s->desc_offset = 0;
     ret = vmdk_parse_extents(buf, bs, bs->file->filename, errp);
 exit:
-    g_free(buf);
     return ret;
 }
 
 static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    char *buf = NULL;
     int ret;
     BDRVVmdkState *s = bs->opaque;
 
-    if (vmdk_open_sparse(bs, bs->file, flags, errp) == 0) {
+    buf = vmdk_read_desc(bs->file, 0, errp);
+    if (!buf) {
+        return -EINVAL;
+    }
+
+    if (vmdk_open_sparse(bs, bs->file, flags, buf, errp) == 0) {
         s->desc_offset = 0x200;
     } else {
-        ret = vmdk_open_desc_file(bs, flags, 0, errp);
+        ret = vmdk_open_desc_file(bs, flags, buf, errp);
         if (ret) {
             goto fail;
         }
@@ -908,10 +914,11 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
               QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
               "vmdk", bs->device_name, "live migration");
     migrate_add_blocker(s->migration_blocker);
-
+    g_free(buf);
     return 0;
 
 fail:
+    g_free(buf);
     g_free(s->create_type);
     s->create_type = NULL;
     vmdk_free_extents(bs);
