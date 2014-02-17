@@ -231,8 +231,7 @@ Testing: -drive driver=file
 QEMU_PROG: -drive driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
 
 Testing: -drive driver=nbd
-QEMU_PROG: -drive driver=nbd: one of path and host must be specified.
-QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: Could not open image: Invalid argument
+QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
 
 Testing: -drive driver=raw
 QEMU_PROG: -drive driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
@@ -241,8 +240,7 @@ Testing: -drive file.driver=file
 QEMU_PROG: -drive file.driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
 
 Testing: -drive file.driver=nbd
-QEMU_PROG: -drive file.driver=nbd: one of path and host must be specified.
-QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: Could not open image: Invalid argument
+QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
 
 Testing: -drive file.driver=raw
 QEMU_PROG: -drive file.driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
