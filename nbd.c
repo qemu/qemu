@@ -202,13 +202,9 @@ static void combine_addr(char *buf, size_t len, const char* address,
 int tcp_socket_incoming(const char *address, uint16_t port)
 {
     char address_and_port[128];
-    combine_addr(address_and_port, 128, address, port);
-    return tcp_socket_incoming_spec(address_and_port);
-}
-
-int tcp_socket_incoming_spec(const char *address_and_port)
-{
     Error *local_err = NULL;
+
+    combine_addr(address_and_port, 128, address, port);
     int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
 
     if (local_err != NULL) {
