@@ -43,7 +43,7 @@ struct QTestState
     int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    pid_t qemu_pid;  /* QEMU process spawned by our child */
+    pid_t qemu_pid;  /* our child QEMU process */
 };
 
 #define g_assert_no_errno(ret) do { \
@@ -88,32 +88,14 @@ static int socket_accept(int sock)
     return ret;
 }
 
-static pid_t read_pid_file(const char *pid_file)
-{
-    FILE *f;
-    char buffer[1024];
-    pid_t pid = -1;
-
-    f = fopen(pid_file, "r");
-    if (f) {
-        if (fgets(buffer, sizeof(buffer), f)) {
-            pid = atoi(buffer);
-        }
-        fclose(f);
-    }
-    return pid;
-}
-
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
     gchar *socket_path;
     gchar *qmp_socket_path;
-    gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
-    pid_t pid;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
@@ -122,22 +104,20 @@ QTestState *qtest_init(const char *extra_args)
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
-    pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
 
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    pid = fork();
-    if (pid == 0) {
-        command = g_strdup_printf("%s "
+    s->qemu_pid = fork();
+    if (s->qemu_pid == 0) {
+        command = g_strdup_printf("exec %s "
                                   "-qtest unix:%s,nowait "
                                   "-qtest-log /dev/null "
                                   "-qmp unix:%s,nowait "
-                                  "-pidfile %s "
                                   "-machine accel=qtest "
                                   "-display none "
                                   "%s", qemu_binary, socket_path,
-                                  qmp_socket_path, pid_file,
+                                  qmp_socket_path,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
@@ -158,10 +138,6 @@ QTestState *qtest_init(const char *extra_args)
     /* Read the QMP greeting and then do the handshake */
     qtest_qmp_discard_response(s, "");
     qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
-
-    s->qemu_pid = read_pid_file(pid_file);
-    unlink(pid_file);
-    g_free(pid_file);
 
     if (getenv("QTEST_STOP")) {
         kill(s->qemu_pid, SIGSTOP);
