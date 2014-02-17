@@ -2430,10 +2430,15 @@ static inline abi_long target_to_host_semarray(int semid, unsigned short **host_
     nsems = semid_ds.sem_nsems;
 
     *host_array = malloc(nsems*sizeof(unsigned short));
+    if (!*host_array) {
+        return -TARGET_ENOMEM;
+    }
     array = lock_user(VERIFY_READ, target_addr,
                       nsems*sizeof(unsigned short), 1);
-    if (!array)
+    if (!array) {
+        free(*host_array);
         return -TARGET_EFAULT;
+    }
 
     for(i=0; i<nsems; i++) {
         __get_user((*host_array)[i], &array[i]);
