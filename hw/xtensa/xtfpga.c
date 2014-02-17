@@ -162,6 +162,23 @@ static void lx60_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
+static uint64_t lx60_io_read(void *opaque, hwaddr addr,
+        unsigned size)
+{
+    return 0;
+}
+
+static void lx60_io_write(void *opaque, hwaddr addr,
+        uint64_t val, unsigned size)
+{
+}
+
+static const MemoryRegionOps lx60_io_ops = {
+    .read = lx60_io_read,
+    .write = lx60_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void lx_init(const LxBoardDesc *board, MachineState *machine)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -211,7 +228,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     memory_region_add_subregion(system_memory, 0, ram);
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, NULL, "lx60.io", 224 * 1024 * 1024);
+    memory_region_init_io(system_io, NULL, &lx60_io_ops, NULL, "lx60.io",
+                          224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
     lx60_fpga_init(system_io, 0x0d020000);
     if (nd_table[0].used) {
