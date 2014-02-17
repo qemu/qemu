@@ -402,9 +402,10 @@ int vhdx_update_headers(BlockDriverState *bs, BDRVVHDXState *s,
 }
 
 /* opens the specified header block from the VHDX file header section */
-static int vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s)
+static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
+                              Error **errp)
 {
-    int ret = 0;
+    int ret;
     VHDXHeader *header1;
     VHDXHeader *header2;
     bool h1_valid = false;
@@ -462,7 +463,6 @@ static int vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s)
     } else if (!h1_valid && h2_valid) {
         s->curr_header = 1;
     } else if (!h1_valid && !h2_valid) {
-        ret = -EINVAL;
         goto fail;
     } else {
         /* If both headers are valid, then we choose the active one by the
@@ -473,27 +473,22 @@ static int vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s)
         } else if (h2_seq > h1_seq) {
             s->curr_header = 1;
         } else {
-            ret = -EINVAL;
             goto fail;
         }
     }
 
     vhdx_region_register(s, s->headers[s->curr_header]->log_offset,
                             s->headers[s->curr_header]->log_length);
-
-    ret = 0;
-
     goto exit;
 
 fail:
-    qerror_report(ERROR_CLASS_GENERIC_ERROR, "No valid VHDX header found");
+    error_setg_errno(errp, -ret, "No valid VHDX header found");
     qemu_vfree(header1);
     qemu_vfree(header2);
     s->headers[0] = NULL;
     s->headers[1] = NULL;
 exit:
     qemu_vfree(buffer);
-    return ret;
 }
 
 
@@ -878,7 +873,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     int ret = 0;
     uint32_t i;
     uint64_t signature;
-
+    Error *local_err = NULL;
 
     s->bat = NULL;
     s->first_visible_write = true;
@@ -901,8 +896,10 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
      * header update */
     vhdx_guid_generate(&s->session_guid);
 
-    ret = vhdx_parse_header(bs, s);
-    if (ret < 0) {
+    vhdx_parse_header(bs, s, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
         goto fail;
     }
 
