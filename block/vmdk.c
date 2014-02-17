@@ -572,6 +572,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         error_setg_errno(errp, -ret,
                          "Could not read header from file '%s'",
                          file->filename);
+        return -EINVAL;
     }
     if (header.capacity == 0) {
         uint64_t desc_offset = le64_to_cpu(header.desc_offset);
@@ -641,8 +642,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         char buf[64];
         snprintf(buf, sizeof(buf), "VMDK version %d",
                  le32_to_cpu(header.version));
-        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                bs->device_name, "vmdk", buf);
+        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                  bs->device_name, "vmdk", buf);
         return -ENOTSUP;
     } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR)) {
         /* VMware KB 2064959 explains that version 3 added support for
@@ -654,7 +655,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
 
     if (le32_to_cpu(header.num_gtes_per_gt) > 512) {
-        error_report("L2 table size too big");
+        error_setg(errp, "L2 table size too big");
         return -EINVAL;
     }
 
@@ -670,8 +671,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     if (bdrv_getlength(file) <
             le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE) {
-        error_report("File truncated, expecting at least %lld bytes",
-                le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE);
+        error_setg(errp, "File truncated, expecting at least %lld bytes",
+                   le64_to_cpu(header.grain_offset) * BDRV_SECTOR_SIZE);
         return -EINVAL;
     }
 
