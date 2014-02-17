@@ -449,7 +449,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (header.magic != QCOW_MAGIC) {
         error_setg(errp, "Image is not in qcow2 format");
-        ret = -EMEDIUMTYPE;
+        ret = -EINVAL;
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {

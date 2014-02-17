@@ -748,7 +748,8 @@ static int vmdk_open_sparse(BlockDriverState *bs,
             return vmdk_open_vmdk4(bs, file, flags, errp);
             break;
         default:
-            return -EMEDIUMTYPE;
+            error_setg(errp, "Image not in VMDK format");
+            return -EINVAL;
             break;
     }
 }
@@ -862,7 +863,8 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
     BDRVVmdkState *s = bs->opaque;
 
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "invalid VMDK image descriptor");
+        ret = -EINVAL;
         goto exit;
     }
     if (strcmp(ct, "monolithicFlat") &&

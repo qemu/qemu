@@ -395,8 +395,8 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (header.signature != VDI_SIGNATURE) {
-        logout("bad vdi signature %08x\n", header.signature);
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in VDI format (bad signature %08x)", header.signature);
+        ret = -EINVAL;
         goto fail;
     } else if (header.version != VDI_VERSION_1_1) {
         logout("unsupported version %u.%u\n",

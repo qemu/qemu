@@ -129,7 +129,8 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         strcmp(bochs.subtype, GROWING_TYPE) ||
 	((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
 	(le32_to_cpu(bochs.version) != HEADER_V1))) {
-        return -EMEDIUMTYPE;
+        error_setg(errp, "Image not in Bochs format");
+        return -EINVAL;
     }
 
     if (le32_to_cpu(bochs.version) == HEADER_V1) {

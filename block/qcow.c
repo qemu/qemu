@@ -113,7 +113,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     be64_to_cpus(&header.l1_table_offset);
 
     if (header.magic != QCOW_MAGIC) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in qcow format");
+        ret = -EINVAL;
         goto fail;
     }
     if (header.version != QCOW_VERSION) {

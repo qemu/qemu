@@ -74,7 +74,8 @@ static int cow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (be32_to_cpu(cow_header.magic) != COW_MAGIC) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in COW format");
+        ret = -EINVAL;
         goto fail;
     }
 

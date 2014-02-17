@@ -391,7 +391,8 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     qed_header_le_to_cpu(&le_header, &s->header);
 
     if (s->header.magic != QED_MAGIC) {
-        return -EMEDIUMTYPE;
+        error_setg(errp, "Image not in QED format");
+        return -EINVAL;
     }
     if (s->header.features & ~QED_FEATURE_MASK) {
         /* image uses unsupported feature bits */
