@@ -192,19 +192,18 @@ static int nbd_config(BDRVNBDState *s, QDict *options, char **export)
 {
     Error *local_err = NULL;
 
-    if (qdict_haskey(options, "path")) {
-        if (qdict_haskey(options, "host")) {
+    if (qdict_haskey(options, "path") == qdict_haskey(options, "host")) {
+        if (qdict_haskey(options, "path")) {
             qerror_report(ERROR_CLASS_GENERIC_ERROR, "path and host may not "
                           "be used at the same time.");
-            return -EINVAL;
+        } else {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "one of path and host "
+                          "must be specified.");
         }
-        s->client.is_unix = true;
-    } else if (qdict_haskey(options, "host")) {
-        s->client.is_unix = false;
-    } else {
         return -EINVAL;
     }
 
+    s->client.is_unix = qdict_haskey(options, "path");
     s->socket_opts = qemu_opts_create(&socket_optslist, NULL, 0,
                                       &error_abort);
 
