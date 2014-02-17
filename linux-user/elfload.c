@@ -2636,6 +2636,16 @@ static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env
     info->notes_size += note_size(&ets->notes[0]);
 }
 
+static void init_note_info(struct elf_note_info *info)
+{
+    /* Initialize the elf_note_info structure so that it is at
+     * least safe to call free_note_info() on it. Must be
+     * called before calling fill_note_info().
+     */
+    memset(info, 0, sizeof (*info));
+    QTAILQ_INIT(&info->thread_list);
+}
+
 static int fill_note_info(struct elf_note_info *info,
                           long signr, const CPUArchState *env)
 {
@@ -2643,10 +2653,6 @@ static int fill_note_info(struct elf_note_info *info,
     CPUState *cpu = NULL;
     TaskState *ts = (TaskState *)env->opaque;
     int i;
-
-    (void) memset(info, 0, sizeof (*info));
-
-    QTAILQ_INIT(&info->thread_list);
 
     info->notes = g_malloc0(NUMNOTES * sizeof (struct memelfnote));
     if (info->notes == NULL)
@@ -2780,6 +2786,8 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     off_t offset = 0, data_offset = 0;
     int segs = 0;
     int fd = -1;
+
+    init_note_info(&info);
 
     errno = 0;
     getrlimit(RLIMIT_CORE, &dumpsize);
