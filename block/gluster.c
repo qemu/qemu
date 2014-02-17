@@ -127,7 +127,7 @@ static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
     }
 
     /* transport */
-    if (!strcmp(uri->scheme, "gluster")) {
+    if (!uri->scheme || !strcmp(uri->scheme, "gluster")) {
         gconf->transport = g_strdup("tcp");
     } else if (!strcmp(uri->scheme, "gluster+tcp")) {
         gconf->transport = g_strdup("tcp");
@@ -163,7 +163,7 @@ static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
         }
         gconf->server = g_strdup(qp->p[0].value);
     } else {
-        gconf->server = g_strdup(uri->server);
+        gconf->server = g_strdup(uri->server ? uri->server : "localhost");
         gconf->port = uri->port;
     }
 
