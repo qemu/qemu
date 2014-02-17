@@ -886,20 +886,28 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     char *buf = NULL;
     int ret;
     BDRVVmdkState *s = bs->opaque;
+    uint32_t magic;
 
     buf = vmdk_read_desc(bs->file, 0, errp);
     if (!buf) {
         return -EINVAL;
     }
 
-    if (vmdk_open_sparse(bs, bs->file, flags, buf, errp) == 0) {
-        s->desc_offset = 0x200;
-    } else {
-        ret = vmdk_open_desc_file(bs, flags, buf, errp);
-        if (ret) {
-            goto fail;
-        }
+    magic = ldl_be_p(buf);
+    switch (magic) {
+        case VMDK3_MAGIC:
+        case VMDK4_MAGIC:
+            ret = vmdk_open_sparse(bs, bs->file, flags, buf, errp);
+            s->desc_offset = 0x200;
+            break;
+        default:
+            ret = vmdk_open_desc_file(bs, flags, buf, errp);
+            break;
     }
+    if (ret) {
+        goto fail;
+    }
+
     /* try to open parent images, if exist */
     ret = vmdk_parent_open(bs);
     if (ret) {
