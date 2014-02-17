@@ -1707,6 +1707,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     struct iovec *vec;
     abi_ulong total_len, max_len;
     int i;
+    int err = 0;
 
     if (count == 0) {
         errno = 0;
@@ -1726,7 +1727,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     target_vec = lock_user(VERIFY_READ, target_addr,
                            count * sizeof(struct target_iovec), 1);
     if (target_vec == NULL) {
-        errno = EFAULT;
+        err = EFAULT;
         goto fail2;
     }
 
@@ -1740,7 +1741,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         abi_long len = tswapal(target_vec[i].iov_len);
 
         if (len < 0) {
-            errno = EINVAL;
+            err = EINVAL;
             goto fail;
         } else if (len == 0) {
             /* Zero length pointer is ignored.  */
@@ -1748,7 +1749,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         } else {
             vec[i].iov_base = lock_user(type, base, len, copy);
             if (!vec[i].iov_base) {
-                errno = EFAULT;
+                err = EFAULT;
                 goto fail;
             }
             if (len > max_len - total_len) {
@@ -1763,9 +1764,10 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return vec;
 
  fail:
-    free(vec);
- fail2:
     unlock_user(target_vec, target_addr, 0);
+ fail2:
+    free(vec);
+    errno = err;
     return NULL;
 }
 
