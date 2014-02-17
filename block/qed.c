@@ -398,7 +398,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         char buf[64];
         snprintf(buf, sizeof(buf), "%" PRIx64,
             s->header.features & ~QED_FEATURE_MASK);
-        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
             bs->device_name, "QED", buf);
         return -ENOTSUP;
     }
@@ -545,7 +545,8 @@ static void bdrv_qed_close(BlockDriverState *bs)
 
 static int qed_create(const char *filename, uint32_t cluster_size,
                       uint64_t image_size, uint32_t table_size,
-                      const char *backing_file, const char *backing_fmt)
+                      const char *backing_file, const char *backing_fmt,
+                      Error **errp)
 {
     QEDHeader header = {
         .magic = QED_MAGIC,
@@ -566,8 +567,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
 
     ret = bdrv_create_file(filename, NULL, &local_err);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return ret;
     }
 
@@ -576,8 +576,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_PROTOCOL, NULL,
                     &local_err);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return ret;
     }
 
@@ -667,7 +666,7 @@ static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options,
     }
 
     return qed_create(filename, cluster_size, image_size, table_size,
-                      backing_file, backing_fmt);
+                      backing_file, backing_fmt, errp);
 }
 
 typedef struct {
