@@ -44,6 +44,7 @@ struct QTestState
     bool irq_level[MAX_IRQ];
     GString *rx;
     pid_t qemu_pid;  /* our child QEMU process */
+    struct sigaction sigact_old; /* restored on exit */
 };
 
 #define g_assert_no_errno(ret) do { \
@@ -88,6 +89,19 @@ static int socket_accept(int sock)
     return ret;
 }
 
+static void kill_qemu(QTestState *s)
+{
+    if (s->qemu_pid != -1) {
+        kill(s->qemu_pid, SIGTERM);
+        waitpid(s->qemu_pid, NULL, 0);
+    }
+}
+
+static void sigabrt_handler(int signo)
+{
+    kill_qemu(global_qtest);
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
@@ -96,6 +110,7 @@ QTestState *qtest_init(const char *extra_args)
     gchar *qmp_socket_path;
     gchar *command;
     const char *qemu_binary;
+    struct sigaction sigact;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
@@ -107,6 +122,14 @@ QTestState *qtest_init(const char *extra_args)
 
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
+
+    /* Catch SIGABRT to clean up on g_assert() failure */
+    sigact = (struct sigaction){
+        .sa_handler = sigabrt_handler,
+        .sa_flags = SA_RESETHAND,
+    };
+    sigemptyset(&sigact.sa_mask);
+    sigaction(SIGABRT, &sigact, &s->sigact_old);
 
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
@@ -148,13 +171,9 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
-    int status;
+    sigaction(SIGABRT, &s->sigact_old, NULL);
 
-    if (s->qemu_pid != -1) {
-        kill(s->qemu_pid, SIGTERM);
-        waitpid(s->qemu_pid, &status, 0);
-    }
-
+    kill_qemu(s);
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
