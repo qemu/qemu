@@ -43,7 +43,6 @@ struct QTestState
     int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    int child_pid;   /* Child process created to execute QEMU */
     pid_t qemu_pid;  /* QEMU process spawned by our child */
 };
 
@@ -152,7 +151,6 @@ QTestState *qtest_init(const char *extra_args)
     g_free(qmp_socket_path);
 
     s->rx = g_string_new("");
-    s->child_pid = pid;
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
     }
