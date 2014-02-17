@@ -529,6 +529,32 @@ static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
                                uint64_t desc_offset, Error **errp);
 
+static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
+                            Error **errp)
+{
+    int64_t size;
+    char *buf;
+    int ret;
+
+    size = bdrv_getlength(file);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "Could not access file");
+        return NULL;
+    }
+
+    size = MIN(size, 1 << 20);  /* avoid unbounded allocation */
+    buf = g_malloc0(size + 1);
+
+    ret = bdrv_pread(file, desc_offset, buf, size);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not read from file");
+        g_free(buf);
+        return NULL;
+    }
+
+    return buf;
+}
+
 static int vmdk_open_vmdk4(BlockDriverState *bs,
                            BlockDriverState *file,
                            int flags, Error **errp)
@@ -823,23 +849,16 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
                                uint64_t desc_offset, Error **errp)
 {
     int ret;
-    char *buf = NULL;
+    char *buf;
     char ct[128];
     BDRVVmdkState *s = bs->opaque;
-    int64_t size;
 
-    size = bdrv_getlength(bs->file);
-    if (size < 0) {
+    buf = vmdk_read_desc(bs->file, desc_offset, errp);
+    if (!buf) {
         return -EINVAL;
-    }
-
-    size = MIN(size, 1 << 20);  /* avoid unbounded allocation */
-    buf = g_malloc0(size + 1);
-
-    ret = bdrv_pread(bs->file, desc_offset, buf, size);
-    if (ret < 0) {
         goto exit;
     }
+
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
         ret = -EMEDIUMTYPE;
         goto exit;
