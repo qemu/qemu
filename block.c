@@ -1046,7 +1046,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     }
 
     if (!drv->bdrv_file_open) {
-        ret = bdrv_open(&bs, filename, options, flags, drv, &local_err);
+        ret = bdrv_open(&bs, filename, NULL, options, flags, drv, &local_err);
         options = NULL;
     } else {
         ret = bdrv_open_common(bs, NULL, options, flags, drv, &local_err);
@@ -1125,7 +1125,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 
     assert(bs->backing_hd == NULL);
     ret = bdrv_open(&bs->backing_hd,
-                    *backing_filename ? backing_filename : NULL, options,
+                    *backing_filename ? backing_filename : NULL, NULL, options,
                     back_flags, back_drv, &local_err);
     if (ret < 0) {
         bs->backing_hd = NULL;
@@ -1206,7 +1206,7 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
             goto done;
         }
 
-        ret = bdrv_open(pbs, filename, image_options, flags, NULL, errp);
+        ret = bdrv_open(pbs, filename, NULL, image_options, flags, NULL, errp);
     } else {
         ret = bdrv_file_open(pbs, filename, reference, image_options, flags,
                              errp);
@@ -1227,9 +1227,14 @@ done:
  *
  * If *pbs is NULL, a new BDS will be created with a pointer to it stored there.
  * If it is not NULL, the referenced BDS will be reused.
+ *
+ * The reference parameter may be used to specify an existing block device which
+ * should be opened. If specified, neither options nor a filename may be given,
+ * nor can an existing BDS be reused (that is, *pbs has to be NULL).
  */
-int bdrv_open(BlockDriverState **pbs, const char *filename, QDict *options,
-              int flags, BlockDriver *drv, Error **errp)
+int bdrv_open(BlockDriverState **pbs, const char *filename,
+              const char *reference, QDict *options, int flags,
+              BlockDriver *drv, Error **errp)
 {
     int ret;
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
@@ -1239,6 +1244,31 @@ int bdrv_open(BlockDriverState **pbs, const char *filename, QDict *options,
     Error *local_err = NULL;
 
     assert(pbs);
+
+    if (reference) {
+        bool options_non_empty = options ? qdict_size(options) : false;
+        QDECREF(options);
+
+        if (*pbs) {
+            error_setg(errp, "Cannot reuse an existing BDS when referencing "
+                       "another block device");
+            return -EINVAL;
+        }
+
+        if (filename || options_non_empty) {
+            error_setg(errp, "Cannot reference an existing block device with "
+                       "additional options or a new filename");
+            return -EINVAL;
+        }
+
+        bs = bdrv_lookup_bs(reference, reference, errp);
+        if (!bs) {
+            return -ENODEV;
+        }
+        bdrv_ref(bs);
+        *pbs = bs;
+        return 0;
+    }
 
     if (*pbs) {
         bs = *pbs;
@@ -1268,7 +1298,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename, QDict *options,
         /* Get the required size from the image */
         QINCREF(options);
         bs1 = NULL;
-        ret = bdrv_open(&bs1, filename, options, BDRV_O_NO_BACKING,
+        ret = bdrv_open(&bs1, filename, NULL, options, BDRV_O_NO_BACKING,
                         drv, &local_err);
         if (ret < 0) {
             goto fail;
@@ -5309,7 +5339,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             bs = NULL;
-            ret = bdrv_open(&bs, backing_file->value.s, NULL, back_flags,
+            ret = bdrv_open(&bs, backing_file->value.s, NULL, NULL, back_flags,
                             backing_drv, &local_err);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Could not open '%s': %s",

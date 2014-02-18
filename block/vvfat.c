@@ -2937,7 +2937,7 @@ static int enable_write_target(BDRVVVFATState *s)
     }
 
     s->qcow = NULL;
-    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL,
+    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow,
             &local_err);
     if (ret < 0) {

@@ -504,7 +504,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     QINCREF(bs_opts);
-    ret = bdrv_open(&dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
+    ret = bdrv_open(&dinfo->bdrv, file, NULL, bs_opts, bdrv_flags, drv, &error);
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",
@@ -1333,7 +1333,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
     assert(state->new_bs == NULL);
-    ret = bdrv_open(&state->new_bs, new_image_file, options,
+    ret = bdrv_open(&state->new_bs, new_image_file, NULL, options,
                     flags | BDRV_O_NO_BACKING, drv, &local_err);
     /* We will manually add the backing_hd field to the bs later */
     if (ret != 0) {
@@ -1582,7 +1582,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open(&bs, filename, NULL, bdrv_flags, drv, &local_err);
+    ret = bdrv_open(&bs, filename, NULL, NULL, bdrv_flags, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -2019,7 +2019,7 @@ void qmp_drive_backup(const char *device, const char *target,
     }
 
     target_bs = NULL;
-    ret = bdrv_open(&target_bs, target, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&target_bs, target, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -2162,8 +2162,8 @@ void qmp_drive_mirror(const char *device, const char *target,
      * file.
      */
     target_bs = NULL;
-    ret = bdrv_open(&target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv,
-                    &local_err);
+    ret = bdrv_open(&target_bs, target, NULL, NULL, flags | BDRV_O_NO_BACKING,
+                    drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;

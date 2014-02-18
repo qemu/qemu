@@ -68,7 +68,9 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
     } else {
         qemuio_bs = bdrv_new("hda");
 
-        if (bdrv_open(&qemuio_bs, name, opts, flags, NULL, &local_err) < 0) {
+        if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, NULL, &local_err)
+            < 0)
+        {
             fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
                     error_get_pretty(local_err));
             error_free(local_err);

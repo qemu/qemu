@@ -289,7 +289,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
         drv = NULL;
     }
 
-    ret = bdrv_open(&bs, filename, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&bs, filename, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
         error_report("Could not open '%s': %s", filename,
                      error_get_pretty(local_err));
@@ -2312,7 +2312,7 @@ static int img_rebase(int argc, char **argv)
 
         bs_old_backing = bdrv_new("old_backing");
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        ret = bdrv_open(&bs_old_backing, backing_name, NULL, BDRV_O_FLAGS,
+        ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, BDRV_O_FLAGS,
                         old_backing_drv, &local_err);
         if (ret) {
             error_report("Could not open old backing file '%s': %s",
@@ -2322,8 +2322,8 @@ static int img_rebase(int argc, char **argv)
         }
         if (out_baseimg[0]) {
             bs_new_backing = bdrv_new("new_backing");
-            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, BDRV_O_FLAGS,
-                        new_backing_drv, &local_err);
+            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL,
+                            BDRV_O_FLAGS, new_backing_drv, &local_err);
             if (ret) {
                 error_report("Could not open new backing file '%s': %s",
                              out_baseimg, error_get_pretty(local_err));
