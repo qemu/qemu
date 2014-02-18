@@ -283,6 +283,8 @@ libusb=""
 usb_redir=""
 glx=""
 zlib="yes"
+lzo="no"
+snappy="no"
 guest_agent=""
 guest_agent_with_vss="no"
 vss_win32_sdk=""
@@ -995,6 +997,10 @@ for opt do
   ;;
   --disable-zlib-test) zlib="no"
   ;;
+  --enable-lzo) lzo="yes"
+  ;;
+  --enable-snappy) snappy="yes"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1289,6 +1295,8 @@ Advanced options (experts only):
   --enable-libusb          enable libusb (for usb passthrough)
   --disable-usb-redir      disable usb network redirection support
   --enable-usb-redir       enable usb network redirection support
+  --enable-lzo             enable the support of lzo compression library
+  --enable-snappy          enable the support of snappy compression library
   --disable-guest-agent    disable building of the QEMU Guest Agent
   --enable-guest-agent     enable building of the QEMU Guest Agent
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
@@ -1658,6 +1666,42 @@ EOF
     fi
 fi
 LIBS="$LIBS -lz"
+
+##########################################
+# lzo check
+
+if test "$lzo" != "no" ; then
+    cat > $TMPC << EOF
+#include <lzo/lzo1x.h>
+int main(void) { lzo_version(); return 0; }
+EOF
+    if compile_prog "" "-llzo2" ; then
+        :
+    else
+        error_exit "lzo check failed" \
+            "Make sure to have the lzo libs and headers installed."
+    fi
+
+    libs_softmmu="$libs_softmmu -llzo2"
+fi
+
+##########################################
+# snappy check
+
+if test "$snappy" != "no" ; then
+    cat > $TMPC << EOF
+#include <snappy-c.h>
+int main(void) { snappy_max_compressed_length(4096); return 0; }
+EOF
+    if compile_prog "" "-lsnappy" ; then
+        :
+    else
+        error_exit "snappy check failed" \
+            "Make sure to have the snappy libs and headers installed."
+    fi
+
+    libs_softmmu="$libs_softmmu -lsnappy"
+fi
 
 ##########################################
 # libseccomp check
@@ -4045,6 +4089,8 @@ echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
 echo "vhdx              $vhdx"
 echo "Quorum            $quorum"
+echo "lzo support       $lzo"
+echo "snappy support    $snappy"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -4366,6 +4412,14 @@ fi
 if test "$glx" = "yes" ; then
   echo "CONFIG_GLX=y" >> $config_host_mak
   echo "GLX_LIBS=$glx_libs" >> $config_host_mak
+fi
+
+if test "$lzo" = "yes" ; then
+  echo "CONFIG_LZO=y" >> $config_host_mak
+fi
+
+if test "$snappy" = "yes" ; then
+  echo "CONFIG_SNAPPY=y" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
