@@ -2936,15 +2936,13 @@ static int enable_write_target(BDRVVVFATState *s)
         goto err;
     }
 
-    s->qcow = bdrv_new("");
-
-    ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
+    s->qcow = NULL;
+    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow,
             &local_err);
     if (ret < 0) {
         qerror_report_err(local_err);
         error_free(local_err);
-        bdrv_unref(s->qcow);
         goto err;
     }
 

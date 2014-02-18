@@ -190,7 +190,7 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     QDict *options, const char *bdref_key, int flags,
                     bool force_raw, bool allow_none, Error **errp);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
-int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
+int bdrv_open(BlockDriverState **pbs, const char *filename, QDict *options,
               int flags, BlockDriver *drv, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs, int flags);

@@ -597,7 +597,7 @@ int main(int argc, char **argv)
 
     bs = bdrv_new("hda");
     srcpath = argv[optind];
-    ret = bdrv_open(bs, srcpath, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&bs, srcpath, NULL, flags, drv, &local_err);
     if (ret < 0) {
         errno = -ret;
         err(EXIT_FAILURE, "Failed to bdrv_open '%s': %s", argv[optind],

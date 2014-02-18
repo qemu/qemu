@@ -813,7 +813,7 @@ static int blk_connect(struct XenDevice *xendev)
             Error *local_err = NULL;
             BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
                                                            readonly);
-            if (bdrv_open(blkdev->bs,
+            if (bdrv_open(&blkdev->bs,
                           blkdev->filename, NULL, qflags, drv, &local_err) != 0)
             {
                 xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
