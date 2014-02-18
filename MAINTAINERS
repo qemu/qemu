@@ -726,7 +726,7 @@ F: vl.c
 
 Human Monitor (HMP)
 M: Luiz Capitulino <lcapitulino@redhat.com>
-S: Supported
+S: Maintained
 F: monitor.c
 F: hmp.c
 F: hmp-commands.hx
@@ -758,7 +758,7 @@ T: git git://github.com/bonzini/qemu.git nbd-next
 QAPI
 M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
-S: Supported
+S: Maintained
 F: qapi/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
@@ -772,7 +772,7 @@ T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QMP
 M: Luiz Capitulino <lcapitulino@redhat.com>
-S: Supported
+S: Maintained
 F: qmp.c
 F: monitor.c
 F: qmp-commands.hx
