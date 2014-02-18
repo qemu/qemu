@@ -14,11 +14,28 @@
 #ifndef DUMP_H
 #define DUMP_H
 
+#define MAKEDUMPFILE_SIGNATURE      "makedumpfile"
+#define MAX_SIZE_MDF_HEADER         (4096) /* max size of makedumpfile_header */
+#define TYPE_FLAT_HEADER            (1)    /* type of flattened format */
+#define VERSION_FLAT_HEADER         (1)    /* version of flattened format */
+#define END_FLAG_FLAT_HEADER        (-1)
+
 typedef struct ArchDumpInfo {
     int d_machine;  /* Architecture */
     int d_endian;   /* ELFDATA2LSB or ELFDATA2MSB */
     int d_class;    /* ELFCLASS32 or ELFCLASS64 */
 } ArchDumpInfo;
+
+typedef struct QEMU_PACKED MakedumpfileHeader {
+    char signature[16];     /* = "makedumpfile" */
+    int64_t type;
+    int64_t version;
+} MakedumpfileHeader;
+
+typedef struct QEMU_PACKED MakedumpfileDataHeader {
+    int64_t offset;
+    int64_t buf_size;
+} MakedumpfileDataHeader;
 
 struct GuestPhysBlockList; /* memory_mapping.h */
 int cpu_get_dump_info(ArchDumpInfo *info,

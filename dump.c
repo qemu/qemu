@@ -686,6 +686,48 @@ static int create_vmcore(DumpState *s)
     return 0;
 }
 
+static int write_start_flat_header(int fd)
+{
+    uint8_t *buf;
+    MakedumpfileHeader mh;
+    int ret = 0;
+
+    memset(&mh, 0, sizeof(mh));
+    strncpy(mh.signature, MAKEDUMPFILE_SIGNATURE,
+            strlen(MAKEDUMPFILE_SIGNATURE));
+
+    mh.type = cpu_to_be64(TYPE_FLAT_HEADER);
+    mh.version = cpu_to_be64(VERSION_FLAT_HEADER);
+
+    buf = g_malloc0(MAX_SIZE_MDF_HEADER);
+    memcpy(buf, &mh, sizeof(mh));
+
+    size_t written_size;
+    written_size = qemu_write_full(fd, buf, MAX_SIZE_MDF_HEADER);
+    if (written_size != MAX_SIZE_MDF_HEADER) {
+        ret = -1;
+    }
+
+    g_free(buf);
+    return ret;
+}
+
+static int write_end_flat_header(int fd)
+{
+    MakedumpfileDataHeader mdh;
+
+    mdh.offset = END_FLAG_FLAT_HEADER;
+    mdh.buf_size = END_FLAG_FLAT_HEADER;
+
+    size_t written_size;
+    written_size = qemu_write_full(fd, &mdh, sizeof(mdh));
+    if (written_size != sizeof(mdh)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static ram_addr_t get_start_block(DumpState *s)
 {
     GuestPhysBlock *block;
