@@ -960,9 +960,9 @@ free_and_fail:
  * after the call (even on failure), so if the caller intends to reuse the
  * dictionary, it needs to use QINCREF() before calling bdrv_file_open.
  */
-int bdrv_file_open(BlockDriverState **pbs, const char *filename,
-                   const char *reference, QDict *options, int flags,
-                   Error **errp)
+static int bdrv_file_open(BlockDriverState **pbs, const char *filename,
+                          const char *reference, QDict *options, int flags,
+                          Error **errp)
 {
     BlockDriverState *bs = NULL;
     BlockDriver *drv;
@@ -1208,8 +1208,8 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
 
         ret = bdrv_open(pbs, filename, NULL, image_options, flags, NULL, errp);
     } else {
-        ret = bdrv_file_open(pbs, filename, reference, image_options, flags,
-                             errp);
+        ret = bdrv_open(pbs, filename, reference, image_options,
+                        flags | BDRV_O_PROTOCOL, NULL, errp);
     }
 
 done:
@@ -1244,6 +1244,12 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     Error *local_err = NULL;
 
     assert(pbs);
+
+    if (flags & BDRV_O_PROTOCOL) {
+        assert(!drv);
+        return bdrv_file_open(pbs, filename, reference, options,
+                              flags & ~BDRV_O_PROTOCOL, errp);
+    }
 
     if (reference) {
         bool options_non_empty = options ? qdict_size(options) : false;

@@ -1797,7 +1797,9 @@ static int vhdx_create(const char *filename, QEMUOptionParameter *options,
         goto exit;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
+    bs = NULL;
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
