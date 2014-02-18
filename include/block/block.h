@@ -188,7 +188,7 @@ int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     QDict *options, const char *bdref_key, int flags,
-                    bool force_raw, bool allow_none, Error **errp);
+                    bool allow_none, Error **errp);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags,
