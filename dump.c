@@ -1165,6 +1165,53 @@ out:
     return ret;
 }
 
+static void prepare_data_cache(DataCache *data_cache, DumpState *s,
+                               off_t offset)
+{
+    data_cache->fd = s->fd;
+    data_cache->data_size = 0;
+    data_cache->buf_size = BUFSIZE_DATA_CACHE;
+    data_cache->buf = g_malloc0(BUFSIZE_DATA_CACHE);
+    data_cache->offset = offset;
+}
+
+static int write_cache(DataCache *dc, const void *buf, size_t size,
+                       bool flag_sync)
+{
+    /*
+     * dc->buf_size should not be less than size, otherwise dc will never be
+     * enough
+     */
+    assert(size <= dc->buf_size);
+
+    /*
+     * if flag_sync is set, synchronize data in dc->buf into vmcore.
+     * otherwise check if the space is enough for caching data in buf, if not,
+     * write the data in dc->buf to dc->fd and reset dc->buf
+     */
+    if ((!flag_sync && dc->data_size + size > dc->buf_size) ||
+        (flag_sync && dc->data_size > 0)) {
+        if (write_buffer(dc->fd, dc->offset, dc->buf, dc->data_size) < 0) {
+            return -1;
+        }
+
+        dc->offset += dc->data_size;
+        dc->data_size = 0;
+    }
+
+    if (!flag_sync) {
+        memcpy(dc->buf + dc->data_size, buf, size);
+        dc->data_size += size;
+    }
+
+    return 0;
+}
+
+static void free_data_cache(DataCache *data_cache)
+{
+    g_free(data_cache->buf);
+}
+
 static ram_addr_t get_start_block(DumpState *s)
 {
     GuestPhysBlock *block;

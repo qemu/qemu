@@ -41,6 +41,7 @@
 #define DISKDUMP_HEADER_BLOCKS      (1)
 #define BUFSIZE_BITMAP              (TARGET_PAGE_SIZE)
 #define PFN_BUFBITMAP               (CHAR_BIT * BUFSIZE_BITMAP)
+#define BUFSIZE_DATA_CACHE          (TARGET_PAGE_SIZE * 4)
 
 typedef struct ArchDumpInfo {
     int d_machine;  /* Architecture */
@@ -141,6 +142,14 @@ typedef struct QEMU_PACKED KdumpSubHeader64 {
     uint64_t end_pfn_64;            /* header_version 6 and later */
     uint64_t max_mapnr_64;          /* header_version 6 and later */
 } KdumpSubHeader64;
+
+typedef struct DataCache {
+    int fd;             /* fd of the file where to write the cached data */
+    uint8_t *buf;       /* buffer for cached data */
+    size_t buf_size;    /* size of the buf */
+    size_t data_size;   /* size of cached data in buf */
+    off_t offset;       /* offset of the file */
+} DataCache;
 
 struct GuestPhysBlockList; /* memory_mapping.h */
 int cpu_get_dump_info(ArchDumpInfo *info,
