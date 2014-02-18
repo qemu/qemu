@@ -145,12 +145,13 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
     if (iTask->retries-- > 0 && status == SCSI_STATUS_CHECK_CONDITION
         && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
+        error_report("iSCSI CheckCondition: %s", iscsi_get_error(iscsi));
         iTask->do_retry = 1;
         goto out;
     }
 
     if (status != SCSI_STATUS_GOOD) {
-        error_report("iSCSI: Failure. %s", iscsi_get_error(iscsi));
+        error_report("iSCSI Failure: %s", iscsi_get_error(iscsi));
     }
 
 out:
@@ -325,6 +326,7 @@ retry:
     }
 
     if (iTask.do_retry) {
+        iTask.complete = 0;
         goto retry;
     }
 
@@ -399,6 +401,7 @@ retry:
     }
 
     if (iTask.do_retry) {
+        iTask.complete = 0;
         goto retry;
     }
 
@@ -433,6 +436,7 @@ retry:
     }
 
     if (iTask.do_retry) {
+        iTask.complete = 0;
         goto retry;
     }
 
@@ -683,6 +687,7 @@ retry:
             scsi_free_scsi_task(iTask.task);
             iTask.task = NULL;
         }
+        iTask.complete = 0;
         goto retry;
     }
 
@@ -767,6 +772,7 @@ retry:
     }
 
     if (iTask.do_retry) {
+        iTask.complete = 0;
         goto retry;
     }
 
@@ -836,6 +842,7 @@ retry:
     }
 
     if (iTask.do_retry) {
+        iTask.complete = 0;
         goto retry;
     }
 
