@@ -1590,13 +1590,11 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
     }
 
 
-    if (ibv_post_send(rdma->qp, &send_wr, &bad_wr)) {
-        return -1;
-    }
+    ret = ibv_post_send(rdma->qp, &send_wr, &bad_wr);
 
-    if (ret < 0) {
+    if (ret > 0) {
         fprintf(stderr, "Failed to use post IB SEND for control!\n");
-        return ret;
+        return -ret;
     }
 
     ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_SEND_CONTROL, NULL);
@@ -2238,10 +2236,6 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         }
     }
 
-    if (rdma->qp) {
-        rdma_destroy_qp(rdma->cm_id);
-        rdma->qp = NULL;
-    }
     if (rdma->cq) {
         ibv_destroy_cq(rdma->cq);
         rdma->cq = NULL;
@@ -2259,6 +2253,10 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         rdma->listen_id = NULL;
     }
     if (rdma->cm_id) {
+        if (rdma->qp) {
+            rdma_destroy_qp(rdma->cm_id);
+            rdma->qp = NULL;
+        }
         rdma_destroy_id(rdma->cm_id);
         rdma->cm_id = NULL;
     }
@@ -2513,8 +2511,10 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
         } else {
             ERROR(errp, "bad RDMA migration address '%s'", host_port);
             g_free(rdma);
-            return NULL;
+            rdma = NULL;
         }
+
+        qapi_free_InetSocketAddress(addr);
     }
 
     return rdma;
