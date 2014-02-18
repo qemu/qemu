@@ -1443,6 +1443,64 @@ out:
     return ret;
 }
 
+static int create_kdump_vmcore(DumpState *s)
+{
+    int ret;
+
+    /*
+     * the kdump-compressed format is:
+     *                                               File offset
+     *  +------------------------------------------+ 0x0
+     *  |    main header (struct disk_dump_header) |
+     *  |------------------------------------------+ block 1
+     *  |    sub header (struct kdump_sub_header)  |
+     *  |------------------------------------------+ block 2
+     *  |            1st-dump_bitmap               |
+     *  |------------------------------------------+ block 2 + X blocks
+     *  |            2nd-dump_bitmap               | (aligned by block)
+     *  |------------------------------------------+ block 2 + 2 * X blocks
+     *  |  page desc for pfn 0 (struct page_desc)  | (aligned by block)
+     *  |  page desc for pfn 1 (struct page_desc)  |
+     *  |                    :                     |
+     *  |------------------------------------------| (not aligned by block)
+     *  |         page data (pfn 0)                |
+     *  |         page data (pfn 1)                |
+     *  |                    :                     |
+     *  +------------------------------------------+
+     */
+
+    ret = write_start_flat_header(s->fd);
+    if (ret < 0) {
+        dump_error(s, "dump: failed to write start flat header.\n");
+        return -1;
+    }
+
+    ret = write_dump_header(s);
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = write_dump_bitmap(s);
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = write_dump_pages(s);
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = write_end_flat_header(s->fd);
+    if (ret < 0) {
+        dump_error(s, "dump: failed to write end flat header.\n");
+        return -1;
+    }
+
+    dump_completed(s);
+
+    return 0;
+}
+
 static ram_addr_t get_start_block(DumpState *s)
 {
     GuestPhysBlock *block;
@@ -1479,13 +1537,19 @@ static void get_max_mapnr(DumpState *s)
     s->max_mapnr = paddr_to_pfn(last_block->target_end, s->page_shift);
 }
 
-static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
+static int dump_init(DumpState *s, int fd, bool has_format,
+                     DumpGuestMemoryFormat format, bool paging, bool has_filter,
                      int64_t begin, int64_t length, Error **errp)
 {
     CPUState *cpu;
     int nr_cpus;
     Error *err = NULL;
     int ret;
+
+    /* kdump-compressed is conflict with paging and filter */
+    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
+        assert(!paging && !has_filter);
+    }
 
     if (runstate_is_running()) {
         vm_stop(RUN_STATE_SAVE_VM);
@@ -1557,6 +1621,28 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
     tmp = DIV_ROUND_UP(DIV_ROUND_UP(s->max_mapnr, CHAR_BIT), s->page_size);
     s->len_dump_bitmap = tmp * s->page_size;
 
+    /* init for kdump-compressed format */
+    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
+        switch (format) {
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_ZLIB:
+            s->flag_compress = DUMP_DH_COMPRESSED_ZLIB;
+            break;
+
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO:
+            s->flag_compress = DUMP_DH_COMPRESSED_LZO;
+            break;
+
+        case DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY:
+            s->flag_compress = DUMP_DH_COMPRESSED_SNAPPY;
+            break;
+
+        default:
+            s->flag_compress = 0;
+        }
+
+        return 0;
+    }
+
     if (s->has_filter) {
         memory_mapping_filter(&s->list, s->begin, s->length);
     }
@@ -1616,14 +1702,25 @@ cleanup:
 }
 
 void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
-                           int64_t begin, bool has_length, int64_t length,
-                           Error **errp)
+                           int64_t begin, bool has_length,
+                           int64_t length, bool has_format,
+                           DumpGuestMemoryFormat format, Error **errp)
 {
     const char *p;
     int fd = -1;
     DumpState *s;
     int ret;
 
+    /*
+     * kdump-compressed format need the whole memory dumped, so paging or
+     * filter is not supported here.
+     */
+    if ((has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) &&
+        (paging || has_begin || has_length)) {
+        error_setg(errp, "kdump-compressed format doesn't support paging or "
+                         "filter");
+        return;
+    }
     if (has_begin && !has_length) {
         error_set(errp, QERR_MISSING_PARAMETER, "length");
         return;
@@ -1632,6 +1729,21 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
         error_set(errp, QERR_MISSING_PARAMETER, "begin");
         return;
     }
+
+    /* check whether lzo/snappy is supported */
+#ifndef CONFIG_LZO
+    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO) {
+        error_setg(errp, "kdump-lzo is not available now");
+        return;
+    }
+#endif
+
+#ifndef CONFIG_SNAPPY
+    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY) {
+        error_setg(errp, "kdump-snappy is not available now");
+        return;
+    }
+#endif
 
 #if !defined(WIN32)
     if (strstart(file, "fd:", &p)) {
@@ -1657,14 +1769,21 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
     s = g_malloc0(sizeof(DumpState));
 
-    ret = dump_init(s, fd, paging, has_begin, begin, length, errp);
+    ret = dump_init(s, fd, has_format, format, paging, has_begin,
+                    begin, length, errp);
     if (ret < 0) {
         g_free(s);
         return;
     }
 
-    if (create_vmcore(s) < 0 && !error_is_set(s->errp)) {
-        error_set(errp, QERR_IO_ERROR);
+    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
+        if (create_kdump_vmcore(s) < 0 && !error_is_set(s->errp)) {
+            error_set(errp, QERR_IO_ERROR);
+        }
+    } else {
+        if (create_vmcore(s) < 0 && !error_is_set(s->errp)) {
+            error_set(errp, QERR_IO_ERROR);
+        }
     }
 
     g_free(s);

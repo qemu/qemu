@@ -791,8 +791,8 @@ EQMP
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:b,protocol:s,begin:i?,end:i?",
-        .params     = "-p protocol [begin] [length]",
+        .args_type  = "paging:b,protocol:s,begin:i?,end:i?,format:s?",
+        .params     = "-p protocol [begin] [length] [format]",
         .help       = "dump guest memory to file",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = qmp_marshal_input_dump_guest_memory,
@@ -813,6 +813,9 @@ Arguments:
            with length together (json-int)
 - "length": the memory size, in bytes. It's optional, and should be specified
             with begin together (json-int)
+- "format": the format of guest memory dump. It's optional, and can be
+            elf|kdump-zlib|kdump-lzo|kdump-snappy, but non-elf formats will
+            conflict with paging and filter, ie. begin and length (json-string)
 
 Example:
 
