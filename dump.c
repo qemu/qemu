@@ -1791,3 +1791,36 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
     g_free(s);
 }
+
+DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
+{
+    DumpGuestMemoryFormatList *item;
+    DumpGuestMemoryCapability *cap =
+                                  g_malloc0(sizeof(DumpGuestMemoryCapability));
+
+    /* elf is always available */
+    item = g_malloc0(sizeof(DumpGuestMemoryFormatList));
+    cap->formats = item;
+    item->value = DUMP_GUEST_MEMORY_FORMAT_ELF;
+
+    /* kdump-zlib is always available */
+    item->next = g_malloc0(sizeof(DumpGuestMemoryFormatList));
+    item = item->next;
+    item->value = DUMP_GUEST_MEMORY_FORMAT_KDUMP_ZLIB;
+
+    /* add new item if kdump-lzo is available */
+#ifdef CONFIG_LZO
+    item->next = g_malloc0(sizeof(DumpGuestMemoryFormatList));
+    item = item->next;
+    item->value = DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO;
+#endif
+
+    /* add new item if kdump-snappy is available */
+#ifdef CONFIG_SNAPPY
+    item->next = g_malloc0(sizeof(DumpGuestMemoryFormatList));
+    item = item->next;
+    item->value = DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY;
+#endif
+
+    return cap;
+}

@@ -829,6 +829,26 @@ Notes:
 EQMP
 
     {
+        .name       = "query-dump-guest-memory-capability",
+        .args_type  = "",
+    .mhandler.cmd_new = qmp_marshal_input_query_dump_guest_memory_capability,
+    },
+
+SQMP
+query-dump-guest-memory-capability
+----------
+
+Show available formats for 'dump-guest-memory'
+
+Example:
+
+-> { "execute": "query-dump-guest-memory-capability" }
+<- { "return": { "formats":
+                    ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+
+EQMP
+
+    {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
         .mhandler.cmd_new = qmp_netdev_add,
