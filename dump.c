@@ -1001,6 +1001,170 @@ static int write_dump_header(DumpState *s)
     }
 }
 
+/*
+ * set dump_bitmap sequencely. the bit before last_pfn is not allowed to be
+ * rewritten, so if need to set the first bit, set last_pfn and pfn to 0.
+ * set_dump_bitmap will always leave the recently set bit un-sync. And setting
+ * (last bit + sizeof(buf) * 8) to 0 will do flushing the content in buf into
+ * vmcore, ie. synchronizing un-sync bit into vmcore.
+ */
+static int set_dump_bitmap(uint64_t last_pfn, uint64_t pfn, bool value,
+                           uint8_t *buf, DumpState *s)
+{
+    off_t old_offset, new_offset;
+    off_t offset_bitmap1, offset_bitmap2;
+    uint32_t byte, bit;
+
+    /* should not set the previous place */
+    assert(last_pfn <= pfn);
+
+    /*
+     * if the bit needed to be set is not cached in buf, flush the data in buf
+     * to vmcore firstly.
+     * making new_offset be bigger than old_offset can also sync remained data
+     * into vmcore.
+     */
+    old_offset = BUFSIZE_BITMAP * (last_pfn / PFN_BUFBITMAP);
+    new_offset = BUFSIZE_BITMAP * (pfn / PFN_BUFBITMAP);
+
+    while (old_offset < new_offset) {
+        /* calculate the offset and write dump_bitmap */
+        offset_bitmap1 = s->offset_dump_bitmap + old_offset;
+        if (write_buffer(s->fd, offset_bitmap1, buf,
+                         BUFSIZE_BITMAP) < 0) {
+            return -1;
+        }
+
+        /* dump level 1 is chosen, so 1st and 2nd bitmap are same */
+        offset_bitmap2 = s->offset_dump_bitmap + s->len_dump_bitmap +
+                         old_offset;
+        if (write_buffer(s->fd, offset_bitmap2, buf,
+                         BUFSIZE_BITMAP) < 0) {
+            return -1;
+        }
+
+        memset(buf, 0, BUFSIZE_BITMAP);
+        old_offset += BUFSIZE_BITMAP;
+    }
+
+    /* get the exact place of the bit in the buf, and set it */
+    byte = (pfn % PFN_BUFBITMAP) / CHAR_BIT;
+    bit = (pfn % PFN_BUFBITMAP) % CHAR_BIT;
+    if (value) {
+        buf[byte] |= 1u << bit;
+    } else {
+        buf[byte] &= ~(1u << bit);
+    }
+
+    return 0;
+}
+
+/*
+ * exam every page and return the page frame number and the address of the page.
+ * bufptr can be NULL. note: the blocks here is supposed to reflect guest-phys
+ * blocks, so block->target_start and block->target_end should be interal
+ * multiples of the target page size.
+ */
+static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
+                          uint8_t **bufptr, DumpState *s)
+{
+    GuestPhysBlock *block = *blockptr;
+    hwaddr addr;
+    uint8_t *buf;
+
+    /* block == NULL means the start of the iteration */
+    if (!block) {
+        block = QTAILQ_FIRST(&s->guest_phys_blocks.head);
+        *blockptr = block;
+        assert(block->target_start % s->page_size == 0);
+        assert(block->target_end % s->page_size == 0);
+        *pfnptr = paddr_to_pfn(block->target_start, s->page_shift);
+        if (bufptr) {
+            *bufptr = block->host_addr;
+        }
+        return true;
+    }
+
+    *pfnptr = *pfnptr + 1;
+    addr = pfn_to_paddr(*pfnptr, s->page_shift);
+
+    if ((addr >= block->target_start) &&
+        (addr + s->page_size <= block->target_end)) {
+        buf = block->host_addr + (addr - block->target_start);
+    } else {
+        /* the next page is in the next block */
+        block = QTAILQ_NEXT(block, next);
+        *blockptr = block;
+        if (!block) {
+            return false;
+        }
+        assert(block->target_start % s->page_size == 0);
+        assert(block->target_end % s->page_size == 0);
+        *pfnptr = paddr_to_pfn(block->target_start, s->page_shift);
+        buf = block->host_addr;
+    }
+
+    if (bufptr) {
+        *bufptr = buf;
+    }
+
+    return true;
+}
+
+static int write_dump_bitmap(DumpState *s)
+{
+    int ret = 0;
+    uint64_t last_pfn, pfn;
+    void *dump_bitmap_buf;
+    size_t num_dumpable;
+    GuestPhysBlock *block_iter = NULL;
+
+    /* dump_bitmap_buf is used to store dump_bitmap temporarily */
+    dump_bitmap_buf = g_malloc0(BUFSIZE_BITMAP);
+
+    num_dumpable = 0;
+    last_pfn = 0;
+
+    /*
+     * exam memory page by page, and set the bit in dump_bitmap corresponded
+     * to the existing page.
+     */
+    while (get_next_page(&block_iter, &pfn, NULL, s)) {
+        ret = set_dump_bitmap(last_pfn, pfn, true, dump_bitmap_buf, s);
+        if (ret < 0) {
+            dump_error(s, "dump: failed to set dump_bitmap.\n");
+            ret = -1;
+            goto out;
+        }
+
+        last_pfn = pfn;
+        num_dumpable++;
+    }
+
+    /*
+     * set_dump_bitmap will always leave the recently set bit un-sync. Here we
+     * set last_pfn + PFN_BUFBITMAP to 0 and those set but un-sync bit will be
+     * synchronized into vmcore.
+     */
+    if (num_dumpable > 0) {
+        ret = set_dump_bitmap(last_pfn, last_pfn + PFN_BUFBITMAP, false,
+                              dump_bitmap_buf, s);
+        if (ret < 0) {
+            dump_error(s, "dump: failed to sync dump_bitmap.\n");
+            ret = -1;
+            goto out;
+        }
+    }
+
+    /* number of dumpable pages that will be dumped later */
+    s->num_dumpable = num_dumpable;
+
+out:
+    g_free(dump_bitmap_buf);
+
+    return ret;
+}
+
 static ram_addr_t get_start_block(DumpState *s)
 {
     GuestPhysBlock *block;

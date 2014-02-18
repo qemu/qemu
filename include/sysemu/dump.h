@@ -39,6 +39,8 @@
 #define PHYS_BASE                   (0)
 #define DUMP_LEVEL                  (1)
 #define DISKDUMP_HEADER_BLOCKS      (1)
+#define BUFSIZE_BITMAP              (TARGET_PAGE_SIZE)
+#define PFN_BUFBITMAP               (CHAR_BIT * BUFSIZE_BITMAP)
 
 typedef struct ArchDumpInfo {
     int d_machine;  /* Architecture */
