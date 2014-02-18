@@ -793,14 +793,6 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
-
-    /* by default all devices were considered as hotpluggable,
-     * so with intent to check it in generic qdev_unplug() /
-     * device_set_realized() functions make every device
-     * hotpluggable. Devices that shouldn't be hotpluggable,
-     * should override it in their class_init()
-     */
-    klass->hotpluggable = true;
 }
 
 static void device_unparent(Object *obj)
@@ -846,6 +838,14 @@ static void device_class_init(ObjectClass *class, void *data)
     class->unparent = device_unparent;
     dc->realize = device_realize;
     dc->unrealize = device_unrealize;
+
+    /* by default all devices were considered as hotpluggable,
+     * so with intent to check it in generic qdev_unplug() /
+     * device_set_realized() functions make every device
+     * hotpluggable. Devices that shouldn't be hotpluggable,
+     * should override it in their class_init()
+     */
+    dc->hotpluggable = true;
 }
 
 void device_reset(DeviceState *dev)
