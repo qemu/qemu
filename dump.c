@@ -728,6 +728,27 @@ static int write_end_flat_header(int fd)
     return 0;
 }
 
+static int write_buffer(int fd, off_t offset, const void *buf, size_t size)
+{
+    size_t written_size;
+    MakedumpfileDataHeader mdh;
+
+    mdh.offset = cpu_to_be64(offset);
+    mdh.buf_size = cpu_to_be64(size);
+
+    written_size = qemu_write_full(fd, &mdh, sizeof(mdh));
+    if (written_size != sizeof(mdh)) {
+        return -1;
+    }
+
+    written_size = qemu_write_full(fd, buf, size);
+    if (written_size != size) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static ram_addr_t get_start_block(DumpState *s)
 {
     GuestPhysBlock *block;
