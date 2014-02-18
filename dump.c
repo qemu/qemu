@@ -76,6 +76,9 @@ typedef struct DumpState {
     int64_t begin;
     int64_t length;
     Error **errp;
+
+    uint8_t *note_buf;          /* buffer for notes */
+    size_t note_buf_offset;     /* the writing place in note_buf */
 } DumpState;
 
 static int dump_cleanup(DumpState *s)
@@ -745,6 +748,22 @@ static int write_buffer(int fd, off_t offset, const void *buf, size_t size)
     if (written_size != size) {
         return -1;
     }
+
+    return 0;
+}
+
+static int buf_write_note(const void *buf, size_t size, void *opaque)
+{
+    DumpState *s = opaque;
+
+    /* note_buf is not enough */
+    if (s->note_buf_offset + size > s->note_size) {
+        return -1;
+    }
+
+    memcpy(s->note_buf + s->note_buf_offset, buf, size);
+
+    s->note_buf_offset += size;
 
     return 0;
 }
