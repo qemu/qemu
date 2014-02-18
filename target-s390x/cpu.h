@@ -28,6 +28,7 @@
 #define TARGET_LONG_BITS 64
 
 #define ELF_MACHINE	EM_S390
+#define ELF_MACHINE_UNAME "S390X"
 
 #define CPUArchState struct CPUS390XState
 

@@ -32,6 +32,9 @@
 #ifdef CONFIG_SNAPPY
 #include <snappy-c.h>
 #endif
+#ifndef ELF_MACHINE_UNAME
+#define ELF_MACHINE_UNAME "Unknown"
+#endif
 
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {
@@ -817,7 +820,7 @@ static int create_header32(DumpState *s)
     dh->nr_cpus = cpu_convert_to_target32(s->nr_cpus, endian);
     bitmap_blocks = DIV_ROUND_UP(s->len_dump_bitmap, block_size) * 2;
     dh->bitmap_blocks = cpu_convert_to_target32(bitmap_blocks, endian);
-    memcpy(&(dh->utsname.machine), "i686", 4);
+    strncpy(dh->utsname.machine, ELF_MACHINE_UNAME, sizeof(dh->utsname.machine));
 
     if (s->flag_compress & DUMP_DH_COMPRESSED_ZLIB) {
         status |= DUMP_DH_COMPRESSED_ZLIB;
@@ -924,7 +927,7 @@ static int create_header64(DumpState *s)
     dh->nr_cpus = cpu_convert_to_target32(s->nr_cpus, endian);
     bitmap_blocks = DIV_ROUND_UP(s->len_dump_bitmap, block_size) * 2;
     dh->bitmap_blocks = cpu_convert_to_target32(bitmap_blocks, endian);
-    memcpy(&(dh->utsname.machine), "x86_64", 6);
+    strncpy(dh->utsname.machine, ELF_MACHINE_UNAME, sizeof(dh->utsname.machine));
 
     if (s->flag_compress & DUMP_DH_COMPRESSED_ZLIB) {
         status |= DUMP_DH_COMPRESSED_ZLIB;
