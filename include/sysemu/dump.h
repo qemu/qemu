@@ -151,6 +151,13 @@ typedef struct DataCache {
     off_t offset;       /* offset of the file */
 } DataCache;
 
+typedef struct QEMU_PACKED PageDescriptor {
+    uint64_t offset;                /* the offset of the page data*/
+    uint32_t size;                  /* the size of this dump page */
+    uint32_t flags;                 /* flags */
+    uint64_t page_flags;            /* page flags */
+} PageDescriptor;
+
 struct GuestPhysBlockList; /* memory_mapping.h */
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks);
