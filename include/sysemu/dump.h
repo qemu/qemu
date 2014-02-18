@@ -20,6 +20,13 @@
 #define VERSION_FLAT_HEADER         (1)    /* version of flattened format */
 #define END_FLAG_FLAT_HEADER        (-1)
 
+#define ARCH_PFN_OFFSET             (0)
+
+#define paddr_to_pfn(X, page_shift) \
+    (((unsigned long long)(X) >> (page_shift)) - ARCH_PFN_OFFSET)
+#define pfn_to_paddr(X, page_shift) \
+    (((unsigned long long)(X) + ARCH_PFN_OFFSET) << (page_shift))
+
 typedef struct ArchDumpInfo {
     int d_machine;  /* Architecture */
     int d_endian;   /* ELFDATA2LSB or ELFDATA2MSB */

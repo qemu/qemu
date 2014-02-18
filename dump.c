@@ -79,6 +79,16 @@ typedef struct DumpState {
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
+    uint32_t nr_cpus;           /* number of guest's cpu */
+    size_t page_size;           /* guest's page size */
+    uint32_t page_shift;        /* guest's page shift */
+    uint64_t max_mapnr;         /* the biggest guest's phys-mem's number */
+    size_t len_dump_bitmap;     /* the size of the place used to store
+                                   dump_bitmap in vmcore */
+    off_t offset_dump_bitmap;   /* offset of dump_bitmap part in vmcore */
+    off_t offset_page;          /* offset of page part in vmcore */
+    size_t num_dumpable;        /* number of page that can be dumped */
+    uint32_t flag_compress;     /* indicate the compression format */
 } DumpState;
 
 static int dump_cleanup(DumpState *s)
@@ -796,6 +806,14 @@ static ram_addr_t get_start_block(DumpState *s)
     return -1;
 }
 
+static void get_max_mapnr(DumpState *s)
+{
+    GuestPhysBlock *last_block;
+
+    last_block = QTAILQ_LAST(&s->guest_phys_blocks.head, GuestPhysBlockHead);
+    s->max_mapnr = paddr_to_pfn(last_block->target_end, s->page_shift);
+}
+
 static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
                      int64_t begin, int64_t length, Error **errp)
 {
@@ -863,6 +881,16 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
     } else {
         qemu_get_guest_simple_memory_mapping(&s->list, &s->guest_phys_blocks);
     }
+
+    s->nr_cpus = nr_cpus;
+    s->page_size = TARGET_PAGE_SIZE;
+    s->page_shift = ffs(s->page_size) - 1;
+
+    get_max_mapnr(s);
+
+    uint64_t tmp;
+    tmp = DIV_ROUND_UP(DIV_ROUND_UP(s->max_mapnr, CHAR_BIT), s->page_size);
+    s->len_dump_bitmap = tmp * s->page_size;
 
     if (s->has_filter) {
         memory_mapping_filter(&s->list, s->begin, s->length);
