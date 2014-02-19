@@ -369,6 +369,7 @@ static uint32_t kvm_default_features[FEATURE_WORDS] = {
         (1 << KVM_FEATURE_STEAL_TIME) |
         (1 << KVM_FEATURE_PV_EOI) |
         (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT),
+    [FEAT_1_ECX] = CPUID_EXT_X2APIC,
 };
 
 void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
