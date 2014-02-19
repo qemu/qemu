@@ -318,6 +318,7 @@ glusterfs_zerofill="no"
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
+vte=""
 tpm="no"
 libssh2=""
 vhdx=""
@@ -1062,6 +1063,10 @@ for opt do
   --disable-rdma) rdma="no"
   ;;
   --with-gtkabi=*) gtkabi="$optarg"
+  ;;
+  --disable-vte) vte="no"
+  ;;
+  --enable-vte) vte="yes"
   ;;
   --enable-tpm) tpm="yes"
   ;;
@@ -1946,30 +1951,41 @@ if test "$gtk" != "no"; then
     gtkpackage="gtk+-$gtkabi"
     if test "$gtkabi" = "3.0" ; then
       gtkversion="3.0.0"
+    else
+      gtkversion="2.18.0"
+    fi
+    if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
+        gtk_cflags=`$pkg_config --cflags $gtkpackage`
+        gtk_libs=`$pkg_config --libs $gtkpackage`
+        libs_softmmu="$gtk_libs $libs_softmmu"
+        gtk="yes"
+    elif test "$gtk" = "yes"; then
+        feature_not_found "gtk" "Install gtk2 or gtk3 (requires --with-gtkabi=3.0 option to configure) devel"
+    else
+        gtk="no"
+    fi
+fi
+
+##########################################
+# VTE probe
+
+if test "$vte" != "no"; then
+    if test "$gtkabi" = "3.0"; then
       vtepackage="vte-2.90"
       vteversion="0.32.0"
     else
-      gtkversion="2.18.0"
       vtepackage="vte"
       vteversion="0.24.0"
     fi
-    if ! $pkg_config --exists "$gtkpackage >= $gtkversion"; then
-        if test "$gtk" = "yes" ; then
-            feature_not_found "gtk" "Install gtk2 or gtk3 (requires --with-gtkabi=3.0 option to configure) devel"
-        fi
-        gtk="no"
-    elif ! $pkg_config --exists "$vtepackage >= $vteversion"; then
-        if test "$gtk" = "yes" ; then
-            error_exit "libvte not found (required for gtk support)"
-        fi
-        gtk="no"
+    if $pkg_config --exists "$vtepackage >= $vteversion"; then
+        vte_cflags=`$pkg_config --cflags $vtepackage`
+        vte_libs=`$pkg_config --libs $vtepackage`
+        libs_softmmu="$vte_libs $libs_softmmu"
+        vte="yes"
+    elif test "$vte" = "yes"; then
+        feature_not_found "vte" "Install libvte or libvte-2.90 (requires --with-gtkabi=3.0 option to configure) devel"
     else
-	gtk_cflags=`$pkg_config --cflags $gtkpackage`
-	gtk_libs=`$pkg_config --libs $gtkpackage`
-	vte_cflags=`$pkg_config --cflags $vtepackage`
-	vte_libs=`$pkg_config --libs $vtepackage`
-	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
-	gtk="yes"
+        vte="no"
     fi
 fi
 
@@ -4053,6 +4069,7 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
@@ -4381,6 +4398,9 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$vte" = "yes" ; then
+  echo "CONFIG_VTE=y" >> $config_host_mak
   echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
 fi
 if test "$xen" = "yes" ; then
