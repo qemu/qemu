@@ -371,9 +371,9 @@ static uint32_t kvm_default_features[FEATURE_WORDS] = {
         (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT),
 };
 
-void disable_kvm_pv_eoi(void)
+void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
 {
-    kvm_default_features[FEAT_KVM] &= ~(1UL << KVM_FEATURE_PV_EOI);
+    kvm_default_features[w] &= ~features;
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
