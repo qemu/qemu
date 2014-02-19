@@ -228,7 +228,7 @@ static inline int ldsb_p(const void *ptr)
     return *(int8_t *)ptr;
 }
 
-static inline void stb_p(void *ptr, int v)
+static inline void stb_p(void *ptr, uint8_t v)
 {
     *(uint8_t *)ptr = v;
 }
