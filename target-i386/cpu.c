@@ -358,17 +358,22 @@ typedef struct model_features_t {
     FeatureWord feat_word;
 } model_features_t;
 
-static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
+/* KVM-specific features that are automatically added to all CPU models
+ * when KVM is enabled.
+ */
+static uint32_t kvm_default_features[FEATURE_WORDS] = {
+    [FEAT_KVM] = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_NOP_IO_DELAY) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
         (1 << KVM_FEATURE_PV_EOI) |
-        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
+        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT),
+};
 
 void disable_kvm_pv_eoi(void)
 {
-    kvm_default_features &= ~(1UL << KVM_FEATURE_PV_EOI);
+    kvm_default_features[FEAT_KVM] &= ~(1UL << KVM_FEATURE_PV_EOI);
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
@@ -1853,8 +1858,12 @@ static void x86_cpu_load_def(X86CPU *cpu, const char *name, Error **errp)
 
     /* Special cases not set in the X86CPUDefinition structs: */
     if (kvm_enabled()) {
-        env->features[FEAT_KVM] |= kvm_default_features;
+        FeatureWord w;
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] |= kvm_default_features[w];
+        }
     }
+
     env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
 
     /* sysenter isn't supported in compatibility mode on AMD,
