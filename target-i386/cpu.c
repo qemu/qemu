@@ -1143,6 +1143,7 @@ static void kvm_cpu_fill_host(X86CPUDefinition *x86_cpu_def)
 {
     KVMState *s = kvm_state;
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+    FeatureWord w;
 
     assert(kvm_enabled());
 
@@ -1163,7 +1164,6 @@ static void kvm_cpu_fill_host(X86CPUDefinition *x86_cpu_def)
 
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
 
-    FeatureWord w;
     for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
         x86_cpu_def->features[w] =
@@ -1823,6 +1823,8 @@ static void x86_cpu_load_def(X86CPU *cpu, const char *name, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     X86CPUDefinition def1, *def = &def1;
+    const char *vendor;
+    char host_vendor[CPUID_VENDOR_SZ + 1];
 
     memset(def, 0, sizeof(*def));
 
@@ -1862,8 +1864,7 @@ static void x86_cpu_load_def(X86CPU *cpu, const char *name, Error **errp)
      * KVM's sysenter/syscall emulation in compatibility mode and
      * when doing cross vendor migration
      */
-    const char *vendor = def->vendor;
-    char host_vendor[CPUID_VENDOR_SZ + 1];
+    vendor = def->vendor;
     if (kvm_enabled()) {
         uint32_t  ebx = 0, ecx = 0, edx = 0;
         host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
