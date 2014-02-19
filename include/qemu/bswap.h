@@ -300,12 +300,12 @@ static inline uint64_t ldq_le_p(const void *ptr)
     return le_bswap(ldq_p(ptr), 64);
 }
 
-static inline void stw_le_p(void *ptr, int v)
+static inline void stw_le_p(void *ptr, uint16_t v)
 {
     stw_p(ptr, le_bswap(v, 16));
 }
 
-static inline void stl_le_p(void *ptr, int v)
+static inline void stl_le_p(void *ptr, uint32_t v)
 {
     stl_p(ptr, le_bswap(v, 32));
 }
@@ -365,12 +365,12 @@ static inline uint64_t ldq_be_p(const void *ptr)
     return be_bswap(ldq_p(ptr), 64);
 }
 
-static inline void stw_be_p(void *ptr, int v)
+static inline void stw_be_p(void *ptr, uint16_t v)
 {
     stw_p(ptr, be_bswap(v, 16));
 }
 
-static inline void stl_be_p(void *ptr, int v)
+static inline void stl_be_p(void *ptr, uint32_t v)
 {
     stl_p(ptr, be_bswap(v, 32));
 }
