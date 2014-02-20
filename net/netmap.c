@@ -27,6 +27,8 @@
 #include <net/if.h>
 #include <sys/mman.h>
 #include <stdint.h>
+#include <stdio.h>
+#define NETMAP_WITH_LIBS
 #include <net/netmap.h>
 #include <net/netmap_user.h>
 
@@ -57,31 +59,6 @@ typedef struct NetmapState {
     struct iovec        iov[IOV_MAX];
     int                 vnet_hdr_len;  /* Current virtio-net header length. */
 } NetmapState;
-
-#define D(format, ...)                                          \
-    do {                                                        \
-        struct timeval __xxts;                                  \
-        gettimeofday(&__xxts, NULL);                            \
-        printf("%03d.%06d %s [%d] " format "\n",                \
-                (int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec, \
-                __func__, __LINE__, ##__VA_ARGS__);         \
-    } while (0)
-
-/* Rate limited version of "D", lps indicates how many per second */
-#define RD(lps, format, ...)                                    \
-    do {                                                        \
-        static int t0, __cnt;                                   \
-        struct timeval __xxts;                                  \
-        gettimeofday(&__xxts, NULL);                            \
-        if (t0 != __xxts.tv_sec) {                              \
-            t0 = __xxts.tv_sec;                                 \
-            __cnt = 0;                                          \
-        }                                                       \
-        if (__cnt++ < lps) {                                    \
-            D(format, ##__VA_ARGS__);                           \
-        }                                                       \
-    } while (0)
-
 
 #ifndef __FreeBSD__
 #define pkt_copy bcopy
@@ -239,7 +216,7 @@ static ssize_t netmap_receive(NetClientState *nc,
         return size;
     }
 
-    if (ring->avail == 0) {
+    if (nm_ring_empty(ring)) {
         /* No available slots in the netmap TX ring. */
         netmap_write_poll(s, true);
         return 0;
@@ -252,8 +229,7 @@ static ssize_t netmap_receive(NetClientState *nc,
     ring->slot[i].len = size;
     ring->slot[i].flags = 0;
     pkt_copy(buf, dst, size);
-    ring->cur = NETMAP_RING_NEXT(ring, i);
-    ring->avail--;
+    ring->cur = ring->head = nm_ring_next(ring, i);
     ioctl(s->me.fd, NIOCTXSYNC, NULL);
 
     return size;
@@ -269,7 +245,6 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
     uint8_t *dst;
     int j;
     uint32_t i;
-    uint32_t avail;
 
     if (unlikely(!ring)) {
         /* Drop the packet. */
@@ -277,9 +252,8 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
     }
 
     last = i = ring->cur;
-    avail = ring->avail;
 
-    if (avail < iovcnt) {
+    if (nm_ring_space(ring) < iovcnt) {
         /* Not enough netmap slots. */
         netmap_write_poll(s, true);
         return 0;
@@ -295,7 +269,7 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
         while (iov_frag_size) {
             nm_frag_size = MIN(iov_frag_size, ring->nr_buf_size);
 
-            if (unlikely(avail == 0)) {
+            if (unlikely(nm_ring_empty(ring))) {
                 /* We run out of netmap slots while splitting the
                    iovec fragments. */
                 netmap_write_poll(s, true);
@@ -310,8 +284,7 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
             pkt_copy(iov[j].iov_base + offset, dst, nm_frag_size);
 
             last = i;
-            i = NETMAP_RING_NEXT(ring, i);
-            avail--;
+            i = nm_ring_next(ring, i);
 
             offset += nm_frag_size;
             iov_frag_size -= nm_frag_size;
@@ -320,9 +293,8 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
     /* The last slot must not have NS_MOREFRAG set. */
     ring->slot[last].flags &= ~NS_MOREFRAG;
 
-    /* Now update ring->cur and ring->avail. */
-    ring->cur = i;
-    ring->avail = avail;
+    /* Now update ring->cur and ring->head. */
+    ring->cur = ring->head = i;
 
     ioctl(s->me.fd, NIOCTXSYNC, NULL);
 
@@ -345,7 +317,7 @@ static void netmap_send(void *opaque)
 
     /* Keep sending while there are available packets into the netmap
        RX ring and the forwarding path towards the peer is open. */
-    while (ring->avail > 0 && qemu_can_send_packet(&s->nc)) {
+    while (!nm_ring_empty(ring) && qemu_can_send_packet(&s->nc)) {
         uint32_t i;
         uint32_t idx;
         bool morefrag;
@@ -360,11 +332,10 @@ static void netmap_send(void *opaque)
             s->iov[iovcnt].iov_len = ring->slot[i].len;
             iovcnt++;
 
-            ring->cur = NETMAP_RING_NEXT(ring, i);
-            ring->avail--;
-        } while (ring->avail && morefrag);
+            ring->cur = ring->head = nm_ring_next(ring, i);
+        } while (!nm_ring_empty(ring) && morefrag);
 
-        if (unlikely(!ring->avail && morefrag)) {
+        if (unlikely(nm_ring_empty(ring) && morefrag)) {
             RD(5, "[netmap_send] ran out of slots, with a pending"
                    "incomplete packet\n");
         }

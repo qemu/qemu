@@ -2215,13 +2215,21 @@ EOF
 fi
 
 ##########################################
-# netmap headers probe
+# netmap support probe
+# Apart from looking for netmap headers, we make sure that the host API version
+# supports the netmap backend (>=11). The upper bound (15) is meant to simulate
+# a minor/major version number. Minor new features will be marked with values up
+# to 15, and if something happens that requires a change to the backend we will
+# move above 15, submit the backend fixes and modify this two bounds.
 if test "$netmap" != "no" ; then
   cat > $TMPC << EOF
 #include <inttypes.h>
 #include <net/if.h>
 #include <net/netmap.h>
 #include <net/netmap_user.h>
+#if (NETMAP_API < 11) || (NETMAP_API > 15)
+#error
+#endif
 int main(void) { return 0; }
 EOF
   if compile_prog "" "" ; then
