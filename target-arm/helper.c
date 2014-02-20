@@ -1162,26 +1162,6 @@ static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
-static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t *value)
-{
-    if (ri->crm >= 8) {
-        return EXCP_UDEF;
-    }
-    *value = env->cp15.c6_region[ri->crm];
-    return 0;
-}
-
-static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value)
-{
-    if (ri->crm >= 8) {
-        return EXCP_UDEF;
-    }
-    env->cp15.c6_region[ri->crm] = value;
-    return 0;
-}
-
 static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
@@ -1204,9 +1184,30 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_insn), .resetvalue = 0, },
     /* Protection region base and size registers */
-    { .name = "946_PRBS", .cp = 15, .crn = 6, .crm = CP_ANY, .opc1 = 0,
-      .opc2 = CP_ANY, .access = PL1_RW,
-      .readfn = arm946_prbs_read, .writefn = arm946_prbs_write, },
+    { .name = "946_PRBS0", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[0]) },
+    { .name = "946_PRBS1", .cp = 15, .crn = 6, .crm = 1, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[1]) },
+    { .name = "946_PRBS2", .cp = 15, .crn = 6, .crm = 2, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[2]) },
+    { .name = "946_PRBS3", .cp = 15, .crn = 6, .crm = 3, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[3]) },
+    { .name = "946_PRBS4", .cp = 15, .crn = 6, .crm = 4, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[4]) },
+    { .name = "946_PRBS5", .cp = 15, .crn = 6, .crm = 5, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[5]) },
+    { .name = "946_PRBS6", .cp = 15, .crn = 6, .crm = 6, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[6]) },
+    { .name = "946_PRBS7", .cp = 15, .crn = 6, .crm = 7, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[7]) },
     REGINFO_SENTINEL
 };
 
