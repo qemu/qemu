@@ -123,6 +123,32 @@ uint64_t HELPER(vfp_cmped_a64)(float64 x, float64 y, void *fp_status)
     return float_rel_to_flags(float64_compare(x, y, fp_status));
 }
 
+float32 HELPER(vfp_mulxs)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    if ((float32_is_zero(a) && float32_is_infinity(b)) ||
+        (float32_is_infinity(a) && float32_is_zero(b))) {
+        /* 2.0 with the sign bit set to sign(A) XOR sign(B) */
+        return make_float32((1U << 30) |
+                            ((float32_val(a) ^ float32_val(b)) & (1U << 31)));
+    }
+    return float32_mul(a, b, fpst);
+}
+
+float64 HELPER(vfp_mulxd)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    if ((float64_is_zero(a) && float64_is_infinity(b)) ||
+        (float64_is_infinity(a) && float64_is_zero(b))) {
+        /* 2.0 with the sign bit set to sign(A) XOR sign(B) */
+        return make_float64((1ULL << 62) |
+                            ((float64_val(a) ^ float64_val(b)) & (1ULL << 63)));
+    }
+    return float64_mul(a, b, fpst);
+}
+
 uint64_t HELPER(simd_tbl)(CPUARMState *env, uint64_t result, uint64_t indices,
                           uint32_t rn, uint32_t numregs)
 {

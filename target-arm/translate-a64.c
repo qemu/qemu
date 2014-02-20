@@ -7813,7 +7813,253 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
  */
 static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
 {
-    unsupported_encoding(s, insn);
+    /* This encoding has two kinds of instruction:
+     *  normal, where we perform elt x idxelt => elt for each
+     *     element in the vector
+     *  long, where we perform elt x idxelt and generate a result of
+     *     double the width of the input element
+     * The long ops have a 'part' specifier (ie come in INSN, INSN2 pairs).
+     */
+    bool is_q = extract32(insn, 30, 1);
+    bool u = extract32(insn, 29, 1);
+    int size = extract32(insn, 22, 2);
+    int l = extract32(insn, 21, 1);
+    int m = extract32(insn, 20, 1);
+    /* Note that the Rm field here is only 4 bits, not 5 as it usually is */
+    int rm = extract32(insn, 16, 4);
+    int opcode = extract32(insn, 12, 4);
+    int h = extract32(insn, 11, 1);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    bool is_long = false;
+    bool is_fp = false;
+    int index;
+    TCGv_ptr fpst;
+
+    switch (opcode) {
+    case 0x0: /* MLA */
+    case 0x4: /* MLS */
+        if (!u) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+    case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+    case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
+        is_long = true;
+        break;
+    case 0x3: /* SQDMLAL, SQDMLAL2 */
+    case 0x7: /* SQDMLSL, SQDMLSL2 */
+    case 0xb: /* SQDMULL, SQDMULL2 */
+        is_long = true;
+        /* fall through */
+    case 0xc: /* SQDMULH */
+    case 0xd: /* SQRDMULH */
+    case 0x8: /* MUL */
+        if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x1: /* FMLA */
+    case 0x5: /* FMLS */
+        if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x9: /* FMUL, FMULX */
+        if (!extract32(size, 1, 1)) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_fp = true;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (is_fp) {
+        /* low bit of size indicates single/double */
+        size = extract32(size, 0, 1) ? 3 : 2;
+        if (size == 2) {
+            index = h << 1 | l;
+        } else {
+            if (l || !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            index = h;
+        }
+        rm |= (m << 4);
+    } else {
+        switch (size) {
+        case 1:
+            index = h << 2 | l << 1 | m;
+            break;
+        case 2:
+            index = h << 1 | l;
+            rm |= (m << 4);
+            break;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
+    }
+
+    if (is_long) {
+        unsupported_encoding(s, insn);
+        return;
+    }
+
+    if (is_fp) {
+        fpst = get_fpstatus_ptr();
+    } else {
+        TCGV_UNUSED_PTR(fpst);
+    }
+
+    if (size == 3) {
+        TCGv_i64 tcg_idx = tcg_temp_new_i64();
+        int pass;
+
+        assert(is_fp && is_q && !is_long);
+
+        read_vec_element(s, tcg_idx, rm, index, MO_64);
+
+        for (pass = 0; pass < 2; pass++) {
+            TCGv_i64 tcg_op = tcg_temp_new_i64();
+            TCGv_i64 tcg_res = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+
+            switch (opcode) {
+            case 0x5: /* FMLS */
+                /* As usual for ARM, separate negation for fused multiply-add */
+                gen_helper_vfp_negd(tcg_op, tcg_op);
+                /* fall through */
+            case 0x1: /* FMLA */
+                read_vec_element(s, tcg_res, rd, pass, MO_64);
+                gen_helper_vfp_muladdd(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
+                break;
+            case 0x9: /* FMUL, FMULX */
+                if (u) {
+                    gen_helper_vfp_mulxd(tcg_res, tcg_op, tcg_idx, fpst);
+                } else {
+                    gen_helper_vfp_muld(tcg_res, tcg_op, tcg_idx, fpst);
+                }
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            write_vec_element(s, tcg_res, rd, pass, MO_64);
+            tcg_temp_free_i64(tcg_op);
+            tcg_temp_free_i64(tcg_res);
+        }
+
+        tcg_temp_free_i64(tcg_idx);
+    } else if (!is_long) {
+        /* 32 bit floating point, or 16 or 32 bit integer */
+        TCGv_i32 tcg_idx = tcg_temp_new_i32();
+        int pass;
+
+        read_vec_element_i32(s, tcg_idx, rm, index, size);
+
+        if (size == 1) {
+            /* The simplest way to handle the 16x16 indexed ops is to duplicate
+             * the index into both halves of the 32 bit tcg_idx and then use
+             * the usual Neon helpers.
+             */
+            tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
+        }
+
+        for (pass = 0; pass < (is_q ? 4 : 2); pass++) {
+            TCGv_i32 tcg_op = tcg_temp_new_i32();
+            TCGv_i32 tcg_res = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
+
+            switch (opcode) {
+            case 0x0: /* MLA */
+            case 0x4: /* MLS */
+            case 0x8: /* MUL */
+            {
+                static NeonGenTwoOpFn * const fns[2][2] = {
+                    { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
+                    { tcg_gen_add_i32, tcg_gen_sub_i32 },
+                };
+                NeonGenTwoOpFn *genfn;
+                bool is_sub = opcode == 0x4;
+
+                if (size == 1) {
+                    gen_helper_neon_mul_u16(tcg_res, tcg_op, tcg_idx);
+                } else {
+                    tcg_gen_mul_i32(tcg_res, tcg_op, tcg_idx);
+                }
+                if (opcode == 0x8) {
+                    break;
+                }
+                read_vec_element_i32(s, tcg_op, rd, pass, MO_32);
+                genfn = fns[size - 1][is_sub];
+                genfn(tcg_res, tcg_op, tcg_res);
+                break;
+            }
+            case 0x5: /* FMLS */
+                /* As usual for ARM, separate negation for fused multiply-add */
+                gen_helper_vfp_negs(tcg_op, tcg_op);
+                /* fall through */
+            case 0x1: /* FMLA */
+                read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+                gen_helper_vfp_muladds(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
+                break;
+            case 0x9: /* FMUL, FMULX */
+                if (u) {
+                    gen_helper_vfp_mulxs(tcg_res, tcg_op, tcg_idx, fpst);
+                } else {
+                    gen_helper_vfp_muls(tcg_res, tcg_op, tcg_idx, fpst);
+                }
+                break;
+            case 0xc: /* SQDMULH */
+                if (size == 1) {
+                    gen_helper_neon_qdmulh_s16(tcg_res, cpu_env,
+                                               tcg_op, tcg_idx);
+                } else {
+                    gen_helper_neon_qdmulh_s32(tcg_res, cpu_env,
+                                               tcg_op, tcg_idx);
+                }
+                break;
+            case 0xd: /* SQRDMULH */
+                if (size == 1) {
+                    gen_helper_neon_qrdmulh_s16(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx);
+                } else {
+                    gen_helper_neon_qrdmulh_s32(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx);
+                }
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+            tcg_temp_free_i32(tcg_op);
+            tcg_temp_free_i32(tcg_res);
+        }
+
+        tcg_temp_free_i32(tcg_idx);
+
+        if (!is_q) {
+            clear_vec_high(s, rd);
+        }
+    } else {
+        /* long ops: 16x16->32 or 32x32->64 */
+    }
+
+    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+        tcg_temp_free_ptr(fpst);
+    }
 }
 
 /* C3.6.19 Crypto AES
