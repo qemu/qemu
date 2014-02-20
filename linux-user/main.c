@@ -953,7 +953,8 @@ static int do_strex_a64(CPUARMState *env)
             goto finish;
         }
     }
-    val = env->xregs[rt];
+    /* handle the zero register */
+    val = rt == 31 ? 0 : env->xregs[rt];
     switch (size) {
     case 0:
         segv = put_user_u8(val, addr);
@@ -972,7 +973,8 @@ static int do_strex_a64(CPUARMState *env)
         goto error;
     }
     if (is_pair) {
-        val = env->xregs[rt2];
+        /* handle the zero register */
+        val = rt2 == 31 ? 0 : env->xregs[rt2];
         if (size == 2) {
             segv = put_user_u32(val, addr + 4);
         } else {
