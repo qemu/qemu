@@ -966,6 +966,7 @@ struct CPUPPCState {
 #endif
     /* segment registers */
     hwaddr htab_base;
+    /* mask used to normalize hash value to PTEG index */
     hwaddr htab_mask;
     target_ulong sr[32];
     /* externally stored hash table */

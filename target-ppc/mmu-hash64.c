@@ -375,7 +375,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pteg_off = (hash * HASH_PTEG_SIZE_64) & env->htab_mask;
+    pteg_off = (hash & env->htab_mask) * HASH_PTEG_SIZE_64;
     pte_offset = ppc_hash64_pteg_search(env, pteg_off, 0, ptem, pte);
 
     if (pte_offset == -1) {
@@ -385,7 +385,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pteg_off = (~hash * HASH_PTEG_SIZE_64) & env->htab_mask;
+        pteg_off = (~hash & env->htab_mask) * HASH_PTEG_SIZE_64;
         pte_offset = ppc_hash64_pteg_search(env, pteg_off, 1, ptem, pte);
     }
 

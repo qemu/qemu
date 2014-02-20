@@ -1031,7 +1031,9 @@ int kvm_arch_get_registers(CPUState *cs)
             return ret;
         }
 
-        ppc_store_sdr1(env, sregs.u.s.sdr1);
+        if (!env->external_htab) {
+            ppc_store_sdr1(env, sregs.u.s.sdr1);
+        }
 
         /* Sync SLB */
 #ifdef TARGET_PPC64

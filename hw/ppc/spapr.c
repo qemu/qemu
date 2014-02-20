@@ -749,7 +749,13 @@ static void spapr_cpu_reset(void *opaque)
         env->external_htab = (void *)1;
     }
     env->htab_base = -1;
-    env->htab_mask = HTAB_SIZE(spapr) - 1;
+    /*
+     * htab_mask is the mask used to normalize hash value to PTEG index.
+     * htab_shift is log2 of hash table size.
+     * We have 8 hpte per group, and each hpte is 16 bytes.
+     * ie have 128 bytes per hpte entry.
+     */
+    env->htab_mask = (1ULL << ((spapr)->htab_shift - 7)) - 1;
     env->spr[SPR_SDR1] = (target_ulong)(uintptr_t)spapr->htab |
         (spapr->htab_shift - 18);
 }
