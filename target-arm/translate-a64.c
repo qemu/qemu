@@ -7091,24 +7091,24 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
         /* 128 x 128 -> 64 */
         unsupported_encoding(s, insn);
         break;
-    case 9:
-    case 11:
-    case 13:
-    case 14:
+    case 9: /* SQDMLAL, SQDMLAL2 */
+    case 11: /* SQDMLSL, SQDMLSL2 */
+    case 13: /* SQDMULL, SQDMULL2 */
+    case 14: /* PMULL, PMULL2 */
         if (is_u) {
             unallocated_encoding(s);
             return;
         }
         /* fall through */
-    case 0:
-    case 2:
+    case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+    case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
         unsupported_encoding(s, insn);
         break;
-    case 5:
-    case 7:
-    case 8:
-    case 10:
-    case 12:
+    case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+    case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
+    case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+    case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+    case 12: /* SMULL, SMULL2, UMULL, UMULL2 */
         /* 64 x 64 -> 128 */
         if (size == 3) {
             unallocated_encoding(s);
