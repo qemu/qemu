@@ -603,3 +603,23 @@ hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 
     return ppc_hash64_pte_raddr(slb, pte, addr) & TARGET_PAGE_MASK;
 }
+
+void ppc_hash64_store_hpte(CPUPPCState *env,
+                           target_ulong pte_index,
+                           target_ulong pte0, target_ulong pte1)
+{
+    CPUState *cs = ENV_GET_CPU(env);
+
+    if (kvmppc_kern_htab) {
+        return kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+    }
+
+    pte_index *= HASH_PTE_SIZE_64;
+    if (env->external_htab) {
+        stq_p(env->external_htab + pte_index, pte0);
+        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64/2, pte1);
+    } else {
+        stq_phys(cs->as, env->htab_base + pte_index, pte0);
+        stq_phys(cs->as, env->htab_base + pte_index + HASH_PTE_SIZE_64/2, pte1);
+    }
+}

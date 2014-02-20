@@ -47,6 +47,9 @@ int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
 uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index);
 void kvmppc_hash64_free_pteg(uint64_t token);
 
+void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
+                             target_ulong pte0, target_ulong pte1);
+
 #else
 
 static inline uint32_t kvmppc_get_tbfreq(void)
@@ -203,6 +206,13 @@ static inline uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu,
 }
 
 static inline void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    abort();
+}
+
+static inline void kvmppc_hash64_write_pte(CPUPPCState *env,
+                                           target_ulong pte_index,
+                                           target_ulong pte0, target_ulong pte1)
 {
     abort();
 }
