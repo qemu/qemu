@@ -126,35 +126,30 @@ static void raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
-static bool read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t *v)
+static uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Raw read of a coprocessor register (as needed for migration, etc)
-     * return true on success, false if the read is impossible for some reason.
-     */
+    /* Raw read of a coprocessor register (as needed for migration, etc). */
     if (ri->type & ARM_CP_CONST) {
-        *v = ri->resetvalue;
+        return ri->resetvalue;
     } else if (ri->raw_readfn) {
-        *v = ri->raw_readfn(env, ri);
+        return ri->raw_readfn(env, ri);
     } else if (ri->readfn) {
-        *v = ri->readfn(env, ri);
+        return ri->readfn(env, ri);
     } else {
-        *v = raw_read(env, ri);
+        return raw_read(env, ri);
     }
-    return true;
 }
 
-static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
+static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
                              int64_t v)
 {
     /* Raw write of a coprocessor register (as needed for migration, etc).
-     * Return true on success, false if the write is impossible for some reason.
      * Note that constant registers are treated as write-ignored; the
      * caller should check for success by whether a readback gives the
      * value written.
      */
     if (ri->type & ARM_CP_CONST) {
-        return true;
+        return;
     } else if (ri->raw_writefn) {
         ri->raw_writefn(env, ri, v);
     } else if (ri->writefn) {
@@ -162,7 +157,6 @@ static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         raw_write(env, ri, v);
     }
-    return true;
 }
 
 bool write_cpustate_to_list(ARMCPU *cpu)
@@ -174,7 +168,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
-        uint64_t v;
+
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
@@ -183,11 +177,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
         if (ri->type & ARM_CP_NO_MIGRATE) {
             continue;
         }
-        if (!read_raw_cp_reg(&cpu->env, ri, &v)) {
-            ok = false;
-            continue;
-        }
-        cpu->cpreg_values[i] = v;
+        cpu->cpreg_values[i] = read_raw_cp_reg(&cpu->env, ri);
     }
     return ok;
 }
@@ -200,7 +190,6 @@ bool write_list_to_cpustate(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         uint64_t v = cpu->cpreg_values[i];
-        uint64_t readback;
         const ARMCPRegInfo *ri;
 
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
@@ -215,9 +204,8 @@ bool write_list_to_cpustate(ARMCPU *cpu)
          * (to catch read-only registers and partially read-only
          * registers where the incoming migration value doesn't match)
          */
-        if (!write_raw_cp_reg(&cpu->env, ri, v) ||
-            !read_raw_cp_reg(&cpu->env, ri, &readback) ||
-            readback != v) {
+        write_raw_cp_reg(&cpu->env, ri, v);
+        if (read_raw_cp_reg(&cpu->env, ri) != v) {
             ok = false;
         }
     }
