@@ -7909,11 +7909,6 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
         }
     }
 
-    if (is_long) {
-        unsupported_encoding(s, insn);
-        return;
-    }
-
     if (is_fp) {
         fpst = get_fpstatus_ptr();
     } else {
@@ -8055,6 +8050,145 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
         }
     } else {
         /* long ops: 16x16->32 or 32x32->64 */
+        TCGv_i64 tcg_res[2];
+        int pass;
+        bool satop = extract32(opcode, 0, 1);
+        TCGMemOp memop = MO_32;
+
+        if (satop || !u) {
+            memop |= MO_SIGN;
+        }
+
+        if (size == 2) {
+            TCGv_i64 tcg_idx = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_idx, rm, index, memop);
+
+            for (pass = 0; pass < 2; pass++) {
+                TCGv_i64 tcg_op = tcg_temp_new_i64();
+                TCGv_i64 tcg_passres;
+
+                read_vec_element(s, tcg_op, rn, pass + (is_q * 2), memop);
+
+                tcg_res[pass] = tcg_temp_new_i64();
+
+                if (opcode == 0xa || opcode == 0xb) {
+                    /* Non-accumulating ops */
+                    tcg_passres = tcg_res[pass];
+                } else {
+                    tcg_passres = tcg_temp_new_i64();
+                }
+
+                tcg_gen_mul_i64(tcg_passres, tcg_op, tcg_idx);
+                tcg_temp_free_i64(tcg_op);
+
+                if (satop) {
+                    /* saturating, doubling */
+                    gen_helper_neon_addl_saturate_s64(tcg_passres, cpu_env,
+                                                      tcg_passres, tcg_passres);
+                }
+
+                if (opcode == 0xa || opcode == 0xb) {
+                    continue;
+                }
+
+                /* Accumulating op: handle accumulate step */
+                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+
+                switch (opcode) {
+                case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+                    tcg_gen_add_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
+                    break;
+                case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+                    tcg_gen_sub_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
+                    break;
+                case 0x7: /* SQDMLSL, SQDMLSL2 */
+                    tcg_gen_neg_i64(tcg_passres, tcg_passres);
+                    /* fall through */
+                case 0x3: /* SQDMLAL, SQDMLAL2 */
+                    gen_helper_neon_addl_saturate_s64(tcg_res[pass], cpu_env,
+                                                      tcg_res[pass],
+                                                      tcg_passres);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                tcg_temp_free_i64(tcg_passres);
+            }
+            tcg_temp_free_i64(tcg_idx);
+        } else {
+            TCGv_i32 tcg_idx = tcg_temp_new_i32();
+
+            assert(size == 1);
+            read_vec_element_i32(s, tcg_idx, rm, index, size);
+
+            /* The simplest way to handle the 16x16 indexed ops is to duplicate
+             * the index into both halves of the 32 bit tcg_idx and then use
+             * the usual Neon helpers.
+             */
+            tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
+
+            for (pass = 0; pass < 2; pass++) {
+                TCGv_i32 tcg_op = tcg_temp_new_i32();
+                TCGv_i64 tcg_passres;
+
+                read_vec_element_i32(s, tcg_op, rn, pass + (is_q * 2), MO_32);
+                tcg_res[pass] = tcg_temp_new_i64();
+
+                if (opcode == 0xa || opcode == 0xb) {
+                    /* Non-accumulating ops */
+                    tcg_passres = tcg_res[pass];
+                } else {
+                    tcg_passres = tcg_temp_new_i64();
+                }
+
+                if (memop & MO_SIGN) {
+                    gen_helper_neon_mull_s16(tcg_passres, tcg_op, tcg_idx);
+                } else {
+                    gen_helper_neon_mull_u16(tcg_passres, tcg_op, tcg_idx);
+                }
+                if (satop) {
+                    gen_helper_neon_addl_saturate_s32(tcg_passres, cpu_env,
+                                                      tcg_passres, tcg_passres);
+                }
+                tcg_temp_free_i32(tcg_op);
+
+                if (opcode == 0xa || opcode == 0xb) {
+                    continue;
+                }
+
+                /* Accumulating op: handle accumulate step */
+                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+
+                switch (opcode) {
+                case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+                    gen_helper_neon_addl_u32(tcg_res[pass], tcg_res[pass],
+                                             tcg_passres);
+                    break;
+                case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+                    gen_helper_neon_subl_u32(tcg_res[pass], tcg_res[pass],
+                                             tcg_passres);
+                    break;
+                case 0x7: /* SQDMLSL, SQDMLSL2 */
+                    gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
+                    /* fall through */
+                case 0x3: /* SQDMLAL, SQDMLAL2 */
+                    gen_helper_neon_addl_saturate_s32(tcg_res[pass], cpu_env,
+                                                      tcg_res[pass],
+                                                      tcg_passres);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                tcg_temp_free_i64(tcg_passres);
+            }
+            tcg_temp_free_i32(tcg_idx);
+        }
+
+        for (pass = 0; pass < 2; pass++) {
+            write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+            tcg_temp_free_i64(tcg_res[pass]);
+        }
     }
 
     if (!TCGV_IS_UNUSED_PTR(fpst)) {
