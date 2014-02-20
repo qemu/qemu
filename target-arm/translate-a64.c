@@ -75,8 +75,10 @@ typedef struct AArch64DecodeTable {
 /* Function prototype for gen_ functions for calling Neon helpers */
 typedef void NeonGenTwoOpFn(TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void NeonGenTwoOpEnvFn(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32);
+typedef void NeonGenTwo64OpFn(TCGv_i64, TCGv_i64, TCGv_i64);
 typedef void NeonGenNarrowFn(TCGv_i32, TCGv_i64);
 typedef void NeonGenNarrowEnvFn(TCGv_i32, TCGv_ptr, TCGv_i64);
+typedef void NeonGenWidenFn(TCGv_i64, TCGv_i32);
 typedef void NeonGenTwoSingleOPFn(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
 
@@ -6879,6 +6881,24 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     }
 }
 
+/* Generate code to do a "long" addition or subtraction, ie one done in
+ * TCGv_i64 on vector lanes twice the width specified by size.
+ */
+static void gen_neon_addl(int size, bool is_sub, TCGv_i64 tcg_res,
+                          TCGv_i64 tcg_op1, TCGv_i64 tcg_op2)
+{
+    static NeonGenTwo64OpFn * const fns[3][2] = {
+        { gen_helper_neon_addl_u16, gen_helper_neon_subl_u16 },
+        { gen_helper_neon_addl_u32, gen_helper_neon_subl_u32 },
+        { tcg_gen_add_i64, tcg_gen_sub_i64 },
+    };
+    NeonGenTwo64OpFn *genfn;
+    assert(size < 3);
+
+    genfn = fns[size][is_sub];
+    genfn(tcg_res, tcg_op1, tcg_op2);
+}
+
 static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
                                 int opcode, int rd, int rn, int rm)
 {
@@ -6934,6 +6954,12 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
+            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+                tcg_gen_add_i64(tcg_passres, tcg_op1, tcg_op2);
+                break;
+            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
+                tcg_gen_sub_i64(tcg_passres, tcg_op1, tcg_op2);
+                break;
             case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
             case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
             {
@@ -6954,15 +6980,31 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
                 tcg_gen_mul_i64(tcg_passres, tcg_op1, tcg_op2);
                 break;
+            case 9: /* SQDMLAL, SQDMLAL2 */
+            case 11: /* SQDMLSL, SQDMLSL2 */
+            case 13: /* SQDMULL, SQDMULL2 */
+                tcg_gen_mul_i64(tcg_passres, tcg_op1, tcg_op2);
+                gen_helper_neon_addl_saturate_s64(tcg_passres, cpu_env,
+                                                  tcg_passres, tcg_passres);
+                break;
             default:
                 g_assert_not_reached();
             }
 
-            if (accop > 0) {
+            if (opcode == 9 || opcode == 11) {
+                /* saturating accumulate ops */
+                if (accop < 0) {
+                    tcg_gen_neg_i64(tcg_passres, tcg_passres);
+                }
+                gen_helper_neon_addl_saturate_s64(tcg_res[pass], cpu_env,
+                                                  tcg_res[pass], tcg_passres);
+            } else if (accop > 0) {
                 tcg_gen_add_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
-                tcg_temp_free_i64(tcg_passres);
             } else if (accop < 0) {
                 tcg_gen_sub_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
+            }
+
+            if (accop != 0) {
                 tcg_temp_free_i64(tcg_passres);
             }
 
@@ -6987,6 +7029,23 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
+            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
+            {
+                TCGv_i64 tcg_op2_64 = tcg_temp_new_i64();
+                static NeonGenWidenFn * const widenfns[2][2] = {
+                    { gen_helper_neon_widen_s8, gen_helper_neon_widen_u8 },
+                    { gen_helper_neon_widen_s16, gen_helper_neon_widen_u16 },
+                };
+                NeonGenWidenFn *widenfn = widenfns[size][is_u];
+
+                widenfn(tcg_op2_64, tcg_op2);
+                widenfn(tcg_passres, tcg_op1);
+                gen_neon_addl(size, (opcode == 2), tcg_passres,
+                              tcg_passres, tcg_op2_64);
+                tcg_temp_free_i64(tcg_op2_64);
+                break;
+            }
             case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
             case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
                 if (size == 0) {
@@ -7020,28 +7079,32 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
                     }
                 }
                 break;
+            case 9: /* SQDMLAL, SQDMLAL2 */
+            case 11: /* SQDMLSL, SQDMLSL2 */
+            case 13: /* SQDMULL, SQDMULL2 */
+                assert(size == 1);
+                gen_helper_neon_mull_s16(tcg_passres, tcg_op1, tcg_op2);
+                gen_helper_neon_addl_saturate_s32(tcg_passres, cpu_env,
+                                                  tcg_passres, tcg_passres);
+                break;
             default:
                 g_assert_not_reached();
             }
             tcg_temp_free_i32(tcg_op1);
             tcg_temp_free_i32(tcg_op2);
 
-            if (accop > 0) {
-                if (size == 0) {
-                    gen_helper_neon_addl_u16(tcg_res[pass], tcg_res[pass],
-                                             tcg_passres);
+            if (accop != 0) {
+                if (opcode == 9 || opcode == 11) {
+                    /* saturating accumulate ops */
+                    if (accop < 0) {
+                        gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
+                    }
+                    gen_helper_neon_addl_saturate_s32(tcg_res[pass], cpu_env,
+                                                      tcg_res[pass],
+                                                      tcg_passres);
                 } else {
-                    gen_helper_neon_addl_u32(tcg_res[pass], tcg_res[pass],
-                                             tcg_passres);
-                }
-                tcg_temp_free_i64(tcg_passres);
-            } else if (accop < 0) {
-                if (size == 0) {
-                    gen_helper_neon_subl_u16(tcg_res[pass], tcg_res[pass],
-                                             tcg_passres);
-                } else {
-                    gen_helper_neon_subl_u32(tcg_res[pass], tcg_res[pass],
-                                             tcg_passres);
+                    gen_neon_addl(size, (accop < 0), tcg_res[pass],
+                                  tcg_res[pass], tcg_passres);
                 }
                 tcg_temp_free_i64(tcg_passres);
             }
@@ -7091,19 +7154,23 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
         /* 128 x 128 -> 64 */
         unsupported_encoding(s, insn);
         break;
+    case 14: /* PMULL, PMULL2 */
+        if (is_u || size == 1 || size == 2) {
+            unallocated_encoding(s);
+            return;
+        }
+        unsupported_encoding(s, insn);
+        break;
     case 9: /* SQDMLAL, SQDMLAL2 */
     case 11: /* SQDMLSL, SQDMLSL2 */
     case 13: /* SQDMULL, SQDMULL2 */
-    case 14: /* PMULL, PMULL2 */
-        if (is_u) {
+        if (is_u || size == 0) {
             unallocated_encoding(s);
             return;
         }
         /* fall through */
     case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
     case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-        unsupported_encoding(s, insn);
-        break;
     case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
     case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
     case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
