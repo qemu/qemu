@@ -811,14 +811,29 @@ static inline int arm_current_pl(CPUARMState *env)
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
 
-/* Access functions for coprocessor registers. These should return
- * 0 on success, or one of the EXCP_* constants if access should cause
- * an exception (in which case *value is not written).
- */
+typedef enum CPAccessResult {
+    /* Access is permitted */
+    CP_ACCESS_OK = 0,
+    /* Access fails due to a configurable trap or enable which would
+     * result in a categorized exception syndrome giving information about
+     * the failing instruction (ie syndrome category 0x3, 0x4, 0x5, 0x6,
+     * 0xc or 0x18).
+     */
+    CP_ACCESS_TRAP = 1,
+    /* Access fails and results in an exception syndrome 0x0 ("uncategorized").
+     * Note that this is not a catch-all case -- the set of cases which may
+     * result in this failure is specifically defined by the architecture.
+     */
+    CP_ACCESS_TRAP_UNCATEGORIZED = 2,
+} CPAccessResult;
+
+/* Access functions for coprocessor registers. These should always succeed. */
 typedef int CPReadFn(CPUARMState *env, const ARMCPRegInfo *opaque,
                      uint64_t *value);
 typedef int CPWriteFn(CPUARMState *env, const ARMCPRegInfo *opaque,
                       uint64_t value);
+/* Access permission check functions for coprocessor registers. */
+typedef CPAccessResult CPAccessFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 /* Hook function for register reset */
 typedef void CPResetFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 
@@ -872,6 +887,12 @@ struct ARMCPRegInfo {
      *  2. both readfn and writefn are specified
      */
     ptrdiff_t fieldoffset; /* offsetof(CPUARMState, field) */
+    /* Function for making any access checks for this register in addition to
+     * those specified by the 'access' permissions bits. If NULL, no extra
+     * checks required. The access check is performed at runtime, not at
+     * translate time.
+     */
+    CPAccessFn *accessfn;
     /* Function for handling reads of this register. If NULL, then reads
      * will be done by loading from the offset into CPUARMState specified
      * by fieldoffset.

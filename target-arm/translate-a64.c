@@ -1193,6 +1193,17 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         return;
     }
 
+    if (ri->accessfn) {
+        /* Emit code to perform further access permissions checks at
+         * runtime; this may result in an exception.
+         */
+        TCGv_ptr tmpptr;
+        gen_a64_set_pc_im(s->pc - 4);
+        tmpptr = tcg_const_ptr(ri);
+        gen_helper_access_check_cp_reg(cpu_env, tmpptr);
+        tcg_temp_free_ptr(tmpptr);
+    }
+
     /* Handle special cases first */
     switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
     case ARM_CP_NOP:
