@@ -681,14 +681,12 @@ static void cortex_a9_initfn(Object *obj)
 }
 
 #ifndef CONFIG_USER_ONLY
-static int a15_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                           uint64_t *value)
+static uint64_t a15_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Linux wants the number of processors from here.
      * Might as well set the interrupt-controller bit too.
      */
-    *value = ((smp_cpus - 1) << 24) | (1 << 23);
-    return 0;
+    return ((smp_cpus - 1) << 24) | (1 << 23);
 }
 #endif
 

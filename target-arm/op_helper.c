@@ -294,41 +294,29 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip)
 void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
 {
     const ARMCPRegInfo *ri = rip;
-    int excp = ri->writefn(env, ri, value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
+
+    ri->writefn(env, ri, value);
 }
 
 uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
 {
     const ARMCPRegInfo *ri = rip;
-    uint64_t value;
-    int excp = ri->readfn(env, ri, &value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
-    return value;
+
+    return ri->readfn(env, ri);
 }
 
 void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
 {
     const ARMCPRegInfo *ri = rip;
-    int excp = ri->writefn(env, ri, value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
+
+    ri->writefn(env, ri, value);
 }
 
 uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
 {
     const ARMCPRegInfo *ri = rip;
-    uint64_t value;
-    int excp = ri->readfn(env, ri, &value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
-    return value;
+
+    return ri->readfn(env, ri);
 }
 
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.

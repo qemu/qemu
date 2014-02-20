@@ -224,27 +224,24 @@ static const VMStateDescription vmstate_pxa2xx_cm = {
     }
 };
 
-static int pxa2xx_clkcfg_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_clkcfg_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
-    *value = s->clkcfg;
-    return 0;
+    return s->clkcfg;
 }
 
-static int pxa2xx_clkcfg_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_clkcfg_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     s->clkcfg = value & 0xf;
     if (value & 2) {
         printf("%s: CPU frequency change attempt\n", __func__);
     }
-    return 0;
 }
 
-static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     static const char *pwrmode[8] = {
@@ -310,36 +307,29 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
         printf("%s: machine entered %s mode\n", __func__,
                pwrmode[value & 7]);
     }
-
-    return 0;
 }
 
-static int pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
-    *value = s->pmnc;
-    return 0;
+    return s->pmnc;
 }
 
-static int pxa2xx_cppmnc_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_cppmnc_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     s->pmnc = value;
-    return 0;
 }
 
-static int pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     if (s->pmnc & 1) {
-        *value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     } else {
-        *value = 0;
+        return 0;
     }
-    return 0;
 }
 
 static const ARMCPRegInfo pxa_cp_reginfo[] = {

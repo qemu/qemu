@@ -827,11 +827,12 @@ typedef enum CPAccessResult {
     CP_ACCESS_TRAP_UNCATEGORIZED = 2,
 } CPAccessResult;
 
-/* Access functions for coprocessor registers. These should always succeed. */
-typedef int CPReadFn(CPUARMState *env, const ARMCPRegInfo *opaque,
-                     uint64_t *value);
-typedef int CPWriteFn(CPUARMState *env, const ARMCPRegInfo *opaque,
-                      uint64_t value);
+/* Access functions for coprocessor registers. These cannot fail and
+ * may not raise exceptions.
+ */
+typedef uint64_t CPReadFn(CPUARMState *env, const ARMCPRegInfo *opaque);
+typedef void CPWriteFn(CPUARMState *env, const ARMCPRegInfo *opaque,
+                       uint64_t value);
 /* Access permission check functions for coprocessor registers. */
 typedef CPAccessResult CPAccessFn(CPUARMState *env, const ARMCPRegInfo *opaque);
 /* Hook function for register reset */
@@ -906,14 +907,14 @@ struct ARMCPRegInfo {
     /* Function for doing a "raw" read; used when we need to copy
      * coprocessor state to the kernel for KVM or out for
      * migration. This only needs to be provided if there is also a
-     * readfn and it makes an access permission check.
+     * readfn and it has side effects (for instance clear-on-read bits).
      */
     CPReadFn *raw_readfn;
     /* Function for doing a "raw" write; used when we need to copy KVM
      * kernel coprocessor state into userspace, or for inbound
      * migration. This only needs to be provided if there is also a
-     * writefn and it makes an access permission check or masks out
-     * "unwritable" bits or has write-one-to-clear or similar behaviour.
+     * writefn and it masks out "unwritable" bits or has write-one-to-clear
+     * or similar behaviour.
      */
     CPWriteFn *raw_writefn;
     /* Function for resetting the register. If NULL, then reset will be done
@@ -948,10 +949,10 @@ static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
 const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp);
 
 /* CPWriteFn that can be used to implement writes-ignored behaviour */
-int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value);
+void arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value);
 /* CPReadFn that can be used for read-as-zero behaviour */
-int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value);
+uint64_t arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri);
 
 /* CPResetFn that does nothing, for use if no reset is required even
  * if fieldoffset is non zero.
