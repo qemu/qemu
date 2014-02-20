@@ -217,11 +217,6 @@ typedef struct CPUARMState {
         uint32_t c15_power_control; /* power control */
     } cp15;
 
-    /* System registers (AArch64) */
-    struct {
-        uint64_t tpidr_el0;
-    } sr;
-
     struct {
         uint32_t other_sp;
         uint32_t vecbase;
