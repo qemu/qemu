@@ -618,20 +618,26 @@ static void gen_adc_CC(int sf, TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
  */
 
 /*
- * Store from GPR register to memory
+ * Store from GPR register to memory.
  */
+static void do_gpr_st_memidx(DisasContext *s, TCGv_i64 source,
+                             TCGv_i64 tcg_addr, int size, int memidx)
+{
+    g_assert(size <= 3);
+    tcg_gen_qemu_st_i64(source, tcg_addr, memidx, MO_TE + size);
+}
+
 static void do_gpr_st(DisasContext *s, TCGv_i64 source,
                       TCGv_i64 tcg_addr, int size)
 {
-    g_assert(size <= 3);
-    tcg_gen_qemu_st_i64(source, tcg_addr, get_mem_index(s), MO_TE + size);
+    do_gpr_st_memidx(s, source, tcg_addr, size, get_mem_index(s));
 }
 
 /*
  * Load from memory to GPR register
  */
-static void do_gpr_ld(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
-                      int size, bool is_signed, bool extend)
+static void do_gpr_ld_memidx(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
+                             int size, bool is_signed, bool extend, int memidx)
 {
     TCGMemOp memop = MO_TE + size;
 
@@ -641,12 +647,19 @@ static void do_gpr_ld(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
         memop += MO_SIGN;
     }
 
-    tcg_gen_qemu_ld_i64(dest, tcg_addr, get_mem_index(s), memop);
+    tcg_gen_qemu_ld_i64(dest, tcg_addr, memidx, memop);
 
     if (extend && is_signed) {
         g_assert(size < 3);
         tcg_gen_ext32u_i64(dest, dest);
     }
+}
+
+static void do_gpr_ld(DisasContext *s, TCGv_i64 dest, TCGv_i64 tcg_addr,
+                      int size, bool is_signed, bool extend)
+{
+    do_gpr_ld_memidx(s, dest, tcg_addr, size, is_signed, extend,
+                     get_mem_index(s));
 }
 
 /*
@@ -1824,6 +1837,7 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
  * +----+-------+---+-----+-----+---+--------+-----+------+------+
  *
  * idx = 01 -> post-indexed, 11 pre-indexed, 00 unscaled imm. (no writeback)
+         10 -> unprivileged
  * V = 0 -> non-vector
  * size: 00 -> 8 bit, 01 -> 16 bit, 10 -> 32 bit, 11 -> 64bit
  * opc: 00 -> store, 01 -> loadu, 10 -> loads 64, 11 -> loads 32
@@ -1839,6 +1853,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
     bool is_signed = false;
     bool is_store = false;
     bool is_extended = false;
+    bool is_unpriv = (idx == 2);
     bool is_vector = extract32(insn, 26, 1);
     bool post_index;
     bool writeback;
@@ -1847,7 +1862,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
 
     if (is_vector) {
         size |= (opc & 2) << 1;
-        if (size > 4) {
+        if (size > 4 || is_unpriv) {
             unallocated_encoding(s);
             return;
         }
@@ -1855,6 +1870,10 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
     } else {
         if (size == 3 && opc == 2) {
             /* PRFM - prefetch */
+            if (is_unpriv) {
+                unallocated_encoding(s);
+                return;
+            }
             return;
         }
         if (opc == 3 && size > 1) {
@@ -1868,6 +1887,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
 
     switch (idx) {
     case 0:
+    case 2:
         post_index = false;
         writeback = false;
         break;
@@ -1878,9 +1898,6 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
     case 3:
         post_index = false;
         writeback = true;
-        break;
-    case 2:
-        g_assert(false);
         break;
     }
 
@@ -1901,10 +1918,13 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
         }
     } else {
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
+        int memidx = is_unpriv ? 1 : get_mem_index(s);
+
         if (is_store) {
-            do_gpr_st(s, tcg_rt, tcg_addr, size);
+            do_gpr_st_memidx(s, tcg_rt, tcg_addr, size, memidx);
         } else {
-            do_gpr_ld(s, tcg_rt, tcg_addr, size, is_signed, is_extended);
+            do_gpr_ld_memidx(s, tcg_rt, tcg_addr, size,
+                             is_signed, is_extended, memidx);
         }
     }
 
@@ -2084,25 +2104,6 @@ static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Load/store register (immediate forms) */
-static void disas_ldst_reg_imm(DisasContext *s, uint32_t insn)
-{
-    switch (extract32(insn, 10, 2)) {
-    case 0: case 1: case 3:
-        /* Load/store register (unscaled immediate) */
-        /* Load/store immediate pre/post-indexed */
-        disas_ldst_reg_imm9(s, insn);
-        break;
-    case 2:
-        /* Load/store register unprivileged */
-        unsupported_encoding(s, insn);
-        break;
-    default:
-        unallocated_encoding(s);
-        break;
-    }
-}
-
 /* Load/store register (all forms) */
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
@@ -2111,7 +2112,11 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
         if (extract32(insn, 21, 1) == 1 && extract32(insn, 10, 2) == 2) {
             disas_ldst_reg_roffset(s, insn);
         } else {
-            disas_ldst_reg_imm(s, insn);
+            /* Load/store register (unscaled immediate)
+             * Load/store immediate pre/post-indexed
+             * Load/store register unprivileged
+             */
+            disas_ldst_reg_imm9(s, insn);
         }
         break;
     case 1:
