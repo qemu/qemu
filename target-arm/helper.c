@@ -141,7 +141,7 @@ static uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
-                             int64_t v)
+                             uint64_t v)
 {
     /* Raw write of a coprocessor register (as needed for migration, etc).
      * Note that constant registers are treated as write-ignored; the
