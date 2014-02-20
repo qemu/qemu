@@ -1823,6 +1823,22 @@ uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b, void *fpstp)
     return -float32_lt(f1, f0, fpst);
 }
 
+uint64_t HELPER(neon_acge_f64)(uint64_t a, uint64_t b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float64 f0 = float64_abs(make_float64(a));
+    float64 f1 = float64_abs(make_float64(b));
+    return -float64_le(f1, f0, fpst);
+}
+
+uint64_t HELPER(neon_acgt_f64)(uint64_t a, uint64_t b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float64 f0 = float64_abs(make_float64(a));
+    float64 f1 = float64_abs(make_float64(b));
+    return -float64_lt(f1, f0, fpst);
+}
+
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))
 
 void HELPER(neon_qunzip8)(CPUARMState *env, uint32_t rd, uint32_t rm)

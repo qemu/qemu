@@ -6045,17 +6045,32 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element(s, tcg_op2, rm, pass, MO_64);
 
             switch (fpopcode) {
+            case 0x39: /* FMLS */
+                /* As usual for ARM, separate negation for fused multiply-add */
+                gen_helper_vfp_negd(tcg_op1, tcg_op1);
+                /* fall through */
+            case 0x19: /* FMLA */
+                read_vec_element(s, tcg_res, rd, pass, MO_64);
+                gen_helper_vfp_muladdd(tcg_res, tcg_op1, tcg_op2,
+                                       tcg_res, fpst);
+                break;
             case 0x18: /* FMAXNM */
                 gen_helper_vfp_maxnumd(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x1a: /* FADD */
                 gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
+            case 0x1b: /* FMULX */
+                gen_helper_vfp_mulxd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x1e: /* FMAX */
                 gen_helper_vfp_maxd(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1f: /* FRECPS */
+                gen_helper_recpsf_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x38: /* FMINNM */
                 gen_helper_vfp_minnumd(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -6066,11 +6081,17 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x3e: /* FMIN */
                 gen_helper_vfp_mind(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
+            case 0x3f: /* FRSQRTS */
+                gen_helper_rsqrtsf_f64(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
             case 0x5b: /* FMUL */
                 gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5c: /* FCMGE */
                 gen_helper_neon_cge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5d: /* FACGE */
+                gen_helper_neon_acge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5f: /* FDIV */
                 gen_helper_vfp_divd(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -6081,6 +6102,9 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             case 0x7c: /* FCMGT */
                 gen_helper_neon_cgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7d: /* FACGT */
+                gen_helper_neon_acgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
                 g_assert_not_reached();
@@ -6101,14 +6125,29 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
 
             switch (fpopcode) {
+            case 0x39: /* FMLS */
+                /* As usual for ARM, separate negation for fused multiply-add */
+                gen_helper_vfp_negs(tcg_op1, tcg_op1);
+                /* fall through */
+            case 0x19: /* FMLA */
+                read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+                gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2,
+                                       tcg_res, fpst);
+                break;
             case 0x1a: /* FADD */
                 gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1b: /* FMULX */
+                gen_helper_vfp_mulxs(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x1e: /* FMAX */
                 gen_helper_vfp_maxs(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x1f: /* FRECPS */
+                gen_helper_recpsf_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x18: /* FMAXNM */
                 gen_helper_vfp_maxnums(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -6122,11 +6161,17 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x3e: /* FMIN */
                 gen_helper_vfp_mins(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
+            case 0x3f: /* FRSQRTS */
+                gen_helper_rsqrtsf_f32(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
             case 0x5b: /* FMUL */
                 gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5c: /* FCMGE */
                 gen_helper_neon_cge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5d: /* FACGE */
+                gen_helper_neon_acge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5f: /* FDIV */
                 gen_helper_vfp_divs(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -6137,6 +6182,9 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             case 0x7c: /* FCMGT */
                 gen_helper_neon_cgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7d: /* FACGT */
+                gen_helper_neon_acgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
                 g_assert_not_reached();
@@ -6192,8 +6240,6 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
         case 0x3f: /* FRSQRTS */
         case 0x5d: /* FACGE */
         case 0x7d: /* FACGT */
-            unsupported_encoding(s, insn);
-            return;
         case 0x1c: /* FCMEQ */
         case 0x5c: /* FCMGE */
         case 0x7c: /* FCMGT */
@@ -7303,8 +7349,6 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     case 0x7d: /* FACGT */
     case 0x19: /* FMLA */
     case 0x39: /* FMLS */
-        unsupported_encoding(s, insn);
-        return;
     case 0x18: /* FMAXNM */
     case 0x1a: /* FADD */
     case 0x1c: /* FCMEQ */

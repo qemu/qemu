@@ -198,3 +198,63 @@ uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
     float_status *fpst = fpstp;
     return -float64_lt(b, a, fpst);
 }
+
+/* Reciprocal step and sqrt step. Note that unlike the A32/T32
+ * versions, these do a fully fused multiply-add or
+ * multiply-add-and-halve.
+ */
+#define float32_two make_float32(0x40000000)
+#define float32_three make_float32(0x40400000)
+#define float32_one_point_five make_float32(0x3fc00000)
+
+#define float64_two make_float64(0x4000000000000000ULL)
+#define float64_three make_float64(0x4008000000000000ULL)
+#define float64_one_point_five make_float64(0x3FF8000000000000ULL)
+
+float32 HELPER(recpsf_f32)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float32_chs(a);
+    if ((float32_is_infinity(a) && float32_is_zero(b)) ||
+        (float32_is_infinity(b) && float32_is_zero(a))) {
+        return float32_two;
+    }
+    return float32_muladd(a, b, float32_two, 0, fpst);
+}
+
+float64 HELPER(recpsf_f64)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float64_chs(a);
+    if ((float64_is_infinity(a) && float64_is_zero(b)) ||
+        (float64_is_infinity(b) && float64_is_zero(a))) {
+        return float64_two;
+    }
+    return float64_muladd(a, b, float64_two, 0, fpst);
+}
+
+float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float32_chs(a);
+    if ((float32_is_infinity(a) && float32_is_zero(b)) ||
+        (float32_is_infinity(b) && float32_is_zero(a))) {
+        return float32_one_point_five;
+    }
+    return float32_muladd(a, b, float32_three, float_muladd_halve_result, fpst);
+}
+
+float64 HELPER(rsqrtsf_f64)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float64_chs(a);
+    if ((float64_is_infinity(a) && float64_is_zero(b)) ||
+        (float64_is_infinity(b) && float64_is_zero(a))) {
+        return float64_one_point_five;
+    }
+    return float64_muladd(a, b, float64_three, float_muladd_halve_result, fpst);
+}
