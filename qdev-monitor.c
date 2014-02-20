@@ -145,7 +145,7 @@ static void qdev_print_devinfos(bool show_no_user)
 
 static int set_property(const char *name, const char *value, void *opaque)
 {
-    DeviceState *dev = opaque;
+    Object *obj = opaque;
     Error *err = NULL;
 
     if (strcmp(name, "driver") == 0)
@@ -153,7 +153,7 @@ static int set_property(const char *name, const char *value, void *opaque)
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    qdev_prop_parse(dev, name, value, &err);
+    object_property_parse(obj, value, name, &err);
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
@@ -577,7 +577,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
         if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
             value = object_property_get_str(OBJECT(dev), legacy_name, &err);
         } else {
-            value = object_property_print(OBJECT(dev), props->name, &err);
+            value = object_property_print(OBJECT(dev), props->name, true, &err);
         }
         g_free(legacy_name);
 

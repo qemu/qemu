@@ -588,31 +588,6 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v, void *opaque,
     visit_type_str(v, &ptr, name, errp);
 }
 
-static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
-                                     const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    Error *local_err = NULL;
-    char *ptr = NULL;
-    int ret;
-
-    if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
-        return;
-    }
-
-    visit_type_str(v, &ptr, name, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    ret = prop->info->parse(dev, prop, ptr);
-    error_set_from_qdev_prop_error(errp, ret, dev, prop, ptr);
-    g_free(ptr);
-}
-
 /**
  * @qdev_add_legacy_property - adds a legacy property
  *
@@ -625,25 +600,20 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    gchar *name, *type;
+    gchar *name;
 
     /* Register pointer properties as legacy properties */
-    if (!prop->info->print && !prop->info->parse &&
-        (prop->info->set || prop->info->get)) {
+    if (!prop->info->print && prop->info->get) {
         return;
     }
 
     name = g_strdup_printf("legacy-%s", prop->name);
-    type = g_strdup_printf("legacy<%s>",
-                           prop->info->legacy_name ?: prop->info->name);
-
-    object_property_add(OBJECT(dev), name, type,
+    object_property_add(OBJECT(dev), name, "str",
                         prop->info->print ? qdev_get_legacy_property : prop->info->get,
-                        prop->info->parse ? qdev_set_legacy_property : prop->info->set,
+                        NULL,
                         NULL,
                         prop, errp);
 
-    g_free(type);
     g_free(name);
 }
 

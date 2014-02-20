@@ -741,7 +741,7 @@ static int m48t59_init1(SysBusDevice *dev)
 static Property m48t59_isa_properties[] = {
     DEFINE_PROP_UINT32("size",    M48t59ISAState, state.size,    -1),
     DEFINE_PROP_UINT32("model",   M48t59ISAState, state.model,   -1),
-    DEFINE_PROP_HEX32( "io_base", M48t59ISAState, state.io_base,  0),
+    DEFINE_PROP_UINT32("io_base", M48t59ISAState, state.io_base,  0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -766,7 +766,7 @@ static const TypeInfo m48t59_isa_info = {
 static Property m48t59_properties[] = {
     DEFINE_PROP_UINT32("size",    M48t59SysBusState, state.size,    -1),
     DEFINE_PROP_UINT32("model",   M48t59SysBusState, state.model,   -1),
-    DEFINE_PROP_HEX32( "io_base", M48t59SysBusState, state.io_base,  0),
+    DEFINE_PROP_UINT32("io_base", M48t59SysBusState, state.io_base,  0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

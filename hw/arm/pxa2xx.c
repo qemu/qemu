@@ -1222,8 +1222,14 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 };
 
 /* I2C Interface */
-typedef struct {
-    I2CSlave i2c;
+
+#define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
+#define PXA2XX_I2C_SLAVE(obj) \
+    OBJECT_CHECK(PXA2xxI2CSlaveState, (obj), TYPE_PXA2XX_I2C_SLAVE)
+
+typedef struct PXA2xxI2CSlaveState {
+    I2CSlave parent_obj;
+
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
@@ -1238,7 +1244,7 @@ struct PXA2xxI2CState {
 
     MemoryRegion iomem;
     PXA2xxI2CSlaveState *slave;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
     uint32_t offset;
     uint32_t region_size;
@@ -1268,7 +1274,7 @@ static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 /* These are only stubs now.  */
 static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
 
     switch (event) {
@@ -1292,10 +1298,12 @@ static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 
 static int pxa2xx_i2c_rx(I2CSlave *i2c)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
-    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
         return 0;
+    }
 
     if (s->status & (1 << 0)) {			/* RWM */
         s->status |= 1 << 6;			/* set ITE */
@@ -1307,10 +1315,12 @@ static int pxa2xx_i2c_rx(I2CSlave *i2c)
 
 static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
-    PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
+    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
-    if ((s->control & (1 << 14)) || !(s->control & (1 << 6)))
+
+    if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
         return 1;
+    }
 
     if (!(s->status & (1 << 0))) {		/* RWM */
         s->status |= 1 << 7;			/* set IRF */
@@ -1325,6 +1335,7 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
+    I2CSlave *slave;
 
     addr -= s->offset;
     switch (addr) {
@@ -1333,7 +1344,8 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
     case ISR:
         return s->status | (i2c_bus_busy(s->bus) << 2);
     case ISAR:
-        return s->slave->i2c.address;
+        slave = I2C_SLAVE(s->slave);
+        return slave->address;
     case IDBR:
         return s->data;
     case IBMR:
@@ -1408,7 +1420,7 @@ static void pxa2xx_i2c_write(void *opaque, hwaddr addr,
         break;
 
     case ISAR:
-        i2c_set_slave_address(&s->slave->i2c, value & 0x7f);
+        i2c_set_slave_address(I2C_SLAVE(s->slave), value & 0x7f);
         break;
 
     case IDBR:
@@ -1432,7 +1444,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_I2C_SLAVE(i2c, PXA2xxI2CSlaveState),
+        VMSTATE_I2C_SLAVE(parent_obj, PXA2xxI2CSlaveState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1470,7 +1482,7 @@ static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pxa2xx_i2c_slave_info = {
-    .name          = "pxa2xx-i2c-slave",
+    .name          = TYPE_PXA2XX_I2C_SLAVE,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(PXA2xxI2CSlaveState),
     .class_init    = pxa2xx_i2c_slave_class_init,
@@ -1482,7 +1494,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     DeviceState *dev;
     SysBusDevice *i2c_dev;
     PXA2xxI2CState *s;
-    i2c_bus *i2cbus;
+    I2CBus *i2cbus;
 
     dev = qdev_create(NULL, TYPE_PXA2XX_I2C);
     qdev_prop_set_uint32(dev, "size", region_size + 1);
@@ -1496,8 +1508,8 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     s = PXA2XX_I2C(i2c_dev);
     /* FIXME: Should the slave device really be on a separate bus?  */
     i2cbus = i2c_init_bus(dev, "dummy");
-    dev = i2c_create_slave(i2cbus, "pxa2xx-i2c-slave", 0);
-    s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE(dev));
+    dev = i2c_create_slave(i2cbus, TYPE_PXA2XX_I2C_SLAVE, 0);
+    s->slave = PXA2XX_I2C_SLAVE(dev);
     s->slave->host = s;
 
     return s;
@@ -1518,7 +1530,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *sbd)
     return 0;
 }
 
-i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
+I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
 {
     return s->bus;
 }

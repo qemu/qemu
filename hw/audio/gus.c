@@ -304,7 +304,7 @@ static int GUS_init (ISABus *bus)
 
 static Property gus_properties[] = {
     DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),
-    DEFINE_PROP_HEX32  ("iobase",  GUSState, port,        0x240),
+    DEFINE_PROP_UINT32 ("iobase",  GUSState, port,        0x240),
     DEFINE_PROP_UINT32 ("irq",     GUSState, emu.gusirq,  7),
     DEFINE_PROP_UINT32 ("dma",     GUSState, emu.gusdma,  3),
     DEFINE_PROP_END_OF_LIST (),

@@ -60,7 +60,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     qemu_irq mmc_irq[2];
     PCIBus *pci_bus = NULL;
     NICInfo *nd;
-    i2c_bus *i2c;
+    I2CBus *i2c;
     int n;
     int done_nic = 0;
     qemu_irq cpu_irq[4];
@@ -255,7 +255,7 @@ static void realview_init(QEMUMachineInitArgs *args,
     }
 
     dev = sysbus_create_simple("versatile_i2c", 0x10002000, NULL);
-    i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
+    i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     i2c_create_slave(i2c, "ds1338", 0x68);
 
     /* Memory map for RealView Emulation Baseboard:  */

@@ -30,7 +30,7 @@ typedef struct OMAPI2CState {
     MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq drq[2];
-    i2c_bus *bus;
+    I2CBus *bus;
 
     uint8_t revision;
     void *iclk;
@@ -491,7 +491,7 @@ static void omap_i2c_register_types(void)
     type_register_static(&omap_i2c_info);
 }
 
-i2c_bus *omap_i2c_bus(DeviceState *omap_i2c)
+I2CBus *omap_i2c_bus(DeviceState *omap_i2c)
 {
     OMAPI2CState *s = OMAP_I2C(omap_i2c);
     return s->bus;

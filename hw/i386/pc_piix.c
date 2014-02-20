@@ -236,7 +236,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
     }
 
     if (pci_enabled && acpi_enabled) {
-        i2c_bus *smbus;
+        I2CBus *smbus;
 
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */

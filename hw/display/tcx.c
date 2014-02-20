@@ -617,11 +617,11 @@ static int tcx_init1(SysBusDevice *dev)
 }
 
 static Property tcx_properties[] = {
-    DEFINE_PROP_HEX32("vram_size", TCXState, vram_size, -1),
+    DEFINE_PROP_UINT32("vram_size", TCXState, vram_size, -1),
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
-    DEFINE_PROP_HEX64("prom_addr", TCXState, prom_addr, -1),
+    DEFINE_PROP_UINT64("prom_addr", TCXState, prom_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

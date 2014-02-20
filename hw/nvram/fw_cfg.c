@@ -584,8 +584,8 @@ static void fw_cfg_realize(DeviceState *dev, Error **errp)
 }
 
 static Property fw_cfg_properties[] = {
-    DEFINE_PROP_HEX32("ctl_iobase", FWCfgState, ctl_iobase, -1),
-    DEFINE_PROP_HEX32("data_iobase", FWCfgState, data_iobase, -1),
+    DEFINE_PROP_UINT32("ctl_iobase", FWCfgState, ctl_iobase, -1),
+    DEFINE_PROP_UINT32("data_iobase", FWCfgState, data_iobase, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

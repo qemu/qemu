@@ -651,14 +651,14 @@ static void spapr_phb_reset(DeviceState *qdev)
 
 static Property spapr_phb_properties[] = {
     DEFINE_PROP_INT32("index", sPAPRPHBState, index, -1),
-    DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, -1),
-    DEFINE_PROP_HEX32("liobn", sPAPRPHBState, dma_liobn, -1),
-    DEFINE_PROP_HEX64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
-    DEFINE_PROP_HEX64("mem_win_size", sPAPRPHBState, mem_win_size,
-                      SPAPR_PCI_MMIO_WIN_SIZE),
-    DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
-    DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size,
-                      SPAPR_PCI_IO_WIN_SIZE),
+    DEFINE_PROP_UINT64("buid", sPAPRPHBState, buid, -1),
+    DEFINE_PROP_UINT32("liobn", sPAPRPHBState, dma_liobn, -1),
+    DEFINE_PROP_UINT64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
+    DEFINE_PROP_UINT64("mem_win_size", sPAPRPHBState, mem_win_size,
+                       SPAPR_PCI_MMIO_WIN_SIZE),
+    DEFINE_PROP_UINT64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
+    DEFINE_PROP_UINT64("io_win_size", sPAPRPHBState, io_win_size,
+                       SPAPR_PCI_IO_WIN_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -1,5 +1,9 @@
 export SRC_PATH
 
+# Get the list of all supported sysemu targets
+SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
+   $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
+
 check-unit-y = tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
 check-unit-y += tests/check-qfloat$(EXESUF)
@@ -60,63 +64,77 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
+
+gcov-files-ipack-y += hw/ipack/ipack.c
+check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
+gcov-files-ipack-y += hw/char/ipoctal232.c
+
+gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio.c
+check-qtest-virtio-y += tests/virtio-net-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/net/virtio-net.c
+
+check-qtest-pci-y += tests/e1000-test$(EXESUF)
+gcov-files-pci-y += hw/net/e1000.c
+check-qtest-pci-y += tests/rtl8139-test$(EXESUF)
+gcov-files-pci-y += hw/net/rtl8139.c
+check-qtest-pci-y += tests/pcnet-test$(EXESUF)
+gcov-files-pci-y += hw/net/pcnet.c
+gcov-files-pci-y += hw/net/pcnet-pci.c
+check-qtest-pci-y += tests/eepro100-test$(EXESUF)
+gcov-files-pci-y += hw/net/eepro100.c
+check-qtest-pci-y += tests/ne2000-test$(EXESUF)
+gcov-files-pci-y += hw/net/ne2000.c
+check-qtest-pci-y += $(check-qtest-virtio-y)
+gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
+check-qtest-pci-y += tests/tpci200-test$(EXESUF)
+gcov-files-pci-y += hw/char/tpci200.c
+check-qtest-pci-y += $(check-qtest-ipack-y)
+gcov-files-pci-y += $(gcov-files-ipack-y) hw/ipack/tpci200.c
+
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
-gcov-files-i386-y = hw/fdc.c
+gcov-files-i386-y = hw/block/fdc.c
 check-qtest-i386-y += tests/ide-test$(EXESUF)
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
-gcov-files-i386-y += hw/hd-geometry.c
+gcov-files-i386-y += hw/block/hd-geometry.c
 check-qtest-i386-y += tests/boot-order-test$(EXESUF)
 check-qtest-i386-y += tests/acpi-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
-check-qtest-i386-y += tests/qom-test$(EXESUF)
 check-qtest-i386-y += tests/blockdev-test$(EXESUF)
 check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
+check-qtest-i386-y += $(check-qtest-pci-y)
+gcov-files-i386-y += $(gcov-files-pci-y)
+check-qtest-i386-y += tests/vmxnet3-test$(EXESUF)
+gcov-files-i386-y += hw/net/vmxnet3.c
+gcov-files-i386-y += hw/net/vmxnet_rx_pkt.c
+gcov-files-i386-y += hw/net/vmxnet_tx_pkt.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
-gcov-files-i386-y += i386-softmmu/hw/mc146818rtc.c
+gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
 check-qtest-mips-y = tests/endianness-test$(EXESUF)
 check-qtest-mips64-y = tests/endianness-test$(EXESUF)
 check-qtest-mips64el-y = tests/endianness-test$(EXESUF)
-check-qtest-mips-y += tests/qom-test$(EXESUF)
-check-qtest-mipsel-y += tests/qom-test$(EXESUF)
-check-qtest-mips64-y += tests/qom-test$(EXESUF)
-check-qtest-mips64el-y += tests/qom-test$(EXESUF)
 check-qtest-ppc-y = tests/endianness-test$(EXESUF)
 check-qtest-ppc64-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4eb-y = tests/endianness-test$(EXESUF)
-check-qtest-sh4-y += tests/qom-test$(EXESUF)
-check-qtest-sh4eb-y += tests/qom-test$(EXESUF)
 check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
 #check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 #check-qtest-sparc64-y += tests/m48t59-test$(EXESUF)
-gcov-files-sparc-y += hw/m48t59.c
-gcov-files-sparc64-y += hw/m48t59.c
-check-qtest-sparc-y += tests/qom-test$(EXESUF)
-check-qtest-sparc64-y += tests/qom-test$(EXESUF)
+gcov-files-sparc-y += hw/timer/m48t59.c
+gcov-files-sparc64-y += hw/timer/m48t59.c
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
-gcov-files-arm-y += hw/tmp105.c
-check-qtest-arm-y += tests/qom-test$(EXESUF)
+gcov-files-arm-y += hw/misc/tmp105.c
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
-check-qtest-ppc-y += tests/qom-test$(EXESUF)
-check-qtest-ppc64-y += tests/qom-test$(EXESUF)
-check-qtest-ppcemb-y += tests/qom-test$(EXESUF)
-check-qtest-alpha-y += tests/qom-test$(EXESUF)
-check-qtest-cris-y += tests/qom-test$(EXESUF)
-check-qtest-lm32-y += tests/qom-test$(EXESUF)
-check-qtest-m68k-y += tests/qom-test$(EXESUF)
-check-qtest-microblaze-y += tests/qom-test$(EXESUF)
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
-check-qtest-moxie-y += tests/qom-test$(EXESUF)
-check-qtest-or32-y += tests/qom-test$(EXESUF)
-check-qtest-s390x-y += tests/qom-test$(EXESUF)
-check-qtest-unicore32-y += tests/qom-test$(EXESUF)
-check-qtest-xtensa-y += tests/qom-test$(EXESUF)
 check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
+
+# qom-test works for all sysemu architectures:
+$(foreach target,$(SYSEMU_TARGET_LIST), \
+    $(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF)))
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
         comments.json empty.json funny-char.json indented-expr.json \
@@ -211,6 +229,15 @@ tests/acpi-test$(EXESUF): tests/acpi-test.o $(libqos-obj-y)
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
+tests/e1000-test$(EXESUF): tests/e1000-test.o
+tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o
+tests/pcnet-test$(EXESUF): tests/pcnet-test.o
+tests/eepro100-test$(EXESUF): tests/eepro100-test.o
+tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
+tests/ne2000-test$(EXESUF): tests/ne2000-test.o
+tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
+tests/tpci200-test$(EXESUF): tests/tpci200-test.o
+tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
 tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)

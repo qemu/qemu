@@ -2535,7 +2535,7 @@ static Property scsi_hd_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
-    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
@@ -2583,7 +2583,7 @@ static const TypeInfo scsi_hd_info = {
 
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2646,7 +2646,7 @@ static Property scsi_disk_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
-    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_PROP_END_OF_LIST(),

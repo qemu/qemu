@@ -6,11 +6,12 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
+#include <glib.h>
+
 #include "libqtest.h"
 #include "libqos/i2c.h"
 #include "hw/misc/tmp105_regs.h"
-
-#include <glib.h>
 
 #define OMAP2_I2C_1_BASE 0x48070000
 

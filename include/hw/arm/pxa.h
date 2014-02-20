@@ -116,7 +116,7 @@ void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
 typedef struct PXA2xxI2CState PXA2xxI2CState;
 PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t page_size);
-i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
+I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
 typedef struct PXA2xxI2SState PXA2xxI2SState;
 typedef struct PXA2xxFIrState PXA2xxFIrState;

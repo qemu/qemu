@@ -692,7 +692,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 typedef struct {
     SysBusDevice parent_obj;
 
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
     MemoryRegion iomem;
     uint32_t msa;
@@ -868,7 +868,7 @@ static int stellaris_i2c_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
     stellaris_i2c_state *s = STELLARIS_I2C(dev);
-    i2c_bus *bus;
+    I2CBus *bus;
 
     sysbus_init_irq(sbd, &s->irq);
     bus = i2c_init_bus(dev, "i2c");
@@ -1213,7 +1213,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     qemu_irq adc;
     int sram_size;
     int flash_size;
-    i2c_bus *i2c;
+    I2CBus *i2c;
     DeviceState *dev;
     int i;
     int j;
@@ -1256,7 +1256,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     if (board->dc2 & (1 << 12)) {
         dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000, pic[8]);
-        i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
+        i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
         }

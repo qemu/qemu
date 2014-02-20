@@ -181,7 +181,7 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property pcspk_properties[] = {
-    DEFINE_PROP_HEX32("iobase", PCSpkState, iobase,  -1),
+    DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  -1),
     DEFINE_PROP_PTR("pit", PCSpkState, pit),
     DEFINE_PROP_END_OF_LIST(),
 };

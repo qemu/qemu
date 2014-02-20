@@ -507,11 +507,17 @@ int qtest_init_accel(void)
     return 0;
 }
 
-void qtest_init(const char *qtest_chrdev, const char *qtest_log)
+void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
     CharDriverState *chr;
 
     chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
+
+    if (chr == NULL) {
+        error_setg(errp, "Failed to initialize device for qtest: \"%s\"",
+                   qtest_chrdev);
+        return;
+    }
 
     qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
     qemu_chr_fe_set_echo(chr, true);

@@ -2195,7 +2195,7 @@ static Property megasas_properties[] = {
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
                        MEGASAS_DEFAULT_FRAMES),
     DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
-    DEFINE_PROP_HEX64("sas_address", MegasasState, sas_addr, 0),
+    DEFINE_PROP_UINT64("sas_address", MegasasState, sas_addr, 0),
 #ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,
                     MEGASAS_FLAG_USE_MSIX, false),

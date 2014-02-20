@@ -1,4 +1,4 @@
-common-obj-$(CONFIG_IPACK) += tpci200.o ipoctal232.o ipack.o
+common-obj-$(CONFIG_IPACK) += ipoctal232.o
 common-obj-$(CONFIG_ESCC) += escc.o
 common-obj-$(CONFIG_PARALLEL) += parallel.o
 common-obj-$(CONFIG_PL011) += pl011.o

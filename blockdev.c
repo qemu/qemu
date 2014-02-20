@@ -779,6 +779,10 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             translation = BIOS_ATA_TRANSLATION_NONE;
         } else if (!strcmp(value, "lba")) {
             translation = BIOS_ATA_TRANSLATION_LBA;
+        } else if (!strcmp(value, "large")) {
+            translation = BIOS_ATA_TRANSLATION_LARGE;
+        } else if (!strcmp(value, "rechs")) {
+            translation = BIOS_ATA_TRANSLATION_RECHS;
         } else if (!strcmp(value, "auto")) {
             translation = BIOS_ATA_TRANSLATION_AUTO;
         } else {

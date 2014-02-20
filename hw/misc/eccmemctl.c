@@ -314,7 +314,7 @@ static int ecc_init1(SysBusDevice *dev)
 }
 
 static Property ecc_properties[] = {
-    DEFINE_PROP_HEX32("version", ECCState, version, -1),
+    DEFINE_PROP_UINT32("version", ECCState, version, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

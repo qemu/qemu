@@ -1593,7 +1593,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     DeviceState *key_dev;
     DeviceState *wm8750_dev;
     SysBusDevice *s;
-    i2c_bus *i2c;
+    I2CBus *i2c;
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
@@ -1687,7 +1687,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     dev = sysbus_create_simple(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
                                pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
-    i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
+    i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
     key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);

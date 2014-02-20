@@ -19,7 +19,9 @@ typedef struct IPackBus IPackBus;
 #define IPACK_BUS(obj) OBJECT_CHECK(IPackBus, (obj), TYPE_IPACK_BUS)
 
 struct IPackBus {
-    BusState qbus;
+    /*< private >*/
+    BusState parent_obj;
+
     /* All fields are private */
     uint8_t n_slots;
     uint8_t free_slot;
@@ -38,10 +40,12 @@ typedef struct IPackDeviceClass IPackDeviceClass;
      OBJECT_GET_CLASS(IPackDeviceClass, (obj), TYPE_IPACK_DEVICE)
 
 struct IPackDeviceClass {
+    /*< private >*/
     DeviceClass parent_class;
+    /*< public >*/
 
-    int (*init)(IPackDevice *dev);
-    int (*exit)(IPackDevice *dev);
+    DeviceRealize realize;
+    DeviceUnrealize unrealize;
 
     uint16_t (*io_read)(IPackDevice *dev, uint8_t addr);
     void (*io_write)(IPackDevice *dev, uint8_t addr, uint16_t val);
@@ -60,7 +64,10 @@ struct IPackDeviceClass {
 };
 
 struct IPackDevice {
-    DeviceState qdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     int32_t slot;
     /* IRQ objects for the IndustryPack INT0# and INT1# */
     qemu_irq *irq;

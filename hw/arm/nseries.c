@@ -202,7 +202,7 @@ static void n8x0_i2c_setup(struct n800_s *s)
 {
     DeviceState *dev;
     qemu_irq tmp_irq = qdev_get_gpio_in(s->mpu->gpio, N8X0_TMP105_GPIO);
-    i2c_bus *i2c = omap_i2c_bus(s->mpu->i2c[0]);
+    I2CBus *i2c = omap_i2c_bus(s->mpu->i2c[0]);
 
     /* Attach a menelaus PM chip */
     dev = i2c_create_slave(i2c, "twl92230", N8X0_MENELAUS_ADDR);

@@ -12,12 +12,6 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "libqos/pci.h"
-#include "libqos/pci-pc.h"
-#include "libqtest.h"
-
-#include "hw/pci/pci_regs.h"
-
 #include <glib.h>
 #include <string.h>
 #include <stdio.h>
@@ -25,6 +19,11 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+
+#include "libqtest.h"
+#include "libqos/pci.h"
+#include "libqos/pci-pc.h"
+#include "hw/pci/pci_regs.h"
 
 #define BROKEN 1
 
