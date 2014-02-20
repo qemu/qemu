@@ -167,7 +167,7 @@ static int pci_piix_ide_initfn(PCIDevice *dev)
     return 0;
 }
 
-static int pci_piix3_xen_ide_unplug(DeviceState *dev)
+int pci_piix3_xen_ide_unplug(DeviceState *dev)
 {
     PCIIDEState *pci_ide;
     DriveInfo *di;
@@ -266,7 +266,6 @@ static void piix3_ide_xen_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->unplug = pci_piix3_xen_ide_unplug;
 }
 
 static const TypeInfo piix3_ide_xen_info = {
