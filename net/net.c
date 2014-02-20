@@ -378,59 +378,59 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
     }
 }
 
-bool qemu_peer_has_ufo(NetClientState *nc)
+bool qemu_has_ufo(NetClientState *nc)
 {
-    if (!nc->peer || !nc->peer->info->has_ufo) {
+    if (!nc || !nc->info->has_ufo) {
         return false;
     }
 
-    return nc->peer->info->has_ufo(nc->peer);
+    return nc->info->has_ufo(nc);
 }
 
-bool qemu_peer_has_vnet_hdr(NetClientState *nc)
+bool qemu_has_vnet_hdr(NetClientState *nc)
 {
-    if (!nc->peer || !nc->peer->info->has_vnet_hdr) {
+    if (!nc || !nc->info->has_vnet_hdr) {
         return false;
     }
 
-    return nc->peer->info->has_vnet_hdr(nc->peer);
+    return nc->info->has_vnet_hdr(nc);
 }
 
-bool qemu_peer_has_vnet_hdr_len(NetClientState *nc, int len)
+bool qemu_has_vnet_hdr_len(NetClientState *nc, int len)
 {
-    if (!nc->peer || !nc->peer->info->has_vnet_hdr_len) {
+    if (!nc || !nc->info->has_vnet_hdr_len) {
         return false;
     }
 
-    return nc->peer->info->has_vnet_hdr_len(nc->peer, len);
+    return nc->info->has_vnet_hdr_len(nc, len);
 }
 
-void qemu_peer_using_vnet_hdr(NetClientState *nc, bool enable)
+void qemu_using_vnet_hdr(NetClientState *nc, bool enable)
 {
-    if (!nc->peer || !nc->peer->info->using_vnet_hdr) {
+    if (!nc || !nc->info->using_vnet_hdr) {
         return;
     }
 
-    nc->peer->info->using_vnet_hdr(nc->peer, enable);
+    nc->info->using_vnet_hdr(nc, enable);
 }
 
-void qemu_peer_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
                           int ecn, int ufo)
 {
-    if (!nc->peer || !nc->peer->info->set_offload) {
+    if (!nc || !nc->info->set_offload) {
         return;
     }
 
-    nc->peer->info->set_offload(nc->peer, csum, tso4, tso6, ecn, ufo);
+    nc->info->set_offload(nc, csum, tso4, tso6, ecn, ufo);
 }
 
-void qemu_peer_set_vnet_hdr_len(NetClientState *nc, int len)
+void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
 {
-    if (!nc->peer || !nc->peer->info->set_vnet_hdr_len) {
+    if (!nc || !nc->info->set_vnet_hdr_len) {
         return;
     }
 
-    nc->peer->info->set_vnet_hdr_len(nc->peer, len);
+    nc->info->set_vnet_hdr_len(nc, len);
 }
 
 int qemu_can_send_packet(NetClientState *sender)

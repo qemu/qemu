@@ -1290,12 +1290,12 @@ static void vmxnet3_update_features(VMXNET3State *s)
               s->lro_supported, rxcso_supported,
               s->rx_vlan_stripping);
     if (s->peer_has_vhdr) {
-        qemu_peer_set_offload(qemu_get_queue(s->nic),
-                        rxcso_supported,
-                        s->lro_supported,
-                        s->lro_supported,
-                        0,
-                        0);
+        qemu_set_offload(qemu_get_queue(s->nic)->peer,
+                         rxcso_supported,
+                         s->lro_supported,
+                         s->lro_supported,
+                         0,
+                         0);
     }
 }
 
@@ -1885,7 +1885,7 @@ static bool vmxnet3_peer_has_vnet_hdr(VMXNET3State *s)
 {
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (qemu_peer_has_vnet_hdr(nc)) {
+    if (qemu_has_vnet_hdr(nc->peer)) {
         return true;
     }
 
@@ -1933,10 +1933,10 @@ static void vmxnet3_net_init(VMXNET3State *s)
     s->lro_supported = false;
 
     if (s->peer_has_vhdr) {
-        qemu_peer_set_vnet_hdr_len(qemu_get_queue(s->nic),
+        qemu_set_vnet_hdr_len(qemu_get_queue(s->nic)->peer,
             sizeof(struct virtio_net_hdr));
 
-        qemu_peer_using_vnet_hdr(qemu_get_queue(s->nic), 1);
+        qemu_using_vnet_hdr(qemu_get_queue(s->nic)->peer, 1);
     }
 
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);

@@ -132,13 +132,13 @@ ssize_t qemu_send_packet_async(NetClientState *nc, const uint8_t *buf,
 void qemu_purge_queued_packets(NetClientState *nc);
 void qemu_flush_queued_packets(NetClientState *nc);
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6]);
-bool qemu_peer_has_ufo(NetClientState *nc);
-bool qemu_peer_has_vnet_hdr(NetClientState *nc);
-bool qemu_peer_has_vnet_hdr_len(NetClientState *nc, int len);
-void qemu_peer_using_vnet_hdr(NetClientState *nc, bool enable);
-void qemu_peer_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
-                           int ecn, int ufo);
-void qemu_peer_set_vnet_hdr_len(NetClientState *nc, int len);
+bool qemu_has_ufo(NetClientState *nc);
+bool qemu_has_vnet_hdr(NetClientState *nc);
+bool qemu_has_vnet_hdr_len(NetClientState *nc, int len);
+void qemu_using_vnet_hdr(NetClientState *nc, bool enable);
+void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+                      int ecn, int ufo);
+void qemu_set_vnet_hdr_len(NetClientState *nc, int len);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);

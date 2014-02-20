@@ -325,7 +325,7 @@ static void peer_test_vnet_hdr(VirtIONet *n)
         return;
     }
 
-    n->has_vnet_hdr = qemu_peer_has_vnet_hdr(nc);
+    n->has_vnet_hdr = qemu_has_vnet_hdr(nc->peer);
 }
 
 static int peer_has_vnet_hdr(VirtIONet *n)
@@ -338,7 +338,7 @@ static int peer_has_ufo(VirtIONet *n)
     if (!peer_has_vnet_hdr(n))
         return 0;
 
-    n->has_ufo = qemu_peer_has_ufo(qemu_get_queue(n->nic));
+    n->has_ufo = qemu_has_ufo(qemu_get_queue(n->nic)->peer);
 
     return n->has_ufo;
 }
@@ -357,8 +357,8 @@ static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs)
         nc = qemu_get_subqueue(n->nic, i);
 
         if (peer_has_vnet_hdr(n) &&
-            qemu_peer_has_vnet_hdr_len(nc, n->guest_hdr_len)) {
-            qemu_peer_set_vnet_hdr_len(nc, n->guest_hdr_len);
+            qemu_has_vnet_hdr_len(nc->peer, n->guest_hdr_len)) {
+            qemu_set_vnet_hdr_len(nc->peer, n->guest_hdr_len);
             n->host_hdr_len = n->guest_hdr_len;
         }
     }
@@ -459,7 +459,7 @@ static uint32_t virtio_net_bad_features(VirtIODevice *vdev)
 
 static void virtio_net_apply_guest_offloads(VirtIONet *n)
 {
-    qemu_peer_set_offload(qemu_get_subqueue(n->nic, 0),
+    qemu_set_offload(qemu_get_subqueue(n->nic, 0)->peer,
             !!(n->curr_guest_offloads & (1ULL << VIRTIO_NET_F_GUEST_CSUM)),
             !!(n->curr_guest_offloads & (1ULL << VIRTIO_NET_F_GUEST_TSO4)),
             !!(n->curr_guest_offloads & (1ULL << VIRTIO_NET_F_GUEST_TSO6)),
@@ -1540,7 +1540,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     peer_test_vnet_hdr(n);
     if (peer_has_vnet_hdr(n)) {
         for (i = 0; i < n->max_queues; i++) {
-            qemu_peer_using_vnet_hdr(qemu_get_subqueue(n->nic, i), true);
+            qemu_using_vnet_hdr(qemu_get_subqueue(n->nic, i)->peer, true);
         }
         n->host_hdr_len = sizeof(struct virtio_net_hdr);
     } else {
