@@ -7727,8 +7727,8 @@ static void gen_xxpermdi(DisasContext *ctx)
 #define OP_NABS 2
 #define OP_NEG 3
 #define OP_CPSGN 4
-#define SGN_MASK_DP  0x8000000000000000ul
-#define SGN_MASK_SP 0x8000000080000000ul
+#define SGN_MASK_DP  0x8000000000000000ull
+#define SGN_MASK_SP 0x8000000080000000ull
 
 #define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
 static void glue(gen_, name)(DisasContext * ctx)                  \
