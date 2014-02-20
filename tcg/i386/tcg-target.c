@@ -88,6 +88,11 @@ static const int tcg_target_call_oarg_regs[] = {
 #endif
 };
 
+/* Constants we accept.  */
+#define TCG_CT_CONST_S32 0x100
+#define TCG_CT_CONST_U32 0x200
+#define TCG_CT_CONST_I32 0x400
+
 /* Registers used with L constraint, which are the first argument 
    registers on x86_64, and two random call clobbered registers on
    i386. */
@@ -122,6 +127,16 @@ static bool have_cmov;
 static bool have_movbe;
 #else
 # define have_movbe 0
+#endif
+
+/* We need this symbol in tcg-target.h, and we can't properly conditionalize
+   it there.  Therefore we always define the variable.  */
+bool have_bmi1;
+
+#if defined(CONFIG_CPUID_H) && defined(bit_BMI2)
+static bool have_bmi2;
+#else
+# define have_bmi2 0
 #endif
 
 static uint8_t *tb_ret_addr;
@@ -166,6 +181,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set_reg(ct->u.regs, TCG_REG_EBX);
         break;
     case 'c':
+    case_c:
         ct->ct |= TCG_CT_REG;
         tcg_regset_set_reg(ct->u.regs, TCG_REG_ECX);
         break;
@@ -194,6 +210,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set32(ct->u.regs, 0, 0xf);
         break;
     case 'r':
+    case_r:
         ct->ct |= TCG_CT_REG;
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
@@ -201,6 +218,13 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
             tcg_regset_set32(ct->u.regs, 0, 0xff);
         }
         break;
+    case 'C':
+        /* With SHRX et al, we need not use ECX as shift count register.  */
+        if (have_bmi2) {
+            goto case_r;
+        } else {
+            goto case_c;
+        }
 
         /* qemu_ld/st address constraint */
     case 'L':
@@ -219,6 +243,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
     case 'Z':
         ct->ct |= TCG_CT_CONST_U32;
+        break;
+    case 'I':
+        ct->ct |= TCG_CT_CONST_I32;
         break;
 
     default:
@@ -241,6 +268,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
         return 1;
     }
     if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
         return 1;
     }
     return 0;
@@ -268,10 +298,13 @@ static inline int tcg_target_const_match(tcg_target_long val,
 # define P_REXB_RM	0
 # define P_GS           0
 #endif
+#define P_SIMDF3        0x10000         /* 0xf3 opcode prefix */
+#define P_SIMDF2        0x20000         /* 0xf2 opcode prefix */
 
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
 #define OPC_ARITH_GvEv	(0x03)		/* ... plus (ARITH_FOO << 3) */
+#define OPC_ANDN        (0xf2 | P_EXT38)
 #define OPC_ADD_GvEv	(OPC_ARITH_GvEv | (ARITH_ADD << 3))
 #define OPC_BSWAP	(0xc8 | P_EXT)
 #define OPC_CALL_Jz	(0xe8)
@@ -309,6 +342,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_SHIFT_1	(0xd1)
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
+#define OPC_SARX        (0xf7 | P_EXT38 | P_SIMDF3)
+#define OPC_SHLX        (0xf7 | P_EXT38 | P_DATA16)
+#define OPC_SHRX        (0xf7 | P_EXT38 | P_SIMDF2)
 #define OPC_TESTL	(0x85)
 #define OPC_XCHG_ax_r32	(0x90)
 
@@ -398,9 +434,9 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
 
     rex = 0;
     rex |= (opc & P_REXW) ? 0x8 : 0x0;  /* REX.W */
-    rex |= (r & 8) >> 1;		/* REX.R */
-    rex |= (x & 8) >> 2;		/* REX.X */
-    rex |= (rm & 8) >> 3;		/* REX.B */
+    rex |= (r & 8) >> 1;                /* REX.R */
+    rex |= (x & 8) >> 2;                /* REX.X */
+    rex |= (rm & 8) >> 3;               /* REX.B */
 
     /* P_REXB_{R,RM} indicates that the given register is the low byte.
        For %[abcd]l we need no REX prefix, but for %{si,di,bp,sp}l we do,
@@ -446,6 +482,48 @@ static void tcg_out_opc(TCGContext *s, int opc)
 static void tcg_out_modrm(TCGContext *s, int opc, int r, int rm)
 {
     tcg_out_opc(s, opc, r, rm, 0);
+    tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
+}
+
+static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
+{
+    int tmp;
+
+    if ((opc & (P_REXW | P_EXT | P_EXT38)) || (rm & 8)) {
+        /* Three byte VEX prefix.  */
+        tcg_out8(s, 0xc4);
+
+        /* VEX.m-mmmm */
+        if (opc & P_EXT38) {
+            tmp = 2;
+        } else if (opc & P_EXT) {
+            tmp = 1;
+        } else {
+            tcg_abort();
+        }
+        tmp |= 0x40;                       /* VEX.X */
+        tmp |= (r & 8 ? 0 : 0x80);         /* VEX.R */
+        tmp |= (rm & 8 ? 0 : 0x20);        /* VEX.B */
+        tcg_out8(s, tmp);
+
+        tmp = (opc & P_REXW ? 0x80 : 0);   /* VEX.W */
+    } else {
+        /* Two byte VEX prefix.  */
+        tcg_out8(s, 0xc5);
+
+        tmp = (r & 8 ? 0 : 0x80);          /* VEX.R */
+    }
+    /* VEX.pp */
+    if (opc & P_DATA16) {
+        tmp |= 1;                          /* 0x66 */
+    } else if (opc & P_SIMDF3) {
+        tmp |= 2;                          /* 0xf3 */
+    } else if (opc & P_SIMDF2) {
+        tmp |= 3;                          /* 0xf2 */
+    }
+    tmp |= (~v & 15) << 3;                 /* VEX.vvvv */
+    tcg_out8(s, tmp);
+    tcg_out8(s, opc);
     tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
 }
 
@@ -1638,7 +1716,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
-    int c, rexw = 0;
+    int c, vexop, rexw = 0;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
@@ -1774,6 +1852,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    OP_32_64(andc):
+        if (const_args[2]) {
+            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                        args[0], args[1]);
+            tgen_arithi(s, ARITH_AND + rexw, args[0], ~args[2], 0);
+        } else {
+            tcg_out_vex_modrm(s, OPC_ANDN + rexw, args[0], args[2], args[1]);
+        }
+        break;
+
     OP_32_64(mul):
         if (const_args[2]) {
             int32_t val;
@@ -1799,19 +1887,28 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     OP_32_64(shl):
         c = SHIFT_SHL;
-        goto gen_shift;
+        vexop = OPC_SHLX;
+        goto gen_shift_maybe_vex;
     OP_32_64(shr):
         c = SHIFT_SHR;
-        goto gen_shift;
+        vexop = OPC_SHRX;
+        goto gen_shift_maybe_vex;
     OP_32_64(sar):
         c = SHIFT_SAR;
-        goto gen_shift;
+        vexop = OPC_SARX;
+        goto gen_shift_maybe_vex;
     OP_32_64(rotl):
         c = SHIFT_ROL;
         goto gen_shift;
     OP_32_64(rotr):
         c = SHIFT_ROR;
         goto gen_shift;
+    gen_shift_maybe_vex:
+        if (have_bmi2 && !const_args[2]) {
+            tcg_out_vex_modrm(s, vexop + rexw, args[0], args[2], args[1]);
+            break;
+        }
+        /* FALLTHRU */
     gen_shift:
         if (const_args[2]) {
             tcg_out_shifti(s, c + rexw, args[0], args[2]);
@@ -2002,10 +2099,11 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_and_i32, { "r", "0", "ri" } },
     { INDEX_op_or_i32, { "r", "0", "ri" } },
     { INDEX_op_xor_i32, { "r", "0", "ri" } },
+    { INDEX_op_andc_i32, { "r", "r", "ri" } },
 
-    { INDEX_op_shl_i32, { "r", "0", "ci" } },
-    { INDEX_op_shr_i32, { "r", "0", "ci" } },
-    { INDEX_op_sar_i32, { "r", "0", "ci" } },
+    { INDEX_op_shl_i32, { "r", "0", "Ci" } },
+    { INDEX_op_shr_i32, { "r", "0", "Ci" } },
+    { INDEX_op_sar_i32, { "r", "0", "Ci" } },
     { INDEX_op_rotl_i32, { "r", "0", "ci" } },
     { INDEX_op_rotr_i32, { "r", "0", "ci" } },
 
@@ -2059,10 +2157,11 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_and_i64, { "r", "0", "reZ" } },
     { INDEX_op_or_i64, { "r", "0", "re" } },
     { INDEX_op_xor_i64, { "r", "0", "re" } },
+    { INDEX_op_andc_i64, { "r", "r", "rI" } },
 
-    { INDEX_op_shl_i64, { "r", "0", "ci" } },
-    { INDEX_op_shr_i64, { "r", "0", "ci" } },
-    { INDEX_op_sar_i64, { "r", "0", "ci" } },
+    { INDEX_op_shl_i64, { "r", "0", "Ci" } },
+    { INDEX_op_shr_i64, { "r", "0", "Ci" } },
+    { INDEX_op_sar_i64, { "r", "0", "Ci" } },
     { INDEX_op_rotl_i64, { "r", "0", "ci" } },
     { INDEX_op_rotr_i64, { "r", "0", "ci" } },
 
@@ -2196,25 +2295,34 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
-#if !(defined(have_cmov) && defined(have_movbe))
-    {
-        unsigned a, b, c, d;
-        int ret = __get_cpuid(1, &a, &b, &c, &d);
+    unsigned a, b, c, d;
+    int max = __get_cpuid_max(0, 0);
 
-# ifndef have_cmov
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+#ifndef have_cmov
         /* For 32-bit, 99% certainty that we're running on hardware that
            supports cmov, but we still need to check.  In case cmov is not
            available, we'll use a small forward branch.  */
-        have_cmov = ret && (d & bit_CMOV);
-# endif
-
-# ifndef have_movbe
+        have_cmov = (d & bit_CMOV) != 0;
+#endif
+#ifndef have_movbe
         /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
            need to probe for it.  */
-        have_movbe = ret && (c & bit_MOVBE);
-# endif
-    }
+        have_movbe = (c & bit_MOVBE) != 0;
 #endif
+    }
+
+    if (max >= 7) {
+        /* BMI1 is available on AMD Piledriver and Intel Haswell CPUs.  */
+        __cpuid_count(7, 0, a, b, c, d);
+#ifdef bit_BMI
+        have_bmi1 = (b & bit_BMI) != 0;
+#endif
+#ifndef have_bmi2
+        have_bmi2 = (b & bit_BMI2) != 0;
+#endif
+    }
 
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);

@@ -64,9 +64,6 @@ typedef enum {
     TCG_REG_RDI = TCG_REG_EDI,
 } TCGReg;
 
-#define TCG_CT_CONST_S32 0x100
-#define TCG_CT_CONST_U32 0x200
-
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_ESP 
 #define TCG_TARGET_STACK_ALIGN 16
@@ -75,6 +72,8 @@ typedef enum {
 #else
 #define TCG_TARGET_CALL_STACK_OFFSET 0
 #endif
+
+extern bool have_bmi1;
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div2_i32         1
@@ -87,7 +86,7 @@ typedef enum {
 #define TCG_TARGET_HAS_bswap32_i32      1
 #define TCG_TARGET_HAS_neg_i32          1
 #define TCG_TARGET_HAS_not_i32          1
-#define TCG_TARGET_HAS_andc_i32         0
+#define TCG_TARGET_HAS_andc_i32         have_bmi1
 #define TCG_TARGET_HAS_orc_i32          0
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
@@ -115,7 +114,7 @@ typedef enum {
 #define TCG_TARGET_HAS_bswap64_i64      1
 #define TCG_TARGET_HAS_neg_i64          1
 #define TCG_TARGET_HAS_not_i64          1
-#define TCG_TARGET_HAS_andc_i64         0
+#define TCG_TARGET_HAS_andc_i64         have_bmi1
 #define TCG_TARGET_HAS_orc_i64          0
 #define TCG_TARGET_HAS_eqv_i64          0
 #define TCG_TARGET_HAS_nand_i64         0

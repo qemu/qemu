@@ -526,7 +526,7 @@ static inline int tcg_temp_new_internal(TCGType type, int temp_local)
             ts->temp_local = temp_local;
             ts->name = NULL;
             ts++;
-            ts->base_type = TCG_TYPE_I32;
+            ts->base_type = type;
             ts->type = TCG_TYPE_I32;
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
