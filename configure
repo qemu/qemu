@@ -1289,6 +1289,35 @@ else
     error_exit "\"$cc\" either does not exist or does not work"
 fi
 
+# Check that the C++ compiler exists and works with the C compiler
+if has $cxx; then
+    cat > $TMPC <<EOF
+int c_function(void);
+int main(void) { return c_function(); }
+EOF
+
+    compile_object
+
+    cat > $TMPC <<EOF
+extern "C" {
+   int c_function(void);
+}
+int c_function(void) { return 42; }
+EOF
+
+    if (cc=$cxx do_cc $QEMU_CFLAGS -o $TMPE $TMPC $TMPO $LDFLAGS); then
+        # C++ compiler $cxx works ok with C compiler $cc
+        :
+    else
+        echo "C++ compiler $cxx does not work with C compiler $cc"
+        echo "Disabling C++ specific optional code"
+        cxx=
+    fi
+else
+    echo "No C++ compiler available; disabling C++ specific optional code"
+    cxx=
+fi
+
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
 z_version=`cut -f3 -d. $source_path/VERSION`
