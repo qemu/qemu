@@ -485,26 +485,20 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-
-static int pmreg_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                      uint64_t *value)
+static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Generic performance monitor register read function for where
-     * user access may be allowed by PMUSERENR.
+    /* Perfomance monitor registers user accessibility is controlled
+     * by PMUSERENR.
      */
     if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
+        return CP_ACCESS_TRAP;
     }
-    *value = CPREG_FIELD32(env, ri);
-    return 0;
+    return CP_ACCESS_OK;
 }
 
 static int pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     /* only the DP, X, D and E bits are writable */
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
@@ -514,9 +508,6 @@ static int pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static int pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     value &= (1 << 31);
     env->cp15.c9_pmcnten |= value;
     return 0;
@@ -525,9 +516,6 @@ static int pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static int pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     value &= (1 << 31);
     env->cp15.c9_pmcnten &= ~value;
     return 0;
@@ -536,9 +524,6 @@ static int pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static int pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     env->cp15.c9_pmovsr &= ~value;
     return 0;
 }
@@ -546,9 +531,6 @@ static int pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static int pmxevtyper_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     env->cp15.c9_pmxevtyper = value & 0xff;
     return 0;
 }
@@ -624,37 +606,41 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMCNTENSET", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
-      .readfn = pmreg_read, .writefn = pmcntenset_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
+      .writefn = pmcntenset_write,
+      .accessfn = pmreg_access,
+      .raw_writefn = raw_write },
     { .name = "PMCNTENCLR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 2,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
-      .readfn = pmreg_read, .writefn = pmcntenclr_write,
+      .accessfn = pmreg_access,
+      .writefn = pmcntenclr_write,
       .type = ARM_CP_NO_MIGRATE },
     { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmovsr),
-      .readfn = pmreg_read, .writefn = pmovsr_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
-    /* Unimplemented so WI. Strictly speaking write accesses in PL0 should
-     * respect PMUSERENR.
-     */
+      .accessfn = pmreg_access,
+      .writefn = pmovsr_write,
+      .raw_writefn = raw_write },
+    /* Unimplemented so WI. */
     { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
-      .access = PL0_W, .type = ARM_CP_NOP },
+      .access = PL0_W, .accessfn = pmreg_access, .type = ARM_CP_NOP },
     /* Since we don't implement any events, writing to PMSELR is UNPREDICTABLE.
-     * We choose to RAZ/WI. XXX should respect PMUSERENR.
+     * We choose to RAZ/WI.
      */
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
+    /* Unimplemented, RAZ/WI. */
     { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
-      .readfn = pmreg_read, .writefn = pmxevtyper_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
-    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+      .accessfn = pmreg_access, .writefn = pmxevtyper_write,
+      .raw_writefn = raw_write },
+    /* Unimplemented, RAZ/WI. */
     { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
     { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
       .access = PL0_R | PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
@@ -1708,8 +1694,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
             .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
             .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
-            .readfn = pmreg_read, .writefn = pmcr_write,
-            .raw_readfn = raw_read, .raw_writefn = raw_write,
+            .accessfn = pmreg_access, .writefn = pmcr_write,
+            .raw_writefn = raw_write,
         };
         ARMCPRegInfo clidr = {
             .name = "CLIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
