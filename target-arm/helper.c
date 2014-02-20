@@ -682,27 +682,12 @@ static int teecr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     return 0;
 }
 
-static int teehbr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t *value)
-{
-    /* This is a helper function because the user access rights
-     * depend on the value of the TEECR.
-     */
-    if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
-        return EXCP_UDEF;
-    }
-    *value = env->teehbr;
-    return 0;
-}
-
-static int teehbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+static CPAccessResultg teehbr_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
-        return EXCP_UDEF;
+        return CP_ACCESS_TRAP;
     }
-    env->teehbr = value;
-    return 0;
+    return CP_ACCESS_OK;
 }
 
 static const ARMCPRegInfo t2ee_cp_reginfo[] = {
@@ -712,8 +697,7 @@ static const ARMCPRegInfo t2ee_cp_reginfo[] = {
       .writefn = teecr_write },
     { .name = "TEEHBR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 6, .opc2 = 0,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, teehbr),
-      .resetvalue = 0, .raw_readfn = raw_read, .raw_writefn = raw_write,
-      .readfn = teehbr_read, .writefn = teehbr_write },
+      .accessfn = teehbr_access, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -1031,6 +1015,19 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
         && (env->cp15.c2_control & (1U << 31));
 }
 
+static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (ri->opc2 & 4) {
+        /* Other states are only available with TrustZone; in
+         * a non-TZ implementation these registers don't exist
+         * at all, which is an Uncategorized trap. This underdecoding
+         * is safe because the reginfo is NO_MIGRATE.
+         */
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    return CP_ACCESS_OK;
+}
+
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     hwaddr phys_addr;
@@ -1039,10 +1036,6 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     int ret, is_user = ri->opc2 & 2;
     int access_type = ri->opc2 & 1;
 
-    if (ri->opc2 & 4) {
-        /* Other states are only available with TrustZone */
-        return EXCP_UDEF;
-    }
     ret = get_phys_addr(env, value, access_type, is_user,
                         &phys_addr, &prot, &page_size);
     if (extended_addresses_enabled(env)) {
@@ -1095,7 +1088,8 @@ static const ARMCPRegInfo vapa_cp_reginfo[] = {
       .writefn = par_write },
 #ifndef CONFIG_USER_ONLY
     { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
-      .access = PL1_W, .writefn = ats_write, .type = ARM_CP_NO_MIGRATE },
+      .access = PL1_W, .accessfn = ats_access,
+      .writefn = ats_write, .type = ARM_CP_NO_MIGRATE },
 #endif
     REGINFO_SENTINEL
 };
