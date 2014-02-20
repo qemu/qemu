@@ -115,7 +115,7 @@ static const int tcg_target_call_oarg_regs[] = {
    is available.  */
 #if TCG_TARGET_REG_BITS == 64
 # define have_cmov 1
-#elif defined(CONFIG_CPUID_H)
+#elif defined(CONFIG_CPUID_H) && defined(bit_CMOV)
 static bool have_cmov;
 #else
 # define have_cmov 0
@@ -2295,6 +2295,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
+#ifdef CONFIG_CPUID_H
     unsigned a, b, c, d;
     int max = __get_cpuid_max(0, 0);
 
@@ -2323,6 +2324,7 @@ static void tcg_target_init(TCGContext *s)
         have_bmi2 = (b & bit_BMI2) != 0;
 #endif
     }
+#endif
 
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);

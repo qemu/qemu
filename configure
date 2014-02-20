@@ -3564,7 +3564,18 @@ cpuid_h=no
 cat > $TMPC << EOF
 #include <cpuid.h>
 int main(void) {
-  return 0;
+    unsigned a, b, c, d;
+    int max = __get_cpuid_max(0, 0);
+
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+    }
+
+    if (max >= 7) {
+        __cpuid_count(7, 0, a, b, c, d);
+    }
+
+    return 0;
 }
 EOF
 if compile_prog "" "" ; then
