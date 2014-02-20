@@ -2718,7 +2718,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
-    if (env->cp15.c1_sys & (1 << 13)) {
+    if (env->cp15.c1_sys & SCTLR_V) {
         /* when enabled, base address cannot be remapped.  */
         addr += 0xffff0000;
     } else {
@@ -2741,7 +2741,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
     if (arm_feature(env, ARM_FEATURE_V4T)) {
-        env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+        env->thumb = (env->cp15.c1_sys & SCTLR_TE) != 0;
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
@@ -2769,10 +2769,10 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
   case 0:
       if (access_type == 1)
           return 0;
-      switch ((env->cp15.c1_sys >> 8) & 3) {
-      case 1:
+      switch (env->cp15.c1_sys & (SCTLR_S | SCTLR_R)) {
+      case SCTLR_S:
           return is_user ? 0 : PAGE_READ;
-      case 2:
+      case SCTLR_R:
           return PAGE_READ;
       default:
           return 0;
@@ -3003,7 +3003,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
             goto do_fault;
 
         /* The simplified model uses AP[0] as an access control bit.  */
-        if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
+        if ((env->cp15.c1_sys & SCTLR_AFE) && (ap & 1) == 0) {
             /* Access flag fault.  */
             code = (code == 15) ? 6 : 3;
             goto do_fault;
@@ -3295,7 +3295,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     if (address < 0x02000000)
         address += env->cp15.c13_fcse;
 
-    if ((env->cp15.c1_sys & 1) == 0) {
+    if ((env->cp15.c1_sys & SCTLR_M) == 0) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -3308,7 +3308,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     } else if (extended_addresses_enabled(env)) {
         return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
                                   prot, page_size);
-    } else if (env->cp15.c1_sys & (1 << 23)) {
+    } else if (env->cp15.c1_sys & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
                                 prot, page_size);
     } else {

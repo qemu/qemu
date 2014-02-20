@@ -128,7 +128,7 @@ static void arm_cpu_reset(CPUState *s)
         }
     }
 
-    if (env->cp15.c1_sys & (1 << 13)) {
+    if (env->cp15.c1_sys & SCTLR_V) {
             env->regs[15] = 0xFFFF0000;
     }
 
