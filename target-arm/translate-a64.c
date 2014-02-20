@@ -7152,6 +7152,60 @@ static void handle_3rd_wide(DisasContext *s, int is_q, int is_u, int size,
     }
 }
 
+static void do_narrow_high_u32(TCGv_i32 res, TCGv_i64 in)
+{
+    tcg_gen_shri_i64(in, in, 32);
+    tcg_gen_trunc_i64_i32(res, in);
+}
+
+static void do_narrow_round_high_u32(TCGv_i32 res, TCGv_i64 in)
+{
+    tcg_gen_addi_i64(in, in, 1U << 31);
+    do_narrow_high_u32(res, in);
+}
+
+static void handle_3rd_narrowing(DisasContext *s, int is_q, int is_u, int size,
+                                 int opcode, int rd, int rn, int rm)
+{
+    TCGv_i32 tcg_res[2];
+    int part = is_q ? 2 : 0;
+    int pass;
+
+    for (pass = 0; pass < 2; pass++) {
+        TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+        TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+        TCGv_i64 tcg_wideres = tcg_temp_new_i64();
+        static NeonGenNarrowFn * const narrowfns[3][2] = {
+            { gen_helper_neon_narrow_high_u8,
+              gen_helper_neon_narrow_round_high_u8 },
+            { gen_helper_neon_narrow_high_u16,
+              gen_helper_neon_narrow_round_high_u16 },
+            { do_narrow_high_u32, do_narrow_round_high_u32 },
+        };
+        NeonGenNarrowFn *gennarrow = narrowfns[size][is_u];
+
+        read_vec_element(s, tcg_op1, rn, pass, MO_64);
+        read_vec_element(s, tcg_op2, rm, pass, MO_64);
+
+        gen_neon_addl(size, (opcode == 6), tcg_wideres, tcg_op1, tcg_op2);
+
+        tcg_temp_free_i64(tcg_op1);
+        tcg_temp_free_i64(tcg_op2);
+
+        tcg_res[pass] = tcg_temp_new_i32();
+        gennarrow(tcg_res[pass], tcg_wideres);
+        tcg_temp_free_i64(tcg_wideres);
+    }
+
+    for (pass = 0; pass < 2; pass++) {
+        write_vec_element_i32(s, tcg_res[pass], rd, pass + part, MO_32);
+        tcg_temp_free_i32(tcg_res[pass]);
+    }
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+}
+
 /* C3.6.15 AdvSIMD three different
  *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+---+------+--------+-----+------+------+
@@ -7191,7 +7245,11 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
     case 4: /* ADDHN, ADDHN2, RADDHN, RADDHN2 */
     case 6: /* SUBHN, SUBHN2, RSUBHN, RSUBHN2 */
         /* 128 x 128 -> 64 */
-        unsupported_encoding(s, insn);
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_3rd_narrowing(s, is_q, is_u, size, opcode, rd, rn, rm);
         break;
     case 14: /* PMULL, PMULL2 */
         if (is_u || size == 1 || size == 2) {
