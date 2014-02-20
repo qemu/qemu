@@ -7105,39 +7105,22 @@ static void gen_min_u32(TCGv_i32 res, TCGv_i32 op1, TCGv_i32 op2)
     tcg_gen_movcond_i32(TCG_COND_LEU, res, op1, op2, op1, op2);
 }
 
-/* Pairwise op subgroup of C3.6.16. */
-static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
+/* Pairwise op subgroup of C3.6.16.
+ *
+ * This is called directly or via the handle_3same_float for float pairwise
+ * operations where the opcode and size are calculated differently.
+ */
+static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
+                                   int size, int rn, int rm, int rd)
 {
-    int is_q = extract32(insn, 30, 1);
-    int u = extract32(insn, 29, 1);
-    int size = extract32(insn, 22, 2);
-    int opcode = extract32(insn, 11, 5);
-    int rm = extract32(insn, 16, 5);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
+    TCGv_ptr fpst;
     int pass;
 
-    if (size == 3 && !is_q) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    switch (opcode) {
-    case 0x14: /* SMAXP, UMAXP */
-    case 0x15: /* SMINP, UMINP */
-        if (size == 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
-    case 0x17:
-        if (u) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
-    default:
-        g_assert_not_reached();
+    /* Floating point operations need fpst */
+    if (opcode >= 0x58) {
+        fpst = get_fpstatus_ptr();
+    } else {
+        TCGV_UNUSED_PTR(fpst);
     }
 
     /* These operations work on the concatenated rm:rn, with each pair of
@@ -7155,9 +7138,28 @@ static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
             read_vec_element(s, tcg_op2, passreg, 1, MO_64);
             tcg_res[pass] = tcg_temp_new_i64();
 
-            /* The only 64 bit pairwise integer op is ADDP */
-            assert(opcode == 0x17);
-            tcg_gen_add_i64(tcg_res[pass], tcg_op1, tcg_op2);
+            switch (opcode) {
+            case 0x17: /* ADDP */
+                tcg_gen_add_i64(tcg_res[pass], tcg_op1, tcg_op2);
+                break;
+            case 0x58: /* FMAXNMP */
+                gen_helper_vfp_maxnumd(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5a: /* FADDP */
+                gen_helper_vfp_addd(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5e: /* FMAXP */
+                gen_helper_vfp_maxd(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x78: /* FMINNMP */
+                gen_helper_vfp_minnumd(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7e: /* FMINP */
+                gen_helper_vfp_mind(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            default:
+                g_assert_not_reached();
+            }
 
             tcg_temp_free_i64(tcg_op1);
             tcg_temp_free_i64(tcg_op2);
@@ -7174,7 +7176,7 @@ static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
         for (pass = 0; pass < maxpass; pass++) {
             TCGv_i32 tcg_op1 = tcg_temp_new_i32();
             TCGv_i32 tcg_op2 = tcg_temp_new_i32();
-            NeonGenTwoOpFn *genfn;
+            NeonGenTwoOpFn *genfn = NULL;
             int passreg = pass < (maxpass / 2) ? rn : rm;
             int passelt = (is_q && (pass & 1)) ? 2 : 0;
 
@@ -7213,11 +7215,30 @@ static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
                 genfn = fns[size][u];
                 break;
             }
+            /* The FP operations are all on single floats (32 bit) */
+            case 0x58: /* FMAXNMP */
+                gen_helper_vfp_maxnums(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5a: /* FADDP */
+                gen_helper_vfp_adds(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x5e: /* FMAXP */
+                gen_helper_vfp_maxs(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x78: /* FMINNMP */
+                gen_helper_vfp_minnums(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
+            case 0x7e: /* FMINP */
+                gen_helper_vfp_mins(tcg_res[pass], tcg_op1, tcg_op2, fpst);
+                break;
             default:
                 g_assert_not_reached();
             }
 
-            genfn(tcg_res[pass], tcg_op1, tcg_op2);
+            /* FP ops called directly, otherwise call now */
+            if (genfn) {
+                genfn(tcg_res[pass], tcg_op1, tcg_op2);
+            }
 
             tcg_temp_free_i32(tcg_op1);
             tcg_temp_free_i32(tcg_op2);
@@ -7230,6 +7251,10 @@ static void disas_simd_3same_pair(DisasContext *s, uint32_t insn)
         if (!is_q) {
             clear_vec_high(s, rd);
         }
+    }
+
+    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+        tcg_temp_free_ptr(fpst);
     }
 }
 
@@ -7264,8 +7289,12 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     case 0x5e: /* FMAXP */
     case 0x78: /* FMINNMP */
     case 0x7e: /* FMINP */
-        /* pairwise ops */
-        unsupported_encoding(s, insn);
+        if (size && !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_simd_3same_pair(s, is_q, 0, fpopcode, size ? MO_64 : MO_32,
+                               rn, rm, rd);
         return;
     case 0x1b: /* FMULX */
     case 0x1f: /* FRECPS */
@@ -7615,9 +7644,28 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
     case 0x17: /* ADDP */
     case 0x14: /* SMAXP, UMAXP */
     case 0x15: /* SMINP, UMINP */
+    {
         /* Pairwise operations */
-        disas_simd_3same_pair(s, insn);
+        int is_q = extract32(insn, 30, 1);
+        int u = extract32(insn, 29, 1);
+        int size = extract32(insn, 22, 2);
+        int rm = extract32(insn, 16, 5);
+        int rn = extract32(insn, 5, 5);
+        int rd = extract32(insn, 0, 5);
+        if (opcode == 0x17) {
+            if (u || (size == 3 && !is_q)) {
+                unallocated_encoding(s);
+                return;
+            }
+        } else {
+            if (size == 3) {
+                unallocated_encoding(s);
+                return;
+            }
+        }
+        handle_simd_3same_pair(s, is_q, u, opcode, size, rn, rm, rd);
         break;
+    }
     case 0x18 ... 0x31:
         /* floating point ops, sz[1] and U are part of opcode */
         disas_simd_3same_float(s, insn);
