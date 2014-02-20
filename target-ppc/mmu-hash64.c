@@ -566,7 +566,8 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
     }
 
     if (new_pte1 != pte.pte1) {
-        ppc_hash64_store_hpte1(env, pte_offset, new_pte1);
+        ppc_hash64_store_hpte(env, pte_offset / HASH_PTE_SIZE_64,
+                              pte.pte0, new_pte1);
     }
 
     /* 7. Determine the real address from the PTE */

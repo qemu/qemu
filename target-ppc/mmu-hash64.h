@@ -106,26 +106,18 @@ static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
     }
 }
 
-static inline void ppc_hash64_store_hpte0(CPUPPCState *env,
-                                          hwaddr pte_offset, target_ulong pte0)
+static inline void ppc_hash64_store_hpte(CPUPPCState *env,
+                                         target_ulong pte_index,
+                                         target_ulong pte0, target_ulong pte1)
 {
     CPUState *cs = ENV_GET_CPU(env);
+    pte_index *= HASH_PTE_SIZE_64;
     if (env->external_htab) {
-        stq_p(env->external_htab + pte_offset, pte0);
+        stq_p(env->external_htab + pte_index, pte0);
+        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64/2, pte1);
     } else {
-        stq_phys(cs->as, env->htab_base + pte_offset, pte0);
-    }
-}
-
-static inline void ppc_hash64_store_hpte1(CPUPPCState *env,
-                                          hwaddr pte_offset, target_ulong pte1)
-{
-    CPUState *cs = ENV_GET_CPU(env);
-    if (env->external_htab) {
-        stq_p(env->external_htab + pte_offset + HASH_PTE_SIZE_64/2, pte1);
-    } else {
-        stq_phys(cs->as,
-                 env->htab_base + pte_offset + HASH_PTE_SIZE_64/2, pte1);
+        stq_phys(cs->as, env->htab_base + pte_index, pte0);
+        stq_phys(cs->as, env->htab_base + pte_index + HASH_PTE_SIZE_64/2, pte1);
     }
 }
 
