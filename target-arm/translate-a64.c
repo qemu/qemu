@@ -6322,17 +6322,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
-/* C3.6.13 AdvSIMD scalar x indexed element
- *  31 30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
- * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
- * | 0 1 | U | 1 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
- * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
- */
-static void disas_simd_scalar_indexed(DisasContext *s, uint32_t insn)
-{
-    unsupported_encoding(s, insn);
-}
-
 /* SSHR[RA]/USHR[RA] - Vector shift right (optional rounding/accumulate) */
 static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
                                  int immh, int immb, int opcode, int rn, int rd)
@@ -7805,13 +7794,18 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
-/* C3.6.18 AdvSIMD vector x indexed element
+/* C3.6.13 AdvSIMD scalar x indexed element
+ *  31 30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
+ * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
+ * | 0 1 | U | 1 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
+ * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
+ * C3.6.18 AdvSIMD vector x indexed element
  *   31  30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
  * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
  * | 0 | Q | U | 0 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
  * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
  */
-static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
+static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 {
     /* This encoding has two kinds of instruction:
      *  normal, where we perform elt x idxelt => elt for each
@@ -7820,6 +7814,7 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
      *     double the width of the input element
      * The long ops have a 'part' specifier (ie come in INSN, INSN2 pairs).
      */
+    bool is_scalar = extract32(insn, 28, 1);
     bool is_q = extract32(insn, 30, 1);
     bool u = extract32(insn, 29, 1);
     int size = extract32(insn, 22, 2);
@@ -7839,7 +7834,7 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
     switch (opcode) {
     case 0x0: /* MLA */
     case 0x4: /* MLS */
-        if (!u) {
+        if (!u || is_scalar) {
             unallocated_encoding(s);
             return;
         }
@@ -7847,6 +7842,10 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
     case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
     case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
     case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
+        if (is_scalar) {
+            unallocated_encoding(s);
+            return;
+        }
         is_long = true;
         break;
     case 0x3: /* SQDMLAL, SQDMLAL2 */
@@ -7856,8 +7855,13 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
         /* fall through */
     case 0xc: /* SQDMULH */
     case 0xd: /* SQRDMULH */
-    case 0x8: /* MUL */
         if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x8: /* MUL */
+        if (u || is_scalar) {
             unallocated_encoding(s);
             return;
         }
@@ -7923,7 +7927,7 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
 
         read_vec_element(s, tcg_idx, rm, index, MO_64);
 
-        for (pass = 0; pass < 2; pass++) {
+        for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
             TCGv_i64 tcg_res = tcg_temp_new_i64();
 
@@ -7954,15 +7958,28 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
             tcg_temp_free_i64(tcg_res);
         }
 
+        if (is_scalar) {
+            clear_vec_high(s, rd);
+        }
+
         tcg_temp_free_i64(tcg_idx);
     } else if (!is_long) {
-        /* 32 bit floating point, or 16 or 32 bit integer */
+        /* 32 bit floating point, or 16 or 32 bit integer.
+         * For the 16 bit scalar case we use the usual Neon helpers and
+         * rely on the fact that 0 op 0 == 0 with no side effects.
+         */
         TCGv_i32 tcg_idx = tcg_temp_new_i32();
-        int pass;
+        int pass, maxpasses;
+
+        if (is_scalar) {
+            maxpasses = 1;
+        } else {
+            maxpasses = is_q ? 4 : 2;
+        }
 
         read_vec_element_i32(s, tcg_idx, rm, index, size);
 
-        if (size == 1) {
+        if (size == 1 && !is_scalar) {
             /* The simplest way to handle the 16x16 indexed ops is to duplicate
              * the index into both halves of the 32 bit tcg_idx and then use
              * the usual Neon helpers.
@@ -7970,11 +7987,11 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
             tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
         }
 
-        for (pass = 0; pass < (is_q ? 4 : 2); pass++) {
+        for (pass = 0; pass < maxpasses; pass++) {
             TCGv_i32 tcg_op = tcg_temp_new_i32();
             TCGv_i32 tcg_res = tcg_temp_new_i32();
 
-            read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
+            read_vec_element_i32(s, tcg_op, rn, pass, is_scalar ? size : MO_32);
 
             switch (opcode) {
             case 0x0: /* MLA */
@@ -8038,7 +8055,12 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
                 g_assert_not_reached();
             }
 
-            write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+            if (is_scalar) {
+                write_fp_sreg(s, rd, tcg_res);
+            } else {
+                write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+            }
+
             tcg_temp_free_i32(tcg_op);
             tcg_temp_free_i32(tcg_res);
         }
@@ -8064,11 +8086,18 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
 
             read_vec_element(s, tcg_idx, rm, index, memop);
 
-            for (pass = 0; pass < 2; pass++) {
+            for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
                 TCGv_i64 tcg_op = tcg_temp_new_i64();
                 TCGv_i64 tcg_passres;
+                int passelt;
 
-                read_vec_element(s, tcg_op, rn, pass + (is_q * 2), memop);
+                if (is_scalar) {
+                    passelt = 0;
+                } else {
+                    passelt = pass + (is_q * 2);
+                }
+
+                read_vec_element(s, tcg_op, rn, passelt, memop);
 
                 tcg_res[pass] = tcg_temp_new_i64();
 
@@ -8116,23 +8145,35 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
                 tcg_temp_free_i64(tcg_passres);
             }
             tcg_temp_free_i64(tcg_idx);
+
+            if (is_scalar) {
+                clear_vec_high(s, rd);
+            }
         } else {
             TCGv_i32 tcg_idx = tcg_temp_new_i32();
 
             assert(size == 1);
             read_vec_element_i32(s, tcg_idx, rm, index, size);
 
-            /* The simplest way to handle the 16x16 indexed ops is to duplicate
-             * the index into both halves of the 32 bit tcg_idx and then use
-             * the usual Neon helpers.
-             */
-            tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
+            if (!is_scalar) {
+                /* The simplest way to handle the 16x16 indexed ops is to
+                 * duplicate the index into both halves of the 32 bit tcg_idx
+                 * and then use the usual Neon helpers.
+                 */
+                tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
+            }
 
-            for (pass = 0; pass < 2; pass++) {
+            for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
                 TCGv_i32 tcg_op = tcg_temp_new_i32();
                 TCGv_i64 tcg_passres;
 
-                read_vec_element_i32(s, tcg_op, rn, pass + (is_q * 2), MO_32);
+                if (is_scalar) {
+                    read_vec_element_i32(s, tcg_op, rn, pass, size);
+                } else {
+                    read_vec_element_i32(s, tcg_op, rn,
+                                         pass + (is_q * 2), MO_32);
+                }
+
                 tcg_res[pass] = tcg_temp_new_i64();
 
                 if (opcode == 0xa || opcode == 0xb) {
@@ -8183,6 +8224,14 @@ static void disas_simd_indexed_vector(DisasContext *s, uint32_t insn)
                 tcg_temp_free_i64(tcg_passres);
             }
             tcg_temp_free_i32(tcg_idx);
+
+            if (is_scalar) {
+                tcg_gen_ext32u_i64(tcg_res[0], tcg_res[0]);
+            }
+        }
+
+        if (is_scalar) {
+            tcg_res[1] = tcg_const_i64(0);
         }
 
         for (pass = 0; pass < 2; pass++) {
@@ -8241,7 +8290,7 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x0e200800, 0x9f3e0c00, disas_simd_two_reg_misc },
     { 0x0e300800, 0x9f3e0c00, disas_simd_across_lanes },
     { 0x0e000400, 0x9fe08400, disas_simd_copy },
-    { 0x0f000000, 0x9f000400, disas_simd_indexed_vector },
+    { 0x0f000000, 0x9f000400, disas_simd_indexed }, /* vector indexed */
     /* simd_mod_imm decode is a subset of simd_shift_imm, so must precede it */
     { 0x0f000400, 0x9ff80400, disas_simd_mod_imm },
     { 0x0f000400, 0x9f800400, disas_simd_shift_imm },
@@ -8253,7 +8302,7 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
     { 0x5e300800, 0xdf3e0c00, disas_simd_scalar_pairwise },
     { 0x5e000400, 0xdfe08400, disas_simd_scalar_copy },
-    { 0x5f000000, 0xdf000400, disas_simd_scalar_indexed },
+    { 0x5f000000, 0xdf000400, disas_simd_indexed }, /* scalar indexed */
     { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
     { 0x4e280800, 0xff3e0c00, disas_crypto_aes },
     { 0x5e000000, 0xff208c00, disas_crypto_three_reg_sha },
