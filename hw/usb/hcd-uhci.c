@@ -252,9 +252,11 @@ static bool uhci_queue_verify(UHCIQueue *queue, uint32_t qh_addr, UHCI_TD *td,
                               uint32_t td_addr, bool queuing)
 {
     UHCIAsync *first = QTAILQ_FIRST(&queue->asyncs);
+    uint32_t queue_token_addr = (queue->token >> 8) & 0x7f;
 
     return queue->qh_addr == qh_addr &&
            queue->token == uhci_queue_token(td) &&
+           queue_token_addr == queue->ep->dev->addr &&
            (queuing || !(td->ctrl & TD_CTRL_ACTIVE) || first == NULL ||
             first->td_addr == td_addr);
 }

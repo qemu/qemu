@@ -157,6 +157,11 @@
 #define USB_DEV_CAP_USB2_EXT            0x02
 #define USB_DEV_CAP_SUPERSPEED          0x03
 
+#define USB_CFG_ATT_ONE              (1 << 7) /* should always be set */
+#define USB_CFG_ATT_SELFPOWER        (1 << 6)
+#define USB_CFG_ATT_WAKEUP           (1 << 5)
+#define USB_CFG_ATT_BATTERY          (1 << 4)
+
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
 #define USB_ENDPOINT_XFER_BULK		2
