@@ -1177,7 +1177,12 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
                                                crn, crm, op0, op1, op2));
 
     if (!ri) {
-        /* Unknown register */
+        /* Unknown register; this might be a guest error or a QEMU
+         * unimplemented feature.
+         */
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch64 "
+                      "system register op0:%d op1:%d crn:%d crm:%d op2:%d\n",
+                      isread ? "read" : "write", op0, op1, crn, crm, op2);
         unallocated_encoding(s);
         return;
     }

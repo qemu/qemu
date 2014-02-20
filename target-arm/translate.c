@@ -6962,6 +6962,19 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         return 0;
     }
 
+    /* Unknown register; this might be a guest error or a QEMU
+     * unimplemented feature.
+     */
+    if (is64) {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "64 bit system register cp:%d opc1: %d crm:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crm);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2);
+    }
+
     return 1;
 }
 
