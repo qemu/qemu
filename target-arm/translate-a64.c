@@ -7117,6 +7117,41 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
     tcg_temp_free_i64(tcg_res[1]);
 }
 
+static void handle_3rd_wide(DisasContext *s, int is_q, int is_u, int size,
+                            int opcode, int rd, int rn, int rm)
+{
+    TCGv_i64 tcg_res[2];
+    int part = is_q ? 2 : 0;
+    int pass;
+
+    for (pass = 0; pass < 2; pass++) {
+        TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+        TCGv_i32 tcg_op2 = tcg_temp_new_i32();
+        TCGv_i64 tcg_op2_wide = tcg_temp_new_i64();
+        static NeonGenWidenFn * const widenfns[3][2] = {
+            { gen_helper_neon_widen_s8, gen_helper_neon_widen_u8 },
+            { gen_helper_neon_widen_s16, gen_helper_neon_widen_u16 },
+            { tcg_gen_ext_i32_i64, tcg_gen_extu_i32_i64 },
+        };
+        NeonGenWidenFn *widenfn = widenfns[size][is_u];
+
+        read_vec_element(s, tcg_op1, rn, pass, MO_64);
+        read_vec_element_i32(s, tcg_op2, rm, part + pass, MO_32);
+        widenfn(tcg_op2_wide, tcg_op2);
+        tcg_temp_free_i32(tcg_op2);
+        tcg_res[pass] = tcg_temp_new_i64();
+        gen_neon_addl(size, (opcode == 3),
+                      tcg_res[pass], tcg_op1, tcg_op2_wide);
+        tcg_temp_free_i64(tcg_op1);
+        tcg_temp_free_i64(tcg_op2_wide);
+    }
+
+    for (pass = 0; pass < 2; pass++) {
+        write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+        tcg_temp_free_i64(tcg_res[pass]);
+    }
+}
+
 /* C3.6.15 AdvSIMD three different
  *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+---+------+--------+-----+------+------+
@@ -7147,7 +7182,11 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
     case 1: /* SADDW, SADDW2, UADDW, UADDW2 */
     case 3: /* SSUBW, SSUBW2, USUBW, USUBW2 */
         /* 64 x 128 -> 128 */
-        unsupported_encoding(s, insn);
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_3rd_wide(s, is_q, is_u, size, opcode, rd, rn, rm);
         break;
     case 4: /* ADDHN, ADDHN2, RADDHN, RADDHN2 */
     case 6: /* SUBHN, SUBHN2, RSUBHN, RSUBHN2 */
