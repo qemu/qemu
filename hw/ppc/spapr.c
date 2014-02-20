@@ -686,6 +686,7 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
     if (shift > 0) {
         /* Kernel handles htab, we don't need to allocate one */
         spapr->htab_shift = shift;
+        kvmppc_kern_htab = true;
     } else {
         if (!spapr->htab) {
             /* Allocate an htab if we don't yet have one */

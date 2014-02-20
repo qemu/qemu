@@ -75,26 +75,34 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
 
+
+extern bool kvmppc_kern_htab;
+uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index);
+void ppc_hash64_stop_access(uint64_t token);
+
 static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
-                                                 hwaddr pte_offset)
+                                                 uint64_t token, int index)
 {
     CPUState *cs = ENV_GET_CPU(env);
+    uint64_t addr;
+    addr = token + (index * HASH_PTE_SIZE_64);
     if (env->external_htab) {
-        return  ldq_p(env->external_htab + pte_offset);
+        return  ldq_p((const void *)(uintptr_t)addr);
     } else {
-        return ldq_phys(cs->as, env->htab_base + pte_offset);
+        return ldq_phys(cs->as, addr);
     }
 }
 
 static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
-                                                 hwaddr pte_offset)
+                                                 uint64_t token, int index)
 {
     CPUState *cs = ENV_GET_CPU(env);
+    uint64_t addr;
+    addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
     if (env->external_htab) {
-        return ldq_p(env->external_htab + pte_offset + HASH_PTE_SIZE_64/2);
+        return  ldq_p((const void *)(uintptr_t)addr);
     } else {
-        return ldq_phys(cs->as,
-                        env->htab_base + pte_offset + HASH_PTE_SIZE_64/2);
+        return ldq_phys(cs->as, addr);
     }
 }
 

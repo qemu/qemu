@@ -1788,6 +1788,11 @@ bool kvmppc_has_cap_epr(void)
     return cap_epr;
 }
 
+bool kvmppc_has_cap_htab_fd(void)
+{
+    return cap_htab_fd;
+}
+
 static int kvm_ppc_register_host_cpu_type(void)
 {
     TypeInfo type_info = {
@@ -1937,4 +1942,53 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
+}
+
+struct kvm_get_htab_buf {
+    struct kvm_get_htab_header header;
+    /*
+     * We require one extra byte for read
+     */
+    target_ulong hpte[(HPTES_PER_GROUP * 2) + 1];
+};
+
+uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index)
+{
+    int htab_fd;
+    struct kvm_get_htab_fd ghf;
+    struct kvm_get_htab_buf  *hpte_buf;
+
+    ghf.flags = 0;
+    ghf.start_index = pte_index;
+    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (htab_fd < 0) {
+        goto error_out;
+    }
+
+    hpte_buf = g_malloc0(sizeof(*hpte_buf));
+    /*
+     * Read the hpte group
+     */
+    if (read(htab_fd, hpte_buf, sizeof(*hpte_buf)) < 0) {
+        goto out_close;
+    }
+
+    close(htab_fd);
+    return (uint64_t)(uintptr_t) hpte_buf->hpte;
+
+out_close:
+    g_free(hpte_buf);
+    close(htab_fd);
+error_out:
+    return 0;
+}
+
+void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    struct kvm_get_htab_buf *htab_buf;
+
+    htab_buf = container_of((void *)(uintptr_t) token, struct kvm_get_htab_buf,
+                            hpte);
+    g_free(htab_buf);
+    return;
 }

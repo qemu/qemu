@@ -41,6 +41,11 @@
 #endif
 
 /*
+ * Used to indicate whether we have allocated htab in the
+ * host kernel
+ */
+bool kvmppc_kern_htab;
+/*
  * SLB handling
  */
 
@@ -310,29 +315,76 @@ static int ppc_hash64_amr_prot(CPUPPCState *env, ppc_hash_pte64_t pte)
     return prot;
 }
 
-static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr pteg_off,
+uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
+{
+    uint64_t token = 0;
+    hwaddr pte_offset;
+
+    pte_offset = pte_index * HASH_PTE_SIZE_64;
+    if (kvmppc_kern_htab) {
+        /*
+         * HTAB is controlled by KVM. Fetch the PTEG into a new buffer.
+         */
+        token = kvmppc_hash64_read_pteg(cpu, pte_index);
+        if (token) {
+            return token;
+        }
+        /*
+         * pteg read failed, even though we have allocated htab via
+         * kvmppc_reset_htab.
+         */
+        return 0;
+    }
+    /*
+     * HTAB is controlled by QEMU. Just point to the internally
+     * accessible PTEG.
+     */
+    if (cpu->env.external_htab) {
+        token = (uint64_t)(uintptr_t) cpu->env.external_htab + pte_offset;
+    } else if (cpu->env.htab_base) {
+        token = cpu->env.htab_base + pte_offset;
+    }
+    return token;
+}
+
+void ppc_hash64_stop_access(uint64_t token)
+{
+    if (kvmppc_kern_htab) {
+        return kvmppc_hash64_free_pteg(token);
+    }
+}
+
+static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr hash,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte64_t *pte)
 {
-    hwaddr pte_offset = pteg_off;
-    target_ulong pte0, pte1;
     int i;
+    uint64_t token;
+    target_ulong pte0, pte1;
+    target_ulong pte_index;
 
+    pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
+    token = ppc_hash64_start_access(ppc_env_get_cpu(env), pte_index);
+    if (!token) {
+        return -1;
+    }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(env, pte_offset);
-        pte1 = ppc_hash64_load_hpte1(env, pte_offset);
+        pte0 = ppc_hash64_load_hpte0(env, token, i);
+        pte1 = ppc_hash64_load_hpte1(env, token, i);
 
         if ((pte0 & HPTE64_V_VALID)
             && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
             && HPTE64_V_COMPARE(pte0, ptem)) {
             pte->pte0 = pte0;
             pte->pte1 = pte1;
-            return pte_offset;
+            ppc_hash64_stop_access(token);
+            return (pte_index + i) * HASH_PTE_SIZE_64;
         }
-
-        pte_offset += HASH_PTE_SIZE_64;
     }
-
+    ppc_hash64_stop_access(token);
+    /*
+     * We didn't find a valid entry.
+     */
     return -1;
 }
 
@@ -340,7 +392,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                                      ppc_slb_t *slb, target_ulong eaddr,
                                      ppc_hash_pte64_t *pte)
 {
-    hwaddr pteg_off, pte_offset;
+    hwaddr pte_offset;
     hwaddr hash;
     uint64_t vsid, epnshift, epnmask, epn, ptem;
 
@@ -375,8 +427,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
-    pteg_off = (hash & env->htab_mask) * HASH_PTEG_SIZE_64;
-    pte_offset = ppc_hash64_pteg_search(env, pteg_off, 0, ptem, pte);
+    pte_offset = ppc_hash64_pteg_search(env, hash, 0, ptem, pte);
 
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
@@ -385,8 +436,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
 
-        pteg_off = (~hash & env->htab_mask) * HASH_PTEG_SIZE_64;
-        pte_offset = ppc_hash64_pteg_search(env, pteg_off, 1, ptem, pte);
+        pte_offset = ppc_hash64_pteg_search(env, ~hash, 1, ptem, pte);
     }
 
     return pte_offset;
