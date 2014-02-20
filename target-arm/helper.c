@@ -2767,6 +2767,9 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
 
   switch (ap) {
   case 0:
+      if (arm_feature(env, ARM_FEATURE_V7)) {
+          return 0;
+      }
       if (access_type == 1)
           return 0;
       switch (env->cp15.c1_sys & (SCTLR_S | SCTLR_R)) {
