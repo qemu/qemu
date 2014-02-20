@@ -179,3 +179,22 @@ uint64_t HELPER(simd_tbl)(CPUARMState *env, uint64_t result, uint64_t indices,
     }
     return result;
 }
+
+/* 64bit/double versions of the neon float compare functions */
+uint64_t HELPER(neon_ceq_f64)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return -float64_eq_quiet(a, b, fpst);
+}
+
+uint64_t HELPER(neon_cge_f64)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return -float64_le(b, a, fpst);
+}
+
+uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return -float64_lt(b, a, fpst);
+}
