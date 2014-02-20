@@ -31,7 +31,7 @@ QemuOptsList *qemu_find_opts(const char *group)
     Error *local_err = NULL;
 
     ret = find_list(vm_config_groups, group, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
     }
@@ -295,7 +295,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
         if (sscanf(line, "[%63s \"%63[^\"]\"]", group, id) == 2) {
             /* group with id */
             list = find_list(lists, group, &local_err);
-            if (error_is_set(&local_err)) {
+            if (local_err) {
                 error_report("%s", error_get_pretty(local_err));
                 error_free(local_err);
                 goto out;
@@ -306,7 +306,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
         if (sscanf(line, "[%63[^]]]", group) == 1) {
             /* group without id */
             list = find_list(lists, group, &local_err);
-            if (error_is_set(&local_err)) {
+            if (local_err) {
                 error_report("%s", error_get_pretty(local_err));
                 error_free(local_err);
                 goto out;
@@ -376,13 +376,13 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
     }
 
     subopts = qemu_opts_create(opts, NULL, 0, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
     qemu_opts_absorb_qdict(subopts, subqdict, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
@@ -416,13 +416,13 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
             opt_name = g_strdup_printf("%s.%u", opts->name, i++);
             subopts = qemu_opts_create(opts, opt_name, 1, &local_err);
             g_free(opt_name);
-            if (error_is_set(&local_err)) {
+            if (local_err) {
                 error_propagate(errp, local_err);
                 goto out;
             }
 
             qemu_opts_absorb_qdict(subopts, section, &local_err);
-            if (error_is_set(&local_err)) {
+            if (local_err) {
                 error_propagate(errp, local_err);
                 qemu_opts_del(subopts);
                 goto out;
@@ -450,7 +450,7 @@ void qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
 
     for (i = 0; lists[i]; i++) {
         config_parse_qdict_section(options, lists[i], &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             return;
         }

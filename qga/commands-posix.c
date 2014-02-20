@@ -108,7 +108,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return;
     }
@@ -181,7 +181,7 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -669,7 +669,7 @@ static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return;
     }
@@ -713,14 +713,14 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     slog("guest-fsfreeze called");
 
     execute_fsfreeze_hook(FSFREEZE_HOOK_FREEZE, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return -1;
     }
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return -1;
     }
@@ -780,7 +780,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return 0;
     }
@@ -861,7 +861,7 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         return;
     }
@@ -957,7 +957,7 @@ static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         goto out;
     }
@@ -1034,7 +1034,7 @@ static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
     }
 
     ga_wait_child(pid, &status, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(err, local_err);
         goto out;
     }

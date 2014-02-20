@@ -56,6 +56,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
+#include <qom/object_interfaces.h>
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "trace.h"
@@ -4254,6 +4255,87 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
+static void device_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_DEVICE, false);
+    while (elt) {
+        const char *name;
+        DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
+                                             TYPE_DEVICE);
+        name = object_class_get_name(OBJECT_CLASS(dc));
+        if (!strncmp(name, str, len)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
+static void object_add_completion(ReadLineState *rs, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_USER_CREATABLE, false);
+    while (elt) {
+        const char *name;
+
+        name = object_class_get_name(OBJECT_CLASS(elt->data));
+        if (!strncmp(name, str, len) && strcmp(name, TYPE_USER_CREATABLE)) {
+            readline_add_completion(rs, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
+static void device_del_completion(ReadLineState *rs, BusState *bus,
+                                  const char *str, size_t len)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *dev_child;
+
+        if (dev->id && !strncmp(str, dev->id, len)) {
+            readline_add_completion(rs, dev->id);
+        }
+
+        QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
+            device_del_completion(rs, dev_child, str, len);
+        }
+    }
+}
+
+static void object_del_completion(ReadLineState *rs, const char *str)
+{
+    ObjectPropertyInfoList *list, *start;
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_qom_list("/objects", NULL);
+    while (list) {
+        ObjectPropertyInfo *info = list->value;
+
+        if (!strncmp(info->type, "child<", 5)
+            && !strncmp(info->name, str, len)) {
+            readline_add_completion(rs, info->name);
+        }
+        list = list->next;
+    }
+    qapi_free_ObjectPropertyInfoList(start);
+}
+
 static void monitor_find_completion_by_table(Monitor *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
@@ -4317,6 +4399,13 @@ static void monitor_find_completion_by_table(Monitor *mon,
             readline_set_completion_index(mon->rs, strlen(str));
             bdrv_iterate(block_completion_it, &mbs);
             break;
+        case 'O':
+            if (!strcmp(cmd->name, "device_add") && nb_args == 2) {
+                device_add_completion(mon->rs, str);
+            } else if (!strcmp(cmd->name, "object_add") && nb_args == 2) {
+                object_add_completion(mon->rs, str);
+            }
+            break;
         case 's':
         case 'S':
             if (!strcmp(cmd->name, "sendkey")) {
@@ -4330,6 +4419,12 @@ static void monitor_find_completion_by_table(Monitor *mon,
             } else if (!strcmp(cmd->name, "help|?")) {
                 monitor_find_completion_by_table(mon, cmd_table,
                                                  &args[1], nb_args - 1);
+            } else if (!strcmp(cmd->name, "device_del") && nb_args == 2) {
+                size_t len = strlen(str);
+                readline_set_completion_index(mon->rs, len);
+                device_del_completion(mon->rs, sysbus_get_default(), str, len);
+            } else if (!strcmp(cmd->name, "object_del") && nb_args == 2) {
+                object_del_completion(mon->rs, str);
             }
             break;
         default:

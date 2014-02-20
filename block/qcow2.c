@@ -671,7 +671,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* Enable lazy_refcounts according to image and command line options */
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
@@ -1605,7 +1605,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     ret = bdrv_open(bs, filename, NULL,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
                     drv, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
@@ -1685,7 +1685,7 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options,
 
     ret = qcow2_create2(filename, sectors, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, options, version, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
     return ret;

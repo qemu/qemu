@@ -656,7 +656,7 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     DeviceState *dev;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return -1;

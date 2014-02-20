@@ -880,7 +880,7 @@ static int del_existing_snapshots(Monitor *mon, const char *name)
         if (bdrv_can_snapshot(bs) &&
             bdrv_snapshot_find(bs, snapshot, name) >= 0) {
             bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
-            if (error_is_set(&err)) {
+            if (err) {
                 monitor_printf(mon,
                                "Error while deleting snapshot on device '%s':"
                                " %s\n",
@@ -1115,7 +1115,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     while ((bs1 = bdrv_next(bs1))) {
         if (bdrv_can_snapshot(bs1)) {
             bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
-            if (error_is_set(&err)) {
+            if (err) {
                 monitor_printf(mon,
                                "Error while deleting snapshot on device '%s':"
                                " %s\n",

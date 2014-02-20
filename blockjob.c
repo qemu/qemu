@@ -61,7 +61,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
         Error *local_err = NULL;
 
         block_job_set_speed(job, speed, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             bs->job = NULL;
             g_free(job);
             bdrv_set_in_use(bs, 0);
@@ -92,7 +92,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         return;
     }
     job->driver->set_speed(job, speed, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }

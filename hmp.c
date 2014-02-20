@@ -881,7 +881,7 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     Error *errp = NULL;
 
     qmp_balloon(value, &errp);
-    if (error_is_set(&errp)) {
+    if (errp) {
         monitor_printf(mon, "balloon: %s\n", error_get_pretty(errp));
         error_free(errp);
     }
@@ -1118,7 +1118,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     }
 
     qmp_change(device, target, !!arg, arg, &err);
-    if (error_is_set(&err) &&
+    if (err &&
         error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
         error_free(err);
         monitor_read_block_device_key(mon, device, NULL, NULL);
@@ -1234,7 +1234,8 @@ static void hmp_migrate_status_cb(void *opaque)
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
-    if (!info->has_status || strcmp(info->status, "active") == 0) {
+    if (!info->has_status || strcmp(info->status, "active") == 0 ||
+        strcmp(info->status, "setup") == 0) {
         if (info->has_disk) {
             int progress;
 
@@ -1335,12 +1336,12 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict)
     QemuOpts *opts;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         goto out;
     }
 
     netdev_add(opts, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         qemu_opts_del(opts);
     }
 

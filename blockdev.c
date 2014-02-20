@@ -330,13 +330,13 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
      * stay in bs_opts for processing by bdrv_open(). */
     id = qdict_get_try_str(bs_opts, "id");
     opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
-    if (error_is_set(&error)) {
+    if (error) {
         error_propagate(errp, error);
         return NULL;
     }
 
     qemu_opts_absorb_qdict(opts, bs_opts, &error);
-    if (error_is_set(&error)) {
+    if (error) {
         error_propagate(errp, error);
         goto early_err;
     }
@@ -437,7 +437,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         on_write_error = parse_block_error_action(buf, 0, &error);
-        if (error_is_set(&error)) {
+        if (error) {
             error_propagate(errp, error);
             goto early_err;
         }
@@ -446,7 +446,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
         on_read_error = parse_block_error_action(buf, 1, &error);
-        if (error_is_set(&error)) {
+        if (error) {
             error_propagate(errp, error);
             goto early_err;
         }
@@ -691,7 +691,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         goto fail;
@@ -899,13 +899,13 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     /* Actual block device init: Functionality shared with blockdev-add */
     dinfo = blockdev_init(filename, bs_opts, &local_err);
     if (dinfo == NULL) {
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             qerror_report_err(local_err);
             error_free(local_err);
         }
         goto fail;
     } else {
-        assert(!error_is_set(&local_err));
+        assert(!local_err);
     }
 
     /* Set legacy DriveInfo fields */
@@ -1042,7 +1042,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     }
 
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return NULL;
     }
@@ -1055,7 +1055,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     }
 
     bdrv_snapshot_delete(bs, id, name, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return NULL;
     }
@@ -1269,7 +1269,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
                                    has_node_name ? node_name : NULL,
                                    &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1314,7 +1314,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
                         state->old_bs->filename,
                         state->old_bs->drv->format_name,
                         NULL, -1, flags, &local_err, false);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
@@ -1383,7 +1383,7 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
                      backup->has_on_source_error, backup->on_source_error,
                      backup->has_on_target_error, backup->on_target_error,
                      &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         state->bs = NULL;
         state->job = NULL;
@@ -1475,7 +1475,7 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, state, entry);
 
         state->ops->prepare(state, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             goto delete_and_fail;
         }
@@ -1556,7 +1556,7 @@ void qmp_block_passwd(bool has_device, const char *device,
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
                         &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1621,7 +1621,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     }
 
     eject_device(bs, 0, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         error_propagate(errp, err);
         return;
     }
@@ -1758,7 +1758,7 @@ void qmp_block_resize(bool has_device, const char *device,
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
                         &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1851,7 +1851,7 @@ void qmp_block_stream(const char *device, bool has_base,
 
     stream_start(bs, base_bs, base, has_speed ? speed : 0,
                  on_error, block_job_cb, bs, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2009,7 +2009,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2150,7 +2150,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2289,7 +2289,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     visit_type_BlockdevOptions(qmp_output_get_visitor(ov),
                                &options, NULL, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -2300,7 +2300,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     qdict_flatten(qdict);
 
     blockdev_init(NULL, qdict, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }

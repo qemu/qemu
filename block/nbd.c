@@ -209,7 +209,7 @@ static int nbd_config(BDRVNBDState *s, QDict *options, char **export)
                                       &error_abort);
 
     qemu_opts_absorb_qdict(s->socket_opts, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return -EINVAL;

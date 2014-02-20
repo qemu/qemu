@@ -197,7 +197,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
 
 error:
     qmp_guest_fsfreeze_thaw(&local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         g_debug("cleanup thaw: %s", error_get_pretty(local_err));
         error_free(local_err);
     }

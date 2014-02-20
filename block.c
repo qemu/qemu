@@ -421,7 +421,7 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
     assert(cco->drv);
 
     ret = cco->drv->bdrv_create(cco->filename, cco->options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(&cco->err, local_err);
     }
     cco->ret = ret;
@@ -460,7 +460,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 
     ret = cco.ret;
     if (ret < 0) {
-        if (error_is_set(&cco.err)) {
+        if (cco.err) {
             error_propagate(errp, cco.err);
         } else {
             error_setg_errno(errp, -ret, "Could not create image");
@@ -486,7 +486,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options,
     }
 
     ret = bdrv_create(drv, filename, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
     return ret;
@@ -916,7 +916,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
 
     if (ret < 0) {
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
         } else if (bs->filename[0]) {
             error_setg_errno(errp, -ret, "Could not open '%s'", bs->filename);
@@ -1037,7 +1037,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     /* Parse the filename and open it */
     if (drv->bdrv_parse_filename && filename) {
         drv->bdrv_parse_filename(filename, options, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             ret = -EINVAL;
             goto fail;
@@ -1406,7 +1406,7 @@ fail:
     QDECREF(bs->options);
     QDECREF(options);
     bs->options = NULL;
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
     return ret;
@@ -1414,7 +1414,7 @@ fail:
 close_and_fail:
     bdrv_close(bs);
     QDECREF(options);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
     return ret;
@@ -5340,7 +5340,7 @@ out:
     free_option_parameters(create_options);
     free_option_parameters(param);
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
 }

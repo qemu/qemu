@@ -92,7 +92,7 @@ static void test_validate_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
 
     visit_type_TestStruct(v, &p, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     g_free(p->string);
     g_free(p);
 }
@@ -107,7 +107,7 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string' }, 'string2': 'string2'}}}");
 
     visit_type_UserDefNested(v, &udp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefNested(udp);
 }
 
@@ -121,7 +121,7 @@ static void test_validate_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44 } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefOneList(head);
 }
 
@@ -135,7 +135,7 @@ static void test_validate_union(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
-    g_assert(!error_is_set(&errp));
+    g_assert(!errp);
     qapi_free_UserDefUnion(tmp);
 }
 
@@ -149,7 +149,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo', 'extra': 42 }");
 
     visit_type_TestStruct(v, &p, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     if (p) {
         g_free(p->string);
     }
@@ -166,7 +166,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string', 'extra': [42, 23, {'foo':'bar'}] }, 'string2': 'string2'}}}");
 
     visit_type_UserDefNested(v, &udp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefNested(udp);
 }
 
@@ -180,7 +180,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44, 'extra': 'ggg' } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefOneList(head);
 }
 
@@ -194,7 +194,7 @@ static void test_validate_fail_union(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 }, 'extra': 'yyy' }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
-    g_assert(error_is_set(&errp));
+    g_assert(errp);
     qapi_free_UserDefUnion(tmp);
 }
 
