@@ -78,6 +78,8 @@ check-qtest-virtio-y += tests/virtio-blk-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/block/virtio-blk.c
 check-qtest-virtio-y += tests/virtio-rng-test$(EXESUF)
 gcov-files-virtio-y += hw/virtio/virtio-rng.c
+check-qtest-virtio-y += tests/virtio-scsi-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/scsi/virtio-scsi.c
 
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
@@ -249,6 +251,7 @@ tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
 tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
+tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
