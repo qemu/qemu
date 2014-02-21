@@ -91,9 +91,17 @@ static AIOCBInfo quorum_aiocb_info = {
 
 static void quorum_aio_finalize(QuorumAIOCB *acb)
 {
-    int ret = 0;
+    BDRVQuorumState *s = acb->common.bs->opaque;
+    int i, ret = 0;
 
     acb->common.cb(acb->common.opaque, ret);
+
+    if (acb->is_read) {
+        for (i = 0; i < s->num_children; i++) {
+            qemu_vfree(acb->qcrs[i].buf);
+            qemu_iovec_destroy(&acb->qcrs[i].qiov);
+        }
+    }
 
     g_free(acb->qcrs);
     qemu_aio_release(acb);
@@ -149,6 +157,34 @@ static void quorum_aio_cb(void *opaque, int ret)
     quorum_aio_finalize(acb);
 }
 
+static BlockDriverAIOCB *quorum_aio_readv(BlockDriverState *bs,
+                                         int64_t sector_num,
+                                         QEMUIOVector *qiov,
+                                         int nb_sectors,
+                                         BlockDriverCompletionFunc *cb,
+                                         void *opaque)
+{
+    BDRVQuorumState *s = bs->opaque;
+    QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num,
+                                      nb_sectors, cb, opaque);
+    int i;
+
+    acb->is_read = true;
+
+    for (i = 0; i < s->num_children; i++) {
+        acb->qcrs[i].buf = qemu_blockalign(s->bs[i], qiov->size);
+        qemu_iovec_init(&acb->qcrs[i].qiov, qiov->niov);
+        qemu_iovec_clone(&acb->qcrs[i].qiov, qiov, acb->qcrs[i].buf);
+    }
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_aio_readv(s->bs[i], sector_num, qiov, nb_sectors,
+                       quorum_aio_cb, &acb->qcrs[i]);
+    }
+
+    return &acb->common;
+}
+
 static BlockDriverAIOCB *quorum_aio_writev(BlockDriverState *bs,
                                           int64_t sector_num,
                                           QEMUIOVector *qiov,
@@ -176,6 +212,7 @@ static BlockDriver bdrv_quorum = {
 
     .instance_size      = sizeof(BDRVQuorumState),
 
+    .bdrv_aio_readv     = quorum_aio_readv,
     .bdrv_aio_writev    = quorum_aio_writev,
 };
 
