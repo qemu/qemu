@@ -79,6 +79,8 @@ void parse_option_size(const char *name, const char *value,
 void free_option_parameters(QEMUOptionParameter *list);
 void print_option_parameters(QEMUOptionParameter *list);
 void print_option_help(QEMUOptionParameter *list);
+bool has_help_option(const char *param);
+bool is_valid_option_list(const char *param);
 
 /* ------------------------------------------------------------------ */
 
