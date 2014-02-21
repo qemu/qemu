@@ -40,7 +40,7 @@
 #define AHCI_PORT_PRIV_DMA_SZ     (AHCI_CMD_SLOT_SZ + AHCI_CMD_TBL_AR_SZ + \
                                    AHCI_RX_FIS_SZ)
 
-#define AHCI_IRQ_ON_SG            (1 << 31)
+#define AHCI_IRQ_ON_SG            (1U << 31)
 #define AHCI_CMD_ATAPI            (1 << 5)
 #define AHCI_CMD_WRITE            (1 << 6)
 #define AHCI_CMD_PREFETCH         (1 << 7)
@@ -61,7 +61,7 @@
 /* HOST_CTL bits */
 #define HOST_CTL_RESET            (1 << 0)  /* reset controller; self-clear */
 #define HOST_CTL_IRQ_EN           (1 << 1)  /* global IRQ enable */
-#define HOST_CTL_AHCI_EN          (1 << 31) /* AHCI enabled */
+#define HOST_CTL_AHCI_EN          (1U << 31) /* AHCI enabled */
 
 /* HOST_CAP bits */
 #define HOST_CAP_SSC              (1 << 14) /* Slumber capable */
@@ -69,7 +69,7 @@
 #define HOST_CAP_CLO              (1 << 24) /* Command List Override support */
 #define HOST_CAP_SSS              (1 << 27) /* Staggered Spin-up */
 #define HOST_CAP_NCQ              (1 << 30) /* Native Command Queueing */
-#define HOST_CAP_64               (1 << 31) /* PCI DAC (64-bit DMA) support */
+#define HOST_CAP_64               (1U << 31) /* PCI DAC (64-bit DMA) support */
 
 /* registers for each SATA port */
 #define PORT_LST_ADDR             0x00 /* command list DMA addr */
@@ -89,7 +89,7 @@
 #define PORT_RESERVED             0x3c /* reserved */
 
 /* PORT_IRQ_{STAT,MASK} bits */
-#define PORT_IRQ_COLD_PRES        (1 << 31) /* cold presence detect */
+#define PORT_IRQ_COLD_PRES        (1U << 31) /* cold presence detect */
 #define PORT_IRQ_TF_ERR           (1 << 30) /* task file error */
 #define PORT_IRQ_HBUS_ERR         (1 << 29) /* host bus fatal error */
 #define PORT_IRQ_HBUS_DATA_ERR    (1 << 28) /* host bus data error */
@@ -151,7 +151,7 @@
 #define PORT_IRQ_STAT_HBDS        (1 << 28) /* Host Bus Data Error Status */
 #define PORT_IRQ_STAT_HBFS        (1 << 29) /* Host Bus Fatal Error Status */
 #define PORT_IRQ_STAT_TFES        (1 << 30) /* Task File Error Status */
-#define PORT_IRQ_STAT_CPDS        (1 << 31) /* Code Port Detect Status */
+#define PORT_IRQ_STAT_CPDS        (1U << 31) /* Code Port Detect Status */
 
 /* ap->flags bits */
 #define AHCI_FLAG_NO_NCQ                  (1 << 24)
