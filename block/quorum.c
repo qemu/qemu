@@ -720,7 +720,6 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     QDict *sub = NULL;
     QList *list = NULL;
     const QListEntry *lentry;
-    const QDictEntry *dentry;
     int i;
     int ret = 0;
 
@@ -728,10 +727,15 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     qdict_extract_subqdict(options, &sub, "children.");
     qdict_array_split(sub, &list);
 
-    /* count how many different children are present and validate
-     * qdict_size(sub) address the open by reference case
-     */
-    s->num_children = !qlist_size(list) ? qdict_size(sub) : qlist_size(list);
+    if (qdict_size(sub)) {
+        error_setg(&local_err, "Invalid option children.%s",
+                   qdict_first(sub)->key);
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    /* count how many different children are present */
+    s->num_children = qlist_size(list);
     if (s->num_children < 2) {
         error_setg(&local_err,
                    "Number of provided children must be greater than 1");
@@ -767,30 +771,38 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->bs = g_new0(BlockDriverState *, s->num_children);
     opened = g_new0(bool, s->num_children);
 
-    /* Open by file name or options dict (command line or QMP) */
-    if (s->num_children == qlist_size(list)) {
-        for (i = 0, lentry = qlist_first(list); lentry;
-            lentry = qlist_next(lentry), i++) {
-            QDict *d = qobject_to_qdict(lentry->value);
-            QINCREF(d);
-            ret = bdrv_open(&s->bs[i], NULL, NULL, d, flags, NULL, &local_err);
-            if (ret < 0) {
-                goto close_exit;
-            }
-            opened[i] = true;
+    for (i = 0, lentry = qlist_first(list); lentry;
+         lentry = qlist_next(lentry), i++) {
+        QDict *d;
+        QString *string;
+
+        switch (qobject_type(lentry->value))
+        {
+            /* List of options */
+            case QTYPE_QDICT:
+                d = qobject_to_qdict(lentry->value);
+                QINCREF(d);
+                ret = bdrv_open(&s->bs[i], NULL, NULL, d, flags, NULL,
+                                &local_err);
+                break;
+
+            /* QMP reference */
+            case QTYPE_QSTRING:
+                string = qobject_to_qstring(lentry->value);
+                ret = bdrv_open(&s->bs[i], NULL, qstring_get_str(string), NULL,
+                                flags, NULL, &local_err);
+                break;
+
+            default:
+                error_setg(&local_err, "Specification of child block device %i "
+                           "is invalid", i);
+                ret = -EINVAL;
         }
-    /* Open by QMP references */
-    } else {
-        for (i = 0, dentry = qdict_first(sub); dentry;
-             dentry = qdict_next(sub, dentry), i++) {
-            QString *string = qobject_to_qstring(dentry->value);
-            ret = bdrv_open(&s->bs[i], NULL, qstring_get_str(string), NULL,
-                            flags, NULL, &local_err);
-            if (ret < 0) {
-                goto close_exit;
-            }
-            opened[i] = true;
+
+        if (ret < 0) {
+            goto close_exit;
         }
+        opened[i] = true;
     }
 
     g_free(opened);
