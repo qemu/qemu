@@ -1164,6 +1164,9 @@ static int img_convert(int argc, char **argv)
     Error *local_err = NULL;
     QemuOpts *sn_opts = NULL;
 
+    /* Initialize before goto out */
+    qemu_progress_init(progress, 1.0);
+
     fmt = NULL;
     out_fmt = "raw";
     cache = "unsafe";
@@ -1195,13 +1198,26 @@ static int img_convert(int argc, char **argv)
         case 'e':
             error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
-            return 1;
+            ret = -1;
+            goto out;
         case '6':
             error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
-            return 1;
+            ret = -1;
+            goto out;
         case 'o':
-            options = optarg;
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                ret = -1;
+                goto out;
+            }
+            if (!options) {
+                options = g_strdup(optarg);
+            } else {
+                char *old_options = options;
+                options = g_strdup_printf("%s,%s", options, optarg);
+                g_free(old_options);
+            }
             break;
         case 's':
             snapshot_name = optarg;
@@ -1212,7 +1228,8 @@ static int img_convert(int argc, char **argv)
                 if (!sn_opts) {
                     error_report("Failed in parsing snapshot param '%s'",
                                  optarg);
-                    return 1;
+                    ret = -1;
+                    goto out;
                 }
             } else {
                 snapshot_name = optarg;
@@ -1225,7 +1242,8 @@ static int img_convert(int argc, char **argv)
             sval = strtosz_suffix(optarg, &end, STRTOSZ_DEFSUFFIX_B);
             if (sval < 0 || *end) {
                 error_report("Invalid minimum zero buffer size for sparse output specified");
-                return 1;
+                ret = -1;
+                goto out;
             }
 
             min_sparse = sval / BDRV_SECTOR_SIZE;
@@ -1257,10 +1275,7 @@ static int img_convert(int argc, char **argv)
 
     out_filename = argv[argc - 1];
 
-    /* Initialize before goto out */
-    qemu_progress_init(progress, 1.0);
-
-    if (options && is_help_option(options)) {
+    if (options && has_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
         goto out;
     }
@@ -1653,6 +1668,7 @@ out:
     free_option_parameters(create_options);
     free_option_parameters(param);
     qemu_vfree(buf);
+    g_free(options);
     if (sn_opts) {
         qemu_opts_del(sn_opts);
     }
