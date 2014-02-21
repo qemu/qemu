@@ -595,11 +595,37 @@ static BlockDriverAIOCB *quorum_aio_writev(BlockDriverState *bs,
     return &acb->common;
 }
 
+static int64_t quorum_getlength(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int64_t result;
+    int i;
+
+    /* check that all file have the same length */
+    result = bdrv_getlength(s->bs[0]);
+    if (result < 0) {
+        return result;
+    }
+    for (i = 1; i < s->num_children; i++) {
+        int64_t value = bdrv_getlength(s->bs[i]);
+        if (value < 0) {
+            return value;
+        }
+        if (value != result) {
+            return -EIO;
+        }
+    }
+
+    return result;
+}
+
 static BlockDriver bdrv_quorum = {
     .format_name        = "quorum",
     .protocol_name      = "quorum",
 
     .instance_size      = sizeof(BDRVQuorumState),
+
+    .bdrv_getlength     = quorum_getlength,
 
     .bdrv_aio_readv     = quorum_aio_readv,
     .bdrv_aio_writev    = quorum_aio_writev,
