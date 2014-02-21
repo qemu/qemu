@@ -378,6 +378,112 @@ size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
     return iov_memset(qiov->iov, qiov->niov, offset, fillc, bytes);
 }
 
+/**
+ * Check that I/O vector contents are identical
+ *
+ * The IO vectors must have the same structure (same length of all parts).
+ * A typical usage is to compare vectors created with qemu_iovec_clone().
+ *
+ * @a:          I/O vector
+ * @b:          I/O vector
+ * @ret:        Offset to first mismatching byte or -1 if match
+ */
+ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b)
+{
+    int i;
+    ssize_t offset = 0;
+
+    assert(a->niov == b->niov);
+    for (i = 0; i < a->niov; i++) {
+        size_t len = 0;
+        uint8_t *p = (uint8_t *)a->iov[i].iov_base;
+        uint8_t *q = (uint8_t *)b->iov[i].iov_base;
+
+        assert(a->iov[i].iov_len == b->iov[i].iov_len);
+        while (len < a->iov[i].iov_len && *p++ == *q++) {
+            len++;
+        }
+
+        offset += len;
+
+        if (len != a->iov[i].iov_len) {
+            return offset;
+        }
+    }
+    return -1;
+}
+
+typedef struct {
+    int src_index;
+    struct iovec *src_iov;
+    void *dest_base;
+} IOVectorSortElem;
+
+static int sortelem_cmp_src_base(const void *a, const void *b)
+{
+    const IOVectorSortElem *elem_a = a;
+    const IOVectorSortElem *elem_b = b;
+
+    /* Don't overflow */
+    if (elem_a->src_iov->iov_base < elem_b->src_iov->iov_base) {
+        return -1;
+    } else if (elem_a->src_iov->iov_base > elem_b->src_iov->iov_base) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+static int sortelem_cmp_src_index(const void *a, const void *b)
+{
+    const IOVectorSortElem *elem_a = a;
+    const IOVectorSortElem *elem_b = b;
+
+    return elem_a->src_index - elem_b->src_index;
+}
+
+/**
+ * Copy contents of I/O vector
+ *
+ * The relative relationships of overlapping iovecs are preserved.  This is
+ * necessary to ensure identical semantics in the cloned I/O vector.
+ */
+void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf)
+{
+    IOVectorSortElem sortelems[src->niov];
+    void *last_end;
+    int i;
+
+    /* Sort by source iovecs by base address */
+    for (i = 0; i < src->niov; i++) {
+        sortelems[i].src_index = i;
+        sortelems[i].src_iov = &src->iov[i];
+    }
+    qsort(sortelems, src->niov, sizeof(sortelems[0]), sortelem_cmp_src_base);
+
+    /* Allocate buffer space taking into account overlapping iovecs */
+    last_end = NULL;
+    for (i = 0; i < src->niov; i++) {
+        struct iovec *cur = sortelems[i].src_iov;
+        ptrdiff_t rewind = 0;
+
+        /* Detect overlap */
+        if (last_end && last_end > cur->iov_base) {
+            rewind = last_end - cur->iov_base;
+        }
+
+        sortelems[i].dest_base = buf - rewind;
+        buf += cur->iov_len - MIN(rewind, cur->iov_len);
+        last_end = MAX(cur->iov_base + cur->iov_len, last_end);
+    }
+
+    /* Sort by source iovec index and build destination iovec */
+    qsort(sortelems, src->niov, sizeof(sortelems[0]), sortelem_cmp_src_index);
+    for (i = 0; i < src->niov; i++) {
+        qemu_iovec_add(dest, sortelems[i].dest_base, src->iov[i].iov_len);
+    }
+}
+
 size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
                          size_t bytes)
 {
