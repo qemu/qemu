@@ -135,6 +135,8 @@ gcov-files-i386-y += hw/net/vmxnet_rx_pkt.c
 gcov-files-i386-y += hw/net/vmxnet_tx_pkt.c
 check-qtest-i386-y += tests/pvpanic-test$(EXESUF)
 gcov-files-i386-y += i386-softmmu/hw/misc/pvpanic.c
+check-qtest-i386-y += tests/i82801b11-test$(EXESUF)
+gcov-files-i386-y += hw/pci-bridge/i82801b11.c
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
@@ -284,6 +286,7 @@ tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
 tests/nvme-test$(EXESUF): tests/nvme-test.o
 tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
+tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 
 # QTest rules
