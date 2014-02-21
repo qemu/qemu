@@ -107,6 +107,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/reboot.h>
 #include <linux/route.h>
 #include <linux/filter.h>
+#include <linux/blkpg.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -1707,6 +1708,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     struct iovec *vec;
     abi_ulong total_len, max_len;
     int i;
+    int err = 0;
 
     if (count == 0) {
         errno = 0;
@@ -1726,7 +1728,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     target_vec = lock_user(VERIFY_READ, target_addr,
                            count * sizeof(struct target_iovec), 1);
     if (target_vec == NULL) {
-        errno = EFAULT;
+        err = EFAULT;
         goto fail2;
     }
 
@@ -1740,7 +1742,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         abi_long len = tswapal(target_vec[i].iov_len);
 
         if (len < 0) {
-            errno = EINVAL;
+            err = EINVAL;
             goto fail;
         } else if (len == 0) {
             /* Zero length pointer is ignored.  */
@@ -1748,7 +1750,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         } else {
             vec[i].iov_base = lock_user(type, base, len, copy);
             if (!vec[i].iov_base) {
-                errno = EFAULT;
+                err = EFAULT;
                 goto fail;
             }
             if (len > max_len - total_len) {
@@ -1763,9 +1765,10 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return vec;
 
  fail:
-    free(vec);
- fail2:
     unlock_user(target_vec, target_addr, 0);
+ fail2:
+    free(vec);
+    errno = err;
     return NULL;
 }
 
@@ -2427,10 +2430,15 @@ static inline abi_long target_to_host_semarray(int semid, unsigned short **host_
     nsems = semid_ds.sem_nsems;
 
     *host_array = malloc(nsems*sizeof(unsigned short));
+    if (!*host_array) {
+        return -TARGET_ENOMEM;
+    }
     array = lock_user(VERIFY_READ, target_addr,
                       nsems*sizeof(unsigned short), 1);
-    if (!array)
+    if (!array) {
+        free(*host_array);
         return -TARGET_EFAULT;
+    }
 
     for(i=0; i<nsems; i++) {
         __get_user((*host_array)[i], &array[i]);

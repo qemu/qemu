@@ -420,6 +420,7 @@ static void QEMU_NORETURN force_sig(int target_sig)
      * it to arrive. */
     sigfillset(&act.sa_mask);
     act.sa_handler = SIG_DFL;
+    act.sa_flags = 0;
     sigaction(host_sig, &act, NULL);
 
     /* For some reason raise(host_sig) doesn't send the signal when
