@@ -84,6 +84,11 @@ check-qtest-virtio-y += tests/virtio-rng-test$(EXESUF)
 gcov-files-virtio-y += hw/virtio/virtio-rng.c
 check-qtest-virtio-y += tests/virtio-scsi-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/scsi/virtio-scsi.c
+ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
+check-qtest-virtio-y += tests/virtio-9p-test$(EXESUF)
+gcov-files-virtio-y += hw/9pfs/virtio-9p.c
+gcov-files-virtio-y += i386-softmmu/hw/9pfs/virtio-9p-device.c
+endif
 check-qtest-virtio-y += tests/virtio-serial-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/char/virtio-serial-bus.c
 check-qtest-virtio-y += $(check-qtest-virtioserial-y)
@@ -267,6 +272,7 @@ tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
 tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
 tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
+tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
 tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o

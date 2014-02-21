@@ -623,6 +623,7 @@ M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
 F: hw/9pfs/
 F: fsdev/
+F: tests/virtio-9p-test.c
 T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
