@@ -619,6 +619,16 @@ static int64_t quorum_getlength(BlockDriverState *bs)
     return result;
 }
 
+static void quorum_invalidate_cache(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_invalidate_cache(s->bs[i]);
+    }
+}
+
 static BlockDriver bdrv_quorum = {
     .format_name        = "quorum",
     .protocol_name      = "quorum",
@@ -629,6 +639,7 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_aio_readv     = quorum_aio_readv,
     .bdrv_aio_writev    = quorum_aio_writev,
+    .bdrv_invalidate_cache = quorum_invalidate_cache,
 };
 
 static void bdrv_quorum_init(void)
