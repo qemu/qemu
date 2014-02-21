@@ -57,6 +57,11 @@ GENERATED_HEADERS += trace/generated-tracers-dtrace.h
 endif
 GENERATED_SOURCES += trace/generated-tracers.c
 
+ifeq ($(TRACE_BACKEND),ust)
+GENERATED_HEADERS += trace/generated-ust-provider.h
+GENERATED_SOURCES += trace/generated-ust.c
+endif
+
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
 Makefile: ;
