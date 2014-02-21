@@ -640,6 +640,9 @@ static void monitor_protocol_event_init(void)
     monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_WATCHDOG, 1000);
+    /* limit the rate of quorum events to avoid hammering the management */
+    monitor_protocol_event_throttle(QEVENT_QUORUM_REPORT_BAD, 1000);
+    monitor_protocol_event_throttle(QEVENT_QUORUM_FAILURE, 1000);
 }
 
 /**

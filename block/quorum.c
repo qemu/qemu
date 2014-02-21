@@ -20,6 +20,9 @@
 
 #define HASH_LENGTH 32
 
+#define QUORUM_OPT_VOTE_THRESHOLD "vote-threshold"
+#define QUORUM_OPT_BLKVERIFY      "blkverify"
+
 /* This union holds a vote hash value */
 typedef union QuorumVoteValue {
     char h[HASH_LENGTH];       /* SHA-256 hash */
@@ -672,11 +675,169 @@ static bool quorum_recurse_is_first_non_filter(BlockDriverState *bs,
     return false;
 }
 
+static int quorum_valid_threshold(int threshold, int num_children, Error **errp)
+{
+
+    if (threshold < 1) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "vote-threshold", "value >= 1");
+        return -ERANGE;
+    }
+
+    if (threshold > num_children) {
+        error_setg(errp, "threshold may not exceed children count");
+        return -ERANGE;
+    }
+
+    return 0;
+}
+
+static QemuOptsList quorum_runtime_opts = {
+    .name = "quorum",
+    .head = QTAILQ_HEAD_INITIALIZER(quorum_runtime_opts.head),
+    .desc = {
+        {
+            .name = QUORUM_OPT_VOTE_THRESHOLD,
+            .type = QEMU_OPT_NUMBER,
+            .help = "The number of vote needed for reaching quorum",
+        },
+        {
+            .name = QUORUM_OPT_BLKVERIFY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Trigger block verify mode if set",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
+                       Error **errp)
+{
+    BDRVQuorumState *s = bs->opaque;
+    Error *local_err = NULL;
+    QemuOpts *opts;
+    bool *opened;
+    QDict *sub = NULL;
+    QList *list = NULL;
+    const QListEntry *lentry;
+    const QDictEntry *dentry;
+    int i;
+    int ret = 0;
+
+    qdict_flatten(options);
+    qdict_extract_subqdict(options, &sub, "children.");
+    qdict_array_split(sub, &list);
+
+    /* count how many different children are present and validate
+     * qdict_size(sub) address the open by reference case
+     */
+    s->num_children = !qlist_size(list) ? qdict_size(sub) : qlist_size(list);
+    if (s->num_children < 2) {
+        error_setg(&local_err,
+                   "Number of provided children must be greater than 1");
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    opts = qemu_opts_create(&quorum_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    s->threshold = qemu_opt_get_number(opts, QUORUM_OPT_VOTE_THRESHOLD, 0);
+
+    /* and validate it against s->num_children */
+    ret = quorum_valid_threshold(s->threshold, s->num_children, &local_err);
+    if (ret < 0) {
+        goto exit;
+    }
+
+    /* is the driver in blkverify mode */
+    if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false) &&
+        s->num_children == 2 && s->threshold == 2) {
+        s->is_blkverify = true;
+    } else if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false)) {
+        fprintf(stderr, "blkverify mode is set by setting blkverify=on "
+                "and using two files with vote_threshold=2\n");
+    }
+
+    /* allocate the children BlockDriverState array */
+    s->bs = g_new0(BlockDriverState *, s->num_children);
+    opened = g_new0(bool, s->num_children);
+
+    /* Open by file name or options dict (command line or QMP) */
+    if (s->num_children == qlist_size(list)) {
+        for (i = 0, lentry = qlist_first(list); lentry;
+            lentry = qlist_next(lentry), i++) {
+            QDict *d = qobject_to_qdict(lentry->value);
+            QINCREF(d);
+            ret = bdrv_open(&s->bs[i], NULL, NULL, d, flags, NULL, &local_err);
+            if (ret < 0) {
+                goto close_exit;
+            }
+            opened[i] = true;
+        }
+    /* Open by QMP references */
+    } else {
+        for (i = 0, dentry = qdict_first(sub); dentry;
+             dentry = qdict_next(sub, dentry), i++) {
+            QString *string = qobject_to_qstring(dentry->value);
+            ret = bdrv_open(&s->bs[i], NULL, qstring_get_str(string), NULL,
+                            flags, NULL, &local_err);
+            if (ret < 0) {
+                goto close_exit;
+            }
+            opened[i] = true;
+        }
+    }
+
+    g_free(opened);
+    goto exit;
+
+close_exit:
+    /* cleanup on error */
+    for (i = 0; i < s->num_children; i++) {
+        if (!opened[i]) {
+            continue;
+        }
+        bdrv_unref(s->bs[i]);
+    }
+    g_free(s->bs);
+    g_free(opened);
+exit:
+    /* propagate error */
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+    }
+    QDECREF(list);
+    QDECREF(sub);
+    return ret;
+}
+
+static void quorum_close(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bdrv_unref(s->bs[i]);
+    }
+
+    g_free(s->bs);
+}
+
 static BlockDriver bdrv_quorum = {
     .format_name        = "quorum",
     .protocol_name      = "quorum",
 
     .instance_size      = sizeof(BDRVQuorumState),
+
+    .bdrv_file_open     = quorum_open,
+    .bdrv_close         = quorum_close,
+
+    .authorizations     = { true, true },
 
     .bdrv_co_flush_to_disk = quorum_co_flush,
 
