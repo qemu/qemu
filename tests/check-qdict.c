@@ -306,6 +306,7 @@ static void qdict_array_split_test(void)
 {
     QDict *test_dict = qdict_new();
     QDict *dict1, *dict2;
+    QInt *int1;
     QList *test_list;
 
     /*
@@ -313,10 +314,11 @@ static void qdict_array_split_test(void)
      *
      * {
      *     "1.x": 0,
-     *     "3.y": 1,
+     *     "4.y": 1,
      *     "0.a": 42,
      *     "o.o": 7,
-     *     "0.b": 23
+     *     "0.b": 23,
+     *     "2": 66
      * }
      *
      * to
@@ -328,13 +330,14 @@ static void qdict_array_split_test(void)
      *     },
      *     {
      *         "x": 0
-     *     }
+     *     },
+     *     66
      * ]
      *
      * and
      *
      * {
-     *     "3.y": 1,
+     *     "4.y": 1,
      *     "o.o": 7
      * }
      *
@@ -344,18 +347,21 @@ static void qdict_array_split_test(void)
      */
 
     qdict_put(test_dict, "1.x", qint_from_int(0));
-    qdict_put(test_dict, "3.y", qint_from_int(1));
+    qdict_put(test_dict, "4.y", qint_from_int(1));
     qdict_put(test_dict, "0.a", qint_from_int(42));
     qdict_put(test_dict, "o.o", qint_from_int(7));
     qdict_put(test_dict, "0.b", qint_from_int(23));
+    qdict_put(test_dict, "2", qint_from_int(66));
 
     qdict_array_split(test_dict, &test_list);
 
     dict1 = qobject_to_qdict(qlist_pop(test_list));
     dict2 = qobject_to_qdict(qlist_pop(test_list));
+    int1 = qobject_to_qint(qlist_pop(test_list));
 
     g_assert(dict1);
     g_assert(dict2);
+    g_assert(int1);
     g_assert(qlist_empty(test_list));
 
     QDECREF(test_list);
@@ -373,7 +379,11 @@ static void qdict_array_split_test(void)
 
     QDECREF(dict2);
 
-    g_assert(qdict_get_int(test_dict, "3.y") == 1);
+    g_assert(qint_get_int(int1) == 66);
+
+    QDECREF(int1);
+
+    g_assert(qdict_get_int(test_dict, "4.y") == 1);
     g_assert(qdict_get_int(test_dict, "o.o") == 7);
 
     g_assert(qdict_size(test_dict) == 2);
