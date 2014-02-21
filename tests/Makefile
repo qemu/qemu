@@ -87,9 +87,9 @@ gcov-files-pci-y += hw/net/ne2000.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
-gcov-files-pci-y += hw/char/tpci200.c
+gcov-files-pci-y += hw/ipack/tpci200.c
 check-qtest-pci-y += $(check-qtest-ipack-y)
-gcov-files-pci-y += $(gcov-files-ipack-y) hw/ipack/tpci200.c
+gcov-files-pci-y += $(gcov-files-ipack-y)
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
