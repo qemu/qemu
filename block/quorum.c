@@ -15,6 +15,23 @@
 
 #include "block/block_int.h"
 
+/* the following structure holds the state of one quorum instance */
+typedef struct BDRVQuorumState {
+    BlockDriverState **bs; /* children BlockDriverStates */
+    int num_children;      /* children count */
+    int threshold;         /* if less than threshold children reads gave the
+                            * same result a quorum error occurs.
+                            */
+    bool is_blkverify;     /* true if the driver is in blkverify mode
+                            * Writes are mirrored on two children devices.
+                            * On reads the two children devices' contents are
+                            * compared and if a difference is spotted its
+                            * location is printed and the code aborts.
+                            * It is useful to debug other block drivers by
+                            * comparing them with a reference one.
+                            */
+} BDRVQuorumState;
+
 typedef struct QuorumAIOCB QuorumAIOCB;
 
 /* Quorum will create one instance of the following structure per operation it
@@ -51,3 +68,17 @@ struct QuorumAIOCB {
     bool is_read;
     int vote_ret;
 };
+
+static BlockDriver bdrv_quorum = {
+    .format_name        = "quorum",
+    .protocol_name      = "quorum",
+
+    .instance_size      = sizeof(BDRVQuorumState),
+};
+
+static void bdrv_quorum_init(void)
+{
+    bdrv_register(&bdrv_quorum);
+}
+
+block_init(bdrv_quorum_init);
