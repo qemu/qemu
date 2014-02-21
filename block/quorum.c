@@ -655,6 +655,23 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     return result;
 }
 
+static bool quorum_recurse_is_first_non_filter(BlockDriverState *bs,
+                                               BlockDriverState *candidate)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    for (i = 0; i < s->num_children; i++) {
+        bool perm = bdrv_recurse_is_first_non_filter(s->bs[i],
+                                                     candidate);
+        if (perm) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static BlockDriver bdrv_quorum = {
     .format_name        = "quorum",
     .protocol_name      = "quorum",
@@ -668,6 +685,8 @@ static BlockDriver bdrv_quorum = {
     .bdrv_aio_readv     = quorum_aio_readv,
     .bdrv_aio_writev    = quorum_aio_writev,
     .bdrv_invalidate_cache = quorum_invalidate_cache,
+
+    .bdrv_recurse_is_first_non_filter = quorum_recurse_is_first_non_filter,
 };
 
 static void bdrv_quorum_init(void)
