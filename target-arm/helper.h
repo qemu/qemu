@@ -57,6 +57,7 @@ DEF_HELPER_1(cpsr_read, i32, env)
 DEF_HELPER_3(v7m_msr, void, env, i32, i32)
 DEF_HELPER_2(v7m_mrs, i32, env, i32)
 
+DEF_HELPER_2(access_check_cp_reg, void, env, ptr)
 DEF_HELPER_3(set_cp_reg, void, env, ptr, i32)
 DEF_HELPER_2(get_cp_reg, i32, env, ptr)
 DEF_HELPER_3(set_cp_reg64, void, env, ptr, i64)
@@ -382,6 +383,8 @@ DEF_HELPER_3(neon_cge_f32, i32, i32, i32, ptr)
 DEF_HELPER_3(neon_cgt_f32, i32, i32, i32, ptr)
 DEF_HELPER_3(neon_acge_f32, i32, i32, i32, ptr)
 DEF_HELPER_3(neon_acgt_f32, i32, i32, i32, ptr)
+DEF_HELPER_3(neon_acge_f64, i64, i64, i64, ptr)
+DEF_HELPER_3(neon_acgt_f64, i64, i64, i64, ptr)
 
 /* iwmmxt_helper.c */
 DEF_HELPER_2(iwmmxt_maddsq, i64, i64, i64)

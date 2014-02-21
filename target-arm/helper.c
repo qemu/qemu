@@ -107,65 +107,56 @@ static int aarch64_fpu_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     }
 }
 
-static int raw_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                    uint64_t *value)
+static uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     if (ri->type & ARM_CP_64BIT) {
-        *value = CPREG_FIELD64(env, ri);
+        return CPREG_FIELD64(env, ri);
     } else {
-        *value = CPREG_FIELD32(env, ri);
+        return CPREG_FIELD32(env, ri);
     }
-    return 0;
 }
 
-static int raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                     uint64_t value)
+static void raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
 {
     if (ri->type & ARM_CP_64BIT) {
         CPREG_FIELD64(env, ri) = value;
     } else {
         CPREG_FIELD32(env, ri) = value;
     }
-    return 0;
 }
 
-static bool read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t *v)
+static uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Raw read of a coprocessor register (as needed for migration, etc)
-     * return true on success, false if the read is impossible for some reason.
-     */
+    /* Raw read of a coprocessor register (as needed for migration, etc). */
     if (ri->type & ARM_CP_CONST) {
-        *v = ri->resetvalue;
+        return ri->resetvalue;
     } else if (ri->raw_readfn) {
-        return (ri->raw_readfn(env, ri, v) == 0);
+        return ri->raw_readfn(env, ri);
     } else if (ri->readfn) {
-        return (ri->readfn(env, ri, v) == 0);
+        return ri->readfn(env, ri);
     } else {
-        raw_read(env, ri, v);
+        return raw_read(env, ri);
     }
-    return true;
 }
 
-static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
-                             int64_t v)
+static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t v)
 {
     /* Raw write of a coprocessor register (as needed for migration, etc).
-     * Return true on success, false if the write is impossible for some reason.
      * Note that constant registers are treated as write-ignored; the
      * caller should check for success by whether a readback gives the
      * value written.
      */
     if (ri->type & ARM_CP_CONST) {
-        return true;
+        return;
     } else if (ri->raw_writefn) {
-        return (ri->raw_writefn(env, ri, v) == 0);
+        ri->raw_writefn(env, ri, v);
     } else if (ri->writefn) {
-        return (ri->writefn(env, ri, v) == 0);
+        ri->writefn(env, ri, v);
     } else {
         raw_write(env, ri, v);
     }
-    return true;
 }
 
 bool write_cpustate_to_list(ARMCPU *cpu)
@@ -177,7 +168,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
-        uint64_t v;
+
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
             ok = false;
@@ -186,11 +177,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
         if (ri->type & ARM_CP_NO_MIGRATE) {
             continue;
         }
-        if (!read_raw_cp_reg(&cpu->env, ri, &v)) {
-            ok = false;
-            continue;
-        }
-        cpu->cpreg_values[i] = v;
+        cpu->cpreg_values[i] = read_raw_cp_reg(&cpu->env, ri);
     }
     return ok;
 }
@@ -203,7 +190,6 @@ bool write_list_to_cpustate(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         uint64_t v = cpu->cpreg_values[i];
-        uint64_t readback;
         const ARMCPRegInfo *ri;
 
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
@@ -218,9 +204,8 @@ bool write_list_to_cpustate(ARMCPU *cpu)
          * (to catch read-only registers and partially read-only
          * registers where the incoming migration value doesn't match)
          */
-        if (!write_raw_cp_reg(&cpu->env, ri, v) ||
-            !read_raw_cp_reg(&cpu->env, ri, &readback) ||
-            readback != v) {
+        write_raw_cp_reg(&cpu->env, ri, v);
+        if (read_raw_cp_reg(&cpu->env, ri) != v) {
             ok = false;
         }
     }
@@ -309,14 +294,13 @@ void init_cpreg_list(ARMCPU *cpu)
     g_list_free(keys);
 }
 
-static int dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c3 = value;
     tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
-    return 0;
 }
 
-static int fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (env->cp15.c13_fcse != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
@@ -325,10 +309,10 @@ static int fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         tlb_flush(env, 1);
         env->cp15.c13_fcse = value;
     }
-    return 0;
 }
-static int contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+
+static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
     if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
         /* For VMSA (when not using the LPAE long descriptor page table
@@ -338,39 +322,34 @@ static int contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         tlb_flush(env, 1);
     }
     env->cp15.c13_context = value;
-    return 0;
 }
 
-static int tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     /* Invalidate all (TLBIALL) */
     tlb_flush(env, 1);
-    return 0;
 }
 
-static int tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
     tlb_flush_page(env, value & TARGET_PAGE_MASK);
-    return 0;
 }
 
-static int tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
+static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
 {
     /* Invalidate by ASID (TLBIASID) */
     tlb_flush(env, value == 0);
-    return 0;
 }
 
-static int tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
+static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
 {
     /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
     tlb_flush_page(env, value & TARGET_PAGE_MASK);
-    return 0;
 }
 
 static const ARMCPRegInfo cp_reginfo[] = {
@@ -450,14 +429,14 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
 {
     if (env->cp15.c1_coproc != value) {
         env->cp15.c1_coproc = value;
         /* ??? Is this safe when called from within a TB?  */
         tb_flush(env);
     }
-    return 0;
 }
 
 static const ARMCPRegInfo v6_cp_reginfo[] = {
@@ -485,118 +464,88 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-
-static int pmreg_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                      uint64_t *value)
+static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Generic performance monitor register read function for where
-     * user access may be allowed by PMUSERENR.
+    /* Perfomance monitor registers user accessibility is controlled
+     * by PMUSERENR.
      */
     if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
+        return CP_ACCESS_TRAP;
     }
-    *value = CPREG_FIELD32(env, ri);
-    return 0;
+    return CP_ACCESS_OK;
 }
 
-static int pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                      uint64_t value)
+static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     /* only the DP, X, D and E bits are writable */
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
-    return 0;
 }
 
-static int pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+static void pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     value &= (1 << 31);
     env->cp15.c9_pmcnten |= value;
-    return 0;
 }
 
-static int pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+static void pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     value &= (1 << 31);
     env->cp15.c9_pmcnten &= ~value;
-    return 0;
 }
 
-static int pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+static void pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     env->cp15.c9_pmovsr &= ~value;
-    return 0;
 }
 
-static int pmxevtyper_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+static void pmxevtyper_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
-        return EXCP_UDEF;
-    }
     env->cp15.c9_pmxevtyper = value & 0xff;
-    return 0;
 }
 
-static int pmuserenr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+static void pmuserenr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
     env->cp15.c9_pmuserenr = value & 1;
-    return 0;
 }
 
-static int pmintenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+static void pmintenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
     /* We have no event counters so only the C bit can be changed */
     value &= (1 << 31);
     env->cp15.c9_pminten |= value;
-    return 0;
 }
 
-static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+static void pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
     value &= (1 << 31);
     env->cp15.c9_pminten &= ~value;
-    return 0;
 }
 
-static int vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                      uint64_t value)
+static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
 {
     env->cp15.c12_vbar = value & ~0x1Ful;
-    return 0;
 }
 
-static int ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t *value)
+static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
-    *value = cpu->ccsidr[env->cp15.c0_cssel];
-    return 0;
+    return cpu->ccsidr[env->cp15.c0_cssel];
 }
 
-static int csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
 {
     env->cp15.c0_cssel = value & 0xf;
-    return 0;
 }
 
 static const ARMCPRegInfo v7_cp_reginfo[] = {
@@ -624,37 +573,41 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMCNTENSET", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
-      .readfn = pmreg_read, .writefn = pmcntenset_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
+      .writefn = pmcntenset_write,
+      .accessfn = pmreg_access,
+      .raw_writefn = raw_write },
     { .name = "PMCNTENCLR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 2,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
-      .readfn = pmreg_read, .writefn = pmcntenclr_write,
+      .accessfn = pmreg_access,
+      .writefn = pmcntenclr_write,
       .type = ARM_CP_NO_MIGRATE },
     { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmovsr),
-      .readfn = pmreg_read, .writefn = pmovsr_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
-    /* Unimplemented so WI. Strictly speaking write accesses in PL0 should
-     * respect PMUSERENR.
-     */
+      .accessfn = pmreg_access,
+      .writefn = pmovsr_write,
+      .raw_writefn = raw_write },
+    /* Unimplemented so WI. */
     { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
-      .access = PL0_W, .type = ARM_CP_NOP },
+      .access = PL0_W, .accessfn = pmreg_access, .type = ARM_CP_NOP },
     /* Since we don't implement any events, writing to PMSELR is UNPREDICTABLE.
-     * We choose to RAZ/WI. XXX should respect PMUSERENR.
+     * We choose to RAZ/WI.
      */
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
+    /* Unimplemented, RAZ/WI. */
     { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
-      .readfn = pmreg_read, .writefn = pmxevtyper_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write },
-    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+      .accessfn = pmreg_access, .writefn = pmxevtyper_write,
+      .raw_writefn = raw_write },
+    /* Unimplemented, RAZ/WI. */
     { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .accessfn = pmreg_access },
     { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
       .access = PL0_R | PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
@@ -689,34 +642,19 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int teecr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void teecr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
 {
     value &= 1;
     env->teecr = value;
-    return 0;
 }
 
-static int teehbr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t *value)
-{
-    /* This is a helper function because the user access rights
-     * depend on the value of the TEECR.
-     */
-    if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
-        return EXCP_UDEF;
-    }
-    *value = env->teehbr;
-    return 0;
-}
-
-static int teehbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+static CPAccessResult teehbr_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
-        return EXCP_UDEF;
+        return CP_ACCESS_TRAP;
     }
-    env->teehbr = value;
-    return 0;
+    return CP_ACCESS_OK;
 }
 
 static const ARMCPRegInfo t2ee_cp_reginfo[] = {
@@ -726,8 +664,7 @@ static const ARMCPRegInfo t2ee_cp_reginfo[] = {
       .writefn = teecr_write },
     { .name = "TEEHBR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 6, .opc2 = 0,
       .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, teehbr),
-      .resetvalue = 0, .raw_readfn = raw_read, .raw_writefn = raw_write,
-      .readfn = teehbr_read, .writefn = teehbr_write },
+      .accessfn = teehbr_access, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -756,6 +693,59 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 };
 
 #ifndef CONFIG_USER_ONLY
+
+static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* CNTFRQ: not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
+    if (arm_current_pl(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx)
+{
+    /* CNT[PV]CT: not visible from PL0 if ELO[PV]CTEN is zero */
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx)
+{
+    /* CNT[PV]_CVAL, CNT[PV]_CTL, CNT[PV]_TVAL: not visible from PL0 if
+     * EL0[PV]TEN is zero.
+     */
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult gt_pct_access(CPUARMState *env,
+                                         const ARMCPRegInfo *ri)
+{
+    return gt_counter_access(env, GTIMER_PHYS);
+}
+
+static CPAccessResult gt_vct_access(CPUARMState *env,
+                                         const ARMCPRegInfo *ri)
+{
+    return gt_counter_access(env, GTIMER_VIRT);
+}
+
+static CPAccessResult gt_ptimer_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return gt_timer_access(env, GTIMER_PHYS);
+}
+
+static CPAccessResult gt_vtimer_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return gt_timer_access(env, GTIMER_VIRT);
+}
 
 static uint64_t gt_get_countervalue(CPUARMState *env)
 {
@@ -802,17 +792,6 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
     }
 }
 
-static int gt_cntfrq_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t *value)
-{
-    /* Not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
-    if (arm_current_pl(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
-        return EXCP_UDEF;
-    }
-    *value = env->cp15.c14_cntfrq;
-    return 0;
-}
-
 static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -821,81 +800,40 @@ static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     timer_del(cpu->gt_timer[timeridx]);
 }
 
-static int gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t *value)
+static uint64_t gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    int timeridx = ri->opc1 & 1;
-
-    if (arm_current_pl(env) == 0 &&
-        !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
-        return EXCP_UDEF;
-    }
-    *value = gt_get_countervalue(env);
-    return 0;
+    return gt_get_countervalue(env);
 }
 
-static int gt_cval_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t *value)
-{
-    int timeridx = ri->opc1 & 1;
-
-    if (arm_current_pl(env) == 0 &&
-        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
-        return EXCP_UDEF;
-    }
-    *value = env->cp15.c14_timer[timeridx].cval;
-    return 0;
-}
-
-static int gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     int timeridx = ri->opc1 & 1;
 
     env->cp15.c14_timer[timeridx].cval = value;
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
-    return 0;
 }
-static int gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t *value)
+
+static uint64_t gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     int timeridx = ri->crm & 1;
 
-    if (arm_current_pl(env) == 0 &&
-        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
-        return EXCP_UDEF;
-    }
-    *value = (uint32_t)(env->cp15.c14_timer[timeridx].cval -
-                        gt_get_countervalue(env));
-    return 0;
+    return (uint32_t)(env->cp15.c14_timer[timeridx].cval -
+                      gt_get_countervalue(env));
 }
 
-static int gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     int timeridx = ri->crm & 1;
 
     env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
         + sextract64(value, 0, 32);
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
-    return 0;
 }
 
-static int gt_ctl_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t *value)
-{
-    int timeridx = ri->crm & 1;
-
-    if (arm_current_pl(env) == 0 &&
-        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
-        return EXCP_UDEF;
-    }
-    *value = env->cp15.c14_timer[timeridx].ctl;
-    return 0;
-}
-
-static int gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+static void gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     int timeridx = ri->crm & 1;
@@ -912,7 +850,6 @@ static int gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
         qemu_set_irq(cpu->gt_timer_outputs[timeridx],
                      (oldval & 4) && (value & 2));
     }
-    return 0;
 }
 
 void arm_gt_ptimer_cb(void *opaque)
@@ -938,7 +875,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .access = PL1_RW | PL0_R,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_cntfrq),
       .resetvalue = (1000 * 1000 * 1000) / GTIMER_SCALE,
-      .readfn = gt_cntfrq_read, .raw_readfn = raw_read,
+      .accessfn = gt_cntfrq_access,
     },
     /* overall control: mostly access permissions */
     { .name = "CNTKCTL", .cp = 15, .crn = 14, .crm = 1, .opc1 = 0, .opc2 = 0,
@@ -951,32 +888,36 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].ctl),
       .resetvalue = 0,
-      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write,
+      .accessfn = gt_ptimer_access,
+      .writefn = gt_ctl_write, .raw_writefn = raw_write,
     },
     { .name = "CNTV_CTL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 1,
       .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].ctl),
       .resetvalue = 0,
-      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write,
+      .accessfn = gt_vtimer_access,
+      .writefn = gt_ctl_write, .raw_writefn = raw_write,
     },
     /* TimerValue views: a 32 bit downcounting view of the underlying state */
     { .name = "CNTP_TVAL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_ptimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_vtimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     /* The counter itself */
     { .name = "CNTPCT", .cp = 15, .crm = 14, .opc1 = 0,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .accessfn = gt_pct_access,
       .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
     },
     { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .accessfn = gt_vct_access,
       .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
     },
     /* Comparison value, indicating when the timer goes off */
@@ -985,16 +926,16 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .type = ARM_CP_64BIT | ARM_CP_IO,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
       .resetvalue = 0,
-      .readfn = gt_cval_read, .writefn = gt_cval_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write,
+      .accessfn = gt_ptimer_access,
+      .writefn = gt_cval_write, .raw_writefn = raw_write,
     },
     { .name = "CNTV_CVAL", .cp = 15, .crm = 14, .opc1 = 3,
       .access = PL1_RW | PL0_R,
       .type = ARM_CP_64BIT | ARM_CP_IO,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].cval),
       .resetvalue = 0,
-      .readfn = gt_cval_read, .writefn = gt_cval_write,
-      .raw_readfn = raw_read, .raw_writefn = raw_write,
+      .accessfn = gt_vtimer_access,
+      .writefn = gt_cval_write, .raw_writefn = raw_write,
     },
     REGINFO_SENTINEL
 };
@@ -1010,7 +951,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 
 #endif
 
-static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         env->cp15.c7_par = value;
@@ -1019,7 +960,6 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     } else {
         env->cp15.c7_par = value & 0xfffff1ff;
     }
-    return 0;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1035,7 +975,20 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
         && (env->cp15.c2_control & (1U << 31));
 }
 
-static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (ri->opc2 & 4) {
+        /* Other states are only available with TrustZone; in
+         * a non-TZ implementation these registers don't exist
+         * at all, which is an Uncategorized trap. This underdecoding
+         * is safe because the reginfo is NO_MIGRATE.
+         */
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+    return CP_ACCESS_OK;
+}
+
+static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     hwaddr phys_addr;
     target_ulong page_size;
@@ -1043,10 +996,6 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     int ret, is_user = ri->opc2 & 2;
     int access_type = ri->opc2 & 1;
 
-    if (ri->opc2 & 4) {
-        /* Other states are only available with TrustZone */
-        return EXCP_UDEF;
-    }
     ret = get_phys_addr(env, value, access_type, is_user,
                         &phys_addr, &prot, &page_size);
     if (extended_addresses_enabled(env)) {
@@ -1088,7 +1037,6 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         }
         env->cp15.c7_par_hi = 0;
     }
-    return 0;
 }
 #endif
 
@@ -1099,7 +1047,8 @@ static const ARMCPRegInfo vapa_cp_reginfo[] = {
       .writefn = par_write },
 #ifndef CONFIG_USER_ONLY
     { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
-      .access = PL1_W, .writefn = ats_write, .type = ARM_CP_NO_MIGRATE },
+      .access = PL1_W, .accessfn = ats_access,
+      .writefn = ats_write, .type = ARM_CP_NO_MIGRATE },
 #endif
     REGINFO_SENTINEL
 };
@@ -1134,52 +1083,26 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
     return ret;
 }
 
-static int pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
 {
     env->cp15.c5_data = extended_mpu_ap_bits(value);
-    return 0;
 }
 
-static int pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t *value)
+static uint64_t pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = simple_mpu_ap_bits(env->cp15.c5_data);
-    return 0;
+    return simple_mpu_ap_bits(env->cp15.c5_data);
 }
 
-static int pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
 {
     env->cp15.c5_insn = extended_mpu_ap_bits(value);
-    return 0;
 }
 
-static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t *value)
+static uint64_t pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = simple_mpu_ap_bits(env->cp15.c5_insn);
-    return 0;
-}
-
-static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t *value)
-{
-    if (ri->crm >= 8) {
-        return EXCP_UDEF;
-    }
-    *value = env->cp15.c6_region[ri->crm];
-    return 0;
-}
-
-static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value)
-{
-    if (ri->crm >= 8) {
-        return EXCP_UDEF;
-    }
-    env->cp15.c6_region[ri->crm] = value;
-    return 0;
+    return simple_mpu_ap_bits(env->cp15.c5_insn);
 }
 
 static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
@@ -1204,14 +1127,35 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_insn), .resetvalue = 0, },
     /* Protection region base and size registers */
-    { .name = "946_PRBS", .cp = 15, .crn = 6, .crm = CP_ANY, .opc1 = 0,
-      .opc2 = CP_ANY, .access = PL1_RW,
-      .readfn = arm946_prbs_read, .writefn = arm946_prbs_write, },
+    { .name = "946_PRBS0", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[0]) },
+    { .name = "946_PRBS1", .cp = 15, .crn = 6, .crm = 1, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[1]) },
+    { .name = "946_PRBS2", .cp = 15, .crn = 6, .crm = 2, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[2]) },
+    { .name = "946_PRBS3", .cp = 15, .crn = 6, .crm = 3, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[3]) },
+    { .name = "946_PRBS4", .cp = 15, .crn = 6, .crm = 4, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[4]) },
+    { .name = "946_PRBS5", .cp = 15, .crn = 6, .crm = 5, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[5]) },
+    { .name = "946_PRBS6", .cp = 15, .crn = 6, .crm = 6, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[6]) },
+    { .name = "946_PRBS7", .cp = 15, .crn = 6, .crm = 7, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c6_region[7]) },
     REGINFO_SENTINEL
 };
 
-static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
 {
     int maskshift = extract32(value, 0, 3);
 
@@ -1228,11 +1172,10 @@ static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.c2_control = value;
     env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> maskshift);
     env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> maskshift);
-    return 0;
 }
 
-static int vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
+static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
@@ -1240,7 +1183,7 @@ static int vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         tlb_flush(env, 1);
     }
-    return vmsa_ttbcr_raw_write(env, ri, value);
+    vmsa_ttbcr_raw_write(env, ri, value);
 }
 
 static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1273,40 +1216,36 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int omap_ticonfig_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void omap_ticonfig_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     env->cp15.c15_ticonfig = value & 0xe7;
     /* The OS_TYPE bit in this register changes the reported CPUID! */
     env->cp15.c0_cpuid = (value & (1 << 5)) ?
         ARM_CPUID_TI915T : ARM_CPUID_TI925T;
-    return 0;
 }
 
-static int omap_threadid_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void omap_threadid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     env->cp15.c15_threadid = value & 0xffff;
-    return 0;
 }
 
-static int omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
+static void omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
 {
     /* Wait-for-interrupt (deprecated) */
     cpu_interrupt(CPU(arm_env_get_cpu(env)), CPU_INTERRUPT_HALT);
-    return 0;
 }
 
-static int omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                 uint64_t value)
+static void omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
 {
     /* On OMAP there are registers indicating the max/min index of dcache lines
      * containing a dirty line; cache flush operations have to reset these.
      */
     env->cp15.c15_i_max = 0x000;
     env->cp15.c15_i_min = 0xff0;
-    return 0;
 }
 
 static const ARMCPRegInfo omap_cp_reginfo[] = {
@@ -1348,8 +1287,8 @@ static const ARMCPRegInfo omap_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value)
+static void xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t value)
 {
     value &= 0x3fff;
     if (env->cp15.c15_cpar != value) {
@@ -1357,7 +1296,6 @@ static int xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
         tb_flush(env);
         env->cp15.c15_cpar = value;
     }
-    return 0;
 }
 
 static const ARMCPRegInfo xscale_cp_reginfo[] = {
@@ -1437,8 +1375,7 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                      uint64_t *value)
+static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     uint32_t mpidr = cs->cpu_index;
@@ -1453,8 +1390,7 @@ static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
          * not currently model any of those cores.
          */
     }
-    *value = mpidr;
-    return 0;
+    return mpidr;
 }
 
 static const ARMCPRegInfo mpidr_cp_reginfo[] = {
@@ -1463,17 +1399,16 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int par64_read(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
+static uint64_t par64_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
-    return 0;
+    return ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
 }
 
-static int par64_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void par64_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
 {
     env->cp15.c7_par_hi = value >> 32;
     env->cp15.c7_par = value;
-    return 0;
 }
 
 static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1482,27 +1417,24 @@ static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     env->cp15.c7_par = 0;
 }
 
-static int ttbr064_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t *value)
+static uint64_t ttbr064_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
-    return 0;
+    return ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
 }
 
-static int ttbr064_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value)
+static void ttbr064_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t value)
 {
     env->cp15.c2_base0_hi = value >> 32;
     env->cp15.c2_base0 = value;
-    return 0;
 }
 
-static int ttbr064_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void ttbr064_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     /* Writes to the 64 bit format TTBRs may change the ASID */
     tlb_flush(env, 1);
-    return ttbr064_raw_write(env, ri, value);
+    ttbr064_raw_write(env, ri, value);
 }
 
 static void ttbr064_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1511,19 +1443,16 @@ static void ttbr064_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     env->cp15.c2_base0 = 0;
 }
 
-static int ttbr164_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t *value)
+static uint64_t ttbr164_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
-    return 0;
+    return ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
 }
 
-static int ttbr164_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                         uint64_t value)
+static void ttbr164_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
 {
     env->cp15.c2_base1_hi = value >> 32;
     env->cp15.c2_base1 = value;
-    return 0;
 }
 
 static void ttbr164_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1560,32 +1489,26 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t *value)
+static uint64_t aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = vfp_get_fpcr(env);
-    return 0;
+    return vfp_get_fpcr(env);
 }
 
-static int aa64_fpcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                           uint64_t value)
+static void aa64_fpcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
 {
     vfp_set_fpcr(env, value);
-    return 0;
 }
 
-static int aa64_fpsr_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t *value)
+static uint64_t aa64_fpsr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    *value = vfp_get_fpsr(env);
-    return 0;
+    return vfp_get_fpsr(env);
 }
 
-static int aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                           uint64_t value)
+static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
 {
     vfp_set_fpsr(env, value);
-    return 0;
 }
 
 static const ARMCPRegInfo v8_cp_reginfo[] = {
@@ -1618,13 +1541,13 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
 {
     env->cp15.c1_sys = value;
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
     tlb_flush(env, 1);
-    return 0;
 }
 
 void register_cp_regs_for_features(ARMCPU *cpu)
@@ -1707,8 +1630,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
             .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
             .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
-            .readfn = pmreg_read, .writefn = pmcr_write,
-            .raw_readfn = raw_read, .raw_writefn = raw_write,
+            .accessfn = pmreg_access, .writefn = pmcr_write,
+            .raw_writefn = raw_write,
         };
         ARMCPRegInfo clidr = {
             .name = "CLIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
@@ -2202,17 +2125,15 @@ const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp)
     return g_hash_table_lookup(cpregs, &encoded_cp);
 }
 
-int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
+void arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
 {
     /* Helper coprocessor write function for write-ignore registers */
-    return 0;
 }
 
-int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
+uint64_t arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Helper coprocessor write function for read-as-zero registers */
-    *value = 0;
     return 0;
 }
 
@@ -2718,7 +2639,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
-    if (env->cp15.c1_sys & (1 << 13)) {
+    if (env->cp15.c1_sys & SCTLR_V) {
         /* when enabled, base address cannot be remapped.  */
         addr += 0xffff0000;
     } else {
@@ -2741,7 +2662,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
     if (arm_feature(env, ARM_FEATURE_V4T)) {
-        env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+        env->thumb = (env->cp15.c1_sys & SCTLR_TE) != 0;
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
@@ -2767,12 +2688,15 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
 
   switch (ap) {
   case 0:
+      if (arm_feature(env, ARM_FEATURE_V7)) {
+          return 0;
+      }
       if (access_type == 1)
           return 0;
-      switch ((env->cp15.c1_sys >> 8) & 3) {
-      case 1:
+      switch (env->cp15.c1_sys & (SCTLR_S | SCTLR_R)) {
+      case SCTLR_S:
           return is_user ? 0 : PAGE_READ;
-      case 2:
+      case SCTLR_R:
           return PAGE_READ;
       default:
           return 0;
@@ -3003,7 +2927,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
             goto do_fault;
 
         /* The simplified model uses AP[0] as an access control bit.  */
-        if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
+        if ((env->cp15.c1_sys & SCTLR_AFE) && (ap & 1) == 0) {
             /* Access flag fault.  */
             code = (code == 15) ? 6 : 3;
             goto do_fault;
@@ -3295,7 +3219,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     if (address < 0x02000000)
         address += env->cp15.c13_fcse;
 
-    if ((env->cp15.c1_sys & 1) == 0) {
+    if ((env->cp15.c1_sys & SCTLR_M) == 0) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -3308,7 +3232,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     } else if (extended_addresses_enabled(env)) {
         return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
                                   prot, page_size);
-    } else if (env->cp15.c1_sys & (1 << 23)) {
+    } else if (env->cp15.c1_sys & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
                                 prot, page_size);
     } else {

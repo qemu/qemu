@@ -217,20 +217,17 @@ static const int pxa2xx_cp_reg_map[0x10] = {
     [0xa] = ICPR2,
 };
 
-static int pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t *value)
+static uint64_t pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
-    *value = pxa2xx_pic_mem_read(ri->opaque, offset, 4);
-    return 0;
+    return pxa2xx_pic_mem_read(ri->opaque, offset, 4);
 }
 
-static int pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
     int offset = pxa2xx_cp_reg_map[ri->crn];
     pxa2xx_pic_mem_write(ri->opaque, offset, value, 4);
-    return 0;
 }
 
 #define REGINFO_FOR_PIC_CP(NAME, CRN) \

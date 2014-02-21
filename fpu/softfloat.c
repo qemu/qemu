@@ -2372,6 +2372,17 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
+        if (flags & float_muladd_halve_result) {
+            if (cExp == 0) {
+                normalizeFloat32Subnormal(cSig, &cExp, &cSig);
+            }
+            /* Subtract one to halve, and one again because roundAndPackFloat32
+             * wants one less than the true exponent.
+             */
+            cExp -= 2;
+            cSig = (cSig | 0x00800000) << 7;
+            return roundAndPackFloat32(cSign ^ signflip, cExp, cSig STATUS_VAR);
+        }
         return packFloat32(cSign ^ signflip, cExp, cSig);
     }
 
@@ -2408,6 +2419,9 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
             /* Throw out the special case of c being an exact zero now */
             shift64RightJamming(pSig64, 32, &pSig64);
             pSig = pSig64;
+            if (flags & float_muladd_halve_result) {
+                pExp--;
+            }
             return roundAndPackFloat32(zSign, pExp - 1,
                                        pSig STATUS_VAR);
         }
@@ -2472,6 +2486,10 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
         zSig64 <<= shiftcount;
         zExp -= shiftcount;
     }
+    if (flags & float_muladd_halve_result) {
+        zExp--;
+    }
+
     shift64RightJamming(zSig64, 32, &zSig64);
     return roundAndPackFloat32(zSign, zExp, zSig64 STATUS_VAR);
 }
@@ -4088,6 +4106,17 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
+        if (flags & float_muladd_halve_result) {
+            if (cExp == 0) {
+                normalizeFloat64Subnormal(cSig, &cExp, &cSig);
+            }
+            /* Subtract one to halve, and one again because roundAndPackFloat64
+             * wants one less than the true exponent.
+             */
+            cExp -= 2;
+            cSig = (cSig | 0x0010000000000000ULL) << 10;
+            return roundAndPackFloat64(cSign ^ signflip, cExp, cSig STATUS_VAR);
+        }
         return packFloat64(cSign ^ signflip, cExp, cSig);
     }
 
@@ -4123,6 +4152,9 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
         if (!cSig) {
             /* Throw out the special case of c being an exact zero now */
             shift128RightJamming(pSig0, pSig1, 64, &pSig0, &pSig1);
+            if (flags & float_muladd_halve_result) {
+                pExp--;
+            }
             return roundAndPackFloat64(zSign, pExp - 1,
                                        pSig1 STATUS_VAR);
         }
@@ -4159,6 +4191,9 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
             zExp--;
         }
         shift128RightJamming(zSig0, zSig1, 64, &zSig0, &zSig1);
+        if (flags & float_muladd_halve_result) {
+            zExp--;
+        }
         return roundAndPackFloat64(zSign, zExp, zSig1 STATUS_VAR);
     } else {
         /* Subtraction */
@@ -4208,6 +4243,9 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
                 zSig0 = zSig1 << shiftcount;
                 zExp -= (shiftcount + 64);
             }
+        }
+        if (flags & float_muladd_halve_result) {
+            zExp--;
         }
         return roundAndPackFloat64(zSign, zExp, zSig0 STATUS_VAR);
     }

@@ -189,7 +189,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu)
     }
     s->last_active[irq][cpu] = s->running_irq[cpu];
 
-    if (s->revision == REV_11MPCORE) {
+    if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
         /* Clear pending flags for both level and edge triggered interrupts.
          * Level triggered IRQs will be reasserted once they become inactive.
          */

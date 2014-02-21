@@ -6837,6 +6837,17 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             return 1;
         }
 
+        if (ri->accessfn) {
+            /* Emit code to perform further access permissions checks at
+             * runtime; this may result in an exception.
+             */
+            TCGv_ptr tmpptr;
+            gen_set_pc_im(s, s->pc);
+            tmpptr = tcg_const_ptr(ri);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr);
+            tcg_temp_free_ptr(tmpptr);
+        }
+
         /* Handle special cases first */
         switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
         case ARM_CP_NOP:
@@ -6865,7 +6876,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     tmp64 = tcg_const_i64(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp64 = tcg_temp_new_i64();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg64(tmp64, cpu_env, tmpptr);
@@ -6888,7 +6898,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     tmp = tcg_const_i32(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp = tcg_temp_new_i32();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg(tmp, cpu_env, tmpptr);
@@ -6923,7 +6932,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmphi);
                 if (ri->writefn) {
                     TCGv_ptr tmpptr = tcg_const_ptr(ri);
-                    gen_set_pc_im(s, s->pc);
                     gen_helper_set_cp_reg64(cpu_env, tmpptr, tmp64);
                     tcg_temp_free_ptr(tmpptr);
                 } else {
@@ -6934,7 +6942,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 if (ri->writefn) {
                     TCGv_i32 tmp;
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp = load_reg(s, rt);
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_set_cp_reg(cpu_env, tmpptr, tmp);
@@ -6960,6 +6967,19 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         }
 
         return 0;
+    }
+
+    /* Unknown register; this might be a guest error or a QEMU
+     * unimplemented feature.
+     */
+    if (is64) {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "64 bit system register cp:%d opc1: %d crm:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crm);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2);
     }
 
     return 1;
