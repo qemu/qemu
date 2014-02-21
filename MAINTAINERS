@@ -648,6 +648,7 @@ nvme
 M: Keith Busch <keith.busch@intel.com>
 S: Supported
 F: hw/block/nvme*
+F: tests/nvme-test.c
 
 Xilinx EDK
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
