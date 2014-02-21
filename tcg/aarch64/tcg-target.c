@@ -1053,7 +1053,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_goto(s, (intptr_t)lb->raddr);
 }
 
-static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
+static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
                                 TCGReg data_reg, TCGReg addr_reg,
                                 int mem_index,
                                 uint8_t *raddr, uint8_t *label_ptr)
@@ -1226,7 +1226,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 1);
     tcg_out_qemu_ld_direct(s, memop, data_reg, addr_reg, TCG_REG_X1);
-    add_qemu_ldst_label(s, 1, memop, data_reg, addr_reg,
+    add_qemu_ldst_label(s, true, memop, data_reg, addr_reg,
                         mem_index, s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     tcg_out_qemu_ld_direct(s, memop, data_reg, addr_reg,
@@ -1243,7 +1243,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 0);
     tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg, TCG_REG_X1);
-    add_qemu_ldst_label(s, 0, memop, data_reg, addr_reg,
+    add_qemu_ldst_label(s, false, memop, data_reg, addr_reg,
                         mem_index, s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg,
