@@ -6284,6 +6284,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xe5:
         ot = mo_b_d32(b, dflag);
         val = cpu_ldub_code(env, s->pc++);
+        tcg_gen_movi_tl(cpu_T[0], val);
         gen_check_io(s, ot, pc_start - s->cs_base,
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
         if (use_icount)
@@ -6300,6 +6301,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xe7:
         ot = mo_b_d32(b, dflag);
         val = cpu_ldub_code(env, s->pc++);
+        tcg_gen_movi_tl(cpu_T[0], val);
         gen_check_io(s, ot, pc_start - s->cs_base,
                      svm_is_rep(prefixes));
         gen_op_mov_v_reg(ot, cpu_T[1], R_EAX);
