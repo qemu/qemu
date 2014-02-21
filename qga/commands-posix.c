@@ -534,7 +534,7 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     if (ret == -1) {
         error_setg_errno(err, errno, "failed to seek file");
     } else {
-        seek_data = g_malloc0(sizeof(GuestFileRead));
+        seek_data = g_new0(GuestFileSeek, 1);
         seek_data->position = ftell(fh);
         seek_data->eof = feof(fh);
     }
