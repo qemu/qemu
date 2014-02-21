@@ -1,10 +1,10 @@
 /*
- * Olimex STM32 P103 Development Board
+ * Dropwatcher flashboard
  *
- * Copyright (C) 2010 Andre Beckus
+ * Copyright (C) 2010 Andre Beckus 2014 Andrew Hankins
  *
  * Implementation based on
- * Olimex "STM-P103 Development Board Users Manual Rev. A, April 2008"
+ * Shit Jony told me
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -36,10 +36,7 @@ typedef struct {
     qemu_irq button_irq;
 } Stm32P103;
 
-
-
-
-static void led_irq_handler(void *opaque, int n, int level)
+static void gpioa_irq_handler(void *opaque, int n, int level)
 {
     /* There should only be one IRQ for the LED */
     assert(n == 0);
@@ -57,7 +54,7 @@ static void led_irq_handler(void *opaque, int n, int level)
     }
 }
 
-static void stm32_p103_key_event(void *opaque, int keycode)
+static void stm32_flashboard_key_event(void *opaque, int keycode)
 {
     Stm32P103 *s = (Stm32P103 *)opaque;
     bool make;
@@ -92,7 +89,7 @@ static void stm32_p103_key_event(void *opaque, int keycode)
 }
 
 
-static void stm32_p103_init(QEMUMachineInitArgs *args)
+static void stm32_flashboard_init(QEMUMachineInitArgs *args)
 {
     const char* kernel_filename = args->kernel_filename;
     qemu_irq *led_irq;
@@ -107,20 +104,22 @@ static void stm32_p103_init(QEMUMachineInitArgs *args)
                32768);
 
     DeviceState *gpio_a = DEVICE(object_resolve_path("/machine/stm32/gpio[a]", NULL));
-    DeviceState *gpio_c = DEVICE(object_resolve_path("/machine/stm32/gpio[c]", NULL));
+    DeviceState *gpio_b = DEVICE(object_resolve_path("/machine/stm32/gpio[b]", NULL));
+    DeviceState *uart1 = DEVICE(object_resolve_path("/machine/stm32/uart[1]", NULL));
     DeviceState *uart2 = DEVICE(object_resolve_path("/machine/stm32/uart[2]", NULL));
 
     assert(gpio_a);
-    assert(gpio_c);
+    assert(gpio_b);
+    assert(uart1);
     assert(uart2);
 
     /* Connect LED to GPIO C pin 12 */
-    led_irq = qemu_allocate_irqs(led_irq_handler, NULL, 1);
+    led_irq = qemu_allocate_irqs(gpioa_irq_handler, NULL, 1);
     qdev_connect_gpio_out(gpio_c, 12, led_irq[0]);
 
     /* Connect button to GPIO A pin 0 */
     s->button_irq = qdev_get_gpio_in(gpio_a, 0);
-    qemu_add_kbd_event_handler(stm32_p103_key_event, s);
+    qemu_add_kbd_event_handler(stm32_flashboard_key_event, s);
 
     /* Connect RS232 to UART */
     stm32_uart_connect(
@@ -129,17 +128,16 @@ static void stm32_p103_init(QEMUMachineInitArgs *args)
             STM32_USART2_NO_REMAP);
  }
 
-static QEMUMachine stm32_p103_machine = {
-    .name = "stm32-p103",
-    .desc = "Olimex STM32 p103 Dev Board",
-    .init = stm32_p103_init,
+static QEMUMachine stm32_flashboard_machine = {
+    .name = "stm32-flashboard",
+    .desc = "Dropwatcher flashboard",
+    .init = stm32_flashboard_init,
     DEFAULT_MACHINE_OPTIONS,
 };
 
-
-static void stm32_p103_machine_init(void)
+static void stm32_flashboard_machine_init(void)
 {
-    qemu_register_machine(&stm32_p103_machine);
+    qemu_register_machine(&stm32_flashboard_machine);
 }
 
-machine_init(stm32_p103_machine_init);
+machine_init(stm32_flashboard_machine_init);
