@@ -345,14 +345,10 @@ static void qmp_response(JSONMessageParser *parser, QList *tokens)
     qmp->response = (QDict *)obj;
 }
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+QDict *qtest_qmp_receive(QTestState *s)
 {
     QMPResponseParser qmp;
 
-    /* Send QMP request */
-    socket_sendf(s->qmp_fd, fmt, ap);
-
-    /* Receive reply */
     qmp.response = NULL;
     json_message_parser_init(&qmp.parser, qmp_response);
     while (!qmp.response) {
@@ -374,6 +370,15 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
     json_message_parser_destroy(&qmp.parser);
 
     return qmp.response;
+}
+
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    /* Send QMP request */
+    socket_sendf(s->qmp_fd, fmt, ap);
+
+    /* Receive reply */
+    return qtest_qmp_receive(s);
 }
 
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
