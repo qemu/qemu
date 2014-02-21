@@ -369,13 +369,23 @@ static int img_create(int argc, char **argv)
         case 'e':
             error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
-            return 1;
+            goto fail;
         case '6':
             error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
-            return 1;
+            goto fail;
         case 'o':
-            options = optarg;
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                goto fail;
+            }
+            if (!options) {
+                options = g_strdup(optarg);
+            } else {
+                char *old_options = options;
+                options = g_strdup_printf("%s,%s", options, optarg);
+                g_free(old_options);
+            }
             break;
         case 'q':
             quiet = true;
@@ -403,7 +413,7 @@ static int img_create(int argc, char **argv)
                 error_report("kilobytes, megabytes, gigabytes, terabytes, "
                              "petabytes and exabytes.");
             }
-            return 1;
+            goto fail;
         }
         img_size = (uint64_t)sval;
     }
@@ -411,7 +421,8 @@ static int img_create(int argc, char **argv)
         help();
     }
 
-    if (options && is_help_option(options)) {
+    if (options && has_help_option(options)) {
+        g_free(options);
         return print_block_option_help(filename, fmt);
     }
 
@@ -420,10 +431,15 @@ static int img_create(int argc, char **argv)
     if (local_err) {
         error_report("%s: %s", filename, error_get_pretty(local_err));
         error_free(local_err);
-        return 1;
+        goto fail;
     }
 
+    g_free(options);
     return 0;
+
+fail:
+    g_free(options);
+    return 1;
 }
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
