@@ -389,6 +389,59 @@ static void qdict_array_split_test(void)
     g_assert(qdict_size(test_dict) == 2);
 
     QDECREF(test_dict);
+
+
+    /*
+     * Test the split of
+     *
+     * {
+     *     "0": 42,
+     *     "1": 23,
+     *     "1.x": 84
+     * }
+     *
+     * to
+     *
+     * [
+     *     42
+     * ]
+     *
+     * and
+     *
+     * {
+     *     "1": 23,
+     *     "1.x": 84
+     * }
+     *
+     * That is, test whether splitting stops if there is both an entry with key
+     * of "%u" and other entries with keys prefixed "%u." for the same index.
+     */
+
+    test_dict = qdict_new();
+
+    qdict_put(test_dict, "0", qint_from_int(42));
+    qdict_put(test_dict, "1", qint_from_int(23));
+    qdict_put(test_dict, "1.x", qint_from_int(84));
+
+    qdict_array_split(test_dict, &test_list);
+
+    int1 = qobject_to_qint(qlist_pop(test_list));
+
+    g_assert(int1);
+    g_assert(qlist_empty(test_list));
+
+    QDECREF(test_list);
+
+    g_assert(qint_get_int(int1) == 42);
+
+    QDECREF(int1);
+
+    g_assert(qdict_get_int(test_dict, "1") == 23);
+    g_assert(qdict_get_int(test_dict, "1.x") == 84);
+
+    g_assert(qdict_size(test_dict) == 2);
+
+    QDECREF(test_dict);
 }
 
 /*
