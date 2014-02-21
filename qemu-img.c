@@ -250,16 +250,19 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
-    proto_drv = bdrv_find_protocol(filename, true);
-    if (!proto_drv) {
-        error_report("Unknown protocol '%s'", filename);
-        return 1;
-    }
-
     create_options = append_option_parameters(create_options,
                                               drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
+
+    if (filename) {
+        proto_drv = bdrv_find_protocol(filename, true);
+        if (!proto_drv) {
+            error_report("Unknown protocol '%s'", filename);
+            return 1;
+        }
+        create_options = append_option_parameters(create_options,
+                                                  proto_drv->create_options);
+    }
+
     print_option_help(create_options);
     free_option_parameters(create_options);
     return 0;
@@ -394,10 +397,16 @@ static int img_create(int argc, char **argv)
     }
 
     /* Get the filename */
+    filename = (optind < argc) ? argv[optind] : NULL;
+    if (options && has_help_option(options)) {
+        g_free(options);
+        return print_block_option_help(filename, fmt);
+    }
+
     if (optind >= argc) {
         help();
     }
-    filename = argv[optind++];
+    optind++;
 
     /* Get image size, if specified */
     if (optind < argc) {
@@ -419,11 +428,6 @@ static int img_create(int argc, char **argv)
     }
     if (optind != argc) {
         help();
-    }
-
-    if (options && has_help_option(options)) {
-        g_free(options);
-        return print_block_option_help(filename, fmt);
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
@@ -1269,16 +1273,17 @@ static int img_convert(int argc, char **argv)
     }
 
     bs_n = argc - optind - 1;
-    if (bs_n < 1) {
-        help();
-    }
-
-    out_filename = argv[argc - 1];
+    out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
 
     if (options && has_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
         goto out;
     }
+
+    if (bs_n < 1) {
+        help();
+    }
+
 
     if (bs_n > 1 && out_baseimg) {
         error_report("-B makes no sense when concatenating multiple input "
@@ -2689,15 +2694,21 @@ static int img_amend(int argc, char **argv)
         }
     }
 
-    if (optind != argc - 1) {
-        help();
-    }
-
     if (!options) {
         help();
     }
 
-    filename = argv[argc - 1];
+    filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
+    if (fmt && has_help_option(options)) {
+        /* If a format is explicitly specified (and possibly no filename is
+         * given), print option help here */
+        ret = print_block_option_help(filename, fmt);
+        goto out;
+    }
+
+    if (optind != argc - 1) {
+        help();
+    }
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR, true, quiet);
     if (!bs) {
@@ -2709,6 +2720,7 @@ static int img_amend(int argc, char **argv)
     fmt = bs->drv->format_name;
 
     if (has_help_option(options)) {
+        /* If the format was auto-detected, print option help here */
         ret = print_block_option_help(filename, fmt);
         goto out;
     }
