@@ -30,7 +30,7 @@ Testing: -drive file=TEST_DIR/2.IMGFMT,format=IMGFMT,if=none,id=drive2
 QMP_VERSION
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "QUORUM_REPORT_BAD", "data": {"node-name": "", "ret": 0, "sectors-count": 20480, "sector-num": 0}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "QUORUM_REPORT_BAD", "data": {"node-name": "", "sectors-count": 20480, "sector-num": 0}}
 read 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
