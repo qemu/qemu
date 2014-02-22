@@ -4436,10 +4436,11 @@
 # Driver specific block device options for Quorum
 #
 # @blkverify:      #optional true if the driver must print content mismatch
+#                  set to false by default
 #
-# @children:       the children block device to use
+# @children:       the children block devices to use
 #
-# @vote_threshold: the vote limit under which a read will fail
+# @vote-threshold: the vote limit under which a read will fail
 #
 # Since: 2.0
 ##
