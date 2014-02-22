@@ -56,6 +56,9 @@ function run_qemu()
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu_io
 }
 
+test_quorum=$($QEMU_IMG --help|grep quorum)
+[ "$test_quorum" = "" ] && _supported_fmt quorum
+
 quorum="file.driver=quorum,file.children.0.file.filename=$TEST_DIR/1.raw"
 quorum="$quorum,file.children.1.file.filename=$TEST_DIR/2.raw"
 quorum="$quorum,file.children.2.file.filename=$TEST_DIR/3.raw,file.vote-threshold=2"
