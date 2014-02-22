@@ -836,6 +836,15 @@ retry:
         qemu_coroutine_yield();
     }
 
+    if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
+        iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
+        iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE) {
+        /* WRITE SAME is not supported by the target */
+        iscsilun->has_write_same = false;
+        scsi_free_scsi_task(iTask.task);
+        return -ENOTSUP;
+    }
+
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
         iTask.task = NULL;
@@ -847,14 +856,6 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
-            iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
-            iTask.task->sense.ascq == SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE) {
-            /* WRITE SAME is not supported by the target */
-            iscsilun->has_write_same = false;
-            return -ENOTSUP;
-        }
-
         return -EIO;
     }
 
