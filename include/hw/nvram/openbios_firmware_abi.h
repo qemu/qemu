@@ -62,6 +62,8 @@ Sun_init_header(struct Sun_nvram *header, const uint8_t *macaddr, int machine_id
     header->type = 1;
     header->machine_id = machine_id & 0xff;
     memcpy(&header->macaddr, macaddr, 6);
+    memcpy(&header->hostid , &macaddr[3], 3);
+
     /* Calculate checksum */
     tmp = 0;
     tmpptr = (uint8_t *)header;
