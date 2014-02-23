@@ -28,7 +28,7 @@
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
 
 /** Trace file version number, bump if format changes */
-#define HEADER_VERSION 2
+#define HEADER_VERSION 3
 
 /** Records were dropped event ID */
 #define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
