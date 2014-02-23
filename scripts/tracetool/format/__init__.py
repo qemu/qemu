@@ -34,7 +34,7 @@ nop      Called to generate the per-event contents when the event is disabled or
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -53,7 +53,7 @@ def get_list():
     for filename in os.listdir(tracetool.format.__path__[0]):
         if filename.endswith('.py') and filename != '__init__.py':
             modnames.append(filename.rsplit('.', 1)[0])
-    for modname in modnames:
+    for modname in sorted(modnames):
         module = tracetool.try_import("tracetool.format." + modname)
 
         # just in case; should never fail unless non-module files are put there

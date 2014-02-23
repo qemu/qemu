@@ -59,7 +59,7 @@ def get_list(only_public = False):
     for filename in os.listdir(tracetool.backend.__path__[0]):
         if filename.endswith('.py') and filename != '__init__.py':
             modnames.append(filename.rsplit('.', 1)[0])
-    for modname in modnames:
+    for modname in sorted(modnames):
         module = tracetool.try_import("tracetool.backend." + modname)
 
         # just in case; should never fail unless non-module files are put there
