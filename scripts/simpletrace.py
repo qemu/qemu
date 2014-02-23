@@ -109,14 +109,10 @@ def process(events, log, analyzer):
     if isinstance(log, str):
         log = open(log, 'rb')
 
-    enabled_events = []
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
     edict = {dropped_event_id: dropped_event}
 
-    for e in events:
-        if 'disable' not in e.properties:
-            enabled_events.append(e)
-    for num, event in enumerate(enabled_events):
+    for num, event in enumerate(events):
         edict[num] = event
 
     def build_fn(analyzer, event):

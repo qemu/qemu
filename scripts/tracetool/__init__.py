@@ -266,10 +266,7 @@ def generate(fevents, format, backend,
     if not tracetool.backend.exists(backend):
         raise TracetoolError("unknown backend: %s" % backend)
     backend = backend.replace("-", "_")
-
-    if not tracetool.backend.compatible(backend, format):
-        raise TracetoolError("backend '%s' not compatible with format '%s'" %
-                             (backend, format))
+    backend = tracetool.backend.Wrapper(backend, format)
 
     import tracetool.backend.dtrace
     tracetool.backend.dtrace.BINARY = binary
@@ -277,16 +274,4 @@ def generate(fevents, format, backend,
 
     events = _read_events(fevents)
 
-    if backend == "nop":
-        ( e.properies.add("disable") for e in events )
-
-    tracetool.format.generate_begin(format, events)
-    tracetool.backend.generate("nop", format,
-                               [ e
-                                 for e in events
-                                 if "disable" in e.properties ])
-    tracetool.backend.generate(backend, format,
-                               [ e
-                                 for e in events
-                                 if "disable" not in e.properties ])
-    tracetool.format.generate_end(format, events)
+    tracetool.format.generate(events, format, backend)

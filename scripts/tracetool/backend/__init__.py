@@ -30,17 +30,24 @@ PUBLIC    If exists and is set to 'True', the backend is considered "public".
 Backend functions
 -----------------
 
-======== =======================================================================
-Function Description
-======== =======================================================================
-<format> Called to generate the format- and backend-specific code for each of
-         the specified events. If the function does not exist, the backend is
-         considered not compatible with the given format.
-======== =======================================================================
+All the following functions are optional, and no output will be generated if
+they do not exist.
+
+=============================== ==============================================
+Function                        Description
+=============================== ==============================================
+generate_<format>_begin(events) Generate backend- and format-specific file
+                                header contents.
+generate_<format>_end(events)   Generate backend- and format-specific file
+                                footer contents.
+generate_<format>(event)        Generate backend- and format-specific contents
+                                for the given event.
+=============================== ==============================================
+
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -91,39 +98,24 @@ def exists(name):
     return tracetool.try_import("tracetool.backend." + name)[1]
 
 
-def compatible(backend, format):
-    """Whether a backend is compatible with the given format."""
-    if not exists(backend):
-        raise ValueError("unknown backend: %s" % backend)
+class Wrapper:
+    def __init__(self, backend, format):
+        self._backend = backend.replace("-", "_")
+        self._format = format.replace("-", "_")
+        assert exists(self._backend)
+        assert tracetool.format.exists(self._format)
 
-    backend = backend.replace("-", "_")
-    format = format.replace("-", "_")
+    def _run_function(self, name, *args, **kwargs):
+        func = tracetool.try_import("tracetool.backend." + self._backend,
+                                    name % self._format, None)[1]
+        if func is not None:
+            func(*args, **kwargs)
 
-    if backend == "nop":
-        return True
-    else:
-        func = tracetool.try_import("tracetool.backend." + backend,
-                                    format, None)[1]
-        return func is not None
+    def generate_begin(self, events):
+        self._run_function("generate_%s_begin", events)
 
+    def generate(self, event):
+        self._run_function("generate_%s", event)
 
-def _empty(events):
-    pass
-
-def generate(backend, format, events):
-    """Generate the per-event output for the given (backend, format) pair."""
-    if not compatible(backend, format):
-        raise ValueError("backend '%s' not compatible with format '%s'" %
-                         (backend, format))
-
-    backend = backend.replace("-", "_")
-    format = format.replace("-", "_")
-
-    if backend == "nop":
-        func = tracetool.try_import("tracetool.format." + format,
-                                    "nop", _empty)[1]
-    else:
-        func = tracetool.try_import("tracetool.backend." + backend,
-                                    format, None)[1]
-
-    func(events)
+    def generate_end(self, events):
+        self._run_function("generate_%s_end", events)
