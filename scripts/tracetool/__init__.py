@@ -148,7 +148,8 @@ class Event(object):
 
         unknown_props = set(self.properties) - self._VALID_PROPS
         if len(unknown_props) > 0:
-            raise ValueError("Unknown properties: %s" % ", ".join(unknown_props))
+            raise ValueError("Unknown properties: %s"
+                             % ", ".join(unknown_props))
 
     def copy(self):
         """Create a new copy."""
@@ -206,7 +207,7 @@ class TracetoolError (Exception):
     pass
 
 
-def try_import(mod_name, attr_name = None, attr_default = None):
+def try_import(mod_name, attr_name=None, attr_default=None):
     """Try to import a module and get an attribute from it.
 
     Parameters
@@ -233,7 +234,7 @@ def try_import(mod_name, attr_name = None, attr_default = None):
 
 
 def generate(fevents, format, backend,
-             binary = None, probe_prefix = None):
+             binary=None, probe_prefix=None):
     """Generate the output for the given (format, backend) pair.
 
     Parameters
