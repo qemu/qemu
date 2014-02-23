@@ -32,12 +32,6 @@
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include <getopt.h>
-#include <stdio.h>
-#include <stdarg.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 typedef struct img_cmd_t {
     const char *name;
