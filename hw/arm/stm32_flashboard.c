@@ -29,34 +29,107 @@
 #include "hw/boards.h"
 
 
-typedef struct {
+typedef struct
+{
     Stm32 *stm32;
 
-    bool last_button_pressed;
-    qemu_irq button_irq;
-} Stm32P103;
+    bool     triggered;
+    qemu_irq triggerIRQ;
 
-static void gpioa_irq_handler(void *opaque, int n, int level)
+    bool ledDrive1;
+    bool ledDrive2;
+
+} Stm32Flashboard;
+
+static void printLedStatus(Stm32Flashboard *s)
+{
+    int64_t now = qemu_get_clock_ns(vm_clock);
+
+    if (!s->ledDrive1 && !s->ledDrive2)
+    {
+        printf("(%"PRId64") LED %s\n", now, "Shutdown");
+    }
+    else if (s->ledDrive1 && !s->ledDrive2)
+    {
+        printf("(%"PRId64") LED %s\n", now, "Low current");
+    }
+    else if (!s->ledDrive1 && s->ledDrive2)
+    {
+        printf("(%"PRId64") LED %s\n", now, "High current");
+    }
+    else if (s->ledDrive1 && s->ledDrive2)
+    {
+        printf("(%"PRId64") LED %s\n", now, "Low+High current");
+    }
+}
+
+static void ledDrive1_irq_handler(void *opaque, int n, int level)
 {
     /* There should only be one IRQ for the LED */
     assert(n == 0);
+
+    Stm32Flashboard *s = (Stm32Flashboard*) opaque;
 
     /* Assume that the IRQ is only triggered if the LED has changed state.
      * If this is not correct, we may get multiple LED Offs or Ons in a row.
      */
     switch (level) {
         case 0:
-            printf("LED Off\n");
+            s->ledDrive1 = false;
             break;
         case 1:
-            printf("LED On\n");
+            s->ledDrive1 = true;
+            break;
+    }
+    printLedStatus(s);
+}
+
+static void ledDrive2_irq_handler(void *opaque, int n, int level)
+{
+    /* There should only be one IRQ for the LED */
+    assert(n == 0);
+
+    Stm32Flashboard *s = (Stm32Flashboard*) opaque;
+
+    /* Assume that the IRQ is only triggered if the LED has changed state.
+     * If this is not correct, we may get multiple LED Offs or Ons in a row.
+     */
+    switch (level) {
+        case 0:
+            s->ledDrive2 = false;
+            break;
+        case 1:
+            s->ledDrive2 = true;
+            break;
+    }
+    printLedStatus(s);
+}
+
+static void gpiob_irq_handler(void *opaque, int n, int level)
+{
+    /* There should only be one IRQ for the LED */
+    assert(n == 0);
+
+    int gpio = ((int)opaque);
+
+    int64_t now = qemu_get_clock_ns(vm_clock);
+
+    /* Assume that the IRQ is only triggered if the LED has changed state.
+     * If this is not correct, we may get multiple LED Offs or Ons in a row.
+     */
+    switch (level) {
+        case 0:
+            printf("(%ld) GPIO[%d] Off\n", now, gpio);
+            break;
+        case 1:
+            printf("(%ld) GPIO[%d] On\n", now, gpio);
             break;
     }
 }
 
 static void stm32_flashboard_key_event(void *opaque, int keycode)
 {
-    Stm32P103 *s = (Stm32P103 *)opaque;
+    Stm32Flashboard *s = (Stm32Flashboard *)opaque;
     bool make;
     int core_keycode;
 
@@ -73,29 +146,30 @@ static void stm32_flashboard_key_event(void *opaque, int keycode)
      */
     if(core_keycode == 0x30) {
         if(make) {
-            if(!s->last_button_pressed) {
-                qemu_irq_raise(s->button_irq);
-                s->last_button_pressed = true;
+            if(!s->triggered) {
+                qemu_irq_raise(s->triggerIRQ);
+                s->triggered = true;
             }
         } else {
-            if(s->last_button_pressed) {
-                qemu_irq_lower(s->button_irq);
-                s->last_button_pressed = false;
+            if(s->triggered) {
+                qemu_irq_lower(s->triggerIRQ);
+                s->triggered = false;
             }
         }
     }
     return;
-
 }
 
+#define OUTPUTGPIOS 7
 
 static void stm32_flashboard_init(QEMUMachineInitArgs *args)
 {
+    int i;
     const char* kernel_filename = args->kernel_filename;
-    qemu_irq *led_irq;
-    Stm32P103 *s;
+    qemu_irq *ledDriver1IRQ, *ledDriver2IRQ, *gpiob[OUTPUTGPIOS];
+    Stm32Flashboard *s;
 
-    s = (Stm32P103 *)g_malloc0(sizeof(Stm32P103));
+    s = (Stm32Flashboard *)g_malloc0(sizeof(Stm32Flashboard));
 
     stm32_init(/*flash_size*/0x00010000,
                /*ram_size*/0x00004fff,
@@ -113,18 +187,34 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
     assert(uart1);
     assert(uart2);
 
-    /* Connect LED to GPIO C pin 12 */
-    led_irq = qemu_allocate_irqs(gpioa_irq_handler, NULL, 1);
-    qdev_connect_gpio_out(gpio_c, 12, led_irq[0]);
+    /* Connect LED_DRIVER_1 to GPIO A pin 1 */
+    ledDriver1IRQ = qemu_allocate_irqs(ledDrive1_irq_handler, s, 1);
+    qdev_connect_gpio_out(gpio_a, 1, ledDriver1IRQ[0]);
 
-    /* Connect button to GPIO A pin 0 */
-    s->button_irq = qdev_get_gpio_in(gpio_a, 0);
+    /* Connect LED_DRIVER_2 to GPIO A pin 6 */
+    ledDriver2IRQ = qemu_allocate_irqs(ledDrive2_irq_handler, s, 1);
+    qdev_connect_gpio_out(gpio_a, 6, ledDriver2IRQ[0]);
+
+    /* Connect trigger to GPIO B pin 8 - GPIO0 */
+    s->triggerIRQ = qdev_get_gpio_in(gpio_b, 8);
     qemu_add_kbd_event_handler(stm32_flashboard_key_event, s);
+
+    /* Connect GPIO B pin 9-15 - GPIO1-8 */
+    for (i = 0; i < OUTPUTGPIOS; i++)
+    {
+        gpiob[i] = qemu_allocate_irqs(gpiob_irq_handler, i+1, 1);
+        qdev_connect_gpio_out(gpio_b, 9+i, gpiob[i][0]);
+    }
 
     /* Connect RS232 to UART */
     stm32_uart_connect(
-            (Stm32Uart *)uart2,
+            (Stm32Uart *)uart1,
             serial_hds[0],
+            STM32_USART1_NO_REMAP);
+
+    stm32_uart_connect(
+            (Stm32Uart *)uart2,
+            serial_hds[1],
             STM32_USART2_NO_REMAP);
  }
 
