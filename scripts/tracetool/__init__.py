@@ -52,6 +52,10 @@ class Arguments:
         """
         self._args = args
 
+    def copy(self):
+        """Create a new copy."""
+        return Arguments(list(self._args))
+
     @staticmethod
     def build(arg_str):
         """Build and Arguments instance from an argument string.
@@ -145,6 +149,11 @@ class Event(object):
         unknown_props = set(self.properties) - self._VALID_PROPS
         if len(unknown_props) > 0:
             raise ValueError("Unknown properties: %s" % ", ".join(unknown_props))
+
+    def copy(self):
+        """Create a new copy."""
+        return Event(self.name, list(self.properties), self.fmt,
+                     self.args.copy(), self)
 
     @staticmethod
     def build(line_str):
