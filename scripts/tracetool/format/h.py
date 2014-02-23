@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Generate .h file.
+trace/generated-tracers.h
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"

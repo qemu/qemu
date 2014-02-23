@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Generate .c for LTTng ust event description.
+trace/generated-ust.c
 """
 
 __author__     = "Mohamad Gebai <mohamad.gebai@polymtl.ca>"
