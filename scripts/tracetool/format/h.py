@@ -6,7 +6,7 @@ Generate .h file.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -30,9 +30,9 @@ def end(events):
 def nop(events):
     for e in events:
         out('',
-            'static inline void trace_%(name)s(%(args)s)',
+            'static inline void %(api)s(%(args)s)',
             '{',
             '}',
-            name = e.name,
+            api = e.api(),
             args = e.args,
             )

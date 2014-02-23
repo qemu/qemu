@@ -6,7 +6,7 @@ LTTng User Space Tracing backend.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -31,11 +31,12 @@ def h(events):
         if len(e.args) > 0:
             argnames = ", " + argnames
 
-        out('static inline void trace_%(name)s(%(args)s)',
+        out('static inline void %(api)s(%(args)s)',
             '{',
             '    tracepoint(qemu, %(name)s%(tp_args)s);',
             '}',
             '',
+            api = e.api()
             name = e.name,
             args = e.args,
             tp_args = argnames,

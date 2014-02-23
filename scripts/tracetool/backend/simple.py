@@ -6,7 +6,7 @@ Simple built-in backend.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -34,10 +34,10 @@ def c(events):
         )
 
     for num, event in enumerate(events):
-        out('void trace_%(name)s(%(args)s)',
+        out('void %(api)s(%(args)s)',
             '{',
             '    TraceBufferRecord rec;',
-            name = event.name,
+            api = event.api(),
             args = event.args,
             )
         sizes = []
@@ -95,7 +95,7 @@ def c(events):
 
 def h(events):
     for event in events:
-        out('void trace_%(name)s(%(args)s);',
-            name = event.name,
+        out('void %(api)s(%(args)s);',
+            api = event.api(),
             args = event.args,
             )

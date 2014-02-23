@@ -6,7 +6,7 @@ Machinery for generating tracing-related intermediate files.
 """
 
 __author__     = "Lluís Vilanova <vilanova@ac.upc.edu>"
-__copyright__  = "Copyright 2012, Lluís Vilanova <vilanova@ac.upc.edu>"
+__copyright__  = "Copyright 2012-2014, Lluís Vilanova <vilanova@ac.upc.edu>"
 __license__    = "GPL version 2 or (at your option) any later version"
 
 __maintainer__ = "Stefan Hajnoczi"
@@ -172,6 +172,14 @@ class Event(object):
                                           self.name,
                                           self.args,
                                           self.fmt)
+
+    QEMU_TRACE               = "trace_%(name)s"
+
+    def api(self, fmt=None):
+        if fmt is None:
+            fmt = Event.QEMU_TRACE
+        return fmt % {"name": self.name}
+
 
 def _read_events(fobj):
     res = []
