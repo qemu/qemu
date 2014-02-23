@@ -256,18 +256,18 @@ def generate(fevents, format, backend,
     format = str(format)
     if len(format) is 0:
         raise TracetoolError("format not set")
-    mformat = format.replace("-", "_")
-    if not tracetool.format.exists(mformat):
+    if not tracetool.format.exists(format):
         raise TracetoolError("unknown format: %s" % format)
+    format = format.replace("-", "_")
 
     backend = str(backend)
     if len(backend) is 0:
         raise TracetoolError("backend not set")
-    mbackend = backend.replace("-", "_")
-    if not tracetool.backend.exists(mbackend):
+    if not tracetool.backend.exists(backend):
         raise TracetoolError("unknown backend: %s" % backend)
+    backend = backend.replace("-", "_")
 
-    if not tracetool.backend.compatible(mbackend, mformat):
+    if not tracetool.backend.compatible(backend, format):
         raise TracetoolError("backend '%s' not compatible with format '%s'" %
                              (backend, format))
 
@@ -280,7 +280,7 @@ def generate(fevents, format, backend,
     if backend == "nop":
         ( e.properies.add("disable") for e in events )
 
-    tracetool.format.generate_begin(mformat, events)
+    tracetool.format.generate_begin(format, events)
     tracetool.backend.generate("nop", format,
                                [ e
                                  for e in events
@@ -289,4 +289,4 @@ def generate(fevents, format, backend,
                                [ e
                                  for e in events
                                  if "disable" not in e.properties ])
-    tracetool.format.generate_end(mformat, events)
+    tracetool.format.generate_end(format, events)
