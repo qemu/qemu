@@ -635,15 +635,15 @@ uint64_t helper_##op(CPUPPCState *env, uint64_t arg)                   \
     return farg.ll;                                                    \
  }
 
-FPU_FCTI(fctiw, int32, 0x80000000)
-FPU_FCTI(fctiwz, int32_round_to_zero, 0x80000000)
-FPU_FCTI(fctiwu, uint32, 0x00000000)
-FPU_FCTI(fctiwuz, uint32_round_to_zero, 0x00000000)
+FPU_FCTI(fctiw, int32, 0x80000000U)
+FPU_FCTI(fctiwz, int32_round_to_zero, 0x80000000U)
+FPU_FCTI(fctiwu, uint32, 0x00000000U)
+FPU_FCTI(fctiwuz, uint32_round_to_zero, 0x00000000U)
 #if defined(TARGET_PPC64)
-FPU_FCTI(fctid, int64, 0x8000000000000000)
-FPU_FCTI(fctidz, int64_round_to_zero, 0x8000000000000000)
-FPU_FCTI(fctidu, uint64, 0x0000000000000000)
-FPU_FCTI(fctiduz, uint64_round_to_zero, 0x0000000000000000)
+FPU_FCTI(fctid, int64, 0x8000000000000000ULL)
+FPU_FCTI(fctidz, int64_round_to_zero, 0x8000000000000000ULL)
+FPU_FCTI(fctidu, uint64, 0x0000000000000000ULL)
+FPU_FCTI(fctiduz, uint64_round_to_zero, 0x0000000000000000ULL)
 #endif
 
 #if defined(TARGET_PPC64)
@@ -680,7 +680,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN round */
         fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        farg.ll = arg | 0x0008000000000000ul;
+        farg.ll = arg | 0x0008000000000000ULL;
     } else {
         int inexact = get_float_exception_flags(&env->fp_status) &
                       float_flag_inexact;
@@ -2372,7 +2372,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 VSX_SCALAR_CMP(xscmpodp, 1)
 VSX_SCALAR_CMP(xscmpudp, 0)
 
-#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ul)
+#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
 
 /* VSX_MAX_MIN - VSX floating point maximum/minimum
@@ -2570,26 +2570,26 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
 }
 
 VSX_CVT_FP_TO_INT(xscvdpsxds, 1, float64, int64, f64[j], u64[i], i, \
-                  0x8000000000000000ul)
+                  0x8000000000000000ULL)
 VSX_CVT_FP_TO_INT(xscvdpsxws, 1, float64, int32, f64[i], u32[j], \
-                  2*i + JOFFSET, 0x80000000l)
-VSX_CVT_FP_TO_INT(xscvdpuxds, 1, float64, uint64, f64[j], u64[i], i, 0ul)
+                  2*i + JOFFSET, 0x80000000U)
+VSX_CVT_FP_TO_INT(xscvdpuxds, 1, float64, uint64, f64[j], u64[i], i, 0ULL)
 VSX_CVT_FP_TO_INT(xscvdpuxws, 1, float64, uint32, f64[i], u32[j], \
-                  2*i + JOFFSET, 0)
+                  2*i + JOFFSET, 0U)
 VSX_CVT_FP_TO_INT(xvcvdpsxds, 2, float64, int64, f64[j], u64[i], i, \
-                  0x8000000000000000ul)
+                  0x8000000000000000ULL)
 VSX_CVT_FP_TO_INT(xvcvdpsxws, 2, float64, int32, f64[i], u32[j], \
-                  2*i + JOFFSET, 0x80000000l)
-VSX_CVT_FP_TO_INT(xvcvdpuxds, 2, float64, uint64, f64[j], u64[i], i, 0ul)
+                  2*i + JOFFSET, 0x80000000U)
+VSX_CVT_FP_TO_INT(xvcvdpuxds, 2, float64, uint64, f64[j], u64[i], i, 0ULL)
 VSX_CVT_FP_TO_INT(xvcvdpuxws, 2, float64, uint32, f64[i], u32[j], \
-                  2*i + JOFFSET, 0)
+                  2*i + JOFFSET, 0U)
 VSX_CVT_FP_TO_INT(xvcvspsxds, 2, float32, int64, f32[j], u64[i], \
-                  2*i + JOFFSET, 0x8000000000000000ul)
+                  2*i + JOFFSET, 0x8000000000000000ULL)
 VSX_CVT_FP_TO_INT(xvcvspsxws, 4, float32, int32, f32[j], u32[j], i, \
-                  0x80000000l)
+                  0x80000000U)
 VSX_CVT_FP_TO_INT(xvcvspuxds, 2, float32, uint64, f32[j], u64[i], \
-                  2*i + JOFFSET, 0ul)
-VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, f32[j], u32[i], i, 0)
+                  2*i + JOFFSET, 0ULL)
+VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, f32[j], u32[i], i, 0U)
 
 /* VSX_CVT_INT_TO_FP - VSX integer to floating point conversion
  *   op    - instruction mnemonic
