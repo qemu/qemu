@@ -4284,22 +4284,48 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         if (is_xmm) {
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             if (mod != 3) {
+                int sz = 4;
+
                 gen_lea_modrm(env, s, modrm);
                 op2_offset = offsetof(CPUX86State,xmm_t0);
-                if (b1 >= 2 && ((b >= 0x50 && b <= 0x5f && b != 0x5b) ||
-                                b == 0xc2)) {
-                    /* specific case for SSE single instructions */
+
+                switch (b) {
+                case 0x50 ... 0x5a:
+                case 0x5c ... 0x5f:
+                case 0xc2:
+                    /* Most sse scalar operations.  */
                     if (b1 == 2) {
-                        /* 32 bit access */
-                        gen_op_ld_v(s, MO_32, cpu_T[0], cpu_A0);
-                        tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,xmm_t0.XMM_L(0)));
-                    } else {
-                        /* 64 bit access */
-                        gen_ldq_env_A0(s, offsetof(CPUX86State,
-                                                   xmm_t0.XMM_D(0)));
+                        sz = 2;
+                    } else if (b1 == 3) {
+                        sz = 3;
                     }
-                } else {
+                    break;
+
+                case 0x2e:  /* ucomis[sd] */
+                case 0x2f:  /* comis[sd] */
+                    if (b1 == 0) {
+                        sz = 2;
+                    } else {
+                        sz = 3;
+                    }
+                    break;
+                }
+
+                switch (sz) {
+                case 2:
+                    /* 32 bit access */
+                    gen_op_ld_v(s, MO_32, cpu_T[0], cpu_A0);
+                    tcg_gen_st32_tl(cpu_T[0], cpu_env,
+                                    offsetof(CPUX86State,xmm_t0.XMM_L(0)));
+                    break;
+                case 3:
+                    /* 64 bit access */
+                    gen_ldq_env_A0(s, offsetof(CPUX86State, xmm_t0.XMM_D(0)));
+                    break;
+                default:
+                    /* 128 bit access */
                     gen_ldo_env_A0(s, op2_offset);
+                    break;
                 }
             } else {
                 rm = (modrm & 7) | REX_B(s);
