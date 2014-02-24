@@ -22,8 +22,15 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
+maybe-add = $(filter-out $1, $2) $1
+extract-libs = $(strip $(sort $(foreach o,$1,$($o-libs)) \
+                  $(foreach o,$(call expand-objs,$1),$($o-libs))))
+expand-objs = $(strip $(sort $(filter %.o,$1)) \
+                  $(foreach o,$(filter %.mo,$1),$($o-objs)) \
+                  $(filter-out %.o %.mo,$1))
+
 %.o: %.c
-	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 %.o: %.rc
 	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
@@ -33,8 +40,8 @@ LINKPROG = $(or $(CXX),$(CC))
 
 ifeq ($(LIBTOOL),)
 LINK = $(call quiet-command,$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
-       $(LIBS),"  LINK  $(TARGET_DIR)$@")
+       $(call expand-objs,$1) $(version-obj-y) \
+       $(call extract-libs,$1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
@@ -45,12 +52,12 @@ LIBTOOL += $(if $(V),,--quiet)
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, " lt GEN $(TARGET_DIR)$@")
 
 LINK = $(call quiet-command,\
-       $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
+       $(if $(filter %.lo %.la,$1),$(LIBTOOL) --mode=link --tag=CC \
        )$(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
-       $(if $(filter %.lo %.la,$^),$(version-lobj-y),$(version-obj-y)) \
-       $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
-       $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
+       $(call expand-objs,$1) \
+       $(if $(filter %.lo %.la,$1),$(version-lobj-y),$(version-obj-y)) \
+       $(if $(filter %.lo %.la,$1),$(LIBTOOLFLAGS)) \
+       $(call extract-libs,$1) $(LIBS),$(if $(filter %.lo %.la,$1),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
 %.asm: %.S
@@ -70,6 +77,16 @@ endif
 
 %.o: %.dtrace
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
+
+DSO_CFLAGS := -fPIC -DBUILD_DSO
+%$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
+%$(DSOSUF): %.mo libqemustub.a
+	$(call LINK,$^)
+	@# Copy to build root so modules can be loaded when program started without install
+	$(if $(findstring /,$@),$(call quiet-command,cp $@ $(subst /,-,$@), "  CP    $(subst /,-,$@)"))
+
+.PHONY: modules
+modules:
 
 %$(EXESUF): %.o
 	$(call LINK,$^)
@@ -146,9 +163,6 @@ clean: clean-timestamp
 
 # magic to descend into other directories
 
-obj := .
-old-nested-dirs :=
-
 define push-var
 $(eval save-$2-$1 = $(value $1))
 $(eval $1 :=)
@@ -160,11 +174,27 @@ $(eval $1 = $(value save-$2-$1) $$(subdir-$2-$1))
 $(eval save-$2-$1 :=)
 endef
 
+define fix-obj-vars
+$(foreach v,$($1), \
+	$(if $($v-cflags), \
+		$(eval $2$v-cflags := $($v-cflags)) \
+		$(eval $v-cflags := )) \
+	$(if $($v-libs), \
+		$(eval $2$v-libs := $($v-libs)) \
+		$(eval $v-libs := )) \
+	$(if $($v-objs), \
+		$(eval $2$v-objs := $(addprefix $2,$($v-objs))) \
+		$(eval $v-objs := )))
+endef
+
 define unnest-dir
 $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
-$(eval obj := $(obj)/$1)
+$(eval obj-parent-$1 := $(obj))
+$(eval obj := $(if $(obj),$(obj)/$1,$1))
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
-$(eval obj := $(patsubst %/$1,%,$(obj)))
+$(foreach v,$(nested-vars),$(call fix-obj-vars,$v,$(if $(obj),$(obj)/)))
+$(eval obj := $(obj-parent-$1))
+$(eval obj-parent-$1 := )
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
 endef
 
@@ -178,10 +208,34 @@ $(if $(nested-dirs),
   $(call unnest-vars-1))
 endef
 
+define process-modules
+$(foreach o,$(filter %.o,$($1)),
+	$(eval $(patsubst %.o,%.mo,$o): $o) \
+	$(eval $(patsubst %.o,%.mo,$o)-objs := $o))
+$(foreach o,$(filter-out $(modules-m), $(patsubst %.o,%.mo,$($1))), \
+    $(eval $o-objs += module-common.o)
+    $(eval $o: $($o-objs))
+    $(eval modules-objs-m += $($o-objs))
+    $(eval modules-m += $o)
+    $(eval $o:; $$(call quiet-command,touch $$@,"  GEN   $$(TARGET_DIR)$$@"))
+    $(if $(CONFIG_MODULES),$(eval modules: $(patsubst %.mo,%$(DSOSUF),$o)))) \
+$(eval modules-objs-m := $(sort $(modules-objs-m)))
+$(foreach o,$(modules-objs-m), \
+    $(if $(CONFIG_MODULES),$(eval $o-cflags := $(call maybe-add, $(DSO_CFLAGS), $($o-cflags)))))
+$(eval $(patsubst %-m,%-$(call lnot,$(CONFIG_MODULES)),$1) += $($1))
+endef
+
 define unnest-vars
+$(eval obj := $1)
+$(eval nested-vars := $2)
+$(eval old-nested-dirs := )
 $(call unnest-vars-1)
+$(if $1,$(foreach v,$(nested-vars),$(eval \
+	$v := $(addprefix $1/,$($v)))))
 $(foreach var,$(nested-vars),$(eval $(var) := $(filter-out %/, $($(var)))))
 $(shell mkdir -p $(sort $(foreach var,$(nested-vars),$(dir $($(var))))))
 $(foreach var,$(nested-vars), $(eval \
   -include $(addsuffix *.d, $(sort $(dir $($(var)))))))
+$(foreach v,$(filter %-m,$(nested-vars)), \
+    $(call process-modules,$v))
 endef

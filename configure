@@ -12,7 +12,10 @@ else
 fi
 
 TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
-TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
+TMPB="qemu-conf-${RANDOM}-$$-${RANDOM}"
+TMPO="${TMPDIR1}/${TMPB}.o"
+TMPL="${TMPDIR1}/${TMPB}.lo"
+TMPA="${TMPDIR1}/lib${TMPB}.la"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
 # NB: do not call "exit" in the trap handler; this is buggy with some shells;
@@ -84,6 +87,38 @@ compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
   do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags
+}
+
+do_libtool() {
+    local mode=$1
+    shift
+    # Run the compiler, capturing its output to the log.
+    echo $libtool $mode --tag=CC $cc "$@" >> config.log
+    $libtool $mode --tag=CC $cc "$@" >> config.log 2>&1 || return $?
+    # Test passed. If this is an --enable-werror build, rerun
+    # the test with -Werror and bail out if it fails. This
+    # makes warning-generating-errors in configure test code
+    # obvious to developers.
+    if test "$werror" != "yes"; then
+        return 0
+    fi
+    # Don't bother rerunning the compile if we were already using -Werror
+    case "$*" in
+        *-Werror*)
+           return 0
+        ;;
+    esac
+    echo $libtool $mode --tag=CC $cc -Werror "$@" >> config.log
+    $libtool $mode --tag=CC $cc -Werror "$@" >> config.log 2>&1 && return $?
+    error_exit "configure test passed without -Werror but failed with -Werror." \
+        "This is probably a bug in the configure script. The failing command" \
+        "will be at the bottom of config.log." \
+        "You can run configure with --disable-werror to bypass this check."
+}
+
+libtool_prog() {
+    do_libtool --mode=compile $QEMU_CFLAGS -c -fPIE -DPIE -o $TMPO $TMPC || return $?
+    do_libtool --mode=link $LDFLAGS -o $TMPA $TMPL -rpath /usr/local/lib
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -205,6 +240,9 @@ mingw32="no"
 gcov="no"
 gcov_tool="gcov"
 EXESUF=""
+DSOSUF=".so"
+LDFLAGS_SHARED="-shared"
+modules="no"
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
 datadir="\${prefix}/share"
@@ -515,11 +553,10 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
+  LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
-  else
-    QEMU_CFLAGS="-mdynamic-no-pic $QEMU_CFLAGS"
   fi
   cocoa="yes"
   audio_drv_list="coreaudio"
@@ -610,6 +647,7 @@ fi
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
+  DSOSUF=".dll"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
@@ -675,6 +713,9 @@ for opt do
   --enable-debug-info)
   ;;
   --disable-debug-info)
+  ;;
+  --enable-modules)
+      modules="yes"
   ;;
   --cpu=*)
   ;;
@@ -1131,7 +1172,8 @@ Advanced options (experts only):
   --libdir=PATH            install libraries in PATH
   --sysconfdir=PATH        install config in PATH$confsuffix
   --localstatedir=PATH     install local state in PATH (set at runtime on win32)
-  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]
+  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir/libdir/sysconfdir [$confsuffix]
+  --enable-modules         enable modules support
   --enable-debug-tcg       enable TCG debugging
   --disable-debug-tcg      disable TCG debugging (default)
   --enable-debug-info       enable debugging information (default)
@@ -1425,6 +1467,32 @@ EOF
   if compile_prog "-fno-pie" "-nopie"; then
     CFLAGS_NOPIE="-fno-pie"
     LDFLAGS_NOPIE="-nopie"
+  fi
+fi
+
+# check for broken gcc and libtool in RHEL5
+if test -n "$libtool" -a "$pie" != "no" ; then
+  cat > $TMPC <<EOF
+
+void *f(unsigned char *buf, int len);
+void *g(unsigned char *buf, int len);
+
+void *
+f(unsigned char *buf, int len)
+{
+    return (void*)0L;
+}
+
+void *
+g(unsigned char *buf, int len)
+{
+    return f(buf, len);
+}
+
+EOF
+  if ! libtool_prog; then
+    echo "Disabling libtool due to broken toolchain support"
+    libtool=
   fi
 fi
 
@@ -2347,8 +2415,6 @@ EOF
   curl_libs=`$curlconfig --libs 2>/dev/null`
   if compile_prog "$curl_cflags" "$curl_libs" ; then
     curl=yes
-    libs_tools="$curl_libs $libs_tools"
-    libs_softmmu="$curl_libs $libs_softmmu"
   else
     if test "$curl" = "yes" ; then
       feature_not_found "curl" "Install libcurl devel"
@@ -2386,13 +2452,32 @@ if test "$mingw32" = yes; then
 else
     glib_req_ver=2.12
 fi
-if $pkg_config --atleast-version=$glib_req_ver gthread-2.0; then
-    glib_cflags=`$pkg_config --cflags gthread-2.0`
-    glib_libs=`$pkg_config --libs gthread-2.0`
-    LIBS="$glib_libs $LIBS"
-    libs_qga="$glib_libs $libs_qga"
-else
-    error_exit "glib-$glib_req_ver required to compile QEMU"
+
+for i in gthread-2.0 gmodule-2.0; do
+    if $pkg_config --atleast-version=$glib_req_ver $i; then
+        glib_cflags=`$pkg_config --cflags $i`
+        glib_libs=`$pkg_config --libs $i`
+        CFLAGS="$glib_cflags $CFLAGS"
+        LIBS="$glib_libs $LIBS"
+        libs_qga="$glib_libs $libs_qga"
+    else
+        error_exit "glib-$glib_req_ver $i is required to compile QEMU"
+    fi
+done
+
+##########################################
+# SHA command probe for modules
+if test "$modules" = yes; then
+    shacmd_probe="sha1sum sha1 shasum"
+    for c in $shacmd_probe; do
+        if which $c &>/dev/null; then
+            shacmd="$c"
+            break
+        fi
+    done
+    if test "$shacmd" = ""; then
+        error_exit "one of the checksum commands is required to enable modules: $shacmd_probe"
+    fi
 fi
 
 ##########################################
@@ -2503,8 +2588,6 @@ EOF
   rbd_libs="-lrbd -lrados"
   if compile_prog "" "$rbd_libs" ; then
     rbd=yes
-    libs_tools="$rbd_libs $libs_tools"
-    libs_softmmu="$rbd_libs $libs_softmmu"
   else
     if test "$rbd" = "yes" ; then
       feature_not_found "rados block device" "Install librbd/ceph devel"
@@ -2521,9 +2604,6 @@ if test "$libssh2" != "no" ; then
     libssh2_cflags=`$pkg_config libssh2 --cflags`
     libssh2_libs=`$pkg_config libssh2 --libs`
     libssh2=yes
-    libs_tools="$libssh2_libs $libs_tools"
-    libs_softmmu="$libssh2_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $libssh2_cflags"
   else
     if test "$libssh2" = "yes" ; then
       error_exit "libssh2 >= $min_libssh2_version required for --enable-libssh2"
@@ -2569,8 +2649,6 @@ int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); retu
 EOF
   if compile_prog "" "-laio" ; then
     linux_aio=yes
-    libs_softmmu="$libs_softmmu -laio"
-    libs_tools="$libs_tools -laio"
   else
     if test "$linux_aio" = "yes" ; then
       feature_not_found "linux AIO" "Install libaio devel"
@@ -2739,9 +2817,6 @@ if test "$glusterfs" != "no" ; then
     glusterfs="yes"
     glusterfs_cflags=`$pkg_config --cflags glusterfs-api`
     glusterfs_libs=`$pkg_config --libs glusterfs-api`
-    CFLAGS="$CFLAGS $glusterfs_cflags"
-    libs_tools="$glusterfs_libs $libs_tools"
-    libs_softmmu="$glusterfs_libs $libs_softmmu"
     if $pkg_config --atleast-version=5 glusterfs-api; then
       glusterfs_discard="yes"
     fi
@@ -3112,11 +3187,9 @@ EOF
     libiscsi="yes"
     libiscsi_cflags=$($pkg_config --cflags libiscsi)
     libiscsi_libs=$($pkg_config --libs libiscsi)
-    CFLAGS="$CFLAGS $libiscsi_cflags"
-    LIBS="$LIBS $libiscsi_libs"
   elif compile_prog "" "-liscsi" ; then
     libiscsi="yes"
-    LIBS="$LIBS -liscsi"
+    libiscsi_libs="-liscsi"
   else
     if test "$libiscsi" = "yes" ; then
       feature_not_found "libiscsi" "Install libiscsi devel"
@@ -3717,6 +3790,7 @@ if test "$mingw32" = "yes" ; then
 fi
 
 qemu_confdir=$sysconfdir$confsuffix
+qemu_moddir=$libdir$confsuffix
 qemu_datadir=$datadir$confsuffix
 qemu_localedir="$datadir/locale"
 
@@ -3807,6 +3881,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "module directory  `eval echo $qemu_moddir`"
 echo "libexec directory `eval echo $libexecdir`"
 echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
@@ -3833,6 +3908,7 @@ echo "python            $python"
 if test "$slirp" = "yes" ; then
     echo "smbd              $smbd"
 fi
+echo "module support    $modules"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -3945,6 +4021,7 @@ echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
+echo "qemu_moddir=$qemu_moddir" >> $config_host_mak
 if test "$mingw32" = "no" ; then
   echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
 fi
@@ -4077,6 +4154,12 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if [ "$docs" = "yes" ] ; then
   echo "BUILD_DOCS=yes" >> $config_host_mak
 fi
+if test "$modules" = "yes"; then
+  # $shacmd can generate a hash started with digit, which the compiler doesn't
+  # like as an symbol. So prefix it with an underscore
+  echo "CONFIG_STAMP=_`(echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ `" >> $config_host_mak
+  echo "CONFIG_MODULES=y" >> $config_host_mak
+fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=y" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
@@ -4148,8 +4231,9 @@ if test "$bswap_h" = "yes" ; then
   echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$curl" = "yes" ; then
-  echo "CONFIG_CURL=y" >> $config_host_mak
+  echo "CONFIG_CURL=m" >> $config_host_mak
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
+  echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=y" >> $config_host_mak
@@ -4238,10 +4322,12 @@ if test "$glx" = "yes" ; then
 fi
 
 if test "$libiscsi" = "yes" ; then
-  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
+  echo "CONFIG_LIBISCSI=m" >> $config_host_mak
   if test "$libiscsi_version" = "1.4.0"; then
     echo "CONFIG_LIBISCSI_1_4=y" >> $config_host_mak
   fi
+  echo "LIBISCSI_CFLAGS=$libiscsi_cflags" >> $config_host_mak
+  echo "LIBISCSI_LIBS=$libiscsi_libs" >> $config_host_mak
 fi
 
 if test "$libnfs" = "yes" ; then
@@ -4266,7 +4352,9 @@ if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
-  echo "CONFIG_RBD=y" >> $config_host_mak
+  echo "CONFIG_RBD=m" >> $config_host_mak
+  echo "RBD_CFLAGS=$rbd_cflags" >> $config_host_mak
+  echo "RBD_LIBS=$rbd_libs" >> $config_host_mak
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
@@ -4309,7 +4397,9 @@ if test "$getauxval" = "yes" ; then
 fi
 
 if test "$glusterfs" = "yes" ; then
-  echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
+  echo "CONFIG_GLUSTERFS=m" >> $config_host_mak
+  echo "GLUSTERFS_CFLAGS=$glusterfs_cflags" >> $config_host_mak
+  echo "GLUSTERFS_LIBS=$glusterfs_libs" >> $config_host_mak
 fi
 
 if test "$glusterfs_discard" = "yes" ; then
@@ -4321,7 +4411,9 @@ if test "$glusterfs_zerofill" = "yes" ; then
 fi
 
 if test "$libssh2" = "yes" ; then
-  echo "CONFIG_LIBSSH2=y" >> $config_host_mak
+  echo "CONFIG_LIBSSH2=m" >> $config_host_mak
+  echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
+  echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
 fi
 
 if test "$virtio_blk_data_plane" = "yes" ; then
@@ -4452,6 +4544,8 @@ echo "LIBTOOLFLAGS=$LIBTOOLFLAGS" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
+echo "DSOSUF=$DSOSUF" >> $config_host_mak
+echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
 echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak

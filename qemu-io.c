@@ -381,6 +381,7 @@ int main(int argc, char **argv)
 #endif
 
     progname = basename(argv[0]);
+    qemu_init_exec_dir(argv[0]);
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
         switch (c) {

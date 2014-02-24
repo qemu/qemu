@@ -208,3 +208,33 @@ void qemu_set_tty_echo(int fd, bool echo)
                        dwMode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
     }
 }
+
+static char exec_dir[PATH_MAX];
+
+void qemu_init_exec_dir(const char *argv0)
+{
+
+    char *p;
+    char buf[MAX_PATH];
+    DWORD len;
+
+    len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
+    if (len == 0) {
+        return;
+    }
+
+    buf[len] = 0;
+    p = buf + len - 1;
+    while (p != buf && *p != '\\') {
+        p--;
+    }
+    *p = 0;
+    if (access(buf, R_OK) == 0) {
+        pstrcpy(exec_dir, sizeof(exec_dir), buf);
+    }
+}
+
+char *qemu_get_exec_dir(void)
+{
+    return g_strdup(exec_dir);
+}
