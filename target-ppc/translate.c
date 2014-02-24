@@ -3333,7 +3333,7 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
         gen_qemu_st16(ctx, cpu_gpr[reg], EA);
 #if defined(TARGET_PPC64)
     } else if (size == 16) {
-        TCGv gpr1, gpr2;
+        TCGv gpr1, gpr2 , EA8;
         if (unlikely(ctx->le_mode)) {
             gpr1 = cpu_gpr[reg+1];
             gpr2 = cpu_gpr[reg];
@@ -3342,8 +3342,10 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
             gpr2 = cpu_gpr[reg+1];
         }
         gen_qemu_st64(ctx, gpr1, EA);
-        gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_st64(ctx, gpr2, EA);
+        EA8 = tcg_temp_local_new();
+        gen_addr_add(ctx, EA8, EA, 8);
+        gen_qemu_st64(ctx, gpr2, EA8);
+        tcg_temp_free(EA8);
 #endif
     } else {
         gen_qemu_st8(ctx, cpu_gpr[reg], EA);
