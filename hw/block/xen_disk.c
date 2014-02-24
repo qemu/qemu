@@ -483,7 +483,18 @@ static void qemu_aio_complete(void *opaque, int ret)
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
     ioreq_unmap(ioreq);
     ioreq_finish(ioreq);
-    bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+    switch (ioreq->req.operation) {
+    case BLKIF_OP_WRITE:
+    case BLKIF_OP_FLUSH_DISKCACHE:
+        if (!ioreq->req.nr_segments) {
+            break;
+        }
+    case BLKIF_OP_READ:
+        bdrv_acct_done(ioreq->blkdev->bs, &ioreq->acct);
+        break;
+    default:
+        break;
+    }
     qemu_bh_schedule(ioreq->blkdev->bh);
 }
 
