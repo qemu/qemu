@@ -1424,6 +1424,9 @@ if compile_prog "-Werror -fno-gcse" "" ; then
 fi
 
 if test "$static" = "yes" ; then
+  if test "$modules" = "yes" ; then
+    error_exit "static and modules are mutually incompatible"
+  fi
   if test "$pie" = "yes" ; then
     error_exit "static and pie are mutually incompatible"
   else
@@ -2483,8 +2486,12 @@ if test "$mingw32" = yes; then
 else
     glib_req_ver=2.12
 fi
+glib_modules=gthread-2.0
+if test "$modules" = yes; then
+    glib_modules="$glib_modules gmodule-2.0"
+fi
 
-for i in gthread-2.0 gmodule-2.0; do
+for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=`$pkg_config --cflags $i`
         glib_libs=`$pkg_config --libs $i`
