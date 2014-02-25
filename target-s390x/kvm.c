@@ -583,6 +583,22 @@ static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
     handle_diag_308(&cpu->env, r1, r3);
 }
 
+static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    unsigned long pc;
+
+    cpu_synchronize_state(CPU(cpu));
+
+    pc = env->psw.addr - 4;
+    if (kvm_find_sw_breakpoint(CPU(cpu), pc)) {
+        env->psw.addr = pc;
+        return EXCP_DEBUG;
+    }
+
+    return -ENOENT;
+}
+
 #define DIAG_KVM_CODE_MASK 0x000000000000ffff
 
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
@@ -603,7 +619,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         r = handle_hypercall(cpu, run);
         break;
     case DIAG_KVM_BREAKPOINT:
-        sleep(10);
+        r = handle_sw_breakpoint(cpu, run);
         break;
     default:
         DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
@@ -705,7 +721,7 @@ out:
     return 0;
 }
 
-static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
+static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
@@ -732,8 +748,11 @@ static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
     }
 
     if (r < 0) {
+        r = 0;
         enter_pgmcheck(cpu, 0x0001);
     }
+
+    return r;
 }
 
 static bool is_special_wait_psw(CPUState *cs)
@@ -753,7 +772,7 @@ static int handle_intercept(S390CPU *cpu)
             (long)cs->kvm_run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
-            handle_instruction(cpu, run);
+            r = handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
