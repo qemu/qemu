@@ -213,7 +213,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
     s->chr_read = fd_read;
     s->chr_event = fd_event;
     s->handler_opaque = opaque;
-    if (s->chr_update_read_handler)
+    if (fe_open && s->chr_update_read_handler)
         s->chr_update_read_handler(s);
 
     if (!s->explicit_fe_open) {
@@ -1136,12 +1136,13 @@ static void pty_chr_state(CharDriverState *chr, int connected)
         if (!s->connected) {
             s->connected = 1;
             qemu_chr_be_generic_open(chr);
+        }
+        if (!chr->fd_in_tag) {
             chr->fd_in_tag = io_add_watch_poll(s->fd, pty_chr_read_poll,
                                                pty_chr_read, chr);
         }
     }
 }
-
 
 static void pty_chr_close(struct CharDriverState *chr)
 {
@@ -2509,6 +2510,17 @@ static void tcp_chr_connect(void *opaque)
     qemu_chr_be_generic_open(chr);
 }
 
+static void tcp_chr_update_read_handler(CharDriverState *chr)
+{
+    TCPCharDriver *s = chr->opaque;
+
+    remove_fd_in_watch(chr);
+    if (s->chan) {
+        chr->fd_in_tag = io_add_watch_poll(s->chan, tcp_chr_read_poll,
+                                           tcp_chr_read, chr);
+    }
+}
+
 #define IACSET(x,a,b,c) x[0] = a; x[1] = b; x[2] = c;
 static void tcp_chr_telnet_init(int fd)
 {
@@ -2664,6 +2676,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     chr->get_msgfd = tcp_get_msgfd;
     chr->chr_add_client = tcp_chr_add_client;
     chr->chr_add_watch = tcp_chr_add_watch;
+    chr->chr_update_read_handler = tcp_chr_update_read_handler;
     /* be isn't opened until we get a connection */
     chr->explicit_be_open = true;
 
