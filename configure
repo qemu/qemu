@@ -14,13 +14,14 @@ fi
 TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPB="qemu-conf-${RANDOM}-$$-${RANDOM}"
 TMPO="${TMPDIR1}/${TMPB}.o"
+TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPL="${TMPDIR1}/${TMPB}.lo"
 TMPA="${TMPDIR1}/lib${TMPB}.la"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
 # NB: do not call "exit" in the trap handler; this is buggy with some shells;
 # see <1285349658-3122-1-git-send-email-loic.minier@linaro.org>
-trap "rm -f $TMPC $TMPO $TMPE" EXIT INT QUIT TERM
+trap "rm -f $TMPC $TMPO $TMPCXX $TMPE" EXIT INT QUIT TERM
 rm -f config.log
 
 # Print a helpful header at the top of config.log
@@ -54,10 +55,13 @@ error_exit() {
     exit 1
 }
 
-do_cc() {
-    # Run the compiler, capturing its output to the log.
-    echo $cc "$@" >> config.log
-    $cc "$@" >> config.log 2>&1 || return $?
+do_compiler() {
+    # Run the compiler, capturing its output to the log. First argument
+    # is compiler binary to execute.
+    local compiler="$1"
+    shift
+    echo $compiler "$@" >> config.log
+    $compiler "$@" >> config.log 2>&1 || return $?
     # Test passed. If this is an --enable-werror build, rerun
     # the test with -Werror and bail out if it fails. This
     # makes warning-generating-errors in configure test code
@@ -71,12 +75,37 @@ do_cc() {
            return 0
         ;;
     esac
-    echo $cc -Werror "$@" >> config.log
-    $cc -Werror "$@" >> config.log 2>&1 && return $?
+    echo $compiler -Werror "$@" >> config.log
+    $compiler -Werror "$@" >> config.log 2>&1 && return $?
     error_exit "configure test passed without -Werror but failed with -Werror." \
         "This is probably a bug in the configure script. The failing command" \
         "will be at the bottom of config.log." \
         "You can run configure with --disable-werror to bypass this check."
+}
+
+do_cc() {
+    do_compiler "$cc" "$@"
+}
+
+do_cxx() {
+    do_compiler "$cxx" "$@"
+}
+
+update_cxxflags() {
+    # Set QEMU_CXXFLAGS from QEMU_CFLAGS by filtering out those
+    # options which some versions of GCC's C++ compiler complain about
+    # because they only make sense for C programs.
+    QEMU_CXXFLAGS=
+    for arg in $QEMU_CFLAGS; do
+        case $arg in
+            -Wstrict-prototypes|-Wmissing-prototypes|-Wnested-externs|\
+            -Wold-style-declaration|-Wold-style-definition|-Wredundant-decls)
+                ;;
+            *)
+                QEMU_CXXFLAGS=${QEMU_CXXFLAGS:+$QEMU_CXXFLAGS }$arg
+                ;;
+        esac
+    done
 }
 
 compile_object() {
@@ -1335,6 +1364,19 @@ if test "$ARCH" = "unknown"; then
     fi
 fi
 
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+z_version=`cut -f3 -d. $source_path/VERSION`
+
+if test -z "$werror" ; then
+    if test -d "$source_path/.git" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
 # check that the C compiler works.
 cat > $TMPC <<EOF
 int main(void) { return 0; }
@@ -1355,14 +1397,16 @@ EOF
 
     compile_object
 
-    cat > $TMPC <<EOF
+    cat > $TMPCXX <<EOF
 extern "C" {
    int c_function(void);
 }
 int c_function(void) { return 42; }
 EOF
 
-    if (cc=$cxx do_cc $QEMU_CFLAGS -o $TMPE $TMPC $TMPO $LDFLAGS); then
+    update_cxxflags
+
+    if do_cxx $QEMU_CXXFLAGS -o $TMPE $TMPCXX $TMPO $LDFLAGS; then
         # C++ compiler $cxx works ok with C compiler $cc
         :
     else
@@ -1373,19 +1417,6 @@ EOF
 else
     echo "No C++ compiler available; disabling C++ specific optional code"
     cxx=
-fi
-
-# Consult white-list to determine whether to enable werror
-# by default.  Only enable by default for git builds
-z_version=`cut -f3 -d. $source_path/VERSION`
-
-if test -z "$werror" ; then
-    if test -d "$source_path/.git" -a \
-        "$linux" = "yes" ; then
-        werror="yes"
-    else
-        werror="no"
-    fi
 fi
 
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
