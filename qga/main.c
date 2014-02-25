@@ -47,9 +47,11 @@
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
 #define QGA_STATE_RELATIVE_DIR  "run"
+#define QGA_SERIAL_PATH_DEFAULT "/dev/ttyS0"
 #else
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
 #define QGA_STATE_RELATIVE_DIR  "qemu-ga"
+#define QGA_SERIAL_PATH_DEFAULT "COM1"
 #endif
 #ifdef CONFIG_FSFREEZE
 #define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
@@ -189,6 +191,8 @@ static void usage(const char *cmd)
 "  -m, --method      transport method: one of unix-listen, virtio-serial, or\n"
 "                    isa-serial (virtio-serial is the default)\n"
 "  -p, --path        device/socket path (the default for virtio-serial is:\n"
+"                    %s,\n"
+"                    the default for isa-serial is:\n"
 "                    %s)\n"
 "  -l, --logfile     set logfile path, logs to stderr by default\n"
 "  -f, --pidfile     specify pidfile (default is %s)\n"
@@ -215,7 +219,8 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, dfl_pathnames.pidfile,
+    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_SERIAL_PATH_DEFAULT,
+    dfl_pathnames.pidfile,
 #ifdef CONFIG_FSFREEZE
     QGA_FSFREEZE_HOOK_DEFAULT,
 #endif
@@ -659,12 +664,16 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
     }
 
     if (path == NULL) {
-        if (strcmp(method, "virtio-serial") != 0) {
+        if (strcmp(method, "virtio-serial") == 0 ) {
+            /* try the default path for the virtio-serial port */
+            path = QGA_VIRTIO_PATH_DEFAULT;
+        } else if (strcmp(method, "isa-serial") == 0){
+            /* try the default path for the serial port - COM1 */
+            path = QGA_SERIAL_PATH_DEFAULT;
+        } else {
             g_critical("must specify a path for this channel");
             return false;
         }
-        /* try the default path for the virtio-serial port */
-        path = QGA_VIRTIO_PATH_DEFAULT;
     }
 
     if (strcmp(method, "virtio-serial") == 0) {

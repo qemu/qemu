@@ -142,7 +142,7 @@ int64_t qmp_guest_get_time(Error **errp)
    return time_ns;
 }
 
-void qmp_guest_set_time(int64_t time_ns, Error **errp)
+void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
     int ret;
     int status;
@@ -150,22 +150,28 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
     Error *local_err = NULL;
     struct timeval tv;
 
-    /* year-2038 will overflow in case time_t is 32bit */
-    if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
-        error_setg(errp, "Time %" PRId64 " is too large", time_ns);
-        return;
+    /* If user has passed a time, validate and set it. */
+    if (has_time) {
+        /* year-2038 will overflow in case time_t is 32bit */
+        if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
+            error_setg(errp, "Time %" PRId64 " is too large", time_ns);
+            return;
+        }
+
+        tv.tv_sec = time_ns / 1000000000;
+        tv.tv_usec = (time_ns % 1000000000) / 1000;
+
+        ret = settimeofday(&tv, NULL);
+        if (ret < 0) {
+            error_setg_errno(errp, errno, "Failed to set time to guest");
+            return;
+        }
     }
 
-    tv.tv_sec = time_ns / 1000000000;
-    tv.tv_usec = (time_ns % 1000000000) / 1000;
-
-    ret = settimeofday(&tv, NULL);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "Failed to set time to guest");
-        return;
-    }
-
-    /* Set the Hardware Clock to the current System Time. */
+    /* Now, if user has passed a time to set and the system time is set, we
+     * just need to synchronize the hardware clock. However, if no time was
+     * passed, user is requesting the opposite: set the system time from the
+     * hardware clock. */
     pid = fork();
     if (pid == 0) {
         setsid();
@@ -173,7 +179,10 @@ void qmp_guest_set_time(int64_t time_ns, Error **errp)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle("/sbin/hwclock", "hwclock", "-w", NULL, environ);
+        /* Use '/sbin/hwclock -w' to set RTC from the system time,
+         * or '/sbin/hwclock -s' to set the system time from RTC. */
+        execle("/sbin/hwclock", "hwclock", has_time ? "-w" : "-s",
+               NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -525,7 +534,7 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     if (ret == -1) {
         error_setg_errno(err, errno, "failed to seek file");
     } else {
-        seek_data = g_malloc0(sizeof(GuestFileRead));
+        seek_data = g_new0(GuestFileSeek, 1);
         seek_data->position = ftell(fh);
         seek_data->eof = feof(fh);
     }
