@@ -102,6 +102,9 @@ typedef enum {
 #define BDRV_O_CHECK       0x1000  /* open solely for consistency check */
 #define BDRV_O_ALLOW_RDWR  0x2000  /* allow reopen to change from r/o to r/w */
 #define BDRV_O_UNMAP       0x4000  /* execute guest UNMAP/TRIM operations */
+#define BDRV_O_PROTOCOL    0x8000  /* if no block driver is explicitly given:
+                                      select an appropriate protocol driver,
+                                      ignoring the format layer */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 
@@ -183,15 +186,13 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
-int bdrv_file_open(BlockDriverState **pbs, const char *filename,
-                   const char *reference, QDict *options, int flags,
-                   Error **errp);
 int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     QDict *options, const char *bdref_key, int flags,
-                    bool force_raw, bool allow_none, Error **errp);
+                    bool allow_none, Error **errp);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
-int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
-              int flags, BlockDriver *drv, Error **errp);
+int bdrv_open(BlockDriverState **pbs, const char *filename,
+              const char *reference, QDict *options, int flags,
+              BlockDriver *drv, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs, int flags);
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);

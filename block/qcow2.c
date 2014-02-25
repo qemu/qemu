@@ -449,7 +449,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (header.magic != QCOW_MAGIC) {
         error_setg(errp, "Image is not in qcow2 format");
-        ret = -EMEDIUMTYPE;
+        ret = -EINVAL;
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {
@@ -1493,7 +1493,9 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
+    bs = NULL;
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -1543,7 +1545,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    bdrv_close(bs);
+    bdrv_unref(bs);
+    bs = NULL;
 
     /*
      * And now open the image and make it consistent first (i.e. increase the
@@ -1552,7 +1555,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      */
     BlockDriver* drv = bdrv_find_format("qcow2");
     assert(drv != NULL);
-    ret = bdrv_open(bs, filename, NULL,
+    ret = bdrv_open(&bs, filename, NULL, NULL,
         BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
@@ -1599,10 +1602,11 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         }
     }
 
-    bdrv_close(bs);
+    bdrv_unref(bs);
+    bs = NULL;
 
     /* Reopen the image without BDRV_O_NO_FLUSH to flush it before returning */
-    ret = bdrv_open(bs, filename, NULL,
+    ret = bdrv_open(&bs, filename, NULL, NULL,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
                     drv, &local_err);
     if (local_err) {
@@ -1612,7 +1616,9 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     ret = 0;
 out:
-    bdrv_unref(bs);
+    if (bs) {
+        bdrv_unref(bs);
+    }
     return ret;
 }
 

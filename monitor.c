@@ -508,6 +508,8 @@ static const char *monitor_event_names[] = {
     [QEVENT_SPICE_MIGRATE_COMPLETED] = "SPICE_MIGRATE_COMPLETED",
     [QEVENT_GUEST_PANICKED] = "GUEST_PANICKED",
     [QEVENT_BLOCK_IMAGE_CORRUPTED] = "BLOCK_IMAGE_CORRUPTED",
+    [QEVENT_QUORUM_FAILURE] = "QUORUM_FAILURE",
+    [QEVENT_QUORUM_REPORT_BAD] = "QUORUM_REPORT_BAD",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 
@@ -638,6 +640,9 @@ static void monitor_protocol_event_init(void)
     monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
     monitor_protocol_event_throttle(QEVENT_WATCHDOG, 1000);
+    /* limit the rate of quorum events to avoid hammering the management */
+    monitor_protocol_event_throttle(QEVENT_QUORUM_REPORT_BAD, 1000);
+    monitor_protocol_event_throttle(QEVENT_QUORUM_FAILURE, 1000);
 }
 
 /**

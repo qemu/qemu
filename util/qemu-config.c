@@ -413,6 +413,12 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
             QDict *section = qobject_to_qdict(qlist_entry_obj(list_entry));
             char *opt_name;
 
+            if (!section) {
+                error_setg(errp, "[%s] section (index %u) does not consist of "
+                           "keys", opts->name, i);
+                goto out;
+            }
+
             opt_name = g_strdup_printf("%s.%u", opts->name, i++);
             subopts = qemu_opts_create(opts, opt_name, 1, &local_err);
             g_free(opt_name);

@@ -410,8 +410,9 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     s->state = 1;
 
     /* Open the backing file */
+    assert(bs->file == NULL);
     ret = bdrv_open_image(&bs->file, qemu_opt_get(opts, "x-image"), options, "image",
-                          flags, true, false, &local_err);
+                          flags | BDRV_O_PROTOCOL, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;

@@ -7,8 +7,7 @@ no file open, try 'help open'
 
 === Testing too big L2 table size ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-L2 table size too big
-qemu-io: can't open device TEST_DIR/t.vmdk: Could not open 'TEST_DIR/t.vmdk': Wrong medium type
+qemu-io: can't open device TEST_DIR/t.vmdk: L2 table size too big
 no file open, try 'help open'
 
 === Testing too big L1 table size ===
@@ -2045,8 +2044,7 @@ RW 12582912 VMFS "dummy.IMGFMT" 1
 
 === Testing truncated sparse ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400
-qemu-img: File truncated, expecting at least 13172736 bytes
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'TEST_DIR/t.IMGFMT': Wrong medium type
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least 13172736 bytes
 
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT

@@ -1367,13 +1367,31 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         uint64_t old_offset;
 
         old_offset = be64_to_cpu(l2_table[l2_index + i]);
-        if ((old_offset & L2E_OFFSET_MASK) == 0) {
+
+        /*
+         * Make sure that a discarded area reads back as zeroes for v3 images
+         * (we cannot do it for v2 without actually writing a zero-filled
+         * buffer). We can skip the operation if the cluster is already marked
+         * as zero, or if it's unallocated and we don't have a backing file.
+         *
+         * TODO We might want to use bdrv_get_block_status(bs) here, but we're
+         * holding s->lock, so that doesn't work today.
+         */
+        if (old_offset & QCOW_OFLAG_ZERO) {
+            continue;
+        }
+
+        if ((old_offset & L2E_OFFSET_MASK) == 0 && !bs->backing_hd) {
             continue;
         }
 
         /* First remove L2 entries */
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
-        l2_table[l2_index + i] = cpu_to_be64(0);
+        if (s->qcow_version >= 3) {
+            l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
+        } else {
+            l2_table[l2_index + i] = cpu_to_be64(0);
+        }
 
         /* Then decrease the refcount */
         qcow2_free_any_clusters(bs, old_offset, 1, type);

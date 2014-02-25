@@ -597,18 +597,33 @@ void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
     }
 }
 
+static bool qdict_has_prefixed_entries(const QDict *src, const char *start)
+{
+    const QDictEntry *entry;
+
+    for (entry = qdict_first(src); entry; entry = qdict_next(src, entry)) {
+        if (strstart(entry->key, start, NULL)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /**
  * qdict_array_split(): This function moves array-like elements of a QDict into
- * a new QList of QDicts. Every entry in the original QDict with a key prefixed
- * "%u.", where %u designates an unsigned integer starting at 0 and
+ * a new QList. Every entry in the original QDict with a key "%u" or one
+ * prefixed "%u.", where %u designates an unsigned integer starting at 0 and
  * incrementally counting up, will be moved to a new QDict at index %u in the
- * output QList with the key prefix removed. The function terminates when there
- * is no entry in the QDict with a prefix directly (incrementally) following the
- * last one.
- * Example: {"0.a": 42, "0.b": 23, "1.x": 0, "3.y": 1, "o.o": 7}
- *      (or {"1.x": 0, "3.y": 1, "0.a": 42, "o.o": 7, "0.b": 23})
- *       => [{"a": 42, "b": 23}, {"x": 0}]
- *      and {"3.y": 1, "o.o": 7} (remainder of the old QDict)
+ * output QList with the key prefix removed, if that prefix is "%u.". If the
+ * whole key is just "%u", the whole QObject will be moved unchanged without
+ * creating a new QDict. The function terminates when there is no entry in the
+ * QDict with a prefix directly (incrementally) following the last one; it also
+ * returns if there are both entries with "%u" and "%u." for the same index %u.
+ * Example: {"0.a": 42, "0.b": 23, "1.x": 0, "4.y": 1, "o.o": 7, "2": 66}
+ *      (or {"1.x": 0, "4.y": 1, "0.a": 42, "o.o": 7, "0.b": 23, "2": 66})
+ *       => [{"a": 42, "b": 23}, {"x": 0}, 66]
+ *      and {"4.y": 1, "o.o": 7} (remainder of the old QDict)
  */
 void qdict_array_split(QDict *src, QList **dst)
 {
@@ -617,19 +632,36 @@ void qdict_array_split(QDict *src, QList **dst)
     *dst = qlist_new();
 
     for (i = 0; i < UINT_MAX; i++) {
+        QObject *subqobj;
+        bool is_subqdict;
         QDict *subqdict;
-        char prefix[32];
+        char indexstr[32], prefix[32];
         size_t snprintf_ret;
+
+        snprintf_ret = snprintf(indexstr, 32, "%u", i);
+        assert(snprintf_ret < 32);
+
+        subqobj = qdict_get(src, indexstr);
 
         snprintf_ret = snprintf(prefix, 32, "%u.", i);
         assert(snprintf_ret < 32);
 
-        qdict_extract_subqdict(src, &subqdict, prefix);
-        if (!qdict_size(subqdict)) {
-            QDECREF(subqdict);
+        is_subqdict = qdict_has_prefixed_entries(src, prefix);
+
+        // There may be either a single subordinate object (named "%u") or
+        // multiple objects (each with a key prefixed "%u."), but not both.
+        if (!subqobj == !is_subqdict) {
             break;
         }
 
-        qlist_append_obj(*dst, QOBJECT(subqdict));
+        if (is_subqdict) {
+            qdict_extract_subqdict(src, &subqdict, prefix);
+            assert(qdict_size(subqdict) > 0);
+        } else {
+            qobject_incref(subqobj);
+            qdict_del(src, indexstr);
+        }
+
+        qlist_append_obj(*dst, subqobj ?: QOBJECT(subqdict));
     }
 }

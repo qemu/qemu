@@ -113,23 +113,26 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     be64_to_cpus(&header.l1_table_offset);
 
     if (header.magic != QCOW_MAGIC) {
-        ret = -EMEDIUMTYPE;
+        error_setg(errp, "Image not in qcow format");
+        ret = -EINVAL;
         goto fail;
     }
     if (header.version != QCOW_VERSION) {
         char version[64];
         snprintf(version, sizeof(version), "QCOW version %d", header.version);
-        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-            bs->device_name, "qcow", version);
+        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                  bs->device_name, "qcow", version);
         ret = -ENOTSUP;
         goto fail;
     }
 
     if (header.size <= 1 || header.cluster_bits < 9) {
+        error_setg(errp, "invalid value in qcow header");
         ret = -EINVAL;
         goto fail;
     }
     if (header.crypt_method > QCOW_CRYPT_AES) {
+        error_setg(errp, "invalid encryption method in qcow header");
         ret = -EINVAL;
         goto fail;
     }
@@ -686,16 +689,15 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options,
 
     ret = bdrv_create_file(filename, options, &local_err);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return ret;
     }
 
-    ret = bdrv_file_open(&qcow_bs, filename, NULL, NULL, BDRV_O_RDWR,
-                         &local_err);
+    qcow_bs = NULL;
+    ret = bdrv_open(&qcow_bs, filename, NULL, NULL,
+                    BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
     if (ret < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return ret;
     }
 

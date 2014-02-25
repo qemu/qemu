@@ -450,6 +450,55 @@ fail:
     return NULL;
 }
 
+bool has_help_option(const char *param)
+{
+    size_t buflen = strlen(param) + 1;
+    char *buf = g_malloc0(buflen);
+    const char *p = param;
+    bool result = false;
+
+    while (*p) {
+        p = get_opt_value(buf, buflen, p);
+        if (*p) {
+            p++;
+        }
+
+        if (is_help_option(buf)) {
+            result = true;
+            goto out;
+        }
+    }
+
+out:
+    free(buf);
+    return result;
+}
+
+bool is_valid_option_list(const char *param)
+{
+    size_t buflen = strlen(param) + 1;
+    char *buf = g_malloc0(buflen);
+    const char *p = param;
+    bool result = true;
+
+    while (*p) {
+        p = get_opt_value(buf, buflen, p);
+        if (*p && !*++p) {
+            result = false;
+            goto out;
+        }
+
+        if (!*buf || *buf == ',') {
+            result = false;
+            goto out;
+        }
+    }
+
+out:
+    free(buf);
+    return result;
+}
+
 /*
  * Prints all options of a list that have a value to stdout
  */

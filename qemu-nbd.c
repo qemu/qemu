@@ -20,6 +20,8 @@
 #include "block/block.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
+#include "qemu/sockets.h"
+#include "qemu/error-report.h"
 #include "block/snapshot.h"
 
 #include <stdarg.h>
@@ -199,6 +201,56 @@ static void termsig_handler(int signum)
 {
     state = TERMINATE;
     qemu_notify_event();
+}
+
+static void combine_addr(char *buf, size_t len, const char* address,
+                         uint16_t port)
+{
+    /* If the address-part contains a colon, it's an IPv6 IP so needs [] */
+    if (strstr(address, ":")) {
+        snprintf(buf, len, "[%s]:%u", address, port);
+    } else {
+        snprintf(buf, len, "%s:%u", address, port);
+    }
+}
+
+static int tcp_socket_incoming(const char *address, uint16_t port)
+{
+    char address_and_port[128];
+    Error *local_err = NULL;
+
+    combine_addr(address_and_port, 128, address, port);
+    int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
+}
+
+static int unix_socket_incoming(const char *path)
+{
+    Error *local_err = NULL;
+    int fd = unix_listen(path, NULL, 0, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
+}
+
+static int unix_socket_outgoing(const char *path)
+{
+    Error *local_err = NULL;
+    int fd = unix_connect(path, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
 }
 
 static void *show_parts(void *arg)
@@ -598,7 +650,7 @@ int main(int argc, char **argv)
 
     bs = bdrv_new("hda");
     srcpath = argv[optind];
-    ret = bdrv_open(bs, srcpath, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&bs, srcpath, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
         errno = -ret;
         err(EXIT_FAILURE, "Failed to bdrv_open '%s': %s", argv[optind],

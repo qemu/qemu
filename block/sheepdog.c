@@ -1534,7 +1534,8 @@ static int sd_prealloc(const char *filename)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
     if (ret < 0) {
         qerror_report_err(local_err);
         error_free(local_err);
@@ -1695,7 +1696,9 @@ static int sd_create(const char *filename, QEMUOptionParameter *options,
             goto out;
         }
 
-        ret = bdrv_file_open(&bs, backing_file, NULL, NULL, 0, &local_err);
+        bs = NULL;
+        ret = bdrv_open(&bs, backing_file, NULL, NULL, BDRV_O_PROTOCOL, NULL,
+                        &local_err);
         if (ret < 0) {
             qerror_report_err(local_err);
             error_free(local_err);

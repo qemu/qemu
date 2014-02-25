@@ -456,30 +456,27 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     static int inited = 0;
 
     if (flags & BDRV_O_RDWR) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "curl block device does not support writes");
+        error_setg(errp, "curl block device does not support writes");
         return -EROFS;
     }
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         goto out_noclean;
     }
 
     s->readahead_size = qemu_opt_get_size(opts, "readahead", READ_AHEAD_SIZE);
     if ((s->readahead_size & 0x1ff) != 0) {
-        fprintf(stderr, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512\n",
-                s->readahead_size);
+        error_setg(errp, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512",
+                   s->readahead_size);
         goto out_noclean;
     }
 
     file = qemu_opt_get(opts, "url");
     if (file == NULL) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR, "curl block driver requires "
-                      "an 'url' option");
+        error_setg(errp, "curl block driver requires an 'url' option");
         goto out_noclean;
     }
 
