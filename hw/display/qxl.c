@@ -1429,7 +1429,7 @@ static int qxl_destroy_primary(PCIQXLDevice *d, qxl_async_io async)
     return 1;
 }
 
-static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
+static void qxl_set_mode(PCIQXLDevice *d, unsigned int modenr, int loadvm)
 {
     pcibus_t start = d->pci.io_regions[QXL_RAM_RANGE_INDEX].addr;
     pcibus_t end   = d->pci.io_regions[QXL_RAM_RANGE_INDEX].size + start;
@@ -1439,6 +1439,12 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
         .mem_start = start,
         .mem_end = end
     };
+
+    if (modenr >= d->modes->n_modes) {
+        qxl_set_guest_bug(d, "mode number out of range");
+        return;
+    }
+
     QXLSurfaceCreate surface = {
         .width      = mode->x_res,
         .height     = mode->y_res,
