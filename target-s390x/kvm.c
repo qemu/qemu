@@ -320,12 +320,16 @@ static void *legacy_s390_alloc(size_t size)
     return mem == MAP_FAILED ? NULL : mem;
 }
 
+/* DIAG 501 is used for sw breakpoints */
+static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
-    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501, 4, 1)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                            sizeof(diag_501), 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501,
+                            sizeof(diag_501), 1)) {
         return -EINVAL;
     }
     return 0;
@@ -333,14 +337,14 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
 int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
-    uint8_t t[4];
-    static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
+    uint8_t t[sizeof(diag_501)];
 
-    if (cpu_memory_rw_debug(cs, bp->pc, t, 4, 0)) {
+    if (cpu_memory_rw_debug(cs, bp->pc, t, sizeof(diag_501), 0)) {
         return -EINVAL;
-    } else if (memcmp(t, diag_501, 4)) {
+    } else if (memcmp(t, diag_501, sizeof(diag_501))) {
         return -EINVAL;
-    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1)) {
+    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                                   sizeof(diag_501), 1)) {
         return -EINVAL;
     }
 
