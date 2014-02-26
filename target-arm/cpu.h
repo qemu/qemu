@@ -216,6 +216,10 @@ typedef struct CPUARMState {
         uint32_t c15_diagnostic; /* diagnostic register */
         uint32_t c15_power_diagnostic;
         uint32_t c15_power_control; /* power control */
+        uint64_t dbgbvr[16]; /* breakpoint value registers */
+        uint64_t dbgbcr[16]; /* breakpoint control registers */
+        uint64_t dbgwvr[16]; /* watchpoint value registers */
+        uint64_t dbgwcr[16]; /* watchpoint control registers */
     } cp15;
 
     struct {
