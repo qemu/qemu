@@ -319,4 +319,16 @@ int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
 void kvm_pc_gsi_handler(void *opaque, int n, int level);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 void kvm_init_irq_routing(KVMState *s);
+
+/**
+ * kvm_arch_irqchip_create:
+ * @KVMState: The KVMState pointer
+ *
+ * Allow architectures to create an in-kernel irq chip themselves.
+ *
+ * Returns: < 0: error
+ *            0: irq chip was not created
+ *          > 0: irq chip was created
+ */
+int kvm_arch_irqchip_create(KVMState *s);
 #endif

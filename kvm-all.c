@@ -1298,10 +1298,17 @@ static int kvm_irqchip_create(KVMState *s)
         return 0;
     }
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+    /* First probe and see if there's a arch-specific hook to create the
+     * in-kernel irqchip for us */
+    ret = kvm_arch_irqchip_create(s);
     if (ret < 0) {
-        fprintf(stderr, "Create kernel irqchip failed\n");
         return ret;
+    } else if (ret == 0) {
+        ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        if (ret < 0) {
+            fprintf(stderr, "Create kernel irqchip failed\n");
+            return ret;
+        }
     }
 
     kvm_kernel_irqchip = true;
