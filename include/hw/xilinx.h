@@ -7,19 +7,6 @@
 #include "hw/stream.h"
 #include "net/net.h"
 
-static inline DeviceState *
-xilinx_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, "xlnx.xps-intc");
-    qdev_prop_set_uint32(dev, "kind-of-intr", kind_of_intr);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-    return dev;
-}
-
 /* OPB Timer/Counter.  */
 static inline DeviceState *
 xilinx_timer_create(hwaddr base, qemu_irq irq, int oto, int freq)

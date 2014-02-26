@@ -97,8 +97,13 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
                           FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
-    dev = xilinx_intc_create(INTC_BASEADDR, qdev_get_gpio_in(DEVICE(cpu),
-                             MB_CPU_IRQ), 0xA);
+    dev = qdev_create(NULL, "xlnx.xps-intc");
+    qdev_prop_set_uint32(dev, "kind-of-intr",
+                         1 << ETHLITE_IRQ | 1 << UARTLITE_IRQ);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(DEVICE(cpu), MB_CPU_IRQ));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }
