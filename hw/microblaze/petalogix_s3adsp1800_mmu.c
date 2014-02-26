@@ -48,6 +48,10 @@
 #define UARTLITE_BASEADDR 0x84000000
 #define ETHLITE_BASEADDR 0x81000000
 
+#define TIMER_IRQ           0
+#define ETHLITE_IRQ         1
+#define UARTLITE_IRQ        3
+
 static void machine_cpu_reset(MicroBlazeCPU *cpu)
 {
     CPUMBState *env = &cpu->env;
@@ -99,7 +103,8 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    sysbus_create_simple("xlnx.xps-uartlite", UARTLITE_BASEADDR, irq[3]);
+    sysbus_create_simple("xlnx.xps-uartlite", UARTLITE_BASEADDR,
+                         irq[UARTLITE_IRQ]);
     /* 2 timers at irq 2 @ 62 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[0], 0, 62 * 1000000);
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
