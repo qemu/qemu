@@ -45,6 +45,14 @@
 #define EPAPR_MAGIC    (0x45504150)
 #define FLASH_SIZE     (16 * 1024 * 1024)
 
+#define INTC_BASEADDR       0x81800000
+#define UART16550_BASEADDR  0x83e01003
+#define TIMER_BASEADDR      0x83c00000
+#define PFLASH_BASEADDR     0xfc000000
+
+#define TIMER_IRQ           3
+#define UART16550_IRQ       9
+
 static struct boot_info
 {
     uint32_t bootstrap_pc;
@@ -204,7 +212,7 @@ static void virtex_init(QEMUMachineInitArgs *args)
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(0xfc000000, NULL, "virtex.flash", FLASH_SIZE,
+    pflash_cfi01_register(PFLASH_BASEADDR, NULL, "virtex.flash", FLASH_SIZE,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
@@ -215,8 +223,8 @@ static void virtex_init(QEMUMachineInitArgs *args)
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(address_space_mem, 0x83e01003ULL, 2, irq[9], 115200,
-                   serial_hds[0], DEVICE_LITTLE_ENDIAN);
+    serial_mm_init(address_space_mem, UART16550_BASEADDR, 2, irq[UART16550_IRQ],
+                   115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
     xilinx_timer_create(0x83c00000, irq[3], 0, 62 * 1000000);
