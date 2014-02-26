@@ -1420,11 +1420,10 @@ int kvm_init(void)
                     nc->name, nc->num, soft_vcpus_limit);
 
             if (nc->num > hard_vcpus_limit) {
-                ret = -EINVAL;
                 fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
                         "the maximum cpus supported by KVM (%d)\n",
                         nc->name, nc->num, hard_vcpus_limit);
-                goto err;
+                exit(1);
             }
         }
         nc++;
