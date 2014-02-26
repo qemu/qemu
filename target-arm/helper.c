@@ -2475,7 +2475,7 @@ uint32_t cpsr_read(CPUARMState *env)
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
-        | (env->GE << 16);
+        | (env->GE << 16) | env->daif;
 }
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
@@ -2501,6 +2501,9 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     if (mask & CPSR_GE) {
         env->GE = (val >> 16) & 0xf;
     }
+
+    env->daif &= ~(CPSR_AIF & mask);
+    env->daif |= val & CPSR_AIF & mask;
 
     if ((env->uncached_cpsr ^ val) & mask & CPSR_M) {
         if (bad_mode_switch(env, val & CPSR_M)) {
@@ -2963,7 +2966,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     env->condexec_bits = 0;
     /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
-    env->uncached_cpsr |= mask;
+    env->daif |= mask;
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
     if (arm_feature(env, ARM_FEATURE_V4T)) {
@@ -3636,12 +3639,12 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     case 9: /* PSP */
         return env->v7m.current_sp ? env->regs[13] : env->v7m.other_sp;
     case 16: /* PRIMASK */
-        return (env->uncached_cpsr & CPSR_I) != 0;
+        return (env->daif & PSTATE_I) != 0;
     case 17: /* BASEPRI */
     case 18: /* BASEPRI_MAX */
         return env->v7m.basepri;
     case 19: /* FAULTMASK */
-        return (env->uncached_cpsr & CPSR_F) != 0;
+        return (env->daif & PSTATE_F) != 0;
     case 20: /* CONTROL */
         return env->v7m.control;
     default:
@@ -3688,10 +3691,11 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
             env->v7m.other_sp = val;
         break;
     case 16: /* PRIMASK */
-        if (val & 1)
-            env->uncached_cpsr |= CPSR_I;
-        else
-            env->uncached_cpsr &= ~CPSR_I;
+        if (val & 1) {
+            env->daif |= PSTATE_I;
+        } else {
+            env->daif &= ~PSTATE_I;
+        }
         break;
     case 17: /* BASEPRI */
         env->v7m.basepri = val & 0xff;
@@ -3702,10 +3706,11 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
             env->v7m.basepri = val;
         break;
     case 19: /* FAULTMASK */
-        if (val & 1)
-            env->uncached_cpsr |= CPSR_F;
-        else
-            env->uncached_cpsr &= ~CPSR_F;
+        if (val & 1) {
+            env->daif |= PSTATE_F;
+        } else {
+            env->daif &= ~PSTATE_F;
+        }
         break;
     case 20: /* CONTROL */
         env->v7m.control = val & 3;

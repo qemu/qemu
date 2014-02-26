@@ -135,6 +135,7 @@ typedef struct CPUARMState {
      *  NZCV are kept in the split out env->CF/VF/NF/ZF, (which have the same
      *    semantics as for AArch32, as described in the comments on each field)
      *  nRW (also known as M[4]) is kept, inverted, in env->aarch64
+     *  DAIF (exception masks) are kept in env->daif
      *  all other bits are stored in their correct places in env->pstate
      */
     uint32_t pstate;
@@ -164,6 +165,7 @@ typedef struct CPUARMState {
     uint32_t GE; /* cpsr[19:16] */
     uint32_t thumb; /* cpsr[5]. 0 = arm mode, 1 = thumb mode. */
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
+    uint32_t daif; /* exception masks, in the bits they are in in PSTATE */
 
     /* System control coprocessor (cp15) */
     struct {
@@ -406,9 +408,11 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 #define CPSR_Z (1U << 30)
 #define CPSR_N (1U << 31)
 #define CPSR_NZCV (CPSR_N | CPSR_Z | CPSR_C | CPSR_V)
+#define CPSR_AIF (CPSR_A | CPSR_I | CPSR_F)
 
 #define CPSR_IT (CPSR_IT_0_1 | CPSR_IT_2_7)
-#define CACHED_CPSR_BITS (CPSR_T | CPSR_GE | CPSR_IT | CPSR_Q | CPSR_NZCV)
+#define CACHED_CPSR_BITS (CPSR_T | CPSR_AIF | CPSR_GE | CPSR_IT | CPSR_Q \
+    | CPSR_NZCV)
 /* Bits writable in user mode.  */
 #define CPSR_USER (CPSR_NZCV | CPSR_Q | CPSR_GE)
 /* Execution state bits.  MRS read as zero, MSR writes ignored.  */
@@ -431,7 +435,8 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 #define PSTATE_Z (1U << 30)
 #define PSTATE_N (1U << 31)
 #define PSTATE_NZCV (PSTATE_N | PSTATE_Z | PSTATE_C | PSTATE_V)
-#define CACHED_PSTATE_BITS (PSTATE_NZCV)
+#define PSTATE_DAIF (PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F)
+#define CACHED_PSTATE_BITS (PSTATE_NZCV | PSTATE_DAIF)
 /* Mode values for AArch64 */
 #define PSTATE_MODE_EL3h 13
 #define PSTATE_MODE_EL3t 12
@@ -452,7 +457,7 @@ static inline uint32_t pstate_read(CPUARMState *env)
     ZF = (env->ZF == 0);
     return (env->NF & 0x80000000) | (ZF << 30)
         | (env->CF << 29) | ((env->VF & 0x80000000) >> 3)
-        | env->pstate;
+        | env->pstate | env->daif;
 }
 
 static inline void pstate_write(CPUARMState *env, uint32_t val)
@@ -461,6 +466,7 @@ static inline void pstate_write(CPUARMState *env, uint32_t val)
     env->NF = val;
     env->CF = (val >> 29) & 1;
     env->VF = (val << 3) & 0x80000000;
+    env->daif = val & PSTATE_DAIF;
     env->pstate = val & ~CACHED_PSTATE_BITS;
 }
 
