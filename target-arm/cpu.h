@@ -173,10 +173,8 @@ typedef struct CPUARMState {
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c1_scr; /* secure config register.  */
-        uint32_t c2_base0; /* MMU translation table base 0.  */
-        uint32_t c2_base0_hi; /* MMU translation table base 0, high 32 bits */
-        uint32_t c2_base1; /* MMU translation table base 0.  */
-        uint32_t c2_base1_hi; /* MMU translation table base 1, high 32 bits */
+        uint64_t ttbr0_el1; /* MMU translation table base 0. */
+        uint64_t ttbr1_el1; /* MMU translation table base 1. */
         uint64_t c2_control; /* MMU translation table base control.  */
         uint32_t c2_mask; /* MMU translation table base selection mask.  */
         uint32_t c2_base_mask; /* MMU translation table base 0 mask. */

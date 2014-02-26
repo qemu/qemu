@@ -1230,6 +1230,18 @@ static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.c2_control = value;
 }
 
+static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    /* 64 bit accesses to the TTBRs can change the ASID and so we
+     * must flush the TLB.
+     */
+    if (cpreg_field_is_64bit(ri)) {
+        tlb_flush(env, 1);
+    }
+    raw_write(env, ri, value);
+}
+
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
@@ -1237,12 +1249,14 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
-    { .name = "TTBR0", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
-    { .name = "TTBR1", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c2_base1), .resetvalue = 0, },
+    { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
+      .writefn = vmsa_ttbr_write, .resetvalue = 0 },
+    { .name = "TTBR1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el1),
+      .writefn = vmsa_ttbr_write, .resetvalue = 0 },
     { .name = "TCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .writefn = vmsa_tcr_el1_write,
@@ -1459,50 +1473,6 @@ static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     env->cp15.c7_par = 0;
 }
 
-static uint64_t ttbr064_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    return ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
-}
-
-static void ttbr064_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t value)
-{
-    env->cp15.c2_base0_hi = value >> 32;
-    env->cp15.c2_base0 = value;
-}
-
-static void ttbr064_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
-{
-    /* Writes to the 64 bit format TTBRs may change the ASID */
-    tlb_flush(env, 1);
-    ttbr064_raw_write(env, ri, value);
-}
-
-static void ttbr064_reset(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    env->cp15.c2_base0_hi = 0;
-    env->cp15.c2_base0 = 0;
-}
-
-static uint64_t ttbr164_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    return ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
-}
-
-static void ttbr164_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
-{
-    env->cp15.c2_base1_hi = value >> 32;
-    env->cp15.c2_base1 = value;
-}
-
-static void ttbr164_reset(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    env->cp15.c2_base1_hi = 0;
-    env->cp15.c2_base1 = 0;
-}
-
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1: the override is because these clash with the rather
      * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
@@ -1524,12 +1494,13 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_64BIT,
       .readfn = par64_read, .writefn = par64_write, .resetfn = par64_reset },
     { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
-      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr064_read,
-      .writefn = ttbr064_write, .raw_writefn = ttbr064_raw_write,
-      .resetfn = ttbr064_reset },
+      .access = PL1_RW, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el1),
+      .writefn = vmsa_ttbr_write, .resetfn = arm_cp_reset_ignore },
     { .name = "TTBR1", .cp = 15, .crm = 2, .opc1 = 1,
-      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr164_read,
-      .writefn = ttbr164_write, .resetfn = ttbr164_reset },
+      .access = PL1_RW, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el1),
+      .writefn = vmsa_ttbr_write, .resetfn = arm_cp_reset_ignore },
     REGINFO_SENTINEL
 };
 
@@ -2920,9 +2891,9 @@ static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
     uint32_t table;
 
     if (address & env->cp15.c2_mask)
-        table = env->cp15.c2_base1 & 0xffffc000;
+        table = env->cp15.ttbr1_el1 & 0xffffc000;
     else
-        table = env->cp15.c2_base0 & env->cp15.c2_base_mask;
+        table = env->cp15.ttbr0_el1 & env->cp15.c2_base_mask;
 
     table |= (address >> 18) & 0x3ffc;
     return table;
@@ -3198,11 +3169,11 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
      * we will always flush the TLB any time the ASID is changed).
      */
     if (ttbr_select == 0) {
-        ttbr = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
+        ttbr = env->cp15.ttbr0_el1;
         epd = extract32(env->cp15.c2_control, 7, 1);
         tsz = t0sz;
     } else {
-        ttbr = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
+        ttbr = env->cp15.ttbr1_el1;
         epd = extract32(env->cp15.c2_control, 23, 1);
         tsz = t1sz;
     }
