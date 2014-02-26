@@ -104,7 +104,7 @@ struct arm_boot_info;
 /* CPU state for each instance of a generic timer (in cp15 c14) */
 typedef struct ARMGenericTimer {
     uint64_t cval; /* Timer CompareValue register */
-    uint32_t ctl; /* Timer Control register */
+    uint64_t ctl; /* Timer Control register */
 } ARMGenericTimer;
 
 #define GTIMER_PHYS 0
@@ -204,8 +204,8 @@ typedef struct CPUARMState {
         uint64_t tpidr_el0; /* User RW Thread register.  */
         uint64_t tpidrro_el0; /* User RO Thread register.  */
         uint64_t tpidr_el1; /* Privileged Thread register.  */
-        uint32_t c14_cntfrq; /* Counter Frequency register */
-        uint32_t c14_cntkctl; /* Timer Control register */
+        uint64_t c14_cntfrq; /* Counter Frequency register */
+        uint64_t c14_cntkctl; /* Timer Control register */
         ARMGenericTimer c14_timer[NUM_GTIMERS];
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
         uint32_t c15_ticonfig; /* TI925T configuration byte.  */
