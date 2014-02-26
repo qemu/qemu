@@ -1080,9 +1080,11 @@ static void handle_hint(DisasContext *s, uint32_t insn,
     switch (selector) {
     case 0: /* NOP */
         return;
+    case 3: /* WFI */
+        s->is_jmp = DISAS_WFI;
+        return;
     case 1: /* YIELD */
     case 2: /* WFE */
-    case 3: /* WFI */
     case 4: /* SEV */
     case 5: /* SEVL */
         /* we treat all as NOP at least for now */
@@ -9124,6 +9126,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             /* This is a special case because we don't want to just halt the CPU
              * if trying to debug across a WFI.
              */
+            gen_a64_set_pc_im(dc->pc);
             gen_helper_wfi(cpu_env);
             break;
         }
