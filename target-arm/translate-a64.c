@@ -1128,7 +1128,30 @@ static void handle_sync(DisasContext *s, uint32_t insn,
 static void handle_msr_i(DisasContext *s, uint32_t insn,
                          unsigned int op1, unsigned int op2, unsigned int crm)
 {
-    unsupported_encoding(s, insn);
+    int op = op1 << 3 | op2;
+    switch (op) {
+    case 0x05: /* SPSel */
+        if (s->current_pl == 0) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x1e: /* DAIFSet */
+    case 0x1f: /* DAIFClear */
+    {
+        TCGv_i32 tcg_imm = tcg_const_i32(crm);
+        TCGv_i32 tcg_op = tcg_const_i32(op);
+        gen_a64_set_pc_im(s->pc - 4);
+        gen_helper_msr_i_pstate(cpu_env, tcg_op, tcg_imm);
+        tcg_temp_free_i32(tcg_imm);
+        tcg_temp_free_i32(tcg_op);
+        s->is_jmp = DISAS_UPDATE;
+        break;
+    }
+    default:
+        unallocated_encoding(s);
+        return;
+    }
 }
 
 static void gen_get_nzcv(TCGv_i64 tcg_rt)
