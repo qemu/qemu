@@ -231,7 +231,12 @@ static void virtex_init(QEMUMachineInitArgs *args)
                    115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    xilinx_timer_create(0x83c00000, irq[3], 0, 62 * 1000000);
+    dev = qdev_create(NULL, "xlnx.xps-timer");
+    qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    qdev_prop_set_uint32(dev, "clock-frequency", 62 * 1000000);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     if (kernel_filename) {
         uint64_t entry, low, high;

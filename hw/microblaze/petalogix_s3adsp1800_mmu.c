@@ -110,8 +110,15 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
 
     sysbus_create_simple("xlnx.xps-uartlite", UARTLITE_BASEADDR,
                          irq[UARTLITE_IRQ]);
+
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    xilinx_timer_create(TIMER_BASEADDR, irq[0], 0, 62 * 1000000);
+    dev = qdev_create(NULL, "xlnx.xps-timer");
+    qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    qdev_prop_set_uint32(dev, "clock-frequency", 62 * 1000000);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
+
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,

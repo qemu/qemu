@@ -134,7 +134,12 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
-    xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
+    dev = qdev_create(NULL, "xlnx.xps-timer");
+    qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* axi ethernet and dma initialization. */
     qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");
