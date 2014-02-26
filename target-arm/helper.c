@@ -1031,8 +1031,8 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
                 env->cp15.c7_par = phys_addr & 0xfffff000;
             }
         } else {
-            env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
-                ((ret & (12 << 1)) >> 6) |
+            env->cp15.c7_par = ((ret & (1 << 10)) >> 5) |
+                ((ret & (1 << 12)) >> 6) |
                 ((ret & 0xf) << 1) | 1;
         }
         env->cp15.c7_par_hi = 0;
