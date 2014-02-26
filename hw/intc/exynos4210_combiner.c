@@ -418,7 +418,7 @@ static int exynos4210_combiner_init(SysBusDevice *sbd)
     qdev_init_gpio_in(dev, exynos4210_combiner_handler, IIC_NIRQ);
 
     /* Connect SysBusDev irqs to device specific irqs */
-    for (i = 0; i < IIC_NIRQ; i++) {
+    for (i = 0; i < IIC_NGRP; i++) {
         sysbus_init_irq(sbd, &s->output_irq[i]);
     }
 
