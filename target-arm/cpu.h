@@ -959,6 +959,14 @@ uint64_t arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri);
  */
 void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *opaque);
 
+/* Return true if this reginfo struct's field in the cpu state struct
+ * is 64 bits wide.
+ */
+static inline bool cpreg_field_is_64bit(const ARMCPRegInfo *ri)
+{
+    return (ri->state == ARM_CP_STATE_AA64) || (ri->type & ARM_CP_64BIT);
+}
+
 static inline bool cp_access_ok(int current_pl,
                                 const ARMCPRegInfo *ri, int isread)
 {

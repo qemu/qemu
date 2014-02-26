@@ -60,7 +60,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
         return;
     }
 
-    if (ri->type & ARM_CP_64BIT) {
+    if (cpreg_field_is_64bit(ri)) {
         CPREG_FIELD64(&cpu->env, ri) = ri->resetvalue;
     } else {
         CPREG_FIELD32(&cpu->env, ri) = ri->resetvalue;

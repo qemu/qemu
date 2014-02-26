@@ -109,7 +109,7 @@ static int aarch64_fpu_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 
 static uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    if (ri->type & ARM_CP_64BIT) {
+    if (cpreg_field_is_64bit(ri)) {
         return CPREG_FIELD64(env, ri);
     } else {
         return CPREG_FIELD32(env, ri);
@@ -119,7 +119,7 @@ static uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
-    if (ri->type & ARM_CP_64BIT) {
+    if (cpreg_field_is_64bit(ri)) {
         CPREG_FIELD64(env, ri) = value;
     } else {
         CPREG_FIELD32(env, ri) = value;
@@ -1962,6 +1962,10 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
     if (opaque) {
         r2->opaque = opaque;
     }
+    /* reginfo passed to helpers is correct for the actual access,
+     * and is never ARM_CP_STATE_BOTH:
+     */
+    r2->state = state;
     /* Make sure reginfo passed to helpers for wildcarded regs
      * has the correct crm/opc1/opc2 for this reg, not CP_ANY:
      */
