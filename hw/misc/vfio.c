@@ -209,6 +209,29 @@ typedef struct VFIOGroup {
     QLIST_ENTRY(VFIOGroup) container_next;
 } VFIOGroup;
 
+typedef struct VFIORomBlacklistEntry {
+    uint16_t vendor_id;
+    uint16_t device_id;
+} VFIORomBlacklistEntry;
+
+/*
+ * List of device ids/vendor ids for which to disable
+ * option rom loading. This avoids the guest hangs during rom
+ * execution as noticed with the BCM 57810 card for lack of a
+ * more better way to handle such issues.
+ * The  user can still override by specifying a romfile or
+ * rombar=1.
+ * Please see https://bugs.launchpad.net/qemu/+bug/1284874
+ * for an analysis of the 57810 card hang. When adding
+ * a new vendor id/device id combination below, please also add
+ * your card/environment details and information that could
+ * help in debugging to the bug tracking this issue
+ */
+static const VFIORomBlacklistEntry romblacklist[] = {
+    /* Broadcom BCM 57810 */
+    { 0x14e4, 0x168e }
+};
+
 #define MSIX_CAP_LENGTH 12
 
 static QLIST_HEAD(, VFIOContainer)
@@ -1197,13 +1220,43 @@ static const MemoryRegionOps vfio_rom_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static bool vfio_blacklist_opt_rom(VFIODevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t vendor_id, device_id;
+    int count = 0;
+
+    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+
+    while (count < ARRAY_SIZE(romblacklist)) {
+        if (romblacklist[count].vendor_id == vendor_id &&
+            romblacklist[count].device_id == device_id) {
+                return true;
+        }
+        count++;
+    }
+
+    return false;
+}
+
 static void vfio_pci_size_rom(VFIODevice *vdev)
 {
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
+    DeviceState *dev = DEVICE(vdev);
     char name[32];
 
     if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
+        /* Since pci handles romfile, just print a message and return */
+        if (vfio_blacklist_opt_rom(vdev) && vdev->pdev.romfile) {
+            error_printf("Warning : Device at %04x:%02x:%02x.%x "
+                         "is known to cause system instability issues during "
+                         "option rom execution. "
+                         "Proceeding anyway since user specified romfile\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+        }
         return;
     }
 
@@ -1225,6 +1278,26 @@ static void vfio_pci_size_rom(VFIODevice *vdev)
 
     if (!size) {
         return;
+    }
+
+    if (vfio_blacklist_opt_rom(vdev)) {
+        if (dev->opts && qemu_opt_get(dev->opts, "rombar")) {
+            error_printf("Warning : Device at %04x:%02x:%02x.%x "
+                         "is known to cause system instability issues during "
+                         "option rom execution. "
+                         "Proceeding anyway since user specified non zero value for "
+                         "rombar\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+        } else {
+            error_printf("Warning : Rom loading for device at "
+                         "%04x:%02x:%02x.%x has been disabled due to "
+                         "system instability issues. "
+                         "Specify rombar=1 or romfile to force\n",
+                         vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                         vdev->host.function);
+            return;
+        }
     }
 
     DPRINTF("%04x:%02x:%02x.%x ROM size 0x%x\n", vdev->host.domain,
