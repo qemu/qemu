@@ -1533,6 +1533,9 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
       .access = PL0_R, .type = ARM_CP_CONST,
       .resetvalue = 0x10 },
+    { .name = "CURRENTEL", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .opc2 = 2, .crn = 4, .crm = 2,
+      .access = PL1_R, .type = ARM_CP_CURRENTEL },
     REGINFO_SENTINEL
 };
 
