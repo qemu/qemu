@@ -156,16 +156,30 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
                                   "axistream-connected-target", NULL);
     cs = object_property_get_link(OBJECT(dma),
                                   "axistream-control-connected-target", NULL);
-    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(ds),
-                            STREAM_SLAVE(cs), 0x82780000, irq[3], 0x1000,
-                            0x1000);
+    qdev_set_nic_properties(eth0, &nd_table[0]);
+    qdev_prop_set_uint32(eth0, "rxmem", 0x1000);
+    qdev_prop_set_uint32(eth0, "txmem", 0x1000);
+    object_property_set_link(OBJECT(eth0), OBJECT(ds),
+                             "axistream-connected", &error_abort);
+    object_property_set_link(OBJECT(eth0), OBJECT(cs),
+                             "axistream-control-connected", &error_abort);
+    qdev_init_nofail(eth0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
 
     ds = object_property_get_link(OBJECT(eth0),
                                   "axistream-connected-target", NULL);
     cs = object_property_get_link(OBJECT(eth0),
                                   "axistream-control-connected-target", NULL);
-    xilinx_axidma_init(dma, STREAM_SLAVE(ds), STREAM_SLAVE(cs), 0x84600000,
-                       irq[1], irq[0], 100 * 1000000);
+    qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
+    object_property_set_link(OBJECT(dma), OBJECT(ds),
+                             "axistream-connected", &error_abort);
+    object_property_set_link(OBJECT(dma), OBJECT(cs),
+                             "axistream-control-connected", &error_abort);
+    qdev_init_nofail(dma);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
 
     {
         SSIBus *spi;
