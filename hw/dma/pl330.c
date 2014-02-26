@@ -227,7 +227,8 @@ static const VMStateDescription vmstate_pl330_queue = {
 };
 
 struct PL330State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq_abort;
     qemu_irq *irq;
