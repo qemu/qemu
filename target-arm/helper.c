@@ -533,6 +533,12 @@ static void pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
+    /* Note that even though the AArch64 view of this register has bits
+     * [10:0] all RES0 we can only mask the bottom 5, to comply with the
+     * architectural requirements for bits which are RES0 only in some
+     * contexts. (ARMv8 would permit us to do no masking at all, but ARMv7
+     * requires the bottom five bits to be RAZ/WI because they're UNK/SBZP.)
+     */
     env->cp15.c12_vbar = value & ~0x1Ful;
 }
 
@@ -622,7 +628,8 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .resetvalue = 0, .writefn = pmintenclr_write, },
-    { .name = "VBAR", .cp = 15, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
+    { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
       .resetvalue = 0 },
