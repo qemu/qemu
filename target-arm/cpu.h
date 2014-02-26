@@ -177,7 +177,7 @@ typedef struct CPUARMState {
         uint32_t c2_base0_hi; /* MMU translation table base 0, high 32 bits */
         uint32_t c2_base1; /* MMU translation table base 0.  */
         uint32_t c2_base1_hi; /* MMU translation table base 1, high 32 bits */
-        uint32_t c2_control; /* MMU translation table base control.  */
+        uint64_t c2_control; /* MMU translation table base control.  */
         uint32_t c2_mask; /* MMU translation table base selection mask.  */
         uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
         uint32_t c2_data; /* MPU data cachable bits.  */

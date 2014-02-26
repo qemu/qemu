@@ -1215,6 +1215,14 @@ static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     env->cp15.c2_mask = 0;
 }
 
+static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
+    tlb_flush(env, 1);
+    env->cp15.c2_control = value;
+}
+
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
@@ -1228,10 +1236,15 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "TTBR1", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_base1), .resetvalue = 0, },
-    { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
-      .access = PL1_RW, .writefn = vmsa_ttbcr_write,
-      .resetfn = vmsa_ttbcr_reset, .raw_writefn = vmsa_ttbcr_raw_write,
+    { .name = "TCR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .writefn = vmsa_tcr_el1_write,
+      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_control) },
+    { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .type = ARM_CP_NO_MIGRATE, .writefn = vmsa_ttbcr_write,
+      .resetfn = arm_cp_reset_ignore, .raw_writefn = vmsa_ttbcr_raw_write,
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.c2_control) },
     { .name = "DFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_data),
       .resetvalue = 0, },
