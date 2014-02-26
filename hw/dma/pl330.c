@@ -1310,7 +1310,7 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     PL330State *s = (PL330State *) opaque;
-    uint32_t i;
+    int i;
 
     DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, (unsigned)value);
 
