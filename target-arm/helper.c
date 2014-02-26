@@ -1435,7 +1435,8 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     uint32_t mpidr = cs->cpu_index;
-    /* We don't support setting cluster ID ([8..11])
+    /* We don't support setting cluster ID ([8..11]) (known as Aff1
+     * in later ARM ARM versions), or any of the higher affinity level fields,
      * so these bits always RAZ.
      */
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
@@ -1450,7 +1451,8 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static const ARMCPRegInfo mpidr_cp_reginfo[] = {
-    { .name = "MPIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
+    { .name = "MPIDR", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
       .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_MIGRATE },
     REGINFO_SENTINEL
 };
