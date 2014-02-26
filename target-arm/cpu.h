@@ -1057,7 +1057,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define MMU_USER_IDX 1
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR ? 1 : 0;
+    return arm_current_pl(env) ? 0 : 1;
 }
 
 #include "exec/cpu-all.h"
@@ -1084,7 +1084,9 @@ static inline int cpu_mmu_index (CPUARMState *env)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
 
-/* Bit usage when in AArch64 state: currently no bits defined */
+/* Bit usage when in AArch64 state */
+#define ARM_TBFLAG_AA64_EL_SHIFT    0
+#define ARM_TBFLAG_AA64_EL_MASK     (0x3 << ARM_TBFLAG_AA64_EL_SHIFT)
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_AARCH64_STATE(F) \
@@ -1103,13 +1105,16 @@ static inline int cpu_mmu_index (CPUARMState *env)
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE(F) \
     (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_AA64_EL(F) \
+    (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     if (is_a64(env)) {
         *pc = env->pc;
-        *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
+        *flags = ARM_TBFLAG_AARCH64_STATE_MASK
+            | (arm_current_pl(env) << ARM_TBFLAG_AA64_EL_SHIFT);
     } else {
         int privmode;
         *pc = env->regs[15];

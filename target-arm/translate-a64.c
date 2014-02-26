@@ -9013,7 +9013,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = 0;
+    dc->user = (ARM_TBFLAG_AA64_EL(tb->flags) == 0);
 #endif
     dc->vfp_enabled = 0;
     dc->vec_len = 0;
