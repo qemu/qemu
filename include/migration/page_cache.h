@@ -66,7 +66,7 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr);
  * @addr: page address
  * @pdata: pointer to the page
  */
-int cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata);
+int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata);
 
 /**
  * cache_resize: resize the page cache. In case of size reduction the extra

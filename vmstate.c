@@ -321,23 +321,24 @@ const VMStateInfo vmstate_info_int32_equal = {
     .put  = put_int32,
 };
 
-/* 32 bit int. See that the received value is the less or the same
-   than the one in the field */
+/* 32 bit int. Check that the received value is less than or equal to
+   the one in the field */
 
 static int get_int32_le(QEMUFile *f, void *pv, size_t size)
 {
-    int32_t *old = pv;
-    int32_t new;
-    qemu_get_sbe32s(f, &new);
+    int32_t *cur = pv;
+    int32_t loaded;
+    qemu_get_sbe32s(f, &loaded);
 
-    if (*old <= new) {
+    if (loaded <= *cur) {
+        *cur = loaded;
         return 0;
     }
     return -EINVAL;
 }
 
 const VMStateInfo vmstate_info_int32_le = {
-    .name = "int32 equal",
+    .name = "int32 le",
     .get  = get_int32_le,
     .put  = put_int32,
 };

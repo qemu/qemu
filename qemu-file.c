@@ -100,7 +100,14 @@ static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
                             int size)
 {
     QEMUFileStdio *s = opaque;
-    return fwrite(buf, 1, size, s->stdio_file);
+    int res;
+
+    res = fwrite(buf, 1, size, s->stdio_file);
+
+    if (res != size) {
+        return -EIO;	/* fake errno value */
+    }
+    return res;
 }
 
 static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
