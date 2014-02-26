@@ -14,10 +14,10 @@
  */
 
 #include <stdlib.h>
+#include "qemu-common.h"
 #ifdef CONFIG_MODULES
 #include <gmodule.h>
 #endif
-#include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/module.h"
 
