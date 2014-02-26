@@ -60,7 +60,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
         return;
     }
 
-    if (ri->type & ARM_CP_64BIT) {
+    if (cpreg_field_is_64bit(ri)) {
         CPREG_FIELD64(&cpu->env, ri) = ri->resetvalue;
     } else {
         CPREG_FIELD32(&cpu->env, ri) = ri->resetvalue;
@@ -91,9 +91,10 @@ static void arm_cpu_reset(CPUState *s)
         env->aarch64 = 1;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
+        /* Userspace expects access to CTL_EL0 and the cache ops */
+        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI;
 #else
-        env->pstate = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F
-            | PSTATE_MODE_EL1h;
+        env->pstate = PSTATE_MODE_EL1h;
 #endif
     }
 
@@ -108,13 +109,14 @@ static void arm_cpu_reset(CPUState *s)
     }
 #else
     /* SVC mode with interrupts disabled.  */
-    env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+    env->uncached_cpsr = ARM_CPU_MODE_SVC;
+    env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
     /* On ARMv7-M the CPSR_I is the value of the PRIMASK register, and is
        clear at reset.  Initial SP and PC are loaded from ROM.  */
     if (IS_M(env)) {
         uint32_t pc;
         uint8_t *rom;
-        env->uncached_cpsr &= ~CPSR_I;
+        env->daif &= ~PSTATE_I;
         rom = rom_ptr(0);
         if (rom) {
             /* We should really use ldl_phys here, in case the guest
@@ -922,6 +924,7 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_CRC);
 #ifdef TARGET_AARCH64
     set_feature(&cpu->env, ARM_FEATURE_AARCH64);
 #endif

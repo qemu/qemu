@@ -1080,9 +1080,11 @@ static void handle_hint(DisasContext *s, uint32_t insn,
     switch (selector) {
     case 0: /* NOP */
         return;
+    case 3: /* WFI */
+        s->is_jmp = DISAS_WFI;
+        return;
     case 1: /* YIELD */
     case 2: /* WFE */
-    case 3: /* WFI */
     case 4: /* SEV */
     case 5: /* SEVL */
         /* we treat all as NOP at least for now */
@@ -1126,7 +1128,30 @@ static void handle_sync(DisasContext *s, uint32_t insn,
 static void handle_msr_i(DisasContext *s, uint32_t insn,
                          unsigned int op1, unsigned int op2, unsigned int crm)
 {
-    unsupported_encoding(s, insn);
+    int op = op1 << 3 | op2;
+    switch (op) {
+    case 0x05: /* SPSel */
+        if (s->current_pl == 0) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
+    case 0x1e: /* DAIFSet */
+    case 0x1f: /* DAIFClear */
+    {
+        TCGv_i32 tcg_imm = tcg_const_i32(crm);
+        TCGv_i32 tcg_op = tcg_const_i32(op);
+        gen_a64_set_pc_im(s->pc - 4);
+        gen_helper_msr_i_pstate(cpu_env, tcg_op, tcg_imm);
+        tcg_temp_free_i32(tcg_imm);
+        tcg_temp_free_i32(tcg_op);
+        s->is_jmp = DISAS_UPDATE;
+        break;
+    }
+    default:
+        unallocated_encoding(s);
+        return;
+    }
 }
 
 static void gen_get_nzcv(TCGv_i64 tcg_rt)
@@ -1230,6 +1255,13 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         } else {
             gen_set_nzcv(tcg_rt);
         }
+        return;
+    case ARM_CP_CURRENTEL:
+        /* Reads as current EL value from pstate, which is
+         * guaranteed to be constant by the tb flags.
+         */
+        tcg_rt = cpu_reg(s, rt);
+        tcg_gen_movi_i64(tcg_rt, s->current_pl << 2);
         return;
     default:
         break;
@@ -9006,7 +9038,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = 0;
+    dc->user = (ARM_TBFLAG_AA64_EL(tb->flags) == 0);
 #endif
     dc->vfp_enabled = 0;
     dc->vec_len = 0;
@@ -9117,6 +9149,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             /* This is a special case because we don't want to just halt the CPU
              * if trying to debug across a WFI.
              */
+            gen_a64_set_pc_im(dc->pc);
             gen_helper_wfi(cpu_env);
             break;
         }

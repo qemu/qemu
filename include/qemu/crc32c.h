@@ -25,8 +25,8 @@
  *
  */
 
-#ifndef QEMU_CRC32_H
-#define QEMU_CRC32_H
+#ifndef QEMU_CRC32C_H
+#define QEMU_CRC32C_H
 
 #include "qemu-common.h"
 

@@ -1298,10 +1298,17 @@ static int kvm_irqchip_create(KVMState *s)
         return 0;
     }
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+    /* First probe and see if there's a arch-specific hook to create the
+     * in-kernel irqchip for us */
+    ret = kvm_arch_irqchip_create(s);
     if (ret < 0) {
-        fprintf(stderr, "Create kernel irqchip failed\n");
         return ret;
+    } else if (ret == 0) {
+        ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        if (ret < 0) {
+            fprintf(stderr, "Create kernel irqchip failed\n");
+            return ret;
+        }
     }
 
     kvm_kernel_irqchip = true;
@@ -1777,6 +1784,24 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     return ret;
 }
 
+int kvm_device_ioctl(int fd, int type, ...)
+{
+    int ret;
+    void *arg;
+    va_list ap;
+
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    trace_kvm_device_ioctl(fd, type, arg);
+    ret = ioctl(fd, type, arg);
+    if (ret == -1) {
+        ret = -errno;
+    }
+    return ret;
+}
+
 int kvm_has_sync_mmu(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
@@ -2057,4 +2082,25 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 int kvm_on_sigbus(int code, void *addr)
 {
     return kvm_arch_on_sigbus(code, addr);
+}
+
+int kvm_create_device(KVMState *s, uint64_t type, bool test)
+{
+    int ret;
+    struct kvm_create_device create_dev;
+
+    create_dev.type = type;
+    create_dev.fd = -1;
+    create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
+
+    if (!kvm_check_extension(s, KVM_CAP_DEVICE_CTRL)) {
+        return -ENOTSUP;
+    }
+
+    ret = kvm_vm_ioctl(s, KVM_CREATE_DEVICE, &create_dev);
+    if (ret) {
+        return ret;
+    }
+
+    return test ? 0 : create_dev.fd;
 }

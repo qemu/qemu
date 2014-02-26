@@ -176,7 +176,8 @@ static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
         return val;
     case 0x14: /* IA0 */
         return s->conf.macaddr.a[0] | (s->conf.macaddr.a[1] << 8)
-               | (s->conf.macaddr.a[2] << 16) | (s->conf.macaddr.a[3] << 24);
+            | (s->conf.macaddr.a[2] << 16)
+            | ((uint32_t)s->conf.macaddr.a[3] << 24);
     case 0x18: /* IA1 */
         return s->conf.macaddr.a[4] | (s->conf.macaddr.a[5] << 8);
     case 0x1c: /* THR */

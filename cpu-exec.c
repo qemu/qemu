@@ -477,7 +477,7 @@ int cpu_exec(CPUArchState *env)
                     }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
-                        && !(env->uncached_cpsr & CPSR_F)) {
+                        && !(env->daif & PSTATE_F)) {
                         env->exception_index = EXCP_FIQ;
                         cc->do_interrupt(cpu);
                         next_tb = 0;
@@ -493,7 +493,7 @@ int cpu_exec(CPUArchState *env)
                        pc contains a magic address.  */
                     if (interrupt_request & CPU_INTERRUPT_HARD
                         && ((IS_M(env) && env->regs[15] < 0xfffffff0)
-                            || !(env->uncached_cpsr & CPSR_I))) {
+                            || !(env->daif & PSTATE_I))) {
                         env->exception_index = EXCP_IRQ;
                         cc->do_interrupt(cpu);
                         next_tb = 0;
