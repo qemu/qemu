@@ -97,6 +97,7 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
     GICState *s = KVM_ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
+    int ret;
 
     kgc->parent_realize(dev, errp);
     if (error_is_set(errp)) {
@@ -119,13 +120,27 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->parent_irq[i]);
     }
+
+    /* Try to create the device via the device control API */
+    s->dev_fd = -1;
+    ret = kvm_create_device(kvm_state, KVM_DEV_TYPE_ARM_VGIC_V2, false);
+    if (ret >= 0) {
+        s->dev_fd = ret;
+    } else if (ret != -ENODEV && ret != -ENOTSUP) {
+        error_setg_errno(errp, -ret, "error creating in-kernel VGIC");
+        return;
+    }
+
     /* Distributor */
     memory_region_init_reservation(&s->iomem, OBJECT(s),
                                    "kvm-gic_dist", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     kvm_arm_register_device(&s->iomem,
                             (KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT)
-                            | KVM_VGIC_V2_ADDR_TYPE_DIST);
+                            | KVM_VGIC_V2_ADDR_TYPE_DIST,
+                            KVM_DEV_ARM_VGIC_GRP_ADDR,
+                            KVM_VGIC_V2_ADDR_TYPE_DIST,
+                            s->dev_fd);
     /* CPU interface for current core. Unlike arm_gic, we don't
      * provide the "interface for core #N" memory regions, because
      * cores with a VGIC don't have those.
@@ -135,7 +150,10 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->cpuiomem[0]);
     kvm_arm_register_device(&s->cpuiomem[0],
                             (KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT)
-                            | KVM_VGIC_V2_ADDR_TYPE_CPU);
+                            | KVM_VGIC_V2_ADDR_TYPE_CPU,
+                            KVM_DEV_ARM_VGIC_GRP_ADDR,
+                            KVM_VGIC_V2_ADDR_TYPE_CPU,
+                            s->dev_fd);
 }
 
 static void kvm_arm_gic_class_init(ObjectClass *klass, void *data)

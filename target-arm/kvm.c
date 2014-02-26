@@ -165,8 +165,10 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
  */
 typedef struct KVMDevice {
     struct kvm_arm_device_addr kda;
+    struct kvm_device_attr kdattr;
     MemoryRegion *mr;
     QSLIST_ENTRY(KVMDevice) entries;
+    int dev_fd;
 } KVMDevice;
 
 static QSLIST_HEAD(kvm_devices_head, KVMDevice) kvm_devices_head;
@@ -200,6 +202,29 @@ static MemoryListener devlistener = {
     .region_del = kvm_arm_devlistener_del,
 };
 
+static void kvm_arm_set_device_addr(KVMDevice *kd)
+{
+    struct kvm_device_attr *attr = &kd->kdattr;
+    int ret;
+
+    /* If the device control API is available and we have a device fd on the
+     * KVMDevice struct, let's use the newer API
+     */
+    if (kd->dev_fd >= 0) {
+        uint64_t addr = kd->kda.addr;
+        attr->addr = (uintptr_t)&addr;
+        ret = kvm_device_ioctl(kd->dev_fd, KVM_SET_DEVICE_ATTR, attr);
+    } else {
+        ret = kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR, &kd->kda);
+    }
+
+    if (ret < 0) {
+        fprintf(stderr, "Failed to set device address: %s\n",
+                strerror(-ret));
+        abort();
+    }
+}
+
 static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
 {
     KVMDevice *kd, *tkd;
@@ -207,12 +232,7 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
     memory_listener_unregister(&devlistener);
     QSLIST_FOREACH_SAFE(kd, &kvm_devices_head, entries, tkd) {
         if (kd->kda.addr != -1) {
-            if (kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR,
-                             &kd->kda) < 0) {
-                fprintf(stderr, "KVM_ARM_SET_DEVICE_ADDRESS failed: %s\n",
-                        strerror(errno));
-                abort();
-            }
+            kvm_arm_set_device_addr(kd);
         }
         memory_region_unref(kd->mr);
         g_free(kd);
@@ -223,7 +243,8 @@ static Notifier notify = {
     .notify = kvm_arm_machine_init_done,
 };
 
-void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
+void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
+                             uint64_t attr, int dev_fd)
 {
     KVMDevice *kd;
 
@@ -239,6 +260,10 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
     kd->mr = mr;
     kd->kda.id = devid;
     kd->kda.addr = -1;
+    kd->kdattr.flags = 0;
+    kd->kdattr.group = group;
+    kd->kdattr.attr = attr;
+    kd->dev_fd = dev_fd;
     QSLIST_INSERT_HEAD(&kvm_devices_head, kd, entries);
     memory_region_ref(kd->mr);
 }
@@ -388,4 +413,20 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 void kvm_arch_init_irq_routing(KVMState *s)
 {
+}
+
+int kvm_arch_irqchip_create(KVMState *s)
+{
+    int ret;
+
+    /* If we can create the VGIC using the newer device control API, we
+     * let the device do this when it initializes itself, otherwise we
+     * fall back to the old API */
+
+    ret = kvm_create_device(s, KVM_DEV_TYPE_ARM_VGIC_V2, true);
+    if (ret == 0) {
+        return 1;
+    }
+
+    return 0;
 }

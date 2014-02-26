@@ -104,6 +104,7 @@ typedef struct GICState {
     MemoryRegion cpuiomem[GIC_NCPU + 1]; /* CPU interfaces */
     uint32_t num_irq;
     uint32_t revision;
+    int dev_fd; /* kvm device fd if backed by kvm vgic support */
 } GICState;
 
 #define TYPE_ARM_GIC_COMMON "arm_gic_common"
