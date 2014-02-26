@@ -49,6 +49,7 @@
 
 #define NUM_SPI_FLASHES 4
 
+#define SPI_BASEADDR 0x40a00000
 #define MEMORY_BASEADDR 0x50000000
 #define FLASH_BASEADDR 0x86000000
 #define INTC_BASEADDR 0x81800000
@@ -56,6 +57,13 @@
 #define UART16550_BASEADDR 0x83e00000
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
+
+#define AXIDMA_IRQ1         0
+#define AXIDMA_IRQ0         1
+#define TIMER_IRQ           2
+#define AXIENET_IRQ         3
+#define SPI_IRQ             4
+#define UART16550_IRQ       5
 
 static void machine_cpu_reset(MicroBlazeCPU *cpu)
 {
@@ -118,7 +126,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     }
 
     serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
-                   irq[5], 115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
+                   irq[UART16550_IRQ], 115200, serial_hds[0],
+                   DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
@@ -156,8 +165,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
         qdev_init_nofail(dev);
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_mmio_map(busdev, 0, 0x40a00000);
-        sysbus_connect_irq(busdev, 0, irq[4]);
+        sysbus_mmio_map(busdev, 0, SPI_BASEADDR);
+        sysbus_connect_irq(busdev, 0, irq[SPI_IRQ]);
 
         spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
 
