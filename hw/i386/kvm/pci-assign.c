@@ -743,6 +743,7 @@ static void assign_failed_examine(AssignedDevice *dev)
         goto fail;
     }
 
+    driver[r] = 0;
     ns = strrchr(driver, '/');
     if (!ns) {
         goto fail;
