@@ -633,6 +633,22 @@ static inline int arm_feature(CPUARMState *env, int feature)
     return (env->features & (1ULL << feature)) != 0;
 }
 
+/* Return true if the specified exception level is running in AArch64 state. */
+static inline bool arm_el_is_aa64(CPUARMState *env, int el)
+{
+    /* We don't currently support EL2 or EL3, and this isn't valid for EL0
+     * (if we're in EL0, is_a64() is what you want, and if we're not in EL0
+     * then the state of EL0 isn't well defined.)
+     */
+    assert(el == 1);
+    /* AArch64-capable CPUs always run with EL1 in AArch64 mode. This
+     * is a QEMU-imposed simplification which we may wish to change later.
+     * If we in future support EL2 and/or EL3, then the state of lower
+     * exception levels is controlled by the HCR.RW and SCR.RW bits.
+     */
+    return arm_feature(env, ARM_FEATURE_AARCH64);
+}
+
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
 /* Interface between CPU and Interrupt controller.  */
