@@ -91,8 +91,8 @@ static void arm_cpu_reset(CPUState *s)
         env->aarch64 = 1;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
-        /* Userspace expects access to CTL_EL0 */
-        env->cp15.c1_sys |= SCTLR_UCT;
+        /* Userspace expects access to CTL_EL0 and the cache ops */
+        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI;
 #else
         env->pstate = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F
             | PSTATE_MODE_EL1h;

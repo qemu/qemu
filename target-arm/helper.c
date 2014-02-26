@@ -1513,6 +1513,18 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     vfp_set_fpsr(env, value);
 }
 
+static CPAccessResult aa64_cacheop_access(CPUARMState *env,
+                                          const ARMCPRegInfo *ri)
+{
+    /* Cache invalidate/clean: NOP, but EL0 must UNDEF unless
+     * SCTLR_EL1.UCI is set.
+     */
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCI)) {
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -1536,6 +1548,41 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "CURRENTEL", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 2, .crn = 4, .crm = 2,
       .access = PL1_R, .type = ARM_CP_CURRENTEL },
+    /* Cache ops: all NOPs since we don't emulate caches */
+    { .name = "IC_IALLUIS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 1, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "IC_IALLU", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 5, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "IC_IVAU", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 5, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_NOP,
+      .accessfn = aa64_cacheop_access },
+    { .name = "DC_IVAC", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "DC_ISW", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "DC_CVAC", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 10, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_NOP,
+      .accessfn = aa64_cacheop_access },
+    { .name = "DC_CSW", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 10, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "DC_CVAU", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 11, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_NOP,
+      .accessfn = aa64_cacheop_access },
+    { .name = "DC_CIVAC", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 14, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_NOP,
+      .accessfn = aa64_cacheop_access },
+    { .name = "DC_CISW", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
