@@ -1525,6 +1525,30 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
     return CP_ACCESS_OK;
 }
 
+static void tlbi_aa64_va_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    /* Invalidate by VA (AArch64 version) */
+    uint64_t pageaddr = value << 12;
+    tlb_flush_page(env, pageaddr);
+}
+
+static void tlbi_aa64_vaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    /* Invalidate by VA, all ASIDs (AArch64 version) */
+    uint64_t pageaddr = value << 12;
+    tlb_flush_page(env, pageaddr);
+}
+
+static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
+{
+    /* Invalidate by ASID (AArch64 version) */
+    int asid = extract64(value, 48, 16);
+    tlb_flush(env, asid == 0);
+}
+
 static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* Minimal set of EL0-visible registers. This will need to be expanded
      * significantly for system emulation of AArch64 CPUs.
@@ -1583,6 +1607,55 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "DC_CISW", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NOP },
+    /* TLBI operations */
+    { .name = "TLBI_VMALLE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbiall_write },
+    { .name = "TLBI_VAE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_va_write },
+    { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_asid_write },
+    { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 3,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_vaa_write },
+    { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 5,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_va_write },
+    { .name = "TLBI_VAALE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 3, .opc2 = 7,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_vaa_write },
+    { .name = "TLBI_VMALLE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 0,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbiall_write },
+    { .name = "TLBI_VAE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_va_write },
+    { .name = "TLBI_ASIDE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_asid_write },
+    { .name = "TLBI_VAAE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 3,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_vaa_write },
+    { .name = "TLBI_VALE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 5,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_va_write },
+    { .name = "TLBI_VAALE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc2 = 0, .crn = 8, .crm = 7, .opc2 = 7,
+      .access = PL1_W, .type = ARM_CP_NO_MIGRATE,
+      .writefn = tlbi_aa64_vaa_write },
     REGINFO_SENTINEL
 };
 
