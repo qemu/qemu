@@ -499,6 +499,9 @@ DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 DEF_HELPER_4(crypto_aese, void, env, i32, i32, i32)
 DEF_HELPER_4(crypto_aesmc, void, env, i32, i32, i32)
 
+DEF_HELPER_FLAGS_3(crc32, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
+DEF_HELPER_FLAGS_3(crc32c, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
+
 #ifdef TARGET_AARCH64
 #include "helper-a64.h"
 #endif

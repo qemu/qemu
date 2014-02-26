@@ -924,6 +924,7 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_CRC);
 #ifdef TARGET_AARCH64
     set_feature(&cpu->env, ARM_FEATURE_AARCH64);
 #endif

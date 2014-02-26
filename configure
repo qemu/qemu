@@ -1657,7 +1657,7 @@ EOF
             "Make sure to have the zlib libs and headers installed."
     fi
 fi
-libs_softmmu="$libs_softmmu -lz"
+LIBS="$LIBS -lz"
 
 ##########################################
 # libseccomp check
