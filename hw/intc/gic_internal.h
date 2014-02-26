@@ -40,7 +40,7 @@
 #define GIC_SET_MODEL(irq) s->irq_state[irq].model = true
 #define GIC_CLEAR_MODEL(irq) s->irq_state[irq].model = false
 #define GIC_TEST_MODEL(irq) s->irq_state[irq].model
-#define GIC_SET_LEVEL(irq, cm) s->irq_state[irq].level = (cm)
+#define GIC_SET_LEVEL(irq, cm) s->irq_state[irq].level |= (cm)
 #define GIC_CLEAR_LEVEL(irq, cm) s->irq_state[irq].level &= ~(cm)
 #define GIC_TEST_LEVEL(irq, cm) ((s->irq_state[irq].level & (cm)) != 0)
 #define GIC_SET_EDGE_TRIGGER(irq) s->irq_state[irq].edge_trigger = true
