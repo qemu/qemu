@@ -1856,6 +1856,51 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_V8)) {
+        /* AArch64 ID registers, which all have impdef reset values */
+        ARMCPRegInfo v8_idregs[] = {
+            { .name = "ID_AA64PFR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64pfr0 },
+            { .name = "ID_AA64PFR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64pfr1},
+            { .name = "ID_AA64DFR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64dfr0 },
+            { .name = "ID_AA64DFR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64dfr1 },
+            { .name = "ID_AA64AFR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64afr0 },
+            { .name = "ID_AA64AFR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 5,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64afr1 },
+            { .name = "ID_AA64ISAR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64isar0 },
+            { .name = "ID_AA64ISAR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64isar1 },
+            { .name = "ID_AA64MMFR0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 0,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64mmfr0 },
+            { .name = "ID_AA64MMFR1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_aa64mmfr1 },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, v8_idregs);
         define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
