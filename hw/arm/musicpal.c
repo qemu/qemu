@@ -92,8 +92,6 @@
 #define MP_ETH_CRDP3            0x4AC
 #define MP_ETH_CTDP0            0x4E0
 #define MP_ETH_CTDP1            0x4E4
-#define MP_ETH_CTDP2            0x4E8
-#define MP_ETH_CTDP3            0x4EC
 
 /* MII PHY access */
 #define MP_ETH_SMIR_DATA        0x0000FFFF
@@ -308,7 +306,7 @@ static uint64_t mv88w8618_eth_read(void *opaque, hwaddr offset,
     case MP_ETH_CRDP0 ... MP_ETH_CRDP3:
         return s->rx_queue[(offset - MP_ETH_CRDP0)/4];
 
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
+    case MP_ETH_CTDP0 ... MP_ETH_CTDP1:
         return s->tx_queue[(offset - MP_ETH_CTDP0)/4];
 
     default:
@@ -362,7 +360,7 @@ static void mv88w8618_eth_write(void *opaque, hwaddr offset,
             s->cur_rx[(offset - MP_ETH_CRDP0)/4] = value;
         break;
 
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
+    case MP_ETH_CTDP0 ... MP_ETH_CTDP1:
         s->tx_queue[(offset - MP_ETH_CTDP0)/4] = value;
         break;
     }
