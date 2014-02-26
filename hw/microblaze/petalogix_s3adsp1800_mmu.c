@@ -119,7 +119,14 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
-    xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
+    qemu_check_nic_model(&nd_table[0], "xlnx.xps-ethernetlite");
+    dev = qdev_create(NULL, "xlnx.xps-ethernetlite");
+    qdev_set_nic_properties(dev, &nd_table[0]);
+    qdev_prop_set_uint32(dev, "tx-ping-pong", 0);
+    qdev_prop_set_uint32(dev, "rx-ping-pong", 0);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ETHLITE_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
                            args->initrd_filename,
