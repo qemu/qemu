@@ -873,6 +873,7 @@ static void pl330_dmasev(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
         DB_PRINT("event interrupt raised %" PRId8 "\n", ev_id);
         qemu_irq_raise(ch->parent->irq[ev_id]);
     }
+    DB_PRINT("event raised %" PRId8 "\n", ev_id);
     ch->parent->ev_status |= (1 << ev_id);
 }
 
@@ -975,6 +976,7 @@ static void pl330_dmawfe(PL330Chan *ch, uint8_t opcode,
             }
         }
         ch->parent->ev_status &= ~(1 << ev_id);
+        DB_PRINT("event lowered %" PRIx8 "\n", ev_id);
     } else {
         ch->stall = 1;
     }
