@@ -194,6 +194,28 @@ int kvm_vm_ioctl(KVMState *s, int type, ...);
 
 int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 
+/**
+ * kvm_device_ioctl - call an ioctl on a kvm device
+ * @fd: The KVM device file descriptor as returned from KVM_CREATE_DEVICE
+ * @type: The device-ctrl ioctl number
+ *
+ * Returns: -errno on error, nonnegative on success
+ */
+int kvm_device_ioctl(int fd, int type, ...);
+
+/**
+ * kvm_create_device - create a KVM device for the device control API
+ * @KVMState: The KVMState pointer
+ * @type: The KVM device type (see Documentation/virtual/kvm/devices in the
+ *        kernel source)
+ * @test: If true, only test if device can be created, but don't actually
+ *        create the device.
+ *
+ * Returns: -errno on error, nonnegative on success: @test ? 0 : device fd;
+ */
+int kvm_create_device(KVMState *s, uint64_t type, bool test);
+
+
 /* Arch specific hooks */
 
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];

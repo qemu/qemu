@@ -1784,6 +1784,24 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     return ret;
 }
 
+int kvm_device_ioctl(int fd, int type, ...)
+{
+    int ret;
+    void *arg;
+    va_list ap;
+
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    trace_kvm_device_ioctl(fd, type, arg);
+    ret = ioctl(fd, type, arg);
+    if (ret == -1) {
+        ret = -errno;
+    }
+    return ret;
+}
+
 int kvm_has_sync_mmu(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
@@ -2064,4 +2082,25 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 int kvm_on_sigbus(int code, void *addr)
 {
     return kvm_arch_on_sigbus(code, addr);
+}
+
+int kvm_create_device(KVMState *s, uint64_t type, bool test)
+{
+    int ret;
+    struct kvm_create_device create_dev;
+
+    create_dev.type = type;
+    create_dev.fd = -1;
+    create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
+
+    if (!kvm_check_extension(s, KVM_CAP_DEVICE_CTRL)) {
+        return -ENOTSUP;
+    }
+
+    ret = kvm_vm_ioctl(s, KVM_CREATE_DEVICE, &create_dev);
+    if (ret) {
+        return ret;
+    }
+
+    return test ? 0 : create_dev.fd;
 }
