@@ -1948,7 +1948,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     /* Generic registers whose values depend on the implementation */
     {
         ARMCPRegInfo sctlr = {
-            .name = "SCTLR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+            .name = "SCTLR", .state = ARM_CP_STATE_BOTH,
+            .opc0 = 3, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
             .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_sys),
             .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr,
             .raw_writefn = raw_write,
