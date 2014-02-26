@@ -1606,7 +1606,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
 
     pl330_queue_init(&s->read_queue, s->rd_q_dep, s);
     pl330_queue_init(&s->write_queue, s->wr_q_dep, s);
-    pl330_fifo_init(&s->fifo, s->data_buffer_dep);
+    pl330_fifo_init(&s->fifo, s->data_width / 4 * s->data_buffer_dep);
 }
 
 static Property pl330_properties[] = {
