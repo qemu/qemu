@@ -1108,7 +1108,6 @@ static int pl330_chan_exec(PL330Chan *ch)
             ch->state != pl330_chan_waiting_periph &&
             ch->state != pl330_chan_at_barrier &&
             ch->state != pl330_chan_waiting_event) {
-        DB_PRINT("%d\n", ch->state);
         return 0;
     }
     ch->stall = 0;
