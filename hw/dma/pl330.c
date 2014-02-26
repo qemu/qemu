@@ -601,10 +601,12 @@ static inline void pl330_fault(PL330Chan *ch, uint32_t flags)
  *   LEN - number of elements in ARGS array
  */
 
-static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+static void pl330_dmaadxh(PL330Chan *ch, uint8_t *args, bool ra, bool neg)
 {
-    uint16_t im = (((uint16_t)args[1]) << 8) | ((uint16_t)args[0]);
-    uint8_t ra = (opcode >> 1) & 1;
+    uint32_t im = (args[1] << 8) | args[0];
+    if (neg) {
+        im |= 0xffffu << 16;
+    }
 
     if (ch->is_manager) {
         pl330_fault(ch, PL330_FAULT_UNDEF_INSTR);
@@ -615,6 +617,16 @@ static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
     } else {
         ch->src += im;
     }
+}
+
+static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+{
+    pl330_dmaadxh(ch, args, extract32(opcode, 1, 1), false);
+}
+
+static void pl330_dmaadnh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+{
+    pl330_dmaadxh(ch, args, extract32(opcode, 1, 1), true);
 }
 
 static void pl330_dmaend(PL330Chan *ch, uint8_t opcode,
@@ -1042,6 +1054,7 @@ static void pl330_dmawmb(PL330Chan *ch, uint8_t opcode,
 /* NULL terminated array of the instruction descriptions. */
 static const PL330InsnDesc insn_desc[] = {
     { .opcode = 0x54, .opmask = 0xFD, .size = 3, .exec = pl330_dmaaddh, },
+    { .opcode = 0x5c, .opmask = 0xFD, .size = 3, .exec = pl330_dmaadnh, },
     { .opcode = 0x00, .opmask = 0xFF, .size = 1, .exec = pl330_dmaend, },
     { .opcode = 0x35, .opmask = 0xFF, .size = 2, .exec = pl330_dmaflushp, },
     { .opcode = 0xA0, .opmask = 0xFD, .size = 6, .exec = pl330_dmago, },
