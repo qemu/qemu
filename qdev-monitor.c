@@ -548,16 +548,18 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                                   OBJECT(dev), NULL);
         g_free(name);
     }
+
+    dev->opts = opts;
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
+        dev->opts = NULL;
         object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
         qerror_report(QERR_DEVICE_INIT_FAILED, driver);
         return NULL;
     }
-    dev->opts = opts;
     return dev;
 }
 
