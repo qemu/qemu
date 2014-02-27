@@ -411,7 +411,7 @@ static bool compare_signature(AcpiSdtTable *sdt, uint32_t signature)
    return sdt->header.signature == signature;
 }
 
-static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
+static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
     GError *error = NULL;
@@ -440,18 +440,22 @@ static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
     g_string_append_printf(command_line, "-d %s", sdt->aml_file);
 
     /* pass 'out' and 'out_err' in order to be redirected */
-    g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
+    ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
     g_assert_no_error(error);
 
-    ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
-                              &sdt->asl_len, &error);
-    g_assert(ret);
-    g_assert_no_error(error);
-    g_assert(sdt->asl_len);
+    if (ret) {
+        ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
+                                  &sdt->asl_len, &error);
+        g_assert(ret);
+        g_assert_no_error(error);
+        g_assert(sdt->asl_len);
+    }
 
     g_free(out);
     g_free(out_err);
     g_string_free(command_line, true);
+
+    return !ret;
 }
 
 #define COMMENT_END "*/"
@@ -518,6 +522,7 @@ static void test_acpi_asl(test_data *data)
     int i;
     AcpiSdtTable *sdt, *exp_sdt;
     test_data exp_data;
+    gboolean exp_err, err;
 
     memset(&exp_data, 0, sizeof(exp_data));
     exp_data.tables = load_expected_aml(data);
@@ -528,11 +533,14 @@ static void test_acpi_asl(test_data *data)
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
         exp_sdt = &g_array_index(exp_data.tables, AcpiSdtTable, i);
 
-        load_asl(data->tables, sdt);
+        err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
-        load_asl(exp_data.tables, exp_sdt);
+        exp_err = load_asl(exp_data.tables, exp_sdt);
         exp_asl = normalize_asl(exp_sdt->asl);
+
+        /* TODO: check for warnings */
+        g_assert(!err || exp_err);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
             sdt->tmp_files_retain = true;
