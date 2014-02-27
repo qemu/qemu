@@ -883,6 +883,35 @@
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
 
 ##
+# @IOThreadInfo:
+#
+# Information about an iothread
+#
+# @id: the identifier of the iothread
+#
+# @thread-id: ID of the underlying host thread
+#
+# Since: 2.0
+##
+{ 'type': 'IOThreadInfo',
+  'data': {'id': 'str', 'thread-id': 'int'} }
+
+##
+# @query-iothreads:
+#
+# Returns a list of information about each iothread.
+#
+# Note this list excludes the QEMU main loop thread, which is not declared
+# using the -object iothread command-line option.  It is always the main thread
+# of the process.
+#
+# Returns: a list of @IOThreadInfo for each iothread
+#
+# Since: 2.0
+##
+{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
+
+##
 # @BlockDeviceInfo:
 #
 # Information about the backing device for a block device.

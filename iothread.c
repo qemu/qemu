@@ -17,6 +17,7 @@
 #include "qemu/thread.h"
 #include "block/aio.h"
 #include "sysemu/iothread.h"
+#include "qmp-commands.h"
 
 #define IOTHREADS_PATH "/objects"
 
@@ -139,4 +140,39 @@ char *iothread_get_id(IOThread *iothread)
 AioContext *iothread_get_aio_context(IOThread *iothread)
 {
     return iothread->ctx;
+}
+
+static int query_one_iothread(Object *object, void *opaque)
+{
+    IOThreadInfoList ***prev = opaque;
+    IOThreadInfoList *elem;
+    IOThreadInfo *info;
+    IOThread *iothread;
+
+    iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
+    if (!iothread) {
+        return 0;
+    }
+
+    info = g_new0(IOThreadInfo, 1);
+    info->id = iothread_get_id(iothread);
+    info->thread_id = iothread->thread_id;
+
+    elem = g_new0(IOThreadInfoList, 1);
+    elem->value = info;
+    elem->next = NULL;
+
+    **prev = elem;
+    *prev = &elem->next;
+    return 0;
+}
+
+IOThreadInfoList *qmp_query_iothreads(Error **errp)
+{
+    IOThreadInfoList *head = NULL;
+    IOThreadInfoList **prev = &head;
+    Object *container = container_get(object_get_root(), IOTHREADS_PATH);
+
+    object_child_foreach(container, query_one_iothread, &prev);
+    return head;
 }
