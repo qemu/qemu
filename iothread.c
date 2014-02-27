@@ -26,7 +26,10 @@ struct IOThread {
 
     QemuThread thread;
     AioContext *ctx;
+    QemuMutex init_done_lock;
+    QemuCond init_done_cond;    /* is thread initialization done? */
     bool stopping;
+    int thread_id;
 };
 
 #define IOTHREAD_GET_CLASS(obj) \
@@ -37,6 +40,11 @@ struct IOThread {
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
+
+    qemu_mutex_lock(&iothread->init_done_lock);
+    iothread->thread_id = qemu_get_thread_id();
+    qemu_cond_signal(&iothread->init_done_cond);
+    qemu_mutex_unlock(&iothread->init_done_lock);
 
     while (!iothread->stopping) {
         aio_context_acquire(iothread->ctx);
@@ -55,6 +63,8 @@ static void iothread_instance_finalize(Object *obj)
     iothread->stopping = true;
     aio_notify(iothread->ctx);
     qemu_thread_join(&iothread->thread);
+    qemu_cond_destroy(&iothread->init_done_cond);
+    qemu_mutex_destroy(&iothread->init_done_lock);
     aio_context_unref(iothread->ctx);
 }
 
@@ -64,12 +74,24 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 
     iothread->stopping = false;
     iothread->ctx = aio_context_new();
+    iothread->thread_id = -1;
+
+    qemu_mutex_init(&iothread->init_done_lock);
+    qemu_cond_init(&iothread->init_done_cond);
 
     /* This assumes we are called from a thread with useful CPU affinity for us
      * to inherit.
      */
     qemu_thread_create(&iothread->thread, "iothread", iothread_run,
                        iothread, QEMU_THREAD_JOINABLE);
+
+    /* Wait for initialization to complete */
+    qemu_mutex_lock(&iothread->init_done_lock);
+    while (iothread->thread_id == -1) {
+        qemu_cond_wait(&iothread->init_done_cond,
+                       &iothread->init_done_lock);
+    }
+    qemu_mutex_unlock(&iothread->init_done_lock);
 }
 
 static void iothread_class_init(ObjectClass *klass, void *class_data)
