@@ -1047,21 +1047,27 @@ static inline void tcg_out_addsub2(TCGContext *s, int ext, TCGReg rl,
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ret_ldub_mmu,
-    helper_ret_lduw_mmu,
-    helper_ret_ldul_mmu,
-    helper_ret_ldq_mmu,
+static const void * const qemu_ld_helpers[16] = {
+    [MO_UB]   = helper_ret_ldub_mmu,
+    [MO_LEUW] = helper_le_lduw_mmu,
+    [MO_LEUL] = helper_le_ldul_mmu,
+    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_BEUW] = helper_be_lduw_mmu,
+    [MO_BEUL] = helper_be_ldul_mmu,
+    [MO_BEQ]  = helper_be_ldq_mmu,
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
  *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static const void * const qemu_st_helpers[4] = {
-    helper_ret_stb_mmu,
-    helper_ret_stw_mmu,
-    helper_ret_stl_mmu,
-    helper_ret_stq_mmu,
+static const void * const qemu_st_helpers[16] = {
+    [MO_UB]   = helper_ret_stb_mmu,
+    [MO_LEUW] = helper_le_stw_mmu,
+    [MO_LEUL] = helper_le_stl_mmu,
+    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_BEUW] = helper_be_stw_mmu,
+    [MO_BEUL] = helper_be_stl_mmu,
+    [MO_BEQ]  = helper_be_stq_mmu,
 };
 
 static inline void tcg_out_adr(TCGContext *s, TCGReg rd, uintptr_t addr)
@@ -1082,7 +1088,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
     tcg_out_adr(s, TCG_REG_X3, (intptr_t)lb->raddr);
-    tcg_out_call(s, (intptr_t)qemu_ld_helpers[size]);
+    tcg_out_call(s, (intptr_t)qemu_ld_helpers[opc & ~MO_SIGN]);
     if (opc & MO_SIGN) {
         tcg_out_sxt(s, TCG_TYPE_I64, size, lb->datalo_reg, TCG_REG_X0);
     } else {
@@ -1094,7 +1100,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOp size = lb->opc;
+    TCGMemOp opc = lb->opc;
+    TCGMemOp size = opc & MO_SIZE;
 
     reloc_pc19(lb->label_ptr[0], (intptr_t)s->code_ptr);
 
@@ -1103,7 +1110,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, size == MO_64, TCG_REG_X2, lb->datalo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X3, lb->mem_index);
     tcg_out_adr(s, TCG_REG_X4, (intptr_t)lb->raddr);
-    tcg_out_call(s, (intptr_t)qemu_st_helpers[size]);
+    tcg_out_call(s, (intptr_t)qemu_st_helpers[opc]);
     tcg_out_goto(s, (intptr_t)lb->raddr);
 }
 
@@ -1572,39 +1579,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_insn(s, 3506, CSEL, ext, a0, REG0(3), REG0(4), args[5]);
         break;
 
-    case INDEX_op_qemu_ld8u:
-        tcg_out_qemu_ld(s, a0, a1, MO_UB, a2);
+    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld_i64:
+        tcg_out_qemu_ld(s, a0, a1, a2, args[3]);
         break;
-    case INDEX_op_qemu_ld8s:
-        tcg_out_qemu_ld(s, a0, a1, MO_SB, a2);
-        break;
-    case INDEX_op_qemu_ld16u:
-        tcg_out_qemu_ld(s, a0, a1, MO_TEUW, a2);
-        break;
-    case INDEX_op_qemu_ld16s:
-        tcg_out_qemu_ld(s, a0, a1, MO_TESW, a2);
-        break;
-    case INDEX_op_qemu_ld32u:
-    case INDEX_op_qemu_ld32:
-        tcg_out_qemu_ld(s, a0, a1, MO_TEUL, a2);
-        break;
-    case INDEX_op_qemu_ld32s:
-        tcg_out_qemu_ld(s, a0, a1, MO_TESL, a2);
-        break;
-    case INDEX_op_qemu_ld64:
-        tcg_out_qemu_ld(s, a0, a1, MO_TEQ, a2);
-        break;
-    case INDEX_op_qemu_st8:
-        tcg_out_qemu_st(s, a0, a1, MO_UB, a2);
-        break;
-    case INDEX_op_qemu_st16:
-        tcg_out_qemu_st(s, a0, a1, MO_TEUW, a2);
-        break;
-    case INDEX_op_qemu_st32:
-        tcg_out_qemu_st(s, a0, a1, MO_TEUL, a2);
-        break;
-    case INDEX_op_qemu_st64:
-        tcg_out_qemu_st(s, a0, a1, MO_TEQ, a2);
+    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st_i64:
+        tcg_out_qemu_st(s, a0, a1, a2, args[3]);
         break;
 
     case INDEX_op_bswap32_i64:
@@ -1770,20 +1751,10 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_movcond_i32, { "r", "r", "rwA", "rZ", "rZ" } },
     { INDEX_op_movcond_i64, { "r", "r", "rA", "rZ", "rZ" } },
 
-    { INDEX_op_qemu_ld8u, { "r", "l" } },
-    { INDEX_op_qemu_ld8s, { "r", "l" } },
-    { INDEX_op_qemu_ld16u, { "r", "l" } },
-    { INDEX_op_qemu_ld16s, { "r", "l" } },
-    { INDEX_op_qemu_ld32u, { "r", "l" } },
-    { INDEX_op_qemu_ld32s, { "r", "l" } },
-
-    { INDEX_op_qemu_ld32, { "r", "l" } },
-    { INDEX_op_qemu_ld64, { "r", "l" } },
-
-    { INDEX_op_qemu_st8, { "l", "l" } },
-    { INDEX_op_qemu_st16, { "l", "l" } },
-    { INDEX_op_qemu_st32, { "l", "l" } },
-    { INDEX_op_qemu_st64, { "l", "l" } },
+    { INDEX_op_qemu_ld_i32, { "r", "l" } },
+    { INDEX_op_qemu_ld_i64, { "r", "l" } },
+    { INDEX_op_qemu_st_i32, { "l", "l" } },
+    { INDEX_op_qemu_st_i64, { "l", "l" } },
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
