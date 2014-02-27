@@ -271,6 +271,21 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "apic",\
             .property = "version",\
             .value    = stringify(0x11),\
+        },\
+        {\
+            .driver   = "pci-serial",\
+            .property = "prog_if",\
+            .value    = stringify(0),\
+        },\
+        {\
+            .driver   = "pci-serial-2x",\
+            .property = "prof_if",\
+            .value    = stringify(0),\
+        },\
+        {\
+            .driver   = "pci-serial-4x",\
+            .property = "prog_if",\
+            .value    = stringify(0),\
         }
 
 #define PC_COMPAT_1_7 \
