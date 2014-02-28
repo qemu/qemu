@@ -102,7 +102,7 @@ Object *ich9_lpc_find(void);
 #define ICH9_USB_UHCI1_DEV                      29
 #define ICH9_USB_UHCI1_FUNC                     0
 
-/* D30:F0 DMI-to-PCI brdige */
+/* D30:F0 DMI-to-PCI bridge */
 #define ICH9_D2P_BRIDGE                         "ICH9 D2P BRIDGE"
 #define ICH9_D2P_BRIDGE_SAVEVM_VERSION          0
 
