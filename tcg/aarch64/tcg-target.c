@@ -270,6 +270,10 @@ enum aarch64_ldst_op_type { /* type of operation */
    use the section number of the architecture reference manual in which the
    instruction group is described.  */
 typedef enum {
+    /* Compare and branch (immediate).  */
+    I3201_CBZ       = 0x34000000,
+    I3201_CBNZ      = 0x35000000,
+
     /* Conditional branch (immediate).  */
     I3202_B_C       = 0x54000000,
 
@@ -432,6 +436,12 @@ static inline uint32_t tcg_in32(TCGContext *s)
 /* Emit an opcode with "type-checking" of the format.  */
 #define tcg_out_insn(S, FMT, OP, ...) \
     glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+
+static void tcg_out_insn_3201(TCGContext *s, AArch64Insn insn, TCGType ext,
+                              TCGReg rt, int imm19)
+{
+    tcg_out32(s, insn | ext << 31 | (imm19 & 0x7ffff) << 5 | rt);
+}
 
 static void tcg_out_insn_3202(TCGContext *s, AArch64Insn insn,
                               TCGCond c, int imm19)
@@ -913,8 +923,14 @@ static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
 {
     TCGLabel *l = &s->labels[label];
     intptr_t offset;
+    bool need_cmp;
 
-    tcg_out_cmp(s, ext, a, b, b_const);
+    if (b_const && b == 0 && (c == TCG_COND_EQ || c == TCG_COND_NE)) {
+        need_cmp = false;
+    } else {
+        need_cmp = true;
+        tcg_out_cmp(s, ext, a, b, b_const);
+    }
 
     if (!l->has_value) {
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, label, 0);
@@ -925,7 +941,13 @@ static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
         assert(offset >= -0x40000 && offset < 0x40000);
     }
 
-    tcg_out_insn(s, 3202, B_C, c, offset);
+    if (need_cmp) {
+        tcg_out_insn(s, 3202, B_C, c, offset);
+    } else if (c == TCG_COND_EQ) {
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+    } else {
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+    }
 }
 
 static inline void tcg_out_rev(TCGContext *s, TCGType ext,
