@@ -865,18 +865,6 @@ static inline void tcg_out_goto_cond_noaddr(TCGContext *s, TCGCond c)
     tcg_out_insn(s, 3202, B_C, c, old);
 }
 
-static inline void tcg_out_goto_cond(TCGContext *s, TCGCond c, intptr_t target)
-{
-    intptr_t offset = (target - (intptr_t)s->code_ptr) / 4;
-
-    if (offset < -0x40000 || offset >= 0x40000) {
-        /* out of 19bit range */
-        tcg_abort();
-    }
-
-    tcg_out_insn(s, 3202, B_C, c, offset);
-}
-
 static inline void tcg_out_callr(TCGContext *s, TCGReg reg)
 {
     tcg_out_insn(s, 3207, BLR, reg);
@@ -920,17 +908,24 @@ static inline void tcg_out_goto_label(TCGContext *s, int label_index)
     }
 }
 
-static inline void tcg_out_goto_label_cond(TCGContext *s,
-                                           TCGCond c, int label_index)
+static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
+                           TCGArg b, bool b_const, int label)
 {
-    TCGLabel *l = &s->labels[label_index];
+    TCGLabel *l = &s->labels[label];
+    intptr_t offset;
+
+    tcg_out_cmp(s, ext, a, b, b_const);
 
     if (!l->has_value) {
-        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, label_index, 0);
-        tcg_out_goto_cond_noaddr(s, c);
+        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, label, 0);
+        offset = tcg_in32(s) >> 5;
     } else {
-        tcg_out_goto_cond(s, c, l->u.value);
+        offset = l->u.value - (uintptr_t)s->code_ptr;
+        offset >>= 2;
+        assert(offset >= -0x40000 && offset < 0x40000);
     }
+
+    tcg_out_insn(s, 3202, B_C, c, offset);
 }
 
 static inline void tcg_out_rev(TCGContext *s, TCGType ext,
@@ -1571,8 +1566,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         a1 = (int32_t)a1;
         /* FALLTHRU */
     case INDEX_op_brcond_i64:
-        tcg_out_cmp(s, ext, a0, a1, const_args[1]);
-        tcg_out_goto_label_cond(s, a2, args[3]);
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
         break;
 
     case INDEX_op_setcond_i32:
