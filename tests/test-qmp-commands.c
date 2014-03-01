@@ -16,7 +16,9 @@ void qmp_user_def_cmd1(UserDefOne * ud1, Error **errp)
 {
 }
 
-UserDefTwo * qmp_user_def_cmd2(UserDefOne * ud1a, UserDefOne * ud1b, Error **errp)
+UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
+                              bool has_udb1, UserDefOne *ud1b,
+                              Error **errp)
 {
     UserDefTwo *ret;
     UserDefOne *ud1c = g_malloc0(sizeof(UserDefOne));
@@ -24,8 +26,8 @@ UserDefTwo * qmp_user_def_cmd2(UserDefOne * ud1a, UserDefOne * ud1b, Error **err
 
     ud1c->string = strdup(ud1a->string);
     ud1c->integer = ud1a->integer;
-    ud1d->string = strdup(ud1b->string);
-    ud1d->integer = ud1b->integer;
+    ud1d->string = strdup(has_udb1 ? ud1b->string : "blah0");
+    ud1d->integer = has_udb1 ? ud1b->integer : 0;
 
     ret = g_malloc0(sizeof(UserDefTwo));
     ret->string = strdup("blah1");

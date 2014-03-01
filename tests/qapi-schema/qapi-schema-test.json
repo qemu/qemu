@@ -50,7 +50,9 @@
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
-{ 'command': 'user_def_cmd2', 'data': {'ud1a': 'UserDefOne', 'ud1b': 'UserDefOne'}, 'returns': 'UserDefTwo' }
+{ 'command': 'user_def_cmd2',
+  'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
+  'returns': 'UserDefTwo' }
 
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:
