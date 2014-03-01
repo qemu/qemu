@@ -23,13 +23,6 @@ def type_visitor(name):
     else:
         return 'visit_type_%s' % name
 
-def generate_decl_enum(name, members, genlist=True):
-    return mcgen('''
-
-void %(visitor)s(Visitor *m, %(name)s * obj, const char *name, Error **errp);
-''',
-                 visitor=type_visitor(name))
-
 def generate_command_decl(name, args, ret_type):
     arglist=""
     for argname, argtype, optional, structured in parse_args(args):
@@ -75,19 +68,6 @@ def gen_marshal_output_call(name, ret_type):
     if not ret_type:
         return ""
     return "qmp_marshal_output_%s(retval, ret, errp);" % c_fun(name)
-
-def gen_visitor_output_containers_decl(ret_type):
-    ret = ""
-    push_indent()
-    if ret_type:
-        ret += mcgen('''
-QmpOutputVisitor *mo;
-QapiDeallocVisitor *md;
-Visitor *v;
-''')
-    pop_indent()
-
-    return ret
 
 def gen_visitor_input_containers_decl(args):
     ret = ""
