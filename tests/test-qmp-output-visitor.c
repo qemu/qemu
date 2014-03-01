@@ -416,6 +416,7 @@ static void test_visitor_out_union(TestOutputVisitorData *data,
 
     UserDefUnion *tmp = g_malloc0(sizeof(UserDefUnion));
     tmp->kind = USER_DEF_UNION_KIND_A;
+    tmp->integer = 41;
     tmp->a = g_malloc0(sizeof(UserDefA));
     tmp->a->boolean = true;
 
@@ -427,6 +428,7 @@ static void test_visitor_out_union(TestOutputVisitorData *data,
     qdict = qobject_to_qdict(arg);
 
     g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "a");
+    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41);
 
     qvalue = qdict_get(qdict, "data");
     g_assert(data != NULL);

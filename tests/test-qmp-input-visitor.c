@@ -293,11 +293,12 @@ static void test_visitor_in_union(TestInputVisitorData *data,
     Error *err = NULL;
     UserDefUnion *tmp;
 
-    v = visitor_input_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
+    v = visitor_input_test_init(data, "{ 'type': 'b', 'integer': 41, 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &err);
     g_assert(err == NULL);
     g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_B);
+    g_assert_cmpint(tmp->integer, ==, 41);
     g_assert_cmpint(tmp->b->integer, ==, 42);
     qapi_free_UserDefUnion(tmp);
 }

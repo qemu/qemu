@@ -132,7 +132,7 @@ static void test_validate_union(TestInputVisitorData *data,
     Visitor *v;
     Error *errp = NULL;
 
-    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
+    v = validate_test_init(data, "{ 'type': 'b', 'integer': 41, 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
     g_assert(!errp);
@@ -205,7 +205,7 @@ static void test_validate_fail_union(TestInputVisitorData *data,
     Error *errp = NULL;
     Visitor *v;
 
-    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 }, 'extra': 'yyy' }");
+    v = validate_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &errp);
     g_assert(errp);
