@@ -302,6 +302,22 @@ static void test_visitor_in_union(TestInputVisitorData *data,
     qapi_free_UserDefUnion(tmp);
 }
 
+static void test_visitor_in_union_anon(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    Visitor *v;
+    Error *err = NULL;
+    UserDefAnonUnion *tmp;
+
+    v = visitor_input_test_init(data, "42");
+
+    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    g_assert(err == NULL);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_ANON_UNION_KIND_I);
+    g_assert_cmpint(tmp->i, ==, 42);
+    qapi_free_UserDefAnonUnion(tmp);
+}
+
 static void test_native_list_integer_helper(TestInputVisitorData *data,
                                             const void *unused,
                                             UserDefNativeListUnionKind kind)
@@ -635,6 +651,8 @@ int main(int argc, char **argv)
                             &in_visitor_data, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/union",
                             &in_visitor_data, test_visitor_in_union);
+    input_visitor_test_add("/visitor/input/union-anon",
+                            &in_visitor_data, test_visitor_in_union_anon);
     input_visitor_test_add("/visitor/input/errors",
                             &in_visitor_data, test_visitor_in_errors);
     input_visitor_test_add("/visitor/input/native_list/int",

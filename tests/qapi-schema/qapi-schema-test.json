@@ -32,6 +32,10 @@
 { 'union': 'UserDefUnion',
   'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
 
+{ 'union': 'UserDefAnonUnion',
+  'discriminator': {},
+  'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
+
 # for testing native lists
 { 'union': 'UserDefNativeListUnion',
   'data': { 'integer': ['int'],
