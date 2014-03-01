@@ -124,7 +124,9 @@ opts_start_struct(Visitor *v, void **obj, const char *kind,
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
     const QemuOpt *opt;
 
-    *obj = g_malloc0(size > 0 ? size : 1);
+    if (obj) {
+        *obj = g_malloc0(size > 0 ? size : 1);
+    }
     if (ov->depth++ > 0) {
         return;
     }
