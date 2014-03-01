@@ -71,6 +71,23 @@ static void test_dispatch_cmd_error(void)
     QDECREF(req);
 }
 
+static QObject *test_qmp_dispatch(QDict *req)
+{
+    QObject *resp_obj;
+    QDict *resp;
+    QObject *ret;
+
+    resp_obj = qmp_dispatch(QOBJECT(req));
+    assert(resp_obj);
+    resp = qobject_to_qdict(resp_obj);
+    assert(resp && !qdict_haskey(resp, "error"));
+    ret = qdict_get(resp, "return");
+    assert(ret);
+    qobject_incref(ret);
+    qobject_decref(resp_obj);
+    return ret;
+}
+
 /* test commands that involve both input parameters and return values */
 static void test_dispatch_cmd_io(void)
 {
@@ -78,7 +95,8 @@ static void test_dispatch_cmd_io(void)
     QDict *args = qdict_new();
     QDict *ud1a = qdict_new();
     QDict *ud1b = qdict_new();
-    QObject *resp;
+    QDict *ret, *ret_dict, *ret_dict_dict, *ret_dict_dict_userdef;
+    QDict *ret_dict_dict2, *ret_dict_dict2_userdef;
 
     qdict_put_obj(ud1a, "integer", QOBJECT(qint_from_int(42)));
     qdict_put_obj(ud1a, "string", QOBJECT(qstring_from_str("hello")));
@@ -87,15 +105,24 @@ static void test_dispatch_cmd_io(void)
     qdict_put_obj(args, "ud1a", QOBJECT(ud1a));
     qdict_put_obj(args, "ud1b", QOBJECT(ud1b));
     qdict_put_obj(req, "arguments", QOBJECT(args));
-
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd2")));
 
-    /* TODO: put in full payload and check for errors */
-    resp = qmp_dispatch(QOBJECT(req));
-    assert(resp != NULL);
-    assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
+    ret = qobject_to_qdict(test_qmp_dispatch(req));
 
-    qobject_decref(resp);
+    assert(!strcmp(qdict_get_str(ret, "string"), "blah1"));
+    ret_dict = qdict_get_qdict(ret, "dict");
+    assert(!strcmp(qdict_get_str(ret_dict, "string"), "blah2"));
+    ret_dict_dict = qdict_get_qdict(ret_dict, "dict");
+    ret_dict_dict_userdef = qdict_get_qdict(ret_dict_dict, "userdef");
+    assert(qdict_get_int(ret_dict_dict_userdef, "integer") == 42);
+    assert(!strcmp(qdict_get_str(ret_dict_dict_userdef, "string"), "hello"));
+    assert(!strcmp(qdict_get_str(ret_dict_dict, "string"), "blah3"));
+    ret_dict_dict2 = qdict_get_qdict(ret_dict, "dict2");
+    ret_dict_dict2_userdef = qdict_get_qdict(ret_dict_dict2, "userdef");
+    assert(qdict_get_int(ret_dict_dict2_userdef, "integer") == 422);
+    assert(!strcmp(qdict_get_str(ret_dict_dict2_userdef, "string"), "hello2"));
+    assert(!strcmp(qdict_get_str(ret_dict_dict2, "string"), "blah4"));
+    QDECREF(ret);
     QDECREF(req);
 }
 
