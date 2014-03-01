@@ -898,7 +898,8 @@ static int local_remove(FsContext *ctx, const char *path)
          * directory
          */
         if (S_ISDIR(stbuf.st_mode)) {
-            sprintf(buffer, "%s/%s/%s", ctx->fs_root, path, VIRTFS_META_DIR);
+            snprintf(buffer, ARRAY_SIZE(buffer), "%s/%s/%s",
+                     ctx->fs_root, path, VIRTFS_META_DIR);
             err = remove(buffer);
             if (err < 0 && errno != ENOENT) {
                 /*
@@ -1033,8 +1034,8 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
              * If directory remove .virtfs_metadata contained in the
              * directory
              */
-            sprintf(buffer, "%s/%s/%s", ctx->fs_root,
-                    fullname.data, VIRTFS_META_DIR);
+            snprintf(buffer, ARRAY_SIZE(buffer), "%s/%s/%s", ctx->fs_root,
+                     fullname.data, VIRTFS_META_DIR);
             ret = remove(buffer);
             if (ret < 0 && errno != ENOENT) {
                 /*
