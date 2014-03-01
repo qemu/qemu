@@ -47,9 +47,9 @@ static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error *
 
     if base:
         ret += mcgen('''
-visit_start_implicit_struct(m, obj ? (void**) &(*obj)->%(c_name)s : NULL, sizeof(%(type)s), &err);
+visit_start_implicit_struct(m, (void**) &(*obj)->%(c_name)s, sizeof(%(type)s), &err);
 if (!err) {
-    visit_type_%(type)s_fields(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, &err);
+    visit_type_%(type)s_fields(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
     error_propagate(errp, err);
     err = NULL;
     visit_end_implicit_struct(m, &err);
@@ -61,8 +61,8 @@ if (!err) {
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
             ret += mcgen('''
-visit_start_optional(m, obj ? &(*obj)->%(c_prefix)shas_%(c_name)s : NULL, "%(name)s", &err);
-if (obj && (*obj)->%(prefix)shas_%(c_name)s) {
+visit_start_optional(m, &(*obj)->%(c_prefix)shas_%(c_name)s, "%(name)s", &err);
+if ((*obj)->%(prefix)shas_%(c_name)s) {
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
                          c_name=c_var(argname), name=argname)
@@ -72,7 +72,7 @@ if (obj && (*obj)->%(prefix)shas_%(c_name)s) {
             ret += generate_visit_struct_body(full_name, argname, argentry)
         else:
             ret += mcgen('''
-visit_type_%(type)s(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s", &err);
+visit_type_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, "%(name)s", &err);
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
                          type=type_name(argentry), c_name=c_var(argname),
@@ -121,7 +121,7 @@ visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
 
     ret += mcgen('''
 if (!err) {
-    if (!obj || *obj) {
+    if (*obj) {
         visit_type_%(name)s_fields(m, obj, &err);
         error_propagate(errp, err);
         err = NULL;
@@ -273,7 +273,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     if (!error_is_set(errp)) {
         visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
         if (!err) {
-            if (obj && *obj) {
+            if (*obj) {
 ''',
                  name=name)
 
