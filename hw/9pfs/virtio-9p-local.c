@@ -1059,9 +1059,9 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     }
     /* Remove the name finally */
     ret = remove(rpath(ctx, fullname.data, buffer));
-    v9fs_string_free(&fullname);
 
 err_out:
+    v9fs_string_free(&fullname);
     return ret;
 }
 
