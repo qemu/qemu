@@ -494,10 +494,8 @@ fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 # have the functions defined, so we use -b option to provide control
 # over these cases
 if do_builtins:
-    fdef.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DEF"))
     for typename in builtin_types:
         fdef.write(generate_visit_list(typename, None))
-    fdef.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DEF"))
 
 for expr in exprs:
     if expr.has_key('type'):
