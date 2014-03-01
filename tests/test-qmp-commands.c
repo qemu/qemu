@@ -41,6 +41,11 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
     return ret;
 }
 
+int64_t qmp_user_def_cmd3(int64_t a, bool has_b, int64_t b, Error **errp)
+{
+    return a + (has_b ? b : 0);
+}
+
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
@@ -95,10 +100,12 @@ static void test_dispatch_cmd_io(void)
 {
     QDict *req = qdict_new();
     QDict *args = qdict_new();
+    QDict *args3 = qdict_new();
     QDict *ud1a = qdict_new();
     QDict *ud1b = qdict_new();
     QDict *ret, *ret_dict, *ret_dict_dict, *ret_dict_dict_userdef;
     QDict *ret_dict_dict2, *ret_dict_dict2_userdef;
+    QInt *ret3;
 
     qdict_put_obj(ud1a, "integer", QOBJECT(qint_from_int(42)));
     qdict_put_obj(ud1a, "string", QOBJECT(qstring_from_str("hello")));
@@ -125,6 +132,15 @@ static void test_dispatch_cmd_io(void)
     assert(!strcmp(qdict_get_str(ret_dict_dict2_userdef, "string"), "hello2"));
     assert(!strcmp(qdict_get_str(ret_dict_dict2, "string"), "blah4"));
     QDECREF(ret);
+
+    qdict_put(args3, "a", qint_from_int(66));
+    qdict_put(req, "arguments", args3);
+    qdict_put(req, "execute", qstring_from_str("user_def_cmd3"));
+
+    ret3 = qobject_to_qint(test_qmp_dispatch(req));
+    assert(qint_get_int(ret3) == 66);
+    QDECREF(ret);
+
     QDECREF(req);
 }
 
