@@ -37,6 +37,13 @@
   'base': 'UserDefZero',
   'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
 
+{ 'union': 'UserDefFlatUnion',
+  'base': 'UserDefOne',
+  'discriminator': 'string',
+  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
+# FIXME generated struct UserDefFlatUnion has members for direct base
+# UserDefOne, but lacks members for indirect base UserDefZero
+
 { 'union': 'UserDefAnonUnion',
   'discriminator': {},
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }

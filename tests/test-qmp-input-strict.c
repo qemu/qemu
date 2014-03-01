@@ -139,6 +139,21 @@ static void test_validate_union(TestInputVisitorData *data,
     qapi_free_UserDefUnion(tmp);
 }
 
+static void test_validate_union_flat(TestInputVisitorData *data,
+                                     const void *unused)
+{
+    UserDefFlatUnion *tmp = NULL;
+    Visitor *v;
+    Error *errp = NULL;
+
+    v = validate_test_init(data, "{ 'string': 'a', 'boolean': true }");
+    /* TODO when generator bug is fixed, add 'integer': 41 */
+
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    qapi_free_UserDefFlatUnion(tmp);
+}
+
 static void test_validate_union_anon(TestInputVisitorData *data,
                                      const void *unused)
 {
@@ -212,6 +227,20 @@ static void test_validate_fail_union(TestInputVisitorData *data,
     qapi_free_UserDefUnion(tmp);
 }
 
+static void test_validate_fail_union_flat(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    UserDefFlatUnion *tmp = NULL;
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = validate_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
+
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);
+    g_assert(error_is_set(&errp));
+    qapi_free_UserDefFlatUnion(tmp);
+}
+
 static void test_validate_fail_union_anon(TestInputVisitorData *data,
                                           const void *unused)
 {
@@ -248,6 +277,8 @@ int main(int argc, char **argv)
                        &testdata, test_validate_list);
     validate_test_add("/visitor/input-strict/pass/union",
                        &testdata, test_validate_union);
+    validate_test_add("/visitor/input-strict/pass/union-flat",
+                       &testdata, test_validate_union_flat);
     validate_test_add("/visitor/input-strict/pass/union-anon",
                        &testdata, test_validate_union_anon);
     validate_test_add("/visitor/input-strict/fail/struct",
@@ -258,6 +289,8 @@ int main(int argc, char **argv)
                        &testdata, test_validate_fail_list);
     validate_test_add("/visitor/input-strict/fail/union",
                        &testdata, test_validate_fail_union);
+    validate_test_add("/visitor/input-strict/fail/union-flat",
+                       &testdata, test_validate_fail_union_flat);
     validate_test_add("/visitor/input-strict/fail/union-anon",
                        &testdata, test_validate_fail_union_anon);
 

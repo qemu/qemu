@@ -440,6 +440,35 @@ static void test_visitor_out_union(TestOutputVisitorData *data,
     QDECREF(qdict);
 }
 
+static void test_visitor_out_union_flat(TestOutputVisitorData *data,
+                                        const void *unused)
+{
+    QObject *arg;
+    QDict *qdict;
+
+    Error *err = NULL;
+
+    UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
+    tmp->kind = USER_DEF_UNION_KIND_A;
+    tmp->a = g_malloc0(sizeof(UserDefA));
+    /* TODO when generator bug is fixed: tmp->integer = 41; */
+    tmp->a->boolean = true;
+
+    visit_type_UserDefFlatUnion(data->ov, &tmp, NULL, &err);
+    g_assert(err == NULL);
+    arg = qmp_output_get_qobject(data->qov);
+
+    g_assert(qobject_type(arg) == QTYPE_QDICT);
+    qdict = qobject_to_qdict(arg);
+
+    g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, "a");
+    /* TODO g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41); */
+    g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, true);
+
+    qapi_free_UserDefFlatUnion(tmp);
+    QDECREF(qdict);
+}
+
 static void test_visitor_out_union_anon(TestOutputVisitorData *data,
                                         const void *unused)
 {
@@ -808,6 +837,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list_qapi_free);
     output_visitor_test_add("/visitor/output/union",
                             &out_visitor_data, test_visitor_out_union);
+    output_visitor_test_add("/visitor/output/union-flat",
+                            &out_visitor_data, test_visitor_out_union_flat);
     output_visitor_test_add("/visitor/output/union-anon",
                             &out_visitor_data, test_visitor_out_union_anon);
     output_visitor_test_add("/visitor/output/native_list/int",
