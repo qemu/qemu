@@ -1,6 +1,7 @@
 [OrderedDict([('enum', 'EnumOne'), ('data', ['value1', 'value2', 'value3'])]),
  OrderedDict([('type', 'NestedEnumsOne'), ('data', OrderedDict([('enum1', 'EnumOne'), ('*enum2', 'EnumOne'), ('enum3', 'EnumOne'), ('*enum4', 'EnumOne')]))]),
- OrderedDict([('type', 'UserDefOne'), ('data', OrderedDict([('integer', 'int'), ('string', 'str'), ('*enum1', 'EnumOne')]))]),
+ OrderedDict([('type', 'UserDefZero'), ('data', OrderedDict([('integer', 'int')]))]),
+ OrderedDict([('type', 'UserDefOne'), ('base', 'UserDefZero'), ('data', OrderedDict([('string', 'str'), ('*enum1', 'EnumOne')]))]),
  OrderedDict([('type', 'UserDefTwo'), ('data', OrderedDict([('string', 'str'), ('dict', OrderedDict([('string', 'str'), ('dict', OrderedDict([('userdef', 'UserDefOne'), ('string', 'str')])), ('*dict2', OrderedDict([('userdef', 'UserDefOne'), ('string', 'str')]))]))]))]),
  OrderedDict([('type', 'UserDefNested'), ('data', OrderedDict([('string0', 'str'), ('dict1', OrderedDict([('string1', 'str'), ('dict2', OrderedDict([('userdef1', 'UserDefOne'), ('string2', 'str')])), ('*dict3', OrderedDict([('userdef2', 'UserDefOne'), ('string3', 'str')]))]))]))]),
  OrderedDict([('type', 'UserDefA'), ('data', OrderedDict([('boolean', 'bool')]))]),
@@ -18,7 +19,8 @@
  'UserDefAnonUnionKind',
  'UserDefNativeListUnionKind']
 [OrderedDict([('type', 'NestedEnumsOne'), ('data', OrderedDict([('enum1', 'EnumOne'), ('*enum2', 'EnumOne'), ('enum3', 'EnumOne'), ('*enum4', 'EnumOne')]))]),
- OrderedDict([('type', 'UserDefOne'), ('data', OrderedDict([('integer', 'int'), ('string', 'str'), ('*enum1', 'EnumOne')]))]),
+ OrderedDict([('type', 'UserDefZero'), ('data', OrderedDict([('integer', 'int')]))]),
+ OrderedDict([('type', 'UserDefOne'), ('base', 'UserDefZero'), ('data', OrderedDict([('string', 'str'), ('*enum1', 'EnumOne')]))]),
  OrderedDict([('type', 'UserDefTwo'), ('data', OrderedDict([('string', 'str'), ('dict', OrderedDict([('string', 'str'), ('dict', OrderedDict([('userdef', 'UserDefOne'), ('string', 'str')])), ('*dict2', OrderedDict([('userdef', 'UserDefOne'), ('string', 'str')]))]))]))]),
  OrderedDict([('type', 'UserDefNested'), ('data', OrderedDict([('string0', 'str'), ('dict1', OrderedDict([('string1', 'str'), ('dict2', OrderedDict([('userdef1', 'UserDefOne'), ('string2', 'str')])), ('*dict3', OrderedDict([('userdef2', 'UserDefOne'), ('string3', 'str')]))]))]))]),
  OrderedDict([('type', 'UserDefA'), ('data', OrderedDict([('boolean', 'bool')]))]),

@@ -25,9 +25,11 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
     UserDefOne *ud1d = g_malloc0(sizeof(UserDefOne));
 
     ud1c->string = strdup(ud1a->string);
-    ud1c->integer = ud1a->integer;
+    ud1c->base = g_new0(UserDefZero, 1);
+    ud1c->base->integer = ud1a->base->integer;
     ud1d->string = strdup(has_udb1 ? ud1b->string : "blah0");
-    ud1d->integer = has_udb1 ? ud1b->integer : 0;
+    ud1d->base = g_new0(UserDefZero, 1);
+    ud1d->base->integer = has_udb1 ? ud1b->base->integer : 0;
 
     ret = g_malloc0(sizeof(UserDefTwo));
     ret->string = strdup("blah1");
@@ -151,17 +153,20 @@ static void test_dealloc_types(void)
     UserDefOneList *ud1list;
 
     ud1test = g_malloc0(sizeof(UserDefOne));
-    ud1test->integer = 42;
+    ud1test->base = g_new0(UserDefZero, 1);
+    ud1test->base->integer = 42;
     ud1test->string = g_strdup("hi there 42");
 
     qapi_free_UserDefOne(ud1test);
 
     ud1a = g_malloc0(sizeof(UserDefOne));
-    ud1a->integer = 43;
+    ud1a->base = g_new0(UserDefZero, 1);
+    ud1a->base->integer = 43;
     ud1a->string = g_strdup("hi there 43");
 
     ud1b = g_malloc0(sizeof(UserDefOne));
-    ud1b->integer = 44;
+    ud1b->base = g_new0(UserDefZero, 1);
+    ud1b->base->integer = 44;
     ud1b->string = g_strdup("hi there 44");
 
     ud1list = g_malloc0(sizeof(UserDefOneList));

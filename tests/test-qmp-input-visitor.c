@@ -252,7 +252,7 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
 
     check_and_free_str(udp->string0, "string0");
     check_and_free_str(udp->dict1.string1, "string1");
-    g_assert_cmpint(udp->dict1.dict2.userdef1->integer, ==, 42);
+    g_assert_cmpint(udp->dict1.dict2.userdef1->base->integer, ==, 42);
     check_and_free_str(udp->dict1.dict2.userdef1->string, "string");
     check_and_free_str(udp->dict1.dict2.string2, "string2");
     g_assert(udp->dict1.has_dict3 == false);
@@ -280,7 +280,7 @@ static void test_visitor_in_list(TestInputVisitorData *data,
 
         snprintf(string, sizeof(string), "string%d", i);
         g_assert_cmpstr(item->value->string, ==, string);
-        g_assert_cmpint(item->value->integer, ==, 42 + i);
+        g_assert_cmpint(item->value->base->integer, ==, 42 + i);
     }
 
     qapi_free_UserDefOneList(head);

@@ -7,8 +7,12 @@
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
 # for testing nested structs
+{ 'type': 'UserDefZero',
+  'data': { 'integer': 'int' } }
+
 { 'type': 'UserDefOne',
-  'data': { 'integer': 'int', 'string': 'str', '*enum1': 'EnumOne' } }
+  'base': 'UserDefZero',
+  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
 { 'type': 'UserDefTwo',
   'data': { 'string': 'str',

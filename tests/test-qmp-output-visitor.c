@@ -231,13 +231,15 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->dict1.string1 = g_strdup(strings[1]);
     ud2->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
     ud2->dict1.dict2.userdef1->string = g_strdup(string);
-    ud2->dict1.dict2.userdef1->integer = value;
+    ud2->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
+    ud2->dict1.dict2.userdef1->base->integer = value;
     ud2->dict1.dict2.string2 = g_strdup(strings[2]);
 
     ud2->dict1.has_dict3 = true;
     ud2->dict1.dict3.userdef2 = g_malloc0(sizeof(UserDefOne));
     ud2->dict1.dict3.userdef2->string = g_strdup(string);
-    ud2->dict1.dict3.userdef2->integer = value;
+    ud2->dict1.dict3.userdef2->base = g_new0(UserDefZero, 1);
+    ud2->dict1.dict3.userdef2->base->integer = value;
     ud2->dict1.dict3.string3 = g_strdup(strings[3]);
 
     visit_type_UserDefNested(data->ov, &ud2, "unused", &errp);
@@ -279,7 +281,8 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
                                            const void *unused)
 {
     EnumOne bad_values[] = { ENUM_ONE_MAX, -1 };
-    UserDefOne u = { 0 }, *pu = &u;
+    UserDefZero b;
+    UserDefOne u = { .base = &b }, *pu = &u;
     Error *errp;
     int i;
 
@@ -391,7 +394,8 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
         p->value->dict1.string1 = g_strdup(string);
         p->value->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
         p->value->dict1.dict2.userdef1->string = g_strdup(string);
-        p->value->dict1.dict2.userdef1->integer = 42;
+        p->value->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
+        p->value->dict1.dict2.userdef1->base->integer = 42;
         p->value->dict1.dict2.string2 = g_strdup(string);
         p->value->dict1.has_dict3 = false;
 
