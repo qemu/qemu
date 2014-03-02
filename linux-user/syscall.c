@@ -4528,6 +4528,9 @@ static inline int tswapid(int id)
 {
     return tswap16(id);
 }
+
+#define put_user_id(x, gaddr) put_user_u16(x, gaddr)
+
 #else /* !USE_UID16 */
 static inline int high2lowuid(int uid)
 {
@@ -4549,6 +4552,9 @@ static inline int tswapid(int id)
 {
     return tswap32(id);
 }
+
+#define put_user_id(x, gaddr) put_user_u32(x, gaddr)
+
 #endif /* USE_UID16 */
 
 void syscall_init(void)
@@ -7805,9 +7811,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                if (put_user_u16(high2lowuid(ruid), arg1)
-                    || put_user_u16(high2lowuid(euid), arg2)
-                    || put_user_u16(high2lowuid(suid), arg3))
+                if (put_user_id(high2lowuid(ruid), arg1)
+                    || put_user_id(high2lowuid(euid), arg2)
+                    || put_user_id(high2lowuid(suid), arg3))
                     goto efault;
             }
         }
@@ -7826,9 +7832,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                if (put_user_u16(high2lowgid(rgid), arg1)
-                    || put_user_u16(high2lowgid(egid), arg2)
-                    || put_user_u16(high2lowgid(sgid), arg3))
+                if (put_user_id(high2lowgid(rgid), arg1)
+                    || put_user_id(high2lowgid(egid), arg2)
+                    || put_user_id(high2lowgid(sgid), arg3))
                     goto efault;
             }
         }
