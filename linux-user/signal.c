@@ -1273,7 +1273,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
                                CPUARMState *env)
 {
     struct target_rt_sigframe *frame;
-    abi_ulong frame_addr;
+    abi_ulong frame_addr, return_addr;
 
     frame_addr = get_sigframe(ka, env);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
@@ -1290,15 +1290,19 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     __put_user(target_sigaltstack_used.ss_size,
                       &frame->uc.tuc_stack.ss_size);
     target_setup_sigframe(frame, env, set);
-    /* mov x8,#__NR_rt_sigreturn; svc #0 */
-    __put_user(0xd2801168, &frame->tramp[0]);
-    __put_user(0xd4000001, &frame->tramp[1]);
+    if (ka->sa_flags & TARGET_SA_RESTORER) {
+        return_addr = ka->sa_restorer;
+    } else {
+        /* mov x8,#__NR_rt_sigreturn; svc #0 */
+        __put_user(0xd2801168, &frame->tramp[0]);
+        __put_user(0xd4000001, &frame->tramp[1]);
+        return_addr = frame_addr + offsetof(struct target_rt_sigframe, tramp);
+    }
     env->xregs[0] = usig;
     env->xregs[31] = frame_addr;
     env->xregs[29] = env->xregs[31] + offsetof(struct target_rt_sigframe, fp);
     env->pc = ka->_sa_handler;
-    env->xregs[30] = env->xregs[31] +
-        offsetof(struct target_rt_sigframe, tramp);
+    env->xregs[30] = return_addr;
     if (info) {
         if (copy_siginfo_to_user(&frame->info, info)) {
             goto give_sigsegv;
