@@ -1233,8 +1233,14 @@ static int target_restore_sigframe(CPUARMState *env,
         return 1;
     }
 
-    for (i = 0; i < 32 * 2; i++) {
-        __get_user(env->vfp.regs[i], &aux->fpsimd.vregs[i]);
+    for (i = 0; i < 32; i++) {
+#ifdef TARGET_WORDS_BIGENDIAN
+        __get_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2 + 1]);
+        __get_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2]);
+#else
+        __get_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2]);
+        __get_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2 + 1]);
+#endif
     }
     __get_user(fpsr, &aux->fpsimd.fpsr);
     vfp_set_fpsr(env, fpsr);
