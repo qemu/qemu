@@ -764,11 +764,6 @@ static inline void tcg_out_subi(TCGContext *s, TCGType ext,
     tcg_out32(s, base | aimm | (rn << 5) | rd);
 }
 
-static inline void tcg_out_nop(TCGContext *s)
-{
-    tcg_out32(s, 0xd503201f);
-}
-
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -822,8 +817,6 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
                  (intptr_t)qemu_st_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
-
-    tcg_out_nop(s);
     tcg_out_goto(s, (tcg_target_long)lb->raddr);
 }
 
