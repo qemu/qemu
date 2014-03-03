@@ -5398,43 +5398,37 @@ int bdrv_amend_options(BlockDriverState *bs, QEMUOptionParameter *options)
     return bs->drv->bdrv_amend_options(bs, options);
 }
 
-/* Used to recurse on single child block filters.
- * Single child block filter will store their child in bs->file.
+/* This function will be called by the bdrv_recurse_is_first_non_filter method
+ * of block filter and by bdrv_is_first_non_filter.
+ * It is used to test if the given bs is the candidate or recurse more in the
+ * node graph.
  */
-bool bdrv_generic_is_first_non_filter(BlockDriverState *bs,
-                                      BlockDriverState *candidate)
-{
-    if (!bs->drv) {
-        return false;
-    }
-
-    if (!bs->drv->authorizations[BS_IS_A_FILTER]) {
-        if (bs == candidate) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    if (!bs->drv->authorizations[BS_FILTER_PASS_DOWN]) {
-        return false;
-    }
-
-    if (!bs->file) {
-        return false;
-    }
-
-    return bdrv_recurse_is_first_non_filter(bs->file, candidate);
-}
-
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
                                       BlockDriverState *candidate)
 {
-    if (bs->drv && bs->drv->bdrv_recurse_is_first_non_filter) {
+    /* return false if basic checks fails */
+    if (!bs || !bs->drv) {
+        return false;
+    }
+
+    /* the code reached a non block filter driver -> check if the bs is
+     * the same as the candidate. It's the recursion termination condition.
+     */
+    if (!bs->drv->is_filter) {
+        return bs == candidate;
+    }
+    /* Down this path the driver is a block filter driver */
+
+    /* If the block filter recursion method is defined use it to recurse down
+     * the node graph.
+     */
+    if (bs->drv->bdrv_recurse_is_first_non_filter) {
         return bs->drv->bdrv_recurse_is_first_non_filter(bs, candidate);
     }
 
-    return bdrv_generic_is_first_non_filter(bs, candidate);
+    /* the driver is a block filter but don't allow to recurse -> return false
+     */
+    return false;
 }
 
 /* This function checks if the candidate is the first non filter bs down it's
@@ -5449,6 +5443,7 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
         bool perm;
 
+        /* try to recurse in this top level bs */
         perm = bdrv_recurse_is_first_non_filter(bs, candidate);
 
         /* candidate is the first non filter */

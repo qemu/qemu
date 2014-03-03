@@ -286,15 +286,6 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 int bdrv_amend_options(BlockDriverState *bs_new, QEMUOptionParameter *options);
 
 /* external snapshots */
-
-typedef enum {
-    BS_IS_A_FILTER,
-    BS_FILTER_PASS_DOWN,
-    BS_AUTHORIZATION_COUNT,
-} BsAuthorization;
-
-bool bdrv_generic_is_first_non_filter(BlockDriverState *bs,
-                                      BlockDriverState *candidate);
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
                                       BlockDriverState *candidate);
 bool bdrv_is_first_non_filter(BlockDriverState *candidate);
