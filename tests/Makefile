@@ -35,6 +35,7 @@ check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
 gcov-files-test-iov-y = util/iov.c
 check-unit-y += tests/test-aio$(EXESUF)
+check-unit-y += tests/test-rfifolock$(EXESUF)
 check-unit-y += tests/test-throttle$(EXESUF)
 gcov-files-test-aio-$(CONFIG_WIN32) = aio-win32.c
 gcov-files-test-aio-$(CONFIG_POSIX) = aio-posix.c
@@ -176,6 +177,7 @@ tests/check-qjson$(EXESUF): tests/check-qjson.o libqemuutil.a libqemustub.a
 tests/check-qom-interface$(EXESUF): tests/check-qom-interface.o $(qom-core-obj) libqemuutil.a libqemustub.a
 tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(block-obj-y) libqemuutil.a libqemustub.a
 tests/test-aio$(EXESUF): tests/test-aio.o $(block-obj-y) libqemuutil.a libqemustub.a
+tests/test-rfifolock$(EXESUF): tests/test-rfifolock.o libqemuutil.a libqemustub.a
 tests/test-throttle$(EXESUF): tests/test-throttle.o $(block-obj-y) libqemuutil.a libqemustub.a
 tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemuutil.a libqemustub.a
 tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
