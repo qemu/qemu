@@ -522,7 +522,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
 
-    /* create device, set properties */
+    /* create device */
     dev = DEVICE(object_new(driver));
 
     if (bus) {
@@ -533,11 +533,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     if (id) {
         dev->id = id;
     }
-    if (qemu_opt_foreach(opts, set_property, dev, 1) != 0) {
-        object_unparent(OBJECT(dev));
-        object_unref(OBJECT(dev));
-        return NULL;
-    }
+
     if (dev->id) {
         object_property_add_child(qdev_get_peripheral(), dev->id,
                                   OBJECT(dev), NULL);
@@ -547,6 +543,13 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         object_property_add_child(qdev_get_peripheral_anon(), name,
                                   OBJECT(dev), NULL);
         g_free(name);
+    }
+
+    /* set properties */
+    if (qemu_opt_foreach(opts, set_property, dev, 1) != 0) {
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
+        return NULL;
     }
 
     dev->opts = opts;
