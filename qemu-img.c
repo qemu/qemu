@@ -1162,9 +1162,6 @@ static int img_convert(int argc, char **argv)
     Error *local_err = NULL;
     QemuOpts *sn_opts = NULL;
 
-    /* Initialize before goto out */
-    qemu_progress_init(progress, 1.0);
-
     fmt = NULL;
     out_fmt = "raw";
     cache = "unsafe";
@@ -1197,17 +1194,17 @@ static int img_convert(int argc, char **argv)
             error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
             ret = -1;
-            goto out;
+            goto fail_getopt;
         case '6':
             error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
             ret = -1;
-            goto out;
+            goto fail_getopt;
         case 'o':
             if (!is_valid_option_list(optarg)) {
                 error_report("Invalid option list: %s", optarg);
                 ret = -1;
-                goto out;
+                goto fail_getopt;
             }
             if (!options) {
                 options = g_strdup(optarg);
@@ -1227,7 +1224,7 @@ static int img_convert(int argc, char **argv)
                     error_report("Failed in parsing snapshot param '%s'",
                                  optarg);
                     ret = -1;
-                    goto out;
+                    goto fail_getopt;
                 }
             } else {
                 snapshot_name = optarg;
@@ -1241,7 +1238,7 @@ static int img_convert(int argc, char **argv)
             if (sval < 0 || *end) {
                 error_report("Invalid minimum zero buffer size for sparse output specified");
                 ret = -1;
-                goto out;
+                goto fail_getopt;
             }
 
             min_sparse = sval / BDRV_SECTOR_SIZE;
@@ -1262,9 +1259,12 @@ static int img_convert(int argc, char **argv)
         }
     }
 
+    /* Initialize before goto out */
     if (quiet) {
         progress = 0;
     }
+    qemu_progress_init(progress, 1.0);
+
 
     bs_n = argc - optind - 1;
     out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
@@ -1667,7 +1667,6 @@ out:
     free_option_parameters(create_options);
     free_option_parameters(param);
     qemu_vfree(buf);
-    g_free(options);
     if (sn_opts) {
         qemu_opts_del(sn_opts);
     }
@@ -1682,6 +1681,9 @@ out:
         }
         g_free(bs);
     }
+fail_getopt:
+    g_free(options);
+
     if (ret) {
         return 1;
     }
