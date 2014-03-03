@@ -1,7 +1,7 @@
 /*
  * QEMU CPU model
  *
- * Copyright (c) 2012 SUSE LINUX Products GmbH
+ * Copyright (c) 2012-2014 SUSE LINUX Products GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -217,6 +217,34 @@ static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
     return NULL;
 }
 
+static void cpu_common_parse_features(CPUState *cpu, char *features,
+                                      Error **errp)
+{
+    char *featurestr; /* Single "key=value" string being parsed */
+    char *val;
+    Error *err = NULL;
+
+    featurestr = features ? strtok(features, ",") : NULL;
+
+    while (featurestr) {
+        val = strchr(featurestr, '=');
+        if (val) {
+            *val = 0;
+            val++;
+            object_property_parse(OBJECT(cpu), val, featurestr, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+        } else {
+            error_setg(errp, "Expected key=value format, found %s.",
+                       featurestr);
+            return;
+        }
+        featurestr = strtok(NULL, ",");
+    }
+}
+
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cpu = CPU(dev);
@@ -247,6 +275,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     CPUClass *k = CPU_CLASS(klass);
 
     k->class_by_name = cpu_common_class_by_name;
+    k->parse_features = cpu_common_parse_features;
     k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
     k->has_work = cpu_common_has_work;
