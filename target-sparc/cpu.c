@@ -70,16 +70,32 @@ static void sparc_cpu_reset(CPUState *s)
     env->cache_control = 0;
 }
 
-static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
+static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
 {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUSPARCState *env = &cpu->env;
+    char *s = g_strdup(cpu_model);
+    char *featurestr, *name = strtok(s, ",");
     sparc_def_t def1, *def = &def1;
+    Error *err = NULL;
 
-    if (cpu_sparc_find_by_name(def, cpu_model) < 0) {
+    if (cpu_sparc_find_by_name(def, name) < 0) {
+        g_free(s);
         return -1;
     }
 
     env->def = g_new0(sparc_def_t, 1);
     memcpy(env->def, def, sizeof(*def));
+
+    featurestr = strtok(NULL, ",");
+    cc->parse_features(CPU(cpu), featurestr, &err);
+    g_free(s);
+    if (err) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
+        return -1;
+    }
+
 #if defined(CONFIG_USER_ONLY)
     if ((env->def->features & CPU_FEATURE_FLOAT)) {
         env->def->features |= CPU_FEATURE_FLOAT128;
@@ -104,12 +120,10 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
 SPARCCPU *cpu_sparc_init(const char *cpu_model)
 {
     SPARCCPU *cpu;
-    CPUSPARCState *env;
 
     cpu = SPARC_CPU(object_new(TYPE_SPARC_CPU));
-    env = &cpu->env;
 
-    if (cpu_sparc_register(env, cpu_model) < 0) {
+    if (cpu_sparc_register(cpu, cpu_model) < 0) {
         object_unref(OBJECT(cpu));
         return NULL;
     }
@@ -510,16 +524,10 @@ static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features)
     error_report("CPU feature %s not found", flagname);
 }
 
-static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
+static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *name)
 {
     unsigned int i;
     const sparc_def_t *def = NULL;
-    char *s = g_strdup(cpu_model);
-    char *featurestr, *name = strtok(s, ",");
-    uint32_t plus_features = 0;
-    uint32_t minus_features = 0;
-    uint64_t iu_version;
-    uint32_t fpu_version, mmu_version, nwindows;
 
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
         if (strcasecmp(name, sparc_defs[i].name) == 0) {
@@ -527,11 +535,24 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
         }
     }
     if (!def) {
-        goto error;
+        return -1;
     }
     memcpy(cpu_def, def, sizeof(*def));
+    return 0;
+}
 
-    featurestr = strtok(NULL, ",");
+static void sparc_cpu_parse_features(CPUState *cs, char *features,
+                                     Error **errp)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    sparc_def_t *cpu_def = cpu->env.def;
+    char *featurestr;
+    uint32_t plus_features = 0;
+    uint32_t minus_features = 0;
+    uint64_t iu_version;
+    uint32_t fpu_version, mmu_version, nwindows;
+
+    featurestr = features ? strtok(features, ",") : NULL;
     while (featurestr) {
         char *val;
 
@@ -546,8 +567,8 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 
                 iu_version = strtoll(val, &err, 0);
                 if (!*val || *err) {
-                    error_report("bad numerical value %s", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 cpu_def->iu_version = iu_version;
 #ifdef DEBUG_FEATURES
@@ -558,8 +579,8 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 
                 fpu_version = strtol(val, &err, 0);
                 if (!*val || *err) {
-                    error_report("bad numerical value %s", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 cpu_def->fpu_version = fpu_version;
 #ifdef DEBUG_FEATURES
@@ -570,8 +591,8 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 
                 mmu_version = strtol(val, &err, 0);
                 if (!*val || *err) {
-                    error_report("bad numerical value %s", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 cpu_def->mmu_version = mmu_version;
 #ifdef DEBUG_FEATURES
@@ -583,21 +604,21 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
                 nwindows = strtol(val, &err, 0);
                 if (!*val || *err || nwindows > MAX_NWINDOWS ||
                     nwindows < MIN_NWINDOWS) {
-                    error_report("bad numerical value %s", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s", val);
+                    return;
                 }
                 cpu_def->nwindows = nwindows;
 #ifdef DEBUG_FEATURES
                 fprintf(stderr, "nwindows %d\n", nwindows);
 #endif
             } else {
-                error_report("unrecognized feature %s", featurestr);
-                goto error;
+                error_setg(errp, "unrecognized feature %s", featurestr);
+                return;
             }
         } else {
-            error_report("feature string `%s' not in format "
-                         "(+feature|-feature|feature=xyz)", featurestr);
-            goto error;
+            error_setg(errp, "feature string `%s' not in format "
+                             "(+feature|-feature|feature=xyz)", featurestr);
+            return;
         }
         featurestr = strtok(NULL, ",");
     }
@@ -606,12 +627,6 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 #ifdef DEBUG_FEATURES
     print_features(stderr, fprintf, cpu_def->features, NULL);
 #endif
-    g_free(s);
-    return 0;
-
- error:
-    g_free(s);
-    return -1;
 }
 
 void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
@@ -792,6 +807,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
 
+    cc->parse_features = sparc_cpu_parse_features;
     cc->has_work = sparc_cpu_has_work;
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
