@@ -6185,11 +6185,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 puts = NULL;
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
-            if (!is_error(ret) && arg2) {
-                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0)))
-                    goto efault;
-                host_to_target_siginfo(p, &uinfo);
-                unlock_user(p, arg2, sizeof(target_siginfo_t));
+            if (!is_error(ret)) {
+                if (arg2) {
+                    p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t),
+                                  0);
+                    if (!p) {
+                        goto efault;
+                    }
+                    host_to_target_siginfo(p, &uinfo);
+                    unlock_user(p, arg2, sizeof(target_siginfo_t));
+                }
+                ret = host_to_target_signal(ret);
             }
         }
         break;
