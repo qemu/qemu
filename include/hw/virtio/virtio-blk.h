@@ -16,6 +16,7 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/block/block.h"
+#include "sysemu/iothread.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 #define VIRTIO_BLK(obj) \
@@ -106,6 +107,7 @@ struct virtio_scsi_inhdr
 struct VirtIOBlkConf
 {
     BlockConf conf;
+    IOThread *iothread;
     char *serial;
     uint32_t scsi;
     uint32_t config_wce;
@@ -140,13 +142,15 @@ typedef struct VirtIOBlock {
         DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
         DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
         DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
-        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true)
+        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true),                \
+        DEFINE_PROP_IOTHREAD("x-iothread", _state, _field.iothread)
 #else
 #define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
         DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
         DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
         DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
-        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true)
+        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
+        DEFINE_PROP_IOTHREAD("x-iothread", _state, _field.iothread)
 #endif /* __linux__ */
 
 void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
