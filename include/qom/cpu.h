@@ -68,6 +68,7 @@ struct TranslationBlock;
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
+ * @parse_features: Callback to parse command line arguments.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @has_work: Callback for checking if there is work to do.
@@ -97,6 +98,7 @@ typedef struct CPUClass {
     /*< public >*/
 
     ObjectClass *(*class_by_name)(const char *cpu_model);
+    void (*parse_features)(CPUState *cpu, char *str, Error **errp);
 
     void (*reset)(CPUState *cpu);
     int reset_dump_flags;

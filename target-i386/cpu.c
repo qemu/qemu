@@ -1652,8 +1652,10 @@ static inline void feat2prop(char *s)
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
+static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
+                                     Error **errp)
 {
+    X86CPU *cpu = X86_CPU(cs);
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
     FeatureWordArray plus_features = { 0 };
@@ -1661,6 +1663,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
     FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
     CPUX86State *env = &cpu->env;
+    Error *local_err = NULL;
 
     featurestr = features ? strtok(features, ",") : NULL;
 
@@ -1679,16 +1682,16 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
 
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 if (numvalue < 0x80000000) {
-                    fprintf(stderr, "xlevel value shall always be >= 0x80000000"
-                            ", fixup will be removed in future versions\n");
+                    error_report("xlevel value shall always be >= 0x80000000"
+                                 ", fixup will be removed in future versions");
                     numvalue += 0x80000000;
                 }
                 snprintf(num, sizeof(num), "%" PRIu32, numvalue);
-                object_property_parse(OBJECT(cpu), num, featurestr, errp);
+                object_property_parse(OBJECT(cpu), num, featurestr, &local_err);
             } else if (!strcmp(featurestr, "tsc-freq")) {
                 int64_t tsc_freq;
                 char *err;
@@ -1697,36 +1700,38 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 tsc_freq = strtosz_suffix_unit(val, &err,
                                                STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
-                object_property_parse(OBJECT(cpu), num, "tsc-frequency", errp);
+                object_property_parse(OBJECT(cpu), num, "tsc-frequency",
+                                      &local_err);
             } else if (!strcmp(featurestr, "hv-spinlocks")) {
                 char *err;
                 const int min = 0xFFF;
                 char num[32];
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 if (numvalue < min) {
-                    fprintf(stderr, "hv-spinlocks value shall always be >= 0x%x"
-                            ", fixup will be removed in future versions\n",
+                    error_report("hv-spinlocks value shall always be >= 0x%x"
+                            ", fixup will be removed in future versions",
                             min);
                     numvalue = min;
                 }
                 snprintf(num, sizeof(num), "%" PRId32, numvalue);
-                object_property_parse(OBJECT(cpu), num, featurestr, errp);
+                object_property_parse(OBJECT(cpu), num, featurestr, &local_err);
             } else {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
+                object_property_parse(OBJECT(cpu), val, featurestr, &local_err);
             }
         } else {
             feat2prop(featurestr);
-            object_property_parse(OBJECT(cpu), "on", featurestr, errp);
+            object_property_parse(OBJECT(cpu), "on", featurestr, &local_err);
         }
-        if (error_is_set(errp)) {
+        if (local_err) {
+            error_propagate(errp, local_err);
             goto out;
         }
         featurestr = strtok(NULL, ",");
@@ -1945,7 +1950,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     object_unref(OBJECT(cpu));
 #endif
 
-    cpu_x86_parse_featurestr(cpu, features, &error);
+    x86_cpu_parse_featurestr(CPU(cpu), features, &error);
     if (error) {
         goto out;
     }
@@ -2795,6 +2800,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
     cc->class_by_name = x86_cpu_class_by_name;
+    cc->parse_features = x86_cpu_parse_featurestr;
     cc->has_work = x86_cpu_has_work;
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;
