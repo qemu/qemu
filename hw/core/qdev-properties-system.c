@@ -20,15 +20,16 @@
 #include "sysemu/char.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
-                        const char *(*print)(void *ptr),
+                        char *(*print)(void *ptr),
                         const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *p;
 
-    p = (char *) (*ptr ? print(*ptr) : "");
+    p = *ptr ? print(*ptr) : g_strdup("");
     visit_type_str(v, &p, name, errp);
+    g_free(p);
 }
 
 static void set_pointer(Object *obj, Visitor *v, Property *prop,
@@ -91,9 +92,9 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     }
 }
 
-static const char *print_drive(void *ptr)
+static char *print_drive(void *ptr)
 {
-    return bdrv_get_device_name(ptr);
+    return g_strdup(bdrv_get_device_name(ptr));
 }
 
 static void get_drive(Object *obj, Visitor *v, void *opaque,
@@ -145,11 +146,12 @@ static void release_chr(Object *obj, const char *name, void *opaque)
 }
 
 
-static const char *print_chr(void *ptr)
+static char *print_chr(void *ptr)
 {
     CharDriverState *chr = ptr;
+    const char *val = chr->label ? chr->label : "";
 
-    return chr->label ? chr->label : "";
+    return g_strdup(val);
 }
 
 static void get_chr(Object *obj, Visitor *v, void *opaque,
@@ -224,11 +226,12 @@ err:
     return ret;
 }
 
-static const char *print_netdev(void *ptr)
+static char *print_netdev(void *ptr)
 {
     NetClientState *netdev = ptr;
+    const char *val = netdev->name ? netdev->name : "";
 
-    return netdev->name ? netdev->name : "";
+    return g_strdup(val);
 }
 
 static void get_netdev(Object *obj, Visitor *v, void *opaque,
