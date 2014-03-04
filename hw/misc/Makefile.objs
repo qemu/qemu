@@ -42,3 +42,5 @@ obj-$(CONFIG_SLAVIO) += slavio_misc.o
 obj-$(CONFIG_ZYNQ) += zynq_slcr.o
 
 obj-$(CONFIG_PVPANIC) += pvpanic.o
+
+obj-y += w1-ds18s20.o
