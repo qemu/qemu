@@ -36,6 +36,7 @@
 
 #include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
 
 //#define DEBUG_S390
@@ -251,6 +252,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     s390_sclp_init();
     s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
                       args->initrd_filename, ZIPL_FILENAME);
+    s390_flic_init();
 
     /* register hypercalls */
     s390_virtio_register_hcalls();

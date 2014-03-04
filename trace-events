@@ -1162,6 +1162,11 @@ css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, 
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
 virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
 
+# hw/intc/s390_flic.c
+flic_create_device(int err) "flic: create device failed %d"
+flic_no_device_api(int err) "flic: no Device Contral API support %d"
+flic_reset_failed(int err) "flic: reset failed %d"
+
 # migration.c
 migrate_set_state(int new_state) "new state %d"
 

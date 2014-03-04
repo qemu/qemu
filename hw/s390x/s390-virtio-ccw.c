@@ -13,13 +13,14 @@
 #include "exec/address-spaces.h"
 #include "s390-virtio.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390_flic.h"
 #include "ioinst.h"
 #include "css.h"
 #include "virtio-ccw.h"
 
 void io_subsystem_reset(void)
 {
-    DeviceState *css, *sclp;
+    DeviceState *css, *sclp, *flic;
 
     css = DEVICE(object_resolve_path_type("", "virtual-css-bridge", NULL));
     if (css) {
@@ -29,6 +30,10 @@ void io_subsystem_reset(void)
                   "s390-sclp-event-facility", NULL));
     if (sclp) {
         qdev_reset_all(sclp);
+    }
+    flic = DEVICE(object_resolve_path_type("", "s390-flic", NULL));
+    if (flic) {
+        qdev_reset_all(flic);
     }
 }
 
@@ -99,6 +104,7 @@ static void ccw_init(QEMUMachineInitArgs *args)
     s390_sclp_init();
     s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
                       args->initrd_filename, "s390-ccw.img");
+    s390_flic_init();
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();

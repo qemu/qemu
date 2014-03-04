@@ -83,6 +83,7 @@ static void s390_cpu_reset(CPUState *s)
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
 
+    env->pfault_token = -1UL;
     s390_del_running_cpu(cpu);
     scc->parent_reset(s);
 #if !defined(CONFIG_USER_ONLY)
@@ -105,6 +106,17 @@ static void s390_cpu_initial_reset(CPUState *s)
     /* architectured initial values for CR 0 and 14 */
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
+
+    env->pfault_token = -1UL;
+
+#if defined(CONFIG_KVM)
+    /* Reset state inside the kernel that we cannot access yet from QEMU. */
+    if (kvm_enabled()) {
+        if (kvm_vcpu_ioctl(s, KVM_S390_INITIAL_RESET, NULL)) {
+            perror("Initial CPU reset failed");
+        }
+    }
+#endif
 }
 
 /* CPUClass:reset() */
@@ -123,6 +135,9 @@ static void s390_cpu_full_reset(CPUState *s)
     /* architectured initial values for CR 0 and 14 */
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
+
+    env->pfault_token = -1UL;
+
     /* set halted to 1 to make sure we can add the cpu in
      * s390_ipl_cpu code, where CPUState::halted is set back to 0
      * after incrementing the cpu counter */

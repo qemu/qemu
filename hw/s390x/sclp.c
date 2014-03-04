@@ -18,11 +18,12 @@
 #include "sysemu/sysemu.h"
 
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/event-facility.h"
 
-static inline S390SCLPDevice *get_event_facility(void)
+static inline SCLPEventFacility *get_event_facility(void)
 {
     ObjectProperty *op = object_property_find(qdev_get_machine(),
-                                              "s390-sclp-event-facility",
+                                              TYPE_SCLP_EVENT_FACILITY,
                                               NULL);
     assert(op);
     return op->opaque;
@@ -89,9 +90,10 @@ static void sclp_read_cpu_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
-static void sclp_execute(SCCB *sccb, uint64_t code)
+static void sclp_execute(SCCB *sccb, uint32_t code)
 {
-    S390SCLPDevice *sdev = get_event_facility();
+    SCLPEventFacility *ef = get_event_facility();
+    SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
 
     switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMDW_READ_SCP_INFO:
@@ -102,12 +104,12 @@ static void sclp_execute(SCCB *sccb, uint64_t code)
         sclp_read_cpu_info(sccb);
         break;
     default:
-        sdev->sclp_command_handler(sdev->ef, sccb, code);
+        efc->command_handler(ef, sccb, code);
         break;
     }
 }
 
-int sclp_service_call(uint32_t sccb, uint64_t code)
+int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
     int r = 0;
     SCCB work_sccb;
@@ -115,11 +117,16 @@ int sclp_service_call(uint32_t sccb, uint64_t code)
     hwaddr sccb_len = sizeof(SCCB);
 
     /* first some basic checks on program checks */
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        r = -PGM_PRIVILEGED;
+        goto out;
+    }
     if (cpu_physical_memory_is_io(sccb)) {
         r = -PGM_ADDRESSING;
         goto out;
     }
-    if (sccb & ~0x7ffffff8ul) {
+    if ((sccb & ~0x1fffUL) == 0 || (sccb & ~0x1fffUL) == env->psa
+        || (sccb & ~0x7ffffff8UL) != 0) {
         r = -PGM_SPECIFICATION;
         goto out;
     }
@@ -151,11 +158,13 @@ out:
 
 void sclp_service_interrupt(uint32_t sccb)
 {
-    S390SCLPDevice *sdev = get_event_facility();
+    SCLPEventFacility *ef = get_event_facility();
+    SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
+
     uint32_t param = sccb & ~3;
 
     /* Indicate whether an event is still pending */
-    param |= sdev->event_pending(sdev->ef) ? 1 : 0;
+    param |= efc->event_pending(ef) ? 1 : 0;
 
     if (!param) {
         /* No need to send an interrupt, there's nothing to be notified about */
@@ -168,47 +177,9 @@ void sclp_service_interrupt(uint32_t sccb)
 
 void s390_sclp_init(void)
 {
-    DeviceState *dev  = qdev_create(NULL, "s390-sclp-event-facility");
+    DeviceState *dev  = qdev_create(NULL, TYPE_SCLP_EVENT_FACILITY);
 
-    object_property_add_child(qdev_get_machine(), "s390-sclp-event-facility",
+    object_property_add_child(qdev_get_machine(), TYPE_SCLP_EVENT_FACILITY,
                               OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 }
-
-static int s390_sclp_dev_init(SysBusDevice *dev)
-{
-    int r;
-    S390SCLPDevice *sdev = (S390SCLPDevice *)dev;
-    S390SCLPDeviceClass *sclp = SCLP_S390_DEVICE_GET_CLASS(dev);
-
-    r = sclp->init(sdev);
-    if (!r) {
-        assert(sdev->event_pending);
-        assert(sdev->sclp_command_handler);
-    }
-
-    return r;
-}
-
-static void s390_sclp_device_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *dc = SYS_BUS_DEVICE_CLASS(klass);
-
-    dc->init = s390_sclp_dev_init;
-}
-
-static const TypeInfo s390_sclp_device_info = {
-    .name = TYPE_DEVICE_S390_SCLP,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(S390SCLPDevice),
-    .class_init = s390_sclp_device_class_init,
-    .class_size = sizeof(S390SCLPDeviceClass),
-    .abstract = true,
-};
-
-static void s390_sclp_register_types(void)
-{
-    type_register_static(&s390_sclp_device_info);
-}
-
-type_init(s390_sclp_register_types)
