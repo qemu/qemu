@@ -35,7 +35,6 @@
 #ifdef _WIN32
 #include "qga/service-win32.h"
 #include "qga/vss-win32.h"
-#include <windows.h>
 #endif
 #ifdef __linux__
 #include <linux/fs.h>
