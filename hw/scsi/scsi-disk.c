@@ -75,6 +75,8 @@ struct SCSIDiskState
     bool media_event;
     bool eject_request;
     uint64_t wwn;
+    uint64_t port_wwn;
+    uint16_t port_index;
     uint64_t max_unmap_size;
     QEMUBH *bh;
     char *version;
@@ -428,6 +430,9 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
         case EINVAL:
             scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
             break;
+        case ENOSPC:
+            scsi_check_condition(r, SENSE_CODE(SPACE_ALLOC_FAILED));
+            break;
         default:
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
@@ -616,6 +621,24 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 outbuf[buflen++] = 8;
                 stq_be_p(&outbuf[buflen], s->wwn);
                 buflen += 8;
+            }
+
+            if (s->port_wwn) {
+                outbuf[buflen++] = 0x61; // SAS / Binary
+                outbuf[buflen++] = 0x93; // PIV / Target port / NAA
+                outbuf[buflen++] = 0;    // reserved
+                outbuf[buflen++] = 8;
+                stq_be_p(&outbuf[buflen], s->port_wwn);
+                buflen += 8;
+            }
+
+            if (s->port_index) {
+                outbuf[buflen++] = 0x61; // SAS / Binary
+                outbuf[buflen++] = 0x94; // PIV / Target port / relative target port
+                outbuf[buflen++] = 0;    // reserved
+                outbuf[buflen++] = 4;
+                stw_be_p(&outbuf[buflen + 2], s->port_index);
+                buflen += 4;
             }
             break;
         }
@@ -2536,6 +2559,8 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
@@ -2584,6 +2609,8 @@ static const TypeInfo scsi_hd_info = {
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2647,6 +2674,8 @@ static Property scsi_disk_properties[] = {
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
+    DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_PROP_END_OF_LIST(),

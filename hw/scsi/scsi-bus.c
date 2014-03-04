@@ -909,7 +909,7 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case VERIFY_16:
         if ((buf[1] & 2) == 0) {
             cmd->xfer = 0;
-        } else if ((buf[1] & 4) == 1) {
+        } else if ((buf[1] & 4) != 0) {
             cmd->xfer = 1;
         }
         cmd->xfer *= dev->blocksize;
@@ -1365,6 +1365,11 @@ const struct SCSISense sense_code_DEVICE_INTERNAL_RESET = {
 /* Data Protection, Write Protected */
 const struct SCSISense sense_code_WRITE_PROTECTED = {
     .key = DATA_PROTECT, .asc = 0x27, .ascq = 0x00
+};
+
+/* Data Protection, Space Allocation Failed Write Protect */
+const struct SCSISense sense_code_SPACE_ALLOC_FAILED = {
+    .key = DATA_PROTECT, .asc = 0x27, .ascq = 0x07
 };
 
 /*

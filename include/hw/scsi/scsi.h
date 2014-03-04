@@ -31,7 +31,7 @@ typedef struct SCSISense {
     uint8_t ascq;
 } SCSISense;
 
-#define SCSI_SENSE_BUF_SIZE 96
+#define SCSI_SENSE_BUF_SIZE 252
 
 struct SCSICommand {
     uint8_t buf[SCSI_CMD_BUF_SIZE];
@@ -223,6 +223,8 @@ extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
 extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 /* Data Protection, Write Protected */
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
+/* Data Protection, Space Allocation Failed Write Protect */
+extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
