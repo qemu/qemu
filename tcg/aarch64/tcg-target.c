@@ -1253,21 +1253,21 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
         tcg_out_ldst_r(s, LDST_8, LDST_ST, data_r, addr_r, off_r);
         break;
     case MO_16:
-        if (bswap) {
+        if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev16(s, TCG_TYPE_I32, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
         tcg_out_ldst_r(s, LDST_16, LDST_ST, data_r, addr_r, off_r);
         break;
     case MO_32:
-        if (bswap) {
+        if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev(s, TCG_TYPE_I32, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
         tcg_out_ldst_r(s, LDST_32, LDST_ST, data_r, addr_r, off_r);
         break;
     case MO_64:
-        if (bswap) {
+        if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev(s, TCG_TYPE_I64, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
@@ -1364,8 +1364,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_ld_i32:
     case INDEX_op_ld_i64:
-    case INDEX_op_st_i32:
-    case INDEX_op_st_i64:
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld16u_i32:
@@ -1376,13 +1374,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ld16s_i64:
     case INDEX_op_ld32u_i64:
     case INDEX_op_ld32s_i64:
+        tcg_out_ldst(s, aarch64_ldst_get_data(opc), aarch64_ldst_get_type(opc),
+                     a0, a1, a2);
+        break;
+    case INDEX_op_st_i32:
+    case INDEX_op_st_i64:
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
     case INDEX_op_st32_i64:
         tcg_out_ldst(s, aarch64_ldst_get_data(opc), aarch64_ldst_get_type(opc),
-                     a0, a1, a2);
+                     REG0(0), a1, a2);
         break;
 
     case INDEX_op_add_i32:
@@ -1585,7 +1588,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, a0, a1, a2, args[3]);
+        tcg_out_qemu_st(s, REG0(0), a1, a2, args[3]);
         break;
 
     case INDEX_op_bswap32_i64:
@@ -1693,13 +1696,13 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_ld32s_i64, { "r", "r" } },
     { INDEX_op_ld_i64, { "r", "r" } },
 
-    { INDEX_op_st8_i32, { "r", "r" } },
-    { INDEX_op_st16_i32, { "r", "r" } },
-    { INDEX_op_st_i32, { "r", "r" } },
-    { INDEX_op_st8_i64, { "r", "r" } },
-    { INDEX_op_st16_i64, { "r", "r" } },
-    { INDEX_op_st32_i64, { "r", "r" } },
-    { INDEX_op_st_i64, { "r", "r" } },
+    { INDEX_op_st8_i32, { "rZ", "r" } },
+    { INDEX_op_st16_i32, { "rZ", "r" } },
+    { INDEX_op_st_i32, { "rZ", "r" } },
+    { INDEX_op_st8_i64, { "rZ", "r" } },
+    { INDEX_op_st16_i64, { "rZ", "r" } },
+    { INDEX_op_st32_i64, { "rZ", "r" } },
+    { INDEX_op_st_i64, { "rZ", "r" } },
 
     { INDEX_op_add_i32, { "r", "r", "rwA" } },
     { INDEX_op_add_i64, { "r", "r", "rA" } },
@@ -1753,8 +1756,8 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
 
     { INDEX_op_qemu_ld_i32, { "r", "l" } },
     { INDEX_op_qemu_ld_i64, { "r", "l" } },
-    { INDEX_op_qemu_st_i32, { "l", "l" } },
-    { INDEX_op_qemu_st_i64, { "l", "l" } },
+    { INDEX_op_qemu_st_i32, { "lZ", "l" } },
+    { INDEX_op_qemu_st_i64, { "lZ", "l" } },
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
