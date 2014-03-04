@@ -4968,6 +4968,12 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_ALPHA_DIS=y"  >> $config_target_mak
     echo "CONFIG_ALPHA_DIS=y"  >> config-all-disas.mak
   ;;
+  aarch64)
+    if test -n "${cxx}"; then
+      echo "CONFIG_ARM_A64_DIS=y"  >> $config_target_mak
+      echo "CONFIG_ARM_A64_DIS=y"  >> config-all-disas.mak
+    fi
+  ;;
   arm)
     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
     echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
