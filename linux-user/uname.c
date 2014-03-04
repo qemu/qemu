@@ -155,7 +155,6 @@ void init_qemu_uname_release(void)
      * a specific fake version number, we might want to fake a minimum
      * target kernel version.
      */
-#ifdef UNAME_MINIMUM_RELEASE
     struct new_utsname buf;
 
     if (qemu_uname_release && *qemu_uname_release) {
@@ -169,5 +168,4 @@ void init_qemu_uname_release(void)
     if (relstr_to_int(buf.release) < relstr_to_int(UNAME_MINIMUM_RELEASE)) {
         qemu_uname_release = UNAME_MINIMUM_RELEASE;
     }
-#endif
 }
