@@ -71,24 +71,22 @@ static const int tcg_target_call_oarg_regs[1] = {
 # endif
 #endif
 
-static inline void reloc_pc26(void *code_ptr, tcg_target_long target)
+static inline void reloc_pc26(void *code_ptr, intptr_t target)
 {
-    tcg_target_long offset; uint32_t insn;
-    offset = (target - (tcg_target_long)code_ptr) / 4;
+    intptr_t offset = (target - (intptr_t)code_ptr) / 4;
     /* read instruction, mask away previous PC_REL26 parameter contents,
        set the proper offset, then write back the instruction. */
-    insn = *(uint32_t *)code_ptr;
+    uint32_t insn = *(uint32_t *)code_ptr;
     insn = deposit32(insn, 0, 26, offset);
     *(uint32_t *)code_ptr = insn;
 }
 
-static inline void reloc_pc19(void *code_ptr, tcg_target_long target)
+static inline void reloc_pc19(void *code_ptr, intptr_t target)
 {
-    tcg_target_long offset; uint32_t insn;
-    offset = (target - (tcg_target_long)code_ptr) / 4;
+    intptr_t offset = (target - (intptr_t)code_ptr) / 4;
     /* read instruction, mask away previous PC_REL19 parameter contents,
        set the proper offset, then write back the instruction. */
-    insn = *(uint32_t *)code_ptr;
+    uint32_t insn = *(uint32_t *)code_ptr;
     insn = deposit32(insn, 5, 19, offset);
     *(uint32_t *)code_ptr = insn;
 }
@@ -555,10 +553,9 @@ static inline void tcg_out_cset(TCGContext *s, TCGType ext,
     tcg_out32(s, base | tcg_cond_to_aarch64[tcg_invert_cond(c)] << 12 | rd);
 }
 
-static inline void tcg_out_goto(TCGContext *s, tcg_target_long target)
+static inline void tcg_out_goto(TCGContext *s, intptr_t target)
 {
-    tcg_target_long offset;
-    offset = (target - (tcg_target_long)s->code_ptr) / 4;
+    intptr_t offset = (target - (intptr_t)s->code_ptr) / 4;
 
     if (offset < -0x02000000 || offset >= 0x02000000) {
         /* out of 26bit range */
@@ -589,11 +586,9 @@ static inline void tcg_out_goto_cond_noaddr(TCGContext *s, TCGCond c)
     tcg_out32(s, insn);
 }
 
-static inline void tcg_out_goto_cond(TCGContext *s, TCGCond c,
-                                     tcg_target_long target)
+static inline void tcg_out_goto_cond(TCGContext *s, TCGCond c, intptr_t target)
 {
-    tcg_target_long offset;
-    offset = (target - (tcg_target_long)s->code_ptr) / 4;
+    intptr_t offset = (target - (intptr_t)s->code_ptr) / 4;
 
     if (offset < -0x40000 || offset >= 0x40000) {
         /* out of 19bit range */
@@ -614,11 +609,9 @@ static inline void tcg_out_gotor(TCGContext *s, TCGReg reg)
     tcg_out32(s, 0xd61f0000 | reg << 5);
 }
 
-static inline void tcg_out_call(TCGContext *s, tcg_target_long target)
+static inline void tcg_out_call(TCGContext *s, intptr_t target)
 {
-    tcg_target_long offset;
-
-    offset = (target - (tcg_target_long)s->code_ptr) / 4;
+    intptr_t offset = (target - (intptr_t)s->code_ptr) / 4;
 
     if (offset < -0x02000000 || offset >= 0x02000000) { /* out of 26bit rng */
         tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, target);
@@ -670,9 +663,8 @@ static inline void tcg_out_ret(TCGContext *s)
 
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 {
-    tcg_target_long target, offset;
-    target = (tcg_target_long)addr;
-    offset = (target - (tcg_target_long)jmp_addr) / 4;
+    intptr_t target = addr;
+    intptr_t offset = (target - (intptr_t)jmp_addr) / 4;
 
     if (offset < -0x02000000 || offset >= 0x02000000) {
         /* out of 26bit range */
@@ -810,7 +802,8 @@ static const void * const qemu_st_helpers[4] = {
 
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    reloc_pc19(lb->label_ptr[0], (tcg_target_long)s->code_ptr);
+    reloc_pc19(lb->label_ptr[0], (intptr_t)s->code_ptr);
+
     tcg_out_movr(s, 1, TCG_REG_X0, TCG_AREG0);
     tcg_out_movr(s, (TARGET_LONG_BITS == 64), TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
@@ -824,20 +817,20 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
         tcg_out_movr(s, 1, lb->datalo_reg, TCG_REG_X0);
     }
 
-    tcg_out_goto(s, (tcg_target_long)lb->raddr);
+    tcg_out_goto(s, (intptr_t)lb->raddr);
 }
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    reloc_pc19(lb->label_ptr[0], (tcg_target_long)s->code_ptr);
+    reloc_pc19(lb->label_ptr[0], (intptr_t)s->code_ptr);
 
     tcg_out_movr(s, 1, TCG_REG_X0, TCG_AREG0);
     tcg_out_movr(s, (TARGET_LONG_BITS == 64), TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movr(s, 1, TCG_REG_X2, lb->datalo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X3, lb->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X4, (tcg_target_long)lb->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X4, (intptr_t)lb->raddr);
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
-                 (tcg_target_long)qemu_st_helpers[lb->opc & 3]);
+                 (intptr_t)qemu_st_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
 
     tcg_out_nop(s);
@@ -1113,7 +1106,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     switch (opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_X0, a0);
-        tcg_out_goto(s, (tcg_target_long)tb_ret_addr);
+        tcg_out_goto(s, (intptr_t)tb_ret_addr);
         break;
 
     case INDEX_op_goto_tb:
