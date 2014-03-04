@@ -1405,18 +1405,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         c = ARITH_UDIVX;
         goto gen_arith;
     case INDEX_op_ext32s_i64:
-        if (const_args[1]) {
-            tcg_out_movi(s, TCG_TYPE_I64, args[0], (int32_t)args[1]);
-        } else {
-            tcg_out_arithi(s, args[0], args[1], 0, SHIFT_SRA);
-        }
+        tcg_out_arithi(s, args[0], args[1], 0, SHIFT_SRA);
         break;
     case INDEX_op_ext32u_i64:
-        if (const_args[1]) {
-            tcg_out_movi_imm32(s, args[0], args[1]);
-        } else {
-            tcg_out_arithi(s, args[0], args[1], 0, SHIFT_SRL);
-        }
+        tcg_out_arithi(s, args[0], args[1], 0, SHIFT_SRL);
         break;
 
     case INDEX_op_brcond_i64:
@@ -1527,8 +1519,8 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_neg_i64, { "r", "rJ" } },
     { INDEX_op_not_i64, { "r", "rJ" } },
 
-    { INDEX_op_ext32s_i64, { "r", "ri" } },
-    { INDEX_op_ext32u_i64, { "r", "ri" } },
+    { INDEX_op_ext32s_i64, { "r", "r" } },
+    { INDEX_op_ext32u_i64, { "r", "r" } },
 
     { INDEX_op_brcond_i64, { "rZ", "rJ" } },
     { INDEX_op_setcond_i64, { "r", "rZ", "rJ" } },
