@@ -520,9 +520,6 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     ret = bdrv_open_backing_file(s->target, NULL, &local_err);
     if (ret < 0) {
-        char backing_filename[PATH_MAX];
-        bdrv_get_full_backing_filename(s->target, backing_filename,
-                                       sizeof(backing_filename));
         error_propagate(errp, local_err);
         return;
     }
