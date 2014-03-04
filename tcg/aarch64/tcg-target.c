@@ -305,18 +305,8 @@ static inline void tcg_out_ldst_9(TCGContext *s,
                                   TCGReg rd, TCGReg rn, tcg_target_long offset)
 {
     /* use LDUR with BASE register with 9bit signed unscaled offset */
-    unsigned int mod, off;
-
-    if (offset < 0) {
-        off = (256 + offset);
-        mod = 0x1;
-    } else {
-        off = offset;
-        mod = 0x0;
-    }
-
-    mod |= op_type;
-    tcg_out32(s, op_data << 24 | mod << 20 | off << 12 | rn << 5 | rd);
+    tcg_out32(s, op_data << 24 | op_type << 20
+              | (offset & 0x1ff) << 12 | rn << 5 | rd);
 }
 
 /* tcg_out_ldst_12 expects a scaled unsigned immediate offset */
