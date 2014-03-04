@@ -96,11 +96,6 @@ static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
         return -1;
     }
 
-#if defined(CONFIG_USER_ONLY)
-    if ((env->def->features & CPU_FEATURE_FLOAT)) {
-        env->def->features |= CPU_FEATURE_FLOAT128;
-    }
-#endif
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
     env->nwindows = def->nwindows;
@@ -767,6 +762,14 @@ static bool sparc_cpu_has_work(CPUState *cs)
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
+#if defined(CONFIG_USER_ONLY)
+    SPARCCPU *cpu = SPARC_CPU(dev);
+    CPUSPARCState *env = &cpu->env;
+
+    if ((env->def->features & CPU_FEATURE_FLOAT)) {
+        env->def->features |= CPU_FEATURE_FLOAT128;
+    }
+#endif
 
     qemu_init_vcpu(CPU(dev));
 
