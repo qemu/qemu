@@ -356,78 +356,6 @@ typedef enum {
     I3510_ANDS      = 0x6a000000,
 } AArch64Insn;
 
-static inline enum aarch64_ldst_op_data
-aarch64_ldst_get_data(TCGOpcode tcg_op)
-{
-    switch (tcg_op) {
-    case INDEX_op_ld8u_i32:
-    case INDEX_op_ld8s_i32:
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_st8_i32:
-    case INDEX_op_st8_i64:
-        return LDST_8;
-
-    case INDEX_op_ld16u_i32:
-    case INDEX_op_ld16s_i32:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st16_i64:
-        return LDST_16;
-
-    case INDEX_op_ld_i32:
-    case INDEX_op_st_i32:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-    case INDEX_op_st32_i64:
-        return LDST_32;
-
-    case INDEX_op_ld_i64:
-    case INDEX_op_st_i64:
-        return LDST_64;
-
-    default:
-        tcg_abort();
-    }
-}
-
-static inline enum aarch64_ldst_op_type
-aarch64_ldst_get_type(TCGOpcode tcg_op)
-{
-    switch (tcg_op) {
-    case INDEX_op_st8_i32:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st_i32:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i64:
-        return LDST_ST;
-
-    case INDEX_op_ld8u_i32:
-    case INDEX_op_ld16u_i32:
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld_i32:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld_i64:
-        return LDST_LD;
-
-    case INDEX_op_ld8s_i32:
-    case INDEX_op_ld16s_i32:
-        return LDST_LD_S_W;
-
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32s_i64:
-        return LDST_LD_S_X;
-
-    default:
-        tcg_abort();
-    }
-}
-
 static inline uint32_t tcg_in32(TCGContext *s)
 {
     uint32_t v = *(uint32_t *)s->code_ptr;
@@ -1372,30 +1300,51 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_goto_label(s, a0);
         break;
 
-    case INDEX_op_ld_i32:
-    case INDEX_op_ld_i64:
     case INDEX_op_ld8u_i32:
-    case INDEX_op_ld8s_i32:
-    case INDEX_op_ld16u_i32:
-    case INDEX_op_ld16s_i32:
     case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-        tcg_out_ldst(s, aarch64_ldst_get_data(opc), aarch64_ldst_get_type(opc),
-                     a0, a1, a2);
+        tcg_out_ldst(s, LDST_8, LDST_LD, a0, a1, a2);
         break;
-    case INDEX_op_st_i32:
-    case INDEX_op_st_i64:
+    case INDEX_op_ld8s_i32:
+        tcg_out_ldst(s, LDST_8, LDST_LD_S_W, a0, a1, a2);
+        break;
+    case INDEX_op_ld8s_i64:
+        tcg_out_ldst(s, LDST_8, LDST_LD_S_X, a0, a1, a2);
+        break;
+    case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16u_i64:
+        tcg_out_ldst(s, LDST_16, LDST_LD, a0, a1, a2);
+        break;
+    case INDEX_op_ld16s_i32:
+        tcg_out_ldst(s, LDST_16, LDST_LD_S_W, a0, a1, a2);
+        break;
+    case INDEX_op_ld16s_i64:
+        tcg_out_ldst(s, LDST_16, LDST_LD_S_X, a0, a1, a2);
+        break;
+    case INDEX_op_ld_i32:
+    case INDEX_op_ld32u_i64:
+        tcg_out_ldst(s, LDST_32, LDST_LD, a0, a1, a2);
+        break;
+    case INDEX_op_ld32s_i64:
+        tcg_out_ldst(s, LDST_32, LDST_LD_S_X, a0, a1, a2);
+        break;
+    case INDEX_op_ld_i64:
+        tcg_out_ldst(s, LDST_64, LDST_LD, a0, a1, a2);
+        break;
+
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
+        tcg_out_ldst(s, LDST_8, LDST_ST, REG0(0), a1, a2);
+        break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
+        tcg_out_ldst(s, LDST_16, LDST_ST, REG0(0), a1, a2);
+        break;
+    case INDEX_op_st_i32:
     case INDEX_op_st32_i64:
-        tcg_out_ldst(s, aarch64_ldst_get_data(opc), aarch64_ldst_get_type(opc),
-                     REG0(0), a1, a2);
+        tcg_out_ldst(s, LDST_32, LDST_ST, REG0(0), a1, a2);
+        break;
+    case INDEX_op_st_i64:
+        tcg_out_ldst(s, LDST_64, LDST_ST, REG0(0), a1, a2);
         break;
 
     case INDEX_op_add_i32:
