@@ -242,19 +242,12 @@ static const enum aarch64_cond_code tcg_cond_to_aarch64[] = {
     [TCG_COND_LEU] = COND_LS,
 };
 
-/* opcodes for LDR / STR instructions with base + simm9 addressing */
-enum aarch64_ldst_op_data { /* size of the data moved */
-    LDST_8 = 0x38,
-    LDST_16 = 0x78,
-    LDST_32 = 0xb8,
-    LDST_64 = 0xf8,
-};
-enum aarch64_ldst_op_type { /* type of operation */
-    LDST_ST = 0x0,    /* store */
-    LDST_LD = 0x4,    /* load */
-    LDST_LD_S_X = 0x8,  /* load and sign-extend into Xt */
-    LDST_LD_S_W = 0xc,  /* load and sign-extend into Wt */
-};
+typedef enum {
+    LDST_ST = 0,    /* store */
+    LDST_LD = 1,    /* load */
+    LDST_LD_S_X = 2,  /* load and sign-extend into Xt */
+    LDST_LD_S_W = 3,  /* load and sign-extend into Wt */
+} AArch64LdstType;
 
 /* We encode the format of the insn into the beginning of the name, so that
    we can have the preprocessor help "typecheck" the insn vs the output
@@ -277,6 +270,28 @@ typedef enum {
     I3207_BR        = 0xd61f0000,
     I3207_BLR       = 0xd63f0000,
     I3207_RET       = 0xd65f0000,
+
+    /* Load/store register.  Described here as 3.3.12, but the helper
+       that emits them can transform to 3.3.10 or 3.3.13.  */
+    I3312_STRB      = 0x38000000 | LDST_ST << 22 | MO_8 << 30,
+    I3312_STRH      = 0x38000000 | LDST_ST << 22 | MO_16 << 30,
+    I3312_STRW      = 0x38000000 | LDST_ST << 22 | MO_32 << 30,
+    I3312_STRX      = 0x38000000 | LDST_ST << 22 | MO_64 << 30,
+
+    I3312_LDRB      = 0x38000000 | LDST_LD << 22 | MO_8 << 30,
+    I3312_LDRH      = 0x38000000 | LDST_LD << 22 | MO_16 << 30,
+    I3312_LDRW      = 0x38000000 | LDST_LD << 22 | MO_32 << 30,
+    I3312_LDRX      = 0x38000000 | LDST_LD << 22 | MO_64 << 30,
+
+    I3312_LDRSBW    = 0x38000000 | LDST_LD_S_W << 22 | MO_8 << 30,
+    I3312_LDRSHW    = 0x38000000 | LDST_LD_S_W << 22 | MO_16 << 30,
+
+    I3312_LDRSBX    = 0x38000000 | LDST_LD_S_X << 22 | MO_8 << 30,
+    I3312_LDRSHX    = 0x38000000 | LDST_LD_S_X << 22 | MO_16 << 30,
+    I3312_LDRSWX    = 0x38000000 | LDST_LD_S_X << 22 | MO_32 << 30,
+
+    I3312_TO_I3310  = 0x00206800,
+    I3312_TO_I3313  = 0x01000000,
 
     /* Load/store register pair instructions.  */
     I3314_LDP       = 0x28400000,
@@ -490,26 +505,25 @@ static void tcg_out_insn_3509(TCGContext *s, AArch64Insn insn, TCGType ext,
     tcg_out32(s, insn | ext << 31 | rm << 16 | ra << 10 | rn << 5 | rd);
 }
 
-
-static inline void tcg_out_ldst_9(TCGContext *s,
-                                  enum aarch64_ldst_op_data op_data,
-                                  enum aarch64_ldst_op_type op_type,
-                                  TCGReg rd, TCGReg rn, intptr_t offset)
+static void tcg_out_insn_3310(TCGContext *s, AArch64Insn insn,
+                              TCGReg rd, TCGReg base, TCGReg regoff)
 {
-    /* use LDUR with BASE register with 9bit signed unscaled offset */
-    tcg_out32(s, op_data << 24 | op_type << 20
-              | (offset & 0x1ff) << 12 | rn << 5 | rd);
+    /* Note the AArch64Insn constants above are for C3.3.12.  Adjust.  */
+    tcg_out32(s, insn | I3312_TO_I3310 | regoff << 16 | base << 5 | rd);
 }
 
-/* tcg_out_ldst_12 expects a scaled unsigned immediate offset */
-static inline void tcg_out_ldst_12(TCGContext *s,
-                                   enum aarch64_ldst_op_data op_data,
-                                   enum aarch64_ldst_op_type op_type,
-                                   TCGReg rd, TCGReg rn,
-                                   tcg_target_ulong scaled_uimm)
+
+static void tcg_out_insn_3312(TCGContext *s, AArch64Insn insn,
+                              TCGReg rd, TCGReg rn, intptr_t offset)
 {
-    tcg_out32(s, (op_data | 1) << 24
-              | op_type << 20 | scaled_uimm << 10 | rn << 5 | rd);
+    tcg_out32(s, insn | (offset & 0x1ff) << 12 | rn << 5 | rd);
+}
+
+static void tcg_out_insn_3313(TCGContext *s, AArch64Insn insn,
+                              TCGReg rd, TCGReg rn, uintptr_t scaled_uimm)
+{
+    /* Note the AArch64Insn constants above are for C3.3.12.  Adjust.  */
+    tcg_out32(s, insn | I3312_TO_I3313 | scaled_uimm << 10 | rn << 5 | rd);
 }
 
 /* Register to register move using ORR (shifted register with no shift). */
@@ -647,44 +661,32 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
     }
 }
 
-static inline void tcg_out_ldst_r(TCGContext *s,
-                                  enum aarch64_ldst_op_data op_data,
-                                  enum aarch64_ldst_op_type op_type,
-                                  TCGReg rd, TCGReg base, TCGReg regoff)
-{
-    /* load from memory to register using base + 64bit register offset */
-    /* using f.e. STR Wt, [Xn, Xm] 0xb8600800|(regoff << 16)|(base << 5)|rd */
-    /* the 0x6000 is for the "no extend field" */
-    tcg_out32(s, 0x00206800
-              | op_data << 24 | op_type << 20 | regoff << 16 | base << 5 | rd);
-}
+/* Define something more legible for general use.  */
+#define tcg_out_ldst_r  tcg_out_insn_3310
 
-/* solve the whole ldst problem */
-static inline void tcg_out_ldst(TCGContext *s, enum aarch64_ldst_op_data data,
-                                enum aarch64_ldst_op_type type,
-                                TCGReg rd, TCGReg rn, intptr_t offset)
+static void tcg_out_ldst(TCGContext *s, AArch64Insn insn,
+                         TCGReg rd, TCGReg rn, intptr_t offset)
 {
+    TCGMemOp size = (uint32_t)insn >> 30;
+
     if (offset >= -256 && offset < 256) {
-        tcg_out_ldst_9(s, data, type, rd, rn, offset);
+        tcg_out_insn_3312(s, insn, rd, rn, offset);
         return;
     }
 
-    if (offset >= 256) {
-        /* if the offset is naturally aligned and in range,
-           then we can use the scaled uimm12 encoding */
-        unsigned int s_bits = data >> 6;
-        if (!(offset & ((1 << s_bits) - 1))) {
-            tcg_target_ulong scaled_uimm = offset >> s_bits;
-            if (scaled_uimm <= 0xfff) {
-                tcg_out_ldst_12(s, data, type, rd, rn, scaled_uimm);
-                return;
-            }
+    /* If the offset is naturally aligned and in range, then we can
+       use the scaled uimm12 encoding */
+    if (offset >= 0 && !(offset & ((1 << size) - 1))) {
+        uintptr_t scaled_uimm = offset >> size;
+        if (scaled_uimm <= 0xfff) {
+            tcg_out_insn_3313(s, insn, rd, rn, scaled_uimm);
+            return;
         }
     }
 
-    /* worst-case scenario, move offset to temp register, use reg offset */
+    /* Worst-case scenario, move offset to temp register, use reg offset.  */
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, offset);
-    tcg_out_ldst_r(s, data, type, rd, rn, TCG_REG_TMP);
+    tcg_out_ldst_r(s, insn, rd, rn, TCG_REG_TMP);
 }
 
 static inline void tcg_out_mov(TCGContext *s,
@@ -698,14 +700,14 @@ static inline void tcg_out_mov(TCGContext *s,
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
                               TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_LD,
+    tcg_out_ldst(s, type == TCG_TYPE_I32 ? I3312_LDRW : I3312_LDRX,
                  arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
                               TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_ST,
+    tcg_out_ldst(s, type == TCG_TYPE_I32 ? I3312_STRW : I3312_STRX,
                  arg, arg1, arg2);
 }
 
@@ -1108,12 +1110,12 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp s_bits,
 
     /* Merge "low bits" from tlb offset, load the tlb comparator into X0.
        X0 = load [X2 + (tlb_offset & 0x000fff)] */
-    tcg_out_ldst(s, TARGET_LONG_BITS == 64 ? LDST_64 : LDST_32,
-                 LDST_LD, TCG_REG_X0, TCG_REG_X2, tlb_offset & 0xfff);
+    tcg_out_ldst(s, TARGET_LONG_BITS == 32 ? I3312_LDRW : I3312_LDRX,
+                 TCG_REG_X0, TCG_REG_X2, tlb_offset & 0xfff);
 
     /* Load the tlb addend. Do that early to avoid stalling.
        X1 = load [X2 + (tlb_offset & 0xfff) + offsetof(addend)] */
-    tcg_out_ldst(s, LDST_64, LDST_LD, TCG_REG_X1, TCG_REG_X2,
+    tcg_out_ldst(s, I3312_LDRX, TCG_REG_X1, TCG_REG_X2,
                  (tlb_offset & 0xfff) + (offsetof(CPUTLBEntry, addend)) -
                  (is_read ? offsetof(CPUTLBEntry, addr_read)
                   : offsetof(CPUTLBEntry, addr_write)));
@@ -1135,43 +1137,43 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp memop,
 
     switch (memop & MO_SSIZE) {
     case MO_UB:
-        tcg_out_ldst_r(s, LDST_8, LDST_LD, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_LDRB, data_r, addr_r, off_r);
         break;
     case MO_SB:
-        tcg_out_ldst_r(s, LDST_8, LDST_LD_S_X, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_LDRSBX, data_r, addr_r, off_r);
         break;
     case MO_UW:
-        tcg_out_ldst_r(s, LDST_16, LDST_LD, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_LDRH, data_r, addr_r, off_r);
         if (bswap) {
             tcg_out_rev16(s, data_r, data_r);
         }
         break;
     case MO_SW:
         if (bswap) {
-            tcg_out_ldst_r(s, LDST_16, LDST_LD, data_r, addr_r, off_r);
+            tcg_out_ldst_r(s, I3312_LDRH, data_r, addr_r, off_r);
             tcg_out_rev16(s, data_r, data_r);
             tcg_out_sxt(s, TCG_TYPE_I64, MO_16, data_r, data_r);
         } else {
-            tcg_out_ldst_r(s, LDST_16, LDST_LD_S_X, data_r, addr_r, off_r);
+            tcg_out_ldst_r(s, I3312_LDRSHX, data_r, addr_r, off_r);
         }
         break;
     case MO_UL:
-        tcg_out_ldst_r(s, LDST_32, LDST_LD, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_LDRW, data_r, addr_r, off_r);
         if (bswap) {
             tcg_out_rev32(s, data_r, data_r);
         }
         break;
     case MO_SL:
         if (bswap) {
-            tcg_out_ldst_r(s, LDST_32, LDST_LD, data_r, addr_r, off_r);
+            tcg_out_ldst_r(s, I3312_LDRW, data_r, addr_r, off_r);
             tcg_out_rev32(s, data_r, data_r);
             tcg_out_sxt(s, TCG_TYPE_I64, MO_32, data_r, data_r);
         } else {
-            tcg_out_ldst_r(s, LDST_32, LDST_LD_S_X, data_r, addr_r, off_r);
+            tcg_out_ldst_r(s, I3312_LDRSWX, data_r, addr_r, off_r);
         }
         break;
     case MO_Q:
-        tcg_out_ldst_r(s, LDST_64, LDST_LD, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_LDRX, data_r, addr_r, off_r);
         if (bswap) {
             tcg_out_rev64(s, data_r, data_r);
         }
@@ -1188,28 +1190,28 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        tcg_out_ldst_r(s, LDST_8, LDST_ST, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_STRB, data_r, addr_r, off_r);
         break;
     case MO_16:
         if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev16(s, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
-        tcg_out_ldst_r(s, LDST_16, LDST_ST, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_STRH, data_r, addr_r, off_r);
         break;
     case MO_32:
         if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev32(s, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
-        tcg_out_ldst_r(s, LDST_32, LDST_ST, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_STRW, data_r, addr_r, off_r);
         break;
     case MO_64:
         if (bswap && data_r != TCG_REG_XZR) {
             tcg_out_rev64(s, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
-        tcg_out_ldst_r(s, LDST_64, LDST_ST, data_r, addr_r, off_r);
+        tcg_out_ldst_r(s, I3312_STRX, data_r, addr_r, off_r);
         break;
     default:
         tcg_abort();
@@ -1302,49 +1304,49 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8u_i64:
-        tcg_out_ldst(s, LDST_8, LDST_LD, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRB, a0, a1, a2);
         break;
     case INDEX_op_ld8s_i32:
-        tcg_out_ldst(s, LDST_8, LDST_LD_S_W, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRSBW, a0, a1, a2);
         break;
     case INDEX_op_ld8s_i64:
-        tcg_out_ldst(s, LDST_8, LDST_LD_S_X, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRSBX, a0, a1, a2);
         break;
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16u_i64:
-        tcg_out_ldst(s, LDST_16, LDST_LD, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRH, a0, a1, a2);
         break;
     case INDEX_op_ld16s_i32:
-        tcg_out_ldst(s, LDST_16, LDST_LD_S_W, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRSHW, a0, a1, a2);
         break;
     case INDEX_op_ld16s_i64:
-        tcg_out_ldst(s, LDST_16, LDST_LD_S_X, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRSHX, a0, a1, a2);
         break;
     case INDEX_op_ld_i32:
     case INDEX_op_ld32u_i64:
-        tcg_out_ldst(s, LDST_32, LDST_LD, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRW, a0, a1, a2);
         break;
     case INDEX_op_ld32s_i64:
-        tcg_out_ldst(s, LDST_32, LDST_LD_S_X, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRSWX, a0, a1, a2);
         break;
     case INDEX_op_ld_i64:
-        tcg_out_ldst(s, LDST_64, LDST_LD, a0, a1, a2);
+        tcg_out_ldst(s, I3312_LDRX, a0, a1, a2);
         break;
 
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
-        tcg_out_ldst(s, LDST_8, LDST_ST, REG0(0), a1, a2);
+        tcg_out_ldst(s, I3312_STRB, REG0(0), a1, a2);
         break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
-        tcg_out_ldst(s, LDST_16, LDST_ST, REG0(0), a1, a2);
+        tcg_out_ldst(s, I3312_STRH, REG0(0), a1, a2);
         break;
     case INDEX_op_st_i32:
     case INDEX_op_st32_i64:
-        tcg_out_ldst(s, LDST_32, LDST_ST, REG0(0), a1, a2);
+        tcg_out_ldst(s, I3312_STRW, REG0(0), a1, a2);
         break;
     case INDEX_op_st_i64:
-        tcg_out_ldst(s, LDST_64, LDST_ST, REG0(0), a1, a2);
+        tcg_out_ldst(s, I3312_STRX, REG0(0), a1, a2);
         break;
 
     case INDEX_op_add_i32:
