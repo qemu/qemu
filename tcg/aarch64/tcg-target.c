@@ -497,7 +497,7 @@ static void tcg_out_insn_3509(TCGContext *s, AArch64Insn insn, TCGType ext,
 static inline void tcg_out_ldst_9(TCGContext *s,
                                   enum aarch64_ldst_op_data op_data,
                                   enum aarch64_ldst_op_type op_type,
-                                  TCGReg rd, TCGReg rn, tcg_target_long offset)
+                                  TCGReg rd, TCGReg rn, intptr_t offset)
 {
     /* use LDUR with BASE register with 9bit signed unscaled offset */
     tcg_out32(s, op_data << 24 | op_type << 20
@@ -566,7 +566,7 @@ static inline void tcg_out_ldst_r(TCGContext *s,
 /* solve the whole ldst problem */
 static inline void tcg_out_ldst(TCGContext *s, enum aarch64_ldst_op_data data,
                                 enum aarch64_ldst_op_type type,
-                                TCGReg rd, TCGReg rn, tcg_target_long offset)
+                                TCGReg rd, TCGReg rn, intptr_t offset)
 {
     if (offset >= -256 && offset < 256) {
         tcg_out_ldst_9(s, data, type, rd, rn, offset);
@@ -954,9 +954,9 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, 1, TCG_REG_X0, TCG_AREG0);
     tcg_out_movr(s, (TARGET_LONG_BITS == 64), TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X3, (tcg_target_long)lb->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X3, (intptr_t)lb->raddr);
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
-                 (tcg_target_long)qemu_ld_helpers[lb->opc & 3]);
+                 (intptr_t)qemu_ld_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
     if (lb->opc & 0x04) {
         tcg_out_sxt(s, 1, lb->opc & 3, lb->datalo_reg, TCG_REG_X0);
@@ -979,7 +979,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
                  (intptr_t)qemu_st_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
-    tcg_out_goto(s, (tcg_target_long)lb->raddr);
+    tcg_out_goto(s, (intptr_t)lb->raddr);
 }
 
 static void add_qemu_ldst_label(TCGContext *s, int is_ld, int opc,
