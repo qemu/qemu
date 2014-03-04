@@ -2031,6 +2031,16 @@ static bool qxl_vga_available(void)
     return object_class_by_name("qxl-vga");
 }
 
+static bool tcx_vga_available(void)
+{
+    return object_class_by_name("SUNW,tcx");
+}
+
+static bool cg3_vga_available(void)
+{
+    return object_class_by_name("cgthree");
+}
+
 static void select_vgahw (const char *p)
 {
     const char *opts;
@@ -2064,6 +2074,20 @@ static void select_vgahw (const char *p)
             vga_interface_type = VGA_QXL;
         } else {
             fprintf(stderr, "Error: QXL VGA not available\n");
+            exit(0);
+        }
+    } else if (strstart(p, "tcx", &opts)) {
+        if (tcx_vga_available()) {
+            vga_interface_type = VGA_TCX;
+        } else {
+            fprintf(stderr, "Error: TCX framebuffer not available\n");
+            exit(0);
+        }
+    } else if (strstart(p, "cg3", &opts)) {
+        if (cg3_vga_available()) {
+            vga_interface_type = VGA_CG3;
+        } else {
+            fprintf(stderr, "Error: CG3 framebuffer not available\n");
             exit(0);
         }
     } else if (!strstart(p, "none", &opts)) {

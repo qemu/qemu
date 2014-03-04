@@ -11,8 +11,8 @@
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.
   The included images for PowerPC (for 32 and 64 bit PPC CPUs),
-  Sparc32 (including QEMU,tcx.bin) and Sparc64 are built from OpenBIOS SVN
-  revision 1246.
+  Sparc32 (including QEMU,tcx.bin and QEMU,cgthree.bin) and Sparc64 are built
+  from OpenBIOS SVN revision 1246.
 
 - SLOF (Slimline Open Firmware) is a free IEEE 1275 Open Firmware
   implementation for certain IBM POWER hardware.  The sources are at
