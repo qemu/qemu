@@ -200,11 +200,14 @@ static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
 {
     QObject *data;
     assert(node_name);
-    data = qobject_from_jsonf("{ 'ret': %d"
-                              ", 'node-name': %s"
+    data = qobject_from_jsonf("{ 'node-name': %s"
                               ", 'sector-num': %" PRId64
                               ", 'sectors-count': %d }",
-                              ret, node_name, acb->sector_num, acb->nb_sectors);
+                              node_name, acb->sector_num, acb->nb_sectors);
+    if (ret < 0) {
+        QDict *dict = qobject_to_qdict(data);
+        qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
+    }
     monitor_protocol_event(QEVENT_QUORUM_REPORT_BAD, data);
     qobject_decref(data);
 }

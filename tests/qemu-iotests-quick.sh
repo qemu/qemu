@@ -8,6 +8,7 @@ export QEMU_PROG="this_should_be_unused"
 
 export QEMU_IMG_PROG="$(pwd)/qemu-img"
 export QEMU_IO_PROG="$(pwd)/qemu-io"
+export QEMU_NBD_PROG="$(pwd)/qemu-nbd"
 
 cd $SRC_PATH/tests/qemu-iotests
 

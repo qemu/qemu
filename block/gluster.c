@@ -45,11 +45,13 @@ typedef struct GlusterConf {
 
 static void qemu_gluster_gconf_free(GlusterConf *gconf)
 {
-    g_free(gconf->server);
-    g_free(gconf->volname);
-    g_free(gconf->image);
-    g_free(gconf->transport);
-    g_free(gconf);
+    if (gconf) {
+        g_free(gconf->server);
+        g_free(gconf->volname);
+        g_free(gconf->image);
+        g_free(gconf->transport);
+        g_free(gconf);
+    }
 }
 
 static int parse_volume_options(GlusterConf *gconf, char *path)
@@ -272,11 +274,28 @@ static QemuOptsList runtime_opts = {
     },
 };
 
+static void qemu_gluster_parse_flags(int bdrv_flags, int *open_flags)
+{
+    assert(open_flags != NULL);
+
+    *open_flags |= O_BINARY;
+
+    if (bdrv_flags & BDRV_O_RDWR) {
+        *open_flags |= O_RDWR;
+    } else {
+        *open_flags |= O_RDONLY;
+    }
+
+    if ((bdrv_flags & BDRV_O_NOCACHE)) {
+        *open_flags |= O_DIRECT;
+    }
+}
+
 static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
                              int bdrv_flags, Error **errp)
 {
     BDRVGlusterState *s = bs->opaque;
-    int open_flags = O_BINARY;
+    int open_flags = 0;
     int ret = 0;
     GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
     QemuOpts *opts;
@@ -299,15 +318,7 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
         goto out;
     }
 
-    if (bdrv_flags & BDRV_O_RDWR) {
-        open_flags |= O_RDWR;
-    } else {
-        open_flags |= O_RDONLY;
-    }
-
-    if ((bdrv_flags & BDRV_O_NOCACHE)) {
-        open_flags |= O_DIRECT;
-    }
+    qemu_gluster_parse_flags(bdrv_flags, &open_flags);
 
     s->fd = glfs_open(s->glfs, gconf->image, open_flags);
     if (!s->fd) {
@@ -327,6 +338,96 @@ out:
         glfs_fini(s->glfs);
     }
     return ret;
+}
+
+typedef struct BDRVGlusterReopenState {
+    struct glfs *glfs;
+    struct glfs_fd *fd;
+} BDRVGlusterReopenState;
+
+
+static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
+                                       BlockReopenQueue *queue, Error **errp)
+{
+    int ret = 0;
+    BDRVGlusterReopenState *reop_s;
+    GlusterConf *gconf = NULL;
+    int open_flags = 0;
+
+    assert(state != NULL);
+    assert(state->bs != NULL);
+
+    state->opaque = g_malloc0(sizeof(BDRVGlusterReopenState));
+    reop_s = state->opaque;
+
+    qemu_gluster_parse_flags(state->flags, &open_flags);
+
+    gconf = g_malloc0(sizeof(GlusterConf));
+
+    reop_s->glfs = qemu_gluster_init(gconf, state->bs->filename);
+    if (reop_s->glfs == NULL) {
+        ret = -errno;
+        goto exit;
+    }
+
+    reop_s->fd = glfs_open(reop_s->glfs, gconf->image, open_flags);
+    if (reop_s->fd == NULL) {
+        /* reops->glfs will be cleaned up in _abort */
+        ret = -errno;
+        goto exit;
+    }
+
+exit:
+    /* state->opaque will be freed in either the _abort or _commit */
+    qemu_gluster_gconf_free(gconf);
+    return ret;
+}
+
+static void qemu_gluster_reopen_commit(BDRVReopenState *state)
+{
+    BDRVGlusterReopenState *reop_s = state->opaque;
+    BDRVGlusterState *s = state->bs->opaque;
+
+
+    /* close the old */
+    if (s->fd) {
+        glfs_close(s->fd);
+    }
+    if (s->glfs) {
+        glfs_fini(s->glfs);
+    }
+
+    /* use the newly opened image / connection */
+    s->fd         = reop_s->fd;
+    s->glfs       = reop_s->glfs;
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+
+    return;
+}
+
+
+static void qemu_gluster_reopen_abort(BDRVReopenState *state)
+{
+    BDRVGlusterReopenState *reop_s = state->opaque;
+
+    if (reop_s == NULL) {
+        return;
+    }
+
+    if (reop_s->fd) {
+        glfs_close(reop_s->fd);
+    }
+
+    if (reop_s->glfs) {
+        glfs_fini(reop_s->glfs);
+    }
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+
+    return;
 }
 
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
@@ -619,6 +720,9 @@ static BlockDriver bdrv_gluster = {
     .instance_size                = sizeof(BDRVGlusterState),
     .bdrv_needs_filename          = true,
     .bdrv_file_open               = qemu_gluster_open,
+    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
+    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
+    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
     .bdrv_create                  = qemu_gluster_create,
     .bdrv_getlength               = qemu_gluster_getlength,
@@ -643,6 +747,9 @@ static BlockDriver bdrv_gluster_tcp = {
     .instance_size                = sizeof(BDRVGlusterState),
     .bdrv_needs_filename          = true,
     .bdrv_file_open               = qemu_gluster_open,
+    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
+    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
+    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
     .bdrv_create                  = qemu_gluster_create,
     .bdrv_getlength               = qemu_gluster_getlength,
@@ -667,6 +774,9 @@ static BlockDriver bdrv_gluster_unix = {
     .instance_size                = sizeof(BDRVGlusterState),
     .bdrv_needs_filename          = true,
     .bdrv_file_open               = qemu_gluster_open,
+    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
+    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
+    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
     .bdrv_create                  = qemu_gluster_create,
     .bdrv_getlength               = qemu_gluster_getlength,
@@ -691,6 +801,9 @@ static BlockDriver bdrv_gluster_rdma = {
     .instance_size                = sizeof(BDRVGlusterState),
     .bdrv_needs_filename          = true,
     .bdrv_file_open               = qemu_gluster_open,
+    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
+    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
+    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
     .bdrv_create                  = qemu_gluster_create,
     .bdrv_getlength               = qemu_gluster_getlength,

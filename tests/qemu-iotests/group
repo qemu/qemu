@@ -58,30 +58,30 @@
 049 rw auto
 050 rw auto backing quick
 051 rw auto
-052 rw auto backing
-053 rw auto
-054 rw auto
+052 rw auto backing quick
+053 rw auto quick
+054 rw auto quick
 055 rw auto
 056 rw auto backing
 057 rw auto
-058 rw auto
-059 rw auto
-060 rw auto
-061 rw auto
-062 rw auto
-063 rw auto
-064 rw auto
+058 rw auto quick
+059 rw auto quick
+060 rw auto quick
+061 rw auto quick
+062 rw auto quick
+063 rw auto quick
+064 rw auto quick
 065 rw auto
-066 rw auto
+066 rw auto quick
 067 rw auto
 068 rw auto
-069 rw auto
-070 rw auto
+069 rw auto quick
+070 rw auto quick
 071 rw auto
-072 rw auto
-073 rw auto
-074 rw auto
-077 rw auto
+072 rw auto quick
+073 rw auto quick
+074 rw auto quick
+077 rw auto quick
 079 rw auto
 081 rw auto
 082 rw auto quick
