@@ -669,11 +669,6 @@ static void tcg_out_ldst(TCGContext *s, AArch64Insn insn,
 {
     TCGMemOp size = (uint32_t)insn >> 30;
 
-    if (offset >= -256 && offset < 256) {
-        tcg_out_insn_3312(s, insn, rd, rn, offset);
-        return;
-    }
-
     /* If the offset is naturally aligned and in range, then we can
        use the scaled uimm12 encoding */
     if (offset >= 0 && !(offset & ((1 << size) - 1))) {
@@ -682,6 +677,12 @@ static void tcg_out_ldst(TCGContext *s, AArch64Insn insn,
             tcg_out_insn_3313(s, insn, rd, rn, scaled_uimm);
             return;
         }
+    }
+
+    /* Small signed offsets can use the unscaled encoding.  */
+    if (offset >= -256 && offset < 256) {
+        tcg_out_insn_3312(s, insn, rd, rn, offset);
+        return;
     }
 
     /* Worst-case scenario, move offset to temp register, use reg offset.  */
