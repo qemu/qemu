@@ -38,8 +38,10 @@
 
 #ifdef TARGET_X86_64
 #define ELF_MACHINE     EM_X86_64
+#define ELF_MACHINE_UNAME "x86_64"
 #else
 #define ELF_MACHINE     EM_386
+#define ELF_MACHINE_UNAME "i686"
 #endif
 
 #define CPUArchState struct CPUX86State

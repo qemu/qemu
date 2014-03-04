@@ -171,7 +171,12 @@ class QEMUMonitorProtocol:
                 pass
         self.__sock.setblocking(1)
         if not self.__events and wait:
-            self.__json_read(only_event=True)
+            ret = self.__json_read(only_event=True)
+            if ret == None:
+                # We are in blocking mode, if don't get anything, something
+                # went wrong
+                raise QMPConnectError("Error while reading from socket")
+
         return self.__events
 
     def clear_events(self):

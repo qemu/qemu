@@ -1311,8 +1311,11 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     const char *file = qdict_get_str(qdict, "filename");
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
+    /* kdump-compressed format is not supported for HMP */
+    bool has_format = false;
     int64_t begin = 0;
     int64_t length = 0;
+    enum DumpGuestMemoryFormat dump_format = DUMP_GUEST_MEMORY_FORMAT_ELF;
     char *prot;
 
     if (has_begin) {
@@ -1325,7 +1328,7 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     prot = g_strconcat("file:", file, NULL);
 
     qmp_dump_guest_memory(paging, prot, has_begin, begin, has_length, length,
-                          &errp);
+                          has_format, dump_format, &errp);
     hmp_handle_error(mon, &errp);
     g_free(prot);
 }

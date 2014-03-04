@@ -252,7 +252,7 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
 
     check_and_free_str(udp->string0, "string0");
     check_and_free_str(udp->dict1.string1, "string1");
-    g_assert_cmpint(udp->dict1.dict2.userdef1->integer, ==, 42);
+    g_assert_cmpint(udp->dict1.dict2.userdef1->base->integer, ==, 42);
     check_and_free_str(udp->dict1.dict2.userdef1->string, "string");
     check_and_free_str(udp->dict1.dict2.string2, "string2");
     g_assert(udp->dict1.has_dict3 == false);
@@ -280,7 +280,7 @@ static void test_visitor_in_list(TestInputVisitorData *data,
 
         snprintf(string, sizeof(string), "string%d", i);
         g_assert_cmpstr(item->value->string, ==, string);
-        g_assert_cmpint(item->value->integer, ==, 42 + i);
+        g_assert_cmpint(item->value->base->integer, ==, 42 + i);
     }
 
     qapi_free_UserDefOneList(head);
@@ -293,13 +293,48 @@ static void test_visitor_in_union(TestInputVisitorData *data,
     Error *err = NULL;
     UserDefUnion *tmp;
 
-    v = visitor_input_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
+    v = visitor_input_test_init(data, "{ 'type': 'b', 'integer': 41, 'data' : { 'integer': 42 } }");
 
     visit_type_UserDefUnion(v, &tmp, NULL, &err);
     g_assert(err == NULL);
     g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_B);
+    g_assert_cmpint(tmp->integer, ==, 41);
     g_assert_cmpint(tmp->b->integer, ==, 42);
     qapi_free_UserDefUnion(tmp);
+}
+
+static void test_visitor_in_union_flat(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    Visitor *v;
+    Error *err = NULL;
+    UserDefFlatUnion *tmp;
+
+    v = visitor_input_test_init(data, "{ 'string': 'a', 'boolean': true }");
+    /* TODO when generator bug is fixed, add 'integer': 41 */
+
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
+    g_assert(err == NULL);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_A);
+    /* TODO g_assert_cmpint(tmp->integer, ==, 41); */
+    g_assert_cmpint(tmp->a->boolean, ==, true);
+    qapi_free_UserDefFlatUnion(tmp);
+}
+
+static void test_visitor_in_union_anon(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    Visitor *v;
+    Error *err = NULL;
+    UserDefAnonUnion *tmp;
+
+    v = visitor_input_test_init(data, "42");
+
+    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    g_assert(err == NULL);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_ANON_UNION_KIND_I);
+    g_assert_cmpint(tmp->i, ==, 42);
+    qapi_free_UserDefAnonUnion(tmp);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,
@@ -635,6 +670,10 @@ int main(int argc, char **argv)
                             &in_visitor_data, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/union",
                             &in_visitor_data, test_visitor_in_union);
+    input_visitor_test_add("/visitor/input/union-flat",
+                            &in_visitor_data, test_visitor_in_union_flat);
+    input_visitor_test_add("/visitor/input/union-anon",
+                            &in_visitor_data, test_visitor_in_union_anon);
     input_visitor_test_add("/visitor/input/errors",
                             &in_visitor_data, test_visitor_in_errors);
     input_visitor_test_add("/visitor/input/native_list/int",

@@ -7,8 +7,12 @@
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
 # for testing nested structs
+{ 'type': 'UserDefZero',
+  'data': { 'integer': 'int' } }
+
 { 'type': 'UserDefOne',
-  'data': { 'integer': 'int', 'string': 'str', '*enum1': 'EnumOne' } }
+  'base': 'UserDefZero',
+  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
 { 'type': 'UserDefTwo',
   'data': { 'string': 'str',
@@ -30,7 +34,19 @@
   'data': { 'integer': 'int' } }
 
 { 'union': 'UserDefUnion',
+  'base': 'UserDefZero',
   'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
+
+{ 'union': 'UserDefFlatUnion',
+  'base': 'UserDefOne',
+  'discriminator': 'string',
+  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
+# FIXME generated struct UserDefFlatUnion has members for direct base
+# UserDefOne, but lacks members for indirect base UserDefZero
+
+{ 'union': 'UserDefAnonUnion',
+  'discriminator': {},
+  'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
 
 # for testing native lists
 { 'union': 'UserDefNativeListUnion',
@@ -50,7 +66,11 @@
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
-{ 'command': 'user_def_cmd2', 'data': {'ud1a': 'UserDefOne', 'ud1b': 'UserDefOne'}, 'returns': 'UserDefTwo' }
+{ 'command': 'user_def_cmd2',
+  'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
+  'returns': 'UserDefTwo' }
+{ 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
+  'returns': 'int' }
 
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:

@@ -105,7 +105,7 @@ void qerror_report_err(Error *err);
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"
 
 #define QERR_DEVICE_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "Device '%s' has not been activated"
+    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No %s device has been activated"
 
 #define QERR_DEVICE_NOT_ENCRYPTED \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' is not encrypted"
