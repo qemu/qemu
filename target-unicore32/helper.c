@@ -28,19 +28,12 @@
 CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
 {
     UniCore32CPU *cpu;
-    CPUUniCore32State *env;
-    ObjectClass *oc;
 
-    oc = cpu_class_by_name(TYPE_UNICORE32_CPU, cpu_model);
-    if (oc == NULL) {
+    cpu = UNICORE32_CPU(cpu_generic_init(TYPE_UNICORE32_CPU, cpu_model));
+    if (cpu == NULL) {
         return NULL;
     }
-    cpu = UNICORE32_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return env;
+    return &cpu->env;
 }
 
 uint32_t HELPER(clo)(uint32_t x)

@@ -148,18 +148,7 @@ static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
 
 SuperHCPU *cpu_sh4_init(const char *cpu_model)
 {
-    SuperHCPU *cpu;
-    ObjectClass *oc;
-
-    oc = superh_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = SUPERH_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return SUPERH_CPU(cpu_generic_init(TYPE_SUPERH_CPU, cpu_model));
 }
 
 static void sh7750r_cpu_initfn(Object *obj)

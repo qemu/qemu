@@ -182,18 +182,7 @@ void lm32_cpu_do_interrupt(CPUState *cs)
 
 LM32CPU *cpu_lm32_init(const char *cpu_model)
 {
-    LM32CPU *cpu;
-    ObjectClass *oc;
-
-    oc = cpu_class_by_name(TYPE_LM32_CPU, cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = LM32_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return LM32_CPU(cpu_generic_init(TYPE_LM32_CPU, cpu_model));
 }
 
 /* Some soc ignores the MSB on the address bus. Thus creating a shadow memory

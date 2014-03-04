@@ -136,18 +136,7 @@ static const MoxieCPUInfo moxie_cpus[] = {
 
 MoxieCPU *cpu_moxie_init(const char *cpu_model)
 {
-    MoxieCPU *cpu;
-    ObjectClass *oc;
-
-    oc = moxie_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = MOXIE_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
 }
 
 static void cpu_register(const MoxieCPUInfo *info)

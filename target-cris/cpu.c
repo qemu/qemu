@@ -89,18 +89,7 @@ static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
 
 CRISCPU *cpu_cris_init(const char *cpu_model)
 {
-    CRISCPU *cpu;
-    ObjectClass *oc;
-
-    oc = cris_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = CRIS_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return CRIS_CPU(cpu_generic_init(TYPE_CRIS_CPU, cpu_model));
 }
 
 /* Sort alphabetically by VR. */

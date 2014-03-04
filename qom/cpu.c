@@ -23,6 +23,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 
 bool cpu_exists(int64_t id)
@@ -37,6 +38,46 @@ bool cpu_exists(int64_t id)
         }
     }
     return false;
+}
+
+CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+{
+    char *str, *name, *featurestr;
+    CPUState *cpu;
+    ObjectClass *oc;
+    CPUClass *cc;
+    Error *err = NULL;
+
+    str = g_strdup(cpu_model);
+    name = strtok(str, ",");
+
+    oc = cpu_class_by_name(typename, name);
+    if (oc == NULL) {
+        g_free(str);
+        return NULL;
+    }
+
+    cpu = CPU(object_new(object_class_get_name(oc)));
+    cc = CPU_GET_CLASS(cpu);
+
+    featurestr = strtok(NULL, ",");
+    cc->parse_features(cpu, featurestr, &err);
+    g_free(str);
+    if (err != NULL) {
+        goto out;
+    }
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+
+out:
+    if (err != NULL) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
+        object_unref(OBJECT(cpu));
+        return NULL;
+    }
+
+    return cpu;
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)

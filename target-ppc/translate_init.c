@@ -8220,26 +8220,7 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
 
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {
-    PowerPCCPU *cpu;
-    ObjectClass *oc;
-    Error *err = NULL;
-
-    oc = ppc_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-
-    cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-    if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
-        object_unref(OBJECT(cpu));
-        return NULL;
-    }
-
-    return cpu;
+    return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
 }
 
 /* Sort by PVR, ordering special case "host" last. */
