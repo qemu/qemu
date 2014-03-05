@@ -251,6 +251,17 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     }
 }
 
+static void raw_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
+{
+    /* The filename does not have to be prefixed by the protocol name, since
+     * "file" is the default protocol; therefore, the return value of this
+     * function call can be ignored. */
+    strstart(filename, "file:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static QemuOptsList raw_runtime_opts = {
     .name = "raw",
     .head = QTAILQ_HEAD_INITIALIZER(raw_runtime_opts.head),
@@ -504,6 +515,7 @@ static BlockDriver bdrv_file = {
     .protocol_name	= "file",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
+    .bdrv_parse_filename = raw_parse_filename,
     .bdrv_file_open	= raw_open,
     .bdrv_close		= raw_close,
     .bdrv_create	= raw_create,
