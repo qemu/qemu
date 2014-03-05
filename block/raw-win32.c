@@ -481,6 +481,8 @@ static int raw_create(const char *filename, QEMUOptionParameter *options,
     int fd;
     int64_t total_size = 0;
 
+    strstart(filename, "file:", &filename);
+
     /* Read out options */
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
