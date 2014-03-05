@@ -1231,12 +1231,11 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     bs->total_sectors = sector_lun2qemu(iscsilun->num_blocks, iscsilun);
     bs->request_alignment = iscsilun->block_size;
 
-    /* Medium changer or tape. We dont have any emulation for this so this must
-     * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
-     * to read from the device to guess the image format.
+    /* We don't have any emulation for devices other than disks and CD-ROMs, so
+     * this must be sg ioctl compatible. We force it to be sg, otherwise qemu
+     * will try to read from the device to guess the image format.
      */
-    if (iscsilun->type == TYPE_MEDIUM_CHANGER ||
-        iscsilun->type == TYPE_TAPE) {
+    if (iscsilun->type != TYPE_DISK && iscsilun->type != TYPE_ROM) {
         bs->sg = 1;
     }
 
