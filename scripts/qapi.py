@@ -169,7 +169,7 @@ def parse_schema(fp):
 
     for expr in schema.exprs:
         if expr.has_key('enum'):
-            add_enum(expr['enum'])
+            add_enum(expr['enum'], expr['data'])
         elif expr.has_key('union'):
             add_union(expr)
             add_enum('%sKind' % expr['union'])
@@ -289,13 +289,19 @@ def find_union(name):
             return union
     return None
 
-def add_enum(name):
+def add_enum(name, enum_values = None):
     global enum_types
-    enum_types.append(name)
+    enum_types.append({"enum_name": name, "enum_values": enum_values})
+
+def find_enum(name):
+    global enum_types
+    for enum in enum_types:
+        if enum['enum_name'] == name:
+            return enum
+    return None
 
 def is_enum(name):
-    global enum_types
-    return (name in enum_types)
+    return find_enum(name) != None
 
 def c_type(name):
     if name == 'str':

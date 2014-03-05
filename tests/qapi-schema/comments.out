@@ -1,3 +1,3 @@
 [OrderedDict([('enum', 'Status'), ('data', ['good', 'bad', 'ugly'])])]
-['Status']
+[{'enum_name': 'Status', 'enum_values': ['good', 'bad', 'ugly']}]
 []
