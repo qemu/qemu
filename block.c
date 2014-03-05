@@ -1847,11 +1847,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
     bs_dest->device_list = bs_src->device_list;
-
-    /* keep the same entry in graph_bdrv_states
-     * We do want to swap name but don't want to swap linked list entries
-     */
-    bs_dest->node_list   = bs_src->node_list;
 }
 
 /*
@@ -1869,6 +1864,17 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
 {
     BlockDriverState tmp;
+
+    /* The code needs to swap the node_name but simply swapping node_list won't
+     * work so first remove the nodes from the graph list, do the swap then
+     * insert them back if needed.
+     */
+    if (bs_new->node_name[0] != '\0') {
+        QTAILQ_REMOVE(&graph_bdrv_states, bs_new, node_list);
+    }
+    if (bs_old->node_name[0] != '\0') {
+        QTAILQ_REMOVE(&graph_bdrv_states, bs_old, node_list);
+    }
 
     /* bs_new must be anonymous and shouldn't have anything fancy enabled */
     assert(bs_new->device_name[0] == '\0');
@@ -1897,6 +1903,14 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(bs_new->in_use == 0);
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
+
+    /* insert the nodes back into the graph node list if needed */
+    if (bs_new->node_name[0] != '\0') {
+        QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs_new, node_list);
+    }
+    if (bs_old->node_name[0] != '\0') {
+        QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs_old, node_list);
+    }
 
     bdrv_rebind(bs_new);
     bdrv_rebind(bs_old);
