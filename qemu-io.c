@@ -24,10 +24,9 @@
 
 #define CMD_NOFILE_OK   0x01
 
-char *progname;
+static char *progname;
 
-BlockDriverState *qemuio_bs;
-extern int qemuio_misalign;
+static BlockDriverState *qemuio_bs;
 
 /* qemu-io commands passed using -c */
 static int ncmdline;
@@ -408,7 +407,7 @@ int main(int argc, char **argv)
             readonly = 1;
             break;
         case 'm':
-            qemuio_misalign = 1;
+            qemuio_misalign = true;
             break;
         case 'g':
             growable = 1;
