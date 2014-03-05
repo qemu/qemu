@@ -195,9 +195,9 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
     req->crq.s.IU_data_ptr = req->iu.srp.rsp.tag; /* right byte order */
 
     if (rc == 0) {
-        req->crq.s.status = 0x99; /* Just needs to be non-zero */
+        req->crq.s.status = VIOSRP_OK;
     } else {
-        req->crq.s.status = 0x00;
+        req->crq.s.status = VIOSRP_ADAPTER_FAIL;
     }
 
     rc1 = spapr_vio_send_crq(&s->vdev, req->crq.raw);
