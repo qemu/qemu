@@ -51,6 +51,7 @@ struct QEMUMachine {
     const char *hw_version;
 };
 
+#define TYPE_MACHINE_SUFFIX "-machine"
 int qemu_register_machine(QEMUMachine *m);
 QEMUMachine *find_default_machine(void);
 

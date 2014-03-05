@@ -1571,54 +1571,81 @@ void pcmcia_info(Monitor *mon, const QDict *qdict)
 /***********************************************************/
 /* machine registration */
 
-static QEMUMachine *first_machine = NULL;
 QEMUMachine *current_machine = NULL;
+
+static void machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->qemu_machine = data;
+}
 
 int qemu_register_machine(QEMUMachine *m)
 {
-    QEMUMachine **pm;
-    pm = &first_machine;
-    while (*pm != NULL)
-        pm = &(*pm)->next;
-    m->next = NULL;
-    *pm = m;
+    TypeInfo ti = {
+        .name       = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL),
+        .parent     = TYPE_MACHINE,
+        .class_init = machine_class_init,
+        .class_data = (void *)m,
+    };
+
+    type_register(&ti);
+
     return 0;
 }
 
 static QEMUMachine *find_machine(const char *name)
 {
-    QEMUMachine *m;
+    GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
+    QEMUMachine *m = NULL;
 
-    for(m = first_machine; m != NULL; m = m->next) {
-        if (!strcmp(m->name, name))
-            return m;
-        if (m->alias && !strcmp(m->alias, name))
-            return m;
+    for (el = machines; el; el = el->next) {
+        MachineClass *mc = el->data;
+
+        if (!strcmp(mc->qemu_machine->name, name)) {
+            m = mc->qemu_machine;
+            break;
+        }
+        if (mc->qemu_machine->alias && !strcmp(mc->qemu_machine->alias, name)) {
+            m = mc->qemu_machine;
+            break;
+        }
     }
-    return NULL;
+
+    g_slist_free(machines);
+    return m;
 }
 
 QEMUMachine *find_default_machine(void)
 {
-    QEMUMachine *m;
+    GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
+    QEMUMachine *m = NULL;
 
-    for(m = first_machine; m != NULL; m = m->next) {
-        if (m->is_default) {
-            return m;
+    for (el = machines; el; el = el->next) {
+        MachineClass *mc = el->data;
+
+        if (mc->qemu_machine->is_default) {
+            m = mc->qemu_machine;
+            break;
         }
     }
-    return NULL;
+
+    g_slist_free(machines);
+    return m;
 }
 
 MachineInfoList *qmp_query_machines(Error **errp)
 {
+    GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
     MachineInfoList *mach_list = NULL;
     QEMUMachine *m;
 
-    for (m = first_machine; m; m = m->next) {
+    for (el = machines; el; el = el->next) {
+        MachineClass *mc = el->data;
         MachineInfoList *entry;
         MachineInfo *info;
 
+        m = mc->qemu_machine;
         info = g_malloc0(sizeof(*info));
         if (m->is_default) {
             info->has_is_default = true;
@@ -1639,6 +1666,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
         mach_list = entry;
     }
 
+    g_slist_free(machines);
     return mach_list;
 }
 
@@ -2608,6 +2636,7 @@ static int debugcon_parse(const char *devname)
 static QEMUMachine *machine_parse(const char *name)
 {
     QEMUMachine *m, *machine = NULL;
+    GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
 
     if (name) {
         machine = find_machine(name);
@@ -2616,13 +2645,17 @@ static QEMUMachine *machine_parse(const char *name)
         return machine;
     }
     printf("Supported machines are:\n");
-    for (m = first_machine; m != NULL; m = m->next) {
+    for (el = machines; el; el = el->next) {
+        MachineClass *mc = el->data;
+        m = mc->qemu_machine;
         if (m->alias) {
             printf("%-20s %s (alias of %s)\n", m->alias, m->desc, m->name);
         }
         printf("%-20s %s%s\n", m->name, m->desc,
                m->is_default ? " (default)" : "");
     }
+
+    g_slist_free(machines);
     exit(!name || !is_help_option(name));
 }
 
