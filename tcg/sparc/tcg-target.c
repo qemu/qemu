@@ -806,6 +806,98 @@ static inline void tcg_out_calli(TCGContext *s, uintptr_t dest)
     }
 }
 
+#ifdef CONFIG_SOFTMMU
+static uintptr_t qemu_ld_trampoline[16];
+static uintptr_t qemu_st_trampoline[16];
+
+static void build_trampolines(TCGContext *s)
+{
+    static uintptr_t const qemu_ld_helpers[16] = {
+        [MO_UB]   = (uintptr_t)helper_ret_ldub_mmu,
+        [MO_SB]   = (uintptr_t)helper_ret_ldsb_mmu,
+        [MO_LEUW] = (uintptr_t)helper_le_lduw_mmu,
+        [MO_LESW] = (uintptr_t)helper_le_ldsw_mmu,
+        [MO_LEUL] = (uintptr_t)helper_le_ldul_mmu,
+        [MO_LEQ]  = (uintptr_t)helper_le_ldq_mmu,
+        [MO_BEUW] = (uintptr_t)helper_be_lduw_mmu,
+        [MO_BESW] = (uintptr_t)helper_be_ldsw_mmu,
+        [MO_BEUL] = (uintptr_t)helper_be_ldul_mmu,
+        [MO_BEQ]  = (uintptr_t)helper_be_ldq_mmu,
+    };
+    static uintptr_t const qemu_st_helpers[16] = {
+        [MO_UB]   = (uintptr_t)helper_ret_stb_mmu,
+        [MO_LEUW] = (uintptr_t)helper_le_stw_mmu,
+        [MO_LEUL] = (uintptr_t)helper_le_stl_mmu,
+        [MO_LEQ]  = (uintptr_t)helper_le_stq_mmu,
+        [MO_BEUW] = (uintptr_t)helper_be_stw_mmu,
+        [MO_BEUL] = (uintptr_t)helper_be_stl_mmu,
+        [MO_BEQ]  = (uintptr_t)helper_be_stq_mmu,
+    };
+
+    int i;
+    TCGReg ra;
+    uintptr_t tramp;
+
+    for (i = 0; i < 16; ++i) {
+        if (qemu_ld_helpers[i] == 0) {
+            continue;
+        }
+
+        /* May as well align the trampoline.  */
+        tramp = (uintptr_t)s->code_ptr;
+        while (tramp & 15) {
+            tcg_out_nop(s);
+            tramp += 4;
+        }
+        qemu_ld_trampoline[i] = tramp;
+
+        /* Find the retaddr argument register.  */
+        ra = TCG_REG_O3 + (TARGET_LONG_BITS > TCG_TARGET_REG_BITS);
+
+        /* Set the retaddr operand.  */
+        tcg_out_mov(s, TCG_TYPE_PTR, ra, TCG_REG_O7);
+        /* Set the env operand.  */
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O0, TCG_AREG0);
+        /* Tail call.  */
+        tcg_out_calli(s, qemu_ld_helpers[i]);
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O7, ra);
+    }
+
+    for (i = 0; i < 16; ++i) {
+        if (qemu_st_helpers[i] == 0) {
+            continue;
+        }
+
+        /* May as well align the trampoline.  */
+        tramp = (uintptr_t)s->code_ptr;
+        while (tramp & 15) {
+            tcg_out_nop(s);
+            tramp += 4;
+        }
+        qemu_st_trampoline[i] = tramp;
+
+        /* Find the retaddr argument.  For 32-bit, this may be past the
+           last argument register, and need passing on the stack.  */
+        ra = (TCG_REG_O4
+              + (TARGET_LONG_BITS > TCG_TARGET_REG_BITS)
+              + (TCG_TARGET_REG_BITS == 32 && (i & MO_SIZE) == MO_64));
+
+        /* Set the retaddr operand.  */
+        if (ra >= TCG_REG_O6) {
+            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_O7, TCG_REG_CALL_STACK,
+                       TCG_TARGET_CALL_STACK_OFFSET);
+            ra = TCG_REG_G1;
+        }
+        tcg_out_mov(s, TCG_TYPE_PTR, ra, TCG_REG_O7);
+        /* Set the env operand.  */
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O0, TCG_AREG0);
+        /* Tail call.  */
+        tcg_out_calli(s, qemu_st_helpers[i]);
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O7, ra);
+    }
+}
+#endif
+
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
@@ -838,28 +930,13 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_nop(s);
 
     /* No epilogue required.  We issue ret + restore directly in the TB.  */
+
+#ifdef CONFIG_SOFTMMU
+    build_trampolines(s);
+#endif
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
-static const void * const qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
-};
-
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
-static const void * const qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
-};
-
 /* Perform the TLB load and compare.
 
    Inputs:
@@ -966,8 +1043,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     TCGReg addrlo, datalo, datahi, addr_reg;
     TCGMemOp s_bits = memop & MO_SIZE;
 #if defined(CONFIG_SOFTMMU)
-    TCGReg addrhi;
-    int memi, n;
+    TCGReg addrhi, param;
+    uintptr_t func;
+    int memi;
     uint32_t *label_ptr[2];
 #endif
 
@@ -1025,46 +1103,39 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGMemOp memop)
         *label_ptr[0] |= INSN_OFF19((unsigned long)s->code_ptr -
                                     (unsigned long)label_ptr[0]);
     }
-    n = 0;
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[n++], TCG_AREG0);
+
+    param = TCG_REG_O1;
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrhi);
+        tcg_out_mov(s, TCG_TYPE_REG, param++, addrhi);
     }
-    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrlo);
+    tcg_out_mov(s, TCG_TYPE_REG, param++, addrlo);
 
-    /* qemu_ld_helper[s_bits](arg0, arg1) */
-    tcg_out_calli(s, (uintptr_t)qemu_ld_helpers[s_bits]);
+    /* We use the helpers to extend SB and SW data, leaving the case
+       of SL needing explicit extending below.  */
+    if ((memop & ~MO_BSWAP) == MO_SL) {
+        func = qemu_ld_trampoline[memop & ~MO_SIGN];
+    } else {
+        func = qemu_ld_trampoline[memop];
+    }
+    assert(func != 0);
+    tcg_out_calli(s, func);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[n], memi);
+    tcg_out_movi(s, TCG_TYPE_I32, param, memi);
 
-    n = tcg_target_call_oarg_regs[0];
-    /* datalo = sign_extend(arg0) */
-    switch (memop & MO_SSIZE) {
-    case MO_SB:
-        /* Recall that SRA sign extends from bit 31 through bit 63.  */
-        tcg_out_arithi(s, datalo, n, 24, SHIFT_SLL);
-        tcg_out_arithi(s, datalo, datalo, 24, SHIFT_SRA);
-        break;
-    case MO_SW:
-        tcg_out_arithi(s, datalo, n, 16, SHIFT_SLL);
-        tcg_out_arithi(s, datalo, datalo, 16, SHIFT_SRA);
-        break;
+    switch (memop & ~MO_BSWAP) {
     case MO_SL:
-        tcg_out_arithi(s, datalo, n, 0, SHIFT_SRA);
+        tcg_out_arithi(s, datalo, TCG_REG_O0, 0, SHIFT_SRA);
         break;
     case MO_Q:
         if (TCG_TARGET_REG_BITS == 32) {
-            tcg_out_mov(s, TCG_TYPE_REG, datahi, n);
-            tcg_out_mov(s, TCG_TYPE_REG, datalo, n + 1);
+            tcg_out_mov(s, TCG_TYPE_REG, datahi, TCG_REG_O0);
+            tcg_out_mov(s, TCG_TYPE_REG, datalo, TCG_REG_O1);
             break;
         }
         /* FALLTHRU */
-    case MO_UB:
-    case MO_UW:
-    case MO_UL:
     default:
         /* mov */
-        tcg_out_mov(s, TCG_TYPE_REG, datalo, n);
+        tcg_out_mov(s, TCG_TYPE_REG, datalo, TCG_REG_O0);
         break;
     }
 
@@ -1099,8 +1170,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
     TCGReg addrlo, datalo, datahi, addr_reg;
     TCGMemOp s_bits = memop & MO_SIZE;
 #if defined(CONFIG_SOFTMMU)
-    TCGReg addrhi, datafull;
-    int memi, n;
+    TCGReg addrhi, datafull, param;
+    uintptr_t func;
+    int memi;
     uint32_t *label_ptr;
 #endif
 
@@ -1135,21 +1207,21 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGMemOp memop)
 
     /* TLB Miss.  */
 
-    n = 0;
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[n++], TCG_AREG0);
+    param = TCG_REG_O1;
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrhi);
+        tcg_out_mov(s, TCG_TYPE_REG, param++, addrhi);
     }
-    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], addrlo);
+    tcg_out_mov(s, TCG_TYPE_REG, param++, addrlo);
     if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
-        tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], datahi);
+        tcg_out_mov(s, TCG_TYPE_REG, param++, datahi);
     }
-    tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], datalo);
+    tcg_out_mov(s, TCG_TYPE_REG, param++, datalo);
 
-    /* qemu_st_helper[s_bits](arg0, arg1, arg2) */
-    tcg_out_calli(s, (uintptr_t)qemu_st_helpers[s_bits]);
+    func = qemu_st_trampoline[memop];
+    assert(func != 0);
+    tcg_out_calli(s, func);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n], memi);
+    tcg_out_movi(s, TCG_TYPE_REG, param, memi);
 
     *label_ptr |= INSN_OFF19((unsigned long)s->code_ptr -
                              (unsigned long)label_ptr);
