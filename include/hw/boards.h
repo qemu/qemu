@@ -6,6 +6,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/qemumachine.h"
 #include "hw/qdev.h"
+#include "qom/object.h"
 
 typedef struct QEMUMachineInitArgs {
     const QEMUMachine *machine;
@@ -54,5 +55,54 @@ int qemu_register_machine(QEMUMachine *m);
 QEMUMachine *find_default_machine(void);
 
 extern QEMUMachine *current_machine;
+
+#define TYPE_MACHINE "machine"
+#define MACHINE(obj) \
+    OBJECT_CHECK(MachineState, (obj), TYPE_MACHINE)
+#define MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(MachineClass, (obj), TYPE_MACHINE)
+#define MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(MachineClass, (klass), TYPE_MACHINE)
+
+typedef struct MachineState MachineState;
+typedef struct MachineClass MachineClass;
+
+/**
+ * MachineClass:
+ * @qemu_machine: #QEMUMachine
+ */
+struct MachineClass {
+    /*< private >*/
+    ObjectClass parent_class;
+    /*< public >*/
+
+    QEMUMachine *qemu_machine;
+};
+
+/**
+ * MachineState:
+ */
+struct MachineState {
+    /*< private >*/
+    Object parent_obj;
+    /*< public >*/
+
+    char *accel;
+    bool kernel_irqchip;
+    int kvm_shadow_mem;
+    char *kernel;
+    char *initrd;
+    char *append;
+    char *dtb;
+    char *dumpdtb;
+    int phandle_start;
+    char *dt_compatible;
+    bool dump_guest_core;
+    bool mem_merge;
+    bool usb;
+    char *firmware;
+
+    QEMUMachineInitArgs init_args;
+};
 
 #endif
