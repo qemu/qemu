@@ -50,6 +50,15 @@ class QAPISchemaError(Exception):
     def __str__(self):
         return "%s:%s:%s: %s" % (self.fp.name, self.line, self.col, self.msg)
 
+class QAPIExprError(Exception):
+    def __init__(self, expr_info, msg):
+        self.fp = expr_info['fp']
+        self.line = expr_info['line']
+        self.msg = msg
+
+    def __str__(self):
+        return "%s:%s: %s" % (self.fp.name, self.line, self.msg)
+
 class QAPISchema:
 
     def __init__(self, fp):
@@ -64,7 +73,10 @@ class QAPISchema:
         self.accept()
 
         while self.tok != None:
-            self.exprs.append(self.get_expr(False))
+            expr_info = {'fp': fp, 'line': self.line}
+            expr_elem = {'expr': self.get_expr(False),
+                         'info': expr_info}
+            self.exprs.append(expr_elem)
 
     def accept(self):
         while True:
@@ -162,6 +174,71 @@ class QAPISchema:
             raise QAPISchemaError(self, 'Expected "{", "[" or string')
         return expr
 
+def find_base_fields(base):
+    base_struct_define = find_struct(base)
+    if not base_struct_define:
+        return None
+    return base_struct_define['data']
+
+def check_union(expr, expr_info):
+    name = expr['union']
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+    members = expr['data']
+
+    # If the object has a member 'base', its value must name a complex type.
+    if base:
+        base_fields = find_base_fields(base)
+        if not base_fields:
+            raise QAPIExprError(expr_info,
+                                "Base '%s' is not a valid type"
+                                % base)
+
+    # If the union object has no member 'discriminator', it's an
+    # ordinary union.
+    if not discriminator:
+        enum_define = None
+
+    # Else if the value of member 'discriminator' is {}, it's an
+    # anonymous union.
+    elif discriminator == {}:
+        enum_define = None
+
+    # Else, it's a flat union.
+    else:
+        # The object must have a member 'base'.
+        if not base:
+            raise QAPIExprError(expr_info,
+                                "Flat union '%s' must have a base field"
+                                % name)
+        # The value of member 'discriminator' must name a member of the
+        # base type.
+        discriminator_type = base_fields.get(discriminator)
+        if not discriminator_type:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' is not a member of base "
+                                "type '%s'"
+                                % (discriminator, base))
+        enum_define = find_enum(discriminator_type)
+
+    # Check every branch
+    for (key, value) in members.items():
+        # If this named member's value names an enum type, then all members
+        # of 'data' must also be members of the enum type.
+        if enum_define and not key in enum_define['enum_values']:
+            raise QAPIExprError(expr_info,
+                                "Discriminator value '%s' is not found in "
+                                "enum '%s'" %
+                                (key, enum_define["enum_name"]))
+        # Todo: add checking for values. Key is checked as above, value can be
+        # also checked here, but we need more functions to handle array case.
+
+def check_exprs(schema):
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            check_union(expr, expr_elem['info'])
+
 def parse_schema(fp):
     try:
         schema = QAPISchema(fp)
@@ -171,7 +248,8 @@ def parse_schema(fp):
 
     exprs = []
 
-    for expr in schema.exprs:
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
         if expr.has_key('enum'):
             add_enum(expr['enum'], expr['data'])
         elif expr.has_key('union'):
@@ -180,6 +258,12 @@ def parse_schema(fp):
         elif expr.has_key('type'):
             add_struct(expr)
         exprs.append(expr)
+
+    try:
+        check_exprs(schema)
+    except QAPIExprError, e:
+        print >>sys.stderr, e
+        exit(1)
 
     return exprs
 

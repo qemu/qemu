@@ -1,0 +1,10 @@
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'TestUnion',
+  'discriminator': 'enum1',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }
