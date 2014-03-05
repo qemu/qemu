@@ -39,12 +39,10 @@ class QAPISchemaError(Exception):
     def __init__(self, schema, msg):
         self.fp = schema.fp
         self.msg = msg
-        self.line = self.col = 1
-        for ch in schema.src[0:schema.pos]:
-            if ch == '\n':
-                self.line += 1
-                self.col = 1
-            elif ch == '\t':
+        self.col = 1
+        self.line = schema.line
+        for ch in schema.src[schema.line_pos:schema.pos]:
+            if ch == '\t':
                 self.col = (self.col + 7) % 8 + 1
             else:
                 self.col += 1
@@ -60,6 +58,8 @@ class QAPISchema:
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
+        self.line = 1
+        self.line_pos = 0
         self.exprs = []
         self.accept()
 
@@ -100,6 +100,8 @@ class QAPISchema:
                 if self.cursor == len(self.src):
                     self.tok = None
                     return
+                self.line += 1
+                self.line_pos = self.cursor
             elif not self.tok.isspace():
                 raise QAPISchemaError(self, 'Stray "%s"' % self.tok)
 
