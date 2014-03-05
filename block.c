@@ -1017,7 +1017,12 @@ static int bdrv_file_open(BlockDriverState *bs, const char *filename,
             ret = -EINVAL;
             goto fail;
         }
-        qdict_del(*options, "filename");
+
+        if (!drv->bdrv_needs_filename) {
+            qdict_del(*options, "filename");
+        } else {
+            filename = qdict_get_str(*options, "filename");
+        }
     }
 
     if (!drv->bdrv_file_open) {
