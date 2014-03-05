@@ -53,9 +53,6 @@ struct QEMUMachine {
 
 #define TYPE_MACHINE_SUFFIX "-machine"
 int qemu_register_machine(QEMUMachine *m);
-QEMUMachine *find_default_machine(void);
-
-extern QEMUMachine *current_machine;
 
 #define TYPE_MACHINE "machine"
 #define MACHINE(obj) \
@@ -67,6 +64,9 @@ extern QEMUMachine *current_machine;
 
 typedef struct MachineState MachineState;
 typedef struct MachineClass MachineClass;
+
+MachineClass *find_default_machine(void);
+extern MachineState *current_machine;
 
 /**
  * MachineClass:
