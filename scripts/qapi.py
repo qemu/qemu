@@ -468,12 +468,17 @@ def guardend(name):
 ''',
                  name=guardname(name))
 
-def generate_enum_name(name):
-    if name.isupper():
-        return c_fun(name, False)
+def _generate_enum_value_string(value):
+    if value.isupper():
+        return c_fun(value, False)
     new_name = ''
-    for c in c_fun(name, False):
+    for c in c_fun(value, False):
         if c.isupper():
             new_name += '_'
         new_name += c
     return new_name.lstrip('_').upper()
+
+def generate_enum_full_value(enum_name, enum_value):
+    abbrev_string = de_camel_case(enum_name).upper()
+    value_string = _generate_enum_value_string(enum_value)
+    return "%s_%s" % (abbrev_string, value_string)
