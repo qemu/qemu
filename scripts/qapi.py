@@ -116,6 +116,8 @@ class QAPISchema:
             if self.tok != ':':
                 raise QAPISchemaError(self, 'Expected ":"')
             self.accept()
+            if key in expr:
+                raise QAPISchemaError(self, 'Duplicate key "%s"' % key)
             expr[key] = self.get_expr(True)
             if self.tok == '}':
                 self.accept()

@@ -142,7 +142,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
         missing-comma-object.json non-objects.json \
         qapi-schema-test.json quoted-structural-chars.json \
         trailing-comma-list.json trailing-comma-object.json \
-        unclosed-list.json unclosed-object.json unclosed-string.json)
+        unclosed-list.json unclosed-object.json unclosed-string.json \
+        duplicate-key.json)
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
