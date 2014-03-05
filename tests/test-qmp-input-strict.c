@@ -146,7 +146,10 @@ static void test_validate_union_flat(TestInputVisitorData *data,
     Visitor *v;
     Error *errp = NULL;
 
-    v = validate_test_init(data, "{ 'string': 'a', 'boolean': true }");
+    v = validate_test_init(data,
+                           "{ 'enum1': 'value1', "
+                           "'string': 'str', "
+                           "'boolean': true }");
     /* TODO when generator bug is fixed, add 'integer': 41 */
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &errp);

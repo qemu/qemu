@@ -239,6 +239,11 @@ def check_union(expr, expr_info):
                                 "type '%s'"
                                 % (discriminator, base))
         enum_define = find_enum(discriminator_type)
+        # Do not allow string discriminator
+        if not enum_define:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' must be of enumeration "
+                                "type" % discriminator)
 
     # Check every branch
     for (key, value) in members.items():

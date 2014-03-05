@@ -449,10 +449,11 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     Error *err = NULL;
 
     UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
-    tmp->kind = USER_DEF_UNION_KIND_A;
-    tmp->a = g_malloc0(sizeof(UserDefA));
+    tmp->kind = ENUM_ONE_VALUE1;
+    tmp->string = g_strdup("str");
+    tmp->value1 = g_malloc0(sizeof(UserDefA));
     /* TODO when generator bug is fixed: tmp->integer = 41; */
-    tmp->a->boolean = true;
+    tmp->value1->boolean = true;
 
     visit_type_UserDefFlatUnion(data->ov, &tmp, NULL, &err);
     g_assert(err == NULL);
@@ -461,7 +462,8 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     g_assert(qobject_type(arg) == QTYPE_QDICT);
     qdict = qobject_to_qdict(arg);
 
-    g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, "a");
+    g_assert_cmpstr(qdict_get_str(qdict, "enum1"), ==, "value1");
+    g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, "str");
     /* TODO g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41); */
     g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, true);
 
