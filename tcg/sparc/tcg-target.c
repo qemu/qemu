@@ -1482,6 +1482,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_ext32u_i64:
         tcg_out_arithi(s, args[0], args[1], 0, SHIFT_SRL);
         break;
+    case INDEX_op_trunc_shr_i32:
+        if (args[2] == 0) {
+            tcg_out_mov(s, TCG_TYPE_I32, args[0], args[1]);
+        } else {
+            tcg_out_arithi(s, args[0], args[1], args[2], SHIFT_SRLX);
+        }
+        break;
 
     case INDEX_op_brcond_i64:
         tcg_out_brcond_i64(s, args[2], args[0], args[1], const_args[1],
@@ -1593,6 +1600,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_ext32s_i64, { "r", "r" } },
     { INDEX_op_ext32u_i64, { "r", "r" } },
+    { INDEX_op_trunc_shr_i32,  { "r", "r" } },
 
     { INDEX_op_brcond_i64, { "rZ", "rJ" } },
     { INDEX_op_setcond_i64, { "r", "rZ", "rJ" } },
