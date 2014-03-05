@@ -935,7 +935,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     bdrv_refresh_limits(bs);
     assert(bdrv_opt_mem_align(bs) != 0);
-    assert(bs->request_alignment != 0);
+    assert((bs->request_alignment != 0) || bs->sg);
 
 #ifndef _WIN32
     if (bs->is_temporary) {
