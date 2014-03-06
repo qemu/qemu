@@ -1837,6 +1837,8 @@ void qemu_register_suspend_notifier(Notifier *notifier)
 
 void qemu_system_wakeup_request(WakeupReason reason)
 {
+    trace_system_wakeup_request(reason);
+
     if (!runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
