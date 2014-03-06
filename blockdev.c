@@ -2283,8 +2283,10 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
      *
      * For now, simply forbidding the combination for all drivers will do. */
     if (options->has_aio && options->aio == BLOCKDEV_AIO_OPTIONS_NATIVE) {
-        bool direct = options->cache->has_direct && options->cache->direct;
-        if (!options->has_cache && !direct) {
+        bool direct = options->has_cache &&
+                      options->cache->has_direct &&
+                      options->cache->direct;
+        if (!direct) {
             error_setg(errp, "aio=native requires cache.direct=true");
             goto fail;
         }
