@@ -417,8 +417,7 @@ out_error:
    3) resolutions > 1024
 */
 
-static int vnc_update_client(VncState *vs, int has_dirty);
-static int vnc_update_client_sync(VncState *vs, int has_dirty);
+static int vnc_update_client(VncState *vs, int has_dirty, bool sync);
 static void vnc_disconnect_start(VncState *vs);
 
 static void vnc_colordepth(VncState *vs);
@@ -751,7 +750,7 @@ static void vnc_dpy_copy(DisplayChangeListener *dcl,
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
             vs->force_update = 1;
-            vnc_update_client_sync(vs, 1);
+            vnc_update_client(vs, 1, true);
             /* vs might be free()ed here */
         }
     }
@@ -874,14 +873,7 @@ static int find_and_clear_dirty_height(struct VncState *vs,
     return h;
 }
 
-static int vnc_update_client_sync(VncState *vs, int has_dirty)
-{
-    int ret = vnc_update_client(vs, has_dirty);
-    vnc_jobs_join(vs);
-    return ret;
-}
-
-static int vnc_update_client(VncState *vs, int has_dirty)
+static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
 {
     if (vs->need_update && vs->csock != -1) {
         VncDisplay *vd = vs->vd;
@@ -940,8 +932,11 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         return n;
     }
 
-    if (vs->csock == -1)
+    if (vs->csock == -1) {
         vnc_disconnect_finish(vs);
+    } else if (sync) {
+        vnc_jobs_join(vs);
+    }
 
     return 0;
 }
@@ -2734,7 +2729,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     vnc_unlock_display(vd);
 
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
-        rects += vnc_update_client(vs, has_dirty);
+        rects += vnc_update_client(vs, has_dirty, false);
         /* vs might be free()ed here */
     }
 
