@@ -32,9 +32,7 @@ static void test_device_add(void)
                    "}}");
     g_assert(response);
     error = qdict_get_qdict(response, "error");
-    g_assert_cmpstr(qdict_get_try_str(error, "desc"),
-                    ==,
-                    "Device needs media, but drive is empty");
+    g_assert_cmpstr(qdict_get_try_str(error, "class"), ==, "GenericError");
     QDECREF(response);
 
     /* Delete the drive */
