@@ -1187,9 +1187,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_bpcc(s, COND_A, BPCC_PT, args[0]);
         tcg_out_nop(s);
         break;
-    case INDEX_op_movi_i32:
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], (uint32_t)args[1]);
-        break;
 
 #define OP_32_64(x)                             \
         glue(glue(case INDEX_op_, x), _i32):    \
@@ -1324,9 +1321,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_qemu_st(s, args[0], args[1], args[2], args[3]);
         break;
 
-    case INDEX_op_movi_i64:
-        tcg_out_movi(s, TCG_TYPE_I64, args[0], args[1]);
-        break;
     case INDEX_op_ld32s_i64:
         tcg_out_ldst(s, args[0], args[1], args[2], LDSW);
         break;
@@ -1392,8 +1386,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 	tcg_out_arithc(s, args[0], TCG_REG_G0, args[1], const_args[1], c);
 	break;
 
+    case INDEX_op_mov_i64:
+    case INDEX_op_mov_i32:
+    case INDEX_op_movi_i64:
+    case INDEX_op_movi_i32:
+        /* Always implemented with tcg_out_mov/i, never with tcg_out_op.  */
     default:
-        fprintf(stderr, "unknown opcode 0x%x\n", opc);
+        /* Opcode not implemented.  */
         tcg_abort();
     }
 }
