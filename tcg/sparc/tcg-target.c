@@ -390,22 +390,20 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
     }
 }
 
-static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
-                                 int op)
+static inline void tcg_out_arith(TCGContext *s, TCGReg rd, TCGReg rs1,
+                                 TCGReg rs2, int op)
 {
-    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
-              INSN_RS2(rs2));
+    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) | INSN_RS2(rs2));
 }
 
-static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1,
-                                  uint32_t offset, int op)
+static inline void tcg_out_arithi(TCGContext *s, TCGReg rd, TCGReg rs1,
+                                  int32_t offset, int op)
 {
-    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
-              INSN_IMM13(offset));
+    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) | INSN_IMM13(offset));
 }
 
-static void tcg_out_arithc(TCGContext *s, int rd, int rs1,
-			   int val2, int val2const, int op)
+static void tcg_out_arithc(TCGContext *s, TCGReg rd, TCGReg rs1,
+			   int32_t val2, int val2const, int op)
 {
     tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1)
               | (val2const ? INSN_IMM13(val2) : INSN_RS2(val2)));
@@ -419,12 +417,12 @@ static inline void tcg_out_mov(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_sethi(TCGContext *s, int ret, uint32_t arg)
+static inline void tcg_out_sethi(TCGContext *s, TCGReg ret, uint32_t arg)
 {
     tcg_out32(s, SETHI | INSN_RD(ret) | ((arg & 0xfffffc00) >> 10));
 }
 
-static inline void tcg_out_movi_imm13(TCGContext *s, int ret, uint32_t arg)
+static inline void tcg_out_movi_imm13(TCGContext *s, TCGReg ret, int32_t arg)
 {
     tcg_out_arithi(s, ret, TCG_REG_G0, arg, ARITH_OR);
 }
@@ -471,14 +469,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_ldst_rr(TCGContext *s, int data, int a1,
-                                   int a2, int op)
+static inline void tcg_out_ldst_rr(TCGContext *s, TCGReg data, TCGReg a1,
+                                   TCGReg a2, int op)
 {
     tcg_out32(s, op | INSN_RD(data) | INSN_RS1(a1) | INSN_RS2(a2));
 }
 
-static inline void tcg_out_ldst(TCGContext *s, int ret, int addr,
-                                int offset, int op)
+static void tcg_out_ldst(TCGContext *s, TCGReg ret, TCGReg addr,
+                         intptr_t offset, int op)
 {
     if (check_fit_ptr(offset, 13)) {
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(addr) |
@@ -501,40 +499,24 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_ldst(s, arg, arg1, arg2, (type == TCG_TYPE_I32 ? STW : STX));
 }
 
-static inline void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, uintptr_t arg)
+static void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, uintptr_t arg)
 {
-    TCGReg base = TCG_REG_G0;
-    if (!check_fit_ptr(arg, 10)) {
-        tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ff);
-        base = ret;
-    }
-    tcg_out_ld(s, TCG_TYPE_PTR, ret, base, arg & 0x3ff);
+    tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ff);
+    tcg_out_ld(s, TCG_TYPE_PTR, ret, ret, arg & 0x3ff);
 }
 
-static inline void tcg_out_sety(TCGContext *s, int rs)
+static inline void tcg_out_sety(TCGContext *s, TCGReg rs)
 {
     tcg_out32(s, WRY | INSN_RS1(TCG_REG_G0) | INSN_RS2(rs));
 }
 
-static inline void tcg_out_rdy(TCGContext *s, int rd)
+static inline void tcg_out_rdy(TCGContext *s, TCGReg rd)
 {
     tcg_out32(s, RDY | INSN_RD(rd));
 }
 
-static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
-{
-    if (val != 0) {
-        if (check_fit_tl(val, 13))
-            tcg_out_arithi(s, reg, reg, val, ARITH_ADD);
-        else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, val);
-            tcg_out_arith(s, reg, reg, TCG_REG_T1, ARITH_ADD);
-        }
-    }
-}
-
-static void tcg_out_div32(TCGContext *s, int rd, int rs1,
-                          int val2, int val2const, int uns)
+static void tcg_out_div32(TCGContext *s, TCGReg rd, TCGReg rs1,
+                          int32_t val2, int val2const, int uns)
 {
     /* Load Y with the sign/zero extension of RS1 to 64-bits.  */
     if (uns) {
@@ -595,37 +577,37 @@ static void tcg_out_bpcc(TCGContext *s, int scond, int flags, int label)
     tcg_out_bpcc0(s, scond, flags, off19);
 }
 
-static void tcg_out_cmp(TCGContext *s, TCGArg c1, TCGArg c2, int c2const)
+static void tcg_out_cmp(TCGContext *s, TCGReg c1, int32_t c2, int c2const)
 {
     tcg_out_arithc(s, TCG_REG_G0, c1, c2, c2const, ARITH_SUBCC);
 }
 
-static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond, TCGArg arg1,
-                               TCGArg arg2, int const_arg2, int label)
+static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond, TCGReg arg1,
+                               int32_t arg2, int const_arg2, int label)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);
     tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_ICC | BPCC_PT, label);
     tcg_out_nop(s);
 }
 
-static void tcg_out_movcc(TCGContext *s, TCGCond cond, int cc, TCGArg ret,
-                          TCGArg v1, int v1const)
+static void tcg_out_movcc(TCGContext *s, TCGCond cond, int cc, TCGReg ret,
+                          int32_t v1, int v1const)
 {
     tcg_out32(s, ARITH_MOVCC | cc | INSN_RD(ret)
               | INSN_RS1(tcg_cond_to_bcond[cond])
               | (v1const ? INSN_IMM11(v1) : INSN_RS2(v1)));
 }
 
-static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
-                                TCGArg c1, TCGArg c2, int c2const,
-                                TCGArg v1, int v1const)
+static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
+                                TCGReg c1, int32_t c2, int c2const,
+                                int32_t v1, int v1const)
 {
     tcg_out_cmp(s, c1, c2, c2const);
     tcg_out_movcc(s, cond, MOVCC_ICC, ret, v1, v1const);
 }
 
-static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGArg arg1,
-                               TCGArg arg2, int const_arg2, int label)
+static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
+                               int32_t arg2, int const_arg2, int label)
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare.  */
     if (arg2 == 0 && !is_unsigned_cond(cond)) {
@@ -648,23 +630,23 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGArg arg1,
     tcg_out_nop(s);
 }
 
-static void tcg_out_movr(TCGContext *s, TCGCond cond, TCGArg ret, TCGArg c1,
-                         TCGArg v1, int v1const)
+static void tcg_out_movr(TCGContext *s, TCGCond cond, TCGReg ret, TCGReg c1,
+                         int32_t v1, int v1const)
 {
     tcg_out32(s, ARITH_MOVR | INSN_RD(ret) | INSN_RS1(c1)
               | (tcg_cond_to_rcond[cond] << 10)
               | (v1const ? INSN_IMM10(v1) : INSN_RS2(v1)));
 }
 
-static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
-                                TCGArg c1, TCGArg c2, int c2const,
-                                TCGArg v1, int v1const)
+static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
+                                TCGReg c1, int32_t c2, int c2const,
+                                int32_t v1, int v1const)
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare.
        Note that the immediate range is one bit smaller, so we must check
        for that as well.  */
     if (c2 == 0 && !is_unsigned_cond(cond)
-        && (!v1const || check_fit_tl(v1, 10))) {
+        && (!v1const || check_fit_i32(v1, 10))) {
         tcg_out_movr(s, cond, ret, c1, v1, v1const);
     } else {
         tcg_out_cmp(s, c1, c2, c2const);
@@ -672,8 +654,8 @@ static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
     }
 }
 
-static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
-                                TCGArg c1, TCGArg c2, int c2const)
+static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
+                                TCGReg c1, int32_t c2, int c2const)
 {
     /* For 32-bit comparisons, we can play games with ADDX/SUBX.  */
     switch (cond) {
@@ -698,7 +680,7 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
            swap the operands on GTU/LEU.  There's no benefit to loading
            the constant into a temporary register.  */
         if (!c2const || c2 == 0) {
-            TCGArg t = c1;
+            TCGReg t = c1;
             c1 = c2;
             c2 = t;
             c2const = 0;
@@ -722,8 +704,8 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
     }
 }
 
-static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
-                                TCGArg c1, TCGArg c2, int c2const)
+static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
+                                TCGReg c1, int32_t c2, int c2const)
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare
        if the input does not overlap the output.  */
@@ -737,11 +719,11 @@ static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
     }
 }
 
-static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
-                            TCGArg al, TCGArg ah, TCGArg bl, int blconst,
-                            TCGArg bh, int bhconst, int opl, int oph)
+static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh,
+                            TCGReg al, TCGReg ah, int32_t bl, int blconst,
+                            int32_t bh, int bhconst, int opl, int oph)
 {
-    TCGArg tmp = TCG_REG_T1;
+    TCGReg tmp = TCG_REG_T1;
 
     /* Note that the low parts are fully consumed before tmp is set.  */
     if (rl != ah && (bhconst || rl != bh)) {
@@ -753,7 +735,7 @@ static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
 }
 
-static inline void tcg_out_calli(TCGContext *s, uintptr_t dest)
+static void tcg_out_calli(TCGContext *s, uintptr_t dest)
 {
     intptr_t disp = dest - (uintptr_t)s->code_ptr;
 
@@ -960,7 +942,10 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
     /* Find a base address that can load both tlb comparator and addend.  */
     tlb_ofs = offsetof(CPUArchState, tlb_table[mem_index][0]);
     if (!check_fit_ptr(tlb_ofs + sizeof(CPUTLBEntry), 13)) {
-        tcg_out_addi(s, r1, tlb_ofs & ~0x3ff);
+        if (tlb_ofs & ~0x3ff) {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, tlb_ofs & ~0x3ff);
+            tcg_out_arith(s, r1, r1, TCG_REG_T1, ARITH_ADD);
+        }
         tlb_ofs &= 0x3ff;
     }
 
