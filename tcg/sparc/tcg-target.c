@@ -262,16 +262,22 @@ static const int tcg_target_call_oarg_regs[] = {
 #define STW_LE     (STWA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STX_LE     (STXA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 
-static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
+static inline int check_fit_i64(int64_t val, unsigned int bits)
 {
-    return (val << ((sizeof(tcg_target_long) * 8 - bits))
-            >> (sizeof(tcg_target_long) * 8 - bits)) == val;
+    return val == sextract64(val, 0, bits);
 }
 
-static inline int check_fit_i32(uint32_t val, unsigned int bits)
+static inline int check_fit_i32(int32_t val, unsigned int bits)
 {
-    return ((val << (32 - bits)) >> (32 - bits)) == val;
+    return val == sextract32(val, 0, bits);
 }
+
+#define check_fit_tl    check_fit_i64
+#if SPARC64
+# define check_fit_ptr  check_fit_i64
+#else
+# define check_fit_ptr  check_fit_i32
+#endif
 
 static void patch_reloc(uint8_t *code_ptr, int type,
                         intptr_t value, intptr_t addend)
@@ -287,7 +293,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         break;
     case R_SPARC_WDISP16:
         value -= (intptr_t)code_ptr;
-        if (!check_fit_tl(value >> 2, 16)) {
+        if (!check_fit_ptr(value >> 2, 16)) {
             tcg_abort();
         }
         insn = *(uint32_t *)code_ptr;
@@ -297,7 +303,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         break;
     case R_SPARC_WDISP19:
         value -= (intptr_t)code_ptr;
-        if (!check_fit_tl(value >> 2, 19)) {
+        if (!check_fit_ptr(value >> 2, 19)) {
             tcg_abort();
         }
         insn = *(uint32_t *)code_ptr;
@@ -426,7 +432,7 @@ static inline void tcg_out_movi_imm13(TCGContext *s, int ret, uint32_t arg)
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg)
 {
-    tcg_target_long hi, lo;
+    tcg_target_long hi, lo = (int32_t)arg;
 
     /* A 13-bit constant sign-extended to 64-bits.  */
     if (check_fit_tl(arg, 13)) {
@@ -444,15 +450,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 
     /* A 32-bit constant sign-extended to 64-bits.  */
-    if (check_fit_tl(arg, 32)) {
+    if (arg == lo) {
         tcg_out_sethi(s, ret, ~arg);
         tcg_out_arithi(s, ret, ret, (arg & 0x3ff) | -0x400, ARITH_XOR);
         return;
     }
 
     /* A 64-bit constant decomposed into 2 32-bit pieces.  */
-    lo = (int32_t)arg;
-    if (check_fit_tl(lo, 13)) {
+    if (check_fit_i32(lo, 13)) {
         hi = (arg - lo) >> 32;
         tcg_out_movi(s, TCG_TYPE_I32, ret, hi);
         tcg_out_arithi(s, ret, ret, 32, SHIFT_SLLX);
@@ -475,7 +480,7 @@ static inline void tcg_out_ldst_rr(TCGContext *s, int data, int a1,
 static inline void tcg_out_ldst(TCGContext *s, int ret, int addr,
                                 int offset, int op)
 {
-    if (check_fit_tl(offset, 13)) {
+    if (check_fit_ptr(offset, 13)) {
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(addr) |
                   INSN_IMM13(offset));
     } else {
@@ -499,7 +504,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 static inline void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, uintptr_t arg)
 {
     TCGReg base = TCG_REG_G0;
-    if (!check_fit_tl(arg, 10)) {
+    if (!check_fit_ptr(arg, 10)) {
         tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ff);
         base = ret;
     }
@@ -954,7 +959,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
 
     /* Find a base address that can load both tlb comparator and addend.  */
     tlb_ofs = offsetof(CPUArchState, tlb_table[mem_index][0]);
-    if (!check_fit_tl(tlb_ofs + sizeof(CPUTLBEntry), 13)) {
+    if (!check_fit_ptr(tlb_ofs + sizeof(CPUTLBEntry), 13)) {
         tcg_out_addi(s, r1, tlb_ofs & ~0x3ff);
         tlb_ofs &= 0x3ff;
     }
@@ -1144,7 +1149,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        if (check_fit_tl(args[0], 13)) {
+        if (check_fit_ptr(args[0], 13)) {
             tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
             tcg_out_movi_imm13(s, TCG_REG_O0, args[0]);
         } else {
