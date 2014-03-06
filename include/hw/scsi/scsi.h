@@ -31,6 +31,7 @@ typedef struct SCSISense {
     uint8_t ascq;
 } SCSISense;
 
+#define SCSI_SENSE_BUF_SIZE_OLD 96
 #define SCSI_SENSE_BUF_SIZE 252
 
 struct SCSICommand {

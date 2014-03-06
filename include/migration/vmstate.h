@@ -650,6 +650,9 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_UINT8_ARRAY(_f, _s, _n)                               \
     VMSTATE_UINT8_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_UINT8_SUB_ARRAY(_f, _s, _start, _num)                \
+    VMSTATE_SUB_ARRAY(_f, _s, _start, _num, 0, vmstate_info_uint8, uint8_t)
+
 #define VMSTATE_UINT8_2DARRAY(_f, _s, _n1, _n2)                       \
     VMSTATE_UINT8_2DARRAY_V(_f, _s, _n1, _n2, 0)
 
