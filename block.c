@@ -1234,6 +1234,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         ret = bdrv_file_open(bs, filename, &options, flags & ~BDRV_O_PROTOCOL,
                              &local_err);
         if (!ret) {
+            drv = bs->drv;
             goto done;
         } else if (bs->drv) {
             goto close_and_fail;

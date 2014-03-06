@@ -17,6 +17,21 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 
+=== Unknown protocol option ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+
+
 === Invalid format ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=foo

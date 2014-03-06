@@ -78,6 +78,15 @@ run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=1234
 run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=foo
 
 echo
+echo === Unknown protocol option ===
+echo
+
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=1234
+run_qemu -drive file="$TEST_IMG",format=qcow2,file.unknown_opt=foo
+
+echo
 echo === Invalid format ===
 echo
 
