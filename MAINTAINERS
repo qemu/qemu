@@ -176,9 +176,12 @@ S: Maintained
 F: target-ppc/kvm.c
 
 S390
+M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/kvm.c
+F: hw/intc/s390_flic.[hc]
 
 X86
 M: Gleb Natapov <gleb@redhat.com>
@@ -495,10 +498,13 @@ F: hw/s390x/s390-*.c
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
+F: hw/s390x/sclp*.[hc]
+F: hw/s390x/ipl*.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
 UniCore32 Machines
@@ -629,6 +635,7 @@ F: hw/block/virtio-blk.c
 
 virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Christian Borntraeger <borntraeger@de.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
