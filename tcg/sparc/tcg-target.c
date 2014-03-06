@@ -200,6 +200,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_ADDX (INSN_OP(2) | INSN_OP3(0x08))
 #define ARITH_SUBX (INSN_OP(2) | INSN_OP3(0x0c))
 #define ARITH_UMUL (INSN_OP(2) | INSN_OP3(0x0a))
+#define ARITH_SMUL (INSN_OP(2) | INSN_OP3(0x0b))
 #define ARITH_UDIV (INSN_OP(2) | INSN_OP3(0x0e))
 #define ARITH_SDIV (INSN_OP(2) | INSN_OP3(0x0f))
 #define ARITH_MULX (INSN_OP(2) | INSN_OP3(0x09))
@@ -1290,9 +1291,19 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                         ARITH_SUBCC, ARITH_SUBX);
         break;
     case INDEX_op_mulu2_i32:
-        tcg_out_arithc(s, args[0], args[2], args[3], const_args[3],
-                       ARITH_UMUL);
-        tcg_out_rdy(s, args[1]);
+        c = ARITH_UMUL;
+        goto do_mul2;
+    case INDEX_op_muls2_i32:
+        c = ARITH_SMUL;
+    do_mul2:
+        /* The 32-bit multiply insns produce a full 64-bit result.  If the
+           destination register can hold it, we can avoid the slower RDY.  */
+        tcg_out_arithc(s, args[0], args[2], args[3], const_args[3], c);
+        if (SPARC64 || args[0] <= TCG_REG_O7) {
+            tcg_out_arithi(s, args[1], args[0], 32, SHIFT_SRLX);
+        } else {
+            tcg_out_rdy(s, args[1]);
+        }
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -1424,6 +1435,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rJ" } },
+    { INDEX_op_muls2_i32, { "r", "r", "rZ", "rJ" } },
 
     { INDEX_op_mov_i64, { "R", "R" } },
     { INDEX_op_movi_i64, { "R" } },
