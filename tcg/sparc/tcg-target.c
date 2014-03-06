@@ -719,9 +719,9 @@ static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
-static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh,
-                            TCGReg al, TCGReg ah, int32_t bl, int blconst,
-                            int32_t bh, int bhconst, int opl, int oph)
+static void tcg_out_addsub2_i32(TCGContext *s, TCGReg rl, TCGReg rh,
+                                TCGReg al, TCGReg ah, int32_t bl, int blconst,
+                                int32_t bh, int bhconst, int opl, int oph)
 {
     TCGReg tmp = TCG_REG_T1;
 
@@ -733,6 +733,51 @@ static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh,
     tcg_out_arithc(s, tmp, al, bl, blconst, opl);
     tcg_out_arithc(s, rh, ah, bh, bhconst, oph);
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
+}
+
+static void tcg_out_addsub2_i64(TCGContext *s, TCGReg rl, TCGReg rh,
+                                TCGReg al, TCGReg ah, int32_t bl, int blconst,
+                                int32_t bh, int bhconst, bool is_sub)
+{
+    TCGReg tmp = TCG_REG_T1;
+
+    /* Note that the low parts are fully consumed before tmp is set.  */
+    if (rl != ah && (bhconst || rl != bh)) {
+        tmp = rl;
+    }
+
+    tcg_out_arithc(s, tmp, al, bl, blconst, is_sub ? ARITH_SUBCC : ARITH_ADDCC);
+
+    /* Note that ADDX/SUBX take the carry-in from %icc, the 32-bit carry,
+       while we want %xcc, the 64-bit carry.  */
+    /* ??? There is a 2011 VIS3 ADDXC insn that does take a 64-bit carry.  */
+
+    if (bh == TCG_REG_G0) {
+	/* If we have a zero, we can perform the operation in two insns,
+           with the arithmetic first, and a conditional move into place.  */
+	if (rh == ah) {
+            tcg_out_arithi(s, TCG_REG_T2, ah, 1,
+			   is_sub ? ARITH_SUB : ARITH_ADD);
+            tcg_out_movcc(s, TCG_COND_LTU, MOVCC_XCC, rh, TCG_REG_T2, 0);
+	} else {
+            tcg_out_arithi(s, rh, ah, 1, is_sub ? ARITH_SUB : ARITH_ADD);
+	    tcg_out_movcc(s, TCG_COND_GEU, MOVCC_XCC, rh, ah, 0);
+	}
+    } else {
+        /* Otherwise adjust BH as if there is carry into T2 ... */
+        if (bhconst) {
+            tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_T2, bh + (is_sub ? -1 : 1));
+        } else {
+            tcg_out_arithi(s, TCG_REG_T2, bh, 1,
+                           is_sub ? ARITH_SUB : ARITH_ADD);
+        }
+        /* ... smoosh T2 back to original BH if carry is clear ... */
+        tcg_out_movcc(s, TCG_COND_GEU, MOVCC_XCC, TCG_REG_T2, bh, bhconst);
+	/* ... and finally perform the arithmetic with the new operand.  */
+        tcg_out_arith(s, rh, ah, TCG_REG_T2, is_sub ? ARITH_SUB : ARITH_ADD);
+    }
+
+    tcg_out_mov(s, TCG_TYPE_I64, rl, tmp);
 }
 
 static void tcg_out_call_nodelay(TCGContext *s, tcg_insn_unit *dest)
@@ -1264,12 +1309,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_add2_i32:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], const_args[4],
-                        args[5], const_args[5], ARITH_ADDCC, ARITH_ADDX);
+        tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
+                            args[4], const_args[4], args[5], const_args[5],
+                            ARITH_ADDCC, ARITH_ADDX);
         break;
     case INDEX_op_sub2_i32:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], const_args[4],
-                        args[5], const_args[5], ARITH_SUBCC, ARITH_SUBX);
+        tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
+                            args[4], const_args[4], args[5], const_args[5],
+                            ARITH_SUBCC, ARITH_SUBX);
         break;
     case INDEX_op_mulu2_i32:
         c = ARITH_UMUL;
@@ -1350,6 +1397,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_movcond_i64:
         tcg_out_movcond_i64(s, args[5], a0, a1, a2, c2, args[3], const_args[3]);
+        break;
+    case INDEX_op_add2_i64:
+        tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
+                            const_args[4], args[5], const_args[5], false);
+        break;
+    case INDEX_op_sub2_i64:
+        tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
+                            const_args[4], args[5], const_args[5], true);
         break;
 
     gen_arith:
@@ -1448,6 +1503,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_brcond_i64, { "RZ", "RJ" } },
     { INDEX_op_setcond_i64, { "R", "RZ", "RJ" } },
     { INDEX_op_movcond_i64, { "R", "RZ", "RJ", "RI", "0" } },
+
+    { INDEX_op_add2_i64, { "R", "R", "RZ", "RZ", "RJ", "RI" } },
+    { INDEX_op_sub2_i64, { "R", "R", "RZ", "RZ", "RJ", "RI" } },
 
     { INDEX_op_qemu_ld_i32, { "r", "A" } },
     { INDEX_op_qemu_ld_i64, { "R", "A" } },
