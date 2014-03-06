@@ -517,16 +517,7 @@ static QemuOptsList qemu_name_opts = {
  */
 QemuOpts *qemu_get_machine_opts(void)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
-
-    list = qemu_find_opts("machine");
-    assert(list);
-    opts = qemu_opts_find(list, NULL);
-    if (!opts) {
-        opts = qemu_opts_create(list, NULL, 0, &error_abort);
-    }
-    return opts;
+    return qemu_find_opts_singleton("machine");
 }
 
 const char *qemu_get_vm_name(void)
