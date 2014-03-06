@@ -219,6 +219,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define RDY        (INSN_OP(2) | INSN_OP3(0x28) | INSN_RS1(0))
 #define WRY        (INSN_OP(2) | INSN_OP3(0x30) | INSN_RD(0))
 #define JMPL       (INSN_OP(2) | INSN_OP3(0x38))
+#define RETURN     (INSN_OP(2) | INSN_OP3(0x39))
 #define SAVE       (INSN_OP(2) | INSN_OP3(0x3c))
 #define RESTORE    (INSN_OP(2) | INSN_OP3(0x3d))
 #define SETHI      (INSN_OP(0) | INSN_OP2(0x4))
@@ -1142,10 +1143,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, args[0]);
-        tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, JMPL);
-        tcg_out32(s, RESTORE | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_G0) |
-                      INSN_RS2(TCG_REG_G0));
+        if (check_fit_tl(args[0], 13)) {
+            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+            tcg_out_movi_imm13(s, TCG_REG_O0, args[0]);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, args[0] & ~0x3ff);
+            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+            tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0,
+                           args[0] & 0x3ff, ARITH_OR);
+        }
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
