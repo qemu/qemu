@@ -1561,6 +1561,15 @@ static int check_hdev_writable(BDRVRawState *s)
     return 0;
 }
 
+static void hdev_parse_filename(const char *filename, QDict *options,
+                                Error **errp)
+{
+    /* The prefix is optional, just as for "file". */
+    strstart(filename, "host_device:", &filename);
+
+    qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
+}
+
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -1805,6 +1814,7 @@ static BlockDriver bdrv_host_device = {
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_probe_device  = hdev_probe_device,
+    .bdrv_parse_filename = hdev_parse_filename,
     .bdrv_file_open     = hdev_open,
     .bdrv_close         = raw_close,
     .bdrv_reopen_prepare = raw_reopen_prepare,
