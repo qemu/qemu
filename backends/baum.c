@@ -566,7 +566,7 @@ CharDriverState *chr_baum_init(void)
     BaumDriverState *baum;
     CharDriverState *chr;
     brlapi_handle_t *handle;
-#ifdef CONFIG_SDL
+#if defined(CONFIG_SDL) && SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
     SDL_SysWMinfo info;
 #endif
     int tty;
@@ -595,7 +595,7 @@ CharDriverState *chr_baum_init(void)
         goto fail;
     }
 
-#ifdef CONFIG_SDL
+#if defined(CONFIG_SDL) && SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
     memset(&info, 0, sizeof(info));
     SDL_VERSION(&info.version);
     if (SDL_GetWMInfo(&info))

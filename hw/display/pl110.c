@@ -464,7 +464,7 @@ static int pl110_initfn(SysBusDevice *sbd)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     qdev_init_gpio_in(dev, pl110_mux_ctrl_set, 1);
-    s->con = graphic_console_init(dev, &pl110_gfx_ops, s);
+    s->con = graphic_console_init(dev, 0, &pl110_gfx_ops, s);
     return 0;
 }
 

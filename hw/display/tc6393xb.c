@@ -587,7 +587,7 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     memory_region_add_subregion(sysmem, base + 0x100000, &s->vram);
     s->scr_width = 480;
     s->scr_height = 640;
-    s->con = graphic_console_init(NULL, &tc6393xb_gfx_ops, s);
+    s->con = graphic_console_init(NULL, 0, &tc6393xb_gfx_ops, s);
 
     return s;
 }

@@ -602,14 +602,14 @@ static int tcx_init1(SysBusDevice *dev)
                                  &s->vram_mem, vram_offset, size);
         sysbus_init_mmio(dev, &s->vram_cplane);
 
-        s->con = graphic_console_init(DEVICE(dev), &tcx24_ops, s);
+        s->con = graphic_console_init(DEVICE(dev), 0, &tcx24_ops, s);
     } else {
         /* THC 8 bit (dummy) */
         memory_region_init_io(&s->thc8, OBJECT(s), &dummy_ops, s, "tcx.thc8",
                               TCX_THC_NREGS_8);
         sysbus_init_mmio(dev, &s->thc8);
 
-        s->con = graphic_console_init(DEVICE(dev), &tcx_ops, s);
+        s->con = graphic_console_init(DEVICE(dev), 0, &tcx_ops, s);
     }
 
     qemu_console_resize(s->con, s->width, s->height);

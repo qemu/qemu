@@ -236,6 +236,7 @@ fdt=""
 netmap="no"
 pixman=""
 sdl=""
+sdlabi="1.2"
 virtfs=""
 vnc="yes"
 sparse="no"
@@ -395,6 +396,7 @@ query_pkg_config() {
 }
 pkg_config=query_pkg_config
 sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
+sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 
 # If the user hasn't specified ARFLAGS, default to 'rv', just as make does.
 ARFLAGS="${ARFLAGS-rv}"
@@ -803,6 +805,8 @@ for opt do
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
+  ;;
+  --with-sdlabi=*) sdlabi="$optarg"
   ;;
   --disable-qom-cast-debug) qom_cast_debug="no"
   ;;
@@ -1225,6 +1229,7 @@ Advanced options (experts only):
   --disable-werror         disable compilation abort on warning
   --disable-sdl            disable SDL
   --enable-sdl             enable SDL
+  --with-sdlabi            select preferred SDL ABI 1.2 or 2.0
   --disable-gtk            disable gtk UI
   --enable-gtk             enable gtk UI
   --disable-virtfs         disable VirtFS
@@ -1986,12 +1991,22 @@ fi
 
 # Look for sdl configuration program (pkg-config or sdl-config).  Try
 # sdl-config even without cross prefix, and favour pkg-config over sdl-config.
-if test "`basename $sdl_config`" != sdl-config && ! has ${sdl_config}; then
-  sdl_config=sdl-config
+
+if test $sdlabi = "2.0"; then
+    sdl_config=$sdl2_config
+    sdlname=sdl2
+    sdlconfigname=sdl2_config
+else
+    sdlname=sdl
+    sdlconfigname=sdl_config
 fi
 
-if $pkg_config sdl --exists; then
-  sdlconfig="$pkg_config sdl"
+if test "`basename $sdl_config`" != $sdlconfigname && ! has ${sdl_config}; then
+  sdl_config=$sdlconfigname
+fi
+
+if $pkg_config $sdlname --exists; then
+  sdlconfig="$pkg_config $sdlname"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
 elif has ${sdl_config}; then
   sdlconfig="$sdl_config"

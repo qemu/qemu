@@ -306,7 +306,7 @@ static void cg3_realizefn(DeviceState *dev, Error **errp)
 
     sysbus_init_irq(sbd, &s->irq);
 
-    s->con = graphic_console_init(DEVICE(dev), &cg3_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &cg3_ops, s);
     qemu_console_resize(s->con, s->width, s->height);
 }
 

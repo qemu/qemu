@@ -98,7 +98,7 @@ static void puv3_load_kernel(const char *kernel_filename)
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
-    graphic_console_init(NULL, &no_ops, NULL);
+    graphic_console_init(NULL, 0, &no_ops, NULL);
 }
 
 static void puv3_init(QEMUMachineInitArgs *args)

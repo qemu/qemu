@@ -39,6 +39,7 @@
 #include "monitor/monitor.h"
 #include "qemu/readline.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/blockdev.h"
 #include "audio/audio.h"
 #include "disas/disas.h"
@@ -1463,23 +1464,43 @@ static int mouse_button_state;
 
 static void do_mouse_move(Monitor *mon, const QDict *qdict)
 {
-    int dx, dy, dz;
+    int dx, dy, dz, button;
     const char *dx_str = qdict_get_str(qdict, "dx_str");
     const char *dy_str = qdict_get_str(qdict, "dy_str");
     const char *dz_str = qdict_get_try_str(qdict, "dz_str");
+
     dx = strtol(dx_str, NULL, 0);
     dy = strtol(dy_str, NULL, 0);
-    dz = 0;
-    if (dz_str)
+    qemu_input_queue_rel(NULL, INPUT_AXIS_X, dx);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_Y, dy);
+
+    if (dz_str) {
         dz = strtol(dz_str, NULL, 0);
-    kbd_mouse_event(dx, dy, dz, mouse_button_state);
+        if (dz != 0) {
+            button = (dz > 0) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+            qemu_input_queue_btn(NULL, button, true);
+            qemu_input_event_sync();
+            qemu_input_queue_btn(NULL, button, false);
+        }
+    }
+    qemu_input_event_sync();
 }
 
 static void do_mouse_button(Monitor *mon, const QDict *qdict)
 {
+    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+    };
     int button_state = qdict_get_int(qdict, "button_state");
+
+    if (mouse_button_state == button_state) {
+        return;
+    }
+    qemu_input_update_buttons(NULL, bmap, mouse_button_state, button_state);
+    qemu_input_event_sync();
     mouse_button_state = button_state;
-    kbd_mouse_event(0, 0, 0, mouse_button_state);
 }
 
 static void do_ioport_read(Monitor *mon, const QDict *qdict)

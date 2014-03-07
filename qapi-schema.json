@@ -3555,9 +3555,12 @@
 # This is used by the send-key command.
 #
 # Since: 1.3.0
+#
+# 'unmapped' and 'pause' since 2.0
 ##
 { 'enum': 'QKeyCode',
-  'data': [ 'shift', 'shift_r', 'alt', 'alt_r', 'altgr', 'altgr_r', 'ctrl',
+  'data': [ 'unmapped',
+            'shift', 'shift_r', 'alt', 'alt_r', 'altgr', 'altgr_r', 'ctrl',
             'ctrl_r', 'menu', 'esc', '1', '2', '3', '4', '5', '6', '7', '8',
             '9', '0', 'minus', 'equal', 'backspace', 'tab', 'q', 'w', 'e',
             'r', 't', 'y', 'u', 'i', 'o', 'p', 'bracket_left', 'bracket_right',
@@ -3571,7 +3574,7 @@
             'kp_9', 'less', 'f11', 'f12', 'print', 'home', 'pgup', 'pgdn', 'end',
             'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
-             'lf', 'help', 'meta_l', 'meta_r', 'compose' ] }
+             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause' ] }
 
 ##
 # @KeyValue
@@ -4566,3 +4569,79 @@
 # Since: 1.7
 ##
 { 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
+
+##
+# @InputButton
+#
+# Button of a pointer input device (mouse, tablet).
+#
+# Since: 2.0
+##
+{ 'enum'  : 'InputButton',
+  'data'  : [ 'Left', 'Middle', 'Right', 'WheelUp', 'WheelDown' ] }
+
+##
+# @InputButton
+#
+# Position axis of a pointer input device (mouse, tablet).
+#
+# Since: 2.0
+##
+{ 'enum'  : 'InputAxis',
+  'data'  : [ 'X', 'Y' ] }
+
+##
+# @InputKeyEvent
+#
+# Keyboard input event.
+#
+# @key:    Which key this event is for.
+# @down:   True for key-down and false for key-up events.
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputKeyEvent',
+  'data'  : { 'key'     : 'KeyValue',
+              'down'    : 'bool' } }
+
+##
+# @InputBtnEvent
+#
+# Pointer button input event.
+#
+# @button: Which button this event is for.
+# @down:   True for key-down and false for key-up events.
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputBtnEvent',
+  'data'  : { 'button'  : 'InputButton',
+              'down'    : 'bool' } }
+
+##
+# @InputMoveEvent
+#
+# Pointer motion input event.
+#
+# @axis:   Which axis is referenced by @value.
+# @value:  Pointer position.  For absolute coordinates the
+#          valid range is 0 -> 0x7ffff
+#
+# Since: 2.0
+##
+{ 'type'  : 'InputMoveEvent',
+  'data'  : { 'axis'    : 'InputAxis',
+              'value'   : 'int' } }
+
+##
+# @InputEvent
+#
+# Input event union.
+#
+# Since: 2.0
+##
+{ 'union' : 'InputEvent',
+  'data'  : { 'key'     : 'InputKeyEvent',
+              'btn'     : 'InputBtnEvent',
+              'rel'     : 'InputMoveEvent',
+              'abs'     : 'InputMoveEvent' } }

@@ -33,6 +33,7 @@
 #include "qapi/qmp/types.h"
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
+#include "ui/input.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -1483,7 +1484,7 @@ static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
 static void check_pointer_type_change(Notifier *notifier, void *data)
 {
     VncState *vs = container_of(notifier, VncState, mouse_mode_notifier);
-    int absolute = kbd_mouse_is_absolute();
+    int absolute = qemu_input_is_absolute();
 
     if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
         vnc_lock_output(vs);
@@ -1502,39 +1503,37 @@ static void check_pointer_type_change(Notifier *notifier, void *data)
 
 static void pointer_event(VncState *vs, int button_mask, int x, int y)
 {
-    int buttons = 0;
-    int dz = 0;
+    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]       = 0x01,
+        [INPUT_BUTTON_MIDDLE]     = 0x02,
+        [INPUT_BUTTON_RIGHT]      = 0x04,
+        [INPUT_BUTTON_WHEEL_UP]   = 0x08,
+        [INPUT_BUTTON_WHEEL_DOWN] = 0x10,
+    };
+    QemuConsole *con = vs->vd->dcl.con;
     int width = surface_width(vs->vd->ds);
     int height = surface_height(vs->vd->ds);
 
-    if (button_mask & 0x01)
-        buttons |= MOUSE_EVENT_LBUTTON;
-    if (button_mask & 0x02)
-        buttons |= MOUSE_EVENT_MBUTTON;
-    if (button_mask & 0x04)
-        buttons |= MOUSE_EVENT_RBUTTON;
-    if (button_mask & 0x08)
-        dz = -1;
-    if (button_mask & 0x10)
-        dz = 1;
+    if (vs->last_bmask != button_mask) {
+        qemu_input_update_buttons(con, bmap, vs->last_bmask, button_mask);
+        vs->last_bmask = button_mask;
+    }
 
     if (vs->absolute) {
-        kbd_mouse_event(width  > 1 ? x * 0x7FFF / (width  - 1) : 0x4000,
-                        height > 1 ? y * 0x7FFF / (height - 1) : 0x4000,
-                        dz, buttons);
+        qemu_input_queue_abs(con, INPUT_AXIS_X, x, width);
+        qemu_input_queue_abs(con, INPUT_AXIS_Y, y, height);
     } else if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE)) {
-        x -= 0x7FFF;
-        y -= 0x7FFF;
-
-        kbd_mouse_event(x, y, dz, buttons);
+        qemu_input_queue_rel(con, INPUT_AXIS_X, x - 0x7FFF);
+        qemu_input_queue_rel(con, INPUT_AXIS_Y, y - 0x7FFF);
     } else {
-        if (vs->last_x != -1)
-            kbd_mouse_event(x - vs->last_x,
-                            y - vs->last_y,
-                            dz, buttons);
+        if (vs->last_x != -1) {
+            qemu_input_queue_rel(con, INPUT_AXIS_X, x - vs->last_x);
+            qemu_input_queue_rel(con, INPUT_AXIS_Y, y - vs->last_y);
+        }
         vs->last_x = x;
         vs->last_y = y;
     }
+    qemu_input_event_sync();
 }
 
 static void reset_keys(VncState *vs)
@@ -1542,9 +1541,7 @@ static void reset_keys(VncState *vs)
     int i;
     for(i = 0; i < 256; i++) {
         if (vs->modifiers_state[i]) {
-            if (i & SCANCODE_GREY)
-                kbd_put_keycode(SCANCODE_EMUL0);
-            kbd_put_keycode(i | SCANCODE_UP);
+            qemu_input_event_send_key_number(vs->vd->dcl.con, i, false);
             vs->modifiers_state[i] = 0;
         }
     }
@@ -1553,12 +1550,8 @@ static void reset_keys(VncState *vs)
 static void press_key(VncState *vs, int keysym)
 {
     int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
-    if (keycode & SCANCODE_GREY)
-        kbd_put_keycode(SCANCODE_EMUL0);
-    kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
-    if (keycode & SCANCODE_GREY)
-        kbd_put_keycode(SCANCODE_EMUL0);
-    kbd_put_keycode(keycode | SCANCODE_UP);
+    qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, true);
+    qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
 }
 
 static int current_led_state(VncState *vs)
@@ -1700,12 +1693,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     if (qemu_console_is_graphic(NULL)) {
-        if (keycode & SCANCODE_GREY)
-            kbd_put_keycode(SCANCODE_EMUL0);
-        if (down)
-            kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
-        else
-            kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, down);
     } else {
         bool numlock = vs->modifiers_state[0x45];
         bool control = (vs->modifiers_state[0x1d] ||
@@ -1826,10 +1814,7 @@ static void vnc_release_modifiers(VncState *vs)
         if (!vs->modifiers_state[keycode]) {
             continue;
         }
-        if (keycode & SCANCODE_GREY) {
-            kbd_put_keycode(SCANCODE_EMUL0);
-        }
-        kbd_put_keycode(keycode | SCANCODE_UP);
+        qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
     }
 }
 
