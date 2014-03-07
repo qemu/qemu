@@ -195,8 +195,8 @@ static void process_tx_fcb(eTSEC *etsec)
 
     /* if packet is IP4 and IP checksum is requested */
     if (flags & FCB_TX_IP && flags & FCB_TX_CIP) {
-        /* do IP4 checksum (TODO This funtion does TCP/UDP checksum but not sure
-         * if it also does IP4 checksum. */
+        /* do IP4 checksum (TODO This function does TCP/UDP checksum
+         * but not sure if it also does IP4 checksum.) */
         net_checksum_calculate(etsec->tx_buffer + 8,
                 etsec->tx_buffer_len - 8);
     }
