@@ -116,6 +116,15 @@ void css_conditional_io_interrupt(SubchDev *sch)
     }
 }
 
+void css_adapter_interrupt(uint8_t isc)
+{
+    S390CPU *cpu = s390_cpu_addr2state(0);
+    uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
+
+    trace_css_adapter_interrupt(isc);
+    s390_io_interrupt(cpu, 0, 0, 0, io_int_word);
+}
+
 static void sch_handle_clear_func(SubchDev *sch)
 {
     PMCW *p = &sch->curr_status.pmcw;
@@ -1259,6 +1268,7 @@ void css_reset_sch(SubchDev *sch)
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     sch->orb = NULL;
+    sch->thinint_active = false;
 }
 
 void css_reset(void)
