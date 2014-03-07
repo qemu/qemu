@@ -96,7 +96,8 @@ static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
     refcount_table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
     if (refcount_table_index >= s->refcount_table_size)
         return 0;
-    refcount_block_offset = s->refcount_table[refcount_table_index];
+    refcount_block_offset =
+        s->refcount_table[refcount_table_index] & REFT_OFFSET_MASK;
     if (!refcount_block_offset)
         return 0;
 
