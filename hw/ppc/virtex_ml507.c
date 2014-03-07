@@ -174,6 +174,19 @@ static int xilinx_load_device_tree(hwaddr addr,
     if (!fdt) {
         return 0;
     }
+
+    r = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                              initrd_base);
+    if (r < 0) {
+        error_report("couldn't set /chosen/linux,initrd-start");
+    }
+
+    r = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                              (initrd_base + initrd_size));
+    if (r < 0) {
+        error_report("couldn't set /chosen/linux,initrd-end");
+    }
+
     r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
@@ -187,6 +200,8 @@ static void virtex_init(QEMUMachineInitArgs *args)
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
+    hwaddr initrd_base = 0;
+    int initrd_size = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
     PowerPCCPU *cpu;
@@ -259,10 +274,27 @@ static void virtex_init(QEMUMachineInitArgs *args)
 
         boot_info.ima_size = kernel_size;
 
+        /* Load initrd. */
+        if (args->initrd_filename) {
+            initrd_base = high = ROUND_UP(high, 4);
+            initrd_size = load_image_targphys(args->initrd_filename,
+                                              high, ram_size - high);
+
+            if (initrd_size < 0) {
+                error_report("couldn't load ram disk '%s'",
+                             args->initrd_filename);
+                exit(1);
+            }
+            high = ROUND_UP(high + initrd_size, 4);
+        }
+
         /* Provide a device-tree.  */
         boot_info.fdt = high + (8192 * 2);
         boot_info.fdt &= ~8191;
-        xilinx_load_device_tree(boot_info.fdt, ram_size, 0, 0, kernel_cmdline);
+
+        xilinx_load_device_tree(boot_info.fdt, ram_size,
+                                initrd_base, initrd_size,
+                                kernel_cmdline);
     }
     env->load_info = &boot_info;
 }

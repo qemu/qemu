@@ -36,13 +36,18 @@ int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
-int kvmppc_fixup_cpu(PowerPCCPU *cpu);
 bool kvmppc_has_cap_epr(void);
 int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
+bool kvmppc_has_cap_htab_fd(void);
 int kvmppc_get_htab_fd(bool write);
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns);
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
                            uint16_t n_valid, uint16_t n_invalid);
+uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index);
+void kvmppc_hash64_free_pteg(uint64_t token);
+
+void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
+                             target_ulong pte0, target_ulong pte1);
 
 #else
 
@@ -155,11 +160,6 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    return -1;
-}
-
 static inline bool kvmppc_has_cap_epr(void)
 {
     return false;
@@ -169,6 +169,11 @@ static inline int kvmppc_define_rtas_kernel_token(uint32_t token,
                                                   const char *function)
 {
     return -1;
+}
+
+static inline bool kvmppc_has_cap_htab_fd(void)
+{
+    return false;
 }
 
 static inline int kvmppc_get_htab_fd(bool write)
@@ -184,6 +189,24 @@ static inline int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize,
 
 static inline int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
                                          uint16_t n_valid, uint16_t n_invalid)
+{
+    abort();
+}
+
+static inline uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu,
+                                               target_ulong pte_index)
+{
+    abort();
+}
+
+static inline void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    abort();
+}
+
+static inline void kvmppc_hash64_write_pte(CPUPPCState *env,
+                                           target_ulong pte_index,
+                                           target_ulong pte0, target_ulong pte1)
 {
     abort();
 }

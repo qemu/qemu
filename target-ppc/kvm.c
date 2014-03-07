@@ -36,6 +36,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "sysemu/watchdog.h"
+#include "trace.h"
 
 //#define DEBUG_KVM
 
@@ -401,7 +402,7 @@ static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
-    return cpu->cpu_index;
+    return ppc_get_vcpu_dt_id(POWERPC_CPU(cpu));
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -480,8 +481,7 @@ static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to retrieve SPR %d from KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_get(spr, strerror(errno));
     } else {
         switch (id & KVM_REG_SIZE_MASK) {
         case KVM_REG_SIZE_U32:
@@ -529,8 +529,7 @@ static void kvm_put_one_spr(CPUState *cs, uint64_t id, int spr)
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret != 0) {
-        fprintf(stderr, "Warning: Unable to set SPR %d to KVM: %s\n",
-                spr, strerror(errno));
+        trace_kvm_failed_spr_set(spr, strerror(errno));
     }
 }
 
@@ -820,6 +819,9 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 #ifdef TARGET_PPC64
         for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
+            if (env->slb[i].esid & SLB_ESID_V) {
+                sregs.u.s.ppc64.slb[i].slbe |= i;
+            }
             sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
         }
 #endif
@@ -1029,7 +1031,9 @@ int kvm_arch_get_registers(CPUState *cs)
             return ret;
         }
 
-        ppc_store_sdr1(env, sregs.u.s.sdr1);
+        if (!env->external_htab) {
+            ppc_store_sdr1(env, sregs.u.s.sdr1);
+        }
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
@@ -1766,22 +1770,14 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     }
 }
 
-int kvmppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    int smt;
-
-    /* Adjust cpu index for SMT */
-    smt = kvmppc_smt_threads();
-    cs->cpu_index = (cs->cpu_index / smp_threads) * smt
-        + (cs->cpu_index % smp_threads);
-
-    return 0;
-}
-
 bool kvmppc_has_cap_epr(void)
 {
     return cap_epr;
+}
+
+bool kvmppc_has_cap_htab_fd(void)
+{
+    return cap_htab_fd;
 }
 
 static int kvm_ppc_register_host_cpu_type(void)
@@ -1933,4 +1929,89 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
+}
+
+struct kvm_get_htab_buf {
+    struct kvm_get_htab_header header;
+    /*
+     * We require one extra byte for read
+     */
+    target_ulong hpte[(HPTES_PER_GROUP * 2) + 1];
+};
+
+uint64_t kvmppc_hash64_read_pteg(PowerPCCPU *cpu, target_ulong pte_index)
+{
+    int htab_fd;
+    struct kvm_get_htab_fd ghf;
+    struct kvm_get_htab_buf  *hpte_buf;
+
+    ghf.flags = 0;
+    ghf.start_index = pte_index;
+    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (htab_fd < 0) {
+        goto error_out;
+    }
+
+    hpte_buf = g_malloc0(sizeof(*hpte_buf));
+    /*
+     * Read the hpte group
+     */
+    if (read(htab_fd, hpte_buf, sizeof(*hpte_buf)) < 0) {
+        goto out_close;
+    }
+
+    close(htab_fd);
+    return (uint64_t)(uintptr_t) hpte_buf->hpte;
+
+out_close:
+    g_free(hpte_buf);
+    close(htab_fd);
+error_out:
+    return 0;
+}
+
+void kvmppc_hash64_free_pteg(uint64_t token)
+{
+    struct kvm_get_htab_buf *htab_buf;
+
+    htab_buf = container_of((void *)(uintptr_t) token, struct kvm_get_htab_buf,
+                            hpte);
+    g_free(htab_buf);
+    return;
+}
+
+void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
+                             target_ulong pte0, target_ulong pte1)
+{
+    int htab_fd;
+    struct kvm_get_htab_fd ghf;
+    struct kvm_get_htab_buf hpte_buf;
+
+    ghf.flags = 0;
+    ghf.start_index = 0;     /* Ignored */
+    htab_fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
+    if (htab_fd < 0) {
+        goto error_out;
+    }
+
+    hpte_buf.header.n_valid = 1;
+    hpte_buf.header.n_invalid = 0;
+    hpte_buf.header.index = pte_index;
+    hpte_buf.hpte[0] = pte0;
+    hpte_buf.hpte[1] = pte1;
+    /*
+     * Write the hpte entry.
+     * CAUTION: write() has the warn_unused_result attribute. Hence we
+     * need to check the return value, even though we do nothing.
+     */
+    if (write(htab_fd, &hpte_buf, sizeof(hpte_buf)) < 0) {
+        goto out_close;
+    }
+
+out_close:
+    close(htab_fd);
+    return;
+
+error_out:
+    return;
 }

@@ -18,6 +18,7 @@
 #include "config-host.h"
 #include "qemu/queue.h"
 #include "qom/cpu.h"
+#include "sysemu/qemumachine.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -152,7 +153,7 @@ extern KVMState *kvm_state;
 
 /* external API */
 
-int kvm_init(void);
+int kvm_init(QEMUMachine *machine);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);

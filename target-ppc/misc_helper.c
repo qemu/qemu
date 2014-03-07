@@ -38,7 +38,9 @@ void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 {
-    ppc_store_sdr1(env, val);
+    if (!env->external_htab) {
+        ppc_store_sdr1(env, val);
+    }
 }
 
 void helper_store_hid0_601(CPUPPCState *env, target_ulong val)

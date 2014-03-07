@@ -628,6 +628,9 @@ static inline void _spr_register(CPUPPCState *env, int num,
     spr->oea_read = oea_read;
     spr->oea_write = oea_write;
 #endif
+#if defined(CONFIG_KVM)
+    spr->one_reg_id = one_reg_id,
+#endif
     env->spr[num] = initial_value;
 }
 
@@ -1064,7 +1067,7 @@ static void gen_spr_amr (CPUPPCState *env)
     spr_register_kvm(env, SPR_AMR, "AMR",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_AMR, 0xffffffffffffffffULL);
+                     KVM_REG_PPC_AMR, 0);
     spr_register_kvm(env, SPR_UAMOR, "UAMOR",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
@@ -2578,7 +2581,6 @@ static void gen_spr_8xx (CPUPPCState *env)
  * HRMOR   => SPR 313 (Power 2.04 hypv)
  * HSRR0   => SPR 314 (Power 2.04 hypv)
  * HSRR1   => SPR 315 (Power 2.04 hypv)
- * LPCR    => SPR 316 (970)
  * LPIDR   => SPR 317 (970)
  * EPR     => SPR 702 (Power 2.04 emb)
  * perf    => 768-783 (Power 2.04)
@@ -4720,7 +4722,7 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
                        PPC_FLOAT_STFIWX | PPC_WAIT |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
+    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206;
     pcc->msr_mask = 0x000000009402FB36ULL;
     pcc->mmu_model = POWERPC_MMU_BOOKE206;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
@@ -6644,33 +6646,13 @@ static void init_proc_970 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_750FX_HID2, "HID2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  POWERPC970_HID5_INIT);
-    /* XXX : not implemented */
-    spr_register(env, SPR_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, spr_access_nop,
-                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
@@ -6744,44 +6726,24 @@ static void init_proc_970FX (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_750FX_HID2, "HID2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  POWERPC970_HID5_INIT);
-    /* XXX : not implemented */
-    spr_register(env, SPR_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, spr_access_nop,
-                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_UCTRL, "SPR_UCTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
@@ -6830,106 +6792,6 @@ POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_BUS_CLK;
 }
 
-static int check_pow_970GX (CPUPPCState *env)
-{
-    if (env->spr[SPR_HID0] & 0x00600000)
-        return 1;
-
-    return 0;
-}
-
-static void init_proc_970GX (CPUPPCState *env)
-{
-    gen_spr_ne_601(env);
-    gen_spr_7xx(env);
-    /* Time base */
-    gen_tbl(env);
-    /* Hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 0x60000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID1, "HID1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_750FX_HID2, "HID2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_970_HID5, "HID5",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 POWERPC970_HID5_INIT);
-    /* XXX : not implemented */
-    spr_register(env, SPR_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, spr_access_nop,
-                 0x00000000);
-    /* Memory management */
-    /* XXX: not correct */
-    gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
-    spr_register(env, SPR_HIOR, "SPR_HIOR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_hior, &spr_write_hior,
-                 0x00000000);
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
-#endif
-    init_excp_970(env);
-    env->dcache_line_size = 128;
-    env->icache_line_size = 128;
-    /* Allocate hardware IRQ controller */
-    ppc970_irq_init(env);
-    /* Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors. */
-    vscr_init(env, 0x00010000);
-}
-
-POWERPC_FAMILY(970GX)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 970 GX";
-    pcc->init_proc = init_proc_970GX;
-    pcc->check_pow = check_pow_970GX;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
-                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
-                       PPC_FLOAT_STFIWX |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_64B | PPC_ALTIVEC |
-                       PPC_SEGMENT_64B | PPC_SLBI;
-    pcc->msr_mask = 0x800000000204FF36ULL;
-    pcc->mmu_model = POWERPC_MMU_64B;
-#if defined(CONFIG_SOFTMMU)
-    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
-#endif
-    pcc->excp_model = POWERPC_EXCP_970;
-    pcc->bus_model = PPC_FLAGS_INPUT_970;
-    pcc->bfd_mach = bfd_mach_ppc64;
-    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
-                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
 static int check_pow_970MP (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & 0x01C00000)
@@ -6956,37 +6818,23 @@ static void init_proc_970MP (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_750FX_HID2, "HID2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  POWERPC970_HID5_INIT);
     /* XXX : not implemented */
-    spr_register(env, SPR_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, spr_access_nop,
-                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
+    /* Logical partitionning */
+    spr_register_kvm(env, SPR_LPCR, "LPCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_LPCR, 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -7048,49 +6896,34 @@ static void init_proc_power5plus(CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_750FX_HID2, "HID2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
     spr_register(env, SPR_970_HID5, "HID5",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  POWERPC970_HID5_INIT);
-    /* XXX : not implemented */
-    spr_register(env, SPR_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, spr_access_nop,
-                 0x00000000);
     /* Memory management */
     /* XXX: not correct */
     gen_low_BATs(env);
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x00000000);
     spr_register(env, SPR_UCTRL, "SPR_UCTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* Logical partitionning */
+    spr_register_kvm(env, SPR_LPCR, "LPCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_LPCR, 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 64;
 #endif
@@ -7177,21 +7010,15 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_PMC6, 0x00000000);
 #endif /* !CONFIG_USER_ONLY */
-    /* Memory management */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCFG, "MMUCFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
     gen_spr_amr(env);
     /* XXX : not implemented */
     spr_register(env, SPR_CTRL, "SPR_CTRLT",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_generic,
                  0x80800000);
     spr_register(env, SPR_UCTRL, "SPR_CTRLF",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x80800000);
     spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
                  &spr_read_generic, &spr_write_generic,
@@ -7201,6 +7028,11 @@ static void init_proc_POWER7 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* Logical partitionning */
+    spr_register_kvm(env, SPR_LPCR, "LPCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_LPCR, 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -7229,14 +7061,19 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_FRSQRTES |
                        PPC_FLOAT_STFIWX |
+                       PPC_FLOAT_EXT |
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205;
+    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
+                        PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206;
     pcc->msr_mask = 0x800000000284FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
@@ -7267,14 +7104,19 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
     pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_FRSQRTES |
                        PPC_FLOAT_STFIWX |
+                       PPC_FLOAT_EXT |
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205;
+    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
+                        PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206;
     pcc->msr_mask = 0x800000000204FF37ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
@@ -7291,6 +7133,18 @@ POWERPC_FAMILY(POWER7P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
 }
 
+static void init_proc_POWER8(CPUPPCState *env)
+{
+    /* inherit P7 */
+    init_proc_POWER7(env);
+
+    /* P8 supports the TAR */
+    spr_register(env, SPR_TAR, "TAR",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -7300,19 +7154,25 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     dc->desc = "POWER8";
     pcc->pvr = CPU_POWERPC_POWER8_BASE;
     pcc->pvr_mask = CPU_POWERPC_POWER8_MASK;
-    pcc->init_proc = init_proc_POWER7;
+    pcc->init_proc = init_proc_POWER8;
     pcc->check_pow = check_pow_nocheck;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_FRSQRTES |
                        PPC_FLOAT_STFIWX |
+                       PPC_FLOAT_EXT |
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_64B | PPC_ALTIVEC |
+                       PPC_64B | PPC_64BX | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX;
+    pcc->insns_flags2 = PPC2_VSX | PPC2_VSX207 | PPC2_DFP | PPC2_DBRX |
+                        PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
+                        PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
+                        PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207 |
+                        PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207;
     pcc->msr_mask = 0x800000000284FF36ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
 #if defined(CONFIG_SOFTMMU)
@@ -7987,14 +7847,12 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
                    max_smt, kvm_enabled() ? "KVM" : "TCG");
         return;
     }
+
+    cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt
+        + (cs->cpu_index % smp_threads);
 #endif
 
-    if (kvm_enabled()) {
-        if (kvmppc_fixup_cpu(cpu) != 0) {
-            error_setg(errp, "Unable to virtualize selected CPU with KVM");
-            return;
-        }
-    } else if (tcg_enabled()) {
+    if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
             return;
@@ -8149,9 +8007,10 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         }
         printf("PowerPC %-12s : PVR %08x MSR %016" PRIx64 "\n"
                "    MMU model        : %s\n",
-               pcc->name, pcc->pvr, pcc->msr_mask, mmu_model);
+               object_class_get_name(OBJECT_CLASS(pcc)),
+               pcc->pvr, pcc->msr_mask, mmu_model);
 #if !defined(CONFIG_USER_ONLY)
-        if (env->tlb != NULL) {
+        if (env->tlb.tlb6) {
             printf("                       %d %s TLB in %d ways\n",
                    env->nb_tlb, env->id_tlbs ? "splitted" : "merged",
                    env->nb_ways);
@@ -8598,6 +8457,7 @@ static void ppc_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(env);
+    cpu->cpu_dt_id = cs->cpu_index;
 
     env->msr_mask = pcc->msr_mask;
     env->mmu_model = pcc->mmu_model;

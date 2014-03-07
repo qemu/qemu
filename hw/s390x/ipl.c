@@ -98,10 +98,10 @@ static int s390_ipl_init(SysBusDevice *dev)
         uint64_t pentry = KERN_IMAGE_START;
         kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
                                NULL, 1, ELF_MACHINE, 0);
-        if (kernel_size == -1) {
+        if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }
-        if (kernel_size == -1) {
+        if (kernel_size < 0) {
             fprintf(stderr, "could not load kernel '%s'\n", ipl->kernel);
             return -1;
         }

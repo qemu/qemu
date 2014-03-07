@@ -36,6 +36,8 @@
 #include "qemu/event_notifier.h"
 #include "trace.h"
 
+#include "hw/boards.h"
+
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
@@ -1339,7 +1341,7 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
-int kvm_init(void)
+int kvm_init(QEMUMachine *machine)
 {
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
@@ -1356,7 +1358,8 @@ int kvm_init(void)
     KVMState *s;
     const KVMCapabilityInfo *missing_cap;
     int ret;
-    int i;
+    int i, type = 0;
+    const char *kvm_type;
 
     s = g_malloc0(sizeof(KVMState));
 
@@ -1430,8 +1433,16 @@ int kvm_init(void)
         nc++;
     }
 
+    kvm_type = qemu_opt_get(qemu_get_machine_opts(), "kvm-type");
+    if (machine->kvm_type) {
+        type = machine->kvm_type(kvm_type);
+    } else if (kvm_type) {
+        fprintf(stderr, "Invalid argument kvm-type=%s\n", kvm_type);
+        goto err;
+    }
+
     do {
-        ret = kvm_ioctl(s, KVM_CREATE_VM, 0);
+        ret = kvm_ioctl(s, KVM_CREATE_VM, type);
     } while (ret == -EINTR);
 
     if (ret < 0) {

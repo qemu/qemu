@@ -228,7 +228,7 @@ int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 
     encap.cap = KVM_CAP_IRQ_MPIC;
     encap.args[0] = opp->fd;
-    encap.args[1] = cs->cpu_index;
+    encap.args[1] = kvm_arch_vcpu_id(cs);
 
     return kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
 }
