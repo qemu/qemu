@@ -735,7 +735,8 @@ static bool device_get_hotpluggable(Object *obj, Error **err)
     DeviceClass *dc = DEVICE_GET_CLASS(obj);
     DeviceState *dev = DEVICE(obj);
 
-    return dc->hotpluggable && dev->parent_bus->allow_hotplug;
+    return dc->hotpluggable && (dev->parent_bus == NULL ||
+                                dev->parent_bus->allow_hotplug);
 }
 
 static void device_initfn(Object *obj)
