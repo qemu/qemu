@@ -432,6 +432,11 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 {
     tcg_target_long hi, lo = (int32_t)arg;
 
+    /* Make sure we test 32-bit constants for imm13 properly.  */
+    if (type == TCG_TYPE_I32) {
+        arg = lo;
+    }
+
     /* A 13-bit constant sign-extended to 64-bits.  */
     if (check_fit_tl(arg, 13)) {
         tcg_out_movi_imm13(s, ret, arg);
