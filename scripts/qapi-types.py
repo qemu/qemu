@@ -201,14 +201,21 @@ def generate_union(expr):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
 
+    enum_define = discriminator_find_enum_define(expr)
+    if enum_define:
+        discriminator_type_name = enum_define['enum_name']
+    else:
+        discriminator_type_name = '%sKind' % (name)
+
     ret = mcgen('''
 struct %(name)s
 {
-    %(name)sKind kind;
+    %(discriminator_type_name)s kind;
     union {
         void *data;
 ''',
-                name=name)
+                name=name,
+                discriminator_type_name=discriminator_type_name)
 
     for key in typeinfo:
         ret += mcgen('''
@@ -389,8 +396,11 @@ for expr in exprs:
         fdef.write(generate_enum_lookup(expr['enum'], expr['data']))
     elif expr.has_key('union'):
         ret += generate_fwd_struct(expr['union'], expr['data']) + "\n"
-        ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
-        fdef.write(generate_enum_lookup('%sKind' % expr['union'], expr['data'].keys()))
+        enum_define = discriminator_find_enum_define(expr)
+        if not enum_define:
+            ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
+            fdef.write(generate_enum_lookup('%sKind' % expr['union'],
+                                            expr['data'].keys()))
         if expr.get('discriminator') == {}:
             fdef.write(generate_anon_union_qtypes(expr))
     else:

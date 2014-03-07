@@ -180,6 +180,25 @@ def find_base_fields(base):
         return None
     return base_struct_define['data']
 
+# Return the discriminator enum define if discriminator is specified as an
+# enum type, otherwise return None.
+def discriminator_find_enum_define(expr):
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+
+    if not (discriminator and base):
+        return None
+
+    base_fields = find_base_fields(base)
+    if not base_fields:
+        return None
+
+    discriminator_type = base_fields.get(discriminator)
+    if not discriminator_type:
+        return None
+
+    return find_enum(discriminator_type)
+
 def check_union(expr, expr_info):
     name = expr['union']
     base = expr.get('base')
@@ -254,10 +273,16 @@ def parse_schema(fp):
             add_enum(expr['enum'], expr['data'])
         elif expr.has_key('union'):
             add_union(expr)
-            add_enum('%sKind' % expr['union'])
         elif expr.has_key('type'):
             add_struct(expr)
         exprs.append(expr)
+
+    # Try again for hidden UnionKind enum
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            if not discriminator_find_enum_define(expr):
+                add_enum('%sKind' % expr['union'])
 
     try:
         check_exprs(schema)

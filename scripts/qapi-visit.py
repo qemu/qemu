@@ -259,10 +259,16 @@ def generate_visit_union(expr):
         assert not base
         return generate_visit_anon_union(name, members)
 
-    # There will always be a discriminator in the C switch code, by default it
-    # is an enum type generated silently as "'%sKind' % (name)"
-    ret = generate_visit_enum('%sKind' % name, members.keys())
-    disc_type = '%sKind' % (name)
+    enum_define = discriminator_find_enum_define(expr)
+    if enum_define:
+        # Use the enum type as discriminator
+        ret = ""
+        disc_type = enum_define['enum_name']
+    else:
+        # There will always be a discriminator in the C switch code, by default it
+        # is an enum type generated silently as "'%sKind' % (name)"
+        ret = generate_visit_enum('%sKind' % name, members.keys())
+        disc_type = '%sKind' % (name)
 
     if base:
         base_fields = find_struct(base)['data']
@@ -298,15 +304,16 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     pop_indent()
 
     if not discriminator:
-        desc_type = "type"
+        disc_key = "type"
     else:
-        desc_type = discriminator
+        disc_key = discriminator
     ret += mcgen('''
-        visit_type_%(name)sKind(m, &(*obj)->kind, "%(type)s", &err);
+        visit_type_%(disc_type)s(m, &(*obj)->kind, "%(disc_key)s", &err);
         if (!err) {
             switch ((*obj)->kind) {
 ''',
-                 name=name, type=desc_type)
+                 disc_type = disc_type,
+                 disc_key = disc_key)
 
     for key in members:
         if not discriminator:
@@ -517,7 +524,11 @@ for expr in exprs:
         ret += generate_visit_list(expr['union'], expr['data'])
         fdef.write(ret)
 
-        ret = generate_decl_enum('%sKind' % expr['union'], expr['data'].keys())
+        enum_define = discriminator_find_enum_define(expr)
+        ret = ""
+        if not enum_define:
+            ret = generate_decl_enum('%sKind' % expr['union'],
+                                     expr['data'].keys())
         ret += generate_declaration(expr['union'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('enum'):

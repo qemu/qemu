@@ -123,11 +123,15 @@ And it looks like this on the wire:
 
 Flat union types avoid the nesting on the wire. They are used whenever a
 specific field of the base type is declared as the discriminator ('type' is
-then no longer generated). The discriminator must always be a string field.
+then no longer generated). The discriminator can be a string field or a
+predefined enum field. If it is a string field, a hidden enum type will be
+generated as "[UNION_NAME]Kind". If it is an enum field, a compile time check
+will be done to verify the correctness. It is recommended to use an enum field.
 The above example can then be modified as follows:
 
+ { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
  { 'type': 'BlockdevCommonOptions',
-   'data': { 'driver': 'str', 'readonly': 'bool' } }
+   'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
    'base': 'BlockdevCommonOptions',
    'discriminator': 'driver',
