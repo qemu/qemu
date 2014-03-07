@@ -4421,6 +4421,14 @@ static int target_to_host_fcntl_cmd(int cmd)
 #endif
         case TARGET_F_NOTIFY:
             return F_NOTIFY;
+#ifdef F_GETOWN_EX
+	case TARGET_F_GETOWN_EX:
+	    return F_GETOWN_EX;
+#endif
+#ifdef F_SETOWN_EX
+	case TARGET_F_SETOWN_EX:
+	    return F_SETOWN_EX;
+#endif
 	default:
             return -TARGET_EINVAL;
     }
@@ -4443,6 +4451,10 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     struct target_flock *target_fl;
     struct flock64 fl64;
     struct target_flock64 *target_fl64;
+#ifdef F_GETOWN_EX
+    struct f_owner_ex fox;
+    struct target_f_owner_ex *target_fox;
+#endif
     abi_long ret;
     int host_cmd = target_to_host_fcntl_cmd(cmd);
 
@@ -4535,6 +4547,30 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_SETFL:
         ret = get_errno(fcntl(fd, host_cmd, target_to_host_bitmask(arg, fcntl_flags_tbl)));
         break;
+
+#ifdef F_GETOWN_EX
+    case TARGET_F_GETOWN_EX:
+        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        if (ret >= 0) {
+            if (!lock_user_struct(VERIFY_WRITE, target_fox, arg, 0))
+                return -TARGET_EFAULT;
+            target_fox->type = tswap32(fox.type);
+            target_fox->pid = tswap32(fox.pid);
+            unlock_user_struct(target_fox, arg, 1);
+        }
+        break;
+#endif
+
+#ifdef F_SETOWN_EX
+    case TARGET_F_SETOWN_EX:
+        if (!lock_user_struct(VERIFY_READ, target_fox, arg, 1))
+            return -TARGET_EFAULT;
+        fox.type = tswap32(target_fox->type);
+        fox.pid = tswap32(target_fox->pid);
+        unlock_user_struct(target_fox, arg, 0);
+        ret = get_errno(fcntl(fd, host_cmd, &fox));
+        break;
+#endif
 
     case TARGET_F_SETOWN:
     case TARGET_F_GETOWN:

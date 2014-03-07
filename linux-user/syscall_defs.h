@@ -2123,6 +2123,8 @@ struct target_statfs64 {
 #define TARGET_F_SETOWN        8       /*  for sockets. */
 #define TARGET_F_GETOWN        9       /*  for sockets. */
 #endif
+#define TARGET_F_SETOWN_EX     15
+#define TARGET_F_GETOWN_EX     16
 
 #ifndef TARGET_F_RDLCK
 #define TARGET_F_RDLCK         0
@@ -2304,6 +2306,11 @@ struct target_eabi_flock64 {
 	int  l_pid;
 } QEMU_PACKED;
 #endif
+
+struct target_f_owner_ex {
+        int type;	/* Owner type of ID.  */
+        int pid;	/* ID of owner.  */
+};
 
 /* soundcard defines */
 /* XXX: convert them all to arch indepedent entries */
