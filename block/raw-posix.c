@@ -1776,6 +1776,18 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options,
     int ret = 0;
     struct stat stat_buf;
     int64_t total_size = 0;
+    bool has_prefix;
+
+    /* This function is used by all three protocol block drivers and therefore
+     * any of these three prefixes may be given.
+     * The return value has to be stored somewhere, otherwise this is an error
+     * due to -Werror=unused-value. */
+    has_prefix =
+        strstart(filename, "host_device:", &filename) ||
+        strstart(filename, "host_cdrom:" , &filename) ||
+        strstart(filename, "host_floppy:", &filename);
+
+    (void)has_prefix;
 
     /* Read out options */
     while (options && options->name) {
