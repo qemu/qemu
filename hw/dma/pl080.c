@@ -8,6 +8,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "exec/address-spaces.h"
 
 #define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1
@@ -204,10 +205,10 @@ again:
             if (size == 0) {
                 /* Transfer complete.  */
                 if (ch->lli) {
-                    ch->src = ldl_le_phys(ch->lli);
-                    ch->dest = ldl_le_phys(ch->lli + 4);
-                    ch->ctrl = ldl_le_phys(ch->lli + 12);
-                    ch->lli = ldl_le_phys(ch->lli + 8);
+                    ch->src = ldl_le_phys(&address_space_memory, ch->lli);
+                    ch->dest = ldl_le_phys(&address_space_memory, ch->lli + 4);
+                    ch->ctrl = ldl_le_phys(&address_space_memory, ch->lli + 12);
+                    ch->lli = ldl_le_phys(&address_space_memory, ch->lli + 8);
                 } else {
                     ch->conf &= ~PL080_CCONF_E;
                 }

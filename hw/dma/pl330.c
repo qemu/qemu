@@ -227,7 +227,8 @@ static const VMStateDescription vmstate_pl330_queue = {
 };
 
 struct PL330State {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     qemu_irq irq_abort;
     qemu_irq *irq;
@@ -577,7 +578,7 @@ static inline void pl330_queue_remove_tagged(PL330Queue *s, uint8_t tag)
 
 static inline void pl330_fault(PL330Chan *ch, uint32_t flags)
 {
-    DB_PRINT("ch: %p, flags: %x\n", ch, flags);
+    DB_PRINT("ch: %p, flags: %" PRIx32 "\n", ch, flags);
     ch->fault_type |= flags;
     if (ch->state == pl330_chan_fault) {
         return;
@@ -600,10 +601,12 @@ static inline void pl330_fault(PL330Chan *ch, uint32_t flags)
  *   LEN - number of elements in ARGS array
  */
 
-static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+static void pl330_dmaadxh(PL330Chan *ch, uint8_t *args, bool ra, bool neg)
 {
-    uint16_t im = (((uint16_t)args[1]) << 8) | ((uint16_t)args[0]);
-    uint8_t ra = (opcode >> 1) & 1;
+    uint32_t im = (args[1] << 8) | args[0];
+    if (neg) {
+        im |= 0xffffu << 16;
+    }
 
     if (ch->is_manager) {
         pl330_fault(ch, PL330_FAULT_UNDEF_INSTR);
@@ -614,6 +617,16 @@ static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
     } else {
         ch->src += im;
     }
+}
+
+static void pl330_dmaaddh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+{
+    pl330_dmaadxh(ch, args, extract32(opcode, 1, 1), false);
+}
+
+static void pl330_dmaadnh(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
+{
+    pl330_dmaadxh(ch, args, extract32(opcode, 1, 1), true);
 }
 
 static void pl330_dmaend(PL330Chan *ch, uint8_t opcode,
@@ -723,7 +736,8 @@ static void pl330_dmald(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
     ch->stall = pl330_queue_put_insn(&ch->parent->read_queue, ch->src,
                                     size, num, inc, 0, ch->tag);
     if (!ch->stall) {
-        DB_PRINT("channel:%d address:%08x size:%d num:%d %c\n",
+        DB_PRINT("channel:%" PRId8 " address:%08" PRIx32 " size:%" PRIx32
+                 " num:%" PRId32 " %c\n",
                  ch->tag, ch->src, size, num, inc ? 'Y' : 'N');
         ch->src += inc ? size * num - (ch->src & (size - 1)) : 0;
     }
@@ -868,9 +882,10 @@ static void pl330_dmasev(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
     }
     if (ch->parent->inten & (1 << ev_id)) {
         ch->parent->int_status |= (1 << ev_id);
-        DB_PRINT("event interrupt raised %d\n", ev_id);
+        DB_PRINT("event interrupt raised %" PRId8 "\n", ev_id);
         qemu_irq_raise(ch->parent->irq[ev_id]);
     }
+    DB_PRINT("event raised %" PRId8 "\n", ev_id);
     ch->parent->ev_status |= (1 << ev_id);
 }
 
@@ -895,7 +910,8 @@ static void pl330_dmast(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
     ch->stall = pl330_queue_put_insn(&ch->parent->write_queue, ch->dst,
                                     size, num, inc, 0, ch->tag);
     if (!ch->stall) {
-        DB_PRINT("channel:%d address:%08x size:%d num:%d %c\n",
+        DB_PRINT("channel:%" PRId8 " address:%08" PRIx32 " size:%" PRIx32
+                 " num:%" PRId32 " %c\n",
                  ch->tag, ch->dst, size, num, inc ? 'Y' : 'N');
         ch->dst += inc ? size * num - (ch->dst & (size - 1)) : 0;
     }
@@ -972,6 +988,7 @@ static void pl330_dmawfe(PL330Chan *ch, uint8_t opcode,
             }
         }
         ch->parent->ev_status &= ~(1 << ev_id);
+        DB_PRINT("event lowered %" PRIx8 "\n", ev_id);
     } else {
         ch->stall = 1;
     }
@@ -1037,6 +1054,7 @@ static void pl330_dmawmb(PL330Chan *ch, uint8_t opcode,
 /* NULL terminated array of the instruction descriptions. */
 static const PL330InsnDesc insn_desc[] = {
     { .opcode = 0x54, .opmask = 0xFD, .size = 3, .exec = pl330_dmaaddh, },
+    { .opcode = 0x5c, .opmask = 0xFD, .size = 3, .exec = pl330_dmaadnh, },
     { .opcode = 0x00, .opmask = 0xFF, .size = 1, .exec = pl330_dmaend, },
     { .opcode = 0x35, .opmask = 0xFF, .size = 2, .exec = pl330_dmaflushp, },
     { .opcode = 0xA0, .opmask = 0xFD, .size = 6, .exec = pl330_dmago, },
@@ -1108,7 +1126,6 @@ static int pl330_chan_exec(PL330Chan *ch)
             ch->state != pl330_chan_waiting_periph &&
             ch->state != pl330_chan_at_barrier &&
             ch->state != pl330_chan_waiting_event) {
-        DB_PRINT("%d\n", ch->state);
         return 0;
     }
     ch->stall = 0;
@@ -1155,7 +1172,7 @@ static int pl330_exec_cycle(PL330Chan *channel)
 
         dma_memory_read(&address_space_memory, q->addr, buf, len);
         if (PL330_ERR_DEBUG > 1) {
-            DB_PRINT("PL330 read from memory @%08x (size = %08x):\n",
+            DB_PRINT("PL330 read from memory @%08" PRIx32 " (size = %08x):\n",
                       q->addr, len);
             qemu_hexdump((char *)buf, stderr, "", len);
         }
@@ -1187,8 +1204,8 @@ static int pl330_exec_cycle(PL330Chan *channel)
         if (fifo_res == PL330_FIFO_OK || q->z) {
             dma_memory_write(&address_space_memory, q->addr, buf, len);
             if (PL330_ERR_DEBUG > 1) {
-                DB_PRINT("PL330 read from memory @%08x (size = %08x):\n",
-                         q->addr, len);
+                DB_PRINT("PL330 read from memory @%08" PRIx32
+                         " (size = %08x):\n", q->addr, len);
                 qemu_hexdump((char *)buf, stderr, "", len);
             }
             if (q->inc) {
@@ -1277,7 +1294,7 @@ static void pl330_debug_exec(PL330State *s)
     args[2] = (s->dbg[1] >>  8) & 0xff;
     args[3] = (s->dbg[1] >> 16) & 0xff;
     args[4] = (s->dbg[1] >> 24) & 0xff;
-    DB_PRINT("chan id: %d\n", chan_id);
+    DB_PRINT("chan id: %" PRIx8 "\n", chan_id);
     if (s->dbg[0] & 1) {
         ch = &s->chan[chan_id];
     } else {
@@ -1311,7 +1328,7 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     PL330State *s = (PL330State *) opaque;
-    uint32_t i;
+    int i;
 
     DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, (unsigned)value);
 
@@ -1467,8 +1484,8 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
 static uint64_t pl330_iomem_read(void *opaque, hwaddr offset,
         unsigned size)
 {
-    int ret = pl330_iomem_read_imp(opaque, offset);
-    DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, ret);
+    uint32_t ret = pl330_iomem_read_imp(opaque, offset);
+    DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx32 "\n", offset, ret);
     return ret;
 }
 
@@ -1554,7 +1571,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
         s->cfg[1] |= 5;
         break;
     default:
-        error_setg(errp, "Bad value for i-cache_len property: %d\n",
+        error_setg(errp, "Bad value for i-cache_len property: %" PRIx8 "\n",
                    s->i_cache_len);
         return;
     }
@@ -1589,7 +1606,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
         s->cfg[CFG_CRD] |= 0x4;
         break;
     default:
-        error_setg(errp, "Bad value for data_width property: %d\n",
+        error_setg(errp, "Bad value for data_width property: %" PRIx8 "\n",
                    s->data_width);
         return;
     }
@@ -1602,7 +1619,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
 
     pl330_queue_init(&s->read_queue, s->rd_q_dep, s);
     pl330_queue_init(&s->write_queue, s->wr_q_dep, s);
-    pl330_fifo_init(&s->fifo, s->data_buffer_dep);
+    pl330_fifo_init(&s->fifo, s->data_width / 4 * s->data_buffer_dep);
 }
 
 static Property pl330_properties[] = {

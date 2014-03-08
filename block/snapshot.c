@@ -345,7 +345,7 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
         ret = bdrv_snapshot_load_tmp(bs, NULL, id_or_name, &local_err);
     }
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
 

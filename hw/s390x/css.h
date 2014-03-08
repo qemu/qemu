@@ -77,6 +77,7 @@ struct SubchDev {
     CCW1 last_cmd;
     bool last_cmd_valid;
     ORB *orb;
+    bool thinint_active;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     SenseId id;
@@ -97,4 +98,5 @@ void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid);
 void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
                            int hotplugged, int add);
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
+void css_adapter_interrupt(uint8_t isc);
 #endif

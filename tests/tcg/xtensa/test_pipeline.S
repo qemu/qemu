@@ -1,4 +1,4 @@
-.include "macros.inc"
+#include "macros.inc"
 
 .purgem test
 .macro test name

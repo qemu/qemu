@@ -955,6 +955,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
                         uint64_t mode1, uint64_t a2, uint64_t mode2)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     target_ulong src, dest;
     int flags, cc = 0, i;
 
@@ -984,7 +985,7 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
             mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
             break;
         }
-        stb_phys(dest + i, ldub_phys(src + i));
+        stb_phys(cs->as, dest + i, ldub_phys(cs->as, src + i));
     }
 
     return cc;
@@ -1009,6 +1010,7 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte = 0;
 
@@ -1018,7 +1020,7 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
        According to spec we'd have to find it out ourselves */
     /* XXX Linux is fine with overwriting the pte, the spec requires
        us to only set the invalid bit */
-    stq_phys(pte_addr, pte | _PAGE_INVALID);
+    stq_phys(cs->as, pte_addr, pte | _PAGE_INVALID);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
@@ -1041,7 +1043,8 @@ void HELPER(ptlb)(CPUS390XState *env)
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    stw_phys(get_address(env, 0, 0, addr), (uint32_t)v1);
+    CPUState *cs = ENV_GET_CPU(env);
+    stw_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
 }
 
 /* load real address */

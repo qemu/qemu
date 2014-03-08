@@ -28,7 +28,8 @@
 #include "qemu/tls.h"
 #include "qemu/typedefs.h"
 
-typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
+typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
+                                     void *opaque);
 
 /**
  * vaddr:
@@ -185,6 +186,9 @@ struct CPUState {
     volatile sig_atomic_t tcg_exit_req;
     uint32_t interrupt_request;
     int singlestep_enabled;
+
+    AddressSpace *as;
+    MemoryListener *tcg_as_listener;
 
     void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;

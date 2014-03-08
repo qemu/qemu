@@ -16,6 +16,7 @@
 #include "elf.h"
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
+#include "exec/address-spaces.h"
 
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
@@ -169,7 +170,7 @@ static void default_reset_secondary(ARMCPU *cpu,
 {
     CPUARMState *env = &cpu->env;
 
-    stl_phys_notdirty(info->smp_bootreg_addr, 0);
+    stl_phys_notdirty(&address_space_memory, info->smp_bootreg_addr, 0);
     env->regs[15] = info->smp_loader_start;
 }
 
@@ -179,7 +180,7 @@ static inline bool have_dtb(const struct arm_boot_info *info)
 }
 
 #define WRITE_WORD(p, value) do { \
-    stl_phys_notdirty(p, value);  \
+    stl_phys_notdirty(&address_space_memory, p, value);  \
     p += 4;                       \
 } while (0)
 

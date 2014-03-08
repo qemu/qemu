@@ -59,7 +59,9 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
     }
 
     if (growable) {
-        if (bdrv_file_open(&qemuio_bs, name, NULL, opts, flags, &local_err)) {
+        if (bdrv_open(&qemuio_bs, name, NULL, opts, flags | BDRV_O_PROTOCOL,
+                      NULL, &local_err))
+        {
             fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
                     error_get_pretty(local_err));
             error_free(local_err);
@@ -68,7 +70,9 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
     } else {
         qemuio_bs = bdrv_new("hda");
 
-        if (bdrv_open(qemuio_bs, name, opts, flags, NULL, &local_err) < 0) {
+        if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, NULL, &local_err)
+            < 0)
+        {
             fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
                     error_get_pretty(local_err));
             error_free(local_err);
@@ -219,7 +223,8 @@ static char *get_prompt(void)
     return prompt;
 }
 
-static void readline_printf_func(void *opaque, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) readline_printf_func(void *opaque,
+                                                    const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -380,6 +385,7 @@ int main(int argc, char **argv)
 #endif
 
     progname = basename(argv[0]);
+    qemu_init_exec_dir(argv[0]);
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
         switch (c) {

@@ -10,7 +10,6 @@
 
 #include "s390-ccw.h"
 
-struct subchannel_id blk_schid;
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
 
@@ -23,13 +22,13 @@ void virtio_panic(const char *string)
 
 static void virtio_setup(uint64_t dev_info)
 {
+    struct subchannel_id blk_schid = { .one = 1 };
     struct schib schib;
     int i;
     int r;
     bool found = false;
     bool check_devno = false;
     uint16_t dev_no = -1;
-    blk_schid.one = 1;
 
     if (dev_info != -1) {
         check_devno = true;

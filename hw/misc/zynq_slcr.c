@@ -31,6 +31,8 @@
 #define XILINX_LOCK_KEY 0x767b
 #define XILINX_UNLOCK_KEY 0xdf0d
 
+#define R_PSS_RST_CTRL_SOFT_RST 0x1
+
 typedef enum {
   ARM_PLL_CTRL,
   DDR_PLL_CTRL,
@@ -399,6 +401,9 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
                 goto bad_reg;
             }
             s->reset[(offset - 0x200) / 4] = val;
+            if (offset == 0x200 && (val & R_PSS_RST_CTRL_SOFT_RST)) {
+                qemu_system_reset_request();
+            }
             break;
         case 0x300:
             s->apu_ctrl = val;

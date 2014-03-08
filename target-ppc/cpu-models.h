@@ -570,7 +570,6 @@ enum {
     CPU_POWERPC_970FX_v21          = 0x003C0201,
     CPU_POWERPC_970FX_v30          = 0x003C0300,
     CPU_POWERPC_970FX_v31          = 0x003C0301,
-    CPU_POWERPC_970GX              = 0x00450000,
     CPU_POWERPC_970MP_v10          = 0x00440100,
     CPU_POWERPC_970MP_v11          = 0x00440101,
 #define CPU_POWERPC_CELL             CPU_POWERPC_CELL_v32

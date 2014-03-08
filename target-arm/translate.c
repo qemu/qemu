@@ -3138,16 +3138,19 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     VFP_DREG_N(rn, insn);
                 }
 
-                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18))) {
-                    /* Integer or single precision destination.  */
+                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18) ||
+                                 ((rn & 0x1e) == 0x6))) {
+                    /* Integer or single/half precision destination.  */
                     rd = VFP_SREG_D(insn);
                 } else {
                     VFP_DREG_D(rd, insn);
                 }
                 if (op == 15 &&
-                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14))) {
-                    /* VCVT from int is always from S reg regardless of dp bit.
-                     * VCVT with immediate frac_bits has same format as SREG_M
+                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14) ||
+                     ((rn & 0x1e) == 0x4))) {
+                    /* VCVT from int or half precision is always from S reg
+                     * regardless of dp bit. VCVT with immediate frac_bits
+                     * has same format as SREG_M.
                      */
                     rm = VFP_SREG_M(insn);
                 } else {
@@ -3237,11 +3240,18 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 case 5:
                 case 6:
                 case 7:
-                    /* VCVTB, VCVTT: only present with the halfprec extension,
-                     * UNPREDICTABLE if bit 8 is set (we choose to UNDEF)
+                    /* VCVTB, VCVTT: only present with the halfprec extension
+                     * UNPREDICTABLE if bit 8 is set prior to ARMv8
+                     * (we choose to UNDEF)
                      */
-                    if (dp || !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                    if ((dp && !arm_feature(env, ARM_FEATURE_V8)) ||
+                        !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
                         return 1;
+                    }
+                    if (!extract32(rn, 1, 1)) {
+                        /* Half precision source.  */
+                        gen_mov_F0_vreg(0, rm);
+                        break;
                     }
                     /* Otherwise fall through */
                 default:
@@ -3390,21 +3400,39 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     case 3: /* sqrt */
                         gen_vfp_sqrt(dp);
                         break;
-                    case 4: /* vcvtb.f32.f16 */
+                    case 4: /* vcvtb.f32.f16, vcvtb.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_ext16u_i32(tmp, tmp);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 5: /* vcvtt.f32.f16 */
+                    case 5: /* vcvtt.f32.f16, vcvtt.f64.f16 */
                         tmp = gen_vfp_mrs();
                         tcg_gen_shri_i32(tmp, tmp, 16);
-                        gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f16_to_f64(cpu_F0d, tmp,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp,
+                                                           cpu_env);
+                        }
                         tcg_temp_free_i32(tmp);
                         break;
-                    case 6: /* vcvtb.f16.f32 */
+                    case 6: /* vcvtb.f16.f32, vcvtb.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
                         tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
@@ -3412,9 +3440,15 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_i32(tmp2);
                         gen_vfp_msr(tmp);
                         break;
-                    case 7: /* vcvtt.f16.f32 */
+                    case 7: /* vcvtt.f16.f32, vcvtt.f16.f64 */
                         tmp = tcg_temp_new_i32();
-                        gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
+                        if (dp) {
+                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
+                                                           cpu_env);
+                        } else {
+                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
+                                                           cpu_env);
+                        }
                         tcg_gen_shli_i32(tmp, tmp, 16);
                         gen_mov_F0_vreg(0, rd);
                         tmp2 = gen_vfp_mrs();
@@ -3547,16 +3581,21 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 }
 
                 /* Write back the result.  */
-                if (op == 15 && (rn >= 8 && rn <= 11))
-                    ; /* Comparison, do nothing.  */
-                else if (op == 15 && dp && ((rn & 0x1c) == 0x18))
-                    /* VCVT double to int: always integer result. */
+                if (op == 15 && (rn >= 8 && rn <= 11)) {
+                    /* Comparison, do nothing.  */
+                } else if (op == 15 && dp && ((rn & 0x1c) == 0x18 ||
+                                              (rn & 0x1e) == 0x6)) {
+                    /* VCVT double to int: always integer result.
+                     * VCVT double to half precision is always a single
+                     * precision result.
+                     */
                     gen_mov_vreg_F0(0, rd);
-                else if (op == 15 && rn == 15)
+                } else if (op == 15 && rn == 15) {
                     /* conversion */
                     gen_mov_vreg_F0(!dp, rd);
-                else
+                } else {
                     gen_mov_vreg_F0(dp, rd);
+                }
 
                 /* break out of the loop if we have finished  */
                 if (veclen == 0)
@@ -6794,6 +6833,17 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             return 1;
         }
 
+        if (ri->accessfn) {
+            /* Emit code to perform further access permissions checks at
+             * runtime; this may result in an exception.
+             */
+            TCGv_ptr tmpptr;
+            gen_set_pc_im(s, s->pc);
+            tmpptr = tcg_const_ptr(ri);
+            gen_helper_access_check_cp_reg(cpu_env, tmpptr);
+            tcg_temp_free_ptr(tmpptr);
+        }
+
         /* Handle special cases first */
         switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
         case ARM_CP_NOP:
@@ -6822,7 +6872,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     tmp64 = tcg_const_i64(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp64 = tcg_temp_new_i64();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg64(tmp64, cpu_env, tmpptr);
@@ -6845,7 +6894,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     tmp = tcg_const_i32(ri->resetvalue);
                 } else if (ri->readfn) {
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp = tcg_temp_new_i32();
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_get_cp_reg(tmp, cpu_env, tmpptr);
@@ -6880,7 +6928,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmphi);
                 if (ri->writefn) {
                     TCGv_ptr tmpptr = tcg_const_ptr(ri);
-                    gen_set_pc_im(s, s->pc);
                     gen_helper_set_cp_reg64(cpu_env, tmpptr, tmp64);
                     tcg_temp_free_ptr(tmpptr);
                 } else {
@@ -6891,7 +6938,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 if (ri->writefn) {
                     TCGv_i32 tmp;
                     TCGv_ptr tmpptr;
-                    gen_set_pc_im(s, s->pc);
                     tmp = load_reg(s, rt);
                     tmpptr = tcg_const_ptr(ri);
                     gen_helper_set_cp_reg(cpu_env, tmpptr, tmp);
@@ -6917,6 +6963,19 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         }
 
         return 0;
+    }
+
+    /* Unknown register; this might be a guest error or a QEMU
+     * unimplemented feature.
+     */
+    if (is64) {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "64 bit system register cp:%d opc1: %d crm:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crm);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d\n",
+                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2);
     }
 
     return 1;
@@ -7498,6 +7557,36 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
             break;
+        case 0x4:
+        {
+            /* crc32/crc32c */
+            uint32_t c = extract32(insn, 8, 4);
+
+            /* Check this CPU supports ARMv8 CRC instructions.
+             * op1 == 3 is UNPREDICTABLE but handle as UNDEFINED.
+             * Bits 8, 10 and 11 should be zero.
+             */
+            if (!arm_feature(env, ARM_FEATURE_CRC) || op1 == 0x3 ||
+                (c & 0xd) != 0) {
+                goto illegal_op;
+            }
+
+            rn = extract32(insn, 16, 4);
+            rd = extract32(insn, 12, 4);
+
+            tmp = load_reg(s, rn);
+            tmp2 = load_reg(s, rm);
+            tmp3 = tcg_const_i32(1 << op1);
+            if (c & 0x2) {
+                gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
+            } else {
+                gen_helper_crc32(tmp, tmp, tmp2, tmp3);
+            }
+            tcg_temp_free_i32(tmp2);
+            tcg_temp_free_i32(tmp3);
+            store_reg(s, rd, tmp);
+            break;
+        }
         case 0x5: /* saturating add/subtract */
             ARCH(5TE);
             rd = (insn >> 12) & 0xf;
@@ -9082,6 +9171,32 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 case 0x18: /* clz */
                     gen_helper_clz(tmp, tmp);
                     break;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                {
+                    /* crc32/crc32c */
+                    uint32_t sz = op & 0x3;
+                    uint32_t c = op & 0x8;
+
+                    if (!arm_feature(env, ARM_FEATURE_CRC)) {
+                        goto illegal_op;
+                    }
+
+                    tmp2 = load_reg(s, rm);
+                    tmp3 = tcg_const_i32(1 << sz);
+                    if (c) {
+                        gen_helper_crc32c(tmp, tmp, tmp2, tmp3);
+                    } else {
+                        gen_helper_crc32(tmp, tmp, tmp2, tmp3);
+                    }
+                    tcg_temp_free_i32(tmp2);
+                    tcg_temp_free_i32(tmp3);
+                    break;
+                }
                 default:
                     goto illegal_op;
                 }

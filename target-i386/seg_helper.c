@@ -1137,7 +1137,8 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
 static void handle_even_inj(CPUX86State *env, int intno, int is_int,
                             int error_code, int is_hw, int rm)
 {
-    uint32_t event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb,
+    CPUState *cs = ENV_GET_CPU(env);
+    uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.event_inj));
 
     if (!(event_inj & SVM_EVTINJ_VALID)) {
@@ -1151,11 +1152,12 @@ static void handle_even_inj(CPUX86State *env, int intno, int is_int,
         event_inj = intno | type | SVM_EVTINJ_VALID;
         if (!rm && exception_has_error_code(intno)) {
             event_inj |= SVM_EVTINJ_VALID_ERR;
-            stl_phys(env->vm_vmcb + offsetof(struct vmcb,
+            stl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                              control.event_inj_err),
                      error_code);
         }
-        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
+        stl_phys(cs->as,
+                 env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
                  event_inj);
     }
 }
@@ -1231,11 +1233,13 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 
 #if !defined(CONFIG_USER_ONLY)
     if (env->hflags & HF_SVMI_MASK) {
-        uint32_t event_inj = ldl_phys(env->vm_vmcb +
+        CPUState *cs = CPU(cpu);
+        uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb +
                                       offsetof(struct vmcb,
                                                control.event_inj));
 
-        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
+        stl_phys(cs->as,
+                 env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
                  event_inj & ~SVM_EVTINJ_VALID);
     }
 #endif

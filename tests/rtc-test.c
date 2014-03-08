@@ -10,14 +10,15 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#include "libqtest.h"
-#include "hw/timer/mc146818rtc_regs.h"
 
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "libqtest.h"
+#include "hw/timer/mc146818rtc_regs.h"
 
 static uint8_t base = 0x70;
 

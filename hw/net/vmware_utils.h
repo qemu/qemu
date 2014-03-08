@@ -65,7 +65,7 @@ vmw_shmem_set(hwaddr addr, uint8 val, int len)
 static inline uint32_t
 vmw_shmem_ld8(hwaddr addr)
 {
-    uint8_t res = ldub_phys(addr);
+    uint8_t res = ldub_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load8: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -74,13 +74,13 @@ static inline void
 vmw_shmem_st8(hwaddr addr, uint8_t value)
 {
     VMW_SHPRN("SHMEM store8: %" PRIx64 " (value 0x%X)", addr, value);
-    stb_phys(addr, value);
+    stb_phys(&address_space_memory, addr, value);
 }
 
 static inline uint32_t
 vmw_shmem_ld16(hwaddr addr)
 {
-    uint16_t res = lduw_le_phys(addr);
+    uint16_t res = lduw_le_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load16: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -89,13 +89,13 @@ static inline void
 vmw_shmem_st16(hwaddr addr, uint16_t value)
 {
     VMW_SHPRN("SHMEM store16: %" PRIx64 " (value 0x%X)", addr, value);
-    stw_le_phys(addr, value);
+    stw_le_phys(&address_space_memory, addr, value);
 }
 
 static inline uint32_t
 vmw_shmem_ld32(hwaddr addr)
 {
-    uint32_t res = ldl_le_phys(addr);
+    uint32_t res = ldl_le_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load32: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -104,13 +104,13 @@ static inline void
 vmw_shmem_st32(hwaddr addr, uint32_t value)
 {
     VMW_SHPRN("SHMEM store32: %" PRIx64 " (value 0x%X)", addr, value);
-    stl_le_phys(addr, value);
+    stl_le_phys(&address_space_memory, addr, value);
 }
 
 static inline uint64_t
 vmw_shmem_ld64(hwaddr addr)
 {
-    uint64_t res = ldq_le_phys(addr);
+    uint64_t res = ldq_le_phys(&address_space_memory, addr);
     VMW_SHPRN("SHMEM load64: %" PRIx64 " (value %" PRIx64 ")", addr, res);
     return res;
 }
@@ -119,7 +119,7 @@ static inline void
 vmw_shmem_st64(hwaddr addr, uint64_t value)
 {
     VMW_SHPRN("SHMEM store64: %" PRIx64 " (value %" PRIx64 ")", addr, value);
-    stq_le_phys(addr, value);
+    stq_le_phys(&address_space_memory, addr, value);
 }
 
 /* Macros for simplification of operations on array-style registers */

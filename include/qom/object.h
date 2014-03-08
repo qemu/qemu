@@ -946,12 +946,13 @@ void object_property_parse(Object *obj, const char *string,
  * object_property_print:
  * @obj: the object
  * @name: the name of the property
+ * @human: if true, print for human consumption
  * @errp: returns an error if this function fails
  *
  * Returns a string representation of the value of the property.  The
  * caller shall free the string.
  */
-char *object_property_print(Object *obj, const char *name,
+char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp);
 
 /**

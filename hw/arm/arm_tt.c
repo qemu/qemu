@@ -318,7 +318,7 @@ static int tt_lcd_init(SysBusDevice *sbd)
                           &tt_lcd_ops, s, "tt-lcd", MP_LCD_SIZE);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    s->con = graphic_console_init(DEVICE(dev), &tt_gfx_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, &tt_gfx_ops, s);
     qemu_console_resize(s->con, 128*3, 64*3);
 
     qdev_init_gpio_in(dev, tt_lcd_gpio_brigthness_in, 3);

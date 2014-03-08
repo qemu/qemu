@@ -27,74 +27,15 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/time.h>
-#include <zlib.h>
-#include "qemu/bitmap.h"
 
-/* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-
-#ifndef _WIN32
-#include <libgen.h>
-#include <sys/times.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/select.h>
-
-#ifdef CONFIG_BSD
-#include <sys/stat.h>
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <sys/sysctl.h>
-#else
-#include <util.h>
-#endif
-#else
-#ifdef __linux__
-#include <malloc.h>
-
-#include <linux/ppdev.h>
-#include <linux/parport.h>
-#endif
 
 #ifdef CONFIG_SECCOMP
 #include "sysemu/seccomp.h"
 #endif
 
-#ifdef __sun__
-#include <sys/stat.h>
-#include <sys/ethernet.h>
-#include <sys/sockio.h>
-#include <netinet/arp.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h> // must come after ip.h
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <net/if.h>
-#include <syslog.h>
-#include <stropts.h>
-#endif
-#endif
-#endif
-
 #if defined(CONFIG_VDE)
 #include <libvdeplug.h>
-#endif
-
-#ifndef _WIN32
-# define CONFIG_CHROOT
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
 #endif
 
 #ifdef CONFIG_SDL
@@ -139,6 +80,7 @@ int main(int argc, char **argv)
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
+#include "qemu/bitmap.h"
 #include "qemu/cache-utils.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
@@ -175,9 +117,6 @@ int main(int argc, char **argv)
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
 #include "qom/object_interfaces.h"
-
-//#define DEBUG_NET
-//#define DEBUG_SLIRP
 
 #define DEFAULT_RAM_SIZE 128
 
@@ -438,6 +377,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "firmware",
             .type = QEMU_OPT_STRING,
             .help = "firmware image",
+        },{
+            .name = "kvm-type",
+            .type = QEMU_OPT_STRING,
+            .help = "Specifies the KVM virtualization mode (HV, PR)",
         },
         { /* End of list */ }
     },
@@ -1757,7 +1700,7 @@ static int qemu_shutdown_requested(void)
 
 static void qemu_kill_report(void)
 {
-    if (!qtest_enabled() && shutdown_signal != -1) {
+    if (!qtest_driver() && shutdown_signal != -1) {
         fprintf(stderr, "qemu: terminating on signal %d", shutdown_signal);
         if (shutdown_pid == 0) {
             /* This happens for eg ^C at the terminal, so it's worth
@@ -2091,6 +2034,16 @@ static bool qxl_vga_available(void)
     return object_class_by_name("qxl-vga");
 }
 
+static bool tcx_vga_available(void)
+{
+    return object_class_by_name("SUNW,tcx");
+}
+
+static bool cg3_vga_available(void)
+{
+    return object_class_by_name("cgthree");
+}
+
 static void select_vgahw (const char *p)
 {
     const char *opts;
@@ -2124,6 +2077,20 @@ static void select_vgahw (const char *p)
             vga_interface_type = VGA_QXL;
         } else {
             fprintf(stderr, "Error: QXL VGA not available\n");
+            exit(0);
+        }
+    } else if (strstart(p, "tcx", &opts)) {
+        if (tcx_vga_available()) {
+            vga_interface_type = VGA_TCX;
+        } else {
+            fprintf(stderr, "Error: TCX framebuffer not available\n");
+            exit(0);
+        }
+    } else if (strstart(p, "cg3", &opts)) {
+        if (cg3_vga_available()) {
+            vga_interface_type = VGA_CG3;
+        } else {
+            fprintf(stderr, "Error: CG3 framebuffer not available\n");
             exit(0);
         }
     } else if (!strstart(p, "none", &opts)) {
@@ -2364,7 +2331,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
     Error *local_err = NULL;
 
     qemu_chr_new_from_opts(opts, NULL, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return -1;
@@ -2654,7 +2621,7 @@ static QEMUMachine *machine_parse(const char *name)
     exit(!name || !is_help_option(name));
 }
 
-static int tcg_init(void)
+static int tcg_init(QEMUMachine *machine)
 {
     tcg_exec_init(tcg_tb_size * 1024 * 1024);
     return 0;
@@ -2664,7 +2631,7 @@ static struct {
     const char *opt_name;
     const char *name;
     int (*available)(void);
-    int (*init)(void);
+    int (*init)(QEMUMachine *);
     bool *allowed;
 } accel_list[] = {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
@@ -2673,7 +2640,7 @@ static struct {
     { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
 };
 
-static int configure_accelerator(void)
+static int configure_accelerator(QEMUMachine *machine)
 {
     const char *p;
     char buf[10];
@@ -2700,7 +2667,7 @@ static int configure_accelerator(void)
                     continue;
                 }
                 *(accel_list[i].allowed) = true;
-                ret = accel_list[i].init();
+                ret = accel_list[i].init(machine);
                 if (ret < 0) {
                     init_failed = true;
                     fprintf(stderr, "failed to initialize %s: %s\n",
@@ -2923,6 +2890,7 @@ int main(int argc, char **argv)
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
+    qemu_init_exec_dir(argv[0]);
 
     g_mem_set_vtable(&mem_trace);
     if (!g_thread_supported()) {
@@ -3122,14 +3090,19 @@ int main(int argc, char **argv)
                         goto chs_fail;
                     if (*p == ',') {
                         p++;
-                        if (!strcmp(p, "none"))
+                        if (!strcmp(p, "large")) {
+                            translation = BIOS_ATA_TRANSLATION_LARGE;
+                        } else if (!strcmp(p, "rechs")) {
+                            translation = BIOS_ATA_TRANSLATION_RECHS;
+                        } else if (!strcmp(p, "none")) {
                             translation = BIOS_ATA_TRANSLATION_NONE;
-                        else if (!strcmp(p, "lba"))
+                        } else if (!strcmp(p, "lba")) {
                             translation = BIOS_ATA_TRANSLATION_LBA;
-                        else if (!strcmp(p, "auto"))
+                        } else if (!strcmp(p, "auto")) {
                             translation = BIOS_ATA_TRANSLATION_AUTO;
-                        else
+                        } else {
                             goto chs_fail;
+                        }
                     } else if (*p != '\0') {
                     chs_fail:
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
@@ -3143,10 +3116,15 @@ int main(int argc, char **argv)
                         qemu_opt_set(hda_opts, "heads", num);
                         snprintf(num, sizeof(num), "%d", secs);
                         qemu_opt_set(hda_opts, "secs", num);
-                        if (translation == BIOS_ATA_TRANSLATION_LBA)
+                        if (translation == BIOS_ATA_TRANSLATION_LARGE) {
+                            qemu_opt_set(hda_opts, "trans", "large");
+                        } else if (translation == BIOS_ATA_TRANSLATION_RECHS) {
+                            qemu_opt_set(hda_opts, "trans", "rechs");
+                        } else if (translation == BIOS_ATA_TRANSLATION_LBA) {
                             qemu_opt_set(hda_opts, "trans", "lba");
-                        if (translation == BIOS_ATA_TRANSLATION_NONE)
+                        } else if (translation == BIOS_ATA_TRANSLATION_NONE) {
                             qemu_opt_set(hda_opts, "trans", "none");
+                        }
                     }
                 }
                 break;
@@ -3960,7 +3938,7 @@ int main(int argc, char **argv)
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
     if (data_dir_idx < ARRAY_SIZE(data_dir)) {
-        data_dir[data_dir_idx] = os_find_datadir(argv[0]);
+        data_dir[data_dir_idx] = os_find_datadir();
         if (data_dir[data_dir_idx] != NULL) {
             data_dir_idx++;
         }
@@ -4127,10 +4105,16 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    configure_accelerator();
+    configure_accelerator(machine);
 
     if (qtest_chrdev) {
-        qtest_init(qtest_chrdev, qtest_log);
+        Error *local_err = NULL;
+        qtest_init(qtest_chrdev, qtest_log, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            exit(1);
+        }
     }
 
     machine_opts = qemu_get_machine_opts();

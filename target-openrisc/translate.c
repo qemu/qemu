@@ -707,6 +707,8 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
     uint32_t L6, K5;
 #endif
     uint32_t I16, I5, I11, N26, tmp;
+    TCGMemOp mop;
+
     op0 = extract32(insn, 26, 6);
     op1 = extract32(insn, 24, 2);
     ra = extract32(insn, 16, 5);
@@ -838,72 +840,46 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
 /*#ifdef TARGET_OPENRISC64
     case 0x20:     l.ld
         LOG_DIS("l.ld r%d, r%d, %d\n", rd, ra, I16);
-        {
-            check_ob64s(dc);
-            TCGv_i64 t0 = tcg_temp_new_i64();
-            tcg_gen_addi_i64(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld64(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free_i64(t0);
-        }
-        break;
+        check_ob64s(dc);
+        mop = MO_TEQ;
+        goto do_load;
 #endif*/
 
     case 0x21:    /* l.lwz */
         LOG_DIS("l.lwz r%d, r%d, %d\n", rd, ra, I16);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld32u(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_TEUL;
+        goto do_load;
 
     case 0x22:    /* l.lws */
         LOG_DIS("l.lws r%d, r%d, %d\n", rd, ra, I16);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld32s(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_TESL;
+        goto do_load;
 
     case 0x23:    /* l.lbz */
         LOG_DIS("l.lbz r%d, r%d, %d\n", rd, ra, I16);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld8u(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_UB;
+        goto do_load;
 
     case 0x24:    /* l.lbs */
         LOG_DIS("l.lbs r%d, r%d, %d\n", rd, ra, I16);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld8s(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_SB;
+        goto do_load;
 
     case 0x25:    /* l.lhz */
         LOG_DIS("l.lhz r%d, r%d, %d\n", rd, ra, I16);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld16u(cpu_R[rd], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_TEUW;
+        goto do_load;
 
     case 0x26:    /* l.lhs */
         LOG_DIS("l.lhs r%d, r%d, %d\n", rd, ra, I16);
+        mop = MO_TESW;
+        goto do_load;
+
+    do_load:
         {
             TCGv t0 = tcg_temp_new();
             tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(I16, 16));
-            tcg_gen_qemu_ld16s(cpu_R[rd], t0, dc->mem_idx);
+            tcg_gen_qemu_ld_tl(cpu_R[rd], t0, dc->mem_idx, mop);
             tcg_temp_free(t0);
         }
         break;
@@ -1042,42 +1018,31 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
 /*#ifdef TARGET_OPENRISC64
     case 0x34:     l.sd
         LOG_DIS("l.sd %d, r%d, r%d, %d\n", I5, ra, rb, I11);
-        {
-            check_ob64s(dc);
-            TCGv_i64 t0 = tcg_temp_new_i64();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(tmp, 16));
-            tcg_gen_qemu_st64(cpu_R[rb], t0, dc->mem_idx);
-            tcg_temp_free_i64(t0);
-        }
-        break;
+        check_ob64s(dc);
+        mop = MO_TEQ;
+        goto do_store;
 #endif*/
 
     case 0x35:    /* l.sw */
         LOG_DIS("l.sw %d, r%d, r%d, %d\n", I5, ra, rb, I11);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(tmp, 16));
-            tcg_gen_qemu_st32(cpu_R[rb], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_TEUL;
+        goto do_store;
 
     case 0x36:    /* l.sb */
         LOG_DIS("l.sb %d, r%d, r%d, %d\n", I5, ra, rb, I11);
-        {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(tmp, 16));
-            tcg_gen_qemu_st8(cpu_R[rb], t0, dc->mem_idx);
-            tcg_temp_free(t0);
-        }
-        break;
+        mop = MO_UB;
+        goto do_store;
 
     case 0x37:    /* l.sh */
         LOG_DIS("l.sh %d, r%d, r%d, %d\n", I5, ra, rb, I11);
+        mop = MO_TEUW;
+        goto do_store;
+
+    do_store:
         {
             TCGv t0 = tcg_temp_new();
             tcg_gen_addi_tl(t0, cpu_R[ra], sign_extend(tmp, 16));
-            tcg_gen_qemu_st16(cpu_R[rb], t0, dc->mem_idx);
+            tcg_gen_qemu_st_tl(cpu_R[rb], t0, dc->mem_idx, mop);
             tcg_temp_free(t0);
         }
         break;

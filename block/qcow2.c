@@ -449,7 +449,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (header.magic != QCOW_MAGIC) {
         error_setg(errp, "Image is not in qcow2 format");
-        ret = -EMEDIUMTYPE;
+        ret = -EINVAL;
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {
@@ -671,7 +671,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     /* Enable lazy_refcounts according to image and command line options */
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
@@ -1000,7 +1000,6 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster;
-    int n_end;
     int ret;
     int cur_nr_sectors; /* number of sectors in current iteration */
     uint64_t cluster_offset;
@@ -1024,14 +1023,16 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        n_end = index_in_cluster + remaining_sectors;
+        cur_nr_sectors = remaining_sectors;
         if (s->crypt_method &&
-            n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors) {
-            n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
+            cur_nr_sectors >
+            QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster) {
+            cur_nr_sectors =
+                QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster;
         }
 
         ret = qcow2_alloc_cluster_offset(bs, sector_num << 9,
-            index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, &l2meta);
+            &cur_nr_sectors, &cluster_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
@@ -1403,34 +1404,34 @@ static int preallocate(BlockDriverState *bs)
     int ret;
     QCowL2Meta *meta;
 
-    nb_sectors = bdrv_getlength(bs) >> 9;
+    nb_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
     offset = 0;
 
     while (nb_sectors) {
-        num = MIN(nb_sectors, INT_MAX >> 9);
-        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
+        num = MIN(nb_sectors, INT_MAX >> BDRV_SECTOR_BITS);
+        ret = qcow2_alloc_cluster_offset(bs, offset, &num,
                                          &host_offset, &meta);
         if (ret < 0) {
             return ret;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, meta);
-        if (ret < 0) {
-            qcow2_free_any_clusters(bs, meta->alloc_offset, meta->nb_clusters,
-                                    QCOW2_DISCARD_NEVER);
-            return ret;
-        }
-
-        /* There are no dependent requests, but we need to remove our request
-         * from the list of in-flight requests */
         if (meta != NULL) {
+            ret = qcow2_alloc_cluster_link_l2(bs, meta);
+            if (ret < 0) {
+                qcow2_free_any_clusters(bs, meta->alloc_offset,
+                                        meta->nb_clusters, QCOW2_DISCARD_NEVER);
+                return ret;
+            }
+
+            /* There are no dependent requests, but we need to remove our
+             * request from the list of in-flight requests */
             QLIST_REMOVE(meta, next_in_flight);
         }
 
         /* TODO Preallocate data if requested */
 
         nb_sectors -= num;
-        offset += num << 9;
+        offset += num << BDRV_SECTOR_BITS;
     }
 
     /*
@@ -1439,9 +1440,10 @@ static int preallocate(BlockDriverState *bs)
      * EOF). Extend the image to the last allocated sector.
      */
     if (host_offset != 0) {
-        uint8_t buf[512];
-        memset(buf, 0, 512);
-        ret = bdrv_write(bs->file, (host_offset >> 9) + num - 1, buf, 1);
+        uint8_t buf[BDRV_SECTOR_SIZE];
+        memset(buf, 0, BDRV_SECTOR_SIZE);
+        ret = bdrv_write(bs->file, (host_offset >> BDRV_SECTOR_BITS) + num - 1,
+                         buf, 1);
         if (ret < 0) {
             return ret;
         }
@@ -1491,7 +1493,9 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, NULL, NULL, BDRV_O_RDWR, &local_err);
+    bs = NULL;
+    ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+                    NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;
@@ -1541,7 +1545,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
     }
 
-    bdrv_close(bs);
+    bdrv_unref(bs);
+    bs = NULL;
 
     /*
      * And now open the image and make it consistent first (i.e. increase the
@@ -1550,7 +1555,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      */
     BlockDriver* drv = bdrv_find_format("qcow2");
     assert(drv != NULL);
-    ret = bdrv_open(bs, filename, NULL,
+    ret = bdrv_open(&bs, filename, NULL, NULL,
         BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
@@ -1597,20 +1602,23 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         }
     }
 
-    bdrv_close(bs);
+    bdrv_unref(bs);
+    bs = NULL;
 
     /* Reopen the image without BDRV_O_NO_FLUSH to flush it before returning */
-    ret = bdrv_open(bs, filename, NULL,
+    ret = bdrv_open(&bs, filename, NULL, NULL,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
                     drv, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
     ret = 0;
 out:
-    bdrv_unref(bs);
+    if (bs) {
+        bdrv_unref(bs);
+    }
     return ret;
 }
 
@@ -1683,30 +1691,10 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options,
 
     ret = qcow2_create2(filename, sectors, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, options, version, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
     }
     return ret;
-}
-
-static int qcow2_make_empty(BlockDriverState *bs)
-{
-#if 0
-    /* XXX: not correct */
-    BDRVQcowState *s = bs->opaque;
-    uint32_t l1_length = s->l1_size * sizeof(uint64_t);
-    int ret;
-
-    memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite(bs->file, s->l1_table_offset, s->l1_table, l1_length) < 0)
-        return -1;
-    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length);
-    if (ret < 0)
-        return ret;
-
-    l2_cache_reset(bs);
-#endif
-    return 0;
 }
 
 static coroutine_fn int qcow2_co_write_zeroes(BlockDriverState *bs,
@@ -2252,7 +2240,6 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
     .bdrv_set_key       = qcow2_set_key,
-    .bdrv_make_empty    = qcow2_make_empty,
 
     .bdrv_co_readv          = qcow2_co_readv,
     .bdrv_co_writev         = qcow2_co_writev,

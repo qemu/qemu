@@ -991,7 +991,8 @@ static int do_strex_a64(CPUARMState *env)
             goto finish;
         }
     }
-    val = env->xregs[rt];
+    /* handle the zero register */
+    val = rt == 31 ? 0 : env->xregs[rt];
     switch (size) {
     case 0:
         segv = put_user_u8(val, addr);
@@ -1010,7 +1011,8 @@ static int do_strex_a64(CPUARMState *env)
         goto error;
     }
     if (is_pair) {
-        val = env->xregs[rt2];
+        /* handle the zero register */
+        val = rt2 == 31 ? 0 : env->xregs[rt2];
         if (size == 2) {
             segv = put_user_u32(val, addr + 4);
         } else {
@@ -1528,7 +1530,7 @@ static int do_store_exclusive(CPUPPCState *env)
 {
     target_ulong addr;
     target_ulong page_addr;
-    target_ulong val;
+    target_ulong val, val2 __attribute__((unused));
     int flags;
     int segv = 0;
 
@@ -1551,6 +1553,13 @@ static int do_store_exclusive(CPUPPCState *env)
             case 4: segv = get_user_u32(val, addr); break;
 #if defined(TARGET_PPC64)
             case 8: segv = get_user_u64(val, addr); break;
+            case 16: {
+                segv = get_user_u64(val, addr);
+                if (!segv) {
+                    segv = get_user_u64(val2, addr + 8);
+                }
+                break;
+            }
 #endif
             default: abort();
             }
@@ -1562,6 +1571,15 @@ static int do_store_exclusive(CPUPPCState *env)
                 case 4: segv = put_user_u32(val, addr); break;
 #if defined(TARGET_PPC64)
                 case 8: segv = put_user_u64(val, addr); break;
+                case 16: {
+                    if (val2 == env->reserve_val2) {
+                        segv = put_user_u64(val, addr);
+                        if (!segv) {
+                            segv = put_user_u64(val2, addr + 8);
+                        }
+                    }
+                    break;
+                }
 #endif
                 default: abort();
                 }

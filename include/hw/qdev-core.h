@@ -8,6 +8,7 @@
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
+#include "hw/hotplug.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -49,6 +50,8 @@ struct VMStateDescription;
  * is changed to %true. Deprecated, new types inheriting directly from
  * TYPE_DEVICE should use @realize instead, new leaf types should consult
  * their respective parent type.
+ * @hotpluggable: indicates if #DeviceClass is hotpluggable, available
+ * as readonly "hotpluggable" property of #DeviceState instance
  *
  * # Realization #
  * Devices are constructed in two stages,
@@ -109,6 +112,7 @@ typedef struct DeviceClass {
      * TODO remove once we're there
      */
     bool cannot_instantiate_with_device_add_yet;
+    bool hotpluggable;
 
     /* callbacks */
     void (*reset)(DeviceState *dev);
@@ -172,6 +176,8 @@ struct BusClass {
     void (*reset)(BusState *bus);
     /* maximum devices allowed on the bus, 0: no limit. */
     int max_dev;
+    /* number of automatically allocated bus ids (e.g. ide.0) */
+    int automatic_ids;
 };
 
 typedef struct BusChild {
@@ -180,14 +186,18 @@ typedef struct BusChild {
     QTAILQ_ENTRY(BusChild) sibling;
 } BusChild;
 
+#define QDEV_HOTPLUG_HANDLER_PROPERTY "hotplug-handler"
+
 /**
  * BusState:
+ * @hotplug_device: link to a hotplug device associated with bus.
  */
 struct BusState {
     Object obj;
     DeviceState *parent;
     const char *name;
     int allow_hotplug;
+    HotplugHandler *hotplug_handler;
     int max_index;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
@@ -209,7 +219,6 @@ struct PropertyInfo {
     const char *name;
     const char *legacy_name;
     const char **enum_table;
-    int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
@@ -321,4 +330,11 @@ extern int qdev_hotplug;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
+static inline void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
+                                            Error **errp)
+{
+    object_property_set_link(OBJECT(bus), OBJECT(handler),
+                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
+    bus->allow_hotplug = 1;
+}
 #endif

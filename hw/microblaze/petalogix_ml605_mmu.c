@@ -32,7 +32,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
-#include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
@@ -49,6 +48,7 @@
 
 #define NUM_SPI_FLASHES 4
 
+#define SPI_BASEADDR 0x40a00000
 #define MEMORY_BASEADDR 0x50000000
 #define FLASH_BASEADDR 0x86000000
 #define INTC_BASEADDR 0x81800000
@@ -56,6 +56,13 @@
 #define UART16550_BASEADDR 0x83e00000
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
+
+#define AXIDMA_IRQ1         0
+#define AXIDMA_IRQ0         1
+#define TIMER_IRQ           2
+#define AXIENET_IRQ         3
+#define SPI_IRQ             4
+#define UART16550_IRQ       5
 
 static void machine_cpu_reset(MicroBlazeCPU *cpu)
 {
@@ -75,7 +82,6 @@ static void
 petalogix_ml605_init(QEMUMachineInitArgs *args)
 {
     ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     Object *ds, *cs;
@@ -89,10 +95,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     qemu_irq irq[32];
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "microblaze";
-    }
-    cpu = cpu_mb_init(cpu_model);
+    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    object_property_set_bool(OBJECT(cpu), true, "realized", &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
@@ -114,17 +118,27 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
                           2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 
-    dev = xilinx_intc_create(INTC_BASEADDR, qdev_get_gpio_in(DEVICE(cpu),
-                             MB_CPU_IRQ), 4);
+    dev = qdev_create(NULL, "xlnx.xps-intc");
+    qdev_prop_set_uint32(dev, "kind-of-intr", 1 << TIMER_IRQ);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(DEVICE(cpu), MB_CPU_IRQ));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
     serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
-                   irq[5], 115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
+                   irq[UART16550_IRQ], 115200, serial_hds[0],
+                   DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
-    xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
+    dev = qdev_create(NULL, "xlnx.xps-timer");
+    qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* axi ethernet and dma initialization. */
     qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");
@@ -141,16 +155,30 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
                                   "axistream-connected-target", NULL);
     cs = object_property_get_link(OBJECT(dma),
                                   "axistream-control-connected-target", NULL);
-    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(ds),
-                            STREAM_SLAVE(cs), 0x82780000, irq[3], 0x1000,
-                            0x1000);
+    qdev_set_nic_properties(eth0, &nd_table[0]);
+    qdev_prop_set_uint32(eth0, "rxmem", 0x1000);
+    qdev_prop_set_uint32(eth0, "txmem", 0x1000);
+    object_property_set_link(OBJECT(eth0), OBJECT(ds),
+                             "axistream-connected", &error_abort);
+    object_property_set_link(OBJECT(eth0), OBJECT(cs),
+                             "axistream-control-connected", &error_abort);
+    qdev_init_nofail(eth0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
 
     ds = object_property_get_link(OBJECT(eth0),
                                   "axistream-connected-target", NULL);
     cs = object_property_get_link(OBJECT(eth0),
                                   "axistream-control-connected-target", NULL);
-    xilinx_axidma_init(dma, STREAM_SLAVE(ds), STREAM_SLAVE(cs), 0x84600000,
-                       irq[1], irq[0], 100 * 1000000);
+    qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
+    object_property_set_link(OBJECT(dma), OBJECT(ds),
+                             "axistream-connected", &error_abort);
+    object_property_set_link(OBJECT(dma), OBJECT(cs),
+                             "axistream-control-connected", &error_abort);
+    qdev_init_nofail(dma);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
 
     {
         SSIBus *spi;
@@ -159,8 +187,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
         qdev_init_nofail(dev);
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_mmio_map(busdev, 0, 0x40a00000);
-        sysbus_connect_irq(busdev, 0, irq[4]);
+        sysbus_mmio_map(busdev, 0, SPI_BASEADDR);
+        sysbus_connect_irq(busdev, 0, irq[SPI_IRQ]);
 
         spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
 

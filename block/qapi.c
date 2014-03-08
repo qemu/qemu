@@ -271,7 +271,7 @@ void bdrv_query_info(BlockDriverState *bs,
         p_image_info = &info->inserted->image;
         while (1) {
             bdrv_query_image_info(bs0, p_image_info, &local_err);
-            if (error_is_set(&local_err)) {
+            if (local_err) {
                 error_propagate(errp, local_err);
                 goto err;
             }
@@ -336,7 +336,7 @@ BlockInfoList *qmp_query_block(Error **errp)
      while ((bs = bdrv_next(bs))) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
         bdrv_query_info(bs, &info->value, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             goto err;
         }

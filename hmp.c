@@ -881,7 +881,7 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     Error *errp = NULL;
 
     qmp_balloon(value, &errp);
-    if (error_is_set(&errp)) {
+    if (errp) {
         monitor_printf(mon, "balloon: %s\n", error_get_pretty(errp));
         error_free(errp);
     }
@@ -1118,7 +1118,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     }
 
     qmp_change(device, target, !!arg, arg, &err);
-    if (error_is_set(&err) &&
+    if (err &&
         error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
         error_free(err);
         monitor_read_block_device_key(mon, device, NULL, NULL);
@@ -1234,7 +1234,8 @@ static void hmp_migrate_status_cb(void *opaque)
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
-    if (!info->has_status || strcmp(info->status, "active") == 0) {
+    if (!info->has_status || strcmp(info->status, "active") == 0 ||
+        strcmp(info->status, "setup") == 0) {
         if (info->has_disk) {
             int progress;
 
@@ -1310,8 +1311,11 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     const char *file = qdict_get_str(qdict, "filename");
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
+    /* kdump-compressed format is not supported for HMP */
+    bool has_format = false;
     int64_t begin = 0;
     int64_t length = 0;
+    enum DumpGuestMemoryFormat dump_format = DUMP_GUEST_MEMORY_FORMAT_ELF;
     char *prot;
 
     if (has_begin) {
@@ -1324,7 +1328,7 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     prot = g_strconcat("file:", file, NULL);
 
     qmp_dump_guest_memory(paging, prot, has_begin, begin, has_length, length,
-                          &errp);
+                          has_format, dump_format, &errp);
     hmp_handle_error(mon, &errp);
     g_free(prot);
 }
@@ -1335,12 +1339,12 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict)
     QemuOpts *opts;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         goto out;
     }
 
     netdev_add(opts, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         qemu_opts_del(opts);
     }
 

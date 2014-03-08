@@ -252,9 +252,11 @@ static bool uhci_queue_verify(UHCIQueue *queue, uint32_t qh_addr, UHCI_TD *td,
                               uint32_t td_addr, bool queuing)
 {
     UHCIAsync *first = QTAILQ_FIRST(&queue->asyncs);
+    uint32_t queue_token_addr = (queue->token >> 8) & 0x7f;
 
     return queue->qh_addr == qh_addr &&
            queue->token == uhci_queue_token(td) &&
+           queue_token_addr == queue->ep->dev->addr &&
            (queuing || !(td->ctrl & TD_CTRL_ACTIVE) || first == NULL ||
             first->td_addr == td_addr);
 }
@@ -1318,7 +1320,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->device_id = info->device_id;
     k->revision  = info->revision;
     k->class_id  = PCI_CLASS_SERIAL_USB;
-    k->no_hotplug = 1;
+    dc->hotpluggable = false;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);

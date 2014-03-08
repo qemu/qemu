@@ -36,6 +36,7 @@
 
 #include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
 
 //#define DEBUG_S390
@@ -91,7 +92,7 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
         return -EINVAL;
     }
     virtio_reset(dev->vdev);
-    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
+    stb_phys(&address_space_memory, dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
 
@@ -251,6 +252,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     s390_sclp_init();
     s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
                       args->initrd_filename, ZIPL_FILENAME);
+    s390_flic_init();
 
     /* register hypercalls */
     s390_virtio_register_hcalls();

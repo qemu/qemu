@@ -29,6 +29,7 @@
 #include "helper.h"
 #include "qemu/host-utils.h"
 #include "exec/softmmu_exec.h"
+#include "exec/address-spaces.h"
 
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr);
@@ -90,7 +91,7 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
     int ret = xtensa_get_physical_addr(env, false, vaddr, 2, 0,
             &paddr, &page_size, &access);
     if (ret == 0) {
-        tb_invalidate_phys_addr(paddr);
+        tb_invalidate_phys_addr(&address_space_memory, paddr);
     }
 }
 
@@ -412,6 +413,11 @@ void HELPER(advance_ccount)(CPUXtensaState *env, uint32_t d)
 void HELPER(check_interrupts)(CPUXtensaState *env)
 {
     check_interrupts(env);
+}
+
+void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
+{
+    get_page_addr_code(env, vaddr);
 }
 
 /*!

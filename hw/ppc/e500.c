@@ -238,6 +238,7 @@ static int ppce500_load_device_tree(QEMUMachineInitArgs *args,
        the first node as boot node and be happy */
     for (i = smp_cpus - 1; i >= 0; i--) {
         CPUState *cpu;
+        PowerPCCPU *pcpu;
         char cpu_name[128];
         uint64_t cpu_release_addr = MPC8544_SPIN_BASE + (i * 0x20);
 
@@ -246,14 +247,16 @@ static int ppce500_load_device_tree(QEMUMachineInitArgs *args,
             continue;
         }
         env = cpu->env_ptr;
+        pcpu = POWERPC_CPU(cpu);
 
         snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x",
-                 cpu->cpu_index);
+                 ppc_get_vcpu_dt_id(pcpu));
         qemu_fdt_add_subnode(fdt, cpu_name);
         qemu_fdt_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
         qemu_fdt_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
         qemu_fdt_setprop_string(fdt, cpu_name, "device_type", "cpu");
-        qemu_fdt_setprop_cell(fdt, cpu_name, "reg", cpu->cpu_index);
+        qemu_fdt_setprop_cell(fdt, cpu_name, "reg",
+                              ppc_get_vcpu_dt_id(pcpu));
         qemu_fdt_setprop_cell(fdt, cpu_name, "d-cache-line-size",
                               env->dcache_line_size);
         qemu_fdt_setprop_cell(fdt, cpu_name, "i-cache-line-size",

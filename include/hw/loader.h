@@ -4,10 +4,23 @@
 #include "hw/nvram/fw_cfg.h"
 
 /* loader.c */
+/**
+ * get_image_size: retrieve size of an image file
+ * @filename: Path to the image file
+ *
+ * Returns the size of the image file on success, -1 otherwise.
+ * On error, errno is also set as appropriate.
+ */
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+
+#define ELF_LOAD_FAILED       -1
+#define ELF_LOAD_NOT_ELF      -2
+#define ELF_LOAD_WRONG_ARCH   -3
+#define ELF_LOAD_WRONG_ENDIAN -4
+const char *load_elf_strerror(int error);
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
              uint64_t *highaddr, int big_endian, int elf_machine,

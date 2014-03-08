@@ -27,6 +27,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/sysemu.h"
 
 #ifndef MAC_OS_X_VERSION_10_4
@@ -49,14 +50,6 @@
 #endif
 
 #define cgrect(nsrect) (*(CGRect *)&(nsrect))
-#define COCOA_MOUSE_EVENT \
-        if (isTabletEnabled) { \
-            kbd_mouse_event((int)(p.x * 0x7FFF / (screen.width - 1)), (int)((screen.height - p.y) * 0x7FFF / (screen.height - 1)), 0, buttons); \
-        } else if (isMouseGrabbed) { \
-            kbd_mouse_event((int)[event deltaX], (int)[event deltaY], 0, buttons); \
-        } else { \
-            [NSApp sendEvent:event]; \
-        }
 
 typedef struct {
     int width;
@@ -67,6 +60,7 @@ typedef struct {
 
 NSWindow *normalWindow;
 static DisplayChangeListener *dcl;
+static int last_buttons;
 
 int gArgc;
 char **gArgv;
@@ -501,6 +495,7 @@ QemuCocoaView *cocoaView;
 
     int buttons = 0;
     int keycode;
+    bool mouse_event = false;
     NSPoint p = [event locationInWindow];
 
     switch ([event type]) {
@@ -514,16 +509,14 @@ QemuCocoaView *cocoaView;
 
             if (keycode) {
                 if (keycode == 58 || keycode == 69) { // emulate caps lock and num lock keydown and keyup
-                    kbd_put_keycode(keycode);
-                    kbd_put_keycode(keycode | 0x80);
+                    qemu_input_event_send_key_number(dcl->con, keycode, true);
+                    qemu_input_event_send_key_number(dcl->con, keycode, false);
                 } else if (qemu_console_is_graphic(NULL)) {
-                    if (keycode & 0x80)
-                        kbd_put_keycode(0xe0);
                     if (modifiers_state[keycode] == 0) { // keydown
-                        kbd_put_keycode(keycode & 0x7f);
+                        qemu_input_event_send_key_number(dcl->con, keycode, true);
                         modifiers_state[keycode] = 1;
                     } else { // keyup
-                        kbd_put_keycode(keycode | 0x80);
+                        qemu_input_event_send_key_number(dcl->con, keycode, false);
                         modifiers_state[keycode] = 0;
                     }
                 }
@@ -557,9 +550,7 @@ QemuCocoaView *cocoaView;
 
             // handle keys for graphic console
             } else if (qemu_console_is_graphic(NULL)) {
-                if (keycode & 0x80) //check bit for e0 in front
-                    kbd_put_keycode(0xe0);
-                kbd_put_keycode(keycode & 0x7f); //remove e0 bit in front
+                qemu_input_event_send_key_number(dcl->con, keycode, true);
 
             // handlekeys for Monitor
             } else {
@@ -607,9 +598,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                if (keycode & 0x80)
-                    kbd_put_keycode(0xe0);
-                kbd_put_keycode(keycode | 0x80); //add 128 to signal release of key
+                qemu_input_event_send_key_number(dcl->con, keycode, false);
             }
             break;
         case NSMouseMoved:
@@ -626,7 +615,7 @@ QemuCocoaView *cocoaView;
                     }
                 }
             }
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSLeftMouseDown:
             if ([event modifierFlags] & NSCommandKeyMask) {
@@ -634,15 +623,15 @@ QemuCocoaView *cocoaView;
             } else {
                 buttons |= MOUSE_EVENT_LBUTTON;
             }
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSRightMouseDown:
             buttons |= MOUSE_EVENT_RBUTTON;
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSOtherMouseDown:
             buttons |= MOUSE_EVENT_MBUTTON;
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSLeftMouseDragged:
             if ([event modifierFlags] & NSCommandKeyMask) {
@@ -650,19 +639,19 @@ QemuCocoaView *cocoaView;
             } else {
                 buttons |= MOUSE_EVENT_LBUTTON;
             }
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSRightMouseDragged:
             buttons |= MOUSE_EVENT_RBUTTON;
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSOtherMouseDragged:
             buttons |= MOUSE_EVENT_MBUTTON;
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSLeftMouseUp:
             if (isTabletEnabled) {
-                    COCOA_MOUSE_EVENT
+                    mouse_event = true;
             } else if (!isMouseGrabbed) {
                 if (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height) {
                     [self grabMouse];
@@ -670,24 +659,50 @@ QemuCocoaView *cocoaView;
                     [NSApp sendEvent:event];
                 }
             } else {
-                COCOA_MOUSE_EVENT
+                mouse_event = true;
             }
             break;
         case NSRightMouseUp:
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSOtherMouseUp:
-            COCOA_MOUSE_EVENT
+            mouse_event = true;
             break;
         case NSScrollWheel:
             if (isTabletEnabled || isMouseGrabbed) {
-                kbd_mouse_event(0, 0, -[event deltaY], 0);
+                buttons |= ([event deltaY] < 0) ?
+                    MOUSE_EVENT_WHEELUP : MOUSE_EVENT_WHEELDN;
+                mouse_event = true;
             } else {
                 [NSApp sendEvent:event];
             }
             break;
         default:
             [NSApp sendEvent:event];
+    }
+
+    if (mouse_event) {
+        if (last_buttons != buttons) {
+            static uint32_t bmap[INPUT_BUTTON_MAX] = {
+                [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
+                [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
+                [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+                [INPUT_BUTTON_WHEEL_UP]   = MOUSE_EVENT_WHEELUP,
+                [INPUT_BUTTON_WHEEL_DOWN] = MOUSE_EVENT_WHEELDN,
+            };
+            qemu_input_update_buttons(dcl->con, bmap, last_buttons, buttons);
+            last_buttons = buttons;
+        }
+        if (isTabletEnabled) {
+            qemu_input_queue_abs(dcl->con, INPUT_AXIS_X, p.x, screen.width);
+            qemu_input_queue_abs(dcl->con, INPUT_AXIS_Y, p.y, screen.height);
+        } else if (isMouseGrabbed) {
+            qemu_input_queue_rel(dcl->con, INPUT_AXIS_X, (int)[event deltaX]);
+            qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, (int)[event deltaY]);
+        } else {
+            [NSApp sendEvent:event];
+        }
+        qemu_input_event_sync();
     }
 }
 
@@ -1023,7 +1038,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
 
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
-    if (kbd_mouse_is_absolute()) {
+    if (qemu_input_is_absolute()) {
         if (![cocoaView isAbsoluteEnabled]) {
             if ([cocoaView isMouseGrabbed]) {
                 [cocoaView ungrabMouse];

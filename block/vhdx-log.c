@@ -965,8 +965,8 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
     cpu_to_le32s((uint32_t *)(buffer + 4));
 
     /* now write to the log */
-    vhdx_log_write_sectors(bs, &s->log, &sectors_written, buffer,
-                           desc_sectors + sectors);
+    ret = vhdx_log_write_sectors(bs, &s->log, &sectors_written, buffer,
+                                 desc_sectors + sectors);
     if (ret < 0) {
         goto exit;
     }

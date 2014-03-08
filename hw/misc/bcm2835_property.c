@@ -7,7 +7,7 @@
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-
+#include "exec/address-spaces.h"
 #include "hw/arm/bcm2835_common.h"
 
 #define TYPE_BCM2835_PROPERTY "bcm2835_property"
@@ -53,15 +53,15 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
     /* @(s->addr + 4) : Buffer response code */
     value = s->addr + 8;
     do {
-        tag = ldl_phys(value);
-        bufsize = ldl_phys(value + 4);
+        tag = ldl_phys(&address_space_memory, value);
+        bufsize = ldl_phys(&address_space_memory, value + 4);
         /* @(value + 8) : Request/response indicator */
         resplen = 0;
         switch (tag) {
         case 0x00000000: /* End tag */
             break;
         case 0x00000001: /* Get firmware revision */
-            stl_phys(value + 12, 346337);
+            stl_phys(&address_space_memory, value + 12, 346337);
             resplen = 4;
             break;
 
@@ -72,28 +72,28 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
             resplen = 4;
             break;
         case 0x00010003: /* Get board MAC address */
-            stl_phys(value + 12, 0xB827EBD0);
-            stl_phys(value + 16, 0xEEDF0000);
+            stl_phys(&address_space_memory, value + 12, 0xB827EBD0);
+            stl_phys(&address_space_memory, value + 16, 0xEEDF0000);
             resplen = 6;
             break;
         case 0x00010004: /* Get board serial */
             resplen = 8;
             break;
         case 0x00010005: /* Get ARM memory */
-            stl_phys(value + 12, 0); /* base */
-            stl_phys(value + 16, bcm2835_vcram_base); /* size */
+            stl_phys(&address_space_memory, value + 12, 0); /* base */
+            stl_phys(&address_space_memory, value + 16, bcm2835_vcram_base); /* size */
             resplen = 8;
             break;
         case 0x00010006: /* Get VC memory */
-            stl_phys(value + 12, bcm2835_vcram_base); /* base */
-            stl_phys(value + 16, VCRAM_SIZE); /* size */
+            stl_phys(&address_space_memory, value + 12, bcm2835_vcram_base); /* base */
+            stl_phys(&address_space_memory, value + 16, VCRAM_SIZE); /* size */
             resplen = 8;
             break;
 
         /* Clocks */
 
         case 0x00030001: /* Get clock state */
-            stl_phys(value + 16, 0x1);
+            stl_phys(&address_space_memory, value + 16, 0x1);
             resplen = 8;
             break;
 
@@ -104,15 +104,15 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
         case 0x00030002: /* Get clock rate */
         case 0x00030004: /* Get max clock rate */
         case 0x00030007: /* Get min clock rate */
-            switch (ldl_phys(value + 12)) {
+            switch (ldl_phys(&address_space_memory, value + 12)) {
             case 1: /* EMMC */
-                stl_phys(value + 16, 50000000);
+                stl_phys(&address_space_memory, value + 16, 50000000);
                 break;
             case 2: /* UART */
-                stl_phys(value + 16, 3000000);
+                stl_phys(&address_space_memory, value + 16, 3000000);
                 break;
             default:
-                stl_phys(value + 16, 700000000);
+                stl_phys(&address_space_memory, value + 16, 700000000);
                 break;
             }
             resplen = 8;
@@ -127,12 +127,12 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
         /* Temperature */
 
         case 0x00030006: /* Get temperature */
-            stl_phys(value + 16, 25000);
+            stl_phys(&address_space_memory, value + 16, 25000);
             resplen = 8;
             break;
 
         case 0x0003000A: /* Get max temperature */
-            stl_phys(value + 16, 99000);
+            stl_phys(&address_space_memory, value + 16, 99000);
             resplen = 8;
             break;
 
@@ -140,8 +140,8 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
         /* Frame buffer */
 
         case 0x00040001: /* Allocate buffer */
-            stl_phys(value + 12, bcm2835_fb.base); /* base */
-            stl_phys(value + 16, bcm2835_fb.size); /* size */
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.base); /* base */
+            stl_phys(&address_space_memory, value + 16, bcm2835_fb.size); /* size */
             resplen = 8;
             break;
         case 0x00048001: /* Release buffer */
@@ -152,8 +152,8 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
             break;
         case 0x00040003: /* Get display width/height */
         case 0x00040004:
-            stl_phys(value + 12, bcm2835_fb.xres);
-            stl_phys(value + 16, bcm2835_fb.yres);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.xres);
+            stl_phys(&address_space_memory, value + 16, bcm2835_fb.yres);
             resplen = 8;
             break;
         case 0x00044003: /* Test display width/height */
@@ -162,92 +162,92 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
             break;
         case 0x00048003: /* Set display width/height */
         case 0x00048004:
-            bcm2835_fb.xres = ldl_phys(value + 12);
-            bcm2835_fb.yres = ldl_phys(value + 16);
+            bcm2835_fb.xres = ldl_phys(&address_space_memory, value + 12);
+            bcm2835_fb.yres = ldl_phys(&address_space_memory, value + 16);
             update_fb();
             resplen = 8;
             break;
         case 0x00040005: /* Get depth */
-            stl_phys(value + 12, bcm2835_fb.bpp);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.bpp);
             resplen = 4;
             break;
         case 0x00044005: /* Test depth */
             resplen = 4;
             break;
         case 0x00048005: /* Set depth */
-            bcm2835_fb.bpp = ldl_phys(value + 12);
+            bcm2835_fb.bpp = ldl_phys(&address_space_memory, value + 12);
             update_fb();
             resplen = 4;
             break;
         case 0x00040006: /* Get pixel order */
-            stl_phys(value + 12, bcm2835_fb.pixo);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.pixo);
             resplen = 4;
             break;
         case 0x00044006: /* Test pixel order */
             resplen = 4;
             break;
         case 0x00048006: /* Set pixel order */
-            bcm2835_fb.pixo = ldl_phys(value + 12);
+            bcm2835_fb.pixo = ldl_phys(&address_space_memory, value + 12);
             update_fb();
             resplen = 4;
             break;
         case 0x00040007: /* Get alpha */
-            stl_phys(value + 12, bcm2835_fb.alpha);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.alpha);
             resplen = 4;
             break;
         case 0x00044007: /* Test pixel alpha */
             resplen = 4;
             break;
         case 0x00048007: /* Set alpha */
-            bcm2835_fb.alpha = ldl_phys(value + 12);
+            bcm2835_fb.alpha = ldl_phys(&address_space_memory, value + 12);
             update_fb();
             resplen = 4;
             break;
         case 0x00040008: /* Get pitch */
-            stl_phys(value + 12, bcm2835_fb.pitch);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.pitch);
             resplen = 4;
             break;
         case 0x00040009: /* Get virtual offset */
-            stl_phys(value + 12, bcm2835_fb.xoffset);
-            stl_phys(value + 16, bcm2835_fb.yoffset);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.xoffset);
+            stl_phys(&address_space_memory, value + 16, bcm2835_fb.yoffset);
             resplen = 8;
             break;
         case 0x00044009: /* Test virtual offset */
             resplen = 8;
             break;
         case 0x00048009: /* Set virtual offset */
-            bcm2835_fb.xoffset = ldl_phys(value + 12);
-            bcm2835_fb.yoffset = ldl_phys(value + 16);
+            bcm2835_fb.xoffset = ldl_phys(&address_space_memory, value + 12);
+            bcm2835_fb.yoffset = ldl_phys(&address_space_memory, value + 16);
             update_fb();
-            stl_phys(value + 12, bcm2835_fb.xres);
-            stl_phys(value + 16, bcm2835_fb.yres);
+            stl_phys(&address_space_memory, value + 12, bcm2835_fb.xres);
+            stl_phys(&address_space_memory, value + 16, bcm2835_fb.yres);
             resplen = 8;
             break;
         case 0x0004000a: /* Get/Test/Set overscan */
         case 0x0004400a:
         case 0x0004800a:
-            stl_phys(value + 12, 0);
-            stl_phys(value + 16, 0);
-            stl_phys(value + 20, 0);
-            stl_phys(value + 24, 0);
+            stl_phys(&address_space_memory, value + 12, 0);
+            stl_phys(&address_space_memory, value + 16, 0);
+            stl_phys(&address_space_memory, value + 20, 0);
+            stl_phys(&address_space_memory, value + 24, 0);
             resplen = 16;
             break;
 
         case 0x0004800b: /* Set palette */
-            offset = ldl_phys(value + 12);
-            length = ldl_phys(value + 16);
+            offset = ldl_phys(&address_space_memory, value + 12);
+            length = ldl_phys(&address_space_memory, value + 16);
             n = 0;
             while (n < length - offset) {
-                color = ldl_phys(value + 20 + (n << 2));
-                stl_phys(bcm2835_vcram_base + ((offset + n) << 2), color);
+                color = ldl_phys(&address_space_memory, value + 20 + (n << 2));
+                stl_phys(&address_space_memory, bcm2835_vcram_base + ((offset + n) << 2), color);
                 n++;
             }
-            stl_phys(value + 12, 0);
+            stl_phys(&address_space_memory, value + 12, 0);
             resplen = 4;
             break;
 
         case 0x00060001: /* Get DMA channels */
-            stl_phys(value + 12, 0x003C); /* channels 2-5 */
+            stl_phys(&address_space_memory, value + 12, 0x003C); /* channels 2-5 */
             resplen = 4;
             break;
 
@@ -261,14 +261,14 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
             break;
         }
         if (tag != 0) {
-            stl_phys(value + 8, (1 << 31) | resplen);
+            stl_phys(&address_space_memory, value + 8, (1 << 31) | resplen);
         }
 
         value += bufsize + 12;
     } while (tag != 0);
 
     /* Buffer response code */
-    stl_phys(s->addr + 4, (1 << 31));
+    stl_phys(&address_space_memory, s->addr + 4, (1 << 31));
 
     if (bcm2835_fb.lock) {
         bcm2835_fb.invalidate = 1;

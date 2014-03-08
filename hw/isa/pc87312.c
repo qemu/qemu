@@ -369,7 +369,7 @@ static const VMStateDescription vmstate_pc87312 = {
 };
 
 static Property pc87312_properties[] = {
-    DEFINE_PROP_HEX32("iobase", PC87312State, iobase, 0x398),
+    DEFINE_PROP_UINT32("iobase", PC87312State, iobase, 0x398),
     DEFINE_PROP_UINT8("config", PC87312State, config, 1),
     DEFINE_PROP_END_OF_LIST()
 };

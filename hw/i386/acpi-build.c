@@ -768,6 +768,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         memset(slot_hotplug_enable, 0xff, sizeof slot_hotplug_enable);
 
         for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+            DeviceClass *dc;
             PCIDeviceClass *pc;
             PCIDevice *pdev = bus->devices[i];
 
@@ -776,8 +777,9 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             }
 
             pc = PCI_DEVICE_GET_CLASS(pdev);
+            dc = DEVICE_GET_CLASS(pdev);
 
-            if (pc->no_hotplug || pc->is_bridge) {
+            if (!dc->hotpluggable || pc->is_bridge) {
                 int slot = PCI_SLOT(i);
 
                 clear_bit(slot, slot_hotplug_enable);

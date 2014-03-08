@@ -11,6 +11,19 @@
 #include "qemu/int128.h"
 #include "qemu/osdep.h"
 
+/* clang doesn't support __noclone__ but it does have a mechanism for
+ * telling us this. We assume that if we don't have __has_attribute()
+ * then this is GCC and that GCC always supports __noclone__.
+ */
+#if defined(__has_attribute)
+#if !__has_attribute(__noclone__)
+#define ATTRIBUTE_NOCLONE
+#endif
+#endif
+#ifndef ATTRIBUTE_NOCLONE
+#define ATTRIBUTE_NOCLONE __attribute__((__noclone__))
+#endif
+
 static uint32_t tests[8] = {
     0x00000000, 0x00000001, 0x7FFFFFFE, 0x7FFFFFFF,
     0x80000000, 0x80000001, 0xFFFFFFFE, 0xFFFFFFFF,
@@ -164,7 +177,7 @@ static void test_gt(void)
 
 /* Make sure to test undefined behavior at runtime! */
 
-static void __attribute__((__noinline__, __noclone__))
+static void __attribute__((__noinline__)) ATTRIBUTE_NOCLONE
 test_rshift_one(uint32_t x, int n, uint64_t h, uint64_t l)
 {
     Int128 a = expand(x);

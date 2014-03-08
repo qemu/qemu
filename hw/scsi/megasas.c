@@ -144,12 +144,14 @@ static bool megasas_is_jbod(MegasasState *s)
 
 static void megasas_frame_set_cmd_status(unsigned long frame, uint8_t v)
 {
-    stb_phys(frame + offsetof(struct mfi_frame_header, cmd_status), v);
+    stb_phys(&address_space_memory,
+             frame + offsetof(struct mfi_frame_header, cmd_status), v);
 }
 
 static void megasas_frame_set_scsi_status(unsigned long frame, uint8_t v)
 {
-    stb_phys(frame + offsetof(struct mfi_frame_header, scsi_status), v);
+    stb_phys(&address_space_memory,
+             frame + offsetof(struct mfi_frame_header, scsi_status), v);
 }
 
 /*
@@ -158,7 +160,8 @@ static void megasas_frame_set_scsi_status(unsigned long frame, uint8_t v)
  */
 static uint64_t megasas_frame_get_context(unsigned long frame)
 {
-    return ldq_le_phys(frame + offsetof(struct mfi_frame_header, context));
+    return ldq_le_phys(&address_space_memory,
+                       frame + offsetof(struct mfi_frame_header, context));
 }
 
 static bool megasas_frame_is_ieee_sgl(MegasasCmd *cmd)
@@ -516,10 +519,12 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
         tail = s->reply_queue_head;
         if (megasas_use_queue64(s)) {
             queue_offset = tail * sizeof(uint64_t);
-            stq_le_phys(s->reply_queue_pa + queue_offset, context);
+            stq_le_phys(&address_space_memory,
+                        s->reply_queue_pa + queue_offset, context);
         } else {
             queue_offset = tail * sizeof(uint32_t);
-            stl_le_phys(s->reply_queue_pa + queue_offset, context);
+            stl_le_phys(&address_space_memory,
+                        s->reply_queue_pa + queue_offset, context);
         }
         s->reply_queue_head = megasas_next_index(s, tail, s->fw_cmds);
         trace_megasas_qf_complete(context, tail, queue_offset,
@@ -602,8 +607,8 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     pa_lo = le32_to_cpu(initq->pi_addr_lo);
     pa_hi = le32_to_cpu(initq->pi_addr_hi);
     s->producer_pa = ((uint64_t) pa_hi << 32) | pa_lo;
-    s->reply_queue_head = ldl_le_phys(s->producer_pa);
-    s->reply_queue_tail = ldl_le_phys(s->consumer_pa);
+    s->reply_queue_head = ldl_le_phys(&address_space_memory, s->producer_pa);
+    s->reply_queue_tail = ldl_le_phys(&address_space_memory, s->consumer_pa);
     flags = le32_to_cpu(initq->flags);
     if (flags & MFI_QUEUE_FLAG_CONTEXT64) {
         s->flags |= MEGASAS_MASK_USE_QUEUE64;
@@ -1949,7 +1954,8 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         if (s->producer_pa && megasas_intr_enabled(s)) {
             /* Update reply queue pointer */
             trace_megasas_qf_update(s->reply_queue_head, s->busy);
-            stl_le_phys(s->producer_pa, s->reply_queue_head);
+            stl_le_phys(&address_space_memory,
+                        s->producer_pa, s->reply_queue_head);
             if (!msix_enabled(pci_dev)) {
                 trace_megasas_irq_lower();
                 pci_irq_deassert(pci_dev);
@@ -2189,7 +2195,7 @@ static Property megasas_properties[] = {
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
                        MEGASAS_DEFAULT_FRAMES),
     DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
-    DEFINE_PROP_HEX64("sas_address", MegasasState, sas_addr, 0),
+    DEFINE_PROP_UINT64("sas_address", MegasasState, sas_addr, 0),
 #ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,
                     MEGASAS_FLAG_USE_MSIX, false),

@@ -734,7 +734,7 @@ static void spitz_wm8750_addr(void *opaque, int line, int level)
 static void spitz_i2c_setup(PXA2xxState *cpu)
 {
     /* Attach the CPU on one end of our I2C bus.  */
-    i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
 
     DeviceState *wm;
 

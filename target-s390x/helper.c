@@ -138,18 +138,21 @@ static int trans_bits(CPUS390XState *env, uint64_t mode)
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
                                uint64_t mode)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     int ilen = ILEN_LATER_INC;
     int bits = trans_bits(env, mode) | 4;
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
-    stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
+    stq_phys(cs->as,
+             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
     trigger_pgm_exception(env, PGM_PROTECTION, ilen);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     int ilen = ILEN_LATER;
     int bits = trans_bits(env, asc);
 
@@ -160,7 +163,8 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
-    stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
+    stq_phys(cs->as,
+             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
     trigger_pgm_exception(env, type, ilen);
 }
 
@@ -168,6 +172,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, int level,
                               target_ulong *raddr, int *flags, int rw)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t offs = 0;
     uint64_t origin;
     uint64_t new_asce;
@@ -218,7 +223,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     /* XXX region protection flags */
     /* *flags &= ~PAGE_WRITE */
 
-    new_asce = ldq_phys(origin + offs);
+    new_asce = ldq_phys(cs->as, origin + offs);
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
                 __func__, origin, offs, new_asce);
 

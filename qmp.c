@@ -556,8 +556,8 @@ void object_add(const char *type, const char *id, const QDict *qdict,
     }
 
     if (!object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        error_setg(&local_err, "object '%s' isn't supported by object-add",
-                   id);
+        error_setg(&local_err, "object type '%s' isn't supported by object-add",
+                   type);
         goto out;
     }
 

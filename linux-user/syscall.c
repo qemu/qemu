@@ -108,6 +108,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/reboot.h>
 #include <linux/route.h>
 #include <linux/filter.h>
+#include <linux/blkpg.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -1708,6 +1709,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     struct iovec *vec;
     abi_ulong total_len, max_len;
     int i;
+    int err = 0;
 
     if (count == 0) {
         errno = 0;
@@ -1727,7 +1729,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     target_vec = lock_user(VERIFY_READ, target_addr,
                            count * sizeof(struct target_iovec), 1);
     if (target_vec == NULL) {
-        errno = EFAULT;
+        err = EFAULT;
         goto fail2;
     }
 
@@ -1741,7 +1743,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         abi_long len = tswapal(target_vec[i].iov_len);
 
         if (len < 0) {
-            errno = EINVAL;
+            err = EINVAL;
             goto fail;
         } else if (len == 0) {
             /* Zero length pointer is ignored.  */
@@ -1749,7 +1751,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         } else {
             vec[i].iov_base = lock_user(type, base, len, copy);
             if (!vec[i].iov_base) {
-                errno = EFAULT;
+                err = EFAULT;
                 goto fail;
             }
             if (len > max_len - total_len) {
@@ -1764,9 +1766,10 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return vec;
 
  fail:
-    free(vec);
- fail2:
     unlock_user(target_vec, target_addr, 0);
+ fail2:
+    free(vec);
+    errno = err;
     return NULL;
 }
 
@@ -2178,271 +2181,81 @@ fail:
 /* do_socketcall() Must return target values and target errnos. */
 static abi_long do_socketcall(int num, abi_ulong vptr)
 {
-    abi_long ret;
-    const int n = sizeof(abi_ulong);
+    static const unsigned ac[] = { /* number of arguments per call */
+        [SOCKOP_socket] = 3,      /* domain, type, protocol */
+        [SOCKOP_bind] = 3,        /* sockfd, addr, addrlen */
+        [SOCKOP_connect] = 3,     /* sockfd, addr, addrlen */
+        [SOCKOP_listen] = 2,      /* sockfd, backlog */
+        [SOCKOP_accept] = 3,      /* sockfd, addr, addrlen */
+        [SOCKOP_accept4] = 4,     /* sockfd, addr, addrlen, flags */
+        [SOCKOP_getsockname] = 3, /* sockfd, addr, addrlen */
+        [SOCKOP_getpeername] = 3, /* sockfd, addr, addrlen */
+        [SOCKOP_socketpair] = 4,  /* domain, type, protocol, tab */
+        [SOCKOP_send] = 4,        /* sockfd, msg, len, flags */
+        [SOCKOP_recv] = 4,        /* sockfd, msg, len, flags */
+        [SOCKOP_sendto] = 6,      /* sockfd, msg, len, flags, addr, addrlen */
+        [SOCKOP_recvfrom] = 6,    /* sockfd, msg, len, flags, addr, addrlen */
+        [SOCKOP_shutdown] = 2,    /* sockfd, how */
+        [SOCKOP_sendmsg] = 3,     /* sockfd, msg, flags */
+        [SOCKOP_recvmsg] = 3,     /* sockfd, msg, flags */
+        [SOCKOP_setsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
+        [SOCKOP_getsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
+    };
+    abi_long a[6]; /* max 6 args */
 
-    switch(num) {
-    case SOCKOP_socket:
-	{
-            abi_ulong domain, type, protocol;
-
-            if (get_user_ual(domain, vptr)
-                || get_user_ual(type, vptr + n)
-                || get_user_ual(protocol, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_socket(domain, type, protocol);
-	}
-        break;
-    case SOCKOP_bind:
-	{
-            abi_ulong sockfd;
-            abi_ulong target_addr;
-            socklen_t addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(addrlen, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_bind(sockfd, target_addr, addrlen);
-        }
-        break;
-    case SOCKOP_connect:
-        {
-            abi_ulong sockfd;
-            abi_ulong target_addr;
-            socklen_t addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(addrlen, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_connect(sockfd, target_addr, addrlen);
-        }
-        break;
-    case SOCKOP_listen:
-        {
-            abi_ulong sockfd, backlog;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(backlog, vptr + n))
-                return -TARGET_EFAULT;
-
-            ret = get_errno(listen(sockfd, backlog));
-        }
-        break;
-    case SOCKOP_accept:
-        {
-            abi_ulong sockfd;
-            abi_ulong target_addr, target_addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(target_addrlen, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_accept4(sockfd, target_addr, target_addrlen, 0);
-        }
-        break;
-    case SOCKOP_accept4:
-        {
-            abi_ulong sockfd;
-            abi_ulong target_addr, target_addrlen;
-            abi_ulong flags;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(target_addrlen, vptr + 2 * n)
-                || get_user_ual(flags, vptr + 3 * n)) {
+    /* first, collect the arguments in a[] according to ac[] */
+    if (num >= 0 && num < ARRAY_SIZE(ac)) {
+        unsigned i;
+        assert(ARRAY_SIZE(a) >= ac[num]); /* ensure we have space for args */
+        for (i = 0; i < ac[num]; ++i) {
+            if (get_user_ual(a[i], vptr + i * sizeof(abi_long)) != 0) {
                 return -TARGET_EFAULT;
             }
-
-            ret = do_accept4(sockfd, target_addr, target_addrlen, flags);
         }
-        break;
-    case SOCKOP_getsockname:
-        {
-            abi_ulong sockfd;
-            abi_ulong target_addr, target_addrlen;
+    }
 
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(target_addrlen, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_getsockname(sockfd, target_addr, target_addrlen);
-        }
-        break;
-    case SOCKOP_getpeername:
-        {
-            abi_ulong sockfd;
-            abi_ulong target_addr, target_addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(target_addr, vptr + n)
-                || get_user_ual(target_addrlen, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_getpeername(sockfd, target_addr, target_addrlen);
-        }
-        break;
-    case SOCKOP_socketpair:
-        {
-            abi_ulong domain, type, protocol;
-            abi_ulong tab;
-
-            if (get_user_ual(domain, vptr)
-                || get_user_ual(type, vptr + n)
-                || get_user_ual(protocol, vptr + 2 * n)
-                || get_user_ual(tab, vptr + 3 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_socketpair(domain, type, protocol, tab);
-        }
-        break;
-    case SOCKOP_send:
-        {
-            abi_ulong sockfd;
-            abi_ulong msg;
-            size_t len;
-            abi_ulong flags;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(msg, vptr + n)
-                || get_user_ual(len, vptr + 2 * n)
-                || get_user_ual(flags, vptr + 3 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_sendto(sockfd, msg, len, flags, 0, 0);
-        }
-        break;
-    case SOCKOP_recv:
-        {
-            abi_ulong sockfd;
-            abi_ulong msg;
-            size_t len;
-            abi_ulong flags;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(msg, vptr + n)
-                || get_user_ual(len, vptr + 2 * n)
-                || get_user_ual(flags, vptr + 3 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_recvfrom(sockfd, msg, len, flags, 0, 0);
-        }
-        break;
-    case SOCKOP_sendto:
-        {
-            abi_ulong sockfd;
-            abi_ulong msg;
-            size_t len;
-            abi_ulong flags;
-            abi_ulong addr;
-            abi_ulong addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(msg, vptr + n)
-                || get_user_ual(len, vptr + 2 * n)
-                || get_user_ual(flags, vptr + 3 * n)
-                || get_user_ual(addr, vptr + 4 * n)
-                || get_user_ual(addrlen, vptr + 5 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_sendto(sockfd, msg, len, flags, addr, addrlen);
-        }
-        break;
-    case SOCKOP_recvfrom:
-        {
-            abi_ulong sockfd;
-            abi_ulong msg;
-            size_t len;
-            abi_ulong flags;
-            abi_ulong addr;
-            socklen_t addrlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(msg, vptr + n)
-                || get_user_ual(len, vptr + 2 * n)
-                || get_user_ual(flags, vptr + 3 * n)
-                || get_user_ual(addr, vptr + 4 * n)
-                || get_user_ual(addrlen, vptr + 5 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_recvfrom(sockfd, msg, len, flags, addr, addrlen);
-        }
-        break;
-    case SOCKOP_shutdown:
-        {
-            abi_ulong sockfd, how;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(how, vptr + n))
-                return -TARGET_EFAULT;
-
-            ret = get_errno(shutdown(sockfd, how));
-        }
-        break;
-    case SOCKOP_sendmsg:
-    case SOCKOP_recvmsg:
-        {
-            abi_ulong fd;
-            abi_ulong target_msg;
-            abi_ulong flags;
-
-            if (get_user_ual(fd, vptr)
-                || get_user_ual(target_msg, vptr + n)
-                || get_user_ual(flags, vptr + 2 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_sendrecvmsg(fd, target_msg, flags,
-                                 (num == SOCKOP_sendmsg));
-        }
-        break;
-    case SOCKOP_setsockopt:
-        {
-            abi_ulong sockfd;
-            abi_ulong level;
-            abi_ulong optname;
-            abi_ulong optval;
-            abi_ulong optlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(level, vptr + n)
-                || get_user_ual(optname, vptr + 2 * n)
-                || get_user_ual(optval, vptr + 3 * n)
-                || get_user_ual(optlen, vptr + 4 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_setsockopt(sockfd, level, optname, optval, optlen);
-        }
-        break;
-    case SOCKOP_getsockopt:
-        {
-            abi_ulong sockfd;
-            abi_ulong level;
-            abi_ulong optname;
-            abi_ulong optval;
-            socklen_t optlen;
-
-            if (get_user_ual(sockfd, vptr)
-                || get_user_ual(level, vptr + n)
-                || get_user_ual(optname, vptr + 2 * n)
-                || get_user_ual(optval, vptr + 3 * n)
-                || get_user_ual(optlen, vptr + 4 * n))
-                return -TARGET_EFAULT;
-
-            ret = do_getsockopt(sockfd, level, optname, optval, optlen);
-        }
-        break;
+    /* now when we have the args, actually handle the call */
+    switch (num) {
+    case SOCKOP_socket: /* domain, type, protocol */
+        return do_socket(a[0], a[1], a[2]);
+    case SOCKOP_bind: /* sockfd, addr, addrlen */
+        return do_bind(a[0], a[1], a[2]);
+    case SOCKOP_connect: /* sockfd, addr, addrlen */
+        return do_connect(a[0], a[1], a[2]);
+    case SOCKOP_listen: /* sockfd, backlog */
+        return get_errno(listen(a[0], a[1]));
+    case SOCKOP_accept: /* sockfd, addr, addrlen */
+        return do_accept4(a[0], a[1], a[2], 0);
+    case SOCKOP_accept4: /* sockfd, addr, addrlen, flags */
+        return do_accept4(a[0], a[1], a[2], a[3]);
+    case SOCKOP_getsockname: /* sockfd, addr, addrlen */
+        return do_getsockname(a[0], a[1], a[2]);
+    case SOCKOP_getpeername: /* sockfd, addr, addrlen */
+        return do_getpeername(a[0], a[1], a[2]);
+    case SOCKOP_socketpair: /* domain, type, protocol, tab */
+        return do_socketpair(a[0], a[1], a[2], a[3]);
+    case SOCKOP_send: /* sockfd, msg, len, flags */
+        return do_sendto(a[0], a[1], a[2], a[3], 0, 0);
+    case SOCKOP_recv: /* sockfd, msg, len, flags */
+        return do_recvfrom(a[0], a[1], a[2], a[3], 0, 0);
+    case SOCKOP_sendto: /* sockfd, msg, len, flags, addr, addrlen */
+        return do_sendto(a[0], a[1], a[2], a[3], a[4], a[5]);
+    case SOCKOP_recvfrom: /* sockfd, msg, len, flags, addr, addrlen */
+        return do_recvfrom(a[0], a[1], a[2], a[3], a[4], a[5]);
+    case SOCKOP_shutdown: /* sockfd, how */
+        return get_errno(shutdown(a[0], a[1]));
+    case SOCKOP_sendmsg: /* sockfd, msg, flags */
+        return do_sendrecvmsg(a[0], a[1], a[2], 1);
+    case SOCKOP_recvmsg: /* sockfd, msg, flags */
+        return do_sendrecvmsg(a[0], a[1], a[2], 0);
+    case SOCKOP_setsockopt: /* sockfd, level, optname, optval, optlen */
+        return do_setsockopt(a[0], a[1], a[2], a[3], a[4]);
+    case SOCKOP_getsockopt: /* sockfd, level, optname, optval, optlen */
+        return do_getsockopt(a[0], a[1], a[2], a[3], a[4]);
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
-        ret = -TARGET_ENOSYS;
-        break;
+        return -TARGET_ENOSYS;
     }
-    return ret;
 }
 #endif
 
@@ -2618,10 +2431,15 @@ static inline abi_long target_to_host_semarray(int semid, unsigned short **host_
     nsems = semid_ds.sem_nsems;
 
     *host_array = malloc(nsems*sizeof(unsigned short));
+    if (!*host_array) {
+        return -TARGET_ENOMEM;
+    }
     array = lock_user(VERIFY_READ, target_addr,
                       nsems*sizeof(unsigned short), 1);
-    if (!array)
+    if (!array) {
+        free(*host_array);
         return -TARGET_EFAULT;
+    }
 
     for(i=0; i<nsems; i++) {
         __get_user((*host_array)[i], &array[i]);

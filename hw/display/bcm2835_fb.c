@@ -29,8 +29,8 @@
 #include "exec/cpu-common.h"
 #include "hw/display/framebuffer.h"
 #include "ui/console.h"
+#include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
-
 #include "hw/arm/bcm2835_common.h"
 
 #define FRAMESKIP 1
@@ -66,7 +66,7 @@ static void draw_line_src16(void *opaque, uint8_t *d, const uint8_t *s,
     while (width--) {
         switch (bcm2835_fb.bpp) {
         case 8:
-            rgb888 = ldl_phys(bcm2835_vcram_base + (*s << 2));
+            rgb888 = ldl_phys(&address_space_memory, bcm2835_vcram_base + (*s << 2));
             r = (rgb888 >> 0) & 0xff;
             g = (rgb888 >> 8) & 0xff;
             b = (rgb888 >> 16) & 0xff;
@@ -211,14 +211,14 @@ static void bcm2835_fb_mbox_push(bcm2835_fb_state *s, uint32_t value)
     value &= ~0xf;
     bcm2835_fb.lock = 1;
 
-    bcm2835_fb.xres = ldl_phys(value);
-    bcm2835_fb.yres = ldl_phys(value + 4);
-    bcm2835_fb.xres_virtual = ldl_phys(value + 8);
-    bcm2835_fb.yres_virtual = ldl_phys(value + 12);
+    bcm2835_fb.xres = ldl_phys(&address_space_memory, value);
+    bcm2835_fb.yres = ldl_phys(&address_space_memory, value + 4);
+    bcm2835_fb.xres_virtual = ldl_phys(&address_space_memory, value + 8);
+    bcm2835_fb.yres_virtual = ldl_phys(&address_space_memory, value + 12);
 
-    bcm2835_fb.bpp = ldl_phys(value + 20);
-    bcm2835_fb.xoffset = ldl_phys(value + 24);
-    bcm2835_fb.yoffset = ldl_phys(value + 28);
+    bcm2835_fb.bpp = ldl_phys(&address_space_memory, value + 20);
+    bcm2835_fb.xoffset = ldl_phys(&address_space_memory, value + 24);
+    bcm2835_fb.yoffset = ldl_phys(&address_space_memory, value + 28);
 
     bcm2835_fb.base = bcm2835_vcram_base | (value & 0xc0000000);
     bcm2835_fb.base += BCM2835_FB_OFFSET;
@@ -228,9 +228,9 @@ static void bcm2835_fb_mbox_push(bcm2835_fb_state *s, uint32_t value)
     bcm2835_fb.pitch = bcm2835_fb.xres * (bcm2835_fb.bpp >> 3);
     bcm2835_fb.size = bcm2835_fb.yres * bcm2835_fb.pitch;
 
-    stl_phys(value + 16, bcm2835_fb.pitch);
-    stl_phys(value + 32, bcm2835_fb.base);
-    stl_phys(value + 36, bcm2835_fb.size);
+    stl_phys(&address_space_memory, value + 16, bcm2835_fb.pitch);
+    stl_phys(&address_space_memory, value + 32, bcm2835_fb.base);
+    stl_phys(&address_space_memory, value + 36, bcm2835_fb.size);
 
     bcm2835_fb.invalidate = 1;
     qemu_console_resize(bcm2835_fb.con, bcm2835_fb.xres, bcm2835_fb.yres);
@@ -326,7 +326,7 @@ static int bcm2835_fb_init(SysBusDevice *sbd)
 
     sysbus_init_irq(sbd, &s->mbox_irq);
 
-    bcm2835_fb.con = graphic_console_init(dev, &vgafb_ops, s);
+    bcm2835_fb.con = graphic_console_init(dev, 0, &vgafb_ops, s);
     bcm2835_fb.lock = 0;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_fb_ops, s,

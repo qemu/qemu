@@ -378,6 +378,61 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
     }
 }
 
+bool qemu_has_ufo(NetClientState *nc)
+{
+    if (!nc || !nc->info->has_ufo) {
+        return false;
+    }
+
+    return nc->info->has_ufo(nc);
+}
+
+bool qemu_has_vnet_hdr(NetClientState *nc)
+{
+    if (!nc || !nc->info->has_vnet_hdr) {
+        return false;
+    }
+
+    return nc->info->has_vnet_hdr(nc);
+}
+
+bool qemu_has_vnet_hdr_len(NetClientState *nc, int len)
+{
+    if (!nc || !nc->info->has_vnet_hdr_len) {
+        return false;
+    }
+
+    return nc->info->has_vnet_hdr_len(nc, len);
+}
+
+void qemu_using_vnet_hdr(NetClientState *nc, bool enable)
+{
+    if (!nc || !nc->info->using_vnet_hdr) {
+        return;
+    }
+
+    nc->info->using_vnet_hdr(nc, enable);
+}
+
+void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
+                          int ecn, int ufo)
+{
+    if (!nc || !nc->info->set_offload) {
+        return;
+    }
+
+    nc->info->set_offload(nc, csum, tso4, tso6, ecn, ufo);
+}
+
+void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
+{
+    if (!nc || !nc->info->set_vnet_hdr_len) {
+        return;
+    }
+
+    nc->info->set_vnet_hdr_len(nc, len);
+}
+
 int qemu_can_send_packet(NetClientState *sender)
 {
     if (!sender->peer) {
@@ -882,7 +937,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
     qemu_opt_set(opts, "type", device);
 
     net_client_init(opts, 0, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         monitor_printf(mon, "adding host network device %s failed\n", device);
@@ -918,17 +973,17 @@ int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret)
     QemuOpts *opts;
 
     opts_list = qemu_find_opts_err("netdev", &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         goto exit_err;
     }
 
     opts = qemu_opts_from_qdict(opts_list, qdict, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         goto exit_err;
     }
 
     netdev_add(opts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qemu_opts_del(opts);
         goto exit_err;
     }
@@ -1152,7 +1207,7 @@ static int net_init_client(QemuOpts *opts, void *dummy)
     Error *local_err = NULL;
 
     net_client_init(opts, 0, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return -1;
@@ -1167,7 +1222,7 @@ static int net_init_netdev(QemuOpts *opts, void *dummy)
     int ret;
 
     ret = net_client_init(opts, 1, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         return -1;

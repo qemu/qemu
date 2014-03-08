@@ -20,7 +20,7 @@ sub Syntax
     print STDERR <<STOP;
 Usage: $FindBin::Script [options] FILE ...
 
-Translate each FILE to the new Qemu timer API. If no files
+Translate each FILE to the new QEMU timer API. If no files
 are passed, a reasonable guess is taken.
 
 Options:

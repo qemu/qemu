@@ -108,6 +108,9 @@ case $line in
     value=${line#*=}
     echo "#define $name $value"
     ;;
+ DSOSUF=*)
+    echo "#define HOST_DSOSUF \"${line#*=}\""
+    ;;
 esac
 
 done # read

@@ -240,3 +240,16 @@ STRUCT(fiemap,
        TYPE_INT, /* fm_mapped_extents */
        TYPE_INT, /* fm_extent_count */
        TYPE_INT) /* fm_reserved */
+
+STRUCT(blkpg_partition,
+       TYPE_LONGLONG, /* start */
+       TYPE_LONGLONG, /* length */
+       TYPE_INT, /* pno */
+       MK_ARRAY(TYPE_CHAR, BLKPG_DEVNAMELTH), /* devname */
+       MK_ARRAY(TYPE_CHAR, BLKPG_VOLNAMELTH)) /* volname */
+
+STRUCT(blkpg_ioctl_arg,
+       TYPE_INT, /* op */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* datalen */
+       MK_PTR(MK_STRUCT(STRUCT_blkpg_partition))) /* data */

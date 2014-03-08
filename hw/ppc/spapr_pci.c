@@ -469,6 +469,8 @@ static const MemoryRegionOps spapr_msi_ops = {
 
 void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr)
 {
+    uint64_t window_size = 4096;
+
     /*
      * As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
      * we need to allocate some memory to catch those writes coming
@@ -476,10 +478,19 @@ void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr)
      * As MSIMessage:addr is going to be the same and MSIMessage:data
      * is going to be a VIRQ number, 4 bytes of the MSI MR will only
      * be used.
+     *
+     * For KVM we want to ensure that this memory is a full page so that
+     * our memory slot is of page size granularity.
      */
+#ifdef CONFIG_KVM
+    if (kvm_enabled()) {
+        window_size = getpagesize();
+    }
+#endif
+
     spapr->msi_win_addr = addr;
     memory_region_init_io(&spapr->msiwindow, NULL, &spapr_msi_ops, spapr,
-                          "msi", getpagesize());
+                          "msi", window_size);
     memory_region_add_subregion(get_system_memory(), spapr->msi_win_addr,
                                 &spapr->msiwindow);
 }
@@ -651,14 +662,14 @@ static void spapr_phb_reset(DeviceState *qdev)
 
 static Property spapr_phb_properties[] = {
     DEFINE_PROP_INT32("index", sPAPRPHBState, index, -1),
-    DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, -1),
-    DEFINE_PROP_HEX32("liobn", sPAPRPHBState, dma_liobn, -1),
-    DEFINE_PROP_HEX64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
-    DEFINE_PROP_HEX64("mem_win_size", sPAPRPHBState, mem_win_size,
-                      SPAPR_PCI_MMIO_WIN_SIZE),
-    DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
-    DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size,
-                      SPAPR_PCI_IO_WIN_SIZE),
+    DEFINE_PROP_UINT64("buid", sPAPRPHBState, buid, -1),
+    DEFINE_PROP_UINT32("liobn", sPAPRPHBState, dma_liobn, -1),
+    DEFINE_PROP_UINT64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
+    DEFINE_PROP_UINT64("mem_win_size", sPAPRPHBState, mem_win_size,
+                       SPAPR_PCI_MMIO_WIN_SIZE),
+    DEFINE_PROP_UINT64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
+    DEFINE_PROP_UINT64("io_win_size", sPAPRPHBState, io_win_size,
+                       SPAPR_PCI_IO_WIN_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -728,6 +739,8 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->cannot_instantiate_with_device_add_yet = false;
 }
 
 static const TypeInfo spapr_phb_info = {

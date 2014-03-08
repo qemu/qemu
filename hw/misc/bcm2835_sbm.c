@@ -4,7 +4,7 @@
  */
 
 #include "hw/sysbus.h"
-
+#include "exec/address-spaces.h"
 #include "hw/arm/bcm2835_common.h"
 
 #define TYPE_BCM2835_SBM "bcm2835_sbm"
@@ -102,7 +102,7 @@ static void bcm2835_sbm_update(bcm2835_sbm_state *s)
         } else {
             for (n = 0; n < MBOX_CHAN_COUNT; n++) {
                 if (s->available[n]) {
-                    value = ldl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (n<<4));
+                    value = ldl_phys(&address_space_memory, ARMCTRL_0_SBM_BASE + 0x400 + (n<<4));
                     if (value != MBOX_INVALID_DATA) {
                         mbox_push(&s->mbox[0], value);
                     } else {
@@ -205,11 +205,11 @@ static void bcm2835_sbm_write(void *opaque, hwaddr offset,
         } else {
             ch = value & 0xf;
             if (ch < MBOX_CHAN_COUNT) {
-                if (ldl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4) + 4)) {
+                if (ldl_phys(&address_space_memory, ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4) + 4)) {
                     /* Push delayed, push it in the arm->vc mbox */
                     mbox_push(&s->mbox[1], value);
                 } else {
-                    stl_phys(ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4), value);
+                    stl_phys(&address_space_memory, ARMCTRL_0_SBM_BASE + 0x400 + (ch<<4), value);
                 }
             } else {
                 /* Invalid channel number */

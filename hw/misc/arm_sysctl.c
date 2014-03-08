@@ -276,7 +276,7 @@ static bool vexpress_cfgctrl_read(arm_sysctl_state *s, unsigned int dcc,
         }
         break;
     case SYS_CFG_OSC:
-        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+        if (site == SYS_CFG_SITE_MB && device < ARRAY_SIZE(s->mb_clock)) {
             /* motherboard clock */
             *val = s->mb_clock[device];
             return true;
@@ -324,7 +324,7 @@ static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
 
     switch (function) {
     case SYS_CFG_OSC:
-        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+        if (site == SYS_CFG_SITE_MB && device < ARRAY_SIZE(s->mb_clock)) {
             /* motherboard clock */
             s->mb_clock[device] = val;
             return true;

@@ -161,30 +161,6 @@ static inline int sccb_data_len(SCCB *sccb)
     return be16_to_cpu(sccb->h.length) - sizeof(sccb->h);
 }
 
-#define TYPE_DEVICE_S390_SCLP "s390-sclp-device"
-#define SCLP_S390_DEVICE(obj) \
-     OBJECT_CHECK(S390SCLPDevice, (obj), TYPE_DEVICE_S390_SCLP)
-#define SCLP_S390_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(S390SCLPDeviceClass, (klass), \
-             TYPE_DEVICE_S390_SCLP)
-#define SCLP_S390_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(S390SCLPDeviceClass, (obj), \
-             TYPE_DEVICE_S390_SCLP)
-
-typedef struct SCLPEventFacility SCLPEventFacility;
-
-typedef struct S390SCLPDevice {
-    SysBusDevice busdev;
-    SCLPEventFacility *ef;
-    void (*sclp_command_handler)(SCLPEventFacility *ef, SCCB *sccb,
-                                 uint64_t code);
-    bool (*event_pending)(SCLPEventFacility *ef);
-} S390SCLPDevice;
-
-typedef struct S390SCLPDeviceClass {
-    DeviceClass qdev;
-    int (*init)(S390SCLPDevice *sdev);
-} S390SCLPDeviceClass;
 
 void s390_sclp_init(void);
 void sclp_service_interrupt(uint32_t sccb);

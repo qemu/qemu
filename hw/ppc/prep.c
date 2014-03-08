@@ -656,7 +656,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     sysctrl->reset_irq = cpu->env.irq_inputs[PPC6xx_INPUT_HRESET];
 
     portio_list_init(port_list, NULL, prep_portio_list, sysctrl, "prep");
-    portio_list_add(port_list, get_system_io(), 0x0);
+    portio_list_add(port_list, isa_address_space_io(isa), 0x0);
 
     /* PowerPC control and status register group */
 #if 0

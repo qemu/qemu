@@ -302,3 +302,10 @@
 #define TARGET_NR_open_by_handle_at     333
 #define TARGET_NR_clock_adjtime         334
 #define TARGET_NR_syncfs                335
+#define TARGET_NR_sendmmsg              336
+#define TARGET_NR_setns                 337
+#define TARGET_NR_process_vm_readv      338
+#define TARGET_NR_process_vm_writev     339
+#define TARGET_NR_kern_features         340
+#define TARGET_NR_kcmp                  341
+#define TARGET_NR_finit_module          342

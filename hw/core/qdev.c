@@ -32,6 +32,7 @@
 #include "qapi/visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
+#include "hw/hotplug.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -212,13 +213,22 @@ void qdev_unplug(DeviceState *dev, Error **errp)
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }
-    assert(dc->unplug != NULL);
+
+    if (!dc->hotpluggable) {
+        error_set(errp, QERR_DEVICE_NO_HOTPLUG,
+                  object_get_typename(OBJECT(dev)));
+        return;
+    }
 
     qdev_hot_removed = true;
 
-    if (dc->unplug(dev) < 0) {
-        error_set(errp, QERR_UNDEFINED_ERROR);
-        return;
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
+    } else {
+        assert(dc->unplug != NULL);
+        if (dc->unplug(dev) < 0) { /* legacy handler */
+            error_set(errp, QERR_UNDEFINED_ERROR);
+        }
     }
 }
 
@@ -430,27 +440,33 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
 {
     const char *typename = object_get_typename(OBJECT(bus));
+    BusClass *bc;
     char *buf;
-    int i,len;
+    int i, len, bus_id;
 
     bus->parent = parent;
 
     if (name) {
         bus->name = g_strdup(name);
     } else if (bus->parent && bus->parent->id) {
-        /* parent device has id -> use it for bus name */
+        /* parent device has id -> use it plus parent-bus-id for bus name */
+        bus_id = bus->parent->num_child_bus;
+
         len = strlen(bus->parent->id) + 16;
         buf = g_malloc(len);
-        snprintf(buf, len, "%s.%d", bus->parent->id, bus->parent->num_child_bus);
+        snprintf(buf, len, "%s.%d", bus->parent->id, bus_id);
         bus->name = buf;
     } else {
-        /* no id -> use lowercase bus type for bus name */
+        /* no id -> use lowercase bus type plus global bus-id for bus name */
+        bc = BUS_GET_CLASS(bus);
+        bus_id = bc->automatic_ids++;
+
         len = strlen(typename) + 16;
         buf = g_malloc(len);
-        len = snprintf(buf, len, "%s.%d", typename,
-                       bus->parent ? bus->parent->num_child_bus : 0);
-        for (i = 0; i < len; i++)
+        len = snprintf(buf, len, "%s.%d", typename, bus_id);
+        for (i = 0; i < len; i++) {
             buf[i] = qemu_tolower(buf[i]);
+        }
         bus->name = buf;
     }
 
@@ -578,31 +594,6 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v, void *opaque,
     visit_type_str(v, &ptr, name, errp);
 }
 
-static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
-                                     const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    Error *local_err = NULL;
-    char *ptr = NULL;
-    int ret;
-
-    if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
-        return;
-    }
-
-    visit_type_str(v, &ptr, name, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    ret = prop->info->parse(dev, prop, ptr);
-    error_set_from_qdev_prop_error(errp, ret, dev, prop, ptr);
-    g_free(ptr);
-}
-
 /**
  * @qdev_add_legacy_property - adds a legacy property
  *
@@ -615,25 +606,20 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    gchar *name, *type;
+    gchar *name;
 
     /* Register pointer properties as legacy properties */
-    if (!prop->info->print && !prop->info->parse &&
-        (prop->info->set || prop->info->get)) {
+    if (!prop->info->print && prop->info->get) {
         return;
     }
 
     name = g_strdup_printf("legacy-%s", prop->name);
-    type = g_strdup_printf("legacy<%s>",
-                           prop->info->legacy_name ?: prop->info->name);
-
-    object_property_add(OBJECT(dev), name, type,
+    object_property_add(OBJECT(dev), name, "str",
                         prop->info->print ? qdev_get_legacy_property : prop->info->get,
-                        prop->info->parse ? qdev_set_legacy_property : prop->info->set,
+                        NULL,
                         NULL,
                         prop, errp);
 
-    g_free(type);
     g_free(name);
 }
 
@@ -693,6 +679,11 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     Error *local_err = NULL;
 
+    if (dev->hotplugged && !dc->hotpluggable) {
+        error_set(err, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
+        return;
+    }
+
     if (value && !dev->realized) {
         if (!obj->parent && local_err == NULL) {
             static int unattached_count;
@@ -706,6 +697,12 @@ static void device_set_realized(Object *obj, bool value, Error **err)
 
         if (dc->realize) {
             dc->realize(dev, &local_err);
+        }
+
+        if (dev->parent_bus && dev->parent_bus->hotplug_handler &&
+            local_err == NULL) {
+            hotplug_handler_plug(dev->parent_bus->hotplug_handler,
+                                 dev, &local_err);
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {
@@ -733,6 +730,14 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     dev->realized = value;
 }
 
+static bool device_get_hotpluggable(Object *obj, Error **err)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    return dc->hotpluggable && dev->parent_bus->allow_hotplug;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -749,6 +754,8 @@ static void device_initfn(Object *obj)
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
+    object_property_add_bool(obj, "hotpluggable",
+                             device_get_hotpluggable, NULL, NULL);
 
     class = object_get_class(OBJECT(dev));
     do {
@@ -785,6 +792,14 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
+
+    /* by default all devices were considered as hotpluggable,
+     * so with intent to check it in generic qdev_unplug() /
+     * device_set_realized() functions make every device
+     * hotpluggable. Devices that shouldn't be hotpluggable,
+     * should override it in their class_init()
+     */
+    klass->hotpluggable = true;
 }
 
 static void device_unparent(Object *obj)
@@ -870,6 +885,9 @@ static void qbus_initfn(Object *obj)
     BusState *bus = BUS(obj);
 
     QTAILQ_INIT(&bus->children);
+    object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
+                             TYPE_HOTPLUG_HANDLER,
+                             (Object **)&bus->hotplug_handler, NULL);
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)

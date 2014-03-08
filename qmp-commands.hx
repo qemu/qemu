@@ -791,8 +791,8 @@ EQMP
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:b,protocol:s,begin:i?,end:i?",
-        .params     = "-p protocol [begin] [length]",
+        .args_type  = "paging:b,protocol:s,begin:i?,end:i?,format:s?",
+        .params     = "-p protocol [begin] [length] [format]",
         .help       = "dump guest memory to file",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = qmp_marshal_input_dump_guest_memory,
@@ -813,6 +813,9 @@ Arguments:
            with length together (json-int)
 - "length": the memory size, in bytes. It's optional, and should be specified
             with begin together (json-int)
+- "format": the format of guest memory dump. It's optional, and can be
+            elf|kdump-zlib|kdump-lzo|kdump-snappy, but non-elf formats will
+            conflict with paging and filter, ie. begin and length (json-string)
 
 Example:
 
@@ -822,6 +825,26 @@ Example:
 Notes:
 
 (1) All boolean arguments default to false
+
+EQMP
+
+    {
+        .name       = "query-dump-guest-memory-capability",
+        .args_type  = "",
+    .mhandler.cmd_new = qmp_marshal_input_query_dump_guest_memory_capability,
+    },
+
+SQMP
+query-dump-guest-memory-capability
+----------
+
+Show available formats for 'dump-guest-memory'
+
+Example:
+
+-> { "execute": "query-dump-guest-memory-capability" }
+<- { "return": { "formats":
+                    ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
 
 EQMP
 
@@ -1921,6 +1944,47 @@ EQMP
         .name       = "query-chardev",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_chardev,
+    },
+
+SQMP
+query-chardev-backends
+-------------
+
+List available character device backends.
+
+Each backend is represented by a json-object, the returned value is a json-array
+of all backends.
+
+Each json-object contains:
+
+- "name": backend name (json-string)
+
+Example:
+
+-> { "execute": "query-chardev-backends" }
+<- {
+      "return":[
+         {
+            "name":"udp"
+         },
+         {
+            "name":"tcp"
+         },
+         {
+            "name":"unix"
+         },
+         {
+            "name":"spiceport"
+         }
+      ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-chardev-backends",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_chardev_backends,
     },
 
 SQMP

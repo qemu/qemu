@@ -12,12 +12,6 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "libqos/pci.h"
-#include "libqos/pci-pc.h"
-#include "libqtest.h"
-
-#include "hw/pci/pci_regs.h"
-
 #include <glib.h>
 #include <string.h>
 #include <stdio.h>
@@ -25,6 +19,11 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+
+#include "libqtest.h"
+#include "libqos/pci.h"
+#include "libqos/pci-pc.h"
+#include "hw/pci/pci_regs.h"
 
 #define BROKEN 1
 
@@ -350,7 +349,7 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
     qtest_start(cmdline);
     g_free(cmdline);
 
-    /* Qemu has loaded the firmware (because qtest_start() only returns after
+    /* QEMU has loaded the firmware (because qtest_start() only returns after
      * the QMP handshake completes). We must unlink the firmware blob right
      * here, because any assertion firing below would leak it in the
      * filesystem. This is also the reason why we recreate the blob every time

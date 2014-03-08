@@ -46,7 +46,7 @@ typedef enum bitbang_i2c_state {
 } bitbang_i2c_state;
 
 struct bitbang_i2c_interface {
-    i2c_bus *bus;
+    I2CBus *bus;
     bitbang_i2c_state state;
     int last_data;
     int last_clock;
@@ -170,7 +170,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     abort();
 }
 
-bitbang_i2c_interface *bitbang_i2c_init(i2c_bus *bus)
+bitbang_i2c_interface *bitbang_i2c_init(I2CBus *bus)
 {
     bitbang_i2c_interface *s;
 
@@ -213,7 +213,7 @@ static int gpio_i2c_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
     GPIOI2CState *s = GPIO_I2C(dev);
-    i2c_bus *bus;
+    I2CBus *bus;
 
     memory_region_init(&s->dummy_iomem, OBJECT(s), "gpio_i2c", 0);
     sysbus_init_mmio(sbd, &s->dummy_iomem);

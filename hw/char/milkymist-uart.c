@@ -124,7 +124,7 @@ static void uart_write(void *opaque, hwaddr addr, uint64_t value,
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
-            qemu_chr_fe_write(s->chr, &ch, 1);
+            qemu_chr_fe_write_all(s->chr, &ch, 1);
         }
         s->regs[R_STAT] |= STAT_TX_EVT;
         break;

@@ -405,6 +405,8 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
 
     dev->rx_bufs++;
 
+    qemu_flush_queued_packets(qemu_get_queue(dev->nic));
+
     DPRINTF("h_add_logical_lan_buffer():  Added buf  ptr=%d  rx_bufs=%d"
             " bd=0x%016llx\n", dev->add_buf_ptr, dev->rx_bufs,
             (unsigned long long)buf);

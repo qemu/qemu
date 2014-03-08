@@ -46,13 +46,15 @@
 # define ACPI_PCIHP_DPRINTF(format, ...)     do { } while (0)
 #endif
 
-#define PCI_HOTPLUG_ADDR 0xae00
-#define PCI_HOTPLUG_SIZE 0x0014
-#define PCI_UP_BASE 0xae00
-#define PCI_DOWN_BASE 0xae04
-#define PCI_EJ_BASE 0xae08
-#define PCI_RMV_BASE 0xae0c
-#define PCI_SEL_BASE 0xae10
+#define ACPI_PCI_HOTPLUG_STATUS 2
+#define ACPI_PCIHP_ADDR 0xae00
+#define ACPI_PCIHP_SIZE 0x0014
+#define ACPI_PCIHP_LEGACY_SIZE 0x000f
+#define PCI_UP_BASE 0x0000
+#define PCI_DOWN_BASE 0x0004
+#define PCI_EJ_BASE 0x0008
+#define PCI_RMV_BASE 0x000c
+#define PCI_SEL_BASE 0x0010
 
 typedef struct AcpiPciHpFind {
     int bsel;
@@ -104,19 +106,19 @@ static PCIBus *acpi_pcihp_find_hotplug_bus(AcpiPciHpState *s, int bsel)
 static bool acpi_pcihp_pc_no_hotplug(AcpiPciHpState *s, PCIDevice *dev)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
     /*
      * ACPI doesn't allow hotplug of bridge devices.  Don't allow
      * hot-unplug of bridge devices unless they were added by hotplug
      * (and so, not described by acpi).
      */
-    return (pc->is_bridge && !dev->qdev.hotplugged) || pc->no_hotplug;
+    return (pc->is_bridge && !dev->qdev.hotplugged) || !dc->hotpluggable;
 }
 
 static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slots)
 {
     BusChild *kid, *next;
     int slot = ffs(slots) - 1;
-    bool slot_free = true;
     PCIBus *bus = acpi_pcihp_find_hotplug_bus(s, bsel);
 
     if (!bus) {
@@ -125,20 +127,16 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
 
     /* Mark request as complete */
     s->acpi_pcihp_pci_status[bsel].down &= ~(1U << slot);
+    s->acpi_pcihp_pci_status[bsel].up &= ~(1U << slot);
 
     QTAILQ_FOREACH_SAFE(kid, &bus->qbus.children, sibling, next) {
         DeviceState *qdev = kid->child;
         PCIDevice *dev = PCI_DEVICE(qdev);
         if (PCI_SLOT(dev->devfn) == slot) {
-            if (acpi_pcihp_pc_no_hotplug(s, dev)) {
-                slot_free = false;
-            } else {
+            if (!acpi_pcihp_pc_no_hotplug(s, dev)) {
                 object_unparent(OBJECT(qdev));
             }
         }
-    }
-    if (slot_free) {
-        s->acpi_pcihp_pci_status[bsel].device_present &= ~(1U << slot);
     }
 }
 
@@ -153,7 +151,6 @@ static void acpi_pcihp_update_hotplug_bus(AcpiPciHpState *s, int bsel)
     }
 
     s->acpi_pcihp_pci_status[bsel].hotplug_enable = ~0;
-    s->acpi_pcihp_pci_status[bsel].device_present = 0;
 
     if (!bus) {
         return;
@@ -166,8 +163,6 @@ static void acpi_pcihp_update_hotplug_bus(AcpiPciHpState *s, int bsel)
         if (acpi_pcihp_pc_no_hotplug(s, pdev)) {
             s->acpi_pcihp_pci_status[bsel].hotplug_enable &= ~(1U << slot);
         }
-
-        s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
     }
 }
 
@@ -185,40 +180,47 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     acpi_pcihp_update(s);
 }
 
-static void enable_device(AcpiPciHpState *s, unsigned bsel, int slot)
+void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                               DeviceState *dev, Error **errp)
 {
-    s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
-}
-
-static void disable_device(AcpiPciHpState *s, unsigned bsel, int slot)
-{
-    s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
-}
-
-int acpi_pcihp_device_hotplug(AcpiPciHpState *s, PCIDevice *dev,
-                              PCIHotplugState state)
-{
-    int slot = PCI_SLOT(dev->devfn);
-    int bsel = acpi_pcihp_get_bsel(dev->bus);
+    PCIDevice *pdev = PCI_DEVICE(dev);
+    int slot = PCI_SLOT(pdev->devfn);
+    int bsel = acpi_pcihp_get_bsel(pdev->bus);
     if (bsel < 0) {
-        return -1;
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
     }
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
      * event when the device is disabled later. */
-    if (state == PCI_COLDPLUG_ENABLED) {
-        s->acpi_pcihp_pci_status[bsel].device_present |= (1U << slot);
-        return 0;
+    if (!dev->hotplugged) {
+        return;
     }
 
-    if (state == PCI_HOTPLUG_ENABLED) {
-        enable_device(s, bsel, slot);
-    } else {
-        disable_device(s, bsel, slot);
+    s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
+
+    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
+}
+
+void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
+                                 DeviceState *dev, Error **errp)
+{
+    PCIDevice *pdev = PCI_DEVICE(dev);
+    int slot = PCI_SLOT(pdev->devfn);
+    int bsel = acpi_pcihp_get_bsel(pdev->bus);
+    if (bsel < 0) {
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
     }
 
-    return 0;
+    s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
+
+    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
 }
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
@@ -232,26 +234,26 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
     switch (addr) {
-    case PCI_UP_BASE - PCI_HOTPLUG_ADDR:
-        /* Manufacture an "up" value to cause a device check on any hotplug
-         * slot with a device.  Extra device checks are harmless. */
-        val = s->acpi_pcihp_pci_status[bsel].device_present &
-            s->acpi_pcihp_pci_status[bsel].hotplug_enable;
+    case PCI_UP_BASE:
+        val = s->acpi_pcihp_pci_status[bsel].up;
+        if (!s->legacy_piix) {
+            s->acpi_pcihp_pci_status[bsel].up = 0;
+        }
         ACPI_PCIHP_DPRINTF("pci_up_read %" PRIu32 "\n", val);
         break;
-    case PCI_DOWN_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_DOWN_BASE:
         val = s->acpi_pcihp_pci_status[bsel].down;
         ACPI_PCIHP_DPRINTF("pci_down_read %" PRIu32 "\n", val);
         break;
-    case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_EJ_BASE:
         /* No feature defined yet */
         ACPI_PCIHP_DPRINTF("pci_features_read %" PRIu32 "\n", val);
         break;
-    case PCI_RMV_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_RMV_BASE:
         val = s->acpi_pcihp_pci_status[bsel].hotplug_enable;
         ACPI_PCIHP_DPRINTF("pci_rmv_read %" PRIu32 "\n", val);
         break;
-    case PCI_SEL_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_SEL_BASE:
         val = s->hotplug_select;
         ACPI_PCIHP_DPRINTF("pci_sel_read %" PRIu32 "\n", val);
     default:
@@ -266,7 +268,7 @@ static void pci_write(void *opaque, hwaddr addr, uint64_t data,
 {
     AcpiPciHpState *s = opaque;
     switch (addr) {
-    case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_EJ_BASE:
         if (s->hotplug_select >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
             break;
         }
@@ -274,7 +276,7 @@ static void pci_write(void *opaque, hwaddr addr, uint64_t data,
         ACPI_PCIHP_DPRINTF("pciej write %" HWADDR_PRIx " <== %" PRIu64 "\n",
                       addr, data);
         break;
-    case PCI_SEL_BASE - PCI_HOTPLUG_ADDR:
+    case PCI_SEL_BASE:
         s->hotplug_select = data;
         ACPI_PCIHP_DPRINTF("pcisel write %" HWADDR_PRIx " <== %" PRIu64 "\n",
                       addr, data);
@@ -294,13 +296,26 @@ static const MemoryRegionOps acpi_pcihp_io_ops = {
 };
 
 void acpi_pcihp_init(AcpiPciHpState *s, PCIBus *root_bus,
-                     MemoryRegion *address_space_io)
+                     MemoryRegion *address_space_io, bool bridges_enabled)
 {
+    uint16_t io_size = ACPI_PCIHP_SIZE;
+
     s->root= root_bus;
+    s->legacy_piix = !bridges_enabled;
+
+    if (s->legacy_piix) {
+        unsigned *bus_bsel = g_malloc(sizeof *bus_bsel);
+
+        io_size = ACPI_PCIHP_LEGACY_SIZE;
+
+        *bus_bsel = ACPI_PCIHP_BSEL_DEFAULT;
+        object_property_add_uint32_ptr(OBJECT(root_bus), ACPI_PCIHP_PROP_BSEL,
+                                       bus_bsel, NULL);
+    }
+
     memory_region_init_io(&s->io, NULL, &acpi_pcihp_io_ops, s,
-                          "acpi-pci-hotplug",
-                          PCI_HOTPLUG_SIZE);
-    memory_region_add_subregion(address_space_io, PCI_HOTPLUG_ADDR, &s->io);
+                          "acpi-pci-hotplug", io_size);
+    memory_region_add_subregion(address_space_io, ACPI_PCIHP_ADDR, &s->io);
 }
 
 const VMStateDescription vmstate_acpi_pcihp_pci_status = {

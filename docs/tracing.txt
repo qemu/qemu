@@ -214,6 +214,42 @@ The "ust" backend uses the LTTng Userspace Tracer library.  There are no
 monitor commands built into QEMU, instead UST utilities should be used to list,
 enable/disable, and dump traces.
 
+Package lttng-tools is required for userspace tracing. You must ensure that the
+current user belongs to the "tracing" group, or manually launch the
+lttng-sessiond daemon for the current user prior to running any instance of
+QEMU.
+
+While running an instrumented QEMU, LTTng should be able to list all available
+events:
+
+    lttng list -u
+
+Create tracing session:
+
+    lttng create mysession
+
+Enable events:
+
+    lttng enable-event qemu:g_malloc -u
+
+Where the events can either be a comma-separated list of events, or "-a" to
+enable all tracepoint events. Start and stop tracing as needed:
+
+    lttng start
+    lttng stop
+
+View the trace:
+
+    lttng view
+
+Destroy tracing session:
+
+    lttng destroy
+
+Babeltrace can be used at any later time to view the trace:
+
+    babeltrace $HOME/lttng-traces/mysession-<date>-<time>
+
 === SystemTap ===
 
 The "dtrace" backend uses DTrace sdt probes but has only been tested with

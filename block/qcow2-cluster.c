@@ -1182,7 +1182,7 @@ fail:
  * Return 0 on success and -errno in error cases
  */
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m)
+    int *num, uint64_t *host_offset, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t start, remaining;
@@ -1190,15 +1190,13 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     uint64_t cur_bytes;
     int ret;
 
-    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
-                                      n_start, n_end);
+    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset, *num);
 
-    assert(n_start * BDRV_SECTOR_SIZE == offset_into_cluster(s, offset));
-    offset = start_of_cluster(s, offset);
+    assert((offset & ~BDRV_SECTOR_MASK) == 0);
 
 again:
-    start = offset + (n_start << BDRV_SECTOR_BITS);
-    remaining = (n_end - n_start) << BDRV_SECTOR_BITS;
+    start = offset;
+    remaining = *num << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
     cur_bytes = 0;
@@ -1284,7 +1282,7 @@ again:
         }
     }
 
-    *num = (n_end - n_start) - (remaining >> BDRV_SECTOR_BITS);
+    *num -= remaining >> BDRV_SECTOR_BITS;
     assert(*num > 0);
     assert(*host_offset != 0);
 
@@ -1369,13 +1367,31 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         uint64_t old_offset;
 
         old_offset = be64_to_cpu(l2_table[l2_index + i]);
-        if ((old_offset & L2E_OFFSET_MASK) == 0) {
+
+        /*
+         * Make sure that a discarded area reads back as zeroes for v3 images
+         * (we cannot do it for v2 without actually writing a zero-filled
+         * buffer). We can skip the operation if the cluster is already marked
+         * as zero, or if it's unallocated and we don't have a backing file.
+         *
+         * TODO We might want to use bdrv_get_block_status(bs) here, but we're
+         * holding s->lock, so that doesn't work today.
+         */
+        if (old_offset & QCOW_OFLAG_ZERO) {
+            continue;
+        }
+
+        if ((old_offset & L2E_OFFSET_MASK) == 0 && !bs->backing_hd) {
             continue;
         }
 
         /* First remove L2 entries */
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
-        l2_table[l2_index + i] = cpu_to_be64(0);
+        if (s->qcow_version >= 3) {
+            l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
+        } else {
+            l2_table[l2_index + i] = cpu_to_be64(0);
+        }
 
         /* Then decrease the refcount */
         qcow2_free_any_clusters(bs, old_offset, 1, type);

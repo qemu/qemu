@@ -1,0 +1,149 @@
+#!/bin/bash
+#
+# Test Quorum block driver
+#
+# Copyright (C) 2013 Nodalink, SARL.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=benoit@irqsave.net
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    rm -rf $TEST_DIR/1.raw
+    rm -rf $TEST_DIR/2.raw
+    rm -rf $TEST_DIR/3.raw
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto generic
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@" | _filter_imgfmt
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu_io
+}
+
+test_quorum=$($QEMU_IMG --help|grep quorum)
+[ "$test_quorum" = "" ] && _supported_fmt quorum
+
+quorum="file.driver=quorum,file.children.0.file.filename=$TEST_DIR/1.raw"
+quorum="$quorum,file.children.1.file.filename=$TEST_DIR/2.raw"
+quorum="$quorum,file.children.2.file.filename=$TEST_DIR/3.raw,file.vote-threshold=2"
+
+echo
+echo "== creating quorum files =="
+
+size=10M
+
+TEST_IMG="$TEST_DIR/1.raw" _make_test_img $size
+TEST_IMG="$TEST_DIR/2.raw" _make_test_img $size
+TEST_IMG="$TEST_DIR/3.raw" _make_test_img $size
+
+echo
+echo "== writing images =="
+
+$QEMU_IO -c "open -o $quorum" -c "write -P 0x32 0 $size" | _filter_qemu_io
+
+echo
+echo "== checking quorum write =="
+
+$QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/1.raw" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/3.raw" | _filter_qemu_io
+
+echo
+echo "== corrupting image =="
+
+$QEMU_IO -c "write -P 0x42 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
+
+echo
+echo "== checking quorum correction =="
+
+$QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
+
+echo
+echo "== checking mixed reference/option specification =="
+
+run_qemu -drive "file=$TEST_DIR/2.raw,format=$IMGFMT,if=none,id=drive2" <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "driver": "quorum",
+            "id": "drive0-quorum",
+            "vote-threshold": 2,
+            "children": [
+                {
+                    "driver": "raw",
+                    "file": {
+                        "driver": "file",
+                        "filename": "$TEST_DIR/1.raw"
+                    }
+                },
+                "drive2",
+                {
+                    "driver": "raw",
+                    "file": {
+                        "driver": "file",
+                        "filename": "$TEST_DIR/3.raw"
+                    }
+                }
+            ]
+        }
+    }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io drive0-quorum "read -P 0x32 0 $size"'
+    }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "== breaking quorum =="
+
+$QEMU_IO -c "write -P 0x41 0 $size" "$TEST_DIR/1.raw" | _filter_qemu_io
+echo
+echo "== checking that quorum is broken =="
+
+$QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

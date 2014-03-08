@@ -554,6 +554,64 @@ static const VMStateDescription vmstate_mpx = {
     }
 };
 
+static bool hyperv_hypercall_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_hypercall != 0 || env->msr_hv_guest_os_id != 0;
+}
+
+static const VMStateDescription vmstate_msr_hypercall_hypercall = {
+    .name = "cpu/msr_hyperv_hypercall",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_hypercall, X86CPU),
+        VMSTATE_UINT64(env.msr_hv_guest_os_id, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_vapic_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_vapic != 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_vapic = {
+    .name = "cpu/msr_hyperv_vapic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_vapic, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_time_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_tsc != 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_time = {
+    .name = "cpu/msr_hyperv_time",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_hv_tsc, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -688,6 +746,15 @@ const VMStateDescription vmstate_x86_cpu = {
         } , {
             .vmsd = &vmstate_mpx,
             .needed = mpx_needed,
+        }, {
+            .vmsd = &vmstate_msr_hypercall_hypercall,
+            .needed = hyperv_hypercall_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_hyperv_vapic,
+            .needed = hyperv_vapic_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_hyperv_time,
+            .needed = hyperv_time_enable_needed,
         } , {
             /* empty */
         }

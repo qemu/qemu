@@ -1119,6 +1119,8 @@ void resume_all_vcpus(void)
 
 static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
+    tcg_cpu_address_space_init(cpu, cpu->as);
+
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));

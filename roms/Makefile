@@ -72,11 +72,11 @@ seavgabios-%: build-seabios-config-vga-%
 build-seabios-config-%: config.%
 	mkdir -p seabios/builds/$*
 	cp $< seabios/builds/$*/.config
-	$(MAKE) $(MAKEFLAGS) -C seabios \
+	$(MAKE) -C seabios \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ oldnoconfig
-	$(MAKE) $(MAKEFLAGS) -C seabios \
+	$(MAKE) -C seabios \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ all
@@ -90,12 +90,12 @@ lgplvgabios-%: build-lgplvgabios
 	cp vgabios/VGABIOS-lgpl-latest.$*.bin ../pc-bios/vgabios-$*.bin
 
 build-lgplvgabios:
-	$(MAKE) $(MAKEFLAGS) -C vgabios $(vgabios_targets)
+	$(MAKE) -C vgabios $(vgabios_targets)
 
 
 .PHONY: sgabios
 sgabios:
-	$(MAKE) $(MAKEFLAGS) -C sgabios
+	$(MAKE) -C sgabios
 	cp sgabios/sgabios.bin ../pc-bios
 
 
@@ -114,12 +114,12 @@ efi-rom-%: build-pxe-roms build-efi-roms
 		-o ../pc-bios/efi-$*.rom
 
 build-pxe-roms: ipxe/src/config/local/general.h
-	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+	$(MAKE) -C ipxe/src GITVERSION="" \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin/%.rom,$(pxerom_targets))
 
 build-efi-roms: build-pxe-roms ipxe/src/config/local/general.h
-	$(MAKE) $(MAKEFLAGS) -C ipxe/src GITVERSION="" \
+	$(MAKE) -C ipxe/src GITVERSION="" \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
@@ -129,15 +129,15 @@ ipxe/src/config/local/%: config.ipxe.%
 
 
 slof:
-	$(MAKE) $(MAKEFLAGS) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
+	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
 	cp SLOF/boot_rom.bin ../pc-bios/slof.bin
 
 
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
-	$(MAKE) $(MAKEFLAGS) -C vgabios clean
+	$(MAKE) -C vgabios clean
 	rm -f vgabios/VGABIOS-lgpl-latest*
-	$(MAKE) $(MAKEFLAGS) -C sgabios clean
+	$(MAKE) -C sgabios clean
 	rm -f sgabios/.depend
-	$(MAKE) $(MAKEFLAGS) -C ipxe/src veryclean
-	$(MAKE) $(MAKEFLAGS) -C SLOF clean
+	$(MAKE) -C ipxe/src veryclean
+	$(MAKE) -C SLOF clean

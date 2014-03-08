@@ -835,8 +835,8 @@ static void load_linux(FWCfgState *fw_cfg,
 
         initrd_size = get_image_size(initrd_filename);
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: error reading initrd %s\n",
-                    initrd_filename);
+            fprintf(stderr, "qemu: error reading initrd %s: %s\n",
+                    initrd_filename, strerror(errno));
             exit(1);
         }
 

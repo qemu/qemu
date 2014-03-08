@@ -759,7 +759,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
          * We return the same value that a configured device would return if
          * it used the first configuration.
          */
-        if (config->bmAttributes & 0x40) {
+        if (config->bmAttributes & USB_CFG_ATT_SELFPOWER) {
             data[0] |= 1 << USB_DEVICE_SELF_POWERED;
         }
         if (dev->remote_wakeup) {

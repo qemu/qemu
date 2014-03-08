@@ -243,6 +243,42 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return ret;
 }
 
+static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
+                                target_ulong *tce)
+{
+    if (ioba >= tcet->window_size) {
+        hcall_dprintf("spapr_iommu_get_tce on out-of-bounds IOBA 0x"
+                      TARGET_FMT_lx "\n", ioba);
+        return H_PARAMETER;
+    }
+
+    *tce = tcet->table[ioba >> SPAPR_TCE_PAGE_SHIFT];
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_get_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                              target_ulong opcode, target_ulong *args)
+{
+    target_ulong liobn = args[0];
+    target_ulong ioba = args[1];
+    target_ulong tce = 0;
+    target_ulong ret = H_PARAMETER;
+    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+
+    ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
+
+    if (tcet) {
+        ret = get_tce_emu(tcet, ioba, &tce);
+        if (!ret) {
+            args[0] = tce;
+        }
+    }
+    trace_spapr_iommu_get(liobn, ioba, ret, tce);
+
+    return ret;
+}
+
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size)
 {
@@ -295,6 +331,7 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
 
     /* hcall-tce */
     spapr_register_hypercall(H_PUT_TCE, h_put_tce);
+    spapr_register_hypercall(H_GET_TCE, h_get_tce);
 }
 
 static TypeInfo spapr_tce_table_info = {

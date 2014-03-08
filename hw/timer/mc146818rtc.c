@@ -185,7 +185,7 @@ static void rtc_periodic_timer(void *opaque)
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
 #ifdef TARGET_I386
-        if (s->lost_tick_policy == LOST_TICK_SLEW) {
+        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
                 s->irq_reinject_on_ack_count = 0;		
             apic_reset_irq_delivered();
@@ -708,7 +708,7 @@ static int rtc_post_load(void *opaque, int version_id)
 
 #ifdef TARGET_I386
     if (version_id >= 2) {
-        if (s->lost_tick_policy == LOST_TICK_SLEW) {
+        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
             rtc_coalesced_timer_update(s);
         }
     }
@@ -749,7 +749,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     periodic_timer_update(s, now);
     check_update_timer(s);
 #ifdef TARGET_I386
-    if (s->lost_tick_policy == LOST_TICK_SLEW) {
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         rtc_coalesced_timer_update(s);
     }
 #endif
@@ -774,7 +774,7 @@ static void rtc_reset(void *opaque)
     qemu_irq_lower(s->irq);
 
 #ifdef TARGET_I386
-    if (s->lost_tick_policy == LOST_TICK_SLEW) {
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
     }
 #endif
@@ -835,11 +835,11 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
 #ifdef TARGET_I386
     switch (s->lost_tick_policy) {
-    case LOST_TICK_SLEW:
+    case LOST_TICK_POLICY_SLEW:
         s->coalesced_timer =
             timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
         break;
-    case LOST_TICK_DISCARD:
+    case LOST_TICK_POLICY_DISCARD:
         break;
     default:
         error_setg(errp, "Invalid lost tick policy.");
@@ -890,7 +890,7 @@ ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
 static Property mc146818rtc_properties[] = {
     DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
-                               lost_tick_policy, LOST_TICK_DISCARD),
+                               lost_tick_policy, LOST_TICK_POLICY_DISCARD),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -225,7 +225,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     if (s->tsr_retry <= 0) {
         if (s->fcr & UART_FCR_FE) {
-            s->tsr = fifo8_is_full(&s->xmit_fifo) ?
+            s->tsr = fifo8_is_empty(&s->xmit_fifo) ?
                         0 : fifo8_pop(&s->xmit_fifo);
             if (!s->xmit_fifo.num) {
                 s->lsr |= UART_LSR_THRE;

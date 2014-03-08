@@ -36,7 +36,6 @@
 
 static const XtensaConfig dc233c = {
     .name = "dc233c",
-    .options = XTENSA_OPTIONS,
     .gdb_regmap = {
         .num_regs = 121,
         .num_core_regs = 52,
@@ -44,13 +43,8 @@ static const XtensaConfig dc233c = {
 #include "core-dc233c/gdb-config.c"
         }
     },
-    .nareg = XCHAL_NUM_AREGS,
-    .ndepc = 1,
-    EXCEPTIONS_SECTION,
-    INTERRUPTS_SECTION,
-    TLB_SECTION,
-    DEBUG_SECTION,
     .clock_freq_khz = 10000,
+    DEFAULT_SECTIONS
 };
 
 REGISTER_CORE(dc233c)

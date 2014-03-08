@@ -221,10 +221,16 @@ static void pc_init1(QEMUMachineInitArgs *args,
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             ISADevice *dev;
+            char busname[] = "ide.0";
             dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
                                ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-            idebus[i] = qdev_get_child_bus(DEVICE(dev), "ide.0");
+            /*
+             * The ide bus name is ide.0 for the first bus and ide.1 for the
+             * second one.
+             */
+            busname[4] = '0' + i;
+            idebus[i] = qdev_get_child_bus(DEVICE(dev), busname);
         }
     }
 
@@ -236,7 +242,7 @@ static void pc_init1(QEMUMachineInitArgs *args,
     }
 
     if (pci_enabled && acpi_enabled) {
-        i2c_bus *smbus;
+        I2CBus *smbus;
 
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
@@ -793,6 +799,17 @@ static QEMUMachine xenfv_machine = {
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
     .hot_add_cpu = pc_hot_add_cpu,
+    .compat_props = (GlobalProperty[]) {
+        /* xenfv has no fwcfg and so does not load acpi from QEMU.
+         * as such new acpi features don't work.
+         */
+        {
+            .driver   = "PIIX4_PM",
+            .property = "acpi-pci-hotplug-with-bridge-support",
+            .value    = "off",
+        },
+        { /* end of list */ }
+    },
 };
 #endif
 

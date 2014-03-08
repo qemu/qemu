@@ -10,14 +10,13 @@
  * See the COPYING file in the top-level directory.
  */
 
-#define NO_QEMU_PROTOS
-
-#include "libqtest.h"
-#include "hw/nvram/fw_cfg.h"
-#include "libqos/fw_cfg.h"
-
 #include <string.h>
 #include <glib.h>
+
+#include "libqtest.h"
+#define NO_QEMU_PROTOS
+#include "hw/nvram/fw_cfg.h"
+#include "libqos/fw_cfg.h"
 
 static uint64_t ram_size = 128 << 20;
 static uint16_t nb_cpus = 1;

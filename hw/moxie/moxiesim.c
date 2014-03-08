@@ -55,7 +55,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
                            &entry, &kernel_low, &kernel_high, 1,
                            ELF_MACHINE, 0);
 
-    if (!kernel_size) {
+    if (kernel_size <= 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loader_params->kernel_filename);
         exit(1);

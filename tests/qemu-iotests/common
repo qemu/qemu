@@ -144,10 +144,12 @@ check options
     -vpc                test vpc
     -vhdx               test vhdx
     -vmdk               test vmdk
+    -file               test file (default)
     -rbd                test rbd
     -sheepdog           test sheepdog
     -nbd                test nbd
     -ssh                test ssh
+    -nfs                test nfs
     -xdiff              graphical mode diff
     -nocache            use O_DIRECT on backing file
     -misalign           misalign memory allocations
@@ -211,22 +213,36 @@ testlist options
             xpand=false
             ;;
 
+        -file)
+            IMGPROTO=file
+            xpand=false
+            ;;
+
         -rbd)
             IMGPROTO=rbd
             xpand=false
             ;;
+
         -sheepdog)
             IMGPROTO=sheepdog
             xpand=false
             ;;
+
         -nbd)
             IMGPROTO=nbd
             xpand=false
             ;;
+
         -ssh)
             IMGPROTO=ssh
             xpand=false
             ;;
+
+        -nfs)
+            IMGPROTO=nfs
+            xpand=false
+            ;;
+
         -nocache)
             CACHEMODE="none"
             CACHEMODE_IS_DEFAULT=false
@@ -238,10 +254,10 @@ testlist options
             xpand=false
             ;;
 
-    -valgrind)
-        valgrind=true
+        -valgrind)
+            valgrind=true
             xpand=false
-        ;;
+            ;;
 
         -g)        # -g group ... pick from group file
             group=true

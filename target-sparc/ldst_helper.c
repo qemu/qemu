@@ -447,6 +447,7 @@ static uint64_t leon3_cache_control_ld(CPUSPARCState *env, target_ulong addr,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ret = 0;
 #if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_addr = addr;
@@ -608,37 +609,37 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case 0x1c: /* LEON MMU passthrough */
         switch (size) {
         case 1:
-            ret = ldub_phys(addr);
+            ret = ldub_phys(cs->as, addr);
             break;
         case 2:
-            ret = lduw_phys(addr);
+            ret = lduw_phys(cs->as, addr);
             break;
         default:
         case 4:
-            ret = ldl_phys(addr);
+            ret = ldl_phys(cs->as, addr);
             break;
         case 8:
-            ret = ldq_phys(addr);
+            ret = ldq_phys(cs->as, addr);
             break;
         }
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         switch (size) {
         case 1:
-            ret = ldub_phys((hwaddr)addr
+            ret = ldub_phys(cs->as, (hwaddr)addr
                             | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 2:
-            ret = lduw_phys((hwaddr)addr
+            ret = lduw_phys(cs->as, (hwaddr)addr
                             | ((hwaddr)(asi & 0xf) << 32));
             break;
         default:
         case 4:
-            ret = ldl_phys((hwaddr)addr
+            ret = ldl_phys(cs->as, (hwaddr)addr
                            | ((hwaddr)(asi & 0xf) << 32));
             break;
         case 8:
-            ret = ldq_phys((hwaddr)addr
+            ret = ldq_phys(cs->as, (hwaddr)addr
                            | ((hwaddr)(asi & 0xf) << 32));
             break;
         }
@@ -715,6 +716,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                    int size)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     helper_check_align(env, addr, size - 1);
     switch (asi) {
     case 2: /* SuperSparc MXCC registers and Leon3 cache control */
@@ -771,13 +773,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                               "%08x: unimplemented access size: %d\n", addr,
                               size);
             }
-            env->mxccdata[0] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[0] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         0);
-            env->mxccdata[1] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[1] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         8);
-            env->mxccdata[2] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[2] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         16);
-            env->mxccdata[3] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+            env->mxccdata[3] = ldq_phys(cs->as,
+                                        (env->mxccregs[0] & 0xffffffffULL) +
                                         24);
             break;
         case 0x01c00200: /* MXCC stream destination */
@@ -788,13 +794,13 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                               "%08x: unimplemented access size: %d\n", addr,
                               size);
             }
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  0,
+            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) +  0,
                      env->mxccdata[0]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  8,
+            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) +  8,
                      env->mxccdata[1]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 16,
+            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) + 16,
                      env->mxccdata[2]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 24,
+            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) + 24,
                      env->mxccdata[3]);
             break;
         case 0x01c00a00: /* MXCC control register */
@@ -1006,17 +1012,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         {
             switch (size) {
             case 1:
-                stb_phys(addr, val);
+                stb_phys(cs->as, addr, val);
                 break;
             case 2:
-                stw_phys(addr, val);
+                stw_phys(cs->as, addr, val);
                 break;
             case 4:
             default:
-                stl_phys(addr, val);
+                stl_phys(cs->as, addr, val);
                 break;
             case 8:
-                stq_phys(addr, val);
+                stq_phys(cs->as, addr, val);
                 break;
             }
         }
@@ -1025,20 +1031,20 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         {
             switch (size) {
             case 1:
-                stb_phys((hwaddr)addr
+                stb_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             case 2:
-                stw_phys((hwaddr)addr
+                stw_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             case 4:
             default:
-                stl_phys((hwaddr)addr
+                stl_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             case 8:
-                stq_phys((hwaddr)addr
+                stq_phys(cs->as, (hwaddr)addr
                          | ((hwaddr)(asi & 0xf) << 32), val);
                 break;
             }
@@ -1284,6 +1290,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     uint64_t ret = 0;
 #if defined(DEBUG_ASI)
     target_ulong last_addr = addr;
@@ -1432,17 +1439,17 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         {
             switch (size) {
             case 1:
-                ret = ldub_phys(addr);
+                ret = ldub_phys(cs->as, addr);
                 break;
             case 2:
-                ret = lduw_phys(addr);
+                ret = lduw_phys(cs->as, addr);
                 break;
             case 4:
-                ret = ldl_phys(addr);
+                ret = ldl_phys(cs->as, addr);
                 break;
             default:
             case 8:
-                ret = ldq_phys(addr);
+                ret = ldq_phys(cs->as, addr);
                 break;
             }
             break;
@@ -1653,6 +1660,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                    int asi, int size)
 {
+    CPUState *cs = ENV_GET_CPU(env);
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
 #endif
@@ -1803,17 +1811,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
         {
             switch (size) {
             case 1:
-                stb_phys(addr, val);
+                stb_phys(cs->as, addr, val);
                 break;
             case 2:
-                stw_phys(addr, val);
+                stw_phys(cs->as, addr, val);
                 break;
             case 4:
-                stl_phys(addr, val);
+                stl_phys(cs->as, addr, val);
                 break;
             case 8:
             default:
-                stq_phys(addr, val);
+                stq_phys(cs->as, addr, val);
                 break;
             }
         }

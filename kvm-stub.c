@@ -14,6 +14,7 @@
 #include "hw/hw.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/qemumachine.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/pci/msi.h"
@@ -34,7 +35,7 @@ int kvm_init_vcpu(CPUState *cpu)
     return -ENOSYS;
 }
 
-int kvm_init(void)
+int kvm_init(QEMUMachine *machine)
 {
     return -ENOSYS;
 }

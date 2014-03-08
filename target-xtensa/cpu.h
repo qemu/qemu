@@ -135,9 +135,11 @@ enum {
     IBREAKA = 128,
     DBREAKA = 144,
     DBREAKC = 160,
+    CONFIGID0 = 176,
     EPC1 = 177,
     DEPC = 192,
     EPS2 = 194,
+    CONFIGID1 = 208,
     EXCSAVE1 = 209,
     CPENABLE = 224,
     INTSET = 226,
@@ -320,6 +322,8 @@ typedef struct XtensaConfig {
     unsigned debug_level;
     unsigned nibreak;
     unsigned ndbreak;
+
+    uint32_t configid[2];
 
     uint32_t clock_freq_khz;
 

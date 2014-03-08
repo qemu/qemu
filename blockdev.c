@@ -308,7 +308,6 @@ typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
 static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
-                                BlockInterfaceType type,
                                 Error **errp)
 {
     const char *buf;
@@ -331,13 +330,13 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
      * stay in bs_opts for processing by bdrv_open(). */
     id = qdict_get_try_str(bs_opts, "id");
     opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
-    if (error_is_set(&error)) {
+    if (error) {
         error_propagate(errp, error);
         return NULL;
     }
 
     qemu_opts_absorb_qdict(opts, bs_opts, &error);
-    if (error_is_set(&error)) {
+    if (error) {
         error_propagate(errp, error);
         goto early_err;
     }
@@ -437,13 +436,8 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
-        if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
-            error_setg(errp, "werror is not supported by this bus type");
-            goto early_err;
-        }
-
         on_write_error = parse_block_error_action(buf, 0, &error);
-        if (error_is_set(&error)) {
+        if (error) {
             error_propagate(errp, error);
             goto early_err;
         }
@@ -451,16 +445,17 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
     on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
-        if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI && type != IF_NONE) {
-            error_report("rerror is not supported by this bus type");
-            goto early_err;
-        }
-
         on_read_error = parse_block_error_action(buf, 1, &error);
-        if (error_is_set(&error)) {
+        if (error) {
             error_propagate(errp, error);
             goto early_err;
         }
+    }
+
+    if (bdrv_find_node(qemu_opts_id(opts))) {
+        error_setg(errp, "device id=%s is conflicting with a node-name",
+                   qemu_opts_id(opts));
+        goto early_err;
     }
 
     /* init */
@@ -469,7 +464,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     dinfo->bdrv = bdrv_new(dinfo->id);
     dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     dinfo->bdrv->read_only = ro;
-    dinfo->type = type;
     dinfo->refcount = 1;
     if (serial != NULL) {
         dinfo->serial = g_strdup(serial);
@@ -510,7 +504,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     QINCREF(bs_opts);
-    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv, &error);
+    ret = bdrv_open(&dinfo->bdrv, file, NULL, bs_opts, bdrv_flags, drv, &error);
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",
@@ -609,6 +603,14 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
+            .name = "rerror",
+            .type = QEMU_OPT_STRING,
+            .help = "read error action",
+        },{
+            .name = "werror",
+            .type = QEMU_OPT_STRING,
+            .help = "write error action",
+        },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
@@ -629,6 +631,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     int cyls, heads, secs, translation;
     int max_devs, bus_id, unit_id, index;
     const char *devaddr;
+    const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
     const char *filename;
@@ -688,7 +691,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         qerror_report_err(local_err);
         error_free(local_err);
         goto fail;
@@ -776,6 +779,10 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             translation = BIOS_ATA_TRANSLATION_NONE;
         } else if (!strcmp(value, "lba")) {
             translation = BIOS_ATA_TRANSLATION_LBA;
+        } else if (!strcmp(value, "large")) {
+            translation = BIOS_ATA_TRANSLATION_LARGE;
+        } else if (!strcmp(value, "rechs")) {
+            translation = BIOS_ATA_TRANSLATION_RECHS;
         } else if (!strcmp(value, "auto")) {
             translation = BIOS_ATA_TRANSLATION_AUTO;
         } else {
@@ -872,16 +879,37 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     filename = qemu_opt_get(legacy_opts, "file");
 
+    /* Check werror/rerror compatibility with if=... */
+    werror = qemu_opt_get(legacy_opts, "werror");
+    if (werror != NULL) {
+        if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO &&
+            type != IF_NONE) {
+            error_report("werror is not supported by this bus type");
+            goto fail;
+        }
+        qdict_put(bs_opts, "werror", qstring_from_str(werror));
+    }
+
+    rerror = qemu_opt_get(legacy_opts, "rerror");
+    if (rerror != NULL) {
+        if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI &&
+            type != IF_NONE) {
+            error_report("rerror is not supported by this bus type");
+            goto fail;
+        }
+        qdict_put(bs_opts, "rerror", qstring_from_str(rerror));
+    }
+
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(filename, bs_opts, type, &local_err);
+    dinfo = blockdev_init(filename, bs_opts, &local_err);
     if (dinfo == NULL) {
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             qerror_report_err(local_err);
             error_free(local_err);
         }
         goto fail;
     } else {
-        assert(!error_is_set(&local_err));
+        assert(!local_err);
     }
 
     /* Set legacy DriveInfo fields */
@@ -893,6 +921,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->secs = secs;
     dinfo->trans = translation;
 
+    dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
@@ -1017,7 +1046,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     }
 
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return NULL;
     }
@@ -1030,7 +1059,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     }
 
     bdrv_snapshot_delete(bs, id, name, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return NULL;
     }
@@ -1244,7 +1273,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
                                    has_node_name ? node_name : NULL,
                                    &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1289,7 +1318,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
                         state->old_bs->filename,
                         state->old_bs->drv->format_name,
                         NULL, -1, flags, &local_err, false);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
@@ -1301,17 +1330,15 @@ static void external_snapshot_prepare(BlkTransactionState *common,
                   qstring_from_str(snapshot_node_name));
     }
 
-    /* We will manually add the backing_hd field to the bs later */
-    state->new_bs = bdrv_new("");
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
-    ret = bdrv_open(state->new_bs, new_image_file, options,
+    assert(state->new_bs == NULL);
+    ret = bdrv_open(&state->new_bs, new_image_file, NULL, options,
                     flags | BDRV_O_NO_BACKING, drv, &local_err);
+    /* We will manually add the backing_hd field to the bs later */
     if (ret != 0) {
         error_propagate(errp, local_err);
     }
-
-    QDECREF(options);
 }
 
 static void external_snapshot_commit(BlkTransactionState *common)
@@ -1360,7 +1387,7 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
                      backup->has_on_source_error, backup->on_source_error,
                      backup->has_on_target_error, backup->on_target_error,
                      &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         state->bs = NULL;
         state->job = NULL;
@@ -1452,7 +1479,7 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, state, entry);
 
         state->ops->prepare(state, &local_err);
-        if (error_is_set(&local_err)) {
+        if (local_err) {
             error_propagate(errp, local_err);
             goto delete_and_fail;
         }
@@ -1533,7 +1560,7 @@ void qmp_block_passwd(bool has_device, const char *device,
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
                         &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1555,7 +1582,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv, &local_err);
+    ret = bdrv_open(&bs, filename, NULL, NULL, bdrv_flags, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -1598,7 +1625,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     }
 
     eject_device(bs, 0, &err);
-    if (error_is_set(&err)) {
+    if (err) {
         error_propagate(errp, err);
         return;
     }
@@ -1735,7 +1762,7 @@ void qmp_block_resize(bool has_device, const char *device,
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
                         &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1828,7 +1855,7 @@ void qmp_block_stream(const char *device, bool has_base,
 
     stream_start(bs, base_bs, base, has_speed ? speed : 0,
                  on_error, block_job_cb, bs, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1986,15 +2013,14 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags, drv, &local_err);
+    target_bs = NULL;
+    ret = bdrv_open(&target_bs, target, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
-        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         return;
     }
@@ -2127,7 +2153,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
@@ -2135,11 +2161,10 @@ void qmp_drive_mirror(const char *device, const char *target,
     /* Mirroring takes care of copy-on-write using the source's backing
      * file.
      */
-    target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv,
-                    &local_err);
+    target_bs = NULL;
+    ret = bdrv_open(&target_bs, target, NULL, NULL, flags | BDRV_O_NO_BACKING,
+                    drv, &local_err);
     if (ret < 0) {
-        bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         return;
     }
@@ -2266,7 +2291,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     visit_type_BlockdevOptions(qmp_output_get_visitor(ov),
                                &options, NULL, &local_err);
-    if (error_is_set(&local_err)) {
+    if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -2276,8 +2301,8 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    blockdev_init(NULL, qdict, IF_NONE, &local_err);
-    if (error_is_set(&local_err)) {
+    blockdev_init(NULL, qdict, &local_err);
+    if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }

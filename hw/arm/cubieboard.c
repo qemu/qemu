@@ -36,10 +36,17 @@ static void cubieboard_init(QEMUMachineInitArgs *args)
     Error *err = NULL;
 
     s->a10 = AW_A10(object_new(TYPE_AW_A10));
+
+    object_property_set_int(OBJECT(&s->a10->emac), 1, "phy-addr", &err);
+    if (err != NULL) {
+        error_report("Couldn't set phy address: %s", error_get_pretty(err));
+        exit(1);
+    }
+
     object_property_set_bool(OBJECT(s->a10), true, "realized", &err);
     if (err != NULL) {
-        error_report("Couldn't realize Allwinner A10: %s\n",
-                error_get_pretty(err));
+        error_report("Couldn't realize Allwinner A10: %s",
+                     error_get_pretty(err));
         exit(1);
     }
 

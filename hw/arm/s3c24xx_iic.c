@@ -56,7 +56,7 @@
 /* IIC-bus serial interface */
 struct s3c24xx_i2c_state_s {
     MemoryRegion mmio;
-    i2c_bus *bus;
+    I2CBus *bus;
     qemu_irq irq;
 
     uint8_t control;
@@ -251,7 +251,7 @@ struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq,
     return s;
 }
 
-i2c_bus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s)
+I2CBus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s)
 {
     return s->bus;
 }

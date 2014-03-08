@@ -151,7 +151,7 @@ static int pci_std_vga_initfn(PCIDevice *dev)
     vga_init(s, OBJECT(dev), pci_address_space(dev), pci_address_space_io(dev),
              true);
 
-    s->con = graphic_console_init(DEVICE(dev), s->hw_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);
 
     /* XXX: VGA_RAM_SIZE must be a power of two */
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
@@ -190,7 +190,6 @@ static void vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = pci_std_vga_initfn;
     k->romfile = "vgabios-stdvga.bin";
     k->vendor_id = PCI_VENDOR_ID_QEMU;
@@ -198,6 +197,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     dc->vmsd = &vmstate_vga_pci;
     dc->props = vga_pci_properties;
+    dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 

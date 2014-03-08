@@ -352,6 +352,10 @@ union ppc_avr_t {
     int16_t s16[8];
     int32_t s32[4];
     uint64_t u64[2];
+    int64_t s64[2];
+#ifdef CONFIG_INT128
+    __uint128_t u128;
+#endif
 };
 
 #if !defined(CONFIG_USER_ONLY)
@@ -926,6 +930,7 @@ struct CPUPPCState {
     target_ulong reserve_addr;
     /* Reservation value */
     target_ulong reserve_val;
+    target_ulong reserve_val2;
     /* Reservation store address */
     target_ulong reserve_ea;
     /* Reserved store source register and size */
@@ -961,6 +966,7 @@ struct CPUPPCState {
 #endif
     /* segment registers */
     hwaddr htab_base;
+    /* mask used to normalize hash value to PTEG index */
     hwaddr htab_mask;
     target_ulong sr[32];
     /* externally stored hash table */
@@ -1250,7 +1256,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_MPC_EIE           (0x050)
 #define SPR_MPC_EID           (0x051)
 #define SPR_MPC_NRI           (0x052)
-#define SPR_CTRL              (0x088)
+#define SPR_UCTRL             (0x088)
 #define SPR_MPC_CMPA          (0x090)
 #define SPR_MPC_CMPB          (0x091)
 #define SPR_MPC_CMPC          (0x092)
@@ -1259,7 +1265,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_MPC_DER           (0x095)
 #define SPR_MPC_COUNTA        (0x096)
 #define SPR_MPC_COUNTB        (0x097)
-#define SPR_UCTRL             (0x098)
+#define SPR_CTRL              (0x098)
 #define SPR_MPC_CMPE          (0x098)
 #define SPR_MPC_CMPF          (0x099)
 #define SPR_MPC_CMPG          (0x09A)
@@ -1322,12 +1328,12 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_BOOKE_IAC3        (0x13A)
 #define SPR_HSRR1             (0x13B)
 #define SPR_BOOKE_IAC4        (0x13B)
-#define SPR_LPCR              (0x13C)
 #define SPR_BOOKE_DAC1        (0x13C)
 #define SPR_LPIDR             (0x13D)
 #define SPR_DABR2             (0x13D)
 #define SPR_BOOKE_DAC2        (0x13D)
 #define SPR_BOOKE_DVC1        (0x13E)
+#define SPR_LPCR              (0x13E)
 #define SPR_BOOKE_DVC2        (0x13F)
 #define SPR_BOOKE_TSR         (0x150)
 #define SPR_BOOKE_TCR         (0x154)
@@ -1508,6 +1514,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_RCPU_L2U_RA2      (0x32A)
 #define SPR_MPC_MD_DBRAM1     (0x32A)
 #define SPR_RCPU_L2U_RA3      (0x32B)
+#define SPR_TAR               (0x32F)
 #define SPR_440_INV0          (0x370)
 #define SPR_440_INV1          (0x371)
 #define SPR_440_INV2          (0x372)
@@ -1875,9 +1882,31 @@ enum {
     PPC2_DBRX          = 0x0000000000000010ULL,
     /* Book I 2.05 PowerPC specification                                     */
     PPC2_ISA205        = 0x0000000000000020ULL,
+    /* VSX additions in ISA 2.07                                             */
+    PPC2_VSX207        = 0x0000000000000040ULL,
+    /* ISA 2.06B bpermd                                                      */
+    PPC2_PERM_ISA206   = 0x0000000000000080ULL,
+    /* ISA 2.06B divide extended variants                                    */
+    PPC2_DIVE_ISA206   = 0x0000000000000100ULL,
+    /* ISA 2.06B larx/stcx. instructions                                     */
+    PPC2_ATOMIC_ISA206 = 0x0000000000000200ULL,
+    /* ISA 2.06B floating point integer conversion                           */
+    PPC2_FP_CVT_ISA206 = 0x0000000000000400ULL,
+    /* ISA 2.06B floating point test instructions                            */
+    PPC2_FP_TST_ISA206 = 0x0000000000000800ULL,
+    /* ISA 2.07 bctar instruction                                            */
+    PPC2_BCTAR_ISA207  = 0x0000000000001000ULL,
+    /* ISA 2.07 load/store quadword                                          */
+    PPC2_LSQ_ISA207    = 0x0000000000002000ULL,
+    /* ISA 2.07 Altivec                                                      */
+    PPC2_ALTIVEC_207   = 0x0000000000004000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
-  PPC2_ISA205)
+                        PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
+                        PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
+                        PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
+                        PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
+                        PPC2_ALTIVEC_207)
 };
 
 /*****************************************************************************/
@@ -2153,5 +2182,23 @@ static inline bool cpu_has_work(CPUState *cpu)
 #include "exec/exec-all.h"
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
+
+/**
+ * ppc_get_vcpu_dt_id:
+ * @cs: a PowerPCCPU struct.
+ *
+ * Returns a device-tree ID for a CPU.
+ */
+int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
+
+/**
+ * ppc_get_vcpu_by_dt_id:
+ * @cpu_dt_id: a device tree id
+ *
+ * Searches for a CPU by @cpu_dt_id.
+ *
+ * Returns: a PowerPCCPU struct
+ */
+PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
 
 #endif /* !defined (__CPU_PPC_H__) */

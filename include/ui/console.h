@@ -14,6 +14,8 @@
 #define MOUSE_EVENT_LBUTTON 0x01
 #define MOUSE_EVENT_RBUTTON 0x02
 #define MOUSE_EVENT_MBUTTON 0x04
+#define MOUSE_EVENT_WHEELUP 0x08
+#define MOUSE_EVENT_WHEELDN 0x10
 
 /* identical to the ps/2 keyboard bits */
 #define QEMU_SCROLL_LOCK_LED (1 << 0)
@@ -44,17 +46,7 @@ void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry);
 QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func, void *opaque);
 void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
 
-void kbd_put_keycode(int keycode);
 void kbd_put_ledstate(int ledstate);
-void kbd_mouse_event(int dx, int dy, int dz, int buttons_state);
-
-/* Does the current mouse generate absolute events */
-int kbd_mouse_is_absolute(void);
-void qemu_add_mouse_mode_change_notifier(Notifier *notify);
-void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
-
-/* Of all the mice, is there one that generates absolute events */
-int kbd_mouse_has_absolute(void);
 
 struct MouseTransformInfo {
     /* Touchscreen resolution */
@@ -127,6 +119,14 @@ struct DisplaySurface {
 
     struct PixelFormat pf;
 };
+
+typedef struct QemuUIInfo {
+    /* geometry */
+    int       xoff;
+    int       yoff;
+    uint32_t  width;
+    uint32_t  height;
+} QemuUIInfo;
 
 /* cursor data format is 32bit RGBA */
 typedef struct QEMUCursor {
@@ -212,6 +212,8 @@ void update_displaychangelistener(DisplayChangeListener *dcl,
                                   uint64_t interval);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
+int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info);
+
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface);
@@ -274,9 +276,10 @@ typedef struct GraphicHwOps {
     void (*gfx_update)(void *opaque);
     void (*text_update)(void *opaque, console_ch_t *text);
     void (*update_interval)(void *opaque, uint64_t interval);
+    int (*ui_info)(void *opaque, uint32_t head, QemuUIInfo *info);
 } GraphicHwOps;
 
-QemuConsole *graphic_console_init(DeviceState *dev,
+QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *ops,
                                   void *opaque);
 
@@ -285,10 +288,15 @@ void graphic_hw_invalidate(QemuConsole *con);
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index);
-QemuConsole *qemu_console_lookup_by_device(DeviceState *dev);
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
+int qemu_console_get_index(QemuConsole *con);
+uint32_t qemu_console_get_head(QemuConsole *con);
+QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con);
+int qemu_console_get_width(QemuConsole *con, int fallback);
+int qemu_console_get_height(QemuConsole *con, int fallback);
 
 void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);
@@ -334,7 +342,6 @@ void curses_display_init(DisplayState *ds, int full_screen);
 
 /* input.c */
 int index_from_key(const char *key);
-int index_from_keycode(int code);
 
 /* gtk.c */
 void early_gtk_display_init(void);

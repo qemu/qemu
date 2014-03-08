@@ -274,44 +274,75 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
     }
 }
 
+void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip)
+{
+    const ARMCPRegInfo *ri = rip;
+    switch (ri->accessfn(env, ri)) {
+    case CP_ACCESS_OK:
+        return;
+    case CP_ACCESS_TRAP:
+    case CP_ACCESS_TRAP_UNCATEGORIZED:
+        /* These cases will eventually need to generate different
+         * syndrome information.
+         */
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    raise_exception(env, EXCP_UDEF);
+}
+
 void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
 {
     const ARMCPRegInfo *ri = rip;
-    int excp = ri->writefn(env, ri, value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
+
+    ri->writefn(env, ri, value);
 }
 
 uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
 {
     const ARMCPRegInfo *ri = rip;
-    uint64_t value;
-    int excp = ri->readfn(env, ri, &value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
-    return value;
+
+    return ri->readfn(env, ri);
 }
 
 void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
 {
     const ARMCPRegInfo *ri = rip;
-    int excp = ri->writefn(env, ri, value);
-    if (excp) {
-        raise_exception(env, excp);
-    }
+
+    ri->writefn(env, ri, value);
 }
 
 uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
 {
     const ARMCPRegInfo *ri = rip;
-    uint64_t value;
-    int excp = ri->readfn(env, ri, &value);
-    if (excp) {
-        raise_exception(env, excp);
+
+    return ri->readfn(env, ri);
+}
+
+void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
+{
+    /* MSR_i to update PSTATE. This is OK from EL0 only if UMA is set.
+     * Note that SPSel is never OK from EL0; we rely on handle_msr_i()
+     * to catch that case at translate time.
+     */
+    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+        raise_exception(env, EXCP_UDEF);
     }
-    return value;
+
+    switch (op) {
+    case 0x05: /* SPSel */
+        env->pstate = deposit32(env->pstate, 0, 1, imm);
+        break;
+    case 0x1e: /* DAIFSet */
+        env->daif |= (imm << 6) & PSTATE_DAIF;
+        break;
+    case 0x1f: /* DAIFClear */
+        env->daif &= ~((imm << 6) & PSTATE_DAIF);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.

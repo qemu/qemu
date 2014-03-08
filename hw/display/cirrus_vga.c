@@ -2917,7 +2917,7 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
     cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));
-    s->con = graphic_console_init(dev, s->hw_ops, s);
+    s->con = graphic_console_init(dev, 0, s->hw_ops, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
@@ -2963,7 +2963,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      vga_common_init(&s->vga, OBJECT(dev));
      cirrus_init_common(s, OBJECT(dev), device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
-     s->vga.con = graphic_console_init(DEVICE(dev), s->vga.hw_ops, &s->vga);
+     s->vga.con = graphic_console_init(DEVICE(dev), 0, s->vga.hw_ops, &s->vga);
 
      /* setup PCI */
 
@@ -2996,7 +2996,6 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->no_hotplug = 1;
     k->init = pci_cirrus_vga_initfn;
     k->romfile = VGABIOS_CIRRUS_FILENAME;
     k->vendor_id = PCI_VENDOR_ID_CIRRUS;
@@ -3006,6 +3005,7 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->desc = "Cirrus CLGD 54xx VGA";
     dc->vmsd = &vmstate_pci_cirrus_vga;
     dc->props = pci_vga_cirrus_properties;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo cirrus_vga_info = {

@@ -121,6 +121,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         int access_type, int is_user, uint32_t *phys_ptr, int *prot,
         target_ulong *page_size)
 {
+    CPUState *cs = ENV_GET_CPU(env);
     int code;
     uint32_t table;
     uint32_t desc;
@@ -130,7 +131,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
     /* Lookup l1 descriptor.  */
     table = env->cp0.c2_base & 0xfffff000;
     table |= (address >> 20) & 0xffc;
-    desc = ldl_phys(table);
+    desc = ldl_phys(cs->as, table);
     code = 0;
     switch (PAGETABLE_TYPE(desc)) {
     case 3:
@@ -152,7 +153,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
             goto do_fault;
         }
         table = (desc & 0xfffff000) | ((address >> 10) & 0xffc);
-        desc = ldl_phys(table);
+        desc = ldl_phys(cs->as, table);
         /* 4k page.  */
         if (is_user) {
             DPRINTF("PTE address %x, desc %x\n", table, desc);

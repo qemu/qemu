@@ -74,13 +74,6 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
     }
 }
 
-static int prop_print_bit(DeviceState *dev, Property *prop, char *dest,
-                          size_t len)
-{
-    uint32_t *p = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
-}
-
 static void prop_get_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
@@ -114,9 +107,8 @@ static void prop_set_bit(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_bit = {
-    .name  = "boolean",
+    .name  = "bool",
     .legacy_name  = "on/off",
-    .print = prop_print_bit,
     .get   = prop_get_bit,
     .set   = prop_set_bit,
 };
@@ -149,7 +141,7 @@ static void set_bool(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_bool = {
-    .name  = "boolean",
+    .name  = "bool",
     .get   = get_bool,
     .set   = set_bool,
 };
@@ -183,40 +175,6 @@ static void set_uint8(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
-    .get   = get_uint8,
-    .set   = set_uint8,
-};
-
-/* --- 8bit hex value --- */
-
-static int parse_hex8(DeviceState *dev, Property *prop, const char *str)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoul(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx8, *ptr);
-}
-
-PropertyInfo qdev_prop_hex8 = {
-    .name  = "uint8",
-    .legacy_name  = "hex8",
-    .parse = parse_hex8,
-    .print = print_hex8,
     .get   = get_uint8,
     .set   = set_uint8,
 };
@@ -318,40 +276,6 @@ PropertyInfo qdev_prop_int32 = {
     .set   = set_int32,
 };
 
-/* --- 32bit hex value --- */
-
-static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoul(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx32, *ptr);
-}
-
-PropertyInfo qdev_prop_hex32 = {
-    .name  = "uint32",
-    .legacy_name  = "hex32",
-    .parse = parse_hex32,
-    .print = print_hex32,
-    .get   = get_uint32,
-    .set   = set_uint32,
-};
-
 /* --- 64bit integer --- */
 
 static void get_uint64(Object *obj, Visitor *v, void *opaque,
@@ -385,56 +309,12 @@ PropertyInfo qdev_prop_uint64 = {
     .set   = set_uint64,
 };
 
-/* --- 64bit hex value --- */
-
-static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    if (str[0] != '0' || str[1] != 'x') {
-        return -EINVAL;
-    }
-
-    *ptr = strtoull(str, &end, 16);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "0x%" PRIx64, *ptr);
-}
-
-PropertyInfo qdev_prop_hex64 = {
-    .name  = "uint64",
-    .legacy_name  = "hex64",
-    .parse = parse_hex64,
-    .print = print_hex64,
-    .get   = get_uint64,
-    .set   = set_uint64,
-};
-
 /* --- string --- */
 
 static void release_string(Object *obj, const char *name, void *opaque)
 {
     Property *prop = opaque;
     g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
-}
-
-static int print_string(DeviceState *dev, Property *prop, char *dest,
-                        size_t len)
-{
-    char **ptr = qdev_get_prop_ptr(dev, prop);
-    if (!*ptr) {
-        return snprintf(dest, len, "<null>");
-    }
-    return snprintf(dest, len, "\"%s\"", *ptr);
 }
 
 static void get_string(Object *obj, Visitor *v, void *opaque,
@@ -478,8 +358,7 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_string = {
-    .name  = "string",
-    .print = print_string,
+    .name  = "str",
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
@@ -563,41 +442,31 @@ inval:
 }
 
 PropertyInfo qdev_prop_macaddr = {
-    .name  = "macaddr",
+    .name  = "str",
+    .legacy_name  = "macaddr",
     .get   = get_mac,
     .set   = set_mac,
 };
 
 /* --- lost tick policy --- */
 
-static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
-    [LOST_TICK_DISCARD] = "discard",
-    [LOST_TICK_DELAY] = "delay",
-    [LOST_TICK_MERGE] = "merge",
-    [LOST_TICK_SLEW] = "slew",
-    [LOST_TICK_MAX] = NULL,
-};
-
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
-    .enum_table  = lost_tick_policy_table,
+    .enum_table  = LostTickPolicy_lookup,
     .get   = get_enum,
     .set   = set_enum,
 };
 
 /* --- BIOS CHS translation */
 
-static const char *bios_chs_trans_table[] = {
-    [BIOS_ATA_TRANSLATION_AUTO] = "auto",
-    [BIOS_ATA_TRANSLATION_NONE] = "none",
-    [BIOS_ATA_TRANSLATION_LBA]  = "lba",
-};
+QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
 PropertyInfo qdev_prop_bios_chs_trans = {
-    .name = "bios-chs-trans",
-    .enum_table = bios_chs_trans_table,
+    .name = "BiosAtaTranslation",
+    .legacy_name = "bios-chs-trans",
+    .enum_table = BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
 };
@@ -715,7 +584,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_blocksize = {
-    .name  = "blocksize",
+    .name  = "uint16",
+    .legacy_name  = "blocksize",
     .get   = get_uint16,
     .set   = set_blocksize,
 };
@@ -822,7 +692,8 @@ inval:
 }
 
 PropertyInfo qdev_prop_pci_host_devaddr = {
-    .name = "pci-host-devaddr",
+    .name = "str",
+    .legacy_name = "pci-host-devaddr",
     .get = get_pci_host_devaddr,
     .set = set_pci_host_devaddr,
 };
@@ -987,20 +858,6 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
     }
 }
 
-void qdev_prop_parse(DeviceState *dev, const char *name, const char *value,
-                     Error **errp)
-{
-    char *legacy_name;
-
-    legacy_name = g_strdup_printf("legacy-%s", name);
-    if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
-        object_property_parse(OBJECT(dev), value, legacy_name, errp);
-    } else {
-        object_property_parse(OBJECT(dev), value, name, errp);
-    }
-    g_free(legacy_name);
-}
-
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
     object_property_set_bool(OBJECT(dev), value, name, &error_abort);
@@ -1093,7 +950,7 @@ void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
         if (strcmp(typename, prop->driver) != 0) {
             continue;
         }
-        qdev_prop_parse(dev, prop->property, prop->value, &err);
+        object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
             error_propagate(errp, err);
             return;
@@ -1140,39 +997,8 @@ static void set_size(Object *obj, Visitor *v, void *opaque,
     visit_type_size(v, ptr, name, errp);
 }
 
-static int parse_size(DeviceState *dev, Property *prop, const char *str)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-
-    if (str != NULL) {
-        parse_option_size(prop->name, str, ptr, &error_abort);
-    }
-    return 0;
-}
-
-static int print_size(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    static const char suffixes[] = { 'B', 'K', 'M', 'G', 'T' };
-    uint64_t div, val = *(uint64_t *)qdev_get_prop_ptr(dev, prop);
-    int i;
-
-    /* Compute floor(log2(val)).  */
-    i = 64 - clz64(val);
-
-    /* Find the power of 1024 that we'll display as the units.  */
-    i /= 10;
-    if (i >= ARRAY_SIZE(suffixes)) {
-        i = ARRAY_SIZE(suffixes) - 1;
-    }
-    div = 1ULL << (i * 10);
-
-    return snprintf(dest, len, "%0.03f%c", (double)val/div, suffixes[i]);
-}
-
 PropertyInfo qdev_prop_size = {
     .name  = "size",
-    .parse = parse_size,
-    .print = print_size,
     .get = get_size,
     .set = set_size,
 };
