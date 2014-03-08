@@ -1,0 +1,18 @@
+QA output created by 086
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 2097152
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 4194304
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 33554432
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+    (0.00/100%)
+    (25.00/100%)
+    (50.00/100%)
+    (75.00/100%)
+    (100.00/100%)
+    (100.00/100%)
+
+*** done

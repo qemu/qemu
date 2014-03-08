@@ -3,21 +3,12 @@
  *
  * Copyright (C) 2012 Bharata B Rao <bharata@linux.vnet.ibm.com>
  *
- * Pipe handling mechanism in AIO implementation is derived from
- * block/rbd.c. Hence,
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  *
- * Copyright (C) 2010-2011 Christian Brunner <chb@muc.de>,
- *                         Josh Durgin <josh.durgin@dreamhost.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
- * Contributions after 2012-01-13 are licensed under the terms of the
- * GNU GPL, version 2 or (at your option) any later version.
  */
 #include <glusterfs/api/glfs.h>
 #include "block/block_int.h"
-#include "qemu/sockets.h"
 #include "qemu/uri.h"
 
 typedef struct GlusterAIOCB {
@@ -31,9 +22,6 @@ typedef struct BDRVGlusterState {
     struct glfs *glfs;
     struct glfs_fd *fd;
 } BDRVGlusterState;
-
-#define GLUSTER_FD_READ  0
-#define GLUSTER_FD_WRITE 1
 
 typedef struct GlusterConf {
     char *server;
