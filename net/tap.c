@@ -190,7 +190,7 @@ static void tap_send(void *opaque)
     TAPState *s = opaque;
     int size;
 
-    do {
+    while (qemu_can_send_packet(&s->nc)) {
         uint8_t *buf = s->buf;
 
         size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
@@ -206,8 +206,11 @@ static void tap_send(void *opaque)
         size = qemu_send_packet_async(&s->nc, buf, size, tap_send_completed);
         if (size == 0) {
             tap_read_poll(s, false);
+            break;
+        } else if (size < 0) {
+            break;
         }
-    } while (size > 0 && qemu_can_send_packet(&s->nc));
+    }
 }
 
 static bool tap_has_ufo(NetClientState *nc)
