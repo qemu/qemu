@@ -21,11 +21,6 @@ block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
 block-obj-m = block/
 
-ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
-# Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
-# only pull in the actual virtio-9p device if we also enabled virtio.
-CONFIG_REALLY_VIRTFS=y
-endif
 
 ######################################################################
 # smartcard
