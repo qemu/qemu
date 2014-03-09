@@ -54,7 +54,7 @@
 
 #include <zlib.h>
 
-bool rom_file_in_ram = true;
+bool rom_file_has_mr = true;
 
 static int roms_loaded;
 
@@ -694,7 +694,7 @@ int rom_add_file(const char *file, const char *fw_dir,
                  basename);
         snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
 
-        if (rom_file_in_ram) {
+        if (rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
         } else {
             data = rom->data;
@@ -738,7 +738,7 @@ void *rom_add_blob(const char *name, const void *blob, size_t len,
 
         snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
 
-        if (rom_file_in_ram) {
+        if (rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
         } else {
             data = rom->data;
