@@ -121,7 +121,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         int access_type, int is_user, uint32_t *phys_ptr, int *prot,
         target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(uc32_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
