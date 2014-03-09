@@ -493,6 +493,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env)
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
     *pc = env->pc;
     *cs_base = 0;
     *flags = 0;
@@ -515,7 +517,7 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_COPROCESSOR)) {
         *flags |= env->sregs[CPENABLE] << XTENSA_TBFLAG_CPENABLE_SHIFT;
     }
-    if (ENV_GET_CPU(env)->singlestep_enabled && env->exception_taken) {
+    if (cs->singlestep_enabled && env->exception_taken) {
         *flags |= XTENSA_TBFLAG_EXCEPTION;
     }
 }

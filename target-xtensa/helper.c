@@ -552,7 +552,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
 
 static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
