@@ -447,7 +447,7 @@ static uint64_t leon3_cache_control_ld(CPUSPARCState *env, target_ulong addr,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     uint64_t ret = 0;
 #if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_addr = addr;
@@ -688,8 +688,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         break;
     case 8: /* User code access, XXX */
     default:
-        cpu_unassigned_access(CPU(sparc_env_get_cpu(env)),
-                              addr, false, false, asi, size);
+        cpu_unassigned_access(cs, addr, false, false, asi, size);
         ret = 0;
         break;
     }
@@ -717,7 +716,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
                    int size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     helper_check_align(env, addr, size - 1);
     switch (asi) {
     case 2: /* SuperSparc MXCC registers and Leon3 cache control */
@@ -1292,7 +1291,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
                        int sign)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     uint64_t ret = 0;
 #if defined(DEBUG_ASI)
     target_ulong last_addr = addr;
@@ -1605,8 +1604,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case 0x5f: /* D-MMU demap, WO */
     case 0x77: /* Interrupt vector, WO */
     default:
-        cpu_unassigned_access(CPU(sparc_env_get_cpu(env)),
-                              addr, false, false, 1, size);
+        cpu_unassigned_access(cs, addr, false, false, 1, size);
         ret = 0;
         break;
     }
@@ -1662,7 +1660,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                    int asi, int size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
 #endif
@@ -2040,8 +2038,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case 0x8a: /* Primary no-fault LE, RO */
     case 0x8b: /* Secondary no-fault LE, RO */
     default:
-        cpu_unassigned_access(CPU(sparc_env_get_cpu(env)),
-                              addr, true, false, 1, size);
+        cpu_unassigned_access(cs, addr, true, false, 1, size);
         return;
     }
 }
