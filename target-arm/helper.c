@@ -2762,15 +2762,17 @@ void switch_mode(CPUARMState *env, int mode)
 
 static void v7m_push(CPUARMState *env, uint32_t val)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
     env->regs[13] -= 4;
     stl_phys(cs->as, env->regs[13], val);
 }
 
 static uint32_t v7m_pop(CPUARMState *env)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     uint32_t val;
+
     val = ldl_phys(cs->as, env->regs[13]);
     env->regs[13] += 4;
     return val;
@@ -3134,7 +3136,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3230,7 +3232,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3353,7 +3355,7 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
                               hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
