@@ -955,7 +955,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
                         uint64_t mode1, uint64_t a2, uint64_t mode2)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     target_ulong src, dest;
     int flags, cc = 0, i;
 
@@ -1010,7 +1010,7 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte = 0;
 
@@ -1043,7 +1043,8 @@ void HELPER(ptlb)(CPUS390XState *env)
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
     stw_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
 }
 
