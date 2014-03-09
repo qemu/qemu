@@ -85,8 +85,9 @@ void ppc_hash64_stop_access(uint64_t token);
 static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint64_t addr;
+
     addr = token + (index * HASH_PTE_SIZE_64);
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
@@ -98,8 +99,9 @@ static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
 static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint64_t addr;
+
     addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);

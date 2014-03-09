@@ -608,7 +608,7 @@ void ppc_hash64_store_hpte(CPUPPCState *env,
                            target_ulong pte_index,
                            target_ulong pte0, target_ulong pte1)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
 
     if (kvmppc_kern_htab) {
         return kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);

@@ -44,7 +44,7 @@
 ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     ram_addr_t bdloc;
     int i, n;
 
