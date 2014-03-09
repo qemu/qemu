@@ -26,45 +26,45 @@
 
 uint64_t helper_ldl_phys(CPUAlphaState *env, uint64_t p)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     return (int32_t)ldl_phys(cs->as, p);
 }
 
 uint64_t helper_ldq_phys(CPUAlphaState *env, uint64_t p)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     return ldq_phys(cs->as, p);
 }
 
 uint64_t helper_ldl_l_phys(CPUAlphaState *env, uint64_t p)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     env->lock_addr = p;
     return env->lock_value = (int32_t)ldl_phys(cs->as, p);
 }
 
 uint64_t helper_ldq_l_phys(CPUAlphaState *env, uint64_t p)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     env->lock_addr = p;
     return env->lock_value = ldq_phys(cs->as, p);
 }
 
 void helper_stl_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     stl_phys(cs->as, p, v);
 }
 
 void helper_stq_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     stq_phys(cs->as, p, v);
 }
 
 uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     uint64_t ret = 0;
 
     if (p == env->lock_addr) {
@@ -81,7 +81,7 @@ uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 
 uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     uint64_t ret = 0;
 
     if (p == env->lock_addr) {
