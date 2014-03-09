@@ -515,7 +515,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write1, int mmu_idx)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, is_write, is_user;

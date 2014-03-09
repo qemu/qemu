@@ -1131,7 +1131,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
 static void handle_even_inj(CPUX86State *env, int intno, int is_int,
                             int error_code, int is_hw, int rm)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.event_inj));
 
