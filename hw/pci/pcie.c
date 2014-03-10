@@ -221,29 +221,23 @@ static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
                                          DeviceState *dev,
                                          uint8_t **exp_cap, Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(dev);
     *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
     uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
 
-    PCIE_DEV_PRINTF(pci_dev, "hotplug state: %d\n", state);
+    PCIE_DEV_PRINTF(PCI_DEVICE(dev), "hotplug state: %d\n", state);
     if (sltsta & PCI_EXP_SLTSTA_EIS) {
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
          */
         error_setg_errno(errp, -EBUSY, "slot is electromechanically locked");
     }
-
-    /* TODO: multifunction hot-plug.
-     * Right now, only a device of function = 0 is allowed to be
-     * hot plugged/unplugged.
-     */
-    assert(PCI_FUNC(pci_dev->devfn) == 0);
 }
 
 void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
     uint8_t *exp_cap;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
 
     pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
@@ -255,6 +249,12 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                                    PCI_EXP_SLTSTA_PDS);
         return;
     }
+
+    /* TODO: multifunction hot-plug.
+     * Right now, only a device of function = 0 is allowed to be
+     * hot plugged/unplugged.
+     */
+    assert(PCI_FUNC(pci_dev->devfn) == 0);
 
     pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                PCI_EXP_SLTSTA_PDS);

@@ -479,6 +479,33 @@ static QemuOptsList qemu_msg_opts = {
     },
 };
 
+static QemuOptsList qemu_name_opts = {
+    .name = "name",
+    .implied_opt_name = "guest",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_name_opts.head),
+    .desc = {
+        {
+            .name = "guest",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets the name of the guest.\n"
+                    "This name will be displayed in the SDL window caption.\n"
+                    "The name will also be used for the VNC server",
+        }, {
+            .name = "process",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets the name of the QEMU process, as shown in top etc",
+        }, {
+            .name = "debug-threads",
+            .type = QEMU_OPT_BOOL,
+            .help = "When enabled, name the individual threads; defaults off.\n"
+                    "NOTE: The thread names are for debugging and not a\n"
+                    "stable API.",
+        },
+        { /* End of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -927,6 +954,21 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     }
 
     return 0;
+}
+
+static void parse_name(QemuOpts *opts)
+{
+    const char *proc_name;
+
+    if (qemu_opt_get(opts, "debug-threads")) {
+        qemu_thread_naming(qemu_opt_get_bool(opts, "debug-threads", false));
+    }
+    qemu_name = qemu_opt_get(opts, "guest");
+
+    proc_name = qemu_opt_get(opts, "process");
+    if (proc_name) {
+        os_set_proc_name(proc_name);
+    }
 }
 
 bool usb_enabled(bool default_usb)
@@ -2889,6 +2931,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_tpmdev_opts);
     qemu_add_opts(&qemu_realtime_opts);
     qemu_add_opts(&qemu_msg_opts);
+    qemu_add_opts(&qemu_name_opts);
 
     runstate_init();
 
@@ -3634,19 +3677,11 @@ int main(int argc, char **argv, char **envp)
                                 "is no longer supported.\n");
                 break;
             case QEMU_OPTION_name:
-                qemu_name = g_strdup(optarg);
-		 {
-		     char *p = strchr(qemu_name, ',');
-		     if (p != NULL) {
-		        *p++ = 0;
-			if (strncmp(p, "process=", 8)) {
-			    fprintf(stderr, "Unknown subargument %s to -name\n", p);
-			    exit(1);
-			}
-			p += 8;
-			os_set_proc_name(p);
-		     }
-		 }
+                opts = qemu_opts_parse(qemu_find_opts("name"), optarg, 1);
+                if (!opts) {
+                    exit(1);
+                }
+                parse_name(opts);
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {

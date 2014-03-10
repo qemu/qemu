@@ -269,7 +269,7 @@ on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
     send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
     /* launch the event_thread. This will trigger reader adds for all the
      * existing readers */
-    qemu_thread_create(&thread_id, event_thread, NULL, 0);
+    qemu_thread_create(&thread_id, "vsc/event", event_thread, NULL, 0);
     return 0;
 }
 

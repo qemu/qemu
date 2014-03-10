@@ -34,7 +34,7 @@ typedef struct {
     gchar *asl;            /* asl code generated from aml */
     gsize asl_len;
     gchar *asl_file;
-    bool asl_file_retain;   /* do not delete the temp asl */
+    bool tmp_files_retain;   /* do not delete the temp asl/aml */
 } QEMU_PACKED AcpiSdtTable;
 
 typedef struct {
@@ -153,7 +153,8 @@ static void free_test_data(test_data *data)
             g_free(temp->aml);
         }
         if (temp->aml_file) {
-            if (g_strstr_len(temp->aml_file, -1, "aml-")) {
+            if (!temp->tmp_files_retain &&
+                g_strstr_len(temp->aml_file, -1, "aml-")) {
                 unlink(temp->aml_file);
             }
             g_free(temp->aml_file);
@@ -162,7 +163,7 @@ static void free_test_data(test_data *data)
             g_free(temp->asl);
         }
         if (temp->asl_file) {
-            if (!temp->asl_file_retain) {
+            if (!temp->tmp_files_retain) {
                 unlink(temp->asl_file);
             }
             g_free(temp->asl_file);
@@ -410,7 +411,7 @@ static bool compare_signature(AcpiSdtTable *sdt, uint32_t signature)
    return sdt->header.signature == signature;
 }
 
-static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
+static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
     GError *error = NULL;
@@ -439,18 +440,22 @@ static void load_asl(GArray *sdts, AcpiSdtTable *sdt)
     g_string_append_printf(command_line, "-d %s", sdt->aml_file);
 
     /* pass 'out' and 'out_err' in order to be redirected */
-    g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
+    ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
     g_assert_no_error(error);
 
-    ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
-                              &sdt->asl_len, &error);
-    g_assert(ret);
-    g_assert_no_error(error);
-    g_assert(sdt->asl_len);
+    if (ret) {
+        ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
+                                  &sdt->asl_len, &error);
+        g_assert(ret);
+        g_assert_no_error(error);
+        g_assert(sdt->asl_len);
+    }
 
     g_free(out);
     g_free(out_err);
     g_string_free(command_line, true);
+
+    return !ret;
 }
 
 #define COMMENT_END "*/"
@@ -517,6 +522,7 @@ static void test_acpi_asl(test_data *data)
     int i;
     AcpiSdtTable *sdt, *exp_sdt;
     test_data exp_data;
+    gboolean exp_err, err;
 
     memset(&exp_data, 0, sizeof(exp_data));
     exp_data.tables = load_expected_aml(data);
@@ -527,20 +533,24 @@ static void test_acpi_asl(test_data *data)
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
         exp_sdt = &g_array_index(exp_data.tables, AcpiSdtTable, i);
 
-        load_asl(data->tables, sdt);
+        err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
-        load_asl(exp_data.tables, exp_sdt);
+        exp_err = load_asl(exp_data.tables, exp_sdt);
         exp_asl = normalize_asl(exp_sdt->asl);
 
+        /* TODO: check for warnings */
+        g_assert(!err || exp_err);
+
         if (g_strcmp0(asl->str, exp_asl->str)) {
-            sdt->asl_file_retain = true;
-            exp_sdt->asl_file_retain = true;
+            sdt->tmp_files_retain = true;
+            exp_sdt->tmp_files_retain = true;
             fprintf(stderr,
                     "acpi-test: Warning! %.4s mismatch. "
-                    "Orig asl: %s, expected asl %s.\n",
+                    "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
                     (gchar *)&exp_sdt->header.signature,
-                    sdt->asl_file, exp_sdt->asl_file);
+                    sdt->asl_file, sdt->aml_file,
+                    exp_sdt->asl_file, exp_sdt->aml_file);
         }
         g_string_free(asl, true);
         g_string_free(exp_asl, true);

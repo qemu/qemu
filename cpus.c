@@ -1117,8 +1117,13 @@ void resume_all_vcpus(void)
     }
 }
 
+/* For temporary buffers for forming a name */
+#define VCPU_THREAD_NAME_SIZE 16
+
 static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
     tcg_cpu_address_space_init(cpu, cpu->as);
 
     /* share a single thread for all cpus with TCG */
@@ -1127,8 +1132,10 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
         cpu->halt_cond = g_malloc0(sizeof(QemuCond));
         qemu_cond_init(cpu->halt_cond);
         tcg_halt_cond = cpu->halt_cond;
-        qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, cpu,
-                           QEMU_THREAD_JOINABLE);
+        snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
+                 cpu->cpu_index);
+        qemu_thread_create(cpu->thread, thread_name, qemu_tcg_cpu_thread_fn,
+                           cpu, QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
         cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
@@ -1144,11 +1151,15 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
 
 static void qemu_kvm_start_vcpu(CPUState *cpu)
 {
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(cpu->halt_cond);
-    qemu_thread_create(cpu->thread, qemu_kvm_cpu_thread_fn, cpu,
-                       QEMU_THREAD_JOINABLE);
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/KVM",
+             cpu->cpu_index);
+    qemu_thread_create(cpu->thread, thread_name, qemu_kvm_cpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE);
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
@@ -1156,10 +1167,14 @@ static void qemu_kvm_start_vcpu(CPUState *cpu)
 
 static void qemu_dummy_start_vcpu(CPUState *cpu)
 {
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(cpu->halt_cond);
-    qemu_thread_create(cpu->thread, qemu_dummy_cpu_thread_fn, cpu,
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/DUMMY",
+             cpu->cpu_index);
+    qemu_thread_create(cpu->thread, thread_name, qemu_dummy_cpu_thread_fn, cpu,
                        QEMU_THREAD_JOINABLE);
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);

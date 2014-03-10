@@ -27,6 +27,13 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 
+static bool name_threads;
+
+void qemu_thread_naming(bool enable)
+{
+    name_threads = enable;
+}
+
 static void error_exit(int err, const char *msg)
 {
     fprintf(stderr, "qemu: %s: %s\n", msg, strerror(err));
@@ -387,8 +394,7 @@ void qemu_event_wait(QemuEvent *ev)
     }
 }
 
-
-void qemu_thread_create(QemuThread *thread,
+void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
                        void *arg, int mode)
 {
@@ -413,6 +419,12 @@ void qemu_thread_create(QemuThread *thread,
     err = pthread_create(&thread->thread, &attr, start_routine, arg);
     if (err)
         error_exit(err, __func__);
+
+#ifdef _GNU_SOURCE
+    if (name_threads) {
+        pthread_setname_np(thread->thread, name);
+    }
+#endif
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 

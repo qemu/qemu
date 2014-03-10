@@ -16,6 +16,14 @@
 #include <assert.h>
 #include <limits.h>
 
+static bool name_threads;
+
+void qemu_thread_naming(bool enable)
+{
+    /* But note we don't actually name them on Windows yet */
+    name_threads = enable;
+}
+
 static void error_exit(int err, const char *msg)
 {
     char *pstr;
@@ -325,7 +333,7 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-void qemu_thread_create(QemuThread *thread,
+void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
 {

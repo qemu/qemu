@@ -1562,7 +1562,7 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
 bool memory_region_present(MemoryRegion *parent, hwaddr addr)
 {
     MemoryRegion *mr = memory_region_find(parent, addr, 1).mr;
-    if (!mr) {
+    if (!mr || (mr == parent)) {
         return false;
     }
     memory_region_unref(mr);

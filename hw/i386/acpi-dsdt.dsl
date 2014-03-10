@@ -80,39 +80,13 @@ DefinitionBlock (
             Name(_HID, EisaId("PNP0A03"))
             Name(_ADR, 0x00)
             Name(_UID, 1)
+//#define PX13 S0B_
+//            External(PX13, DeviceObj)
         }
     }
 
 #include "acpi-dsdt-pci-crs.dsl"
 #include "acpi-dsdt-hpet.dsl"
-
-
-/****************************************************************
- * VGA
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        Device(VGA) {
-            Name(_ADR, 0x00020000)
-            OperationRegion(PCIC, PCI_Config, Zero, 0x4)
-            Field(PCIC, DWordAcc, NoLock, Preserve) {
-                VEND, 32
-            }
-            Method(_S1D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S2D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S3D, 0, NotSerialized) {
-                If (LEqual(VEND, 0x1001b36)) {
-                    Return (0x03)           // QXL
-                } Else {
-                    Return (0x00)
-                }
-            }
-        }
-    }
 
 
 /****************************************************************
@@ -132,6 +106,9 @@ DefinitionBlock (
  ****************************************************************/
 
     Scope(\_SB.PCI0) {
+
+        External(ISA, DeviceObj)
+
         Device(ISA) {
             Name(_ADR, 0x00010000)
 

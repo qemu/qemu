@@ -158,7 +158,6 @@ Guest CPU Cores (KVM):
 ----------------------
 
 Overall
-M: Gleb Natapov <gleb@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -184,7 +183,6 @@ F: target-s390x/kvm.c
 F: hw/intc/s390_flic.[hc]
 
 X86
-M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported

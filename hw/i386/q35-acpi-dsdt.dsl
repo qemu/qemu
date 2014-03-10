@@ -72,6 +72,8 @@ DefinitionBlock (
             Name(_ADR, 0x00)
             Name(_UID, 1)
 
+            External(ISA, DeviceObj)
+
             // _OSC: based on sample of ACPI3.0b spec
             Name(SUPP, 0) // PCI _OSC Support Field value
             Name(CTRL, 0) // PCI _OSC Control Field value
@@ -134,34 +136,13 @@ DefinitionBlock (
 
 
 /****************************************************************
- * VGA
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        Device(VGA) {
-            Name(_ADR, 0x00010000)
-            Method(_S1D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S2D, 0, NotSerialized) {
-                Return (0x00)
-            }
-            Method(_S3D, 0, NotSerialized) {
-                Return (0x00)
-            }
-        }
-    }
-
-
-/****************************************************************
  * LPC ISA bridge
  ****************************************************************/
 
     Scope(\_SB.PCI0) {
         /* PCI D31:f0 LPC ISA bridge */
         Device(ISA) {
-            /* PCI D31:f0 */
-            Name(_ADR, 0x001f0000)
+            Name (_ADR, 0x001F0000)  // _ADR: Address
 
             /* ICH9 PCI to ISA irq remapping */
             OperationRegion(PIRQ, PCI_Config, 0x60, 0x0C)
