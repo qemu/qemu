@@ -51,5 +51,6 @@ struct target_pt_regs {
 #define UC32_SYSCALL_NR_set_tls         (UC32_SYSCALL_ARCH_BASE + 5)
 
 #define UNAME_MACHINE "UniCore-II"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #endif /* __UC32_SYSCALL_H__ */

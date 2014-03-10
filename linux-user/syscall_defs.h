@@ -53,7 +53,8 @@
 #define TARGET_IOC_NRBITS	8
 #define TARGET_IOC_TYPEBITS	8
 
-#if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
+#if defined(TARGET_I386) || (defined(TARGET_ARM) && defined(TARGET_ABI32)) \
+    || defined(TARGET_SPARC) \
     || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
     /* 16 bit uid wrappers emulation */
 #define USE_UID16
@@ -239,6 +240,10 @@ __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cms
   return __cmsg;
 }
 
+struct target_mmsghdr {
+    struct target_msghdr msg_hdr;              /* Message header */
+    unsigned int         msg_len;              /* Number of bytes transmitted */
+};
 
 struct  target_rusage {
         struct target_timeval ru_utime;        /* user time used */

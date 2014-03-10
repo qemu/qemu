@@ -1904,23 +1904,16 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
     return get_errno(connect(sockfd, addr, addrlen));
 }
 
-/* do_sendrecvmsg() Must return target values and target errnos. */
-static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
-                               int flags, int send)
+/* do_sendrecvmsg_locked() Must return target values and target errnos. */
+static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
+                                      int flags, int send)
 {
     abi_long ret, len;
-    struct target_msghdr *msgp;
     struct msghdr msg;
     int count;
     struct iovec *vec;
     abi_ulong target_vec;
 
-    /* FIXME */
-    if (!lock_user_struct(send ? VERIFY_READ : VERIFY_WRITE,
-                          msgp,
-                          target_msg,
-                          send ? 1 : 0))
-        return -TARGET_EFAULT;
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
         msg.msg_name = alloca(msg.msg_namelen);
@@ -1975,9 +1968,74 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
 out:
     unlock_iovec(vec, target_vec, count, !send);
 out2:
+    return ret;
+}
+
+static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
+                               int flags, int send)
+{
+    abi_long ret;
+    struct target_msghdr *msgp;
+
+    if (!lock_user_struct(send ? VERIFY_READ : VERIFY_WRITE,
+                          msgp,
+                          target_msg,
+                          send ? 1 : 0)) {
+        return -TARGET_EFAULT;
+    }
+    ret = do_sendrecvmsg_locked(fd, msgp, flags, send);
     unlock_user_struct(msgp, target_msg, send ? 0 : 1);
     return ret;
 }
+
+#ifdef TARGET_NR_sendmmsg
+/* We don't rely on the C library to have sendmmsg/recvmmsg support,
+ * so it might not have this *mmsg-specific flag either.
+ */
+#ifndef MSG_WAITFORONE
+#define MSG_WAITFORONE 0x10000
+#endif
+
+static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
+                                unsigned int vlen, unsigned int flags,
+                                int send)
+{
+    struct target_mmsghdr *mmsgp;
+    abi_long ret = 0;
+    int i;
+
+    if (vlen > UIO_MAXIOV) {
+        vlen = UIO_MAXIOV;
+    }
+
+    mmsgp = lock_user(VERIFY_WRITE, target_msgvec, sizeof(*mmsgp) * vlen, 1);
+    if (!mmsgp) {
+        return -TARGET_EFAULT;
+    }
+
+    for (i = 0; i < vlen; i++) {
+        ret = do_sendrecvmsg_locked(fd, &mmsgp[i].msg_hdr, flags, send);
+        if (is_error(ret)) {
+            break;
+        }
+        mmsgp[i].msg_len = tswap32(ret);
+        /* MSG_WAITFORONE turns on MSG_DONTWAIT after one packet */
+        if (flags & MSG_WAITFORONE) {
+            flags |= MSG_DONTWAIT;
+        }
+    }
+
+    unlock_user(mmsgp, target_msgvec, sizeof(*mmsgp) * i);
+
+    /* Return number of datagrams sent if we sent any at all;
+     * otherwise return the error.
+     */
+    if (i) {
+        return i;
+    }
+    return ret;
+}
+#endif
 
 /* If we don't have a system accept4() then just call accept.
  * The callsites to do_accept4() will ensure that they don't
@@ -4528,6 +4586,9 @@ static inline int tswapid(int id)
 {
     return tswap16(id);
 }
+
+#define put_user_id(x, gaddr) put_user_u16(x, gaddr)
+
 #else /* !USE_UID16 */
 static inline int high2lowuid(int uid)
 {
@@ -4549,6 +4610,9 @@ static inline int tswapid(int id)
 {
     return tswap32(id);
 }
+
+#define put_user_id(x, gaddr) put_user_u32(x, gaddr)
+
 #endif /* USE_UID16 */
 
 void syscall_init(void)
@@ -6121,11 +6185,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 puts = NULL;
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
-            if (!is_error(ret) && arg2) {
-                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0)))
-                    goto efault;
-                host_to_target_siginfo(p, &uinfo);
-                unlock_user(p, arg2, sizeof(target_siginfo_t));
+            if (!is_error(ret)) {
+                if (arg2) {
+                    p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t),
+                                  0);
+                    if (!p) {
+                        goto efault;
+                    }
+                    host_to_target_siginfo(p, &uinfo);
+                    unlock_user(p, arg2, sizeof(target_siginfo_t));
+                }
+                ret = host_to_target_signal(ret);
             }
         }
         break;
@@ -6708,6 +6778,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_sendmsg
     case TARGET_NR_sendmsg:
         ret = do_sendrecvmsg(arg1, arg2, arg3, 1);
+        break;
+#endif
+#ifdef TARGET_NR_sendmmsg
+    case TARGET_NR_sendmmsg:
+        ret = do_sendrecvmmsg(arg1, arg2, arg3, arg4, 1);
+        break;
+    case TARGET_NR_recvmmsg:
+        ret = do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0);
         break;
 #endif
 #ifdef TARGET_NR_sendto
@@ -7805,9 +7883,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                if (put_user_u16(high2lowuid(ruid), arg1)
-                    || put_user_u16(high2lowuid(euid), arg2)
-                    || put_user_u16(high2lowuid(suid), arg3))
+                if (put_user_id(high2lowuid(ruid), arg1)
+                    || put_user_id(high2lowuid(euid), arg2)
+                    || put_user_id(high2lowuid(suid), arg3))
                     goto efault;
             }
         }
@@ -7826,9 +7904,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                if (put_user_u16(high2lowgid(rgid), arg1)
-                    || put_user_u16(high2lowgid(egid), arg2)
-                    || put_user_u16(high2lowgid(sgid), arg3))
+                if (put_user_id(high2lowgid(rgid), arg1)
+                    || put_user_id(high2lowgid(egid), arg2)
+                    || put_user_id(high2lowgid(sgid), arg3))
                     goto efault;
             }
         }

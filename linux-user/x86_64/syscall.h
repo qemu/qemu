@@ -91,6 +91,7 @@ struct target_msqid64_ds {
 };
 
 #define UNAME_MACHINE "x86_64"
+#define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_ARCH_SET_GS 0x1001
 #define TARGET_ARCH_SET_FS 0x1002
