@@ -4055,7 +4055,7 @@ int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag)
 
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
 {
-    while (bs && bs->drv && !bs->drv->bdrv_debug_resume) {
+    while (bs && (!bs->drv || !bs->drv->bdrv_debug_resume)) {
         bs = bs->file;
     }
 
