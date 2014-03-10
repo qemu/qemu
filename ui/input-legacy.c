@@ -359,6 +359,20 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         } else {
             s->buttons &= ~bmap[evt->btn->button];
         }
+        if (evt->btn->down && evt->btn->button == INPUT_BUTTON_WHEEL_UP) {
+            s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
+                                    s->axis[INPUT_AXIS_X],
+                                    s->axis[INPUT_AXIS_Y],
+                                    -1,
+                                    s->buttons);
+        }
+        if (evt->btn->down && evt->btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
+                                    s->axis[INPUT_AXIS_X],
+                                    s->axis[INPUT_AXIS_Y],
+                                    1,
+                                    s->buttons);
+        }
         break;
     case INPUT_EVENT_KIND_ABS:
         s->axis[evt->abs->axis] = evt->abs->value;
