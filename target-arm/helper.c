@@ -2478,7 +2478,7 @@ uint32_t cpsr_read(CPUARMState *env)
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
-        | (env->GE << 16) | env->daif;
+        | (env->GE << 16) | (env->daif & CPSR_AIF);
 }
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
