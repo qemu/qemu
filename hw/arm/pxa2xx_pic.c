@@ -105,7 +105,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
 
     for (i = PXA2XX_PIC_SRCS - 1; i >= 0; i --) {
         irq = s->priority[i] & 0x3f;
-        if ((s->priority[i] & (1 << 31)) && irq < PXA2XX_PIC_SRCS) {
+        if ((s->priority[i] & (1U << 31)) && irq < PXA2XX_PIC_SRCS) {
             /* Source peripheral ID is valid.  */
             bit = 1 << (irq & 31);
             int_set = (irq >= 32);
@@ -119,7 +119,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
             if (mask[int_set] & bit & ~s->is_fiq[int_set]) {
                 /* IRQ asserted */
                 ichp &= 0x0000ffff;
-                ichp |= (1 << 31) | (irq << 16);
+                ichp |= (1U << 31) | (irq << 16);
             }
         }
     }
