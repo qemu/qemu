@@ -380,6 +380,10 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
 
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
+
     /* Call .bdrv_co_readv() directly instead of using the public block-layer
      * interface.  This avoids double I/O throttling and request tracking,
      * which can lead to deadlock when block layer copy-on-read is enabled.
