@@ -81,6 +81,7 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
     uint8_t buf[60];
     int len;
 
+    trace_qemu_announce_self_iter(qemu_ether_ntoa(&nic->conf->macaddr));
     len = announce_self_create(buf, nic->conf->macaddr.a);
 
     qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
@@ -429,6 +430,7 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
 
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
 {
+    trace_vmstate_load(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
     if (!se->vmsd) {         /* Old style */
         return se->ops->load_state(f, se->opaque, version_id);
     }
@@ -437,6 +439,7 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
 
 static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 {
+    trace_vmstate_save(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
     if (!se->vmsd) {         /* Old style */
         se->ops->save_state(f, se->opaque);
         return;
@@ -463,6 +466,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
     SaveStateEntry *se;
     int ret;
 
+    trace_savevm_state_begin();
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!se->ops || !se->ops->set_params) {
             continue;
@@ -515,6 +519,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     SaveStateEntry *se;
     int ret = 1;
 
+    trace_savevm_state_iterate();
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!se->ops || !se->ops->save_live_iterate) {
             continue;
@@ -553,6 +558,8 @@ void qemu_savevm_state_complete(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
+
+    trace_savevm_state_complete();
 
     cpu_synchronize_all_states();
 
@@ -628,6 +635,7 @@ void qemu_savevm_state_cancel(void)
 {
     SaveStateEntry *se;
 
+    trace_savevm_state_cancel();
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->ops && se->ops->cancel) {
             se->ops->cancel(se->opaque);

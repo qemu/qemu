@@ -4,6 +4,7 @@
 #include "block/coroutine.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
+#include "trace.h"
 
 #define IO_BUF_SIZE 32768
 #define MAX_IOV_SIZE MIN(IOV_MAX, 64)
@@ -595,6 +596,7 @@ int qemu_fclose(QEMUFile *f)
         ret = f->last_error;
     }
     g_free(f);
+    trace_qemu_file_fclose();
     return ret;
 }
 
