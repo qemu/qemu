@@ -352,6 +352,9 @@ enum
     ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
 };
 
+#ifndef TARGET_AARCH64
+/* The commpage only exists for 32 bit kernels */
+
 #define TARGET_HAS_VALIDATE_GUEST_SPACE
 /* Return 1 if the proposed guest space is suitable for the guest.
  * Return 0 if the proposed guest space isn't suitable, but another
@@ -411,7 +414,7 @@ static int validate_guest_space(unsigned long guest_base,
 
     return 1; /* All good */
 }
-
+#endif
 
 #define ELF_HWCAP get_elf_hwcap()
 
