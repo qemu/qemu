@@ -486,6 +486,7 @@ runstate_set(int new_state) "new state %d"
 g_malloc(size_t size, void *ptr) "size %zu ptr %p"
 g_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
 g_free(void *ptr) "ptr %p"
+system_wakeup_request(int reason) "reason=%d"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
@@ -1039,8 +1040,8 @@ vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
-savevm_section_start(void) ""
-savevm_section_end(unsigned int section_id) "section_id %u"
+savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_section_end(const char *id, unsigned int section_id) "%s, section_id %u"
 
 # arch_init.c
 migration_bitmap_sync_start(void) ""

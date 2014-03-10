@@ -527,13 +527,13 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         if (qemu_file_rate_limit(f)) {
             return 0;
         }
-        trace_savevm_section_start();
+        trace_savevm_section_start(se->idstr, se->section_id);
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_iterate(f, se->opaque);
-        trace_savevm_section_end(se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id);
 
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -565,13 +565,13 @@ void qemu_savevm_state_complete(QEMUFile *f)
                 continue;
             }
         }
-        trace_savevm_section_start();
+        trace_savevm_section_start(se->idstr, se->section_id);
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_complete(f, se->opaque);
-        trace_savevm_section_end(se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             return;
@@ -584,7 +584,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
         }
-        trace_savevm_section_start();
+        trace_savevm_section_start(se->idstr, se->section_id);
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
         qemu_put_be32(f, se->section_id);
@@ -598,7 +598,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->version_id);
 
         vmstate_save(f, se);
-        trace_savevm_section_end(se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
