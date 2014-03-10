@@ -110,10 +110,10 @@
 #define MP_PHY_88E3015          0x01410E20
 
 /* TX descriptor status */
-#define MP_ETH_TX_OWN           (1 << 31)
+#define MP_ETH_TX_OWN           (1U << 31)
 
 /* RX descriptor status */
-#define MP_ETH_RX_OWN           (1 << 31)
+#define MP_ETH_RX_OWN           (1U << 31)
 
 /* Interrupt cause/mask bits */
 #define MP_ETH_IRQ_RX_BIT       0
