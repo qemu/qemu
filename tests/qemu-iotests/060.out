@@ -78,4 +78,19 @@ read 512/512 bytes at offset 0
 No errors were found on the image.
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing overlap while COW is in flight ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 536870912
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qcow2: Preventing invalid write on metadata (overlaps with active L2 table); image marked as corrupt.
+blkdebug: Suspended request '0'
+write failed: Input/output error
+blkdebug: Resuming request '0'
+aio_write failed: No medium found
 *** done
