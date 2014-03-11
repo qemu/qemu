@@ -4776,9 +4776,17 @@ flush_parent:
 
 void bdrv_invalidate_cache(BlockDriverState *bs)
 {
-    if (bs->drv && bs->drv->bdrv_invalidate_cache) {
-        bs->drv->bdrv_invalidate_cache(bs);
+    if (!bs->drv)  {
+        return;
     }
+
+    if (bs->drv->bdrv_invalidate_cache) {
+        bs->drv->bdrv_invalidate_cache(bs);
+    } else if (bs->file) {
+        bdrv_invalidate_cache(bs->file);
+    }
+
+    refresh_total_sectors(bs, bs->total_sectors);
 }
 
 void bdrv_invalidate_cache_all(void)
