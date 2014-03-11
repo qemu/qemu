@@ -110,7 +110,7 @@ static void pxa2xx_gpio_set(void *opaque, int line, int level)
     }
 
     bank = line >> 5;
-    mask = 1 << (line & 31);
+    mask = 1U << (line & 31);
 
     if (level) {
         s->status[bank] |= s->rising[bank] & mask &

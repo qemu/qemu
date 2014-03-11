@@ -44,6 +44,8 @@ extern TCGv_ptr cpu_env;
  * emitting unreachable code at the end of the TB in the A64 decoder
  */
 #define DISAS_EXC 6
+/* WFE */
+#define DISAS_WFE 7
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);

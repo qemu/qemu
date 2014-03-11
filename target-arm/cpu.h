@@ -222,6 +222,10 @@ typedef struct CPUARMState {
         uint64_t dbgbcr[16]; /* breakpoint control registers */
         uint64_t dbgwvr[16]; /* watchpoint value registers */
         uint64_t dbgwcr[16]; /* watchpoint control registers */
+        /* If the counter is enabled, this stores the last time the counter
+         * was reset. Otherwise it stores the counter value
+         */
+        uint32_t c15_ccnt;
     } cp15;
 
     struct {

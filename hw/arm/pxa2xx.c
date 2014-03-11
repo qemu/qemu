@@ -259,7 +259,7 @@ static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     case 1:
         /* Idle */
-        if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) { /* CPDIS */
+        if (!(s->cm_regs[CCCR >> 2] & (1U << 31))) { /* CPDIS */
             cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
             break;
         }
@@ -496,7 +496,7 @@ typedef struct {
 #define SSCR0_SSE	(1 << 7)
 #define SSCR0_RIM	(1 << 22)
 #define SSCR0_TIM	(1 << 23)
-#define SSCR0_MOD	(1 << 31)
+#define SSCR0_MOD       (1U << 31)
 #define SSCR0_DSS(x)	(((((x) >> 16) & 0x10) | ((x) & 0xf)) + 1)
 #define SSCR1_RIE	(1 << 0)
 #define SSCR1_TIE	(1 << 1)
@@ -1006,7 +1006,7 @@ static void pxa2xx_rtc_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case RTTR:
-        if (!(s->rttr & (1 << 31))) {
+        if (!(s->rttr & (1U << 31))) {
             pxa2xx_rtc_hzupdate(s);
             s->rttr = value;
             pxa2xx_rtc_alarm_update(s, s->rtsr);

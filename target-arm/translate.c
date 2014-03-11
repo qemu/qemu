@@ -3939,6 +3939,9 @@ static void gen_nop_hint(DisasContext *s, int val)
         s->is_jmp = DISAS_WFI;
         break;
     case 2: /* wfe */
+        gen_set_pc_im(s, s->pc);
+        s->is_jmp = DISAS_WFE;
+        break;
     case 4: /* sev */
     case 5: /* sevl */
         /* TODO: Implement SEV, SEVL and WFE.  May help SMP performance.  */
@@ -10856,6 +10859,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             break;
         case DISAS_WFI:
             gen_helper_wfi(cpu_env);
+            break;
+        case DISAS_WFE:
+            gen_helper_wfe(cpu_env);
             break;
         case DISAS_SWI:
             gen_exception(EXCP_SWI);

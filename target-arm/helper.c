@@ -13,6 +13,11 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size);
+
+/* Definitions for the PMCCNTR and PMCR registers */
+#define PMCRD   0x8
+#define PMCRC   0x4
+#define PMCRE   0x1
 #endif
 
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
@@ -478,13 +483,84 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
+#ifndef CONFIG_USER_ONLY
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
+    /* Don't computer the number of ticks in user mode */
+    uint32_t temp_ticks;
+
+    temp_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRE) {
+        /* If the counter is enabled */
+        if (env->cp15.c9_pmcr & PMCRD) {
+            /* Increment once every 64 processor clock cycles */
+            env->cp15.c15_ccnt = (temp_ticks/64) - env->cp15.c15_ccnt;
+        } else {
+            env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
+        }
+    }
+
+    if (value & PMCRC) {
+        /* The counter has been reset */
+        env->cp15.c15_ccnt = 0;
+    }
+
     /* only the DP, X, D and E bits are writable */
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
+
+    if (env->cp15.c9_pmcr & PMCRE) {
+        if (env->cp15.c9_pmcr & PMCRD) {
+            /* Increment once every 64 processor clock cycles */
+            temp_ticks /= 64;
+        }
+        env->cp15.c15_ccnt = temp_ticks - env->cp15.c15_ccnt;
+    }
 }
+
+static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    uint32_t total_ticks;
+
+    if (!(env->cp15.c9_pmcr & PMCRE)) {
+        /* Counter is disabled, do not change value */
+        return env->cp15.c15_ccnt;
+    }
+
+    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRD) {
+        /* Increment once every 64 processor clock cycles */
+        total_ticks /= 64;
+    }
+    return total_ticks - env->cp15.c15_ccnt;
+}
+
+static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    uint32_t total_ticks;
+
+    if (!(env->cp15.c9_pmcr & PMCRE)) {
+        /* Counter is disabled, set the absolute value */
+        env->cp15.c15_ccnt = value;
+        return;
+    }
+
+    total_ticks = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) *
+                  get_ticks_per_sec() / 1000000;
+
+    if (env->cp15.c9_pmcr & PMCRD) {
+        /* Increment once every 64 processor clock cycles */
+        total_ticks /= 64;
+    }
+    env->cp15.c15_ccnt = total_ticks - value;
+}
+#endif
 
 static void pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
@@ -604,10 +680,12 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
       .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
       .accessfn = pmreg_access },
-    /* Unimplemented, RAZ/WI. */
+#ifndef CONFIG_USER_ONLY
     { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
-      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0,
+      .access = PL0_RW, .resetvalue = 0, .type = ARM_CP_IO,
+      .readfn = pmccntr_read, .writefn = pmccntr_write,
       .accessfn = pmreg_access },
+#endif
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL0_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
@@ -1873,8 +1951,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         /* v7 performance monitor control register: same implementor
-         * field as main ID register, and we implement no event counters.
+         * field as main ID register, and we implement only the cycle
+         * count register.
          */
+#ifndef CONFIG_USER_ONLY
         ARMCPRegInfo pmcr = {
             .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
             .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
@@ -1882,12 +1962,13 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .accessfn = pmreg_access, .writefn = pmcr_write,
             .raw_writefn = raw_write,
         };
+        define_one_arm_cp_reg(cpu, &pmcr);
+#endif
         ARMCPRegInfo clidr = {
             .name = "CLIDR", .state = ARM_CP_STATE_BOTH,
             .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
             .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->clidr
         };
-        define_one_arm_cp_reg(cpu, &pmcr);
         define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
@@ -2478,7 +2559,7 @@ uint32_t cpsr_read(CPUARMState *env)
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
-        | (env->GE << 16) | env->daif;
+        | (env->GE << 16) | (env->daif & CPSR_AIF);
 }
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
