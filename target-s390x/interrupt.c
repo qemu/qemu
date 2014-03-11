@@ -1,7 +1,7 @@
 /*
  * QEMU S/390 Interrupt support
  *
- * Copyright IBM, Corp. 2012
+ * Copyright IBM Corp. 2012, 2014
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at your
  * option) any later version.  See the COPYING file in the top-level directory.
@@ -10,21 +10,53 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 
+/*
+ * All of the following interrupts are floating, i.e. not per-vcpu.
+ * We just need a dummy cpustate in order to be able to inject.
+ */
 #if !defined(CONFIG_USER_ONLY)
-/* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm)
 {
     S390CPU *dummy_cpu = s390_cpu_addr2state(0);
     CPUS390XState *env = &dummy_cpu->env;
 
     if (kvm_enabled()) {
-#ifdef CONFIG_KVM
-        kvm_s390_interrupt_internal(dummy_cpu, KVM_S390_INT_SERVICE, parm,
-                                    0, 1);
-#endif
+        kvm_s390_service_interrupt(dummy_cpu, parm);
     } else {
         env->psw.addr += 4;
         cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
     }
 }
+
+void s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token)
+{
+    if (kvm_enabled()) {
+        kvm_s390_virtio_irq(cpu, config_change, token);
+    } else {
+        cpu_inject_ext(cpu, EXT_VIRTIO, config_change, token);
+    }
+}
+
+void s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
+                       uint16_t subchannel_nr, uint32_t io_int_parm,
+                       uint32_t io_int_word)
+{
+    if (kvm_enabled()) {
+        kvm_s390_io_interrupt(cpu, subchannel_id, subchannel_nr, io_int_parm,
+                              io_int_word);
+    } else {
+        cpu_inject_io(cpu, subchannel_id, subchannel_nr, io_int_parm,
+                      io_int_word);
+    }
+}
+
+void s390_crw_mchk(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_crw_mchk(cpu);
+    } else {
+        cpu_inject_crw_mchk(cpu);
+    }
+}
+
 #endif

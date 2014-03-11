@@ -593,6 +593,11 @@ void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
     kvm_s390_interrupt_internal(cpu, type, code, 0, 0);
 }
 
+void kvm_s390_service_interrupt(S390CPU *cpu, uint32_t parm)
+{
+    kvm_s390_interrupt_internal(cpu, KVM_S390_INT_SERVICE, parm, 0 , 1);
+}
+
 static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
 {
     kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);

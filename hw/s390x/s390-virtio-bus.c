@@ -45,8 +45,6 @@
     do { } while (0)
 #endif
 
-#define VIRTIO_EXT_CODE   0x2603
-
 static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
                                 VirtIOS390Device *dev);
 
@@ -111,15 +109,6 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
 
     qemu_register_reset(s390_virtio_bus_reset, bus);
     return bus;
-}
-
-static void s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token)
-{
-    if (kvm_enabled()) {
-        kvm_s390_virtio_irq(cpu, config_change, token);
-    } else {
-        cpu_inject_ext(cpu, VIRTIO_EXT_CODE, config_change, token);
-    }
 }
 
 static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
