@@ -683,6 +683,27 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
     return TRUE;
 }
 
+static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
+                                void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    InputButton btn;
+
+    if (scroll->direction == GDK_SCROLL_UP) {
+        btn = INPUT_BUTTON_WHEEL_UP;
+    } else if (scroll->direction == GDK_SCROLL_DOWN) {
+        btn = INPUT_BUTTON_WHEEL_DOWN;
+    } else {
+        return TRUE;
+    }
+
+    qemu_input_queue_btn(s->dcl.con, btn, true);
+    qemu_input_event_sync();
+    qemu_input_queue_btn(s->dcl.con, btn, false);
+    qemu_input_event_sync();
+    return TRUE;
+}
+
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1229,6 +1250,8 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_button_event), s);
     g_signal_connect(s->drawing_area, "button-release-event",
                      G_CALLBACK(gd_button_event), s);
+    g_signal_connect(s->drawing_area, "scroll-event",
+                     G_CALLBACK(gd_scroll_event), s);
     g_signal_connect(s->drawing_area, "key-press-event",
                      G_CALLBACK(gd_key_event), s);
     g_signal_connect(s->drawing_area, "key-release-event",
