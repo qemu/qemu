@@ -420,7 +420,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (err)
         error_exit(err, __func__);
 
-#ifdef _GNU_SOURCE
+#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 12))
     if (name_threads) {
         pthread_setname_np(thread->thread, name);
     }
