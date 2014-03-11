@@ -12,50 +12,56 @@
 
 /*
  * All of the following interrupts are floating, i.e. not per-vcpu.
- * We just need a dummy cpustate in order to be able to inject.
+ * We just need a dummy cpustate in order to be able to inject in the
+ * non-kvm case.
  */
 #if !defined(CONFIG_USER_ONLY)
 void s390_sclp_extint(uint32_t parm)
 {
-    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
-    CPUS390XState *env = &dummy_cpu->env;
-
     if (kvm_enabled()) {
-        kvm_s390_service_interrupt(dummy_cpu, parm);
+        kvm_s390_service_interrupt(parm);
     } else {
+        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+        CPUS390XState *env = &dummy_cpu->env;
+
         env->psw.addr += 4;
         cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
     }
 }
 
-void s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token)
+void s390_virtio_irq(int config_change, uint64_t token)
 {
     if (kvm_enabled()) {
-        kvm_s390_virtio_irq(cpu, config_change, token);
+        kvm_s390_virtio_irq(config_change, token);
     } else {
-        cpu_inject_ext(cpu, EXT_VIRTIO, config_change, token);
+        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+        cpu_inject_ext(dummy_cpu, EXT_VIRTIO, config_change, token);
     }
 }
 
-void s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
-                       uint16_t subchannel_nr, uint32_t io_int_parm,
-                       uint32_t io_int_word)
+void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
+                       uint32_t io_int_parm, uint32_t io_int_word)
 {
     if (kvm_enabled()) {
-        kvm_s390_io_interrupt(cpu, subchannel_id, subchannel_nr, io_int_parm,
+        kvm_s390_io_interrupt(subchannel_id, subchannel_nr, io_int_parm,
                               io_int_word);
     } else {
-        cpu_inject_io(cpu, subchannel_id, subchannel_nr, io_int_parm,
+        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+        cpu_inject_io(dummy_cpu, subchannel_id, subchannel_nr, io_int_parm,
                       io_int_word);
     }
 }
 
-void s390_crw_mchk(S390CPU *cpu)
+void s390_crw_mchk(void)
 {
     if (kvm_enabled()) {
-        kvm_s390_crw_mchk(cpu);
+        kvm_s390_crw_mchk();
     } else {
-        cpu_inject_crw_mchk(cpu);
+        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+        cpu_inject_crw_mchk(dummy_cpu);
     }
 }
 

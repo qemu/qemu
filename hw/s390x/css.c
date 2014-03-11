@@ -128,13 +128,11 @@ uint16_t css_build_subchannel_id(SubchDev *sch)
 
 static void css_inject_io_interrupt(SubchDev *sch)
 {
-    S390CPU *cpu = s390_cpu_addr2state(0);
     uint8_t isc = (sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ISC) >> 11;
 
     trace_css_io_interrupt(sch->cssid, sch->ssid, sch->schid,
                            sch->curr_status.pmcw.intparm, isc, "");
-    s390_io_interrupt(cpu,
-                      css_build_subchannel_id(sch),
+    s390_io_interrupt(css_build_subchannel_id(sch),
                       sch->schid,
                       sch->curr_status.pmcw.intparm,
                       isc << 27);
@@ -147,7 +145,6 @@ void css_conditional_io_interrupt(SubchDev *sch)
      * with alert status.
      */
     if (!(sch->curr_status.scsw.ctrl & SCSW_STCTL_STATUS_PEND)) {
-        S390CPU *cpu = s390_cpu_addr2state(0);
         uint8_t isc = (sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ISC) >> 11;
 
         trace_css_io_interrupt(sch->cssid, sch->ssid, sch->schid,
@@ -157,8 +154,7 @@ void css_conditional_io_interrupt(SubchDev *sch)
         sch->curr_status.scsw.ctrl |=
             SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
         /* Inject an I/O interrupt. */
-        s390_io_interrupt(cpu,
-                          css_build_subchannel_id(sch),
+        s390_io_interrupt(css_build_subchannel_id(sch),
                           sch->schid,
                           sch->curr_status.pmcw.intparm,
                           isc << 27);
@@ -167,11 +163,10 @@ void css_conditional_io_interrupt(SubchDev *sch)
 
 void css_adapter_interrupt(uint8_t isc)
 {
-    S390CPU *cpu = s390_cpu_addr2state(0);
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
 
     trace_css_adapter_interrupt(isc);
-    s390_io_interrupt(cpu, 0, 0, 0, io_int_word);
+    s390_io_interrupt(0, 0, 0, io_int_word);
 }
 
 static void sch_handle_clear_func(SubchDev *sch)
@@ -1231,11 +1226,9 @@ void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid)
     QTAILQ_INSERT_TAIL(&channel_subsys->pending_crws, crw_cont, sibling);
 
     if (channel_subsys->do_crw_mchk) {
-        S390CPU *cpu = s390_cpu_addr2state(0);
-
         channel_subsys->do_crw_mchk = false;
         /* Inject crw pending machine check. */
-        s390_crw_mchk(cpu);
+        s390_crw_mchk();
     }
 }
 
