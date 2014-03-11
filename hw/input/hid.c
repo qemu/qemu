@@ -158,17 +158,24 @@ static void hid_pointer_event(void *opaque,
     hs->event(hs);
 }
 
-static void hid_keyboard_event(void *opaque, int keycode)
+static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
+                               InputEvent *evt)
 {
-    HIDState *hs = opaque;
+    HIDState *hs = (HIDState *)dev;
+    int scancodes[3], i, count;
     int slot;
 
-    if (hs->n == QUEUE_LENGTH) {
+    count = qemu_input_key_value_to_scancode(evt->key->key,
+                                             evt->key->down,
+                                             scancodes);
+    if (hs->n + count > QUEUE_LENGTH) {
         fprintf(stderr, "usb-kbd: warning: key event queue full\n");
         return;
     }
-    slot = (hs->head + hs->n) & QUEUE_MASK; hs->n++;
-    hs->kbd.keycodes[slot] = keycode;
+    for (i = 0; i < count; i++) {
+        slot = (hs->head + hs->n) & QUEUE_MASK; hs->n++;
+        hs->kbd.keycodes[slot] = scancodes[i];
+    }
     hs->event(hs);
 }
 
@@ -415,7 +422,7 @@ void hid_free(HIDState *hs)
 {
     switch (hs->kind) {
     case HID_KEYBOARD:
-        qemu_remove_kbd_event_handler(hs->kbd.eh_entry);
+        qemu_input_handler_unregister(hs->s);
         break;
     case HID_MOUSE:
     case HID_TABLET:
@@ -425,13 +432,21 @@ void hid_free(HIDState *hs)
     hid_del_idle_timer(hs);
 }
 
+static QemuInputHandler hid_keyboard_handler = {
+    .name  = "QEMU HID Keyboard",
+    .mask  = INPUT_EVENT_MASK_KEY,
+    .event = hid_keyboard_event,
+};
+
 void hid_init(HIDState *hs, int kind, HIDEventFunc event)
 {
     hs->kind = kind;
     hs->event = event;
 
     if (hs->kind == HID_KEYBOARD) {
-        hs->kbd.eh_entry = qemu_add_kbd_event_handler(hid_keyboard_event, hs);
+        hs->s = qemu_input_handler_register((DeviceState *)hs,
+                                            &hid_keyboard_handler);
+        qemu_input_handler_activate(hs->s);
     } else if (hs->kind == HID_MOUSE) {
         hs->ptr.eh_entry = qemu_add_mouse_event_handler(hid_pointer_event, hs,
                                                         0, "QEMU HID Mouse");
