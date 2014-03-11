@@ -1178,11 +1178,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
 
     bdrv_invalidate_cache(bs->file);
 
-    options = qdict_new();
-    qdict_put(options, QCOW2_OPT_LAZY_REFCOUNTS,
-              qbool_from_int(s->use_lazy_refcounts));
-
     memset(s, 0, sizeof(BDRVQcowState));
+    options = qdict_clone_shallow(bs->options);
     qcow2_open(bs, options, flags, NULL);
 
     QDECREF(options);
