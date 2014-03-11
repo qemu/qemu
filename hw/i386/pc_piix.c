@@ -266,13 +266,14 @@ static void pc_compat_1_7(QEMUMachineInitArgs *args)
 {
     smbios_type1_defaults = false;
     gigabyte_align = false;
+    option_rom_has_mr = true;
 }
 
 static void pc_compat_1_6(QEMUMachineInitArgs *args)
 {
     pc_compat_1_7(args);
     has_pci_info = false;
-    rom_file_in_ram = false;
+    rom_file_has_mr = false;
     has_acpi_build = false;
 }
 

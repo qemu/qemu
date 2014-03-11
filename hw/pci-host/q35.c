@@ -272,7 +272,7 @@ static void mch_update_smram(MCHPCIState *mch)
     PCIDevice *pd = PCI_DEVICE(mch);
 
     memory_region_transaction_begin();
-    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRDIGE_SMRAM],
+    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRIDGE_SMRAM],
                     mch->smm_enabled);
     memory_region_transaction_commit();
 }
@@ -283,7 +283,7 @@ static void mch_set_smm(int smm, void *arg)
     PCIDevice *pd = PCI_DEVICE(mch);
 
     memory_region_transaction_begin();
-    smram_set_smm(&mch->smm_enabled, smm, pd->config[MCH_HOST_BRDIGE_SMRAM],
+    smram_set_smm(&mch->smm_enabled, smm, pd->config[MCH_HOST_BRIDGE_SMRAM],
                     &mch->smram_region);
     memory_region_transaction_commit();
 }
@@ -306,8 +306,8 @@ static void mch_write_config(PCIDevice *d,
         mch_update_pciexbar(mch);
     }
 
-    if (ranges_overlap(address, len, MCH_HOST_BRDIGE_SMRAM,
-                       MCH_HOST_BRDIGE_SMRAM_SIZE)) {
+    if (ranges_overlap(address, len, MCH_HOST_BRIDGE_SMRAM,
+                       MCH_HOST_BRIDGE_SMRAM_SIZE)) {
         mch_update_smram(mch);
     }
 }
@@ -347,7 +347,7 @@ static void mch_reset(DeviceState *qdev)
     pci_set_quad(d->config + MCH_HOST_BRIDGE_PCIEXBAR,
                  MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
 
-    d->config[MCH_HOST_BRDIGE_SMRAM] = MCH_HOST_BRIDGE_SMRAM_DEFAULT;
+    d->config[MCH_HOST_BRIDGE_SMRAM] = MCH_HOST_BRIDGE_SMRAM_DEFAULT;
 
     mch_update(mch);
 }

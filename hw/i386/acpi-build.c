@@ -466,9 +466,15 @@ static void acpi_align_size(GArray *blob, unsigned align)
     g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
 }
 
-/* Get pointer within table in a safe manner */
-#define ACPI_BUILD_PTR(table, size, off, type) \
-    ((type *)(acpi_data_get_ptr(table, size, off, sizeof(type))))
+/* Set a value within table in a safe manner */
+#define ACPI_BUILD_SET_LE(table, size, off, bits, val) \
+    do { \
+        uint64_t ACPI_BUILD_SET_LE_val = cpu_to_le64(val); \
+        memcpy(acpi_data_get_ptr(table, size, off, \
+                                 (bits) / BITS_PER_BYTE), \
+               &ACPI_BUILD_SET_LE_val, \
+               (bits) / BITS_PER_BYTE); \
+    } while (0)
 
 static inline void *acpi_data_get_ptr(uint8_t *table_data, unsigned table_size,
                                       unsigned off, unsigned size)
@@ -974,22 +980,17 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
 
 static void patch_pci_windows(PcPciInfo *pci, uint8_t *start, unsigned size)
 {
-    *ACPI_BUILD_PTR(start, size, acpi_pci32_start[0], uint32_t) =
-        cpu_to_le32(pci->w32.begin);
+    ACPI_BUILD_SET_LE(start, size, acpi_pci32_start[0], 32, pci->w32.begin);
 
-    *ACPI_BUILD_PTR(start, size, acpi_pci32_end[0], uint32_t) =
-        cpu_to_le32(pci->w32.end - 1);
+    ACPI_BUILD_SET_LE(start, size, acpi_pci32_end[0], 32, pci->w32.end - 1);
 
     if (pci->w64.end || pci->w64.begin) {
-        *ACPI_BUILD_PTR(start, size, acpi_pci64_valid[0], uint8_t) = 1;
-        *ACPI_BUILD_PTR(start, size, acpi_pci64_start[0], uint64_t) =
-            cpu_to_le64(pci->w64.begin);
-        *ACPI_BUILD_PTR(start, size, acpi_pci64_end[0], uint64_t) =
-            cpu_to_le64(pci->w64.end - 1);
-        *ACPI_BUILD_PTR(start, size, acpi_pci64_length[0], uint64_t) =
-            cpu_to_le64(pci->w64.end - pci->w64.begin);
+        ACPI_BUILD_SET_LE(start, size, acpi_pci64_valid[0], 8, 1);
+        ACPI_BUILD_SET_LE(start, size, acpi_pci64_start[0], 64, pci->w64.begin);
+        ACPI_BUILD_SET_LE(start, size, acpi_pci64_end[0], 64, pci->w64.end - 1);
+        ACPI_BUILD_SET_LE(start, size, acpi_pci64_length[0], 64, pci->w64.end - pci->w64.begin);
     } else {
-        *ACPI_BUILD_PTR(start, size, acpi_pci64_valid[0], uint8_t) = 0;
+        ACPI_BUILD_SET_LE(start, size, acpi_pci64_valid[0], 8, 0);
     }
 }
 

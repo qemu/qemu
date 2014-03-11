@@ -49,10 +49,12 @@ void pstrcpy_targphys(const char *name,
                       hwaddr dest, int buf_size,
                       const char *source);
 
-extern bool rom_file_in_ram;
+extern bool option_rom_has_mr;
+extern bool rom_file_has_mr;
 
 int rom_add_file(const char *file, const char *fw_dir,
-                 hwaddr addr, int32_t bootindex);
+                 hwaddr addr, int32_t bootindex,
+                 bool option_rom);
 void *rom_add_blob(const char *name, const void *blob, size_t len,
                    hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque);
@@ -66,7 +68,7 @@ void *rom_ptr(hwaddr addr);
 void do_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_fixed(_f, _a, _i)          \
-    rom_add_file(_f, NULL, _a, _i)
+    rom_add_file(_f, NULL, _a, _i, false)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _a, NULL, NULL, NULL)
 
