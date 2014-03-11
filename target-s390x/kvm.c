@@ -555,6 +555,92 @@ int kvm_arch_process_async_events(CPUState *cs)
     return cs->halted;
 }
 
+static int s390_kvm_irq_to_interrupt(struct kvm_s390_irq *irq,
+                                     struct kvm_s390_interrupt *interrupt)
+{
+    int r = 0;
+
+    interrupt->type = irq->type;
+    switch (irq->type) {
+    case KVM_S390_INT_VIRTIO:
+        interrupt->parm = irq->u.ext.ext_params;
+        /* fall through */
+    case KVM_S390_INT_PFAULT_INIT:
+    case KVM_S390_INT_PFAULT_DONE:
+        interrupt->parm64 = irq->u.ext.ext_params2;
+        break;
+    case KVM_S390_PROGRAM_INT:
+        interrupt->parm = irq->u.pgm.code;
+        break;
+    case KVM_S390_SIGP_SET_PREFIX:
+        interrupt->parm = irq->u.prefix.address;
+        break;
+    case KVM_S390_INT_SERVICE:
+        interrupt->parm = irq->u.ext.ext_params;
+        break;
+    case KVM_S390_MCHK:
+        interrupt->parm = irq->u.mchk.cr14;
+        interrupt->parm64 = irq->u.mchk.mcic;
+        break;
+    case KVM_S390_INT_EXTERNAL_CALL:
+        interrupt->parm = irq->u.extcall.code;
+        break;
+    case KVM_S390_INT_EMERGENCY:
+        interrupt->parm = irq->u.emerg.code;
+        break;
+    case KVM_S390_SIGP_STOP:
+    case KVM_S390_RESTART:
+        break; /* These types have no parameters */
+    case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+        interrupt->parm = irq->u.io.subchannel_id << 16;
+        interrupt->parm |= irq->u.io.subchannel_nr;
+        interrupt->parm64 = (uint64_t)irq->u.io.io_int_parm << 32;
+        interrupt->parm64 |= irq->u.io.io_int_word;
+        break;
+    default:
+        r = -EINVAL;
+        break;
+    }
+    return r;
+}
+
+void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
+{
+    struct kvm_s390_interrupt kvmint = {};
+    CPUState *cs = CPU(cpu);
+    int r;
+
+    r = s390_kvm_irq_to_interrupt(irq, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        exit(1);
+    }
+
+    r = kvm_vcpu_ioctl(cs, KVM_S390_INTERRUPT, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "KVM failed to inject interrupt\n");
+        exit(1);
+    }
+}
+
+void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
+{
+    struct kvm_s390_interrupt kvmint = {};
+    int r;
+
+    r = s390_kvm_irq_to_interrupt(irq, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        exit(1);
+    }
+
+    r = kvm_vm_ioctl(kvm_state, KVM_S390_INTERRUPT, &kvmint);
+    if (r < 0) {
+        fprintf(stderr, "KVM failed to inject interrupt\n");
+        exit(1);
+    }
+}
+
 void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
                                  uint64_t parm64, int vm)
 {
