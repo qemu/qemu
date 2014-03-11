@@ -1029,7 +1029,7 @@ static void *file_ram_alloc(RAMBlock *block,
 
     hpagesize = gethugepagesize(path);
     if (!hpagesize) {
-        return NULL;
+        goto error;
     }
 
     if (memory < hpagesize) {
@@ -1038,7 +1038,7 @@ static void *file_ram_alloc(RAMBlock *block,
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         fprintf(stderr, "host lacks kvm mmu notifiers, -mem-path unsupported\n");
-        return NULL;
+        goto error;
     }
 
     /* Make name safe to use with mkstemp by replacing '/' with '_'. */
@@ -1056,7 +1056,7 @@ static void *file_ram_alloc(RAMBlock *block,
     if (fd < 0) {
         perror("unable to create backing store for hugepages");
         g_free(filename);
-        return NULL;
+        goto error;
     }
     unlink(filename);
     g_free(filename);
@@ -1076,7 +1076,7 @@ static void *file_ram_alloc(RAMBlock *block,
     if (area == MAP_FAILED) {
         perror("file_ram_alloc: can't mmap RAM pages");
         close(fd);
-        return (NULL);
+        goto error;
     }
 
     if (mem_prealloc) {
@@ -1120,6 +1120,12 @@ static void *file_ram_alloc(RAMBlock *block,
 
     block->fd = fd;
     return area;
+
+error:
+    if (mem_prealloc) {
+        exit(1);
+    }
+    return NULL;
 }
 #else
 static void *file_ram_alloc(RAMBlock *block,
