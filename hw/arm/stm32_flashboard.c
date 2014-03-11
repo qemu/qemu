@@ -174,7 +174,7 @@ static void stm32_flashboard_init(QEMUMachineInitArgs *args)
     stm32_init(/*flash_size*/0x00010000,
                /*ram_size*/0x00004fff,
                kernel_filename,
-               8000000,
+               12000000,
                32768);
 
     DeviceState *gpio_a = DEVICE(object_resolve_path("/machine/stm32/gpio[a]", NULL));
