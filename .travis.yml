@@ -4,6 +4,12 @@ python:
 compiler:
   - gcc
   - clang
+notifications:
+  irc:
+    channels:
+      - "irc.oftc.net#qemu"
+    on_success: change
+    on_failure: always
 env:
   global:
     - TEST_CMD="make check"
