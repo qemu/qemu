@@ -16,15 +16,15 @@
 extern TraceEvent trace_events[];
 
 
+static inline TraceEventID trace_event_count(void)
+{
+    return TRACE_EVENT_COUNT;
+}
+
 static inline TraceEvent *trace_event_id(TraceEventID id)
 {
     assert(id < trace_event_count());
     return &trace_events[id];
-}
-
-static inline TraceEventID trace_event_count(void)
-{
-    return TRACE_EVENT_COUNT;
 }
 
 static inline bool trace_event_is_pattern(const char *str)
