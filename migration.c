@@ -101,6 +101,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
 static void process_incoming_migration_co(void *opaque)
 {
     QEMUFile *f = opaque;
+    Error *local_err = NULL;
     int ret;
 
     ret = qemu_loadvm_state(f);
@@ -115,7 +116,12 @@ static void process_incoming_migration_co(void *opaque)
 
     bdrv_clear_incoming_migration_all();
     /* Make sure all file formats flush their mutable metadata */
-    bdrv_invalidate_cache_all();
+    bdrv_invalidate_cache_all(&local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        exit(EXIT_FAILURE);
+    }
 
     if (autostart) {
         vm_start();

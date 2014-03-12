@@ -4781,27 +4781,43 @@ flush_parent:
     return bdrv_co_flush(bs->file);
 }
 
-void bdrv_invalidate_cache(BlockDriverState *bs)
+void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    Error *local_err = NULL;
+    int ret;
+
     if (!bs->drv)  {
         return;
     }
 
     if (bs->drv->bdrv_invalidate_cache) {
-        bs->drv->bdrv_invalidate_cache(bs);
+        bs->drv->bdrv_invalidate_cache(bs, &local_err);
     } else if (bs->file) {
-        bdrv_invalidate_cache(bs->file);
+        bdrv_invalidate_cache(bs->file, &local_err);
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
-    refresh_total_sectors(bs, bs->total_sectors);
+    ret = refresh_total_sectors(bs, bs->total_sectors);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not refresh total sector count");
+        return;
+    }
 }
 
-void bdrv_invalidate_cache_all(void)
+void bdrv_invalidate_cache_all(Error **errp)
 {
     BlockDriverState *bs;
+    Error *local_err = NULL;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        bdrv_invalidate_cache(bs);
+        bdrv_invalidate_cache(bs, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 }
 
