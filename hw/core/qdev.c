@@ -716,6 +716,7 @@ static void device_set_realized(Object *obj, bool value, Error **err)
 {
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    BusState *bus;
     Error *local_err = NULL;
 
     if (dev->hotplugged && !dc->hotpluggable) {
@@ -749,14 +750,30 @@ static void device_set_realized(Object *obj, bool value, Error **err)
                                            dev->instance_id_alias,
                                            dev->alias_required_for_version);
         }
+        if (local_err == NULL) {
+            QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+                object_property_set_bool(OBJECT(bus), true, "realized",
+                                         &local_err);
+                if (local_err != NULL) {
+                    break;
+                }
+            }
+        }
         if (dev->hotplugged && local_err == NULL) {
             device_reset(dev);
         }
     } else if (!value && dev->realized) {
-        if (qdev_get_vmsd(dev)) {
+        QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+            object_property_set_bool(OBJECT(bus), false, "realized",
+                                     &local_err);
+            if (local_err != NULL) {
+                break;
+            }
+        }
+        if (qdev_get_vmsd(dev) && local_err == NULL) {
             vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
         }
-        if (dc->unrealize) {
+        if (dc->unrealize && local_err == NULL) {
             dc->unrealize(dev, &local_err);
         }
     }
@@ -841,12 +858,12 @@ static void device_unparent(Object *obj)
     QObject *event_data;
     bool have_realized = dev->realized;
 
+    if (dev->realized) {
+        object_property_set_bool(obj, false, "realized", NULL);
+    }
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
         object_unparent(OBJECT(bus));
-    }
-    if (dev->realized) {
-        object_property_set_bool(obj, false, "realized", NULL);
     }
     if (dev->parent_bus) {
         bus_remove_child(dev->parent_bus, dev);
