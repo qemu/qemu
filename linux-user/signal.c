@@ -1340,7 +1340,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 long do_rt_sigreturn(CPUARMState *env)
 {
-    struct target_rt_sigframe *frame;
+    struct target_rt_sigframe *frame = NULL;
     abi_ulong frame_addr = env->xregs[31];
 
     if (frame_addr & 15) {
