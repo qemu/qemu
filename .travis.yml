@@ -46,6 +46,10 @@ matrix:
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-debug --enable-tcg-interpreter"
       compiler: gcc
+    # All the extra -dev packages
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_PKGS="libaio-dev libcap-ng-dev libattr1-dev libbrlapi-dev uuid-dev libusb-1.0.0-dev"
+      compiler: gcc
     # Currently configure doesn't force --disable-pie
     - env: TARGETS=i386-softmmu,x86_64-softmmu
            EXTRA_CONFIG="--enable-gprof --enable-gcov --disable-pie"
