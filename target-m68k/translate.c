@@ -110,14 +110,6 @@ void m68k_tcg_init(void)
     store_dummy = tcg_global_mem_new(TCG_AREG0, -8, "NULL");
 }
 
-static inline void qemu_assert(int cond, const char *msg)
-{
-    if (!cond) {
-        fprintf (stderr, "badness: %s\n", msg);
-        abort();
-    }
-}
-
 /* internal defines */
 typedef struct DisasContext {
     CPUM68KState *env;
@@ -199,7 +191,7 @@ static inline TCGv gen_load(DisasContext * s, int opsize, TCGv addr, int sign)
         tcg_gen_qemu_ld32u(tmp, addr, index);
         break;
     default:
-        qemu_assert(0, "bad load size");
+        g_assert_not_reached();
     }
     gen_throws_exception = gen_last_qop;
     return tmp;
@@ -233,7 +225,7 @@ static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val)
         tcg_gen_qemu_st32(val, addr, index);
         break;
     default:
-        qemu_assert(0, "bad store size");
+        g_assert_not_reached();
     }
     gen_throws_exception = gen_last_qop;
 }
@@ -437,8 +429,7 @@ static inline int opsize_bytes(int opsize)
     case OS_SINGLE: return 4;
     case OS_DOUBLE: return 8;
     default:
-        qemu_assert(0, "bad operand size");
-        return 0;
+        g_assert_not_reached();
     }
 }
 
@@ -465,8 +456,7 @@ static void gen_partset_reg(int opsize, TCGv reg, TCGv val)
         tcg_gen_mov_i32(reg, val);
         break;
     default:
-        qemu_assert(0, "Bad operand size");
-        break;
+        g_assert_not_reached();
     }
 }
 
@@ -495,7 +485,7 @@ static inline TCGv gen_extend(TCGv val, int opsize, int sign)
         tmp = val;
         break;
     default:
-        qemu_assert(0, "Bad operand size");
+        g_assert_not_reached();
     }
     return tmp;
 }
@@ -669,7 +659,7 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
                 offset = read_im32(env, s);
                 break;
             default:
-                qemu_assert(0, "Bad immediate operand");
+                g_assert_not_reached();
             }
             return tcg_const_i32(offset);
         default:
@@ -2092,7 +2082,7 @@ DISAS_INSN(wdebug)
         return;
     }
     /* TODO: Implement wdebug.  */
-    qemu_assert(0, "WDEBUG not implemented");
+    cpu_abort(env, "WDEBUG not implemented");
 }
 
 DISAS_INSN(trap)
@@ -2467,13 +2457,13 @@ DISAS_INSN(fbcc)
 DISAS_INSN(frestore)
 {
     /* TODO: Implement frestore.  */
-    qemu_assert(0, "FRESTORE not implemented");
+    cpu_abort(env, "FRESTORE not implemented");
 }
 
 DISAS_INSN(fsave)
 {
     /* TODO: Implement fsave.  */
-    qemu_assert(0, "FSAVE not implemented");
+    cpu_abort(env, "FSAVE not implemented");
 }
 
 static inline TCGv gen_mac_extract_word(DisasContext *s, TCGv val, int upper)
