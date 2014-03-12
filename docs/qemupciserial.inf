@@ -11,99 +11,92 @@
 ; (Com+Lpt)" from the list.  Click "Have a disk".  Select this file.
 ; Procedure may vary a bit depending on the windows version.
 
-; FIXME: This file covers the single port version only.
+; This file covers all options: pci-serial, pci-serial-2x, pci-serial-4x
+; for both 32 and 64 bit platforms.
 
 [Version]
-Signature="$CHICAGO$"
-Class=Ports
-ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+Signature="$Windows NT$"
+Class=MultiFunction
+ClassGUID={4d36e971-e325-11ce-bfc1-08002be10318}
 Provider=%QEMU%
-DriverVer=09/24/2012,1.3.0
-
-[SourceDisksNames]
-3426=windows cd
-
-[SourceDisksFiles]
-serial.sys 		= 3426
-serenum.sys 		= 3426
-
-[DestinationDirs]
-DefaultDestDir  = 11        ;LDID_SYS
-ComPort.NT.Copy = 12        ;DIRID_DRIVERS
-SerialEnumerator.NT.Copy=12 ;DIRID_DRIVERS
-
-; Drivers
-;----------------------------------------------------------
+DriverVer=12/29/2013,1.3.0
+[ControlFlags]
+ExcludeFromSelect=*
 [Manufacturer]
-%QEMU%=QEMU,NTx86
+%QEMU%=QEMU,NTx86,NTAMD64
 
 [QEMU.NTx86]
-%QEMU-PCI_SERIAL.DeviceDesc% = ComPort, "PCI\VEN_1b36&DEV_0002&CC_0700"
+%QEMU-PCI_SERIAL_1_PORT%=ComPort_inst1, PCI\VEN_1B36&DEV_0002
+%QEMU-PCI_SERIAL_2_PORT%=ComPort_inst2, PCI\VEN_1B36&DEV_0003
+%QEMU-PCI_SERIAL_4_PORT%=ComPort_inst4, PCI\VEN_1B36&DEV_0004
 
-; COM sections
-;----------------------------------------------------------
-[ComPort.AddReg]
-HKR,,PortSubClass,1,01
+[QEMU.NTAMD64]
+%QEMU-PCI_SERIAL_1_PORT%=ComPort_inst1, PCI\VEN_1B36&DEV_0002
+%QEMU-PCI_SERIAL_2_PORT%=ComPort_inst2, PCI\VEN_1B36&DEV_0003
+%QEMU-PCI_SERIAL_4_PORT%=ComPort_inst4, PCI\VEN_1B36&DEV_0004
 
-[ComPort.NT]
-AddReg=ComPort.AddReg, ComPort.NT.AddReg
-LogConfig=caa
-SyssetupPnPFlags = 1
+[ComPort_inst1]
+Include=mf.inf
+Needs=MFINSTALL.mf
 
-[ComPort.NT.HW]
-AddReg=ComPort.NT.HW.AddReg
+[ComPort_inst2]
+Include=mf.inf
+Needs=MFINSTALL.mf
 
-[ComPort.NT.AddReg]
-HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+[ComPort_inst4]
+Include=mf.inf
+Needs=MFINSTALL.mf
 
-[ComPort.NT.HW.AddReg]
-HKR,,"UpperFilters",0x00010000,"serenum"
+[ComPort_inst1.HW]
+AddReg=ComPort_inst1.RegHW
 
-;-------------- Service installation
-; Port Driver (function driver for this device)
-[ComPort.NT.Services]
-AddService = Serial, 0x00000002, Serial_Service_Inst, Serial_EventLog_Inst
-AddService = Serenum,,Serenum_Service_Inst
+[ComPort_inst2.HW]
+AddReg=ComPort_inst2.RegHW
 
-; -------------- Serial Port Driver install sections
-[Serial_Service_Inst]
-DisplayName    = %Serial.SVCDESC%
-ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
-StartType      = 1               ; SERVICE_SYSTEM_START (this driver may do detection)
-ErrorControl   = 0               ; SERVICE_ERROR_IGNORE
-ServiceBinary  = %12%\serial.sys
-LoadOrderGroup = Extended base
+[ComPort_inst4.HW]
+AddReg=ComPort_inst4.RegHW
 
-; -------------- Serenum Driver install section
-[Serenum_Service_Inst]
-DisplayName    = %Serenum.SVCDESC%
-ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
-StartType      = 3               ; SERVICE_DEMAND_START
-ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %12%\serenum.sys
-LoadOrderGroup = PNP Filter
+[ComPort_inst1.Services]
+Include=mf.inf
+Needs=MFINSTALL.mf.Services
 
-[Serial_EventLog_Inst]
-AddReg = Serial_EventLog_AddReg
+[ComPort_inst2.Services]
+Include=mf.inf
+Needs=MFINSTALL.mf.Services
 
-[Serial_EventLog_AddReg]
-HKR,,EventMessageFile,0x00020000,"%%SystemRoot%%\System32\IoLogMsg.dll;%%SystemRoot%%\System32\drivers\serial.sys"
-HKR,,TypesSupported,0x00010001,7
+[ComPort_inst4.Services]
+Include=mf.inf
+Needs=MFINSTALL.mf.Services
 
-; The following sections are COM port resource configs.
-; Section name format means:
-; Char 1 = c (COM port)
-; Char 2 = I/O config: 1 (3f8), 2 (2f8), 3 (3e8), 4 (2e8), a (any)
-; Char 3 = IRQ config: #, a (any)
+[ComPort_inst1.RegHW]
+HKR,Child0000,HardwareID,,*PNP0501
+HKR,Child0000,VaryingResourceMap,1,00, 00,00,00,00, 08,00,00,00
+HKR,Child0000,ResourceMap,1,02
 
-[caa]                   ; Any base, any IRQ
-ConfigPriority=HARDRECONFIG
-IOConfig=8@100-ffff%fff8(3ff::)
-IRQConfig=S:3,4,5,7,9,10,11,12,14,15
+[ComPort_inst2.RegHW]
+HKR,Child0000,HardwareID,,*PNP0501
+HKR,Child0000,VaryingResourceMap,1,00, 00,00,00,00, 08,00,00,00
+HKR,Child0000,ResourceMap,1,02
+HKR,Child0001,HardwareID,,*PNP0501
+HKR,Child0001,VaryingResourceMap,1,00, 08,00,00,00, 08,00,00,00
+HKR,Child0001,ResourceMap,1,02
+
+[ComPort_inst4.RegHW]
+HKR,Child0000,HardwareID,,*PNP0501
+HKR,Child0000,VaryingResourceMap,1,00, 00,00,00,00, 08,00,00,00
+HKR,Child0000,ResourceMap,1,02
+HKR,Child0001,HardwareID,,*PNP0501
+HKR,Child0001,VaryingResourceMap,1,00, 08,00,00,00, 08,00,00,00
+HKR,Child0001,ResourceMap,1,02
+HKR,Child0002,HardwareID,,*PNP0501
+HKR,Child0002,VaryingResourceMap,1,00, 10,00,00,00, 08,00,00,00
+HKR,Child0002,ResourceMap,1,02
+HKR,Child0003,HardwareID,,*PNP0501
+HKR,Child0003,VaryingResourceMap,1,00, 18,00,00,00, 08,00,00,00
+HKR,Child0003,ResourceMap,1,02
 
 [Strings]
 QEMU="QEMU"
-QEMU-PCI_SERIAL.DeviceDesc="QEMU Serial PCI Card"
-
-Serial.SVCDESC   = "Serial port driver"
-Serenum.SVCDESC = "Serenum Filter Driver"
+QEMU-PCI_SERIAL_1_PORT="1x QEMU PCI Serial Card"
+QEMU-PCI_SERIAL_2_PORT="2x QEMU PCI Serial Card"
+QEMU-PCI_SERIAL_4_PORT="4x QEMU PCI Serial Card"
