@@ -69,8 +69,7 @@ matrix:
            EXTRA_CONFIG="--enable-trace-backend=ftrace"
            TEST_CMD=""
       compiler: gcc
-    # This disabled make check for the ftrace backend which needs more setting up
-    # Currently broken on 12.04 due to mis-packaged liburcu and changed API, will be pulled.
-    #- env: TARGETS=i386-softmmu,x86_64-softmmu
-    #       EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
-    #       EXTRA_CONFIG="--enable-trace-backend=ust"
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+          EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
+          EXTRA_CONFIG="--enable-trace-backend=ust"
+      compiler: gcc
