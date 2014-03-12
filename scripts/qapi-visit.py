@@ -214,18 +214,22 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 ''',
     name=name)
 
+    # For anon union, always use the default enum type automatically generated
+    # as "'%sKind' % (name)"
+    disc_type = '%sKind' % (name)
+
     for key in members:
         assert (members[key] in builtin_types
             or find_struct(members[key])
             or find_union(members[key])), "Invalid anonymous union member"
 
+        enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
-        case %(abbrev)s_KIND_%(enum)s:
+        case %(enum_full_value)s:
             visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
             break;
 ''',
-                abbrev = de_camel_case(name).upper(),
-                enum = c_fun(de_camel_case(key),False).upper(),
+                enum_full_value = enum_full_value,
                 c_type = type_name(members[key]),
                 c_name = c_fun(key))
 
@@ -255,7 +259,16 @@ def generate_visit_union(expr):
         assert not base
         return generate_visit_anon_union(name, members)
 
-    ret = generate_visit_enum('%sKind' % name, members.keys())
+    enum_define = discriminator_find_enum_define(expr)
+    if enum_define:
+        # Use the enum type as discriminator
+        ret = ""
+        disc_type = enum_define['enum_name']
+    else:
+        # There will always be a discriminator in the C switch code, by default it
+        # is an enum type generated silently as "'%sKind' % (name)"
+        ret = generate_visit_enum('%sKind' % name, members.keys())
+        disc_type = '%sKind' % (name)
 
     if base:
         base_fields = find_struct(base)['data']
@@ -291,15 +304,16 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     pop_indent()
 
     if not discriminator:
-        desc_type = "type"
+        disc_key = "type"
     else:
-        desc_type = discriminator
+        disc_key = discriminator
     ret += mcgen('''
-        visit_type_%(name)sKind(m, &(*obj)->kind, "%(type)s", &err);
+        visit_type_%(disc_type)s(m, &(*obj)->kind, "%(disc_key)s", &err);
         if (!err) {
             switch ((*obj)->kind) {
 ''',
-                 name=name, type=desc_type)
+                 disc_type = disc_type,
+                 disc_key = disc_key)
 
     for key in members:
         if not discriminator:
@@ -313,13 +327,13 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
                     visit_end_implicit_struct(m, &err);
                 }'''
 
+        enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
-            case %(abbrev)s_KIND_%(enum)s:
+            case %(enum_full_value)s:
                 ''' + fmt + '''
                 break;
 ''',
-                abbrev = de_camel_case(name).upper(),
-                enum = c_fun(de_camel_case(key),False).upper(),
+                enum_full_value = enum_full_value,
                 c_type=type_name(members[key]),
                 c_name=c_fun(key))
 
@@ -510,7 +524,11 @@ for expr in exprs:
         ret += generate_visit_list(expr['union'], expr['data'])
         fdef.write(ret)
 
-        ret = generate_decl_enum('%sKind' % expr['union'], expr['data'].keys())
+        enum_define = discriminator_find_enum_define(expr)
+        ret = ""
+        if not enum_define:
+            ret = generate_decl_enum('%sKind' % expr['union'],
+                                     expr['data'].keys())
         ret += generate_declaration(expr['union'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('enum'):

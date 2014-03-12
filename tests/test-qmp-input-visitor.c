@@ -310,14 +310,18 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     Error *err = NULL;
     UserDefFlatUnion *tmp;
 
-    v = visitor_input_test_init(data, "{ 'string': 'a', 'boolean': true }");
+    v = visitor_input_test_init(data,
+                                "{ 'enum1': 'value1', "
+                                "'string': 'str', "
+                                "'boolean': true }");
     /* TODO when generator bug is fixed, add 'integer': 41 */
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
     g_assert(err == NULL);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_A);
+    g_assert_cmpint(tmp->kind, ==, ENUM_ONE_VALUE1);
+    g_assert_cmpstr(tmp->string, ==, "str");
     /* TODO g_assert_cmpint(tmp->integer, ==, 41); */
-    g_assert_cmpint(tmp->a->boolean, ==, true);
+    g_assert_cmpint(tmp->value1->boolean, ==, true);
     qapi_free_UserDefFlatUnion(tmp);
 }
 

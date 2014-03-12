@@ -1,0 +1,9 @@
+[OrderedDict([('union', 'TestUnion'), ('base', 'TestBase'), ('discriminator', 'enum1'), ('data', OrderedDict([('value1', 'TestTypeA'), ('value2', 'TestTypeB')]))]),
+ OrderedDict([('type', 'TestBase'), ('data', OrderedDict([('enum1', 'TestEnum')]))]),
+ OrderedDict([('enum', 'TestEnum'), ('data', ['value1', 'value2'])]),
+ OrderedDict([('type', 'TestTypeA'), ('data', OrderedDict([('string', 'str')]))]),
+ OrderedDict([('type', 'TestTypeB'), ('data', OrderedDict([('integer', 'int')]))])]
+[{'enum_name': 'TestEnum', 'enum_values': ['value1', 'value2']}]
+[OrderedDict([('type', 'TestBase'), ('data', OrderedDict([('enum1', 'TestEnum')]))]),
+ OrderedDict([('type', 'TestTypeA'), ('data', OrderedDict([('string', 'str')]))]),
+ OrderedDict([('type', 'TestTypeB'), ('data', OrderedDict([('integer', 'int')]))])]

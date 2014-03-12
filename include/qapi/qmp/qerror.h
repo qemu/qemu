@@ -159,7 +159,7 @@ void qerror_report_err(Error *err);
     ERROR_CLASS_GENERIC_ERROR, "Invalid JSON syntax"
 
 #define QERR_KVM_MISSING_CAP \
-    ERROR_CLASS_K_V_M_MISSING_CAP, "Using KVM without %s, %s unavailable"
+    ERROR_CLASS_KVM_MISSING_CAP, "Using KVM without %s, %s unavailable"
 
 #define QERR_MIGRATION_ACTIVE \
     ERROR_CLASS_GENERIC_ERROR, "There's a migration process in progress"

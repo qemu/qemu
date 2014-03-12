@@ -39,18 +39,25 @@ class QAPISchemaError(Exception):
     def __init__(self, schema, msg):
         self.fp = schema.fp
         self.msg = msg
-        self.line = self.col = 1
-        for ch in schema.src[0:schema.pos]:
-            if ch == '\n':
-                self.line += 1
-                self.col = 1
-            elif ch == '\t':
+        self.col = 1
+        self.line = schema.line
+        for ch in schema.src[schema.line_pos:schema.pos]:
+            if ch == '\t':
                 self.col = (self.col + 7) % 8 + 1
             else:
                 self.col += 1
 
     def __str__(self):
         return "%s:%s:%s: %s" % (self.fp.name, self.line, self.col, self.msg)
+
+class QAPIExprError(Exception):
+    def __init__(self, expr_info, msg):
+        self.fp = expr_info['fp']
+        self.line = expr_info['line']
+        self.msg = msg
+
+    def __str__(self):
+        return "%s:%s: %s" % (self.fp.name, self.line, self.msg)
 
 class QAPISchema:
 
@@ -60,11 +67,16 @@ class QAPISchema:
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
+        self.line = 1
+        self.line_pos = 0
         self.exprs = []
         self.accept()
 
         while self.tok != None:
-            self.exprs.append(self.get_expr(False))
+            expr_info = {'fp': fp, 'line': self.line}
+            expr_elem = {'expr': self.get_expr(False),
+                         'info': expr_info}
+            self.exprs.append(expr_elem)
 
     def accept(self):
         while True:
@@ -100,6 +112,8 @@ class QAPISchema:
                 if self.cursor == len(self.src):
                     self.tok = None
                     return
+                self.line += 1
+                self.line_pos = self.cursor
             elif not self.tok.isspace():
                 raise QAPISchemaError(self, 'Stray "%s"' % self.tok)
 
@@ -116,6 +130,8 @@ class QAPISchema:
             if self.tok != ':':
                 raise QAPISchemaError(self, 'Expected ":"')
             self.accept()
+            if key in expr:
+                raise QAPISchemaError(self, 'Duplicate key "%s"' % key)
             expr[key] = self.get_expr(True)
             if self.tok == '}':
                 self.accept()
@@ -158,6 +174,95 @@ class QAPISchema:
             raise QAPISchemaError(self, 'Expected "{", "[" or string')
         return expr
 
+def find_base_fields(base):
+    base_struct_define = find_struct(base)
+    if not base_struct_define:
+        return None
+    return base_struct_define['data']
+
+# Return the discriminator enum define if discriminator is specified as an
+# enum type, otherwise return None.
+def discriminator_find_enum_define(expr):
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+
+    if not (discriminator and base):
+        return None
+
+    base_fields = find_base_fields(base)
+    if not base_fields:
+        return None
+
+    discriminator_type = base_fields.get(discriminator)
+    if not discriminator_type:
+        return None
+
+    return find_enum(discriminator_type)
+
+def check_union(expr, expr_info):
+    name = expr['union']
+    base = expr.get('base')
+    discriminator = expr.get('discriminator')
+    members = expr['data']
+
+    # If the object has a member 'base', its value must name a complex type.
+    if base:
+        base_fields = find_base_fields(base)
+        if not base_fields:
+            raise QAPIExprError(expr_info,
+                                "Base '%s' is not a valid type"
+                                % base)
+
+    # If the union object has no member 'discriminator', it's an
+    # ordinary union.
+    if not discriminator:
+        enum_define = None
+
+    # Else if the value of member 'discriminator' is {}, it's an
+    # anonymous union.
+    elif discriminator == {}:
+        enum_define = None
+
+    # Else, it's a flat union.
+    else:
+        # The object must have a member 'base'.
+        if not base:
+            raise QAPIExprError(expr_info,
+                                "Flat union '%s' must have a base field"
+                                % name)
+        # The value of member 'discriminator' must name a member of the
+        # base type.
+        discriminator_type = base_fields.get(discriminator)
+        if not discriminator_type:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' is not a member of base "
+                                "type '%s'"
+                                % (discriminator, base))
+        enum_define = find_enum(discriminator_type)
+        # Do not allow string discriminator
+        if not enum_define:
+            raise QAPIExprError(expr_info,
+                                "Discriminator '%s' must be of enumeration "
+                                "type" % discriminator)
+
+    # Check every branch
+    for (key, value) in members.items():
+        # If this named member's value names an enum type, then all members
+        # of 'data' must also be members of the enum type.
+        if enum_define and not key in enum_define['enum_values']:
+            raise QAPIExprError(expr_info,
+                                "Discriminator value '%s' is not found in "
+                                "enum '%s'" %
+                                (key, enum_define["enum_name"]))
+        # Todo: add checking for values. Key is checked as above, value can be
+        # also checked here, but we need more functions to handle array case.
+
+def check_exprs(schema):
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            check_union(expr, expr_elem['info'])
+
 def parse_schema(fp):
     try:
         schema = QAPISchema(fp)
@@ -167,15 +272,28 @@ def parse_schema(fp):
 
     exprs = []
 
-    for expr in schema.exprs:
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
         if expr.has_key('enum'):
-            add_enum(expr['enum'])
+            add_enum(expr['enum'], expr['data'])
         elif expr.has_key('union'):
             add_union(expr)
-            add_enum('%sKind' % expr['union'])
         elif expr.has_key('type'):
             add_struct(expr)
         exprs.append(expr)
+
+    # Try again for hidden UnionKind enum
+    for expr_elem in schema.exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            if not discriminator_find_enum_define(expr):
+                add_enum('%sKind' % expr['union'])
+
+    try:
+        check_exprs(schema)
+    except QAPIExprError, e:
+        print >>sys.stderr, e
+        exit(1)
 
     return exprs
 
@@ -289,13 +407,19 @@ def find_union(name):
             return union
     return None
 
-def add_enum(name):
+def add_enum(name, enum_values = None):
     global enum_types
-    enum_types.append(name)
+    enum_types.append({"enum_name": name, "enum_values": enum_values})
+
+def find_enum(name):
+    global enum_types
+    for enum in enum_types:
+        if enum['enum_name'] == name:
+            return enum
+    return None
 
 def is_enum(name):
-    global enum_types
-    return (name in enum_types)
+    return find_enum(name) != None
 
 def c_type(name):
     if name == 'str':
@@ -373,3 +497,30 @@ def guardend(name):
 
 ''',
                  name=guardname(name))
+
+# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
+# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
+# ENUM24_Name -> ENUM24_NAME
+def _generate_enum_string(value):
+    c_fun_str = c_fun(value, False)
+    if value.isupper():
+        return c_fun_str
+
+    new_name = ''
+    l = len(c_fun_str)
+    for i in range(l):
+        c = c_fun_str[i]
+        # When c is upper and no "_" appears before, do more checks
+        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
+            # Case 1: next string is lower
+            # Case 2: previous string is digit
+            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
+            c_fun_str[i - 1].isdigit():
+                new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
+
+def generate_enum_full_value(enum_name, enum_value):
+    abbrev_string = _generate_enum_string(enum_name)
+    value_string = _generate_enum_string(enum_value)
+    return "%s_%s" % (abbrev_string, value_string)
