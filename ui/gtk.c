@@ -1438,7 +1438,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define = gd_cursor_define,
 };
 
-void gtk_display_init(DisplayState *ds, bool full_screen)
+void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
@@ -1516,6 +1516,9 @@ void gtk_display_init(DisplayState *ds, bool full_screen)
 
     if (full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+    }
+    if (grab_on_hover) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
 
     register_displaychangelistener(&s->dcl);
