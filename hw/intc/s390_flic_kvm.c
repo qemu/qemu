@@ -117,6 +117,16 @@ static int flic_enqueue_irqs(void *buf, uint64_t len,
     return rc ? -errno : 0;
 }
 
+int kvm_s390_inject_flic(struct kvm_s390_irq *irq)
+{
+    static KVMS390FLICState *flic;
+
+    if (unlikely(!flic)) {
+        flic = KVM_S390_FLIC(s390_get_flic());
+    }
+    return flic_enqueue_irqs(irq, sizeof(*irq), flic);
+}
+
 /**
  * __get_all_irqs - store all pending irqs in buffer
  * @flic: pointer to flic device state

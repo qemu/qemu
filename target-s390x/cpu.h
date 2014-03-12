@@ -365,6 +365,7 @@ void kvm_s390_virtio_irq(int config_change, uint64_t token);
 void kvm_s390_service_interrupt(uint32_t parm);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
+int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 #else
 static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 {

@@ -623,7 +623,7 @@ void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
     }
 }
 
-void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
+static void __kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
 {
     struct kvm_s390_interrupt kvmint = {};
     int r;
@@ -639,6 +639,23 @@ void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
         fprintf(stderr, "KVM failed to inject interrupt\n");
         exit(1);
     }
+}
+
+void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
+{
+    static bool use_flic = true;
+    int r;
+
+    if (use_flic) {
+        r = kvm_s390_inject_flic(irq);
+        if (r == -ENOSYS) {
+            use_flic = false;
+        }
+        if (!r) {
+            return;
+        }
+    }
+    __kvm_s390_floating_interrupt(irq);
 }
 
 void kvm_s390_virtio_irq(int config_change, uint64_t token)
