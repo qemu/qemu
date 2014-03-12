@@ -9148,6 +9148,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_atomic_barrier:
     {
         /* Like the kernel implementation and the qemu arm barrier, no-op this? */
+        ret = 0;
         break;
     }
 #endif
