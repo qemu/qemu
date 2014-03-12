@@ -22,6 +22,8 @@ void qemu_thread_naming(bool enable)
 {
     /* But note we don't actually name them on Windows yet */
     name_threads = enable;
+
+    fprintf(stderr, "qemu: thread naming not supported on this host\n");
 }
 
 static void error_exit(int err, const char *msg)

@@ -32,6 +32,13 @@ static bool name_threads;
 void qemu_thread_naming(bool enable)
 {
     name_threads = enable;
+
+#ifndef CONFIG_THREAD_SETNAME_BYTHREAD
+    /* This is a debugging option, not fatal */
+    if (enable) {
+        fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    }
+#endif
 }
 
 static void error_exit(int err, const char *msg)
@@ -394,6 +401,16 @@ void qemu_event_wait(QemuEvent *ev)
     }
 }
 
+/* Attempt to set the threads name; note that this is for debug, so
+ * we're not going to fail if we can't set it.
+ */
+static void qemu_thread_set_name(QemuThread *thread, const char *name)
+{
+#ifdef CONFIG_PTHREAD_SETNAME_NP
+    pthread_setname_np(thread->thread, name);
+#endif
+}
+
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
                        void *arg, int mode)
@@ -420,11 +437,9 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (err)
         error_exit(err, __func__);
 
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 12))
     if (name_threads) {
-        pthread_setname_np(thread->thread, name);
+        qemu_thread_set_name(thread, name);
     }
-#endif
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
