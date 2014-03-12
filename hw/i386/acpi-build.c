@@ -1019,8 +1019,8 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
 
-    *(uint16_t *)(ssdt_ptr + *ssdt_isa_pest) =
-        cpu_to_le16(misc->pvpanic_port);
+    ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
+                      ssdt_isa_pest[0], 16, misc->pvpanic_port);
 
     {
         GArray *sb_scope = build_alloc_array();
