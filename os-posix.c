@@ -44,10 +44,6 @@
 #include <sys/prctl.h>
 #endif
 
-#ifdef __FreeBSD__
-#include <sys/sysctl.h>
-#endif
-
 static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
