@@ -333,6 +333,7 @@ QEMUPutKbdEntry *qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
     entry->opaque = opaque;
     entry->s = qemu_input_handler_register((DeviceState *)entry,
                                            &legacy_kbd_handler);
+    qemu_input_handler_activate(entry->s);
     return entry;
 }
 
