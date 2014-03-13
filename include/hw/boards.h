@@ -4,8 +4,9 @@
 #define HW_BOARDS_H
 
 #include "sysemu/blockdev.h"
-#include "sysemu/qemumachine.h"
 #include "hw/qdev.h"
+
+typedef struct QEMUMachine QEMUMachine;
 
 typedef struct QEMUMachineInitArgs {
     const QEMUMachine *machine;

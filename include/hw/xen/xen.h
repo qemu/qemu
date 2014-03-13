@@ -10,7 +10,6 @@
 
 #include "hw/irq.h"
 #include "qemu-common.h"
-#include "sysemu/qemumachine.h"
 
 /* xen-machine.c */
 enum xen_mode {
