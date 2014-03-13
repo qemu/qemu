@@ -26,6 +26,10 @@ void AES_cbc_encrypt(const unsigned char *in, unsigned char *out,
 extern const uint8_t AES_sbox[256];
 extern const uint8_t AES_isbox[256];
 
+/* AES ShiftRows and InvShiftRows */
+extern const uint8_t AES_shifts[16];
+extern const uint8_t AES_ishifts[16];
+
 /*
 AES_Te0[x] = S [x].[02, 01, 01, 03];
 AES_Te1[x] = S [x].[03, 02, 01, 01];
