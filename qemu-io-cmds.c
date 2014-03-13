@@ -16,7 +16,7 @@
 
 #define CMD_NOFILE_OK   0x01
 
-int qemuio_misalign;
+bool qemuio_misalign;
 
 static cmdinfo_t *cmdtab;
 static int ncmds;

@@ -138,6 +138,32 @@ $QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
 $QEMU_IO -c "$OPEN_RO" -c "read -P 1 0 512" | _filter_qemu_io
 
+echo
+echo "=== Testing overlap while COW is in flight ==="
+echo
+# compat=0.10 is required in order to make the following discard actually
+# unallocate the sector rather than make it a zero sector - we want COW, after
+# all.
+IMGOPTS='compat=0.10' _make_test_img 1G
+# Write two clusters, the second one enforces creation of an L2 table after
+# the first data cluster.
+$QEMU_IO -c 'write 0k 64k' -c 'write 512M 64k' "$TEST_IMG" | _filter_qemu_io
+# Discard the first cluster. This cluster will soon enough be reallocated and
+# used for COW.
+$QEMU_IO -c 'discard 0k 64k' "$TEST_IMG" | _filter_qemu_io
+# Now, corrupt the image by marking the second L2 table cluster as free.
+poke_file "$TEST_IMG" '131084' "\x00\x00" # 0x2000c
+# Start a write operation requiring COW on the image stopping it right before
+# doing the read; then, trigger the corruption prevention by writing anything to
+# any unallocated cluster, leading to an attempt to overwrite the second L2
+# table. Finally, resume the COW write and see it fail (but not crash).
+echo "open -o file.driver=blkdebug $TEST_IMG
+break cow_read 0
+aio_write 0k 1k
+wait_break 0
+write 64k 64k
+resume 0" | $QEMU_IO | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

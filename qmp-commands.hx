@@ -2327,6 +2327,45 @@ EQMP
     },
 
 SQMP
+query-iothreads
+---------------
+
+Returns a list of information about each iothread.
+
+Note this list excludes the QEMU main loop thread, which is not declared
+using the -object iothread command-line option.  It is always the main thread
+of the process.
+
+Return a json-array. Each iothread is represented by a json-object, which contains:
+
+- "id": name of iothread (json-str)
+- "thread-id": ID of the underlying host thread (json-int)
+
+Example:
+
+-> { "execute": "query-iothreads" }
+<- {
+      "return":[
+         {
+            "id":"iothread0",
+            "thread-id":3134
+         },
+         {
+            "id":"iothread1",
+            "thread-id":3135
+         }
+      ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-iothreads",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_iothreads,
+    },
+
+SQMP
 query-pci
 ---------
 

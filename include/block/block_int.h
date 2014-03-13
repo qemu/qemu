@@ -76,10 +76,10 @@ struct BlockDriver {
     const char *format_name;
     int instance_size;
 
-    /* this table of boolean contains authorizations for the block operations */
-    bool authorizations[BS_AUTHORIZATION_COUNT];
-    /* for snapshots complex block filter like Quorum can implement the
-     * following recursive callback instead of BS_IS_A_FILTER.
+    /* set to true if the BlockDriver is a block filter */
+    bool is_filter;
+    /* for snapshots block filter like Quorum can implement the
+     * following recursive callback.
      * It's purpose is to recurse on the filter children while calling
      * bdrv_recurse_is_first_non_filter on them.
      * For a sample implementation look in the future Quorum block filter.

@@ -852,8 +852,6 @@ static BlockDriver bdrv_quorum = {
     .bdrv_file_open     = quorum_open,
     .bdrv_close         = quorum_close,
 
-    .authorizations     = { true, true },
-
     .bdrv_co_flush_to_disk = quorum_co_flush,
 
     .bdrv_getlength     = quorum_getlength,
@@ -862,6 +860,7 @@ static BlockDriver bdrv_quorum = {
     .bdrv_aio_writev    = quorum_aio_writev,
     .bdrv_invalidate_cache = quorum_invalidate_cache,
 
+    .is_filter           = true,
     .bdrv_recurse_is_first_non_filter = quorum_recurse_is_first_non_filter,
 };
 

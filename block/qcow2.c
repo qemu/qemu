@@ -644,7 +644,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
-    if (!bs->read_only && s->autoclear_features != 0) {
+    if (!bs->read_only && !(flags & BDRV_O_INCOMING) && s->autoclear_features) {
         s->autoclear_features = 0;
         ret = qcow2_update_header(bs);
         if (ret < 0) {
@@ -657,7 +657,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     /* Repair image if dirty */
-    if (!(flags & BDRV_O_CHECK) && !bs->read_only &&
+    if (!(flags & (BDRV_O_CHECK | BDRV_O_INCOMING)) && !bs->read_only &&
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
@@ -1137,10 +1137,12 @@ static void qcow2_close(BlockDriverState *bs)
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
-    qcow2_cache_flush(bs, s->l2_table_cache);
-    qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (!(bs->open_flags & BDRV_O_INCOMING)) {
+        qcow2_cache_flush(bs, s->l2_table_cache);
+        qcow2_cache_flush(bs, s->refcount_block_cache);
 
-    qcow2_mark_clean(bs);
+        qcow2_mark_clean(bs);
+    }
 
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
@@ -1176,11 +1178,10 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
 
     qcow2_close(bs);
 
-    options = qdict_new();
-    qdict_put(options, QCOW2_OPT_LAZY_REFCOUNTS,
-              qbool_from_int(s->use_lazy_refcounts));
+    bdrv_invalidate_cache(bs->file);
 
     memset(s, 0, sizeof(BDRVQcowState));
+    options = qdict_clone_shallow(bs->options);
     qcow2_open(bs, options, flags, NULL);
 
     QDECREF(options);

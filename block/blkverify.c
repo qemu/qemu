@@ -288,6 +288,20 @@ static BlockDriverAIOCB *blkverify_aio_flush(BlockDriverState *bs,
     return bdrv_aio_flush(s->test_file, cb, opaque);
 }
 
+static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
+                                                  BlockDriverState *candidate)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+
+    bool perm = bdrv_recurse_is_first_non_filter(bs->file, candidate);
+
+    if (perm) {
+        return true;
+    }
+
+    return bdrv_recurse_is_first_non_filter(s->test_file, candidate);
+}
+
 static BlockDriver bdrv_blkverify = {
     .format_name            = "blkverify",
     .protocol_name          = "blkverify",
@@ -302,7 +316,8 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_aio_writev        = blkverify_aio_writev,
     .bdrv_aio_flush         = blkverify_aio_flush,
 
-    .authorizations         = { true, false },
+    .is_filter              = true,
+    .bdrv_recurse_is_first_non_filter = blkverify_recurse_is_first_non_filter,
 };
 
 static void bdrv_blkverify_init(void)

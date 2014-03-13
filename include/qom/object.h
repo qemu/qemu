@@ -974,6 +974,14 @@ const char *object_property_get_type(Object *obj, const char *name,
 Object *object_get_root(void);
 
 /**
+ * object_get_canonical_path_component:
+ *
+ * Returns: The final component in the object's canonical path.  The canonical
+ * path is the path within the composition tree starting from the root.
+ */
+gchar *object_get_canonical_path_component(Object *obj);
+
+/**
  * object_get_canonical_path:
  *
  * Returns: The canonical path for a object.  This is the path within the
