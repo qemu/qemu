@@ -24,6 +24,7 @@
 #include "hw/hw.h"
 #include "hw/input/ps2.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "sysemu/sysemu.h"
 
 /* debug PC keyboard */
@@ -170,6 +171,21 @@ static void ps2_put_keycode(void *opaque, int keycode)
         }
       }
     ps2_queue(&s->common, keycode);
+}
+
+static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
+                               InputEvent *evt)
+{
+    PS2KbdState *s = (PS2KbdState *)dev;
+    int scancodes[3], i, count;
+
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    count = qemu_input_key_value_to_scancode(evt->key->key,
+                                             evt->key->down,
+                                             scancodes);
+    for (i = 0; i < count; i++) {
+        ps2_put_keycode(s, scancodes[i]);
+    }
 }
 
 uint32_t ps2_read_data(void *opaque)
@@ -712,6 +728,12 @@ static const VMStateDescription vmstate_ps2_mouse = {
     }
 };
 
+static QemuInputHandler ps2_keyboard_handler = {
+    .name  = "QEMU PS/2 Keyboard",
+    .mask  = INPUT_EVENT_MASK_KEY,
+    .event = ps2_keyboard_event,
+};
+
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2KbdState *s = (PS2KbdState *)g_malloc0(sizeof(PS2KbdState));
@@ -720,7 +742,8 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_arg = update_arg;
     s->scancode_set = 2;
     vmstate_register(NULL, 0, &vmstate_ps2_keyboard, s);
-    qemu_add_kbd_event_handler(ps2_put_keycode, s);
+    qemu_input_handler_register((DeviceState *)s,
+                                &ps2_keyboard_handler);
     qemu_register_reset(ps2_kbd_reset, s);
     return s;
 }
