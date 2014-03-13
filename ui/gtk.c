@@ -340,6 +340,10 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     GdkDeviceManager *mgr;
     gint x_root, y_root;
 
+    if (qemu_input_is_absolute()) {
+        return;
+    }
+
     dpy = gtk_widget_get_display(s->drawing_area);
     mgr = gdk_display_get_device_manager(dpy);
     gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
@@ -354,6 +358,10 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
 {
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     gint x_root, y_root;
+
+    if (qemu_input_is_absolute()) {
+        return;
+    }
 
     gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
                                x, y, &x_root, &y_root);
