@@ -14,7 +14,6 @@
 #include "hw/hw.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
-#include "sysemu/qemumachine.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/pci/msi.h"

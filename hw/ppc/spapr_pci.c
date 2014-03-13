@@ -32,6 +32,7 @@
 #include "exec/address-spaces.h"
 #include <libfdt.h>
 #include "trace.h"
+#include "qemu/error-report.h"
 
 #include "hw/pci/pci_bus.h"
 
@@ -292,7 +293,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         ret_intr_type = RTAS_TYPE_MSIX;
         break;
     default:
-        fprintf(stderr, "rtas_ibm_change_msi(%u) is not implemented\n", func);
+        error_report("rtas_ibm_change_msi(%u) is not implemented", func);
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
@@ -326,7 +327,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     /* Find a device number in the map to add or reuse the existing one */
     ndev = spapr_msicfg_find(phb, config_addr, true);
     if (ndev >= SPAPR_MSIX_MAX_DEVS || ndev < 0) {
-        fprintf(stderr, "No free entry for a new MSI device\n");
+        error_report("No free entry for a new MSI device");
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -335,7 +336,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     /* Check if there is an old config and MSI number has not changed */
     if (phb->msi_table[ndev].nvec && (req_num != phb->msi_table[ndev].nvec)) {
         /* Unexpected behaviour */
-        fprintf(stderr, "Cannot reuse MSI config for device#%d", ndev);
+        error_report("Cannot reuse MSI config for device#%d", ndev);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -345,7 +346,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         irq = spapr_allocate_irq_block(req_num, false,
                                        ret_intr_type == RTAS_TYPE_MSI);
         if (irq < 0) {
-            fprintf(stderr, "Cannot allocate MSIs for device#%d", ndev);
+            error_report("Cannot allocate MSIs for device#%d", ndev);
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
             return;
         }
@@ -505,9 +506,9 @@ static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &phb->iommu_as;
 }
 
-static int spapr_phb_init(SysBusDevice *s)
+static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(s);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     char *namebuf;
@@ -520,9 +521,9 @@ static int spapr_phb_init(SysBusDevice *s)
         if ((sphb->buid != -1) || (sphb->dma_liobn != -1)
             || (sphb->mem_win_addr != -1)
             || (sphb->io_win_addr != -1)) {
-            fprintf(stderr, "Either \"index\" or other parameters must"
-                    " be specified for PAPR PHB, not both\n");
-            return -1;
+            error_setg(errp, "Either \"index\" or other parameters must"
+                       " be specified for PAPR PHB, not both");
+            return;
         }
 
         sphb->buid = SPAPR_PCI_BASE_BUID + sphb->index;
@@ -535,28 +536,28 @@ static int spapr_phb_init(SysBusDevice *s)
     }
 
     if (sphb->buid == -1) {
-        fprintf(stderr, "BUID not specified for PHB\n");
-        return -1;
+        error_setg(errp, "BUID not specified for PHB");
+        return;
     }
 
     if (sphb->dma_liobn == -1) {
-        fprintf(stderr, "LIOBN not specified for PHB\n");
-        return -1;
+        error_setg(errp, "LIOBN not specified for PHB");
+        return;
     }
 
     if (sphb->mem_win_addr == -1) {
-        fprintf(stderr, "Memory window address not specified for PHB\n");
-        return -1;
+        error_setg(errp, "Memory window address not specified for PHB");
+        return;
     }
 
     if (sphb->io_win_addr == -1) {
-        fprintf(stderr, "IO window address not specified for PHB\n");
-        return -1;
+        error_setg(errp, "IO window address not specified for PHB");
+        return;
     }
 
     if (find_phb(spapr, sphb->buid)) {
-        fprintf(stderr, "PCI host bridges must have unique BUIDs\n");
-        return -1;
+        error_setg(errp, "PCI host bridges must have unique BUIDs");
+        return;
     }
 
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
@@ -605,8 +606,9 @@ static int spapr_phb_init(SysBusDevice *s)
     sphb->tcet = spapr_tce_new_table(dev, sphb->dma_liobn,
                                      sphb->dma_window_size);
     if (!sphb->tcet) {
-        fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
-        return -1;
+        error_setg(errp, "Unable to create TCE table for %s",
+                   sphb->dtbusname);
+        return;
     }
     address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
                        sphb->dtbusname);
@@ -623,13 +625,12 @@ static int spapr_phb_init(SysBusDevice *s)
 
         irq = spapr_allocate_lsi(0);
         if (!irq) {
-            return -1;
+            error_setg(errp, "spapr_allocate_lsi failed");
+            return;
         }
 
         sphb->lsi_table[i].irq = irq;
     }
-
-    return 0;
 }
 
 static void spapr_phb_reset(DeviceState *qdev)
@@ -712,11 +713,10 @@ static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
 static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
-    sdc->init = spapr_phb_init;
+    dc->realize = spapr_phb_realize;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;

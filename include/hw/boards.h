@@ -4,7 +4,6 @@
 #define HW_BOARDS_H
 
 #include "sysemu/blockdev.h"
-#include "sysemu/qemumachine.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
 

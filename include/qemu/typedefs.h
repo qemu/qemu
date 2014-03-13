@@ -30,6 +30,7 @@ typedef struct MemoryListener MemoryListener;
 
 typedef struct MemoryMappingList MemoryMappingList;
 
+typedef struct QEMUMachine QEMUMachine;
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
