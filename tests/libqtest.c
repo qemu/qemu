@@ -581,3 +581,23 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     qtest_sendf(s, "\n");
     qtest_rsp(s, 0);
 }
+
+QDict *qmp(const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qtest_qmpv(global_qtest, fmt, ap);
+    va_end(ap);
+    return response;
+}
+
+void qmp_discard_response(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_qmpv_discard_response(global_qtest, fmt, ap);
+    va_end(ap);
+}
