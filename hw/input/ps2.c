@@ -370,28 +370,55 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
     s->mouse_dz -= dz1;
 }
 
-static void ps2_mouse_event(void *opaque,
-                            int dx, int dy, int dz, int buttons_state)
+static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
+                            InputEvent *evt)
 {
-    PS2MouseState *s = opaque;
+    static const int bmap[INPUT_BUTTON_MAX] = {
+        [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
+    };
+    PS2MouseState *s = (PS2MouseState *)dev;
 
     /* check if deltas are recorded when disabled */
     if (!(s->mouse_status & MOUSE_STATUS_ENABLED))
         return;
 
-    s->mouse_dx += dx;
-    s->mouse_dy -= dy;
-    s->mouse_dz += dz;
-    /* XXX: SDL sometimes generates nul events: we delete them */
-    if (s->mouse_dx == 0 && s->mouse_dy == 0 && s->mouse_dz == 0 &&
-        s->mouse_buttons == buttons_state)
-	return;
-    s->mouse_buttons = buttons_state;
+    switch (evt->kind) {
+    case INPUT_EVENT_KIND_REL:
+        if (evt->rel->axis == INPUT_AXIS_X) {
+            s->mouse_dx += evt->rel->value;
+        } else if (evt->rel->axis == INPUT_AXIS_Y) {
+            s->mouse_dy -= evt->rel->value;
+        }
+        break;
 
-    if (buttons_state) {
+    case INPUT_EVENT_KIND_BTN:
+        if (evt->btn->down) {
+            s->mouse_buttons |= bmap[evt->btn->button];
+            if (evt->btn->button == INPUT_BUTTON_WHEEL_UP) {
+                s->mouse_dz--;
+            } else if (evt->btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+                s->mouse_dz++;
+            }
+        } else {
+            s->mouse_buttons &= ~bmap[evt->btn->button];
+        }
+        break;
+
+    default:
+        /* keep gcc happy */
+        break;
+    }
+}
+
+static void ps2_mouse_sync(DeviceState *dev)
+{
+    PS2MouseState *s = (PS2MouseState *)dev;
+
+    if (s->mouse_buttons) {
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     }
-
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE)) {
         while (s->common.queue.count < PS2_QUEUE_SIZE - 4) {
             /* if not remote, send event. Multiple events are sent if
@@ -405,7 +432,9 @@ static void ps2_mouse_event(void *opaque,
 
 void ps2_mouse_fake_event(void *opaque)
 {
-    ps2_mouse_event(opaque, 1, 0, 0, 0);
+    PS2MouseState *s = opaque;
+    s->mouse_dx++;
+    ps2_mouse_sync(opaque);
 }
 
 void ps2_write_mouse(void *opaque, int val)
@@ -748,6 +777,13 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
     return s;
 }
 
+static QemuInputHandler ps2_mouse_handler = {
+    .name  = "QEMU PS/2 Mouse",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
+    .event = ps2_mouse_event,
+    .sync  = ps2_mouse_sync,
+};
+
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2MouseState *s = (PS2MouseState *)g_malloc0(sizeof(PS2MouseState));
@@ -755,7 +791,8 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
     vmstate_register(NULL, 0, &vmstate_ps2_mouse, s);
-    qemu_add_mouse_event_handler(ps2_mouse_event, s, 0, "QEMU PS/2 Mouse");
+    qemu_input_handler_register((DeviceState *)s,
+                                &ps2_mouse_handler);
     qemu_register_reset(ps2_mouse_reset, s);
     return s;
 }
