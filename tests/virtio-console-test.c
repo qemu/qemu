@@ -13,8 +13,18 @@
 #include "qemu/osdep.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
-static void pci_nop(void)
+static void console_pci_nop(void)
 {
+    qtest_start("-device virtio-serial-pci,id=vser0 "
+                "-device virtconsole,bus=vser0.0");
+    qtest_end();
+}
+
+static void serialport_pci_nop(void)
+{
+    qtest_start("-device virtio-serial-pci,id=vser0 "
+                "-device virtserialport,bus=vser0.0");
+    qtest_end();
 }
 
 int main(int argc, char **argv)
@@ -22,13 +32,10 @@ int main(int argc, char **argv)
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/console/pci/nop", pci_nop);
+    qtest_add_func("/virtio/console/pci/nop", console_pci_nop);
+    qtest_add_func("/virtio/serialport/pci/nop", serialport_pci_nop);
 
-    qtest_start("-device virtio-serial-pci,id=vser0 "
-                "-device virtconsole,bus=vser0.0");
     ret = g_test_run();
-
-    qtest_end();
 
     return ret;
 }
