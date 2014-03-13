@@ -6,8 +6,6 @@
 #include "sysemu/blockdev.h"
 #include "hw/qdev.h"
 
-typedef struct QEMUMachine QEMUMachine;
-
 typedef struct QEMUMachineInitArgs {
     const QEMUMachine *machine;
     ram_addr_t ram_size;
