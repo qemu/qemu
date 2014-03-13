@@ -15,9 +15,9 @@
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
 
-#define TYPE_VIRTIO_CONSOLE "virtconsole"
+#define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 #define VIRTIO_CONSOLE(obj) \
-    OBJECT_CHECK(VirtConsole, (obj), TYPE_VIRTIO_CONSOLE)
+    OBJECT_CHECK(VirtConsole, (obj), TYPE_VIRTIO_CONSOLE_SERIAL_PORT)
 
 typedef struct VirtConsole {
     VirtIOSerialPort parent_obj;
@@ -154,28 +154,16 @@ static void virtconsole_unrealize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property virtconsole_properties[] = {
-    DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void virtconsole_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->is_console = true;
-    k->realize = virtconsole_realize;
-    k->unrealize = virtconsole_unrealize;
-    k->have_data = flush_buf;
-    k->set_guest_connected = set_guest_connected;
-    dc->props = virtconsole_properties;
 }
 
 static const TypeInfo virtconsole_info = {
-    .name          = TYPE_VIRTIO_CONSOLE,
-    .parent        = TYPE_VIRTIO_SERIAL_PORT,
-    .instance_size = sizeof(VirtConsole),
+    .name          = "virtconsole",
+    .parent        = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
     .class_init    = virtconsole_class_init,
 };
 
@@ -197,7 +185,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo virtserialport_info = {
-    .name          = "virtserialport",
+    .name          = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),
     .class_init    = virtserialport_class_init,
@@ -205,8 +193,8 @@ static const TypeInfo virtserialport_info = {
 
 static void virtconsole_register_types(void)
 {
-    type_register_static(&virtconsole_info);
     type_register_static(&virtserialport_info);
+    type_register_static(&virtconsole_info);
 }
 
 type_init(virtconsole_register_types)
