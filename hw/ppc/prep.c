@@ -456,7 +456,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
-    char *filename;
     nvram_t nvram;
     M48t59State *m48t59;
     MemoryRegion *PPC_io_memory = g_new(MemoryRegion, 1);
@@ -464,9 +463,8 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
 #if 0
     MemoryRegion *xcsr = g_new(MemoryRegion, 1);
 #endif
-    int linux_boot, i, nb_nics1, bios_size;
+    int linux_boot, i, nb_nics1;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *bios = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     DeviceState *dev;
@@ -508,43 +506,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     memory_region_init_ram(ram, NULL, "ppc_prep.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
-
-    /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_prep.bios", BIOS_SIZE);
-    memory_region_set_readonly(bios, true);
-    memory_region_add_subregion(sysmem, (uint32_t)(-BIOS_SIZE), bios);
-    vmstate_register_ram_global(bios);
-    if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        bios_size = load_elf(filename, NULL, NULL, NULL,
-                             NULL, NULL, 1, ELF_MACHINE, 0);
-        if (bios_size < 0) {
-            bios_size = get_image_size(filename);
-            if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-                hwaddr bios_addr;
-                bios_size = (bios_size + 0xfff) & ~0xfff;
-                bios_addr = (uint32_t)(-bios_size);
-                bios_size = load_image_targphys(filename, bios_addr, bios_size);
-            }
-            if (bios_size > BIOS_SIZE) {
-                fprintf(stderr, "qemu: PReP bios '%s' is too large (0x%x)\n",
-                        bios_name, bios_size);
-                exit(1);
-            }
-        }
-    } else {
-        bios_size = -1;
-    }
-    if (bios_size < 0 && !qtest_enabled()) {
-        fprintf(stderr, "qemu: could not load PPC PReP bios '%s'\n",
-                bios_name);
-        exit(1);
-    }
-    if (filename) {
-        g_free(filename);
-    }
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -593,6 +554,11 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
 
     dev = qdev_create(NULL, "raven-pcihost");
+    if (bios_name == NULL) {
+        bios_name = BIOS_FILENAME;
+    }
+    qdev_prop_set_string(dev, "bios-name", bios_name);
+    qdev_prop_set_uint32(dev, "elf-machine", ELF_MACHINE);
     pcihost = PCI_HOST_BRIDGE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
