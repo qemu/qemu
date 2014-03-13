@@ -120,7 +120,7 @@ QTestState *qtest_init(const char *extra_args)
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
 
-    s = g_malloc(sizeof(*s));
+    global_qtest = s = g_malloc(sizeof(*s));
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
@@ -181,6 +181,7 @@ QTestState *qtest_init(const char *extra_args)
 void qtest_quit(QTestState *s)
 {
     sigaction(SIGABRT, &s->sigact_old, NULL);
+    global_qtest = NULL;
 
     kill_qemu(s);
     close(s->fd);
