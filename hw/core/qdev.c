@@ -501,6 +501,45 @@ static void bus_unparent(Object *obj)
     }
 }
 
+static bool bus_get_realized(Object *obj, Error **err)
+{
+    BusState *bus = BUS(obj);
+
+    return bus->realized;
+}
+
+static void bus_set_realized(Object *obj, bool value, Error **err)
+{
+    BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(bus);
+    Error *local_err = NULL;
+
+    if (value && !bus->realized) {
+        if (bc->realize) {
+            bc->realize(bus, &local_err);
+
+            if (local_err != NULL) {
+                goto error;
+            }
+
+        }
+    } else if (!value && bus->realized) {
+        if (bc->unrealize) {
+            bc->unrealize(bus, &local_err);
+
+            if (local_err != NULL) {
+                goto error;
+            }
+        }
+    }
+
+    bus->realized = value;
+    return;
+
+error:
+    error_propagate(err, local_err);
+}
+
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name)
 {
@@ -677,6 +716,7 @@ static void device_set_realized(Object *obj, bool value, Error **err)
 {
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    BusState *bus;
     Error *local_err = NULL;
 
     if (dev->hotplugged && !dc->hotpluggable) {
@@ -710,14 +750,30 @@ static void device_set_realized(Object *obj, bool value, Error **err)
                                            dev->instance_id_alias,
                                            dev->alias_required_for_version);
         }
+        if (local_err == NULL) {
+            QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+                object_property_set_bool(OBJECT(bus), true, "realized",
+                                         &local_err);
+                if (local_err != NULL) {
+                    break;
+                }
+            }
+        }
         if (dev->hotplugged && local_err == NULL) {
             device_reset(dev);
         }
     } else if (!value && dev->realized) {
-        if (qdev_get_vmsd(dev)) {
+        QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+            object_property_set_bool(OBJECT(bus), false, "realized",
+                                     &local_err);
+            if (local_err != NULL) {
+                break;
+            }
+        }
+        if (qdev_get_vmsd(dev) && local_err == NULL) {
             vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
         }
-        if (dc->unrealize) {
+        if (dc->unrealize && local_err == NULL) {
             dc->unrealize(dev, &local_err);
         }
     }
@@ -735,7 +791,8 @@ static bool device_get_hotpluggable(Object *obj, Error **err)
     DeviceClass *dc = DEVICE_GET_CLASS(obj);
     DeviceState *dev = DEVICE(obj);
 
-    return dc->hotpluggable && dev->parent_bus->allow_hotplug;
+    return dc->hotpluggable && (dev->parent_bus == NULL ||
+                                dev->parent_bus->allow_hotplug);
 }
 
 static void device_initfn(Object *obj)
@@ -792,14 +849,6 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
-
-    /* by default all devices were considered as hotpluggable,
-     * so with intent to check it in generic qdev_unplug() /
-     * device_set_realized() functions make every device
-     * hotpluggable. Devices that shouldn't be hotpluggable,
-     * should override it in their class_init()
-     */
-    klass->hotpluggable = true;
 }
 
 static void device_unparent(Object *obj)
@@ -809,12 +858,12 @@ static void device_unparent(Object *obj)
     QObject *event_data;
     bool have_realized = dev->realized;
 
+    if (dev->realized) {
+        object_property_set_bool(obj, false, "realized", NULL);
+    }
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
         object_unparent(OBJECT(bus));
-    }
-    if (dev->realized) {
-        object_property_set_bool(obj, false, "realized", NULL);
     }
     if (dev->parent_bus) {
         bus_remove_child(dev->parent_bus, dev);
@@ -845,6 +894,14 @@ static void device_class_init(ObjectClass *class, void *data)
     class->unparent = device_unparent;
     dc->realize = device_realize;
     dc->unrealize = device_unrealize;
+
+    /* by default all devices were considered as hotpluggable,
+     * so with intent to check it in generic qdev_unplug() /
+     * device_set_realized() functions make every device
+     * hotpluggable. Devices that shouldn't be hotpluggable,
+     * should override it in their class_init()
+     */
+    dc->hotpluggable = true;
 }
 
 void device_reset(DeviceState *dev)
@@ -888,6 +945,8 @@ static void qbus_initfn(Object *obj)
     object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
                              TYPE_HOTPLUG_HANDLER,
                              (Object **)&bus->hotplug_handler, NULL);
+    object_property_add_bool(obj, "realized",
+                             bus_get_realized, bus_set_realized, NULL);
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)

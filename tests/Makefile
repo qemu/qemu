@@ -69,9 +69,24 @@ gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
 gcov-files-ipack-y += hw/char/ipoctal232.c
 
+check-qtest-virtioserial-y += tests/virtio-console-test$(EXESUF)
+gcov-files-virtioserial-y += hw/char/virtio-console.c
+
 gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio.c
 check-qtest-virtio-y += tests/virtio-net-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/net/virtio-net.c
+check-qtest-virtio-y += tests/virtio-balloon-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio-balloon.c
+check-qtest-virtio-y += tests/virtio-blk-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/block/virtio-blk.c
+check-qtest-virtio-y += tests/virtio-rng-test$(EXESUF)
+gcov-files-virtio-y += hw/virtio/virtio-rng.c
+check-qtest-virtio-y += tests/virtio-scsi-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/scsi/virtio-scsi.c
+check-qtest-virtio-y += tests/virtio-serial-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/char/virtio-serial-bus.c
+check-qtest-virtio-y += $(check-qtest-virtioserial-y)
+gcov-files-virtio-y += $(gcov-files-virtioserial-y)
 
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
@@ -87,9 +102,9 @@ gcov-files-pci-y += hw/net/ne2000.c
 check-qtest-pci-y += $(check-qtest-virtio-y)
 gcov-files-pci-y += $(gcov-files-virtio-y) hw/virtio/virtio-pci.c
 check-qtest-pci-y += tests/tpci200-test$(EXESUF)
-gcov-files-pci-y += hw/char/tpci200.c
+gcov-files-pci-y += hw/ipack/tpci200.c
 check-qtest-pci-y += $(check-qtest-ipack-y)
-gcov-files-pci-y += $(gcov-files-ipack-y) hw/ipack/tpci200.c
+gcov-files-pci-y += $(gcov-files-ipack-y)
 
 check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
@@ -129,6 +144,8 @@ check-qtest-arm-y = tests/tmp105-test$(EXESUF)
 gcov-files-arm-y += hw/misc/tmp105.c
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
+check-qtest-ppc64-y += tests/spapr-phb-test$(EXESUF)
+gcov-files-ppc64-y += ppc64-softmmu/hw/ppc/spapr_pci.c
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
@@ -225,6 +242,7 @@ libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
 tests/endianness-test$(EXESUF): tests/endianness-test.o
+tests/spapr-phb-test$(EXESUF): tests/spapr-phb-test.o $(libqos-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
@@ -239,7 +257,13 @@ tests/pcnet-test$(EXESUF): tests/pcnet-test.o
 tests/eepro100-test$(EXESUF): tests/eepro100-test.o
 tests/vmxnet3-test$(EXESUF): tests/vmxnet3-test.o
 tests/ne2000-test$(EXESUF): tests/ne2000-test.o
+tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
+tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o
 tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
+tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
+tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
+tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
+tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o

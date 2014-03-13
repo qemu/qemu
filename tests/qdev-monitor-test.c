@@ -32,8 +32,7 @@ static void test_device_add(void)
                    "}}");
     g_assert(response);
     error = qdict_get_qdict(response, "error");
-    g_assert(!strcmp(qdict_get_try_str(error, "desc") ?: "",
-                     "Device needs media, but drive is empty"));
+    g_assert_cmpstr(qdict_get_try_str(error, "class"), ==, "GenericError");
     QDECREF(response);
 
     /* Delete the drive */
@@ -42,7 +41,7 @@ static void test_device_add(void)
                    "   \"command-line\": \"drive_del drive0\""
                    "}}");
     g_assert(response);
-    g_assert(!strcmp(qdict_get_try_str(response, "return") ?: "(null)", ""));
+    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "");
     QDECREF(response);
 
     /* Try to re-add the drive.  This fails with duplicate IDs if a leaked
@@ -53,8 +52,7 @@ static void test_device_add(void)
                    "   \"command-line\": \"drive_add pci-addr=auto if=none,id=drive0\""
                    "}}");
     g_assert(response);
-    g_assert(!strcmp(qdict_get_try_str(response, "return") ?: "",
-                     "OK\r\n"));
+    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "OK\r\n");
     QDECREF(response);
 
     qtest_end();

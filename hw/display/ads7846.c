@@ -133,11 +133,12 @@ static const VMStateDescription vmstate_ads7846 = {
     }
 };
 
-static int ads7846_init(SSISlave *dev)
+static int ads7846_init(SSISlave *d)
 {
-    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, dev);
+    DeviceState *dev = DEVICE(d);
+    ADS7846State *s = FROM_SSI_SLAVE(ADS7846State, d);
 
-    qdev_init_gpio_out(&dev->qdev, &s->interrupt, 1);
+    qdev_init_gpio_out(dev, &s->interrupt, 1);
 
     s->input[0] = ADS_TEMP0;	/* TEMP0 */
     s->input[2] = ADS_VBAT;	/* VBAT */
