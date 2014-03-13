@@ -213,6 +213,7 @@ uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 static int tcg_tb_size;
 
+static int has_defaults = 1;
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_virtcon = 1;
@@ -973,7 +974,8 @@ static void parse_name(QemuOpts *opts)
 
 bool usb_enabled(bool default_usb)
 {
-    return qemu_opt_get_bool(qemu_get_machine_opts(), "usb", default_usb);
+    return qemu_opt_get_bool(qemu_get_machine_opts(), "usb",
+                             has_defaults && default_usb);
 }
 
 #ifndef _WIN32
@@ -2122,7 +2124,7 @@ static void select_vgahw (const char *p)
 {
     const char *opts;
 
-    vga_interface_type = VGA_NONE;
+    assert(vga_interface_type == VGA_NONE);
     if (strstart(p, "std", &opts)) {
         if (vga_available()) {
             vga_interface_type = VGA_STD;
@@ -2912,7 +2914,7 @@ int main(int argc, char **argv, char **envp)
     MachineClass *machine_class;
     QEMUMachine *machine;
     const char *cpu_model;
-    const char *vga_model = "none";
+    const char *vga_model = NULL;
     const char *qtest_chrdev = NULL;
     const char *qtest_log = NULL;
     const char *pid_file = NULL;
@@ -3762,16 +3764,7 @@ int main(int argc, char **argv, char **envp)
                 runstate_set(RUN_STATE_INMIGRATE);
                 break;
             case QEMU_OPTION_nodefaults:
-                default_serial = 0;
-                default_parallel = 0;
-                default_virtcon = 0;
-                default_sclp = 0;
-                default_monitor = 0;
-                default_net = 0;
-                default_floppy = 0;
-                default_cdrom = 0;
-                default_sdcard = 0;
-                default_vga = 0;
+                has_defaults = 0;
                 break;
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
@@ -4004,26 +3997,34 @@ int main(int argc, char **argv, char **envp)
     qemu_opts_foreach(qemu_find_opts("device"), default_driver_check, NULL, 0);
     qemu_opts_foreach(qemu_find_opts("global"), default_driver_check, NULL, 0);
 
-    if (machine->no_serial) {
+    if (!vga_model && !default_vga) {
+        vga_interface_type = VGA_DEVICE;
+    }
+    if (!has_defaults || machine->no_serial) {
         default_serial = 0;
     }
-    if (machine->no_parallel) {
+    if (!has_defaults || machine->no_parallel) {
         default_parallel = 0;
     }
-    if (!machine->use_virtcon) {
+    if (!has_defaults || !machine->use_virtcon) {
         default_virtcon = 0;
     }
-    if (!machine->use_sclp) {
+    if (!has_defaults || !machine->use_sclp) {
         default_sclp = 0;
     }
-    if (machine->no_floppy) {
+    if (!has_defaults || machine->no_floppy) {
         default_floppy = 0;
     }
-    if (machine->no_cdrom) {
+    if (!has_defaults || machine->no_cdrom) {
         default_cdrom = 0;
     }
-    if (machine->no_sdcard) {
+    if (!has_defaults || machine->no_sdcard) {
         default_sdcard = 0;
+    }
+    if (!has_defaults) {
+        default_monitor = 0;
+        default_net = 0;
+        default_vga = 0;
     }
 
     if (is_daemonized()) {
@@ -4329,7 +4330,9 @@ int main(int argc, char **argv, char **envp)
             vga_model = "std";
         }
     }
-    select_vgahw(vga_model);
+    if (vga_model) {
+        select_vgahw(vga_model);
+    }
 
     if (watchdog) {
         i = select_watchdog(watchdog);

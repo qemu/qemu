@@ -781,13 +781,15 @@ static int spapr_vga_init(PCIBus *pci_bus)
 {
     switch (vga_interface_type) {
     case VGA_NONE:
+        return false;
+    case VGA_DEVICE:
+        return true;
     case VGA_STD:
         return pci_vga_init(pci_bus) != NULL;
     default:
         fprintf(stderr, "This vga model is not supported,"
                 "currently it only supports -vga std\n");
         exit(0);
-        break;
     }
 }
 
