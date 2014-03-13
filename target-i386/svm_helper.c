@@ -88,7 +88,8 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
 static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
                                 const SegmentCache *sc)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
     stw_phys(cs->as, addr + offsetof(struct vmcb_seg, selector),
              sc->selector);
     stq_phys(cs->as, addr + offsetof(struct vmcb_seg, base),
@@ -102,7 +103,7 @@ static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
 static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
                                 SegmentCache *sc)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     unsigned int flags;
 
     sc->selector = lduw_phys(cs->as,
@@ -125,7 +126,7 @@ static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
 
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
     uint32_t event_inj;
     uint32_t int_ctl;
@@ -293,7 +294,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         break;
     case TLB_CONTROL_FLUSH_ALL_ASID:
         /* FIXME: this is not 100% correct but should work for now */
-        tlb_flush(env, 1);
+        tlb_flush(cs, 1);
         break;
     }
 
@@ -319,7 +320,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         /* FIXME: need to implement valid_err */
         switch (event_inj & SVM_EVTINJ_TYPE_MASK) {
         case SVM_EVTINJ_TYPE_INTR:
-            env->exception_index = vector;
+            cs->exception_index = vector;
             env->error_code = event_inj_err;
             env->exception_is_int = 0;
             env->exception_next_eip = -1;
@@ -328,31 +329,31 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
             do_interrupt_x86_hardirq(env, vector, 1);
             break;
         case SVM_EVTINJ_TYPE_NMI:
-            env->exception_index = EXCP02_NMI;
+            cs->exception_index = EXCP02_NMI;
             env->error_code = event_inj_err;
             env->exception_is_int = 0;
             env->exception_next_eip = env->eip;
             qemu_log_mask(CPU_LOG_TB_IN_ASM, "NMI");
-            cpu_loop_exit(env);
+            cpu_loop_exit(cs);
             break;
         case SVM_EVTINJ_TYPE_EXEPT:
-            env->exception_index = vector;
+            cs->exception_index = vector;
             env->error_code = event_inj_err;
             env->exception_is_int = 0;
             env->exception_next_eip = -1;
             qemu_log_mask(CPU_LOG_TB_IN_ASM, "EXEPT");
-            cpu_loop_exit(env);
+            cpu_loop_exit(cs);
             break;
         case SVM_EVTINJ_TYPE_SOFT:
-            env->exception_index = vector;
+            cs->exception_index = vector;
             env->error_code = event_inj_err;
             env->exception_is_int = 1;
             env->exception_next_eip = env->eip;
             qemu_log_mask(CPU_LOG_TB_IN_ASM, "SOFT");
-            cpu_loop_exit(env);
+            cpu_loop_exit(cs);
             break;
         }
-        qemu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env->exception_index,
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", cs->exception_index,
                       env->error_code);
     }
 }
@@ -365,7 +366,7 @@ void helper_vmmcall(CPUX86State *env)
 
 void helper_vmload(CPUX86State *env, int aflag)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0);
@@ -405,7 +406,7 @@ void helper_vmload(CPUX86State *env, int aflag)
 
 void helper_vmsave(CPUX86State *env, int aflag)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0);
@@ -468,6 +469,7 @@ void helper_skinit(CPUX86State *env)
 
 void helper_invlpga(CPUX86State *env, int aflag)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     target_ulong addr;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0);
@@ -480,13 +482,13 @@ void helper_invlpga(CPUX86State *env, int aflag)
 
     /* XXX: could use the ASID to see if it is needed to do the
        flush */
-    tlb_flush_page(env, addr);
+    tlb_flush_page(CPU(cpu), addr);
 }
 
 void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                       uint64_t param)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
 
     if (likely(!(env->hflags & HF_SVMI_MASK))) {
         return;
@@ -568,7 +570,8 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
 void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
                          uint32_t next_eip_addend)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
     if (env->intercept & (1ULL << (SVM_EXIT_IOIO - SVM_EXIT_INTR))) {
         /* FIXME: this should be read in at vmrun (faster this way?) */
         uint64_t addr = ldq_phys(cs->as, env->vm_vmcb +
@@ -766,11 +769,11 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
        #GP fault is delivered inside the host. */
 
     /* remove any pending exception */
-    env->exception_index = -1;
+    cs->exception_index = -1;
     env->error_code = 0;
     env->old_exception = -1;
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)

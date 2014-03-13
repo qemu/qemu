@@ -320,9 +320,8 @@ int cpu_s390x_exec(CPUS390XState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_s390x_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw,
-                                int mmu_idx);
-#define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
+int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                              int mmu_idx);
 
 #include "ioinst.h"
 
@@ -1039,15 +1038,6 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
 
     env->pending_int |= INTERRUPT_MCHK;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    S390CPU *s390_cpu = S390_CPU(cpu);
-    CPUS390XState *env = &s390_cpu->env;
-
-    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->psw.mask & PSW_MASK_EXT);
 }
 
 /* fpu_helper.c */

@@ -7,7 +7,7 @@
 void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr);
-int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong address, int rw,
                                 int mmu_idx);
 void ppc_hash64_store_hpte(CPUPPCState *env, target_ulong index,
                            target_ulong pte0, target_ulong pte1);
@@ -85,8 +85,9 @@ void ppc_hash64_stop_access(uint64_t token);
 static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint64_t addr;
+
     addr = token + (index * HASH_PTE_SIZE_64);
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);
@@ -98,8 +99,9 @@ static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
 static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
                                                  uint64_t token, int index)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint64_t addr;
+
     addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
     if (env->external_htab) {
         return  ldq_p((const void *)(uintptr_t)addr);

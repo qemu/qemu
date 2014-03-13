@@ -44,18 +44,18 @@
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUS390XState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_s390x_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = s390_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 
@@ -72,6 +72,7 @@ void tlb_fill(CPUS390XState *env, target_ulong addr, int is_write, int mmu_idx,
 static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
                             uint8_t byte)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     hwaddr dest_phys;
     hwaddr len = l;
     void *dest_p;
@@ -80,7 +81,7 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
 
     if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
         cpu_stb_data(env, dest, byte);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     dest_phys |= dest & ~TARGET_PAGE_MASK;
 
@@ -94,6 +95,7 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
 static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
                              uint64_t src)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     hwaddr dest_phys;
     hwaddr src_phys;
     hwaddr len = l;
@@ -104,13 +106,13 @@ static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
 
     if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
         cpu_stb_data(env, dest, 0);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     dest_phys |= dest & ~TARGET_PAGE_MASK;
 
     if (mmu_translate(env, src, 0, asc, &src_phys, &flags)) {
         cpu_ldub_data(env, src);
-        cpu_abort(env, "should never reach here");
+        cpu_abort(CPU(cpu), "should never reach here");
     }
     src_phys |= src & ~TARGET_PAGE_MASK;
 
@@ -483,6 +485,7 @@ static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,
 uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                     uint64_t addr, uint64_t ret)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint16_t insn = cpu_lduw_code(env, addr);
 
     HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __func__, v1, addr,
@@ -534,7 +537,7 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         cc = helper_icm(env, r1, get_address(env, 0, b2, d2), r3);
     } else {
     abort:
-        cpu_abort(env, "EXECUTE on instruction prefix 0x%x not implemented\n",
+        cpu_abort(CPU(cpu), "EXECUTE on instruction prefix 0x%x not implemented\n",
                   insn);
     }
     return cc;
@@ -807,6 +810,7 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
 #if !defined(CONFIG_USER_ONLY)
 void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int i;
     uint64_t src = a2;
 
@@ -821,11 +825,12 @@ void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int i;
     uint64_t src = a2;
 
@@ -839,7 +844,7 @@ void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(stctg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
@@ -932,6 +937,7 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 /* compare and swap and purge */
 uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     uint32_t cc;
     uint32_t o1 = env->regs[r1];
     uint64_t a2 = r2 & ~3ULL;
@@ -941,7 +947,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
         cpu_stl_data(env, a2, env->regs[(r1 + 1) & 15]);
         if (r2 & 0x3) {
             /* flush TLB / ALB */
-            tlb_flush(env, 1);
+            tlb_flush(CPU(cpu), 1);
         }
         cc = 0;
     } else {
@@ -955,7 +961,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
                         uint64_t mode1, uint64_t a2, uint64_t mode2)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     target_ulong src, dest;
     int flags, cc = 0, i;
 
@@ -968,12 +974,12 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
     }
 
     if (mmu_translate(env, a1 & TARGET_PAGE_MASK, 1, mode1, &dest, &flags)) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     dest |= a1 & ~TARGET_PAGE_MASK;
 
     if (mmu_translate(env, a2 & TARGET_PAGE_MASK, 0, mode2, &src, &flags)) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     src |= a2 & ~TARGET_PAGE_MASK;
 
@@ -1010,7 +1016,7 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte = 0;
 
@@ -1024,34 +1030,38 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
-    tlb_flush_page(env, page);
+    tlb_flush_page(cs, page);
 
     /* XXX 31-bit hack */
     if (page & 0x80000000) {
-        tlb_flush_page(env, page & ~0x80000000);
+        tlb_flush_page(cs, page & ~0x80000000);
     } else {
-        tlb_flush_page(env, page | 0x80000000);
+        tlb_flush_page(cs, page | 0x80000000);
     }
 }
 
 /* flush local tlb */
 void HELPER(ptlb)(CPUS390XState *env)
 {
-    tlb_flush(env, 1);
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), 1);
 }
 
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
     stw_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
 }
 
 /* load real address */
 uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint32_t cc = 0;
-    int old_exc = env->exception_index;
+    int old_exc = cs->exception_index;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     uint64_t ret;
     int flags;
@@ -1061,16 +1071,16 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
         program_interrupt(env, PGM_SPECIAL_OP, 2);
     }
 
-    env->exception_index = old_exc;
+    cs->exception_index = old_exc;
     if (mmu_translate(env, addr, 0, asc, &ret, &flags)) {
         cc = 3;
     }
-    if (env->exception_index == EXCP_PGM) {
+    if (cs->exception_index == EXCP_PGM) {
         ret = env->int_pgm_code | 0x80000000;
     } else {
         ret |= addr & ~TARGET_PAGE_MASK;
     }
-    env->exception_index = old_exc;
+    cs->exception_index = old_exc;
 
     env->cc_op = cc;
     return ret;

@@ -80,16 +80,16 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
 void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
-bool cpu_restore_state(CPUArchState *env, uintptr_t searched_pc);
+bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 void page_size_init(void);
 
-void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
-void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, uintptr_t retaddr);
-TranslationBlock *tb_gen_code(CPUArchState *env, 
+void QEMU_NORETURN cpu_resume_from_signal(CPUState *cpu, void *puc);
+void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
+TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
-void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
+void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
@@ -98,18 +98,18 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
 #if !defined(CONFIG_USER_ONLY)
 void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */
-void tlb_flush_page(CPUArchState *env, target_ulong addr);
-void tlb_flush(CPUArchState *env, int flush_global);
-void tlb_set_page(CPUArchState *env, target_ulong vaddr,
+void tlb_flush_page(CPUState *cpu, target_ulong addr);
+void tlb_flush(CPUState *cpu, int flush_global);
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
 #else
-static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
+static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
 }
 
-static inline void tlb_flush(CPUArchState *env, int flush_global)
+static inline void tlb_flush(CPUState *cpu, int flush_global)
 {
 }
 #endif
@@ -332,7 +332,7 @@ bool io_mem_read(struct MemoryRegion *mr, hwaddr addr,
 bool io_mem_write(struct MemoryRegion *mr, hwaddr addr,
                   uint64_t value, unsigned size);
 
-void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cpu, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
 
 uint8_t helper_ldb_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
@@ -380,20 +380,25 @@ extern int singlestep;
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;
 
-/* Deterministic execution requires that IO only be performed on the last
-   instruction of a TB so that interrupts take effect immediately.  */
-static inline int can_do_io(CPUArchState *env)
+/**
+ * cpu_can_do_io:
+ * @cpu: The CPU for which to check IO.
+ *
+ * Deterministic execution requires that IO only be performed on the last
+ * instruction of a TB so that interrupts take effect immediately.
+ *
+ * Returns: %true if memory-mapped IO is safe, %false otherwise.
+ */
+static inline bool cpu_can_do_io(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     if (!use_icount) {
-        return 1;
+        return true;
     }
     /* If not executing code then assume we are ok.  */
     if (cpu->current_tb == NULL) {
-        return 1;
+        return true;
     }
-    return env->can_do_io != 0;
+    return cpu->can_do_io != 0;
 }
 
 #endif

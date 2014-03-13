@@ -76,6 +76,7 @@ static inline int ucf64_exceptbits_to_host(int target_bits)
 
 void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     int i;
     uint32_t changed;
 
@@ -99,7 +100,7 @@ void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
             i = float_round_down;
             break;
         default: /* 100 and 101 not implement */
-            cpu_abort(env, "Unsupported UniCore-F64 round mode");
+            cpu_abort(CPU(cpu), "Unsupported UniCore-F64 round mode");
         }
         set_float_rounding_mode(i, &env->ucf64.fp_status);
     }

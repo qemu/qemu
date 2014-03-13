@@ -31,26 +31,26 @@ void mb_cpu_do_interrupt(CPUState *cs)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
 
-    env->exception_index = -1;
+    cs->exception_index = -1;
     env->res_addr = RES_ADDR_NONE;
     env->regs[14] = env->sregs[SR_PC];
 }
 
-int cpu_mb_handle_mmu_fault(CPUMBState * env, target_ulong address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                             int mmu_idx)
 {
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
-
-    env->exception_index = 0xaa;
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+    cs->exception_index = 0xaa;
+    cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
 
 #else /* !CONFIG_USER_ONLY */
 
-int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
-                             int mmu_idx)
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                            int mmu_idx)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     unsigned int hit;
     unsigned int mmu_available;
     int r = 1;
@@ -77,7 +77,7 @@ int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
 
             DMMU(qemu_log("MMU map mmu=%d v=%x p=%x prot=%x\n",
                      mmu_idx, vaddr, paddr, lu.prot));
-            tlb_set_page(env, vaddr, paddr, lu.prot, mmu_idx, TARGET_PAGE_SIZE);
+            tlb_set_page(cs, vaddr, paddr, lu.prot, mmu_idx, TARGET_PAGE_SIZE);
             r = 0;
         } else {
             env->sregs[SR_EAR] = address;
@@ -97,18 +97,18 @@ int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
                     break;
             }
 
-            if (env->exception_index == EXCP_MMU) {
-                cpu_abort(env, "recursive faults\n");
+            if (cs->exception_index == EXCP_MMU) {
+                cpu_abort(cs, "recursive faults\n");
             }
 
             /* TLB miss.  */
-            env->exception_index = EXCP_MMU;
+            cs->exception_index = EXCP_MMU;
         }
     } else {
         /* MMU disabled or not available.  */
         address &= TARGET_PAGE_MASK;
         prot = PAGE_BITS;
-        tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
         r = 0;
     }
     return r;
@@ -125,7 +125,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
 /*    assert(env->sregs[SR_MSR] & (MSR_EE)); Only for HW exceptions.  */
     env->res_addr = RES_ADDR_NONE;
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
         case EXCP_HW_EXCP:
             if (!(env->pvr.regs[0] & PVR0_USE_EXC_MASK)) {
                 qemu_log("Exception raised on system without exceptions!\n");
@@ -251,7 +251,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
             env->sregs[SR_MSR] |= t;
             env->sregs[SR_MSR] |= MSR_BIP;
-            if (env->exception_index == EXCP_HW_BREAK) {
+            if (cs->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->sregs[SR_PC];
                 env->sregs[SR_MSR] |= MSR_BIP;
                 env->sregs[SR_PC] = cpu->base_vectors + 0x18;
@@ -259,8 +259,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 env->sregs[SR_PC] = env->btarget;
             break;
         default:
-            cpu_abort(env, "unhandled exception type=%d\n",
-                      env->exception_index);
+            cpu_abort(cs, "unhandled exception type=%d\n",
+                      cs->exception_index);
             break;
     }
 }

@@ -358,17 +358,23 @@ typedef struct model_features_t {
     FeatureWord feat_word;
 } model_features_t;
 
-static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
+/* KVM-specific features that are automatically added to all CPU models
+ * when KVM is enabled.
+ */
+static uint32_t kvm_default_features[FEATURE_WORDS] = {
+    [FEAT_KVM] = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_NOP_IO_DELAY) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
         (1 << KVM_FEATURE_PV_EOI) |
-        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
+        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT),
+    [FEAT_1_ECX] = CPUID_EXT_X2APIC,
+};
 
-void disable_kvm_pv_eoi(void)
+void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
 {
-    kvm_default_features &= ~(1UL << KVM_FEATURE_PV_EOI);
+    kvm_default_features[w] &= ~features;
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
@@ -484,7 +490,35 @@ static void add_flagname_to_bitmaps(const char *flagname,
     }
 }
 
-typedef struct x86_def_t {
+/* CPU class name definitions: */
+
+#define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
+#define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)
+
+/* Return type name for a given CPU model name
+ * Caller is responsible for freeing the returned string.
+ */
+static char *x86_cpu_type_name(const char *model_name)
+{
+    return g_strdup_printf(X86_CPU_TYPE_NAME("%s"), model_name);
+}
+
+static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+    char *typename;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    typename = x86_cpu_type_name(cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    return oc;
+}
+
+struct X86CPUDefinition {
     const char *name;
     uint32_t level;
     uint32_t xlevel;
@@ -497,7 +531,7 @@ typedef struct x86_def_t {
     FeatureWordArray features;
     char model_id[48];
     bool cache_info_passthrough;
-} x86_def_t;
+};
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
 #define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
@@ -547,9 +581,7 @@ typedef struct x86_def_t {
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
 
-/* built-in CPU model definitions
- */
-static x86_def_t builtin_x86_defs[] = {
+static X86CPUDefinition builtin_x86_defs[] = {
     {
         .name = "qemu64",
         .level = 4,
@@ -1108,7 +1140,7 @@ static x86_def_t builtin_x86_defs[] = {
 void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
                                  uint32_t feat_add, uint32_t feat_remove)
 {
-    x86_def_t *def;
+    X86CPUDefinition *def;
     int i;
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         def = &builtin_x86_defs[i];
@@ -1118,6 +1150,8 @@ void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
         }
     }
 }
+
+#ifdef CONFIG_KVM
 
 static int cpu_x86_fill_model_id(char *str)
 {
@@ -1134,43 +1168,67 @@ static int cpu_x86_fill_model_id(char *str)
     return 0;
 }
 
-/* Fill a x86_def_t struct with information about the host CPU, and
- * the CPU features supported by the host hardware + host kernel
+static X86CPUDefinition host_cpudef;
+
+/* class_init for the "host" CPU model
  *
- * This function may be called only if KVM is enabled.
+ * This function may be called before KVM is initialized.
  */
-static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
+static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
 {
-    KVMState *s = kvm_state;
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+    xcc->kvm_required = true;
+
+    host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
+    x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
+
+    host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
+    host_cpudef.family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
+    host_cpudef.model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
+    host_cpudef.stepping = eax & 0x0F;
+
+    cpu_x86_fill_model_id(host_cpudef.model_id);
+
+    xcc->cpu_def = &host_cpudef;
+    host_cpudef.cache_info_passthrough = true;
+
+    /* level, xlevel, xlevel2, and the feature words are initialized on
+     * instance_init, because they require KVM to be initialized.
+     */
+}
+
+static void host_x86_cpu_initfn(Object *obj)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    KVMState *s = kvm_state;
+    FeatureWord w;
 
     assert(kvm_enabled());
 
-    x86_cpu_def->name = "host";
-    x86_cpu_def->cache_info_passthrough = true;
-    host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_vendor_words2str(x86_cpu_def->vendor, ebx, edx, ecx);
+    env->cpuid_level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
+    env->cpuid_xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
+    env->cpuid_xlevel2 = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
 
-    host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
-    x86_cpu_def->model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
-    x86_cpu_def->stepping = eax & 0x0F;
-
-    x86_cpu_def->level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
-    x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
-    x86_cpu_def->xlevel2 =
-        kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
-
-    cpu_x86_fill_model_id(x86_cpu_def->model_id);
-
-    FeatureWord w;
     for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
-        x86_cpu_def->features[w] =
+        env->features[w] =
             kvm_arch_get_supported_cpuid(s, wi->cpuid_eax, wi->cpuid_ecx,
                                          wi->cpuid_reg);
     }
+    object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
 }
+
+static const TypeInfo host_x86_cpu_type_info = {
+    .name = X86_CPU_TYPE_NAME("host"),
+    .parent = TYPE_X86_CPU,
+    .instance_init = host_x86_cpu_initfn,
+    .class_init = host_x86_cpu_class_init,
+};
+
+#endif
 
 static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
 {
@@ -1582,32 +1640,6 @@ static PropertyInfo qdev_prop_spinlocks = {
     .set   = x86_set_hv_spinlocks,
 };
 
-static int cpu_x86_find_by_name(X86CPU *cpu, x86_def_t *x86_cpu_def,
-                                const char *name)
-{
-    x86_def_t *def;
-    int i;
-
-    if (name == NULL) {
-        return -1;
-    }
-    if (kvm_enabled() && strcmp(name, "host") == 0) {
-        kvm_cpu_fill_host(x86_cpu_def);
-        object_property_set_bool(OBJECT(cpu), true, "pmu", &error_abort);
-        return 0;
-    }
-
-    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
-        def = &builtin_x86_defs[i];
-        if (strcmp(name, def->name) == 0) {
-            memcpy(x86_cpu_def, def, sizeof(*def));
-            return 0;
-        }
-    }
-
-    return -1;
-}
-
 /* Convert all '_' in a feature string option name to '-', to make feature
  * name conform to QOM property naming rule, which uses '-' instead of '_'.
  */
@@ -1620,8 +1652,10 @@ static inline void feat2prop(char *s)
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
+static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
+                                     Error **errp)
 {
+    X86CPU *cpu = X86_CPU(cs);
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
     FeatureWordArray plus_features = { 0 };
@@ -1629,6 +1663,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
     FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
     CPUX86State *env = &cpu->env;
+    Error *local_err = NULL;
 
     featurestr = features ? strtok(features, ",") : NULL;
 
@@ -1647,16 +1682,16 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
 
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 if (numvalue < 0x80000000) {
-                    fprintf(stderr, "xlevel value shall always be >= 0x80000000"
-                            ", fixup will be removed in future versions\n");
+                    error_report("xlevel value shall always be >= 0x80000000"
+                                 ", fixup will be removed in future versions");
                     numvalue += 0x80000000;
                 }
                 snprintf(num, sizeof(num), "%" PRIu32, numvalue);
-                object_property_parse(OBJECT(cpu), num, featurestr, errp);
+                object_property_parse(OBJECT(cpu), num, featurestr, &local_err);
             } else if (!strcmp(featurestr, "tsc-freq")) {
                 int64_t tsc_freq;
                 char *err;
@@ -1665,36 +1700,38 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 tsc_freq = strtosz_suffix_unit(val, &err,
                                                STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
-                object_property_parse(OBJECT(cpu), num, "tsc-frequency", errp);
+                object_property_parse(OBJECT(cpu), num, "tsc-frequency",
+                                      &local_err);
             } else if (!strcmp(featurestr, "hv-spinlocks")) {
                 char *err;
                 const int min = 0xFFF;
                 char num[32];
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s", val);
+                    error_setg(&local_err, "bad numerical value %s", val);
                     goto out;
                 }
                 if (numvalue < min) {
-                    fprintf(stderr, "hv-spinlocks value shall always be >= 0x%x"
-                            ", fixup will be removed in future versions\n",
+                    error_report("hv-spinlocks value shall always be >= 0x%x"
+                            ", fixup will be removed in future versions",
                             min);
                     numvalue = min;
                 }
                 snprintf(num, sizeof(num), "%" PRId32, numvalue);
-                object_property_parse(OBJECT(cpu), num, featurestr, errp);
+                object_property_parse(OBJECT(cpu), num, featurestr, &local_err);
             } else {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
+                object_property_parse(OBJECT(cpu), val, featurestr, &local_err);
             }
         } else {
             feat2prop(featurestr);
-            object_property_parse(OBJECT(cpu), "on", featurestr, errp);
+            object_property_parse(OBJECT(cpu), "on", featurestr, &local_err);
         }
-        if (error_is_set(errp)) {
+        if (local_err) {
+            error_propagate(errp, local_err);
             goto out;
         }
         featurestr = strtok(NULL, ",");
@@ -1753,7 +1790,7 @@ static void listflags(char *buf, int bufsize, uint32_t fbits,
 /* generate CPU information. */
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    x86_def_t *def;
+    X86CPUDefinition *def;
     char buf[256];
     int i;
 
@@ -1780,7 +1817,7 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
-    x86_def_t *def;
+    X86CPUDefinition *def;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
@@ -1817,17 +1854,13 @@ static void filter_features_for_kvm(X86CPU *cpu)
     }
 }
 
-static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
+/* Load data from X86CPUDefinition
+ */
+static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 {
     CPUX86State *env = &cpu->env;
-    x86_def_t def1, *def = &def1;
-
-    memset(def, 0, sizeof(*def));
-
-    if (cpu_x86_find_by_name(cpu, def, name) < 0) {
-        error_setg(errp, "Unable to find CPU definition: %s", name);
-        return;
-    }
+    const char *vendor;
+    char host_vendor[CPUID_VENDOR_SZ + 1];
 
     object_property_set_int(OBJECT(cpu), def->level, "level", errp);
     object_property_set_int(OBJECT(cpu), def->family, "family", errp);
@@ -1847,10 +1880,14 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
 
-    /* Special cases not set in the x86_def_t structs: */
+    /* Special cases not set in the X86CPUDefinition structs: */
     if (kvm_enabled()) {
-        env->features[FEAT_KVM] |= kvm_default_features;
+        FeatureWord w;
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] |= kvm_default_features[w];
+        }
     }
+
     env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
 
     /* sysenter isn't supported in compatibility mode on AMD,
@@ -1860,8 +1897,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
      * KVM's sysenter/syscall emulation in compatibility mode and
      * when doing cross vendor migration
      */
-    const char *vendor = def->vendor;
-    char host_vendor[CPUID_VENDOR_SZ + 1];
+    vendor = def->vendor;
     if (kvm_enabled()) {
         uint32_t  ebx = 0, ecx = 0, edx = 0;
         host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
@@ -1877,9 +1913,10 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
                        Error **errp)
 {
     X86CPU *cpu = NULL;
+    X86CPUClass *xcc;
+    ObjectClass *oc;
     gchar **model_pieces;
     char *name, *features;
-    char *typename;
     Error *error = NULL;
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
@@ -1890,7 +1927,20 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     name = model_pieces[0];
     features = model_pieces[1];
 
-    cpu = X86_CPU(object_new(TYPE_X86_CPU));
+    oc = x86_cpu_class_by_name(name);
+    if (oc == NULL) {
+        error_setg(&error, "Unable to find CPU definition: %s", name);
+        goto out;
+    }
+    xcc = X86_CPU_CLASS(oc);
+
+    if (xcc->kvm_required && !kvm_enabled()) {
+        error_setg(&error, "CPU model '%s' requires KVM", name);
+        goto out;
+    }
+
+    cpu = X86_CPU(object_new(object_class_get_name(oc)));
+
 #ifndef CONFIG_USER_ONLY
     if (icc_bridge == NULL) {
         error_setg(&error, "Invalid icc-bridge value");
@@ -1900,20 +1950,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     object_unref(OBJECT(cpu));
 #endif
 
-    cpu_x86_register(cpu, name, &error);
-    if (error) {
-        goto out;
-    }
-
-    /* Emulate per-model subclasses for global properties */
-    typename = g_strdup_printf("%s-" TYPE_X86_CPU, name);
-    qdev_prop_set_globals_for_type(DEVICE(cpu), typename, &error);
-    g_free(typename);
-    if (error) {
-        goto out;
-    }
-
-    cpu_x86_parse_featurestr(cpu, features, &error);
+    x86_cpu_parse_featurestr(CPU(cpu), features, &error);
     if (error) {
         goto out;
     }
@@ -1921,8 +1958,10 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
 out:
     if (error != NULL) {
         error_propagate(errp, error);
-        object_unref(OBJECT(cpu));
-        cpu = NULL;
+        if (cpu) {
+            object_unref(OBJECT(cpu));
+            cpu = NULL;
+        }
     }
     g_strfreev(model_pieces);
     return cpu;
@@ -1952,6 +1991,28 @@ out:
     return cpu;
 }
 
+static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUDefinition *cpudef = data;
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    xcc->cpu_def = cpudef;
+}
+
+static void x86_register_cpudef_type(X86CPUDefinition *def)
+{
+    char *typename = x86_cpu_type_name(def->name);
+    TypeInfo ti = {
+        .name = typename,
+        .parent = TYPE_X86_CPU,
+        .class_init = x86_cpu_cpudef_class_init,
+        .class_data = def,
+    };
+
+    type_register(&ti);
+    g_free(typename);
+}
+
 #if !defined(CONFIG_USER_ONLY)
 
 void cpu_clear_apic_feature(CPUX86State *env)
@@ -1969,7 +2030,7 @@ void x86_cpudef_setup(void)
     static const char *model_with_versions[] = { "qemu32", "qemu64", "athlon" };
 
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
-        x86_def_t *def = &builtin_x86_defs[i];
+        X86CPUDefinition *def = &builtin_x86_defs[i];
 
         /* Look for specific "cpudef" models that */
         /* have the QEMU version in .model_id */
@@ -2349,9 +2410,9 @@ static void x86_cpu_reset(CPUState *s)
     xcc->parent_reset(s);
 
 
-    memset(env, 0, offsetof(CPUX86State, breakpoints));
+    memset(env, 0, offsetof(CPUX86State, pat));
 
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 
     env->old_exception = -1;
 
@@ -2412,8 +2473,8 @@ static void x86_cpu_reset(CPUState *s)
     memset(env->dr, 0, sizeof(env->dr));
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
-    cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
+    cpu_breakpoint_remove_all(s, BP_CPU);
+    cpu_watchpoint_remove_all(s, BP_CPU);
 
     env->tsc_adjust = 0;
     env->tsc = 0;
@@ -2613,6 +2674,7 @@ static void x86_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     X86CPU *cpu = X86_CPU(obj);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
     CPUX86State *env = &cpu->env;
     static int inited;
 
@@ -2656,6 +2718,8 @@ static void x86_cpu_initfn(Object *obj)
     cpu->hyperv_spinlock_attempts = HYPERV_SPINLOCK_NEVER_RETRY;
     env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 
+    x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
+
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {
         inited = 1;
@@ -2695,6 +2759,20 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
+static bool x86_cpu_has_work(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
+                                      CPU_INTERRUPT_POLL)) &&
+            (env->eflags & IF_MASK)) ||
+           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
+                                     CPU_INTERRUPT_INIT |
+                                     CPU_INTERRUPT_SIPI |
+                                     CPU_INTERRUPT_MCE));
+}
+
 static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
     { .name  = "hv-spinlocks", .info  = &qdev_prop_spinlocks },
@@ -2721,6 +2799,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
+    cc->class_by_name = x86_cpu_class_by_name;
+    cc->parse_features = x86_cpu_parse_featurestr;
+    cc->has_work = x86_cpu_has_work;
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;
     cc->set_pc = x86_cpu_set_pc;
@@ -2729,7 +2810,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = x86_cpu_gdb_write_register;
     cc->get_arch_id = x86_cpu_get_arch_id;
     cc->get_paging_enabled = x86_cpu_get_paging_enabled;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = x86_cpu_handle_mmu_fault;
+#else
     cc->get_memory_mapping = x86_cpu_get_memory_mapping;
     cc->get_phys_page_debug = x86_cpu_get_phys_page_debug;
     cc->write_elf64_note = x86_cpu_write_elf64_note;
@@ -2746,14 +2829,22 @@ static const TypeInfo x86_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(X86CPU),
     .instance_init = x86_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(X86CPUClass),
     .class_init = x86_cpu_common_class_init,
 };
 
 static void x86_cpu_register_types(void)
 {
+    int i;
+
     type_register_static(&x86_cpu_type_info);
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
+        x86_register_cpudef_type(&builtin_x86_defs[i]);
+    }
+#ifdef CONFIG_KVM
+    type_register_static(&host_x86_cpu_type_info);
+#endif
 }
 
 type_init(x86_cpu_register_types)

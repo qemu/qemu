@@ -356,7 +356,7 @@ static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
 static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint16_t size;
     uint8_t tmp;
 
@@ -406,7 +406,7 @@ static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
 
 static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint32_t size;
 
     if (addr == 0) {
@@ -442,7 +442,7 @@ static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
 
 static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint32_t size;
 
     if (addr == 0) {
@@ -529,7 +529,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     hreg_compute_hflags(env);
     if (!cpu_has_work(cs)) {
         cs->halted = 1;
-        env->exception_index = EXCP_HLT;
+        cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
     }
     return H_SUCCESS;

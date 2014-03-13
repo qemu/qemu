@@ -119,6 +119,7 @@ uint32_t helper_compute_fprf(CPUPPCState *env, uint64_t arg, uint32_t set_fprf)
 static inline uint64_t fload_invalid_op_excp(CPUPPCState *env, int op,
                                              int set_fpcc)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     uint64_t ret = 0;
     int ve;
 
@@ -155,7 +156,7 @@ static inline uint64_t fload_invalid_op_excp(CPUPPCState *env, int op,
         }
         /* We must update the target FPR before raising the exception */
         if (ve != 0) {
-            env->exception_index = POWERPC_EXCP_PROGRAM;
+            cs->exception_index = POWERPC_EXCP_PROGRAM;
             env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_VXVC;
             /* Update the floating-point enabled exception summary */
             env->fpscr |= 1 << FPSCR_FEX;
@@ -224,6 +225,8 @@ static inline void float_zero_divide_excp(CPUPPCState *env)
 
 static inline void float_overflow_excp(CPUPPCState *env)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     env->fpscr |= 1 << FPSCR_OX;
     /* Update the floating-point exception summary */
     env->fpscr |= 1 << FPSCR_FX;
@@ -232,7 +235,7 @@ static inline void float_overflow_excp(CPUPPCState *env)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         /* We must update the target FPR before raising the exception */
-        env->exception_index = POWERPC_EXCP_PROGRAM;
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_OX;
     } else {
         env->fpscr |= 1 << FPSCR_XX;
@@ -242,6 +245,8 @@ static inline void float_overflow_excp(CPUPPCState *env)
 
 static inline void float_underflow_excp(CPUPPCState *env)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     env->fpscr |= 1 << FPSCR_UX;
     /* Update the floating-point exception summary */
     env->fpscr |= 1 << FPSCR_FX;
@@ -250,13 +255,15 @@ static inline void float_underflow_excp(CPUPPCState *env)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         /* We must update the target FPR before raising the exception */
-        env->exception_index = POWERPC_EXCP_PROGRAM;
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_UX;
     }
 }
 
 static inline void float_inexact_excp(CPUPPCState *env)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
     env->fpscr |= 1 << FPSCR_XX;
     /* Update the floating-point exception summary */
     env->fpscr |= 1 << FPSCR_FX;
@@ -264,7 +271,7 @@ static inline void float_inexact_excp(CPUPPCState *env)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         /* We must update the target FPR before raising the exception */
-        env->exception_index = POWERPC_EXCP_PROGRAM;
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_XX;
     }
 }
@@ -316,6 +323,7 @@ void helper_fpscr_clrbit(CPUPPCState *env, uint32_t bit)
 
 void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     int prev;
 
     prev = (env->fpscr >> bit) & 1;
@@ -439,7 +447,7 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
             /* Update the floating-point enabled exception summary */
             env->fpscr |= 1 << FPSCR_FEX;
             /* We have to update Rc1 before raising the exception */
-            env->exception_index = POWERPC_EXCP_PROGRAM;
+            cs->exception_index = POWERPC_EXCP_PROGRAM;
             break;
         }
     }
@@ -447,6 +455,7 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 
 void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     target_ulong prev, new;
     int i;
 
@@ -468,7 +477,7 @@ void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
     }
     if ((fpscr_ex & fpscr_eex) != 0) {
         env->fpscr |= 1 << FPSCR_FEX;
-        env->exception_index = POWERPC_EXCP_PROGRAM;
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
         /* XXX: we should compute it properly */
         env->error_code = POWERPC_EXCP_FP;
     } else {
@@ -484,6 +493,7 @@ void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 
 void helper_float_check_status(CPUPPCState *env)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
     int status = get_float_exception_flags(&env->fp_status);
 
     if (status & float_flag_divbyzero) {
@@ -496,11 +506,11 @@ void helper_float_check_status(CPUPPCState *env)
         float_inexact_excp(env);
     }
 
-    if (env->exception_index == POWERPC_EXCP_PROGRAM &&
+    if (cs->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            helper_raise_exception_err(env, env->exception_index,
+            helper_raise_exception_err(env, cs->exception_index,
                                        env->error_code);
         }
     }

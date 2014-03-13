@@ -166,11 +166,12 @@ struct CPULM32State {
     uint32_t bp[4];     /* breakpoints */
     uint32_t wp[4];     /* watchpoints */
 
-    CPUBreakpoint * cpu_breakpoint[4];
-    CPUWatchpoint * cpu_watchpoint[4];
+    struct CPUBreakpoint *cpu_breakpoint[4];
+    struct CPUWatchpoint *cpu_watchpoint[4];
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint32_t eba;       /* exception base address */
     uint32_t deba;      /* debug exception base address */
 
@@ -231,9 +232,8 @@ static inline CPULM32State *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_lm32_gen_code
 #define cpu_signal_handler cpu_lm32_signal_handler
 
-int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
+int lm32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_lm32_handle_mmu_fault
 
 #include "exec/cpu-all.h"
 
@@ -243,11 +243,6 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
     *pc = env->pc;
     *cs_base = 0;
     *flags = 0;
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec/exec-all.h"

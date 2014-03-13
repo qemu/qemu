@@ -95,6 +95,7 @@ static inline void load_seg_vm(CPUX86State *env, int seg, int selector)
 static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
                                        uint32_t *esp_ptr, int dpl)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int type, index, shift;
 
 #if 0
@@ -112,11 +113,11 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK)) {
-        cpu_abort(env, "invalid tss");
+        cpu_abort(CPU(cpu), "invalid tss");
     }
     type = (env->tr.flags >> DESC_TYPE_SHIFT) & 0xf;
     if ((type & 7) != 1) {
-        cpu_abort(env, "invalid tss type");
+        cpu_abort(CPU(cpu), "invalid tss type");
     }
     shift = type >> 3;
     index = (dpl * 4 + 2) << shift;
@@ -782,6 +783,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
 static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int index;
 
 #if 0
@@ -790,7 +792,7 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 #endif
 
     if (!(env->tr.flags & DESC_P_MASK)) {
-        cpu_abort(env, "invalid tss");
+        cpu_abort(CPU(cpu), "invalid tss");
     }
     index = 8 * level + 4;
     if ((index + 7) > env->tr.limit) {
@@ -935,9 +937,11 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 #if defined(CONFIG_USER_ONLY)
 void helper_syscall(CPUX86State *env, int next_eip_addend)
 {
-    env->exception_index = EXCP_SYSCALL;
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
+    cs->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 #else
 void helper_syscall(CPUX86State *env, int next_eip_addend)
@@ -1131,7 +1135,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
 static void handle_even_inj(CPUX86State *env, int intno, int is_int,
                             int error_code, int is_hw, int rm)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.event_inj));
 
@@ -1248,7 +1252,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* if user mode only, we simulate a fake exception
        which will be handled outside the cpu execution
        loop */
-    do_interrupt_user(env, env->exception_index,
+    do_interrupt_user(env, cs->exception_index,
                       env->exception_is_int,
                       env->error_code,
                       env->exception_next_eip);
@@ -1258,7 +1262,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* simulate a real cpu exception. On i386, it can
        trigger new exceptions, but we do not handle
        double or triple faults yet. */
-    do_interrupt_all(cpu, env->exception_index,
+    do_interrupt_all(cpu, cs->exception_index,
                      env->exception_is_int,
                      env->error_code,
                      env->exception_next_eip, 0);

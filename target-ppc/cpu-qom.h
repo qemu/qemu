@@ -38,6 +38,8 @@
 #define POWERPC_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(PowerPCCPUClass, (obj), TYPE_POWERPC_CPU)
 
+typedef struct PowerPCCPU PowerPCCPU;
+
 /**
  * PowerPCCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -71,7 +73,7 @@ typedef struct PowerPCCPUClass {
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
 #if defined(CONFIG_SOFTMMU)
-    int (*handle_mmu_fault)(CPUPPCState *env, target_ulong eaddr, int rwx,
+    int (*handle_mmu_fault)(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
                             int mmu_idx);
 #endif
 } PowerPCCPUClass;
@@ -83,14 +85,14 @@ typedef struct PowerPCCPUClass {
  *
  * A PowerPC CPU.
  */
-typedef struct PowerPCCPU {
+struct PowerPCCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUPPCState env;
     int cpu_dt_id;
-} PowerPCCPU;
+};
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 {

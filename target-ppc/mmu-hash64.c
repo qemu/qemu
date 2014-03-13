@@ -99,6 +99,7 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 
 void helper_slbia(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int n, do_invalidate;
 
     do_invalidate = 0;
@@ -116,12 +117,13 @@ void helper_slbia(CPUPPCState *env)
         }
     }
     if (do_invalidate) {
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 
 void helper_slbie(CPUPPCState *env, target_ulong addr)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_slb_t *slb;
 
     slb = slb_lookup(env, addr);
@@ -136,7 +138,7 @@ void helper_slbie(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 
@@ -454,9 +456,11 @@ static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
     return (rpn & ~mask) | (eaddr & mask);
 }
 
-int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr,
                                 int rwx, int mmu_idx)
 {
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
@@ -472,7 +476,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
         /* Translation is off */
         /* In real mode the top 4 effective address bits are ignored */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
-        tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
         return 0;
@@ -483,10 +487,10 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     if (!slb) {
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISEG;
+            cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
         } else {
-            env->exception_index = POWERPC_EXCP_DSEG;
+            cs->exception_index = POWERPC_EXCP_DSEG;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
         }
@@ -495,7 +499,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
-        env->exception_index = POWERPC_EXCP_ISI;
+        cs->exception_index = POWERPC_EXCP_ISI;
         env->error_code = 0x10000000;
         return 1;
     }
@@ -504,10 +508,10 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
     pte_offset = ppc_hash64_htab_lookup(env, slb, eaddr, &pte);
     if (pte_offset == -1) {
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x40000000;
         } else {
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (rwx == 1) {
@@ -530,12 +534,12 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
         if (rwx == 2) {
-            env->exception_index = POWERPC_EXCP_ISI;
+            cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x08000000;
         } else {
             target_ulong dsisr = 0;
 
-            env->exception_index = POWERPC_EXCP_DSI;
+            cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
             if (need_prot[rwx] & ~pp_prot) {
@@ -574,7 +578,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     raddr = ppc_hash64_pte_raddr(slb, pte, eaddr);
 
-    tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
 
     return 0;
@@ -608,7 +612,7 @@ void ppc_hash64_store_hpte(CPUPPCState *env,
                            target_ulong pte_index,
                            target_ulong pte0, target_ulong pte1)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
 
     if (kvmppc_kern_htab) {
         return kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);

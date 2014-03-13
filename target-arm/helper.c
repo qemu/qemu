@@ -303,17 +303,21 @@ void init_cpreg_list(ARMCPU *cpu)
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     env->cp15.c3 = value;
-    tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
+    tlb_flush(CPU(cpu), 1); /* Flush TLB as domain not tracked in TLB */
 }
 
 static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (env->cp15.c13_fcse != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
         env->cp15.c13_fcse = value;
     }
 }
@@ -321,12 +325,14 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
         /* For VMSA (when not using the LPAE long descriptor page table
          * format) this register includes the ASID, so do a TLB flush.
          * For PMSA it is purely a process ID and no action is needed.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     env->cp15.c13_context = value;
 }
@@ -335,28 +341,36 @@ static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate all (TLBIALL) */
-    tlb_flush(env, 1);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), 1);
 }
 
 static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
-    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush_page(CPU(cpu), value & TARGET_PAGE_MASK);
 }
 
 static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate by ASID (TLBIASID) */
-    tlb_flush(env, value == 0);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush(CPU(cpu), value == 0);
 }
 
 static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
-    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    tlb_flush_page(CPU(cpu), value & TARGET_PAGE_MASK);
 }
 
 static const ARMCPRegInfo cp_reginfo[] = {
@@ -1348,11 +1362,13 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
          * via the TTBCR.A1 bit, so do a TLB flush.
          */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
     vmsa_ttbcr_raw_write(env, ri, value);
 }
@@ -1367,8 +1383,10 @@ static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
     env->cp15.c2_control = value;
 }
 
@@ -1379,7 +1397,9 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * must flush the TLB.
      */
     if (cpreg_field_is_64bit(ri)) {
-        tlb_flush(env, 1);
+        ARMCPU *cpu = arm_env_get_cpu(env);
+
+        tlb_flush(CPU(cpu), 1);
     }
     raw_write(env, ri, value);
 }
@@ -1686,24 +1706,27 @@ static void tlbi_aa64_va_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
     /* Invalidate by VA (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     uint64_t pageaddr = value << 12;
-    tlb_flush_page(env, pageaddr);
+    tlb_flush_page(CPU(cpu), pageaddr);
 }
 
 static void tlbi_aa64_vaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                 uint64_t value)
 {
     /* Invalidate by VA, all ASIDs (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     uint64_t pageaddr = value << 12;
-    tlb_flush_page(env, pageaddr);
+    tlb_flush_page(CPU(cpu), pageaddr);
 }
 
 static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
     /* Invalidate by ASID (AArch64 version) */
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int asid = extract64(value, 48, 16);
-    tlb_flush(env, asid == 0);
+    tlb_flush(CPU(cpu), asid == 0);
 }
 
 static const ARMCPRegInfo v8_cp_reginfo[] = {
@@ -1829,10 +1852,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     env->cp15.c1_sys = value;
     /* ??? Lots of these bits are not implemented.  */
     /* This may enable/disable the MMU, so do a TLB flush.  */
-    tlb_flush(env, 1);
+    tlb_flush(CPU(cpu), 1);
 }
 
 static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -2186,19 +2211,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
 ARMCPU *cpu_arm_init(const char *cpu_model)
 {
-    ARMCPU *cpu;
-    ObjectClass *oc;
-
-    oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
-    if (!oc) {
-        return NULL;
-    }
-    cpu = ARM_CPU(object_new(object_class_get_name(oc)));
-
-    /* TODO this should be set centrally, once possible */
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, cpu_model));
 }
 
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
@@ -2661,20 +2674,20 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 void arm_cpu_do_interrupt(CPUState *cs)
 {
+    cs->exception_index = -1;
+}
+
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                             int mmu_idx)
+{
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
-    env->exception_index = -1;
-}
-
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
-                              int mmu_idx)
-{
     if (rw == 2) {
-        env->exception_index = EXCP_PREFETCH_ABORT;
+        cs->exception_index = EXCP_PREFETCH_ABORT;
         env->cp15.c6_insn = address;
     } else {
-        env->exception_index = EXCP_DATA_ABORT;
+        cs->exception_index = EXCP_DATA_ABORT;
         env->cp15.c6_data = address;
     }
     return 1;
@@ -2683,29 +2696,40 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
 }
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    cpu_abort(env, "v7m_mrs %d\n", reg);
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
     return 0;
 }
 
 void switch_mode(CPUARMState *env, int mode)
 {
-    if (mode != ARM_CPU_MODE_USR)
-        cpu_abort(env, "Tried to switch out of user mode\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (mode != ARM_CPU_MODE_USR) {
+        cpu_abort(CPU(cpu), "Tried to switch out of user mode\n");
+    }
 }
 
 void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
-    cpu_abort(env, "banked r13 write\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 write\n");
 }
 
 uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
-    cpu_abort(env, "banked r13 read\n");
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    cpu_abort(CPU(cpu), "banked r13 read\n");
     return 0;
 }
 
@@ -2762,15 +2786,17 @@ void switch_mode(CPUARMState *env, int mode)
 
 static void v7m_push(CPUARMState *env, uint32_t val)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
     env->regs[13] -= 4;
     stl_phys(cs->as, env->regs[13], val);
 }
 
 static uint32_t v7m_pop(CPUARMState *env)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     uint32_t val;
+
     val = ldl_phys(cs->as, env->regs[13]);
     env->regs[13] += 4;
     return val;
@@ -2858,7 +2884,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
     uint32_t addr;
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     lr = 0xfffffff1;
     if (env->v7m.current_sp)
@@ -2870,7 +2896,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
        handle it.  */
     /* TODO: Need to escalate if the current priority is higher than the
        one we're raising.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         return;
@@ -2902,7 +2928,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         do_v7m_exception_exit(env);
         return;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
 
@@ -2943,10 +2969,10 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     assert(!IS_M(env));
 
-    arm_log_exception(env->exception_index);
+    arm_log_exception(cs->exception_index);
 
     /* TODO: Vectored interrupt controller.  */
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_UDEF:
         new_mode = ARM_CPU_MODE_UND;
         addr = 0x04;
@@ -3027,7 +3053,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         offset = 4;
         break;
     default:
-        cpu_abort(env, "Unhandled exception 0x%x\n", env->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
     }
     /* High vectors.  */
@@ -3134,7 +3160,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3230,7 +3256,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
                             int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
     uint32_t table;
     uint32_t desc;
@@ -3353,7 +3379,7 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
                               hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
@@ -3633,9 +3659,11 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
     }
 }
 
-int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
-                              int access_type, int mmu_idx)
+int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+                             int access_type, int mmu_idx)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
@@ -3648,20 +3676,20 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
         /* Map a single [sub]page.  */
         phys_addr &= ~(hwaddr)0x3ff;
         address &= ~(uint32_t)0x3ff;
-        tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
+        tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
 
     if (access_type == 2) {
         env->cp15.c5_insn = ret;
         env->cp15.c6_insn = address;
-        env->exception_index = EXCP_PREFETCH_ABORT;
+        cs->exception_index = EXCP_PREFETCH_ABORT;
     } else {
         env->cp15.c5_data = ret;
         if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6))
             env->cp15.c5_data |= (1 << 11);
         env->cp15.c6_data = address;
-        env->exception_index = EXCP_DATA_ABORT;
+        cs->exception_index = EXCP_DATA_ABORT;
     }
     return 1;
 }
@@ -3703,6 +3731,8 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         return xpsr_read(env) & 0xf8000000;
@@ -3733,13 +3763,15 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return env->v7m.control;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register read (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register read (%d)\n", reg);
         return 0;
     }
 }
 
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
     switch (reg) {
     case 0: /* APSR */
         xpsr_write(env, val, 0xf8000000);
@@ -3802,7 +3834,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
         break;
     default:
         /* ??? For debugging only.  */
-        cpu_abort(env, "Unimplemented system register write (%d)\n", reg);
+        cpu_abort(CPU(cpu), "Unimplemented system register write (%d)\n", reg);
         return;
     }
 }

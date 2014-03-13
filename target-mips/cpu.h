@@ -482,6 +482,7 @@ struct CPUMIPSState {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     CPUMIPSMVPContext *mvp;
 #if !defined(CONFIG_USER_ONLY)
     CPUMIPSTLBContext *tlb;
@@ -666,9 +667,8 @@ void cpu_mips_stop_count(CPUMIPSState *env);
 void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
 
 /* helper.c */
-int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
-                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_mips_handle_mmu_fault
+int mips_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                              int mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
 hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
@@ -713,34 +713,6 @@ static inline int mips_vpe_active(CPUMIPSState *env)
     }
 
     return active;
-}
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    CPUMIPSState *env = &MIPS_CPU(cpu)->env;
-    bool has_work = false;
-
-    /* It is implementation dependent if non-enabled interrupts
-       wake-up the CPU, however most of the implementations only
-       check for interrupts that can be taken. */
-    if ((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-        cpu_mips_hw_interrupts_pending(env)) {
-        has_work = true;
-    }
-
-    /* MIPS-MT has the ability to halt the CPU.  */
-    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
-        /* The QEMU model will issue an _WAKE request whenever the CPUs
-           should be woken up.  */
-        if (cpu->interrupt_request & CPU_INTERRUPT_WAKE) {
-            has_work = true;
-        }
-
-        if (!mips_vpe_active(env)) {
-            has_work = false;
-        }
-    }
-    return has_work;
 }
 
 #include "exec/exec-all.h"

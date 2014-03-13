@@ -25,8 +25,10 @@
 
 void raise_exception(CPULM32State *env, int index)
 {
-    env->exception_index = index;
-    cpu_loop_exit(env);
+    CPUState *cs = CPU(lm32_env_get_cpu(env));
+
+    cs->exception_index = index;
+    cpu_loop_exit(cs);
 }
 
 void HELPER(raise_exception)(CPULM32State *env, uint32_t index)
@@ -39,8 +41,8 @@ void HELPER(hlt)(CPULM32State *env)
     CPUState *cs = CPU(lm32_env_get_cpu(env));
 
     cs->halted = 1;
-    env->exception_index = EXCP_HLT;
-    cpu_loop_exit(env);
+    cs->exception_index = EXCP_HLT;
+    cpu_loop_exit(cs);
 }
 
 void HELPER(ill)(CPULM32State *env)
@@ -148,20 +150,21 @@ uint32_t HELPER(rcsr_jrx)(CPULM32State *env)
 }
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-void tlb_fill(CPULM32State *env, target_ulong addr, int is_write, int mmu_idx,
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ */
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_lm32_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = lm32_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif

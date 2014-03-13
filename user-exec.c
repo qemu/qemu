@@ -38,19 +38,22 @@
 
 //#define DEBUG_SIGNAL
 
-static void exception_action(CPUArchState *env1)
+static void exception_action(CPUState *cpu)
 {
 #if defined(TARGET_I386)
-    raise_exception_err(env1, env1->exception_index, env1->error_code);
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env1 = &x86_cpu->env;
+
+    raise_exception_err(env1, cpu->exception_index, env1->error_code);
 #else
-    cpu_loop_exit(env1);
+    cpu_loop_exit(cpu);
 #endif
 }
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
-void cpu_resume_from_signal(CPUArchState *env1, void *puc)
+void cpu_resume_from_signal(CPUState *cpu, void *puc)
 {
 #ifdef __linux__
     struct ucontext *uc = puc;
@@ -70,8 +73,8 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
         sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
     }
-    env1->exception_index = -1;
-    siglongjmp(env1->jmp_env, 1);
+    cpu->exception_index = -1;
+    siglongjmp(cpu->jmp_env, 1);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -82,7 +85,8 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
                                     int is_write, sigset_t *old_set,
                                     void *puc)
 {
-    CPUArchState *env;
+    CPUState *cpu;
+    CPUClass *cc;
     int ret;
 
 #if defined(DEBUG_SIGNAL)
@@ -99,9 +103,11 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
        are still valid segv ones */
     address = h2g_nocheck(address);
 
-    env = current_cpu->env_ptr;
+    cpu = current_cpu;
+    cc = CPU_GET_CLASS(cpu);
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
+    g_assert(cc->handle_mmu_fault);
+    ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }
@@ -109,12 +115,12 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
     /* now we have a real cpu fault */
-    cpu_restore_state(env, pc);
+    cpu_restore_state(cpu, pc);
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(env);
+    exception_action(cpu);
 
     /* never comes here */
     return 1;

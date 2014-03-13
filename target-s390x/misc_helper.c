@@ -47,46 +47,53 @@
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     int t;
 
-    env->exception_index = EXCP_PGM;
+    cs->exception_index = EXCP_PGM;
     env->int_pgm_code = excp;
 
     /* Use the (ultimate) callers address to find the insn that trapped.  */
-    cpu_restore_state(env, retaddr);
+    cpu_restore_state(cs, retaddr);
 
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);
     env->int_pgm_ilen = t = get_ilen(t);
     env->psw.addr += 2 * t;
 
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
     HELPER_LOG("%s: exception %d\n", __func__, excp);
-    env->exception_index = excp;
-    cpu_loop_exit(env);
+    cs->exception_index = excp;
+    cpu_loop_exit(cs);
 }
 
 #ifndef CONFIG_USER_ONLY
 
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt(s390_env_get_cpu(env), KVM_S390_PROGRAM_INT, code);
+        kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 #endif
     } else {
+        CPUState *cs = CPU(cpu);
+
         env->int_pgm_code = code;
         env->int_pgm_ilen = ilen;
-        env->exception_index = EXCP_PGM;
-        cpu_loop_exit(env);
+        cs->exception_index = EXCP_PGM;
+        cpu_loop_exit(cs);
     }
 }
 
@@ -230,11 +237,13 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint32_t prefix = a1 & 0x7fffe000;
+
     env->psa = prefix;
     qemu_log("prefix: %#x\n", prefix);
-    tlb_flush_page(env, 0);
-    tlb_flush_page(env, TARGET_PAGE_SIZE);
+    tlb_flush_page(cs, 0);
+    tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
 static inline uint64_t clock_value(CPUS390XState *env)
@@ -449,11 +458,11 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 #if !defined(CONFIG_USER_ONLY)
     case SIGP_RESTART:
         qemu_system_reset_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
     case SIGP_STOP:
         qemu_system_shutdown_request();
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
 #endif
     default:

@@ -40,6 +40,13 @@ static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static bool xtensa_cpu_has_work(CPUState *cs)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+
+    return cpu->env.pending_irq_level;
+}
+
 /* CPUClass::reset() */
 static void xtensa_cpu_reset(CPUState *s)
 {
@@ -134,6 +141,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = xtensa_cpu_reset;
 
     cc->class_by_name = xtensa_cpu_class_by_name;
+    cc->has_work = xtensa_cpu_has_work;
     cc->do_interrupt = xtensa_cpu_do_interrupt;
     cc->dump_state = xtensa_cpu_dump_state;
     cc->set_pc = xtensa_cpu_set_pc;

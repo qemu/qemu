@@ -20,18 +20,20 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 
-int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
+int lm32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                               int mmu_idx)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
     int prot;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_BITS;
     if (env->flags & LM32_FLAG_IGNORE_MSB) {
-        tlb_set_page(env, address, address & 0x7fffffff, prot, mmu_idx,
-                TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address, address & 0x7fffffff, prot, mmu_idx,
+                     TARGET_PAGE_SIZE);
     } else {
-        tlb_set_page(env, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
+        tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
     }
 
     return 0;
@@ -51,22 +53,28 @@ hwaddr lm32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
 void lm32_breakpoint_insert(CPULM32State *env, int idx, target_ulong address)
 {
-    cpu_breakpoint_insert(env, address, BP_CPU, &env->cpu_breakpoint[idx]);
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
+    cpu_breakpoint_insert(CPU(cpu), address, BP_CPU,
+                          &env->cpu_breakpoint[idx]);
 }
 
 void lm32_breakpoint_remove(CPULM32State *env, int idx)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
     if (!env->cpu_breakpoint[idx]) {
         return;
     }
 
-    cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[idx]);
+    cpu_breakpoint_remove_by_ref(CPU(cpu), env->cpu_breakpoint[idx]);
     env->cpu_breakpoint[idx] = NULL;
 }
 
 void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
                             lm32_wp_t wp_type)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
     int flags = 0;
 
     switch (wp_type) {
@@ -85,18 +93,20 @@ void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
     }
 
     if (flags != 0) {
-        cpu_watchpoint_insert(env, address, 1, flags,
+        cpu_watchpoint_insert(CPU(cpu), address, 1, flags,
                 &env->cpu_watchpoint[idx]);
     }
 }
 
 void lm32_watchpoint_remove(CPULM32State *env, int idx)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
+
     if (!env->cpu_watchpoint[idx]) {
         return;
     }
 
-    cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[idx]);
+    cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[idx]);
     env->cpu_watchpoint[idx] = NULL;
 }
 
@@ -116,19 +126,20 @@ static bool check_watchpoints(CPULM32State *env)
 
 void lm32_debug_excp_handler(CPULM32State *env)
 {
+    CPUState *cs = CPU(lm32_env_get_cpu(env));
     CPUBreakpoint *bp;
 
-    if (env->watchpoint_hit) {
-        if (env->watchpoint_hit->flags & BP_CPU) {
-            env->watchpoint_hit = NULL;
+    if (cs->watchpoint_hit) {
+        if (cs->watchpoint_hit->flags & BP_CPU) {
+            cs->watchpoint_hit = NULL;
             if (check_watchpoints(env)) {
                 raise_exception(env, EXCP_WATCHPOINT);
             } else {
-                cpu_resume_from_signal(env, NULL);
+                cpu_resume_from_signal(cs, NULL);
             }
         }
     } else {
-        QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
             if (bp->pc == env->pc) {
                 if (bp->flags & BP_CPU) {
                     raise_exception(env, EXCP_BREAKPOINT);
@@ -145,9 +156,9 @@ void lm32_cpu_do_interrupt(CPUState *cs)
     CPULM32State *env = &cpu->env;
 
     qemu_log_mask(CPU_LOG_INT,
-            "exception at pc=%x type=%x\n", env->pc, env->exception_index);
+            "exception at pc=%x type=%x\n", env->pc, cs->exception_index);
 
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case EXCP_INSN_BUS_ERROR:
     case EXCP_DATA_BUS_ERROR:
     case EXCP_DIVIDE_BY_ZERO:
@@ -158,9 +169,9 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->ie |= (env->ie & IE_IE) ? IE_EIE : 0;
         env->ie &= ~IE_IE;
         if (env->dc & DC_RE) {
-            env->pc = env->deba + (env->exception_index * 32);
+            env->pc = env->deba + (cs->exception_index * 32);
         } else {
-            env->pc = env->eba + (env->exception_index * 32);
+            env->pc = env->eba + (cs->exception_index * 32);
         }
         log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
@@ -170,30 +181,19 @@ void lm32_cpu_do_interrupt(CPUState *cs)
         env->regs[R_BA] = env->pc;
         env->ie |= (env->ie & IE_IE) ? IE_BIE : 0;
         env->ie &= ~IE_IE;
-        env->pc = env->deba + (env->exception_index * 32);
+        env->pc = env->deba + (cs->exception_index * 32);
         log_cpu_state_mask(CPU_LOG_INT, cs, 0);
         break;
     default:
-        cpu_abort(env, "unhandled exception type=%d\n",
-                  env->exception_index);
+        cpu_abort(cs, "unhandled exception type=%d\n",
+                  cs->exception_index);
         break;
     }
 }
 
 LM32CPU *cpu_lm32_init(const char *cpu_model)
 {
-    LM32CPU *cpu;
-    ObjectClass *oc;
-
-    oc = cpu_class_by_name(TYPE_LM32_CPU, cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = LM32_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return LM32_CPU(cpu_generic_init(TYPE_LM32_CPU, cpu_model));
 }
 
 /* Some soc ignores the MSB on the address bus. Thus creating a shadow memory

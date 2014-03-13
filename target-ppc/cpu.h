@@ -1111,8 +1111,8 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 void ppc_hw_interrupt (CPUPPCState *env);
 #if defined(CONFIG_USER_ONLY)
-int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                         int mmu_idx);
+int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+                             int mmu_idx);
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -2100,7 +2100,7 @@ static inline int booke206_tlbm_to_tlbn(CPUPPCState *env, ppcmas_tlb_t *tlbm)
         }
     }
 
-    cpu_abort(env, "Unknown TLBe: %d\n", id);
+    cpu_abort(CPU(ppc_env_get_cpu(env)), "Unknown TLBe: %d\n", id);
     return 0;
 }
 
@@ -2170,14 +2170,6 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
 }
 
 extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
-    CPUPPCState *env = &ppc_cpu->env;
-
-    return msr_ee && (cpu->interrupt_request & CPU_INTERRUPT_HARD);
-}
 
 #include "exec/exec-all.h"
 

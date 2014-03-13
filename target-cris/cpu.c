@@ -33,6 +33,11 @@ static void cris_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static bool cris_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+}
+
 /* CPUClass::reset() */
 static void cris_cpu_reset(CPUState *s)
 {
@@ -44,9 +49,9 @@ static void cris_cpu_reset(CPUState *s)
     ccc->parent_reset(s);
 
     vr = env->pregs[PR_VR];
-    memset(env, 0, offsetof(CPUCRISState, breakpoints));
+    memset(env, 0, offsetof(CPUCRISState, load_info));
     env->pregs[PR_VR] = vr;
-    tlb_flush(env, 1);
+    tlb_flush(s, 1);
 
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
@@ -84,18 +89,7 @@ static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
 
 CRISCPU *cpu_cris_init(const char *cpu_model)
 {
-    CRISCPU *cpu;
-    ObjectClass *oc;
-
-    oc = cris_cpu_class_by_name(cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-    cpu = CRIS_CPU(object_new(object_class_get_name(oc)));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return CRIS_CPU(cpu_generic_init(TYPE_CRIS_CPU, cpu_model));
 }
 
 /* Sort alphabetically by VR. */
@@ -283,12 +277,15 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = cris_cpu_reset;
 
     cc->class_by_name = cris_cpu_class_by_name;
+    cc->has_work = cris_cpu_has_work;
     cc->do_interrupt = cris_cpu_do_interrupt;
     cc->dump_state = cris_cpu_dump_state;
     cc->set_pc = cris_cpu_set_pc;
     cc->gdb_read_register = cris_cpu_gdb_read_register;
     cc->gdb_write_register = cris_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cc->handle_mmu_fault = cris_cpu_handle_mmu_fault;
+#else
     cc->get_phys_page_debug = cris_cpu_get_phys_page_debug;
 #endif
 

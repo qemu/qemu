@@ -221,8 +221,10 @@ void helper_lmsw(CPUX86State *env, target_ulong t0)
 
 void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0);
-    tlb_flush_page(env, addr);
+    tlb_flush_page(CPU(cpu), addr);
 }
 
 void helper_rdtsc(CPUX86State *env)
@@ -568,11 +570,11 @@ void helper_rdmsr(CPUX86State *env)
 
 static void do_pause(X86CPU *cpu)
 {
-    CPUX86State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     /* Just let another CPU run.  */
-    env->exception_index = EXCP_INTERRUPT;
-    cpu_loop_exit(env);
+    cs->exception_index = EXCP_INTERRUPT;
+    cpu_loop_exit(cs);
 }
 
 static void do_hlt(X86CPU *cpu)
@@ -582,8 +584,8 @@ static void do_hlt(X86CPU *cpu)
 
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     cs->halted = 1;
-    env->exception_index = EXCP_HLT;
-    cpu_loop_exit(env);
+    cs->exception_index = EXCP_HLT;
+    cpu_loop_exit(cs);
 }
 
 void helper_hlt(CPUX86State *env, int next_eip_addend)
@@ -638,6 +640,8 @@ void helper_pause(CPUX86State *env, int next_eip_addend)
 
 void helper_debug(CPUX86State *env)
 {
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    CPUState *cs = CPU(x86_env_get_cpu(env));
+
+    cs->exception_index = EXCP_DEBUG;
+    cpu_loop_exit(cs);
 }

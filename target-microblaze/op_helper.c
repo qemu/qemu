@@ -39,20 +39,21 @@
 #include "exec/softmmu_template.h"
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-void tlb_fill(CPUMBState *env, target_ulong addr, int is_write, int mmu_idx,
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ */
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_mb_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = mb_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
-        cpu_loop_exit(env);
+        cpu_loop_exit(cs);
     }
 }
 #endif
@@ -94,8 +95,10 @@ uint32_t helper_get(uint32_t id, uint32_t ctrl)
 
 void helper_raise_exception(CPUMBState *env, uint32_t index)
 {
-    env->exception_index = index;
-    cpu_loop_exit(env);
+    CPUState *cs = CPU(mb_env_get_cpu(env));
+
+    cs->exception_index = index;
+    cpu_loop_exit(cs);
 }
 
 void helper_debug(CPUMBState *env)

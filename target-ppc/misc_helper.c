@@ -62,10 +62,12 @@ void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
 
 void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     if (likely(env->pb[num] != value)) {
         env->pb[num] = value;
         /* Should be optimized */
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 

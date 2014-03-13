@@ -845,8 +845,8 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start();
     do {
-        if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
-            QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (ctx.pc == bp->pc) {
                     tcg_gen_movi_i32(cpu_pc, ctx.pc);
                     gen_helper_debug(cpu_env);

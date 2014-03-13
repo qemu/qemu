@@ -428,7 +428,8 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
     case HOSTED_INIT_SIM:
 #if defined(CONFIG_USER_ONLY)
         {
-        TaskState *ts = env->opaque;
+        CPUState *cs = CPU(m68k_env_get_cpu(env));
+        TaskState *ts = cs->opaque;
         /* Allocate the heap using sbrk.  */
         if (!ts->heap_limit) {
             abi_ulong ret;
@@ -460,7 +461,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
 #endif
         return;
     default:
-        cpu_abort(env, "Unsupported semihosting syscall %d\n", nr);
+        cpu_abort(CPU(m68k_env_get_cpu(env)), "Unsupported semihosting syscall %d\n", nr);
         result = 0;
     }
 failed:

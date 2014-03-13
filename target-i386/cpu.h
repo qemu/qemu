@@ -875,8 +875,8 @@ typedef struct CPUX86State {
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
     union {
-        CPUBreakpoint *cpu_breakpoint[4];
-        CPUWatchpoint *cpu_watchpoint[4];
+        struct CPUBreakpoint *cpu_breakpoint[4];
+        struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
     uint32_t smbase;
     int old_exception;  /* exception in flight */
@@ -887,6 +887,7 @@ typedef struct CPUX86State {
 
     CPU_COMMON
 
+    /* Fields from here on are preserved across CPU reset. */
     uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
@@ -1067,9 +1068,8 @@ void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 /* helper.c */
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
                              int is_write, int mmu_idx);
-#define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
 static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
@@ -1186,20 +1186,6 @@ void optimize_flags_init(void);
 #include "hw/i386/apic.h"
 #endif
 
-static inline bool cpu_has_work(CPUState *cs)
-{
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-
-    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
-                                      CPU_INTERRUPT_POLL)) &&
-            (env->eflags & IF_MASK)) ||
-           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
-                                     CPU_INTERRUPT_INIT |
-                                     CPU_INTERRUPT_SIPI |
-                                     CPU_INTERRUPT_MCE));
-}
-
 #include "exec/exec-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
@@ -1276,10 +1262,10 @@ void do_smm_enter(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
-void disable_kvm_pv_eoi(void);
-
 void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
                                  uint32_t feat_add, uint32_t feat_remove);
+
+void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features);
 
 
 /* Return name of 32-bit register, from a R_* constant */

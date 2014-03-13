@@ -52,17 +52,21 @@ static void do_unaligned_access(CPUXtensaState *env,
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(CPU(cpu), retaddr);
         HELPER(exception_cause_vaddr)(env,
                 env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
     }
 }
 
-void tlb_fill(CPUXtensaState *env,
-        target_ulong vaddr, int is_write, int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs,
+              target_ulong vaddr, int is_write, int mmu_idx, uintptr_t retaddr)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
@@ -73,12 +77,12 @@ void tlb_fill(CPUXtensaState *env,
             vaddr, is_write, mmu_idx, paddr, ret);
 
     if (ret == 0) {
-        tlb_set_page(env,
-                vaddr & TARGET_PAGE_MASK,
-                paddr & TARGET_PAGE_MASK,
-                access, mmu_idx, page_size);
+        tlb_set_page(cs,
+                     vaddr & TARGET_PAGE_MASK,
+                     paddr & TARGET_PAGE_MASK,
+                     access, mmu_idx, page_size);
     } else {
-        cpu_restore_state(env, retaddr);
+        cpu_restore_state(cs, retaddr);
         HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
     }
 }
@@ -97,11 +101,13 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {
-    env->exception_index = excp;
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
+    cs->exception_index = excp;
     if (excp == EXCP_DEBUG) {
         env->exception_taken = 0;
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void HELPER(exception_cause)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
@@ -387,7 +393,7 @@ void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
         (intlevel << PS_INTLEVEL_SHIFT);
     check_interrupts(env);
     if (env->pending_irq_level) {
-        cpu_loop_exit(env);
+        cpu_loop_exit(CPU(xtensa_env_get_cpu(env)));
         return;
     }
 
@@ -481,10 +487,12 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
         env->sregs[RASID] = v;
-        tlb_flush(env, 1);
+        tlb_flush(CPU(cpu), 1);
     }
 }
 
@@ -681,7 +689,7 @@ void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
         uint32_t wi;
         xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         if (entry->variable && entry->asid) {
-            tlb_flush_page(env, entry->vaddr);
+            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
             entry->asid = 0;
         }
     }
@@ -726,21 +734,23 @@ void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     xtensa_tlb_entry *entry = xtensa_tlb_get_entry(env, dtlb, wi, ei);
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         if (entry->variable) {
             if (entry->asid) {
-                tlb_flush_page(env, entry->vaddr);
+                tlb_flush_page(cs, entry->vaddr);
             }
             xtensa_tlb_set_entry_mmu(env, entry, dtlb, wi, ei, vpn, pte);
-            tlb_flush_page(env, entry->vaddr);
+            tlb_flush_page(cs, entry->vaddr);
         } else {
             qemu_log("%s %d, %d, %d trying to set immutable entry\n",
                     __func__, dtlb, wi, ei);
         }
     } else {
-        tlb_flush_page(env, entry->vaddr);
+        tlb_flush_page(cs, entry->vaddr);
         if (xtensa_option_enabled(env->config,
                     XTENSA_OPTION_REGION_TRANSLATION)) {
             entry->paddr = pte & REGION_PAGE_MASK;
@@ -784,11 +794,12 @@ void HELPER(wsr_ibreaka)(CPUXtensaState *env, uint32_t i, uint32_t v)
 static void set_dbreak(CPUXtensaState *env, unsigned i, uint32_t dbreaka,
         uint32_t dbreakc)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
     uint32_t mask = dbreakc | ~DBREAKC_MASK;
 
     if (env->cpu_watchpoint[i]) {
-        cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[i]);
+        cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[i]);
     }
     if (dbreakc & DBREAKC_SB) {
         flags |= BP_MEM_WRITE;
@@ -802,7 +813,7 @@ static void set_dbreak(CPUXtensaState *env, unsigned i, uint32_t dbreaka,
         /* cut mask after the first zero bit */
         mask = 0xffffffff << (32 - clo32(mask));
     }
-    if (cpu_watchpoint_insert(env, dbreaka & mask, ~mask + 1,
+    if (cpu_watchpoint_insert(cs, dbreaka & mask, ~mask + 1,
             flags, &env->cpu_watchpoint[i])) {
         env->cpu_watchpoint[i] = NULL;
         qemu_log("Failed to set data breakpoint at 0x%08x/%d\n",
@@ -828,7 +839,9 @@ void HELPER(wsr_dbreakc)(CPUXtensaState *env, uint32_t i, uint32_t v)
             set_dbreak(env, i, env->sregs[DBREAKA + i], v);
         } else {
             if (env->cpu_watchpoint[i]) {
-                cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[i]);
+                CPUState *cs = CPU(xtensa_env_get_cpu(env));
+
+                cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[i]);
                 env->cpu_watchpoint[i] = NULL;
             }
         }

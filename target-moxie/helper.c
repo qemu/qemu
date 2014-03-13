@@ -46,31 +46,33 @@
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-void tlb_fill(CPUMoxieState *env, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     int ret;
 
-    ret = cpu_moxie_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    ret = moxie_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
-            cpu_restore_state(env, retaddr);
+            cpu_restore_state(cs, retaddr);
         }
     }
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 void helper_raise_exception(CPUMoxieState *env, int ex)
 {
-    env->exception_index = ex;
+    CPUState *cs = CPU(moxie_env_get_cpu(env));
+
+    cs->exception_index = ex;
     /* Stash the exception type.  */
     env->sregs[2] = ex;
     /* Stash the address where the exception occurred.  */
-    cpu_restore_state(env, GETPC());
+    cpu_restore_state(cs, GETPC());
     env->sregs[5] = env->pc;
     /* Jump the the exception handline routine.  */
     env->pc = env->sregs[1];
-    cpu_loop_exit(env);
+    cpu_loop_exit(cs);
 }
 
 uint32_t helper_div(CPUMoxieState *env, uint32_t a, uint32_t b)
@@ -97,33 +99,39 @@ uint32_t helper_udiv(CPUMoxieState *env, uint32_t a, uint32_t b)
 
 void helper_debug(CPUMoxieState *env)
 {
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    CPUState *cs = CPU(moxie_env_get_cpu(env));
+
+    cs->exception_index = EXCP_DEBUG;
+    cpu_loop_exit(cs);
 }
 
 #if defined(CONFIG_USER_ONLY)
 
-void moxie_cpu_do_interrupt(CPUState *env)
+void moxie_cpu_do_interrupt(CPUState *cs)
 {
-    env->exception_index = -1;
+    CPUState *cs = CPU(moxie_env_get_cpu(env));
+
+    cs->exception_index = -1;
 }
 
-int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
+int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
-    MoxieCPU *cpu = moxie_env_get_cpu(env);
+    MoxieCPU *cpu = MOXIE_CPU(cs);
 
-    env->exception_index = 0xaa;
-    env->debug1 = address;
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
+    cs->exception_index = 0xaa;
+    cpu->env.debug1 = address;
+    cpu_dump_state(cs, stderr, fprintf, 0);
     return 1;
 }
 
 #else /* !CONFIG_USER_ONLY */
 
-int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
+int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
                                int rw, int mmu_idx)
 {
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+    CPUMoxieState *env = &cpu->env;
     MoxieMMUResult res;
     int prot, miss;
     target_ulong phy;
@@ -135,22 +143,19 @@ int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
     if (miss) {
         /* handle the miss.  */
         phy = 0;
-        env->exception_index = MOXIE_EX_MMU_MISS;
+        cs->exception_index = MOXIE_EX_MMU_MISS;
     } else {
         phy = res.phy;
         r = 0;
     }
-    tlb_set_page(env, address, phy, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, phy, prot, mmu_idx, TARGET_PAGE_SIZE);
     return r;
 }
 
 
 void moxie_cpu_do_interrupt(CPUState *cs)
 {
-    MoxieCPU *cpu = MOXIE_CPU(cs);
-    CPUMoxieState *env = &cpu->env;
-
-    switch (env->exception_index) {
+    switch (cs->exception_index) {
     case MOXIE_EX_BREAK:
         break;
     default:

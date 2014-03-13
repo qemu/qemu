@@ -332,9 +332,8 @@ static inline int cpu_mmu_index (CPUMBState *env)
         return MMU_KERNEL_IDX;
 }
 
-int cpu_mb_handle_mmu_fault(CPUMBState *env, target_ulong address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                             int mmu_idx);
-#define cpu_handle_mmu_fault cpu_mb_handle_mmu_fault
 
 static inline int cpu_interrupts_enabled(CPUMBState *env)
 {
@@ -362,11 +361,6 @@ void mb_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
                               bool is_write, bool is_exec, int is_asi,
                               unsigned size);
 #endif
-
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
-}
 
 #include "exec/exec-all.h"
 
