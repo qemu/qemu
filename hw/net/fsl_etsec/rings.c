@@ -592,7 +592,7 @@ void etsec_walk_rx_ring(eTSEC *etsec, int ring_nbr)
 
                 /* TODO: Broadcast and Multicast */
 
-                if (bd.flags | BD_INTERRUPT) {
+                if (bd.flags & BD_INTERRUPT) {
                     /* Set RXFx */
                     etsec->regs[RSTAT].value |= 1 << (7 - ring_nbr);
 
@@ -601,7 +601,7 @@ void etsec_walk_rx_ring(eTSEC *etsec, int ring_nbr)
                 }
 
             } else {
-                if (bd.flags | BD_INTERRUPT) {
+                if (bd.flags & BD_INTERRUPT) {
                     /* Set IEVENT */
                     ievent_set(etsec, IEVENT_RXB);
                 }
