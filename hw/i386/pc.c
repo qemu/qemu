@@ -992,6 +992,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
     int i;
     X86CPU *cpu = NULL;
     Error *error = NULL;
+    unsigned long apic_id_limit;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -1002,6 +1003,13 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 #endif
     }
     current_cpu_model = cpu_model;
+
+    apic_id_limit = pc_apic_id_limit(max_cpus);
+    if (apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_report("max_cpus is too large. APIC ID of last CPU is %lu",
+                     apic_id_limit - 1);
+        exit(1);
+    }
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
