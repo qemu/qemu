@@ -52,7 +52,7 @@
 #include "qom/qom-qobject.h"
 
 typedef struct AcpiCpuInfo {
-    DECLARE_BITMAP(found_cpus, MAX_CPUMASK_BITS + 1);
+    DECLARE_BITMAP(found_cpus, ACPI_CPU_HOTPLUG_ID_LIMIT);
 } AcpiCpuInfo;
 
 typedef struct AcpiMcfgInfo {
@@ -117,7 +117,7 @@ int acpi_add_cpu_info(Object *o, void *opaque)
 
     if (object_dynamic_cast(o, TYPE_CPU)) {
         apic_id = object_property_get_int(o, "apic-id", NULL);
-        assert(apic_id <= MAX_CPUMASK_BITS);
+        assert(apic_id < ACPI_CPU_HOTPLUG_ID_LIMIT);
 
         set_bit(apic_id, cpu->found_cpus);
     }
