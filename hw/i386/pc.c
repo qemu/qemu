@@ -53,6 +53,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/config-file.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/cpu_hotplug.h"
 #include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
@@ -971,6 +972,13 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
     if (id >= max_cpus) {
         error_setg(errp, "Unable to add CPU: %" PRIi64
                    ", max allowed: %d", id, max_cpus - 1);
+        return;
+    }
+
+    if (apic_id >= ACPI_CPU_HOTPLUG_ID_LIMIT) {
+        error_setg(errp, "Unable to add CPU: %" PRIi64
+                   ", resulting APIC ID (%" PRIi64 ") is too large",
+                   id, apic_id);
         return;
     }
 
