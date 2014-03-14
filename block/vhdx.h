@@ -61,7 +61,7 @@
 /* These structures are ones that are defined in the VHDX specification
  * document */
 
-#define VHDX_FILE_SIGNATURE 0x656C696678646876  /* "vhdxfile" in ASCII */
+#define VHDX_FILE_SIGNATURE 0x656C696678646876ULL  /* "vhdxfile" in ASCII */
 typedef struct VHDXFileIdentifier {
     uint64_t    signature;              /* "vhdxfile" in ASCII */
     uint16_t    creator[256];           /* optional; utf-16 string to identify
@@ -238,7 +238,7 @@ typedef struct QEMU_PACKED VHDXLogDataSector {
 /* upper 44 bits are the file offset in 1MB units lower 3 bits are the state
    other bits are reserved */
 #define VHDX_BAT_STATE_BIT_MASK 0x07
-#define VHDX_BAT_FILE_OFF_MASK  0xFFFFFFFFFFF00000 /* upper 44 bits */
+#define VHDX_BAT_FILE_OFF_MASK  0xFFFFFFFFFFF00000ULL /* upper 44 bits */
 typedef uint64_t VHDXBatEntry;
 
 /* ---- METADATA REGION STRUCTURES ---- */
@@ -247,7 +247,7 @@ typedef uint64_t VHDXBatEntry;
 #define VHDX_METADATA_MAX_ENTRIES 2047  /* not including the header */
 #define VHDX_METADATA_TABLE_MAX_SIZE \
     (VHDX_METADATA_ENTRY_SIZE * (VHDX_METADATA_MAX_ENTRIES+1))
-#define VHDX_METADATA_SIGNATURE 0x617461646174656D  /* "metadata" in ASCII */
+#define VHDX_METADATA_SIGNATURE 0x617461646174656DULL  /* "metadata" in ASCII */
 typedef struct QEMU_PACKED VHDXMetadataTableHeader {
     uint64_t    signature;              /* "metadata" in ASCII */
     uint16_t    reserved;
