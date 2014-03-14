@@ -110,16 +110,15 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     if (likely((flags & H_EXACT) == 0)) {
         pte_index &= ~7ULL;
         token = ppc_hash64_start_access(cpu, pte_index);
-        do {
-            if (index == 8) {
-                ppc_hash64_stop_access(token);
-                return H_PTEG_FULL;
-            }
+        for (; index < 8; index++) {
             if ((ppc_hash64_load_hpte0(env, token, index) & HPTE64_V_VALID) == 0) {
                 break;
             }
-        } while (index++);
+        }
         ppc_hash64_stop_access(token);
+        if (index == 8) {
+            return H_PTEG_FULL;
+        }
     } else {
         token = ppc_hash64_start_access(cpu, pte_index);
         if (ppc_hash64_load_hpte0(env, token, 0) & HPTE64_V_VALID) {
