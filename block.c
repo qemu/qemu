@@ -1388,12 +1388,19 @@ done:
         ret = -EINVAL;
         goto close_and_fail;
     }
-    QDECREF(options);
 
     if (!bdrv_key_required(bs)) {
         bdrv_dev_change_media_cb(bs, true);
+    } else if (!runstate_check(RUN_STATE_PRELAUNCH)
+               && !runstate_check(RUN_STATE_INMIGRATE)
+               && !runstate_check(RUN_STATE_PAUSED)) { /* HACK */
+        error_setg(errp,
+                   "Guest must be stopped for opening of encrypted image");
+        ret = -EBUSY;
+        goto close_and_fail;
     }
 
+    QDECREF(options);
     *pbs = bs;
     return 0;
 

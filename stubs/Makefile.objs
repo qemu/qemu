@@ -20,6 +20,7 @@ stub-obj-y += mon-set-error.o
 stub-obj-y += pci-drive-hot-add.o
 stub-obj-y += qtest.o
 stub-obj-y += reset.o
+stub-obj-y += runstate-check.o
 stub-obj-y += set-fd-handler.o
 stub-obj-y += slirp.o
 stub-obj-y += sysbus.o
