@@ -43,6 +43,7 @@ void AcpiCpuHotplug_add(ACPIGPE *gpe, AcpiCpuHotplug *g, CPUState *cpu)
 
     *gpe->sts = *gpe->sts | ACPI_CPU_HOTPLUG_STATUS;
     cpu_id = k->get_arch_id(CPU(cpu));
+    g_assert((cpu_id / 8) < ACPI_GPE_PROC_LEN);
     g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 }
 
