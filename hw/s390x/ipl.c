@@ -80,7 +80,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
                              NULL, 1, ELF_MACHINE, 0);
-        if (bios_size == -1) {
+        if (bios_size < 0) {
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
             ipl->start_addr = ZIPL_IMAGE_START;
