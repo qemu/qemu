@@ -204,7 +204,46 @@ void target_to_host_old_sigset(sigset_t *sigset,
  */
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 {
-    return sigprocmask(how, set, oldset);
+    int ret;
+    sigset_t val;
+    sigset_t *temp = NULL;
+    CPUState *cpu = thread_cpu;
+    TaskState *ts = (TaskState *)cpu->opaque;
+    bool segv_was_blocked = ts->sigsegv_blocked;
+
+    if (set) {
+        bool has_sigsegv = sigismember(set, SIGSEGV);
+        val = *set;
+        temp = &val;
+
+        sigdelset(temp, SIGSEGV);
+
+        switch (how) {
+        case SIG_BLOCK:
+            if (has_sigsegv) {
+                ts->sigsegv_blocked = true;
+            }
+            break;
+        case SIG_UNBLOCK:
+            if (has_sigsegv) {
+                ts->sigsegv_blocked = false;
+            }
+            break;
+        case SIG_SETMASK:
+            ts->sigsegv_blocked = has_sigsegv;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    ret = sigprocmask(how, temp, oldset);
+
+    if (oldset && segv_was_blocked) {
+        sigaddset(oldset, SIGSEGV);
+    }
+
+    return ret;
 }
 
 /* siginfo conversion */
@@ -468,6 +507,19 @@ int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
     k = &ts->sigtab[sig - 1];
     queue = gdb_queuesig ();
     handler = sigact_table[sig - 1]._sa_handler;
+
+    if (ts->sigsegv_blocked && sig == TARGET_SIGSEGV) {
+        /* Guest has blocked SIGSEGV but we got one anyway. Assume this
+         * is a forced SIGSEGV (ie one the kernel handles via force_sig_info
+         * because it got a real MMU fault). A blocked SIGSEGV in that
+         * situation is treated as if using the default handler. This is
+         * not correct if some other process has randomly sent us a SIGSEGV
+         * via kill(), but that is not easy to distinguish at this point,
+         * so we assume it doesn't happen.
+         */
+        handler = TARGET_SIG_DFL;
+    }
+
     if (!queue && handler == TARGET_SIG_DFL) {
         if (sig == TARGET_SIGTSTP || sig == TARGET_SIGTTIN || sig == TARGET_SIGTTOU) {
             kill(getpid(),SIGSTOP);
@@ -5724,6 +5776,14 @@ void process_pending_signals(CPUArchState *cpu_env)
     } else {
         sa = &sigact_table[sig - 1];
         handler = sa->_sa_handler;
+    }
+
+    if (ts->sigsegv_blocked && sig == TARGET_SIGSEGV) {
+        /* Guest has blocked SIGSEGV but we got one anyway. Assume this
+         * is a forced SIGSEGV (ie one the kernel handles via force_sig_info
+         * because it got a real MMU fault), and treat as if default handler.
+         */
+        handler = TARGET_SIG_DFL;
     }
 
     if (handler == TARGET_SIG_DFL) {

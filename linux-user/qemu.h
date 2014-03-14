@@ -126,6 +126,7 @@ typedef struct TaskState {
 #endif
     uint32_t stack_base;
     int used; /* non zero if used */
+    bool sigsegv_blocked; /* SIGSEGV blocked by guest */
     struct image_info *info;
     struct linux_binprm *bprm;
 
