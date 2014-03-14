@@ -235,6 +235,7 @@ int host_to_target_signal(int sig);
 long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
+int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 
 #ifdef TARGET_I386
 /* vm86.c */

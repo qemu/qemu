@@ -6029,7 +6029,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             sigset_t cur_set;
             abi_ulong target_set;
-            sigprocmask(0, NULL, &cur_set);
+            do_sigprocmask(0, NULL, &cur_set);
             host_to_target_old_sigset(&target_set, &cur_set);
             ret = target_set;
         }
@@ -6040,10 +6040,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             sigset_t set, oset, cur_set;
             abi_ulong target_set = arg1;
-            sigprocmask(0, NULL, &cur_set);
+            do_sigprocmask(0, NULL, &cur_set);
             target_to_host_old_sigset(&set, &target_set);
             sigorset(&set, &set, &cur_set);
-            sigprocmask(SIG_SETMASK, &set, &oset);
+            do_sigprocmask(SIG_SETMASK, &set, &oset);
             host_to_target_old_sigset(&target_set, &oset);
             ret = target_set;
         }
@@ -6074,7 +6074,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
 
-            ret = get_errno(sigprocmask(how, &set, &oldset));
+            ret = get_errno(do_sigprocmask(how, &set, &oldset));
             if (!is_error(ret)) {
                 host_to_target_old_sigset(&mask, &oldset);
                 ret = mask;
@@ -6108,7 +6108,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 how = 0;
                 set_ptr = NULL;
             }
-            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
+            ret = get_errno(do_sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     goto efault;
@@ -6148,7 +6148,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 how = 0;
                 set_ptr = NULL;
             }
-            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
+            ret = get_errno(do_sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     goto efault;
@@ -8161,7 +8161,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
-            sigprocmask(how, &set, &oldset);
+            do_sigprocmask(how, &set, &oldset);
             host_to_target_old_sigset(&mask, &oldset);
             ret = mask;
         }
