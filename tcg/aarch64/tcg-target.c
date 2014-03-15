@@ -1848,24 +1848,29 @@ static void tcg_target_init(TCGContext *s)
     tcg_add_target_add_op_defs(aarch64_op_defs);
 }
 
+/* Saving pairs: (X19, X20) .. (X27, X28), (X29(fp), X30(lr)).  */
+#define PUSH_SIZE  ((30 - 19 + 1) * 8)
+
+#define FRAME_SIZE \
+    ((PUSH_SIZE \
+      + TCG_STATIC_CALL_ARGS_SIZE \
+      + CPU_TEMP_BUF_NLONGS * sizeof(long) \
+      + TCG_TARGET_STACK_ALIGN - 1) \
+     & ~(TCG_TARGET_STACK_ALIGN - 1))
+
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
+
+/* We're expecting to use a single ADDI insn.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE - PUSH_SIZE > 0xfff);
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    /* NB: frame sizes are in 16 byte stack units! */
-    int frame_size_callee_saved, frame_size_tcg_locals;
     TCGReg r;
-
-    /* save pairs             (FP, LR) and (X19, X20) .. (X27, X28) */
-    frame_size_callee_saved = 16 + (TCG_REG_X28 - TCG_REG_X19 + 1) * 8;
-
-    /* frame size requirement for TCG local variables */
-    frame_size_tcg_locals = TCG_STATIC_CALL_ARGS_SIZE
-        + CPU_TEMP_BUF_NLONGS * sizeof(long)
-        + (TCG_TARGET_STACK_ALIGN - 1);
-    frame_size_tcg_locals &= ~(TCG_TARGET_STACK_ALIGN - 1);
 
     /* Push (FP, LR) and allocate space for all saved registers.  */
     tcg_out_insn(s, 3314, STP, TCG_REG_FP, TCG_REG_LR,
-                 TCG_REG_SP, -frame_size_callee_saved, 1, 1);
+                 TCG_REG_SP, -PUSH_SIZE, 1, 1);
 
     /* Set up frame pointer for canonical unwinding.  */
     tcg_out_movr_sp(s, TCG_TYPE_I64, TCG_REG_FP, TCG_REG_SP);
@@ -1878,7 +1883,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Make stack space for TCG locals.  */
     tcg_out_insn(s, 3401, SUBI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
-                 frame_size_tcg_locals);
+                 FRAME_SIZE - PUSH_SIZE);
 
     /* Inform TCG about how to find TCG locals with register, offset, size.  */
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
@@ -1898,7 +1903,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Remove TCG locals stack space.  */
     tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
-                 frame_size_tcg_locals);
+                 FRAME_SIZE - PUSH_SIZE);
 
     /* Restore registers x19..x28.  */
     for (r = TCG_REG_X19; r <= TCG_REG_X27; r += 2) {
@@ -1908,6 +1913,55 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Pop (FP, LR), restore SP to previous frame.  */
     tcg_out_insn(s, 3314, LDP, TCG_REG_FP, TCG_REG_LR,
-                 TCG_REG_SP, frame_size_callee_saved, 0, 1);
+                 TCG_REG_SP, PUSH_SIZE, 0, 1);
     tcg_out_insn(s, 3207, RET, TCG_REG_LR);
+}
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[24];
+} DebugFrame;
+
+#define ELF_HOST_MACHINE EM_AARCH64
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = 0x78,             /* sleb128 -8 */
+    .cie.return_column = TCG_REG_LR,
+
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
+        12, TCG_REG_SP,                 /* DW_CFA_def_cfa sp, ... */
+        (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
+        (FRAME_SIZE >> 7)
+    },
+    .fde_reg_ofs = {
+        0x80 + 28, 1,                   /* DW_CFA_offset, x28,  -8 */
+        0x80 + 27, 2,                   /* DW_CFA_offset, x27, -16 */
+        0x80 + 26, 3,                   /* DW_CFA_offset, x26, -24 */
+        0x80 + 25, 4,                   /* DW_CFA_offset, x25, -32 */
+        0x80 + 24, 5,                   /* DW_CFA_offset, x24, -40 */
+        0x80 + 23, 6,                   /* DW_CFA_offset, x23, -48 */
+        0x80 + 22, 7,                   /* DW_CFA_offset, x22, -56 */
+        0x80 + 21, 8,                   /* DW_CFA_offset, x21, -64 */
+        0x80 + 20, 9,                   /* DW_CFA_offset, x20, -72 */
+        0x80 + 19, 10,                  /* DW_CFA_offset, x1p, -80 */
+        0x80 + 30, 11,                  /* DW_CFA_offset,  lr, -88 */
+        0x80 + 29, 12,                  /* DW_CFA_offset,  fp, -96 */
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    debug_frame.fde.func_start = (intptr_t)buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
