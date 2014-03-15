@@ -488,7 +488,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
 
 static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    /* Perfomance monitor registers user accessibility is controlled
+    /* Performance monitor registers user accessibility is controlled
      * by PMUSERENR.
      */
     if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {

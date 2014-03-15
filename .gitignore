@@ -21,6 +21,7 @@
 libdis*
 libuser
 /linux-headers/asm
+/qga/qapi-generated
 /qapi-generated
 /qapi-types.[ch]
 /qapi-visit.[ch]

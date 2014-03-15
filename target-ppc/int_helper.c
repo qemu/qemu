@@ -2216,7 +2216,7 @@ static int bcd_cmp_mag(ppc_avr_t *a, ppc_avr_t *b)
         uint8_t dig_a = bcd_get_digit(a, i, &invalid);
         uint8_t dig_b = bcd_get_digit(b, i, &invalid);
         if (unlikely(invalid)) {
-            return 0; /* doesnt matter */
+            return 0; /* doesn't matter */
         } else if (dig_a > dig_b) {
             return 1;
         } else if (dig_a < dig_b) {

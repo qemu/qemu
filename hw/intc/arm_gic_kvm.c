@@ -148,7 +148,7 @@ typedef void (*vgic_translate_fn)(GICState *s, int irq, int cpu,
                                   uint32_t *field, bool to_kernel);
 
 /* synthetic translate function used for clear/set registers to completely
- * clear a setting using a clear-register before setting the remaing bits
+ * clear a setting using a clear-register before setting the remaining bits
  * using a set-register */
 static void translate_clear(GICState *s, int irq, int cpu,
                             uint32_t *field, bool to_kernel)
