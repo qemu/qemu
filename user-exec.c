@@ -465,16 +465,29 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #elif defined(__aarch64__)
 
-int cpu_signal_handler(int host_signum, void *pinfo,
-                       void *puc)
+int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
 {
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
-    uint64_t pc;
-    int is_write = 0; /* XXX how to determine? */
+    uintptr_t pc = uc->uc_mcontext.pc;
+    uint32_t insn = *(uint32_t *)pc;
+    bool is_write;
 
-    pc = uc->uc_mcontext.pc;
-    return handle_cpu_signal(pc, (uint64_t)info->si_addr,
+    /* XXX: need kernel patch to get write flag faster.  */
+    is_write = (   (insn & 0xbfff0000) == 0x0c000000   /* C3.3.1 */
+                || (insn & 0xbfe00000) == 0x0c800000   /* C3.3.2 */
+                || (insn & 0xbfdf0000) == 0x0d000000   /* C3.3.3 */
+                || (insn & 0xbfc00000) == 0x0d800000   /* C3.3.4 */
+                || (insn & 0x3f400000) == 0x08000000   /* C3.3.6 */
+                || (insn & 0x3bc00000) == 0x39000000   /* C3.3.13 */
+                || (insn & 0x3fc00000) == 0x3d800000   /* ... 128bit */
+                /* Ingore bits 10, 11 & 21, controlling indexing.  */
+                || (insn & 0x3bc00000) == 0x38000000   /* C3.3.8-12 */
+                || (insn & 0x3fe00000) == 0x3c800000   /* ... 128bit */
+                /* Ignore bits 23 & 24, controlling indexing.  */
+                || (insn & 0x3a400000) == 0x28000000); /* C3.3.7,14-16 */
+
+    return handle_cpu_signal(pc, (uintptr_t)info->si_addr,
                              is_write, &uc->uc_sigmask, puc);
 }
 
