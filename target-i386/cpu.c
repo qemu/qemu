@@ -316,7 +316,7 @@ typedef struct X86RegisterInfo32 {
 
 #define REGISTER(reg) \
     [R_##reg] = { .name = #reg, .qapi_enum = X86_CPU_REGISTER32_##reg }
-X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
+static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
     REGISTER(EAX),
     REGISTER(ECX),
     REGISTER(EDX),
