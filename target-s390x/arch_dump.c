@@ -123,7 +123,7 @@ static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu)
 }
 
 
-struct NoteFuncDescStruct {
+static const struct NoteFuncDescStruct {
     int contents_size;
     void (*note_contents_func)(Note *note, S390CPU *cpu);
 } note_func[] = {
@@ -146,7 +146,7 @@ static int s390x_write_all_elf64_notes(const char *note_name,
                                        void *opaque)
 {
     Note note;
-    NoteFuncDesc *nf;
+    const NoteFuncDesc *nf;
     int note_size;
     int ret = -1;
 
@@ -192,7 +192,7 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     int name_size = 8; /* "CORE" or "QEMU" rounded */
     size_t elf_note_size = 0;
     int note_head_size;
-    NoteFuncDesc *nf;
+    const NoteFuncDesc *nf;
 
     assert(class == ELFCLASS64);
     assert(machine == EM_S390);
