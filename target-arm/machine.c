@@ -88,7 +88,7 @@ static bool m_needed(void *opaque)
     return arm_feature(env, ARM_FEATURE_M);
 }
 
-const VMStateDescription vmstate_m = {
+static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 1,
     .minimum_version_id = 1,
