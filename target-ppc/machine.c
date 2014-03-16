@@ -114,7 +114,7 @@ static void put_avr(QEMUFile *f, void *pv, size_t size)
     qemu_put_be64(f, v->u64[1]);
 }
 
-const VMStateInfo vmstate_info_avr = {
+static const VMStateInfo vmstate_info_avr = {
     .name = "avr",
     .get  = get_avr,
     .put  = put_avr,
@@ -288,7 +288,7 @@ static void put_slbe(QEMUFile *f, void *pv, size_t size)
     qemu_put_be64(f, v->vsid);
 }
 
-const VMStateInfo vmstate_info_slbe = {
+static const VMStateInfo vmstate_info_slbe = {
     .name = "slbe",
     .get  = get_slbe,
     .put  = put_slbe,

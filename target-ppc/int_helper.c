@@ -1075,7 +1075,7 @@ void helper_vbpermq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #undef VBPERMQ_INDEX
 #undef VBPERMQ_DW
 
-uint64_t VGBBD_MASKS[256] = {
+static const uint64_t VGBBD_MASKS[256] = {
     0x0000000000000000ull, /* 00 */
     0x0000000000000080ull, /* 01 */
     0x0000000000008000ull, /* 02 */
