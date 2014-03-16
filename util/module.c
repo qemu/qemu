@@ -163,7 +163,7 @@ out:
 }
 #endif
 
-void module_load(module_init_type type)
+static void module_load(module_init_type type)
 {
 #ifdef CONFIG_MODULES
     char *fname = NULL;
