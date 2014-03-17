@@ -6584,6 +6584,13 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     TCGCond cond;
 
     switch (opcode) {
+    case 0x4: /* CLS, CLZ */
+        if (u) {
+            gen_helper_clz64(tcg_rd, tcg_rn);
+        } else {
+            gen_helper_cls64(tcg_rd, tcg_rn);
+        }
+        break;
     case 0x5: /* NOT */
         /* This opcode is shared with CNT and RBIT but we have earlier
          * enforced that size == 3 if and only if this is the NOT insn.
@@ -8316,8 +8323,13 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         handle_2misc_narrow(s, opcode, u, is_q, size, rn, rd);
         return;
-    case 0x2: /* SADDLP, UADDLP */
     case 0x4: /* CLS, CLZ */
+        if (size == 3) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0x2: /* SADDLP, UADDLP */
     case 0x6: /* SADALP, UADALP */
         if (size == 3) {
             unallocated_encoding(s);
@@ -8484,6 +8496,13 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 case 0x9: /* CMEQ, CMLE */
                     cond = u ? TCG_COND_LE : TCG_COND_EQ;
                     goto do_cmop;
+                case 0x4: /* CLS */
+                    if (u) {
+                        gen_helper_clz32(tcg_res, tcg_op);
+                    } else {
+                        gen_helper_cls32(tcg_res, tcg_op);
+                    }
+                    break;
                 case 0xb: /* ABS, NEG */
                     if (u) {
                         tcg_gen_neg_i32(tcg_res, tcg_op);
@@ -8564,6 +8583,21 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                             gen_helper_neon_abs_s16(tcg_res, tcg_op);
                         } else {
                             gen_helper_neon_abs_s8(tcg_res, tcg_op);
+                        }
+                    }
+                    break;
+                case 0x4: /* CLS, CLZ */
+                    if (u) {
+                        if (size == 0) {
+                            gen_helper_neon_clz_u8(tcg_res, tcg_op);
+                        } else {
+                            gen_helper_neon_clz_u16(tcg_res, tcg_op);
+                        }
+                    } else {
+                        if (size == 0) {
+                            gen_helper_neon_cls_s8(tcg_res, tcg_op);
+                        } else {
+                            gen_helper_neon_cls_s16(tcg_res, tcg_op);
                         }
                     }
                     break;
