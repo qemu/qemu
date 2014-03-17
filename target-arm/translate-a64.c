@@ -7124,6 +7124,10 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
                 gen_helper_neon_addl_saturate_s32(tcg_passres, cpu_env,
                                                   tcg_passres, tcg_passres);
                 break;
+            case 14: /* PMULL */
+                assert(size == 0);
+                gen_helper_neon_mull_p8(tcg_passres, tcg_op1, tcg_op2);
+                break;
             default:
                 g_assert_not_reached();
             }
@@ -7243,6 +7247,30 @@ static void handle_3rd_narrowing(DisasContext *s, int is_q, int is_u, int size,
     }
 }
 
+static void handle_pmull_64(DisasContext *s, int is_q, int rd, int rn, int rm)
+{
+    /* PMULL of 64 x 64 -> 128 is an odd special case because it
+     * is the only three-reg-diff instruction which produces a
+     * 128-bit wide result from a single operation. However since
+     * it's possible to calculate the two halves more or less
+     * separately we just use two helper calls.
+     */
+    TCGv_i64 tcg_op1 = tcg_temp_new_i64();
+    TCGv_i64 tcg_op2 = tcg_temp_new_i64();
+    TCGv_i64 tcg_res = tcg_temp_new_i64();
+
+    read_vec_element(s, tcg_op1, rn, is_q, MO_64);
+    read_vec_element(s, tcg_op2, rm, is_q, MO_64);
+    gen_helper_neon_pmull_64_lo(tcg_res, tcg_op1, tcg_op2);
+    write_vec_element(s, tcg_res, rd, 0, MO_64);
+    gen_helper_neon_pmull_64_hi(tcg_res, tcg_op1, tcg_op2);
+    write_vec_element(s, tcg_res, rd, 1, MO_64);
+
+    tcg_temp_free_i64(tcg_op1);
+    tcg_temp_free_i64(tcg_op2);
+    tcg_temp_free_i64(tcg_res);
+}
+
 /* C3.6.15 AdvSIMD three different
  *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
  * +---+---+---+-----------+------+---+------+--------+-----+------+------+
@@ -7293,8 +7321,15 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        unsupported_encoding(s, insn);
-        break;
+        if (size == 3) {
+            if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)) {
+                unallocated_encoding(s);
+                return;
+            }
+            handle_pmull_64(s, is_q, rd, rn, rm);
+            return;
+        }
+        goto is_widening;
     case 9: /* SQDMLAL, SQDMLAL2 */
     case 11: /* SQDMLSL, SQDMLSL2 */
     case 13: /* SQDMULL, SQDMULL2 */
@@ -7315,6 +7350,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
+    is_widening:
         handle_3rd_widening(s, is_q, is_u, size, opcode, rd, rn, rm);
         break;
     default:
@@ -9045,6 +9081,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->vec_stride = 0;
     dc->cp_regs = cpu->cp_regs;
     dc->current_pl = arm_current_pl(env);
+    dc->features = env->features;
 
     init_tmp_a64_array(dc);
 

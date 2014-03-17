@@ -10654,6 +10654,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->cp_regs = cpu->cp_regs;
     dc->current_pl = arm_current_pl(env);
+    dc->features = env->features;
 
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
