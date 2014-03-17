@@ -43,6 +43,7 @@
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/swap.h>
+#include <linux/capability.h>
 #include <signal.h>
 #include <sched.h>
 #ifdef __ia64__
@@ -243,6 +244,10 @@ _syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
 _syscall4(int, reboot, int, magic1, int, magic2, unsigned int, cmd,
           void *, arg);
+_syscall2(int, capget, struct __user_cap_header_struct *, header,
+          struct __user_cap_data_struct *, data);
+_syscall2(int, capset, struct __user_cap_header_struct *, header,
+          struct __user_cap_data_struct *, data);
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -7677,9 +7682,75 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, ret);
         break;
     case TARGET_NR_capget:
-        goto unimplemented;
     case TARGET_NR_capset:
-        goto unimplemented;
+    {
+        struct target_user_cap_header *target_header;
+        struct target_user_cap_data *target_data = NULL;
+        struct __user_cap_header_struct header;
+        struct __user_cap_data_struct data[2];
+        struct __user_cap_data_struct *dataptr = NULL;
+        int i, target_datalen;
+        int data_items = 1;
+
+        if (!lock_user_struct(VERIFY_WRITE, target_header, arg1, 1)) {
+            goto efault;
+        }
+        header.version = tswap32(target_header->version);
+        header.pid = tswap32(target_header->pid);
+
+        if (header.version != _LINUX_CAPABILITY_VERSION_1) {
+            /* Version 2 and up takes pointer to two user_data structs */
+            data_items = 2;
+        }
+
+        target_datalen = sizeof(*target_data) * data_items;
+
+        if (arg2) {
+            if (num == TARGET_NR_capget) {
+                target_data = lock_user(VERIFY_WRITE, arg2, target_datalen, 0);
+            } else {
+                target_data = lock_user(VERIFY_READ, arg2, target_datalen, 1);
+            }
+            if (!target_data) {
+                unlock_user_struct(target_header, arg1, 0);
+                goto efault;
+            }
+
+            if (num == TARGET_NR_capset) {
+                for (i = 0; i < data_items; i++) {
+                    data[i].effective = tswap32(target_data[i].effective);
+                    data[i].permitted = tswap32(target_data[i].permitted);
+                    data[i].inheritable = tswap32(target_data[i].inheritable);
+                }
+            }
+
+            dataptr = data;
+        }
+
+        if (num == TARGET_NR_capget) {
+            ret = get_errno(capget(&header, dataptr));
+        } else {
+            ret = get_errno(capset(&header, dataptr));
+        }
+
+        /* The kernel always updates version for both capget and capset */
+        target_header->version = tswap32(header.version);
+        unlock_user_struct(target_header, arg1, 1);
+
+        if (arg2) {
+            if (num == TARGET_NR_capget) {
+                for (i = 0; i < data_items; i++) {
+                    target_data[i].effective = tswap32(data[i].effective);
+                    target_data[i].permitted = tswap32(data[i].permitted);
+                    target_data[i].inheritable = tswap32(data[i].inheritable);
+                }
+                unlock_user(target_data, arg2, target_datalen);
+            } else {
+                unlock_user(target_data, arg2, 0);
+            }
+        }
+        break;
+    }
     case TARGET_NR_sigaltstack:
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_MIPS) || \
     defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA) || \

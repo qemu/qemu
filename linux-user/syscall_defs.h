@@ -2566,3 +2566,14 @@ struct target_sigevent {
         } _sigev_thread;
     } _sigev_un;
 };
+
+struct target_user_cap_header {
+    uint32_t version;
+    int pid;
+};
+
+struct target_user_cap_data {
+    uint32_t effective;
+    uint32_t permitted;
+    uint32_t inheritable;
+};
