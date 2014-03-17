@@ -7278,6 +7278,13 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
                 tcg_temp_free_i32(tcg_hi);
             }
             break;
+        case 0x56:  /* FCVTXN, FCVTXN2 */
+            /* 64 bit to 32 bit float conversion
+             * with von Neumann rounding (round to odd)
+             */
+            assert(size == 2);
+            gen_helper_fcvtx_f64_to_f32(tcg_res[pass], tcg_op, cpu_env);
+            break;
         default:
             g_assert_not_reached();
         }
@@ -7391,6 +7398,12 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             rmode = FPROUNDING_TIEAWAY;
             break;
         case 0x56: /* FCVTXN, FCVTXN2 */
+            if (size == 2) {
+                unallocated_encoding(s);
+                return;
+            }
+            handle_2misc_narrow(s, true, opcode, u, false, size - 1, rn, rd);
+            return;
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);
             return;
@@ -9244,6 +9257,12 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x3d: /* FRECPE */
             handle_2misc_reciprocal(s, opcode, false, u, is_q, size, rn, rd);
             return;
+        case 0x56: /* FCVTXN, FCVTXN2 */
+            if (size == 2) {
+                unallocated_encoding(s);
+                return;
+            }
+            /* fall through */
         case 0x16: /* FCVTN, FCVTN2 */
             /* handle_2misc_narrow does a 2*size -> size operation, but these
              * instructions encode the source size rather than dest size.
@@ -9277,7 +9296,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             break;
-        case 0x56: /* FCVTXN, FCVTXN2 */
         case 0x7c: /* URSQRTE */
         case 0x7d: /* FRSQRTE */
             unsupported_encoding(s, insn);

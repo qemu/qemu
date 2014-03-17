@@ -413,3 +413,26 @@ float64 HELPER(frecpx_f64)(float64 a, void *fpstp)
         return make_float64(sbit | (~exp & 0x7ffULL) << 52);
     }
 }
+
+float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
+{
+    /* Von Neumann rounding is implemented by using round-to-zero
+     * and then setting the LSB of the result if Inexact was raised.
+     */
+    float32 r;
+    float_status *fpst = &env->vfp.fp_status;
+    float_status tstat = *fpst;
+    int exflags;
+
+    set_float_rounding_mode(float_round_to_zero, &tstat);
+    set_float_exception_flags(0, &tstat);
+    r = float64_to_float32(a, &tstat);
+    r = float32_maybe_silence_nan(r);
+    exflags = get_float_exception_flags(&tstat);
+    if (exflags & float_flag_inexact) {
+        r = make_float32(float32_val(r) | 1);
+    }
+    exflags |= get_float_exception_flags(fpst);
+    set_float_exception_flags(exflags, fpst);
+    return r;
+}
