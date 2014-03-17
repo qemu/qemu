@@ -57,6 +57,7 @@ typedef struct PRePPCIState {
     AddressSpace pci_io_as;
     MemoryRegion pci_io;
     MemoryRegion pci_io_non_contiguous;
+    MemoryRegion pci_memory;
     MemoryRegion pci_intack;
     RavenPCIState pci_dev;
 
@@ -204,8 +205,6 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     MemoryRegion *address_space_mem = get_system_memory();
     int i;
 
-    isa_mem_base = 0xc0000000;
-
     for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
@@ -243,14 +242,18 @@ static void raven_pcihost_initfn(Object *obj)
     memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
     memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
                           "pci-io-non-contiguous", 0x00800000);
+    /* Open Hack'Ware hack: real size should be only 0x3f000000 bytes */
+    memory_region_init(&s->pci_memory, obj, "pci-memory",
+                       0x3f000000 + 0xc0000000ULL);
     address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
 
     /* CPU address space */
     memory_region_add_subregion(address_space_mem, 0x80000000, &s->pci_io);
     memory_region_add_subregion_overlap(address_space_mem, 0x80000000,
                                         &s->pci_io_non_contiguous, 1);
+    memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
     pci_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
-                        address_space_mem, &s->pci_io, 0, TYPE_PCI_BUS);
+                        &s->pci_memory, &s->pci_io, 0, TYPE_PCI_BUS);
 
     h->bus = &s->pci_bus;
 
