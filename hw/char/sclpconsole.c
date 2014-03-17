@@ -36,7 +36,6 @@ typedef struct SCLPConsole {
     uint32_t iov_bs;        /* offset in buf for char layer read operation */
     uint32_t iov_data_len;  /* length of byte stream in buffer             */
     uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP     */
-    qemu_irq irq_read_vt220;
 } SCLPConsole;
 
 /* character layer call-back functions */
@@ -49,11 +48,12 @@ static int chr_can_read(void *opaque)
     return SIZE_BUFFER_VT220 - scon->iov_data_len;
 }
 
-/* Receive n bytes from character layer, save in iov buffer,
- * and set event pending */
-static void receive_from_chr_layer(SCLPConsole *scon, const uint8_t *buf,
-                                   int size)
+/* Send data from a char device over to the guest */
+static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
+    SCLPConsole *scon = opaque;
+
+    assert(scon);
     /* read data must fit into current buffer */
     assert(size <= SIZE_BUFFER_VT220 - scon->iov_data_len);
 
@@ -63,18 +63,7 @@ static void receive_from_chr_layer(SCLPConsole *scon, const uint8_t *buf,
     scon->iov_sclp_rest += size;
     scon->iov_bs += size;
     scon->event.event_pending = true;
-}
-
-/* Send data from a char device over to the guest */
-static void chr_read(void *opaque, const uint8_t *buf, int size)
-{
-    SCLPConsole *scon = opaque;
-
-    assert(scon);
-
-    receive_from_chr_layer(scon, buf, size);
-    /* trigger SCLP read operation */
-    qemu_irq_raise(scon->irq_read_vt220);
+    sclp_service_interrupt(0);
 }
 
 /* functions to be called by event facility */
@@ -192,11 +181,6 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
     return rc;
 }
 
-static void trigger_ascii_console_data(void *opaque, int n, int level)
-{
-    sclp_service_interrupt(0);
-}
-
 static const VMStateDescription vmstate_sclpconsole = {
     .name = "sclpconsole",
     .version_id = 0,
@@ -232,8 +216,6 @@ static int console_init(SCLPEvent *event)
         qemu_chr_add_handlers(scon->chr, chr_can_read,
                               chr_read, NULL, scon);
     }
-    scon->irq_read_vt220 = *qemu_allocate_irqs(trigger_ascii_console_data,
-                                               NULL, 1);
 
     return 0;
 }

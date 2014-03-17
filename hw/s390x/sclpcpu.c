@@ -25,13 +25,13 @@ typedef struct ConfigMgtData {
     uint8_t event_qualifier;
 } QEMU_PACKED ConfigMgtData;
 
-static qemu_irq irq_cpu_hotplug; /* Only used in this file */
+static qemu_irq *irq_cpu_hotplug; /* Only used in this file */
 
 #define EVENT_QUAL_CPU_CHANGE  1
 
 void raise_irq_cpu_hotplug(void)
 {
-    qemu_irq_raise(irq_cpu_hotplug);
+    qemu_irq_raise(*irq_cpu_hotplug);
 }
 
 static unsigned int send_mask(void)
@@ -81,7 +81,7 @@ static void trigger_signal(void *opaque, int n, int level)
 
 static int irq_cpu_hotplug_init(SCLPEvent *event)
 {
-    irq_cpu_hotplug = *qemu_allocate_irqs(trigger_signal, event, 1);
+    irq_cpu_hotplug = qemu_allocate_irqs(trigger_signal, event, 1);
     return 0;
 }
 

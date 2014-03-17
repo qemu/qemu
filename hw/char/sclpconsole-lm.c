@@ -41,7 +41,6 @@ typedef struct SCLPConsoleLM {
     uint32_t write_errors;      /* errors writing to char layer           */
     uint32_t length;            /* length of byte stream in buffer        */
     uint8_t buf[SIZE_CONSOLE_BUFFER];
-    qemu_irq irq_console_read;
 } SCLPConsoleLM;
 
 /*
@@ -68,33 +67,21 @@ static int chr_can_read(void *opaque)
     return 0;
 }
 
-static void receive_from_chr_layer(SCLPConsoleLM *scon, const uint8_t *buf,
-                                   int size)
+static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
+    SCLPConsoleLM *scon = opaque;
+
     assert(size == 1);
 
     if (*buf == '\r' || *buf == '\n') {
         scon->event.event_pending = true;
+        sclp_service_interrupt(0);
         return;
     }
     scon->buf[scon->length] = *buf;
     scon->length += 1;
     if (scon->echo) {
         qemu_chr_fe_write(scon->chr, buf, size);
-    }
-}
-
-/*
- * Send data from a char device over to the guest
- */
-static void chr_read(void *opaque, const uint8_t *buf, int size)
-{
-    SCLPConsoleLM *scon = opaque;
-
-    receive_from_chr_layer(scon, buf, size);
-    if (scon->event.event_pending) {
-        /* trigger SCLP read operation */
-        qemu_irq_raise(scon->irq_console_read);
     }
 }
 
@@ -298,11 +285,6 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *ebh)
     return SCLP_RC_NORMAL_COMPLETION;
 }
 
-static void trigger_console_data(void *opaque, int n, int level)
-{
-    sclp_service_interrupt(0);
-}
-
 /* functions for live migration */
 
 static const VMStateDescription vmstate_sclplmconsole = {
@@ -338,7 +320,6 @@ static int console_init(SCLPEvent *event)
     if (scon->chr) {
         qemu_chr_add_handlers(scon->chr, chr_can_read, chr_read, NULL, scon);
     }
-    scon->irq_console_read = *qemu_allocate_irqs(trigger_console_data, NULL, 1);
 
     return 0;
 }
