@@ -81,6 +81,8 @@
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
+#define TYPE_SPAPR_MACHINE      "spapr-machine"
+
 sPAPREnvironment *spapr;
 
 int spapr_allocate_irq(int hint, bool lsi)
@@ -1410,9 +1412,23 @@ static QEMUMachine spapr_machine = {
     .kvm_type = spapr_kvm_type,
 };
 
-static void spapr_machine_init(void)
+static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
-    qemu_register_machine(&spapr_machine);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->qemu_machine = data;
 }
 
-machine_init(spapr_machine_init);
+static const TypeInfo spapr_machine_info = {
+    .name          = TYPE_SPAPR_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .class_init    = spapr_machine_class_init,
+    .class_data    = &spapr_machine,
+};
+
+static void spapr_machine_register_types(void)
+{
+    type_register_static(&spapr_machine_info);
+}
+
+type_init(spapr_machine_register_types)
