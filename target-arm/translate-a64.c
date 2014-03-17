@@ -8489,6 +8489,51 @@ static void handle_2misc_narrow(DisasContext *s, int opcode, bool u, bool is_q,
     }
 }
 
+static void handle_2misc_widening(DisasContext *s, int opcode, bool is_q,
+                                  int size, int rn, int rd)
+{
+    /* Handle 2-reg-misc ops which are widening (so each size element
+     * in the source becomes a 2*size element in the destination.
+     * The only instruction like this is FCVTL.
+     */
+    int pass;
+
+    if (size == 3) {
+        /* 32 -> 64 bit fp conversion */
+        TCGv_i64 tcg_res[2];
+        int srcelt = is_q ? 2 : 0;
+
+        for (pass = 0; pass < 2; pass++) {
+            TCGv_i32 tcg_op = tcg_temp_new_i32();
+            tcg_res[pass] = tcg_temp_new_i64();
+
+            read_vec_element_i32(s, tcg_op, rn, srcelt + pass, MO_32);
+            gen_helper_vfp_fcvtds(tcg_res[pass], tcg_op, cpu_env);
+            tcg_temp_free_i32(tcg_op);
+        }
+        for (pass = 0; pass < 2; pass++) {
+            write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
+            tcg_temp_free_i64(tcg_res[pass]);
+        }
+    } else {
+        /* 16 -> 32 bit fp conversion */
+        int srcelt = is_q ? 4 : 0;
+        TCGv_i32 tcg_res[4];
+
+        for (pass = 0; pass < 4; pass++) {
+            tcg_res[pass] = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, tcg_res[pass], rn, srcelt + pass, MO_16);
+            gen_helper_vfp_fcvt_f16_to_f32(tcg_res[pass], tcg_res[pass],
+                                           cpu_env);
+        }
+        for (pass = 0; pass < 4; pass++) {
+            write_vec_element_i32(s, tcg_res[pass], rd, pass, MO_32);
+            tcg_temp_free_i32(tcg_res[pass]);
+        }
+    }
+}
+
 static void handle_rev(DisasContext *s, int opcode, bool u,
                        bool is_q, int size, int rn, int rd)
 {
@@ -8830,6 +8875,8 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             handle_2misc_narrow(s, opcode, 0, is_q, size - 1, rn, rd);
             return;
         case 0x17: /* FCVTL, FCVTL2 */
+            handle_2misc_widening(s, opcode, is_q, size, rn, rd);
+            return;
         case 0x18: /* FRINTN */
         case 0x19: /* FRINTM */
         case 0x38: /* FRINTP */
