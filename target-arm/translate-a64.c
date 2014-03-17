@@ -6224,6 +6224,82 @@ static void handle_simd_shift_intfp_conv(DisasContext *s, bool is_scalar,
     handle_simd_intfp_conv(s, rd, rn, elements, !is_u, fracbits, size);
 }
 
+/* FCVTZS, FVCVTZU - FP to fixedpoint conversion */
+static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
+                                         bool is_q, bool is_u,
+                                         int immh, int immb, int rn, int rd)
+{
+    bool is_double = extract32(immh, 3, 1);
+    int immhb = immh << 3 | immb;
+    int fracbits = (is_double ? 128 : 64) - immhb;
+    int pass;
+    TCGv_ptr tcg_fpstatus;
+    TCGv_i32 tcg_rmode, tcg_shift;
+
+    if (!extract32(immh, 2, 2)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!is_scalar && !is_q && is_double) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    assert(!(is_scalar && is_q));
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(FPROUNDING_ZERO));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_fpstatus = get_fpstatus_ptr();
+    tcg_shift = tcg_const_i32(fracbits);
+
+    if (is_double) {
+        int maxpass = is_scalar ? 1 : is_q ? 2 : 1;
+
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i64 tcg_op = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+            if (is_u) {
+                gen_helper_vfp_touqd(tcg_op, tcg_op, tcg_shift, tcg_fpstatus);
+            } else {
+                gen_helper_vfp_tosqd(tcg_op, tcg_op, tcg_shift, tcg_fpstatus);
+            }
+            write_vec_element(s, tcg_op, rd, pass, MO_64);
+            tcg_temp_free_i64(tcg_op);
+        }
+        if (!is_q) {
+            clear_vec_high(s, rd);
+        }
+    } else {
+        int maxpass = is_scalar ? 1 : is_q ? 4 : 2;
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i32 tcg_op = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
+            if (is_u) {
+                gen_helper_vfp_touls(tcg_op, tcg_op, tcg_shift, tcg_fpstatus);
+            } else {
+                gen_helper_vfp_tosls(tcg_op, tcg_op, tcg_shift, tcg_fpstatus);
+            }
+            if (is_scalar) {
+                write_fp_sreg(s, rd, tcg_op);
+            } else {
+                write_vec_element_i32(s, tcg_op, rd, pass, MO_32);
+            }
+            tcg_temp_free_i32(tcg_op);
+        }
+        if (!is_q && !is_scalar) {
+            clear_vec_high(s, rd);
+        }
+    }
+
+    tcg_temp_free_ptr(tcg_fpstatus);
+    tcg_temp_free_i32(tcg_shift);
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    tcg_temp_free_i32(tcg_rmode);
+}
+
 /* C3.6.9 AdvSIMD scalar shift by immediate
  *  31 30  29 28         23 22  19 18  16 15    11  10 9    5 4    0
  * +-----+---+-------------+------+------+--------+---+------+------+
@@ -6291,7 +6367,7 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_qshl(s, true, false, is_u, is_u, immh, immb, rn, rd);
         break;
     case 0x1f: /* FCVTZS, FCVTZU */
-        unsupported_encoding(s, insn);
+        handle_simd_shift_fpint_conv(s, true, false, is_u, immh, immb, rn, rd);
         break;
     default:
         unallocated_encoding(s);
@@ -7543,7 +7619,7 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_qshl(s, false, is_q, is_u, is_u, immh, immb, rn, rd);
         break;
     case 0x1f: /* FCVTZS/ FCVTZU */
-        unsupported_encoding(s, insn);
+        handle_simd_shift_fpint_conv(s, false, is_q, is_u, immh, immb, rn, rd);
         return;
     default:
         unallocated_encoding(s);
