@@ -70,7 +70,7 @@ typedef struct PRePPCIState {
 
 #define BIOS_SIZE (1024 * 1024)
 
-static inline uint32_t PPC_PCIIO_config(hwaddr addr)
+static inline uint32_t raven_pci_io_config(hwaddr addr)
 {
     int i;
 
@@ -82,36 +82,36 @@ static inline uint32_t PPC_PCIIO_config(hwaddr addr)
     return (addr & 0x7ff) |  (i << 11);
 }
 
-static void ppc_pci_io_write(void *opaque, hwaddr addr,
-                             uint64_t val, unsigned int size)
+static void raven_pci_io_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    pci_data_write(phb->bus, PPC_PCIIO_config(addr), val, size);
+    pci_data_write(phb->bus, raven_pci_io_config(addr), val, size);
 }
 
-static uint64_t ppc_pci_io_read(void *opaque, hwaddr addr,
-                                unsigned int size)
+static uint64_t raven_pci_io_read(void *opaque, hwaddr addr,
+                                  unsigned int size)
 {
     PREPPCIState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    return pci_data_read(phb->bus, PPC_PCIIO_config(addr), size);
+    return pci_data_read(phb->bus, raven_pci_io_config(addr), size);
 }
 
-static const MemoryRegionOps PPC_PCIIO_ops = {
-    .read = ppc_pci_io_read,
-    .write = ppc_pci_io_write,
+static const MemoryRegionOps raven_pci_io_ops = {
+    .read = raven_pci_io_read,
+    .write = raven_pci_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t ppc_intack_read(void *opaque, hwaddr addr,
-                                unsigned int size)
+static uint64_t raven_intack_read(void *opaque, hwaddr addr,
+                                  unsigned int size)
 {
     return pic_read_irq(isa_pic);
 }
 
-static const MemoryRegionOps PPC_intack_ops = {
-    .read = ppc_intack_read,
+static const MemoryRegionOps raven_intack_ops = {
+    .read = raven_intack_read,
     .valid = {
         .max_access_size = 1,
     },
@@ -182,12 +182,12 @@ static const MemoryRegionOps raven_io_ops = {
     .valid.unaligned = true,
 };
 
-static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
+static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
 }
 
-static void prep_set_irq(void *opaque, int irq_num, int level)
+static void raven_set_irq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pic = opaque;
 
@@ -223,7 +223,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
-    pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, PCI_NUM_PINS);
+    pci_bus_irqs(&s->pci_bus, raven_set_irq, raven_map_irq, s->irq,
+                 PCI_NUM_PINS);
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
@@ -233,10 +234,11 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
                           "pci-conf-data", 4);
     memory_region_add_subregion(&s->pci_io, 0xcfc, &h->data_mem);
 
-    memory_region_init_io(&h->mmcfg, OBJECT(s), &PPC_PCIIO_ops, s, "pciio", 0x00400000);
+    memory_region_init_io(&h->mmcfg, OBJECT(s), &raven_pci_io_ops, s,
+                          "pciio", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
-    memory_region_init_io(&s->pci_intack, OBJECT(s), &PPC_intack_ops, s,
+    memory_region_init_io(&s->pci_intack, OBJECT(s), &raven_intack_ops, s,
                           "pci-intack", 1);
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->pci_intack);
 
