@@ -76,6 +76,7 @@ typedef struct AArch64DecodeTable {
 typedef void NeonGenTwoOpFn(TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void NeonGenTwoOpEnvFn(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void NeonGenTwo64OpFn(TCGv_i64, TCGv_i64, TCGv_i64);
+typedef void NeonGenTwo64OpEnvFn(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64);
 typedef void NeonGenNarrowFn(TCGv_i32, TCGv_i64);
 typedef void NeonGenNarrowEnvFn(TCGv_i32, TCGv_ptr, TCGv_i64);
 typedef void NeonGenWidenFn(TCGv_i64, TCGv_i32);
@@ -6019,6 +6020,121 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
     return;
 }
 
+/* SQSHLU, UQSHL, SQSHL: saturating left shifts */
+static void handle_simd_qshl(DisasContext *s, bool scalar, bool is_q,
+                             bool src_unsigned, bool dst_unsigned,
+                             int immh, int immb, int rn, int rd)
+{
+    int immhb = immh << 3 | immb;
+    int size = 32 - clz32(immh) - 1;
+    int shift = immhb - (8 << size);
+    int pass;
+
+    assert(immh != 0);
+    assert(!(scalar && is_q));
+
+    if (!scalar) {
+        if (!is_q && extract32(immh, 3, 1)) {
+            unallocated_encoding(s);
+            return;
+        }
+
+        /* Since we use the variable-shift helpers we must
+         * replicate the shift count into each element of
+         * the tcg_shift value.
+         */
+        switch (size) {
+        case 0:
+            shift |= shift << 8;
+            /* fall through */
+        case 1:
+            shift |= shift << 16;
+            break;
+        case 2:
+        case 3:
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    if (size == 3) {
+        TCGv_i64 tcg_shift = tcg_const_i64(shift);
+        static NeonGenTwo64OpEnvFn * const fns[2][2] = {
+            { gen_helper_neon_qshl_s64, gen_helper_neon_qshlu_s64 },
+            { NULL, gen_helper_neon_qshl_u64 },
+        };
+        NeonGenTwo64OpEnvFn *genfn = fns[src_unsigned][dst_unsigned];
+        int maxpass = is_q ? 2 : 1;
+
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i64 tcg_op = tcg_temp_new_i64();
+
+            read_vec_element(s, tcg_op, rn, pass, MO_64);
+            genfn(tcg_op, cpu_env, tcg_op, tcg_shift);
+            write_vec_element(s, tcg_op, rd, pass, MO_64);
+
+            tcg_temp_free_i64(tcg_op);
+        }
+        tcg_temp_free_i64(tcg_shift);
+
+        if (!is_q) {
+            clear_vec_high(s, rd);
+        }
+    } else {
+        TCGv_i32 tcg_shift = tcg_const_i32(shift);
+        static NeonGenTwoOpEnvFn * const fns[2][2][3] = {
+            {
+                { gen_helper_neon_qshl_s8,
+                  gen_helper_neon_qshl_s16,
+                  gen_helper_neon_qshl_s32 },
+                { gen_helper_neon_qshlu_s8,
+                  gen_helper_neon_qshlu_s16,
+                  gen_helper_neon_qshlu_s32 }
+            }, {
+                { NULL, NULL, NULL },
+                { gen_helper_neon_qshl_u8,
+                  gen_helper_neon_qshl_u16,
+                  gen_helper_neon_qshl_u32 }
+            }
+        };
+        NeonGenTwoOpEnvFn *genfn = fns[src_unsigned][dst_unsigned][size];
+        TCGMemOp memop = scalar ? size : MO_32;
+        int maxpass = scalar ? 1 : is_q ? 4 : 2;
+
+        for (pass = 0; pass < maxpass; pass++) {
+            TCGv_i32 tcg_op = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, tcg_op, rn, pass, memop);
+            genfn(tcg_op, cpu_env, tcg_op, tcg_shift);
+            if (scalar) {
+                switch (size) {
+                case 0:
+                    tcg_gen_ext8u_i32(tcg_op, tcg_op);
+                    break;
+                case 1:
+                    tcg_gen_ext16u_i32(tcg_op, tcg_op);
+                    break;
+                case 2:
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                write_fp_sreg(s, rd, tcg_op);
+            } else {
+                write_vec_element_i32(s, tcg_op, rd, pass, MO_32);
+            }
+
+            tcg_temp_free_i32(tcg_op);
+        }
+        tcg_temp_free_i32(tcg_shift);
+
+        if (!is_q && !scalar) {
+            clear_vec_high(s, rd);
+        }
+    }
+}
+
 /* Common vector code for handling integer to FP conversion */
 static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
                                    int elements, int is_signed,
@@ -6165,7 +6281,15 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
                                immh, immb, opcode, rn, rd);
         break;
     case 0xc: /* SQSHLU */
+        if (!is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_simd_qshl(s, true, false, false, true, immh, immb, rn, rd);
+        break;
     case 0xe: /* SQSHL, UQSHL */
+        handle_simd_qshl(s, true, false, is_u, is_u, immh, immb, rn, rd);
+        break;
     case 0x1f: /* FCVTZS, FCVTZU */
         unsupported_encoding(s, insn);
         break;
@@ -7409,7 +7533,15 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
                                      opcode, rn, rd);
         break;
     case 0xc: /* SQSHLU */
+        if (!is_u) {
+            unallocated_encoding(s);
+            return;
+        }
+        handle_simd_qshl(s, false, is_q, false, true, immh, immb, rn, rd);
+        break;
     case 0xe: /* SQSHL, UQSHL */
+        handle_simd_qshl(s, false, is_q, is_u, is_u, immh, immb, rn, rd);
+        break;
     case 0x1f: /* FCVTZS/ FCVTZU */
         unsupported_encoding(s, insn);
         return;
