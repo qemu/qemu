@@ -1355,7 +1355,6 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *acce
 {
     GtkWidget *machine_menu;
     GtkWidget *separator;
-    GtkStockItem item;
 
     machine_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(machine_menu), accel_group);
@@ -1375,11 +1374,11 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *acce
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), separator);
 
-    s->quit_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
-    gtk_stock_lookup(GTK_STOCK_QUIT, &item);
+    s->quit_item = gtk_menu_item_new_with_mnemonic(_("_Quit"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->quit_item),
                                  "<QEMU>/Machine/Quit");
-    gtk_accel_map_add_entry("<QEMU>/Machine/Quit", item.keyval, item.modifier);
+    gtk_accel_map_add_entry("<QEMU>/Machine/Quit",
+                            GDK_KEY_q, GDK_CONTROL_MASK);
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->quit_item);
 
     return machine_menu;
@@ -1395,8 +1394,7 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     view_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
 
-    s->full_screen_item =
-        gtk_image_menu_item_new_from_stock(GTK_STOCK_FULLSCREEN, NULL);
+    s->full_screen_item = gtk_menu_item_new_with_mnemonic(_("_Fullscreen"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
                                  "<QEMU>/View/Full Screen");
     gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f,
@@ -1406,21 +1404,21 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), separator);
 
-    s->zoom_in_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_IN, NULL);
+    s->zoom_in_item = gtk_menu_item_new_with_mnemonic(_("Zoom _In"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_in_item),
                                  "<QEMU>/View/Zoom In");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom In", GDK_KEY_plus,
                             HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_in_item);
 
-    s->zoom_out_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_OUT, NULL);
+    s->zoom_out_item = gtk_menu_item_new_with_mnemonic(_("Zoom _Out"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_out_item),
                                  "<QEMU>/View/Zoom Out");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom Out", GDK_KEY_minus,
                             HOTKEY_MODIFIERS);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->zoom_out_item);
 
-    s->zoom_fixed_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ZOOM_100, NULL);
+    s->zoom_fixed_item = gtk_menu_item_new_with_mnemonic(_("Best _Fit"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->zoom_fixed_item),
                                  "<QEMU>/View/Zoom Fixed");
     gtk_accel_map_add_entry("<QEMU>/View/Zoom Fixed", GDK_KEY_0,
