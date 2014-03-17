@@ -1233,6 +1233,7 @@ Advanced options (experts only):
   --with-sdlabi            select preferred SDL ABI 1.2 or 2.0
   --disable-gtk            disable gtk UI
   --enable-gtk             enable gtk UI
+  --with-gtkabi            select preferred GTK ABI 2.0 or 3.0
   --disable-virtfs         disable VirtFS
   --enable-virtfs          enable VirtFS
   --disable-vnc            disable VNC
